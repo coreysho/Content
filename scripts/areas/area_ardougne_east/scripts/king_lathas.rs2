@@ -34,11 +34,26 @@ if(%biohazard = ^biohazard_reported_elena) {
 } else if(%biohazard = ^biohazard_complete) {
     switch_int(%upass) {
         case ^upass_complete :
-            ~chatplayer("<p,happy>Hello King Lathas.");
-            // magi isn't a typo lol
-            ~chatnpc("<p,happy>Well hello there traveller. The magi are still resurrecting the Well of Voyage, but I'll have word sent to you as soon as it's ready.");
-            ~chatplayer("<p,happy>Ok then, take care.");
-            ~chatnpc("<p,happy>You too.");
+            if(%regicide_quest = ^regicide_not_started) {
+                ~chatplayer("<p,happy>Hello King Lathas.");
+                // magi isn't a typo lol
+                ~chatnpc("<p,happy>Ah, traveller! The magi have finally finished resurrecting the Well of Voyage.");
+                ~chatplayer("<p,quiz>That's good news. What now?");
+                ~chatnpc("<p,sad>I'm afraid the news from the west is grim. My brother Tyras' own court has been infiltrated - some of his closest men now serve the Dark Lord in secret.");
+                ~chatnpc("<p,neutral>I need someone I can trust to travel through the well into Tirannwn, find out what has become of Tyras' kingdom, and put a stop to whatever the Dark Lord's agents are planning.");
+                ~chatplayer("<p,neutral>I'll do what I can, Lathas.");
+                ~chatnpc("<p,happy>Thank you, traveller. Speak to me again if you need reminding of what to do, and take the well when you're ready to depart.");
+                %regicide_quest = ^regicide_started;
+                ~send_quest_progress(questlist:regicide, 1, ^regicide_complete);
+            } else if(%regicide_quest = ^regicide_complete) {
+                ~chatplayer("<p,happy>Hello King Lathas.");
+                ~chatnpc("<p,happy>Traveller! Thanks to you, Tyras' court is safe from the Dark Lord's influence once more. RuneScape owes you a great debt.");
+            } else {
+                ~chatplayer("<p,happy>Hello King Lathas.");
+                ~chatnpc("<p,quiz>How are you getting on in Tirannwn?");
+                ~chatplayer("<p,neutral>Still working on it, Lathas.");
+                ~chatnpc("<p,neutral>Keep at it, traveller. My brother's kingdom - and perhaps all of RuneScape - depends on it.");
+            }
         case ^upass_defeated_iban :
             ~chatnpc("<p,quiz>The traveller returns, any news?");
             ~chatplayer("<p,happy>Indeed, the quest is complete, Lathas. I have defeated Iban and his undead minions.");

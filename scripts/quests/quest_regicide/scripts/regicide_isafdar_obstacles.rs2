@@ -1,0 +1,89 @@
+// Regicide - Isafdar navigation obstacles (checklist item #5).
+// Locs are still only declared in scripts/_unpack/377/all.loc (unmigrated), same situation
+// quest_upass's upass_obstacles.rs2 already relies on for several of its own obstacles.
+//
+// Dense forest is a hard Agility level gate that cannot be failed - you either meet the level
+// or you don't. The Elf Tracker's crystal pendant (checklist item #6/later) will add an
+// alternate way past this same loc type - not built here.
+//
+// Leaf trap / tripwire / stick trap are pure fail-chance obstacles, NOT Agility-scaled, per the
+// walkthrough spec. The fail-chance fractions and poison severity below are placeholders and are
+// NOT confirmed against the wiki - flagged with "todo" comments the same way this codebase
+// already flags unverified agility fail rates (see skill_agility/scripts/wilderness_course.rs2).
+
+// ===== Dense forest: regicide_cross_over1/2/3 (Isafdar) + _tyras_camp variants, op1=Enter =====
+[oploc1,regicide_cross_over1] @regicide_cross_forest;
+[oploc1,regicide_cross_over2] @regicide_cross_forest;
+[oploc1,regicide_cross_over3] @regicide_cross_forest;
+[oploc1,regicide_cross_over1_tyras_camp] @regicide_cross_forest;
+[oploc1,regicide_cross_over2_tyras_camp] @regicide_cross_forest;
+
+[label,regicide_cross_forest]
+// checklist item #6: Lord Iorwerth's crystal pendant is an alternate pass condition, not a
+// replacement for the 56 Agility route - either one lets the player through.
+if(stat(agility) < 56 & inv_total(inv, regicide_crystal_pendant) < 1) {
+    ~mesbox("You need an Agility level of 56 to get through this dense forest.");
+    return;
+}
+def_int $dir;
+def_coord $end;
+if(coordz(coord) > coordz(loc_coord)) {
+    $dir = ^exact_south;
+    $end = movecoord(loc_coord, 0, 0, -2);
+} else if(coordz(coord) < coordz(loc_coord)) {
+    $dir = ^exact_north;
+    $end = movecoord(loc_coord, 0, 0, 2);
+} else if(coordx(coord) > coordx(loc_coord)) {
+    $dir = ^exact_west;
+    $end = movecoord(loc_coord, -2, 0, 0);
+} else {
+    $dir = ^exact_east;
+    $end = movecoord(loc_coord, 2, 0, 0);
+}
+mes("You push your way through the dense forest...");
+p_delay(0);
+// todo: exact crossing distance/anim unverified - Isafdar map layout not yet migrated out of _unpack
+~forcewalk2($end);
+mes("...and come out the other side.");
+
+// ===== Leaf trap: regicide_pitfall_corner/mid/side, op1=Jump, 15 HP damage on fail =====
+[oploc1,regicide_pitfall_corner] @regicide_leaf_trap;
+[oploc1,regicide_pitfall_mid] @regicide_leaf_trap;
+[oploc1,regicide_pitfall_side] @regicide_leaf_trap;
+
+[label,regicide_leaf_trap]
+mes("You try to jump over the pile of leaves...");
+p_delay(0);
+// todo: fail chance is a placeholder (1 in 8) - not confirmed against the wiki
+if(random(8) = 0) {
+    mes("...but you misjudge it and fall through!");
+    ~damage_self(15);
+    return;
+}
+mes("...and clear it easily.");
+
+// ===== Tripwire: regicide_trap_tripwire, op1=Step-over, 10 HP damage + poison on fail =====
+[oploc1,regicide_trap_tripwire]
+mes("You try to step over the tripwire...");
+p_delay(0);
+// todo: fail chance is a placeholder (1 in 8) - not confirmed against the wiki
+if(random(8) = 0) {
+    mes("...but you catch your foot and trigger it!");
+    ~damage_self(10);
+    // todo: poison severity is a placeholder (weak, 4) - not confirmed against the wiki
+    queue(poison_player, 0, 4);
+    return;
+}
+mes("...and step over it safely.");
+
+// ===== Stick trap: regicide_trap_woodspring, op1=Pass, 8 HP damage on fail =====
+[oploc1,regicide_trap_woodspring]
+mes("You try to pass the tied sticks...");
+p_delay(0);
+// todo: fail chance is a placeholder (1 in 10) - not confirmed against the wiki
+if(random(10) = 0) {
+    mes("...but you set off the trap!");
+    ~damage_self(8);
+    return;
+}
+mes("...and pass without incident.");

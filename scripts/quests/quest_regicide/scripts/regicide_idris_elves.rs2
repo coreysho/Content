@@ -1,0 +1,50 @@
+// Regicide - opening Isafdar cutscene: Idris tries to warn the player and is killed by
+// Essyllt and Morvran (checklist item #6).
+//
+// NPC identities confirmed directly from their [name=] fields in scripts/_unpack/377/all.npc
+// (not a guess): regicide_good_elf1 = "Idris", regicide_evil_elf1 = "Essyllt",
+// regicide_evil_elf2 = "Morvran". regicide_good_elf3 = "Arianwyn" (the elf who intercepts the
+// sealed letter in the ending, step 12 - not used here, noted for whoever builds that later).
+//
+// Trigger choice: talking to Idris directly (op1=Talk-to on regicide_good_elf1), not a loc/entry
+// trigger - the Isafdar map locs aren't migrated out of _unpack yet (same situation
+// regicide_isafdar_obstacles.rs2 already lives with), so there's no real loc to hook an
+// oploc/entry trigger off of. Talking to Idris is the simpler, equally-faithful trigger per the
+// walkthrough ("an elf, Idris, tries to talk to you").
+//
+// Essyllt/Morvran are voiced via the secondary active-npc slot (.npc_find + ~.chatnpc), the same
+// pattern quest_arena/scripts/fightslave.rs2 and several other quests already use for a second
+// NPC to speak by name mid-scene. Idris's death is narrated, not a real combat calculation - he
+// plays human_death (the generic seq every human-skeleton npc in this codebase reuses, including
+// these elf models per their own walkanim=human_walk_*/readyanim=human_ready) and is removed with
+// npc_del. This is intentionally a modest, narrated moment, not a scripted fight engine.
+
+[opnpc1,regicide_good_elf1]
+if(%regicide_quest < ^regicide_started) {
+    mes("The elf glances at you warily but says nothing.");
+    return;
+}
+if(%regicide_quest > ^regicide_started) {
+    mes("There is no sign of the elf now.");
+    return;
+}
+~chatnpc("<p,worried>Wait, traveller - you must not go any further. Iorwerth's men are watching this path, and if they find you...");
+if(.npc_find(npc_coord, regicide_evil_elf1, 10, 0) = true) {
+    .npc_facesquare(npc_coord);
+    ~.chatnpc("<p,angry>Idris! You dare speak to an outsider?");
+}
+~chatplayer("<p,shock>What's going on?");
+if(.npc_find(npc_coord, regicide_evil_elf2, 10, 0) = true) {
+    ~.chatnpc("<p,angry>Lord Iorwerth's law is absolute. Traitors share the same fate as spies.");
+}
+mes("Before Idris can say another word, Essyllt and Morvran cut him down.");
+npc_anim(human_death, 0);
+p_delay(1);
+npc_del;
+if(.npc_find(coord, regicide_evil_elf1, 10, 0) = true) {
+    .npc_facesquare(coord);
+    ~.chatnpc("<p,angry>You saw nothing here. Go to Lord Iorwerth at his camp, in the north-west, and pray he's more merciful than we are.");
+} else {
+    ~mesbox("Shaken, you realise your only option now is to find Lord Iorwerth at his camp to the north-west.");
+}
+%regicide_quest = ^regicide_met_elves;

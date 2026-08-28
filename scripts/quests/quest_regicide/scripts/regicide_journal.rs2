@@ -1,0 +1,79 @@
+// Regicide - quest list journal entry.
+//
+// Was missing from the original checklist items 1-6 pass: without an [if_button,questlist:regicide]
+// handler, clicking "Regicide" in the quest list does nothing at all (confirmed via in-game testing
+// 2026-08-28 - King Lathas' dialogue and the Isafdar/Iorwerth/Tracker/Hining chain all worked, but the
+// quest list entry was a dead button). Pattern copied directly from quest_upass/scripts/upass_journal.rs2.
+//
+// Only covers states that actually exist right now (0-5, ^regicide_complete). States 6-14 (Big Book O'
+// Bangs onward) don't have constants yet - see quest_regicide.constant - so they fall into the generic
+// "quest in progress" case below until those steps are built.
+
+[if_button,questlist:regicide]
+def_string $n = "Regicide";
+def_string $x;
+
+if (%regicide_quest = ^regicide_complete) {
+    $x = append($x, "@str@I have traveled through Tirannwn and put a stop to the Dark Lord's|");
+    $x = append($x, "@str@agents within King Tyras' court.|");
+    $x = append($x, "|@dre@QUEST COMPLETE!");
+    ~quest_journal($n, $x);
+    return;
+}
+
+if (%regicide_quest = ^regicide_not_started) {
+    $x = append($x, "@dbl@I can start this quest by speaking to @dre@King Lathas@dbl@ who is|");
+    $x = append($x, "@dbl@in @dre@East Ardougne Castle@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+
+$x = append($x, "@str@King Lathas has asked me to travel through the Well of Voyage into|");
+$x = append($x, "@str@Tirannwn, to find out what has become of his brother Tyras' kingdom.|");
+
+if (%regicide_quest = ^regicide_started) {
+    $x = append($x, "|@dbl@I should make my way through the @dre@Underground Pass@dbl@ and take the|");
+    $x = append($x, "@dbl@@dre@Well of Voyage@dbl@ west into Tirannwn.");
+    ~quest_journal($n, $x);
+    return;
+}
+
+$x = append($x, "|@str@I traveled into Tirannwn. An elf named Idris tried to warn me, but was|");
+$x = append($x, "@str@killed by two of Lord Iorwerth's men for speaking to me.|");
+
+if (%regicide_quest = ^regicide_met_elves) {
+    $x = append($x, "|@dbl@I should press on and find @dre@Lord Iorwerth@dbl@ at his camp, in the|");
+    $x = append($x, "@dbl@north-west of Isafdar.");
+    ~quest_journal($n, $x);
+    return;
+}
+
+$x = append($x, "|@str@I met Lord Iorwerth. He gave me a crystal pendant, and sent me to find|");
+$x = append($x, "@str@his tracker south of the Poison Waste.|");
+
+if (%regicide_quest = ^regicide_met_iorwerth) {
+    $x = append($x, "|@dbl@I should find the @dre@Elf Tracker@dbl@, south of the @dre@Poison Waste@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+
+$x = append($x, "|@str@The tracker confirmed the pendant will let me through the dense forest,|");
+$x = append($x, "@str@and warned me that a Tyras Guard stands watch on the path south.|");
+
+if (%regicide_quest = ^regicide_met_tracker) {
+    $x = append($x, "|@dbl@I should make my way south to @dre@Tyras Camp@dbl@, past the guard.");
+    ~quest_journal($n, $x);
+    return;
+}
+
+$x = append($x, "|@str@I reached Tyras Camp and spoke to General Hining, but he refused me an|");
+$x = append($x, "@str@audience with King Tyras.|");
+
+if (%regicide_quest = ^regicide_at_tyras_camp) {
+    $x = append($x, "|@dbl@I'm not sure what to do next.");
+    ~quest_journal($n, $x);
+    return;
+}
+
+$x = append($x, "|@dbl@I'm not sure what to do next.");
+~quest_journal($n, $x);

@@ -1,0 +1,30 @@
+// Regicide - the Elf Tracker, south of the Poison Waste (checklist item #6).
+// Identity confirmed from scripts/_unpack/377/all.npc: [regicide_old_camp_tracker] has
+// name=Elf Tracker, desc=An elf tracker. - not a name-guess like the good_elf/evil_elf npcs,
+// this one is unambiguous.
+//
+// Confirms the crystal pendant lets the player cross the dense-forest obstacle without 56
+// Agility. The actual mechanical unlock is the pendant-in-inventory OR-condition added to
+// regicide_isafdar_obstacles.rs2's dense forest branch in this same change - this script is
+// just the narration/confirmation of that, plus the onward directions to Tyras Camp.
+
+[opnpc1,regicide_old_camp_tracker]
+switch_int(%regicide_quest) {
+    case ^regicide_not_started, ^regicide_started, ^regicide_met_elves :
+        ~chatnpc("<p,neutral>Best not linger here, traveller - this is dangerous ground for a human.");
+        return;
+    case ^regicide_met_iorwerth :
+        if(inv_total(inv, regicide_crystal_pendant) < 1) {
+            ~chatnpc("<p,confused>You don't have Lord Iorwerth's pendant. Go back and see him first.");
+            return;
+        }
+        ~chatplayer("<p,neutral>Lord Iorwerth sent me. He said you could help me get further into Tirannwn.");
+        ~chatnpc("<p,happy>Ah, so he trusted you with the pendant. Good - that means our dense forest won't give you any trouble now.");
+        ~chatnpc("<p,neutral>Just hold it while you cross, and the forest will let you through, agility or no agility.");
+        ~chatplayer("<p,quiz>And beyond the forest?");
+        ~chatnpc("<p,worried>Tyras Camp lies further south, but it's guarded. One of Tyras' men stands watch on the path - a tough fighter, so be careful.");
+        ~chatnpc("<p,neutral>If you get past him, you'll find General Hining at the camp. Good luck.");
+        %regicide_quest = ^regicide_met_tracker;
+    case default :
+        ~chatnpc("<p,neutral>Keep that pendant safe, and watch yourself around Tyras' guards.");
+}

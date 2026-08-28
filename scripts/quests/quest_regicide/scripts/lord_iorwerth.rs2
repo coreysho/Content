@@ -1,0 +1,29 @@
+// Regicide - Lord Iorwerth dialogue at Iorwerth Camp (checklist item #6).
+// Mention King Lathas sent you -> Iorwerth gives the crystal pendant and sends the player to the
+// Elf Tracker, south of the Poison Waste. regicide_crystal_pendant confirmed present in
+// scripts/_unpack/377/all.obj (name=Crystal pendant, desc=Lord Iorwerth's crystal pendant).
+
+[opnpc1,lord_iorwerth]
+switch_int(%regicide_quest) {
+    case ^regicide_not_started, ^regicide_started :
+        ~chatnpc("<p,neutral>This is elven land. State your business, human.");
+        ~chatplayer("<p,neutral>I'm sorry, I don't have anything to discuss with you yet.");
+        return;
+    case ^regicide_met_elves :
+        ~chatnpc("<p,neutral>This is elven land, human. You have some nerve, coming here.");
+        ~chatplayer("<p,worried>I mean no harm - King Lathas of East Ardougne sent me. I saw Essyllt and Morvran kill an elf named Idris on the path here.");
+        ~chatnpc("<p,shock>Lathas? So the humans are stirring again...");
+        ~chatnpc("<p,neutral>Idris was a fool to approach you, but his death is not your doing. Tell me, why did Lathas send you into Tirannwn?");
+        ~chatplayer("<p,neutral>He fears King Tyras' court has been infiltrated by agents of the Dark Lord.");
+        ~chatnpc("<p,sad>That much, at least, is true. Very well, human - you may prove useful.");
+        mes("Lord Iorwerth hands you a crystal pendant.");
+        inv_add(inv, regicide_crystal_pendant, 1);
+        ~chatnpc("<p,neutral>That pendant will let you pass through our forest defences unharmed - keep it safe, and do not lose it.");
+        ~chatnpc("<p,neutral>Seek out our tracker to the south, past the Poison Waste. She knows this land better than any of us, and can guide you further.");
+        ~chatplayer("<p,neutral>Thank you, Lord Iorwerth. I'll find her.");
+        %regicide_quest = ^regicide_met_iorwerth;
+    case ^regicide_met_iorwerth :
+        ~chatnpc("<p,neutral>The tracker is south of the Poison Waste, human. Go on - you're wasting daylight.");
+    case default :
+        ~chatnpc("<p,neutral>Tread carefully out there, human.");
+}

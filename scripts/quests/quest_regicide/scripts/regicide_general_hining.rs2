@@ -1,0 +1,20 @@
+// Regicide - General Hining at Tyras Camp (checklist item #6). Denies the player access to
+// King Tyras. This is where this pass of the quest stops - the return trip to the Tracker and
+// then Iorwerth (dropping the pendant first) is out of scope here, future work.
+
+[opnpc1,regicide_general_hining]
+switch_int(%regicide_quest) {
+    case ^regicide_not_started, ^regicide_started, ^regicide_met_elves, ^regicide_met_iorwerth :
+        ~chatnpc("<p,angry>This camp is off-limits to outsiders. Move along.");
+        return;
+    case ^regicide_met_tracker :
+        ~chatplayer("<p,neutral>I need to speak with King Tyras. It's urgent.");
+        ~chatnpc("<p,angry>Out of the question. Nobody sees the King without my say-so, and I'm not giving it.");
+        ~chatplayer("<p,quiz>Why not? I've come a long way.");
+        ~chatnpc("<p,neutral>The King's court has enough to worry about without a stranger wandering in unannounced. We're waiting on word from his council before anyone new is granted an audience.");
+        ~chatplayer("<p,worried>This can't wait. Lives may depend on it.");
+        ~chatnpc("<p,angry>Everything is urgent to somebody. My answer stands - no audience with the King. Now get out of my camp before I have you thrown out.");
+        %regicide_quest = ^regicide_at_tyras_camp;
+    case default :
+        ~chatnpc("<p,angry>I told you, no audience with the King. Don't push your luck.");
+}
