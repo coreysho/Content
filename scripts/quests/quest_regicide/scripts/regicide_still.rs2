@@ -1,0 +1,196 @@
+// Fractionalising Still (Regicide checklist item #7).
+// Design: claude/regicide-still-minigame-spec.md.
+//
+// %regicide_still_settings packs (all server-side only, not scope=perm - matches the real
+// transmit=yes/no-scope declaration already in all.varp, i.e. this is live minigame state, not
+// saved quest progress):
+//   bits 0-1  : tar valve position    (0 closed / 1 half / 2 full) - raises pressure
+//   bits 2-3  : release valve position(0 closed / 1 half / 2 full) - lowers pressure
+//   bits 4-10 : heat                  (0-100)
+//   bits 11-17: pressure              (0-100)
+//   bit 18    : active                (1 while a barrel of coal-tar is being distilled)
+// %regicide_still_total is the plain 0-100 progress value - kept unpacked (not part of the bits
+// above) so the interface's segmented progress bar can threshold-gate on it directly via
+// script1op1=pushvar,regicide_still_total, the same way trawler_water_overlay drives the Fishing
+// Trawler's water meter (scripts/interfaces/inter_231.if).
+//
+// Tuned values below (valve rates, green-zone bounds, decay/gain amounts, tick interval) are not
+// recovered from any real source - the wiki only describes the mechanic qualitatively. Reasonable
+// defaults, meant to be adjusted after actually playing it.
+
+[proc,regicide_still_active]()(boolean)
+if (getbit_range(%regicide_still_settings, 18, 18) = 1) {
+    return(true);
+}
+return(false);
+
+[proc,regicide_still_set](int $valve1, int $valve2, int $heat, int $pressure, int $active)
+def_int $bits = 0;
+$bits = setbit_range_toint($bits, $valve1, 0, 1);
+$bits = setbit_range_toint($bits, $valve2, 2, 3);
+$bits = setbit_range_toint($bits, $heat, 4, 10);
+$bits = setbit_range_toint($bits, $pressure, 11, 17);
+$bits = setbit_range_toint($bits, $active, 18, 18);
+%regicide_still_settings = $bits;
+
+[proc,regicide_still_valve_text](int $position)(string)
+if ($position = 1) return("Half");
+else if ($position = 2) return("Full");
+return("Closed");
+
+[proc,regicide_still_refresh]
+def_int $valve1 = getbit_range(%regicide_still_settings, 0, 1);
+def_int $valve2 = getbit_range(%regicide_still_settings, 2, 3);
+def_int $heat = getbit_range(%regicide_still_settings, 4, 10);
+def_int $pressure = getbit_range(%regicide_still_settings, 11, 17);
+
+if_settext(regicide_still:com_10, "Pressure: <tostring($pressure)>%  (tar valve: <~regicide_still_valve_text($valve1)>)");
+if_settext(regicide_still:com_11, "Heat: <tostring($heat)>%  (release valve: <~regicide_still_valve_text($valve2)>)");
+
+[proc,regicide_still_open]
+if_openmain(regicide_still);
+~regicide_still_refresh;
+if_settext(regicide_still:com_13, "");
+softtimer(regicide_still_tick, 3);
+
+[oplocu,regicide_fractionalizing_still]
+if (last_useitem = regicide_barrel_tar) {
+    if (~regicide_still_active = true) {
+        mes("You're already distilling a barrel here.");
+        ~regicide_still_open;
+        return;
+    }
+    inv_del(inv, regicide_barrel_tar, 1);
+    %regicide_still_total = 0;
+    ~regicide_still_set(0, 0, 0, 0, 1);
+    ~regicide_still_open;
+} else {
+    ~displaymessage(^dm_default);
+}
+
+[oploc1,regicide_fractionalizing_still]
+if (~regicide_still_active = true) {
+    ~regicide_still_open;
+} else {
+    mes("You need to use a barrel of coal-tar on the still to start distilling.");
+}
+
+[if_close,regicide_still]
+clearsofttimer(regicide_still_tick);
+
+[if_button,regicide_still:com_3]
+def_int $valve2 = getbit_range(%regicide_still_settings, 2, 3);
+def_int $heat = getbit_range(%regicide_still_settings, 4, 10);
+def_int $pressure = getbit_range(%regicide_still_settings, 11, 17);
+~regicide_still_set(0, $valve2, $heat, $pressure, 1);
+~regicide_still_refresh;
+
+[if_button,regicide_still:com_4]
+def_int $valve2 = getbit_range(%regicide_still_settings, 2, 3);
+def_int $heat = getbit_range(%regicide_still_settings, 4, 10);
+def_int $pressure = getbit_range(%regicide_still_settings, 11, 17);
+~regicide_still_set(1, $valve2, $heat, $pressure, 1);
+~regicide_still_refresh;
+
+[if_button,regicide_still:com_5]
+def_int $valve2 = getbit_range(%regicide_still_settings, 2, 3);
+def_int $heat = getbit_range(%regicide_still_settings, 4, 10);
+def_int $pressure = getbit_range(%regicide_still_settings, 11, 17);
+~regicide_still_set(2, $valve2, $heat, $pressure, 1);
+~regicide_still_refresh;
+
+[if_button,regicide_still:com_7]
+def_int $valve1 = getbit_range(%regicide_still_settings, 0, 1);
+def_int $heat = getbit_range(%regicide_still_settings, 4, 10);
+def_int $pressure = getbit_range(%regicide_still_settings, 11, 17);
+~regicide_still_set($valve1, 0, $heat, $pressure, 1);
+~regicide_still_refresh;
+
+[if_button,regicide_still:com_8]
+def_int $valve1 = getbit_range(%regicide_still_settings, 0, 1);
+def_int $heat = getbit_range(%regicide_still_settings, 4, 10);
+def_int $pressure = getbit_range(%regicide_still_settings, 11, 17);
+~regicide_still_set($valve1, 1, $heat, $pressure, 1);
+~regicide_still_refresh;
+
+[if_button,regicide_still:com_9]
+def_int $valve1 = getbit_range(%regicide_still_settings, 0, 1);
+def_int $heat = getbit_range(%regicide_still_settings, 4, 10);
+def_int $pressure = getbit_range(%regicide_still_settings, 11, 17);
+~regicide_still_set($valve1, 2, $heat, $pressure, 1);
+~regicide_still_refresh;
+
+// "Add coal" - consumes 1 coal from the player's inventory per click (confirmed via the wiki:
+// "Add 2 coal, and then 1 additional coal whenever the heat gauge falls too low" - coal is a real
+// inventory cost, not a free button). Heat gain is a fixed amount per click, checked for overheat
+// immediately (not just on the next tick) so that spam-clicking is genuinely risky, matching the
+// wiki's warning.
+[if_button,regicide_still:com_12]
+if (inv_total(inv, coal) < 1) {
+    if_settext(regicide_still:com_13, "You don't have any coal.");
+    return;
+}
+
+def_int $valve1 = getbit_range(%regicide_still_settings, 0, 1);
+def_int $valve2 = getbit_range(%regicide_still_settings, 2, 3);
+def_int $heat = getbit_range(%regicide_still_settings, 4, 10);
+def_int $pressure = getbit_range(%regicide_still_settings, 11, 17);
+
+inv_del(inv, coal, 1);
+$heat = min(100, add($heat, 18));
+
+if ($heat >= 95) {
+    sound_synth(gas_hiss, 1, 0);
+    if_settext(regicide_still:com_13, "The still overheats! You back off as it hisses and resets.");
+    ~regicide_still_set(0, 0, 0, 0, 1);
+    %regicide_still_total = 0;
+} else {
+    ~regicide_still_set($valve1, $valve2, $heat, $pressure, 1);
+}
+~regicide_still_refresh;
+
+[softtimer,regicide_still_tick]
+if (~regicide_still_active = false) {
+    clearsofttimer(regicide_still_tick);
+    return;
+}
+
+def_int $valve1 = getbit_range(%regicide_still_settings, 0, 1);
+def_int $valve2 = getbit_range(%regicide_still_settings, 2, 3);
+def_int $heat = getbit_range(%regicide_still_settings, 4, 10);
+def_int $pressure = getbit_range(%regicide_still_settings, 11, 17);
+
+def_int $inflow = 0;
+if ($valve1 = 1) $inflow = 3;
+else if ($valve1 = 2) $inflow = 7;
+
+def_int $outflow = 0;
+if ($valve2 = 1) $outflow = 3;
+else if ($valve2 = 2) $outflow = 7;
+
+$pressure = max(0, min(100, add($pressure, sub($inflow, $outflow))));
+$heat = max(0, sub($heat, 4));
+
+if ($heat >= 100) {
+    if_settext(regicide_still:com_13, "The still overheats! You back off as it hisses and resets.");
+    ~regicide_still_set(0, 0, 0, 0, 1);
+    %regicide_still_total = 0;
+    ~regicide_still_refresh;
+    return;
+}
+
+~regicide_still_set($valve1, $valve2, $heat, $pressure, 1);
+~regicide_still_refresh;
+
+if ($pressure >= 40 & $pressure <= 70 & $heat >= 30 & $heat <= 70) {
+    %regicide_still_total = min(100, add(%regicide_still_total, 5));
+}
+
+if (%regicide_still_total >= 100) {
+    clearsofttimer(regicide_still_tick);
+    if_close;
+    ~regicide_still_set(0, 0, 0, 0, 0);
+    %regicide_still_total = 0;
+    inv_add(inv, regicide_barrel_naphtha, 1);
+    ~objbox(regicide_barrel_naphtha, "You carefully draw off a barrel of naphtha.", 250, 0, 0);
+}
