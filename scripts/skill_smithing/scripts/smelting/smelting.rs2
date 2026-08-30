@@ -8,6 +8,15 @@ switch_obj (last_useitem)
     case caveorb1, caveorb2, caveorb3, caveorb4 :
         if(loc_type = furnace_upass) @destroy_orboflight(last_useitem);
         ~displaymessage(^dm_default);
+    case limestone :
+        // Regicide checklist item #8 - see claude/regicide-quest.md. Quest-only special case:
+        // only the small furnace at Tyras Camp (regicide_furnace) makes quicklime before the quest
+        // is finished; any furnace works afterward.
+        if (loc_type = regicide_furnace | %regicide_quest >= ^regicide_complete) {
+            @regicide_make_quicklime;
+        } else {
+            mes("This furnace isn't hot enough to burn the limestone into quicklime.");
+        }
     case elemental_workshop_ore : mes("This furnace is not hot enough to smelt elemental ore.");
     case default :
         if (oc_category(last_useitem) = category_91) {

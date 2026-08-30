@@ -1,0 +1,150 @@
+// Regicide checklist item #8 - bomb assembly (walkthrough steps 8-10). Design + sourcing notes:
+// claude/regicide-quest.md.
+//
+// Chain: limestone -> (Tyras Camp furnace only, until the quest is complete) -> quicklime ->
+// (pestle & mortar + an empty pot) -> pot of quicklime. Separately: sulphur -> (pestle & mortar,
+// no pot needed) -> ground sulphur. Separately: 4x ball of wool -> (loom, "Weave") -> cloth.
+// Barrel of naphtha + either dust -> a single-ingredient "mix" (two possible mixes depending on
+// which dust went in first - both real objects, regicide_barrel_naphtha_sulphar_mix and
+// regicide_barrel_naphtha_quicklime_mix); the mix + the OTHER dust -> barrel bomb (unfused,
+// regicide_barrel_lid); the unfused bomb + cloth -> barrel bomb (fused, regicide_barrel_lid_fused).
+//
+// Every object name below is a real, already-existing entry in scripts/_unpack/377/all.obj -
+// nothing new was added to the object list, only these interaction scripts. Sourced against
+// oldschool.runescape.wiki/w/Regicide, oldschool.runescape.wiki/w/Barrel_bomb, and
+// runehq.com/oldschoolquest/regicide/ - the exact object names and their descriptions (e.g.
+// "A barrel full of naphtha and sulphur." on regicide_barrel_naphtha_sulphar_mix) line up exactly
+// with the two sources' described chain, which is the closest thing available to a real
+// verification for this piece (no compiled/live source for the item-on-item logic itself).
+
+// --- Limestone -> Quicklime. Called from the shared furnace switch in
+// scripts/skill_smithing/scripts/smelting/smelting.rs2 (case limestone), the same way
+// quest_upass's destroy_orboflight label is called from that same shared switch for caveorbs. ---
+
+[label,regicide_make_quicklime]
+inv_del(inv, limestone, 1);
+def_obj $hands = inv_getobj(worn, ^wearpos_hands);
+// Sources disagree on the exact mechanic here - one says gloves are required outright, another
+// says it's a chance of ~8 damage either way with gloves preventing it and no exact odds given.
+// Modeled as: no gloves worn = 1-in-3 chance of 8 damage, but quicklime is produced regardless
+// either way. Flagged as an unverified tuned value, same as the Isafdar obstacle fail chances.
+if ($hands = null & random(3) = 0) {
+    ~damage_self(8);
+    mes("The quicklime burns your bare hands as you scoop it from the furnace!");
+} else {
+    mes("You carefully scoop the quicklime out of the furnace.");
+}
+inv_add(inv, regicide_quicklime, 1);
+
+// --- Grinding with a pestle and mortar. Same [opheldu,<ingredient>] convention as the Herblore
+// grinding system (scripts/skill_herblore/scripts/grinding/grind_ingredient.rs2's unicorn_horn/
+// blue_dragon_scale/bat_bones triggers) - not hooked into that generic system directly since
+// quicklime's extra "needs an empty pot" requirement doesn't fit its ingredient->refined model. ---
+
+[opheldu,regicide_quicklime]
+if (last_useitem ! pestle_and_mortar) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (inv_total(inv, pot_empty) < 1) {
+    mes("You need an empty pot to collect the ground quicklime in.");
+    return;
+}
+inv_del(inv, regicide_quicklime, 1);
+inv_del(inv, pot_empty, 1);
+inv_add(inv, regicide_quicklime_dust, 1);
+mes("You grind the quicklime into a pot.");
+anim(human_herbing_grind, 0);
+sound_synth(grind, 1, 0);
+
+[opheldu,regicide_sulphar]
+if (last_useitem ! pestle_and_mortar) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, regicide_sulphar, 1);
+inv_add(inv, regicide_sulphar_dust, 1);
+mes("You grind the sulphur into a fine powder.");
+anim(human_herbing_grind, 0);
+sound_synth(grind, 1, 0);
+
+// --- Wool -> Cloth. Both real loom locs (Iorwerth Camp's regicide_loom and the generic loom near
+// Falador) share an identical name/desc/model and both declare op2=Weave - a direct click, not an
+// item-used-on-loc interaction - so both get their own oploc2 trigger calling the same proc.
+// Crafting 10 (the quest's own stated, non-boostable requirement) is checked here since nothing
+// else built so far uses it - this is inference, not confirmed against a specific source, so
+// flagged the same way as the other unverified specifics in this build. ---
+
+[oploc2,loom]
+~regicide_weave_cloth;
+
+[oploc2,regicide_loom]
+~regicide_weave_cloth;
+
+[proc,regicide_weave_cloth]
+if (stat(crafting) < 10) {
+    mes("You need a Crafting level of 10 to weave cloth on this loom.");
+    return;
+}
+if (inv_total(inv, ball_of_wool) < 4) {
+    mes("You need 4 balls of wool to weave a strip of cloth.");
+    return;
+}
+inv_del(inv, ball_of_wool, 4);
+inv_add(inv, regicide_cloth, 1);
+mes("You weave the wool into a strip of cloth.");
+sound_synth(loom_weave, 1, 0);
+
+// --- Barrel of naphtha + the two dusts, order-independent (matches both real intermediate
+// objects existing - regicide_barrel_naphtha_sulphar_mix and _quicklime_mix, whichever ingredient
+// goes in first) -> then the mix + the OTHER dust -> the unfused bomb. ---
+
+[opheldu,regicide_barrel_naphtha]
+switch_obj (last_useitem) {
+    case regicide_sulphar_dust :
+        inv_del(inv, regicide_sulphar_dust, 1);
+        inv_del(inv, regicide_barrel_naphtha, 1);
+        inv_add(inv, regicide_barrel_naphtha_sulphar_mix, 1);
+        mes("You mix the ground sulphur into the barrel of naphtha.");
+    case regicide_quicklime_dust :
+        inv_del(inv, regicide_quicklime_dust, 1);
+        inv_del(inv, regicide_barrel_naphtha, 1);
+        inv_add(inv, regicide_barrel_naphtha_quicklime_mix, 1);
+        mes("You mix the pot of quicklime into the barrel of naphtha.");
+    case default :
+        ~displaymessage(^dm_default);
+};
+
+[opheldu,regicide_barrel_naphtha_sulphar_mix]
+if (last_useitem ! regicide_quicklime_dust) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, regicide_quicklime_dust, 1);
+inv_del(inv, regicide_barrel_naphtha_sulphar_mix, 1);
+inv_add(inv, regicide_barrel_lid, 1);
+mes("You mix in the pot of quicklime. The barrel is now a volatile bomb!");
+
+[opheldu,regicide_barrel_naphtha_quicklime_mix]
+if (last_useitem ! regicide_sulphar_dust) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, regicide_sulphar_dust, 1);
+inv_del(inv, regicide_barrel_naphtha_quicklime_mix, 1);
+inv_add(inv, regicide_barrel_lid, 1);
+mes("You mix in the ground sulphur. The barrel is now a volatile bomb!");
+
+// --- Cloth fuse - the final step, matching Barrel_bomb wiki page's explicit "unfused" -> "fused"
+// naming, which lines up with regicide_barrel_lid ("Barrel bomb") -> regicide_barrel_lid_fused
+// ("Barrel bomb", desc "A fused barrel full of fire oil."). ---
+
+[opheldu,regicide_barrel_lid]
+if (last_useitem ! regicide_cloth) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, regicide_cloth, 1);
+inv_del(inv, regicide_barrel_lid, 1);
+inv_add(inv, regicide_barrel_lid_fused, 1);
+mes("You attach the strip of cloth to the barrel bomb as a fuse.");

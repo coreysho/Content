@@ -192,5 +192,13 @@ if (%regicide_still_total >= 100) {
     ~regicide_still_set(0, 0, 0, 0, 0);
     %regicide_still_total = 0;
     inv_add(inv, regicide_barrel_naphtha, 1);
-    ~objbox(regicide_barrel_naphtha, "You carefully draw off a barrel of naphtha.", 250, 0, 0);
+    // objbox() pauses on p_pausebutton internally, which needs protected (p_active_player) access
+    // that a softtimer script doesn't have - queue() only needs active_player, so it's the way to
+    // hand off to a protected context from here. See claude/regicide-still-minigame-spec.md.
+    queue(regicide_still_complete_message, 0, 0);
 }
+
+// Runs in the normal player queue (protected access) so it's safe to pause on p_pausebutton,
+// unlike the softtimer that queues it.
+[queue,regicide_still_complete_message]
+~objbox(regicide_barrel_naphtha, "You carefully draw off a barrel of naphtha.", 250, 0, 0);
