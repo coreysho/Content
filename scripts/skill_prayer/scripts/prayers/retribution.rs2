@@ -1,0 +1,55 @@
+[if_button,prayer:prayer_retribution]
+if_close;
+if (p_finduid(uid) = true) {
+    @activate_prayer_retribution;
+}
+%prayer15 = %prayer15;
+
+[label,activate_prayer_retribution]
+p_clearpendingaction;
+def_dbrow $data = ~get_prayer_data(^prayer_retribution);
+if ($data = null) {
+    return;
+}
+if (%prayer15 = ^true) {
+    %prayer15 = ^false;
+    ~prayer_deactivate(^prayer_retribution);
+    return;
+}
+if (~prayer_checks($data) = false) {
+    %prayer15 = ^false;
+    return;
+}
+def_int $levelreq = db_getfield($data, prayers:level, 0);
+if (stat_base(prayer) < $levelreq){
+    %prayer15 = ^false;
+    sound_synth(prayer_off, 1, 0);
+    ~mesbox("You need a @dbl@Prayer level of <tostring($levelreq)> to use <db_getfield($data, prayers:name, 0)>.");
+    return;
+}
+%prayer15 = ^true;
+~prayer_activate($data);
+
+// osrs: https://oldschool.runescape.wiki/w/Retribution - deals up to floor(prayer level / 4) damage to
+// nearby players when you die with this active. Radius (5 tiles) is this server's best estimate, not
+// wiki-confirmed - the wiki doesn't state an exact range. NPC targets aren't hit yet (no existing AoE
+// damage precedent to an NPC in this codebase to build on) - players only, for now.
+[proc,retribution_check]
+if (%prayer15 = ^false) {
+    return;
+}
+def_int $maxhit = divide(stat_base(prayer), 4);
+if ($maxhit < 1) {
+    return;
+}
+def_coord $origin = coord;
+spotanim_map(retribution_spotanim, $origin, 0, 0);
+huntall($origin, 5, 1);
+while (.huntnext = true) {
+    if (.uid ! uid) {
+        def_int $dmg = randominc($maxhit);
+        if ($dmg > 0) {
+            .queue(damage_player, 0, $dmg);
+        }
+    }
+}
