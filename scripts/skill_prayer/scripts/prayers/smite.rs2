@@ -1,0 +1,48 @@
+[if_button,prayer:prayer_smite]
+if_close;
+if (p_finduid(uid) = true) {
+    @activate_prayer_smite;
+}
+%prayer17 = %prayer17;
+
+[label,activate_prayer_smite]
+p_clearpendingaction;
+def_dbrow $data = ~get_prayer_data(^prayer_smite);
+if ($data = null) {
+    return;
+}
+if (%prayer17 = ^true) {
+    %prayer17 = ^false;
+    ~prayer_deactivate(^prayer_smite);
+    return;
+}
+if (~prayer_checks($data) = false) {
+    %prayer17 = ^false;
+    return;
+}
+def_int $levelreq = db_getfield($data, prayers:level, 0);
+if (stat_base(prayer) < $levelreq){
+    %prayer17 = ^false;
+    sound_synth(prayer_off, 1, 0);
+    ~mesbox("You need a @dbl@Prayer level of <tostring($levelreq)> to use <db_getfield($data, prayers:name, 0)>.");
+    return;
+}
+%prayer17 = ^true;
+~prayer_activate($data);
+
+// osrs: https://oldschool.runescape.wiki/w/Smite - while active, 25% of damage YOU deal to another
+// player is also drained from their prayer points (rounded down). PvP only, matching the wiki - NPCs
+// aren't drained (most have no prayer points anyway). $damage is the attacker's outgoing hit, passed in
+// from pvp_combat.rs2's .pvp_damage before recoil is applied, so reflected damage never triggers this.
+[proc,smite_drain](int $damage)
+if (%prayer17 = ^false) {
+    return;
+}
+if ($damage < 1) {
+    return;
+}
+def_int $drain = divide($damage, 4);
+if ($drain < 1) {
+    return;
+}
+.stat_sub(prayer, $drain, 0);
