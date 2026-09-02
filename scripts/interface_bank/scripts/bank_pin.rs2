@@ -91,7 +91,16 @@ queue(bankpin_clear_flow_queued, 0, 0);
 
 [proc,bankpin_open_settings]
 if_openmain(bankpin_settings);
-if_settext(bankpin_settings:com_113, "Customers are reminded that they should NEVER tell anyone their Bank PINs or passwords, nor should they ever enter their PINs on any website form.");
+// com_113 is a single line of p12_full (147px wide, no wrap) - the full warning overflowed
+// off the edge of the interface into the game view. com_113..com_124 are a pre-built stack
+// of 12 one-line slots (16px apart) in the "Messages" box, so split it across those instead.
+if_settext(bankpin_settings:com_113, "Customers are reminded");
+if_settext(bankpin_settings:com_114, "that they should NEVER");
+if_settext(bankpin_settings:com_115, "tell anyone their Bank");
+if_settext(bankpin_settings:com_116, "PINs or passwords, nor");
+if_settext(bankpin_settings:com_117, "should they ever enter");
+if_settext(bankpin_settings:com_118, "their PINs on any");
+if_settext(bankpin_settings:com_119, "website form.");
 ~bankpin_refresh_settings;
 
 // re-derives everything the settings screen shows from %bankpin / %bankpin_1 / %bankpin_2.
