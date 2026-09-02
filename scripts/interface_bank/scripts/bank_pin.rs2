@@ -66,9 +66,17 @@ if_sethide(bankpin_settings:com_237, true);
 [if_button,bankpin_main:j_button] ~bankpin_digit_pressed(%bankpin_map_j);
 
 [if_button,bankpin_main:cancel]
-~bankpin_clear_flow;
-if_close;
-~bankpin_open_settings;
+// don't drop the player into the PIN settings screen if this keypad was opened by trying to
+// access the bank (rather than from the settings screen itself) - just close and let them
+// re-click the banker to try again.
+if (%bankpin_flow = ^bankpin_flow_verify_access) {
+    ~bankpin_clear_flow;
+    if_close;
+} else {
+    ~bankpin_clear_flow;
+    if_close;
+    ~bankpin_open_settings;
+}
 
 [if_button,bankpin_main:forgotten] // "I don't know it." - starts the same recovery delay as deleting.
 def_int $days = ~bankpin_recovery_days;
@@ -245,6 +253,10 @@ switch_int (%bankpin_entry_count) {
     case 3 : if_settext(bankpin_main:digit3, "*");
     case 4 : if_settext(bankpin_main:digit4, "*");
 }
+// reshuffle which digit each button represents after every single press (not just once at the
+// start) - matches real bank pin keypads, so a shoulder-surfer/keylogger watching button
+// positions across multiple presses still can't correlate clicks to digit values.
+~bankpin_shuffle;
 ~bankpin_update_hint;
 if (%bankpin_entry_count = 4) {
     ~bankpin_finalize_entry;
@@ -306,5 +318,19 @@ switch_int (%bankpin_flow) {
             ~bankpin_clear_flow;
             if_close;
             ~bankpin_open_settings;
+        }
+    // triggered from the openbank gate in bank.rs2, not from the settings screen - on success,
+    // mark this login session as verified and actually open the bank; on failure, just close
+    // (no settings redirect, since the player was trying to bank, not manage their PIN).
+    case ^bankpin_flow_verify_access :
+        if (add(10000, $entered) = %bankpin) {
+            %bankpin_verified = 1;
+            ~bankpin_clear_flow;
+            if_close;
+            @openbank_real;
+        } else {
+            mes("That is not your current PIN.");
+            ~bankpin_clear_flow;
+            if_close;
         }
 }

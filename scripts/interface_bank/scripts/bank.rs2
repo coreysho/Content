@@ -15,7 +15,24 @@ if(%bankinsert = 1) {
 [if_button,bank_main:com_100] %bankinsert = 1;
 [if_close,bank_main] @closebank;
 
+// Gate: every call site that used to open the bank directly (@openbank; from bank_booth.rs2 and
+// banker.rs2) now comes through here first. If a PIN is set and hasn't been verified yet THIS
+// login session (%bankpin_verified resets to 0 on every login since it has no scope=perm), start
+// the keypad instead of opening the bank; bankpin_finalize_entry's verify_access case calls
+// @openbank_real once the correct PIN is entered.
 [label,openbank]
+if (~bankpin_has_pin = false) {
+    %bankpin_verified = 1;
+    @openbank_real;
+    return;
+}
+if (%bankpin_verified = 1) {
+    @openbank_real;
+    return;
+}
+~bankpin_start_entry(^bankpin_flow_verify_access);
+
+[label,openbank_real]
 %bankcert = 0;
 ~reorganize_inv(bank);
 inv_transmit(inv, bank_side:inv);
