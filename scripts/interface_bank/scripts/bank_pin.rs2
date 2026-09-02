@@ -79,7 +79,12 @@ if_close;
 mes("Your PIN will be removed in <tostring($days)> days. You can cancel this from the PIN settings screen at any time.");
 
 [if_close,bankpin_main]
-~bankpin_clear_flow;
+// inlined (not ~bankpin_clear_flow) - if_close can't carry the active-player pointer
+// through a proc call, only direct %var writes in the trigger body work here.
+%bankpin_flow = ^bankpin_flow_none;
+%bankpin_entry = 0;
+%bankpin_entry_count = 0;
+%bankpin_pending_first = 0;
 
 // ---- shared procs ----
 
