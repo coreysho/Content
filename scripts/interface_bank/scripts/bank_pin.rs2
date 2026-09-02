@@ -113,27 +113,24 @@ if (~bankpin_has_pin = false) {
 def_int $days = ~bankpin_recovery_days;
 if_settext(bankpin_settings:com_177, "<tostring($days)> Days");
 
+// com_252/253/254 are wrapper layers (one per mutually-exclusive state) added around
+// the button text - toggling the WRAPPER, not the individual text buttons, since
+// if_sethide only reliably hides type=layer components, not bare type=text ones.
+// com_252 = no pin set (Set a PIN / Change recovery delay)
+// com_253 = has pin, nothing pending (Change your PIN / Delete your PIN / Change recovery delay)
+// com_254 = has pin, removal pending (Change recovery delay / Cancel the PIN that's pending)
 if (~bankpin_has_pin = false) {
-    if_sethide(bankpin_settings:com_147, false);
-    if_sethide(bankpin_settings:com_148, false);
-    if_sethide(bankpin_settings:com_149, true);
-    if_sethide(bankpin_settings:com_150, true);
-    if_sethide(bankpin_settings:com_151, true);
-    if_sethide(bankpin_settings:com_152, true);
+    if_sethide(bankpin_settings:com_252, false);
+    if_sethide(bankpin_settings:com_253, true);
+    if_sethide(bankpin_settings:com_254, true);
 } else if (%bankpin_2 > 0) {
-    if_sethide(bankpin_settings:com_147, true);
-    if_sethide(bankpin_settings:com_148, true);
-    if_sethide(bankpin_settings:com_149, true);
-    if_sethide(bankpin_settings:com_150, true);
-    if_sethide(bankpin_settings:com_151, false);
-    if_sethide(bankpin_settings:com_152, false);
+    if_sethide(bankpin_settings:com_252, true);
+    if_sethide(bankpin_settings:com_253, true);
+    if_sethide(bankpin_settings:com_254, false);
 } else {
-    if_sethide(bankpin_settings:com_147, true);
-    if_sethide(bankpin_settings:com_148, true);
-    if_sethide(bankpin_settings:com_149, false);
-    if_sethide(bankpin_settings:com_150, false);
-    if_sethide(bankpin_settings:com_151, false);
-    if_sethide(bankpin_settings:com_152, true);
+    if_sethide(bankpin_settings:com_252, true);
+    if_sethide(bankpin_settings:com_253, false);
+    if_sethide(bankpin_settings:com_254, true);
 }
 
 [proc,bankpin_change_recovery_delay]

@@ -1214,8 +1214,41 @@ width=90
 height=98
 graphic=tex_red,0
 
-[com_147]
+// The three button states below (no pin / has pin / pending removal) are mutually
+// exclusive, so each one gets its own wrapper layer spanning the full com_143 button
+// area; bank_pin.rs2 toggles hide on the WRAPPER layers (com_252/253/254), not on the
+// individual text buttons. hide=yes on a bare type=text component (as this used to be)
+// is not reliably honoured by this client/compiler - if_sethide (and static hide=yes)
+// only reliably works on type=layer components, matching the leftarrow/rightarrow
+// wrapper-layer pattern already used in general/interfaces/book.if (com_85/com_87).
+[com_252]
 layer=com_143
+type=layer
+x=0
+y=0
+width=252
+height=63
+
+[com_253]
+layer=com_143
+type=layer
+x=0
+y=0
+width=252
+height=63
+hide=yes
+
+[com_254]
+layer=com_143
+type=layer
+x=0
+y=0
+width=252
+height=63
+hide=yes
+
+[com_147]
+layer=com_252
 type=text
 x=0
 y=11
@@ -1230,7 +1263,7 @@ colour=0xFFFF00
 overcolour=0xFF7F00
 
 [com_148]
-layer=com_143
+layer=com_252
 type=text
 x=0
 y=34
@@ -1245,7 +1278,7 @@ colour=0xFFFF00
 overcolour=0xFF7F00
 
 [com_149]
-layer=com_143
+layer=com_253
 type=text
 x=0
 y=4
@@ -1258,10 +1291,9 @@ shadowed=yes
 text=Change your PIN
 colour=0xFFFF00
 overcolour=0xFF7F00
-hide=yes
 
 [com_150]
-layer=com_143
+layer=com_253
 type=text
 x=0
 y=23
@@ -1274,10 +1306,9 @@ shadowed=yes
 text=Delete your PIN
 colour=0xFFFF00
 overcolour=0xFF7F00
-hide=yes
 
 [com_151]
-layer=com_143
+layer=com_253
 type=text
 x=0
 y=41
@@ -1290,23 +1321,36 @@ shadowed=yes
 text=Change your recovery delay
 colour=0xFFFF00
 overcolour=0xFF7F00
-hide=yes
 
-[com_152]
-layer=com_143
+[com_255]
+layer=com_254
 type=text
 x=0
-y=23
+y=11
 buttontype=normal
 width=252
-height=15
+height=17
+center=yes
+font=q8_full
+shadowed=yes
+text=Change your recovery delay
+colour=0xFFFF00
+overcolour=0xFF7F00
+
+[com_152]
+layer=com_254
+type=text
+x=0
+y=34
+buttontype=normal
+width=252
+height=16
 center=yes
 font=q8_full
 shadowed=yes
 text=Cancel the PIN that's pending
 colour=0xFFFF00
 overcolour=0xFF7F00
-hide=yes
 
 [com_153]
 type=graphic
