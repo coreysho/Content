@@ -1,6 +1,298 @@
+// Bank PIN settings + the shuffled-keypad entry flow (bankpin_main).
+// Persistent storage reuses the vanilla reserved varps for this feature:
+//   %bankpin   - the pin itself. 0 = no pin set, otherwise (10000 + the real 4 digit pin).
+//                the +10000 offset is so a real pin of "0000" never collides with the
+//                "unset" default every varp starts at.
+//   %bankpin_1 - the player's chosen recovery delay in days. 0 = never chosen yet, use the
+//                default of 7 (see ~bankpin_recovery_days).
+//   %bankpin_2 - 0 = no pending pin removal. Otherwise the date_runeday value the pending
+//                removal completes on.
+// Note: setting/changing a pin takes effect immediately (matches real behaviour); only
+// *removing* a pin goes through the recovery delay, since that's the security-relevant one
+// (stops someone who has hijacked your account from stripping your pin instantly).
+//
+// %bankpin_flow / %bankpin_entry / %bankpin_entry_count / %bankpin_pending_first and the
+// %bankpin_map_a.._j digit-shuffle map are all scratch state for whichever keypad entry is
+// currently in progress - none of it needs to survive a logout.
+
 [label,open_bank_pin_setting]
-if_openmain(bankpin_settings);
 sound_synth(PIN_pending, 1, 0);
+~bankpin_open_settings;
+
+// ---- bankpin_settings button handlers ----
+
+[if_button,bankpin_settings:com_147] // Set a PIN
+~bankpin_start_entry(^bankpin_flow_enter_new);
+
+[if_button,bankpin_settings:com_149] // Change your PIN
+~bankpin_start_entry(^bankpin_flow_verify_change);
+
+[if_button,bankpin_settings:com_150] // Delete your PIN
+~bankpin_start_entry(^bankpin_flow_verify_delete);
+
+[if_button,bankpin_settings:com_152] // Cancel the PIN that's pending
+%bankpin_2 = 0;
+mes("Your pending PIN removal has been cancelled.");
+~bankpin_refresh_settings;
+
+[if_button,bankpin_settings:com_148] // Change your recovery delay (no pin set)
+~bankpin_change_recovery_delay;
+
+[if_button,bankpin_settings:com_151] // Change your recovery delay (pin set)
+~bankpin_change_recovery_delay;
+
+[if_button,bankpin_settings:com_242] // "Yes, I really want to do that." (confirm delete)
+if_sethide(bankpin_settings:com_237, true);
+def_int $days = ~bankpin_recovery_days;
+%bankpin_2 = add(date_runeday, $days);
+mes("Your PIN will be removed in <tostring($days)> days. You can cancel this from the PIN settings screen at any time.");
+~bankpin_refresh_settings;
+
+[if_button,bankpin_settings:com_247] // "No, forget I asked."
+if_sethide(bankpin_settings:com_237, true);
+~bankpin_refresh_settings;
+
+// ---- bankpin_main (the shuffled keypad) handlers ----
+
+[if_button,bankpin_main:a_button] ~bankpin_digit_pressed(%bankpin_map_a);
+[if_button,bankpin_main:b_button] ~bankpin_digit_pressed(%bankpin_map_b);
+[if_button,bankpin_main:c_button] ~bankpin_digit_pressed(%bankpin_map_c);
+[if_button,bankpin_main:d_button] ~bankpin_digit_pressed(%bankpin_map_d);
+[if_button,bankpin_main:e_button] ~bankpin_digit_pressed(%bankpin_map_e);
+[if_button,bankpin_main:f_button] ~bankpin_digit_pressed(%bankpin_map_f);
+[if_button,bankpin_main:g_button] ~bankpin_digit_pressed(%bankpin_map_g);
+[if_button,bankpin_main:h_button] ~bankpin_digit_pressed(%bankpin_map_h);
+[if_button,bankpin_main:i_button] ~bankpin_digit_pressed(%bankpin_map_i);
+[if_button,bankpin_main:j_button] ~bankpin_digit_pressed(%bankpin_map_j);
+
+[if_button,bankpin_main:cancel]
+~bankpin_clear_flow;
+if_close;
+~bankpin_open_settings;
+
+[if_button,bankpin_main:forgotten] // "I don't know it." - starts the same recovery delay as deleting.
+def_int $days = ~bankpin_recovery_days;
+%bankpin_2 = add(date_runeday, $days);
+~bankpin_clear_flow;
+if_close;
+~bankpin_open_settings;
+mes("Your PIN will be removed in <tostring($days)> days. You can cancel this from the PIN settings screen at any time.");
+
+[if_close,bankpin_main]
+~bankpin_clear_flow;
+
+// ---- shared procs ----
+
+[proc,bankpin_open_settings]
+if_openmain(bankpin_settings);
 if_settext(bankpin_settings:com_113, "Customers are reminded that they should NEVER tell anyone their Bank PINs or passwords, nor should they ever enter their PINs on any website form.");
-if_settext(bankpin_settings:com_175, "No PIN set");
-if_settext(bankpin_settings:com_177, "7 Days");
+~bankpin_refresh_settings;
+
+// re-derives everything the settings screen shows from %bankpin / %bankpin_1 / %bankpin_2.
+// call this after any action so the screen can never go stale or show the wrong buttons.
+[proc,bankpin_refresh_settings]
+// finalize an expired pending removal
+if (%bankpin_2 > 0 & date_runeday >= %bankpin_2) {
+    %bankpin = 0;
+    %bankpin_2 = 0;
+}
+
+if (~bankpin_has_pin = false) {
+    if_settext(bankpin_settings:com_175, "No PIN set");
+} else if (%bankpin_2 > 0) {
+    if_settext(bankpin_settings:com_175, "Pending removal");
+} else {
+    if_settext(bankpin_settings:com_175, "PIN set");
+}
+def_int $days = ~bankpin_recovery_days;
+if_settext(bankpin_settings:com_177, "<tostring($days)> Days");
+
+if (~bankpin_has_pin = false) {
+    if_sethide(bankpin_settings:com_147, false);
+    if_sethide(bankpin_settings:com_148, false);
+    if_sethide(bankpin_settings:com_149, true);
+    if_sethide(bankpin_settings:com_150, true);
+    if_sethide(bankpin_settings:com_151, true);
+    if_sethide(bankpin_settings:com_152, true);
+} else if (%bankpin_2 > 0) {
+    if_sethide(bankpin_settings:com_147, true);
+    if_sethide(bankpin_settings:com_148, true);
+    if_sethide(bankpin_settings:com_149, true);
+    if_sethide(bankpin_settings:com_150, true);
+    if_sethide(bankpin_settings:com_151, false);
+    if_sethide(bankpin_settings:com_152, false);
+} else {
+    if_sethide(bankpin_settings:com_147, true);
+    if_sethide(bankpin_settings:com_148, true);
+    if_sethide(bankpin_settings:com_149, false);
+    if_sethide(bankpin_settings:com_150, false);
+    if_sethide(bankpin_settings:com_151, false);
+    if_sethide(bankpin_settings:com_152, true);
+}
+
+[proc,bankpin_change_recovery_delay]
+def_int $days = ~p_choice4("7 days", 7, "14 days", 14, "21 days", 21, "42 days", 42);
+%bankpin_1 = $days;
+mes("Your recovery delay is now <tostring($days)> days.");
+~bankpin_refresh_settings;
+
+[proc,bankpin_has_pin]()(boolean)
+if (%bankpin ! 0) {
+    return(true);
+}
+return(false);
+
+[proc,bankpin_recovery_days]()(int)
+if (%bankpin_1 <= 0) {
+    return(7);
+}
+return(%bankpin_1);
+
+// opens the keypad for a fresh entry. $flow is verify_change / verify_delete / enter_new.
+[proc,bankpin_start_entry](int $flow)
+%bankpin_flow = $flow;
+%bankpin_entry = 0;
+%bankpin_entry_count = 0;
+~bankpin_shuffle;
+if_openmain(bankpin_main);
+if_sethide(bankpin_main:title, true);
+if ($flow = ^bankpin_flow_enter_new) {
+    if_settext(bankpin_main:instruction, "Please enter your new FOUR DIGIT PIN using the buttons below.");
+    if_sethide(bankpin_main:forgotten, true);
+} else {
+    if_settext(bankpin_main:instruction, "Please enter your CURRENT four digit PIN to continue.");
+    if_sethide(bankpin_main:forgotten, false);
+}
+~bankpin_reset_display;
+
+[proc,bankpin_clear_flow]
+%bankpin_flow = ^bankpin_flow_none;
+%bankpin_entry = 0;
+%bankpin_entry_count = 0;
+%bankpin_pending_first = 0;
+
+// shuffles which digit (0-9) each of the ten button positions (a..j) represents this time -
+// real bank pin keypads reshuffle on every screen so a keylogger/shoulder-surfer can't just
+// remember button positions. built from a random shift + a random step coprime with 10
+// (1, 3, 7 or 9) so every digit is guaranteed to appear in exactly one position.
+[proc,bankpin_shuffle]
+def_int $shift = random(10);
+def_int $stepidx = random(4);
+def_int $step = 1;
+switch_int ($stepidx) {
+    case 1 : $step = 3;
+    case 2 : $step = 7;
+    case 3 : $step = 9;
+}
+%bankpin_map_a = modulo(add($shift, multiply($step, 0)), 10);
+%bankpin_map_b = modulo(add($shift, multiply($step, 1)), 10);
+%bankpin_map_c = modulo(add($shift, multiply($step, 2)), 10);
+%bankpin_map_d = modulo(add($shift, multiply($step, 3)), 10);
+%bankpin_map_e = modulo(add($shift, multiply($step, 4)), 10);
+%bankpin_map_f = modulo(add($shift, multiply($step, 5)), 10);
+%bankpin_map_g = modulo(add($shift, multiply($step, 6)), 10);
+%bankpin_map_h = modulo(add($shift, multiply($step, 7)), 10);
+%bankpin_map_i = modulo(add($shift, multiply($step, 8)), 10);
+%bankpin_map_j = modulo(add($shift, multiply($step, 9)), 10);
+if_settext(bankpin_main:a_text, "<tostring(%bankpin_map_a)>");
+if_settext(bankpin_main:b_text, "<tostring(%bankpin_map_b)>");
+if_settext(bankpin_main:c_text, "<tostring(%bankpin_map_c)>");
+if_settext(bankpin_main:d_text, "<tostring(%bankpin_map_d)>");
+if_settext(bankpin_main:e_text, "<tostring(%bankpin_map_e)>");
+if_settext(bankpin_main:f_text, "<tostring(%bankpin_map_f)>");
+if_settext(bankpin_main:g_text, "<tostring(%bankpin_map_g)>");
+if_settext(bankpin_main:h_text, "<tostring(%bankpin_map_h)>");
+if_settext(bankpin_main:i_text, "<tostring(%bankpin_map_i)>");
+if_settext(bankpin_main:j_text, "<tostring(%bankpin_map_j)>");
+
+[proc,bankpin_reset_display]
+if_settext(bankpin_main:digit1, "?");
+if_settext(bankpin_main:digit2, "?");
+if_settext(bankpin_main:digit3, "?");
+if_settext(bankpin_main:digit4, "?");
+~bankpin_update_hint;
+
+[proc,bankpin_update_hint]
+switch_int (%bankpin_entry_count) {
+    case 0 : if_settext(bankpin_main:digithint, "Click the 1st digit of your PIN...");
+    case 1 : if_settext(bankpin_main:digithint, "Click the 2nd digit of your PIN...");
+    case 2 : if_settext(bankpin_main:digithint, "Click the 3rd digit of your PIN...");
+    case 3 : if_settext(bankpin_main:digithint, "Click the 4th digit of your PIN...");
+    case 4 : if_settext(bankpin_main:digithint, "");
+}
+
+[proc,bankpin_digit_pressed](int $digit)
+if (%bankpin_entry_count >= 4) {
+    return;
+}
+%bankpin_entry = add(multiply(%bankpin_entry, 10), $digit);
+%bankpin_entry_count = add(%bankpin_entry_count, 1);
+switch_int (%bankpin_entry_count) {
+    case 1 : if_settext(bankpin_main:digit1, "*");
+    case 2 : if_settext(bankpin_main:digit2, "*");
+    case 3 : if_settext(bankpin_main:digit3, "*");
+    case 4 : if_settext(bankpin_main:digit4, "*");
+}
+~bankpin_update_hint;
+if (%bankpin_entry_count = 4) {
+    ~bankpin_finalize_entry;
+}
+
+// entering the new pin (whether from "Set a PIN" or after verifying for "Change your PIN")
+// always requires confirming by re-entering it, to catch typos before it's saved.
+[proc,bankpin_begin_confirm_new]
+%bankpin_flow = ^bankpin_flow_confirm_new;
+%bankpin_pending_first = %bankpin_entry;
+%bankpin_entry = 0;
+%bankpin_entry_count = 0;
+~bankpin_shuffle;
+~bankpin_reset_display;
+mes("Please enter your new PIN again to confirm it.");
+
+[proc,bankpin_finalize_entry]
+def_int $entered = %bankpin_entry;
+switch_int (%bankpin_flow) {
+    case ^bankpin_flow_verify_change :
+        if (add(10000, $entered) = %bankpin) {
+            mes("That's correct. Now enter your new PIN.");
+            %bankpin_flow = ^bankpin_flow_enter_new;
+            %bankpin_entry = 0;
+            %bankpin_entry_count = 0;
+            ~bankpin_shuffle;
+            ~bankpin_reset_display;
+            if_settext(bankpin_main:instruction, "Please enter your new FOUR DIGIT PIN using the buttons below.");
+            if_sethide(bankpin_main:forgotten, true);
+        } else {
+            mes("That is not your current PIN.");
+            ~bankpin_clear_flow;
+            if_close;
+            ~bankpin_open_settings;
+        }
+    case ^bankpin_flow_verify_delete :
+        if (add(10000, $entered) = %bankpin) {
+            ~bankpin_clear_flow;
+            if_close;
+            ~bankpin_open_settings;
+            if_sethide(bankpin_settings:com_237, false);
+        } else {
+            mes("That is not your current PIN.");
+            ~bankpin_clear_flow;
+            if_close;
+            ~bankpin_open_settings;
+        }
+    case ^bankpin_flow_enter_new :
+        ~bankpin_begin_confirm_new;
+    case ^bankpin_flow_confirm_new :
+        if ($entered = %bankpin_pending_first) {
+            %bankpin = add(10000, $entered);
+            mes("Your bank PIN has been set.");
+            ~bankpin_clear_flow;
+            if_close;
+            ~bankpin_open_settings;
+        } else {
+            mes("The PINs you entered do not match. Please start again.");
+            ~bankpin_clear_flow;
+            if_close;
+            ~bankpin_open_settings;
+        }
+}
