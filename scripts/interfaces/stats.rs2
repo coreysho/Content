@@ -1,12 +1,16 @@
 // Handles the "View <skill> guide" buttons on the stats (skills) interface.
 // Attack, Strength, Defence and Hitpoints share a single combined Combat guide,
 // matching how the real 2006 Skill Guides grouped the four core combat stats.
-// Every other skill gets its own guide. Content is shown via the existing
-// general-purpose book popup (see general/scripts/book.rs2).
+// Most skills still get the old single-page text guide, shown via the existing
+// general-purpose book popup (see general/scripts/book.rs2). Cooking is the
+// pilot for a newer-RuneScape-style scrollable icon list instead (see
+// content/scripts/skill_cooking/interfaces/cooking_guide.if and
+// content/scripts/skill_cooking/scripts/cooking_guide.rs2) - more skills are
+// expected to move to that pattern over time.
 //
-// Note: each entry below is kept short enough to fit on a single book page.
-// proc,book's automatic multi-page split only shows the final page once split,
-// so longer text should not be passed to a single ~book(...) call here.
+// Note: each ~book(...) entry below is kept short enough to fit on a single
+// book page. proc,book's automatic multi-page split only shows the final page
+// once split, so longer text should not be passed to a single ~book(...) call.
 
 [if_button,stats:com_68]
 ~book("Combat Guide", "@red@Attack, Strength, Defence & Hitpoints@bla@||Together these four skills make up your combat level, trained through melee fighting.||@red@Attack@bla@ raises your accuracy and which weapons you can wield.|@red@Strength@bla@ raises the damage you deal.|@red@Defence@bla@ reduces incoming hits and unlocks armour.|@red@Hitpoints@bla@ is how much damage you can take before dying, and regenerates over time.");
@@ -42,7 +46,10 @@
 ~book("Thieving Guide", "@red@Thieving@bla@||Steal from market stalls, pickpocket non-player characters, and open locked chests and doors.||Higher levels reduce your chance of getting caught, and unlock richer targets to steal from.||Getting caught pickpocketing will cause the target to attack you, so be careful at low levels.");
 
 [if_button,stats:com_79]
-~book("Cooking Guide", "@red@Cooking@bla@||Prepare raw food, mainly fish and meat, over a fire or on a range to restore Hitpoints when eaten.||Your level determines what you can cook without a high chance of burning it.||Cooking on a range is generally more reliable than an open fire. Cooked food can also be sold.");
+// Pilot for the new scrollable icon-list skill guides (see content/scripts/skill_cooking/interfaces/cooking_guide.if
+// and scripts/cooking_guide.rs2) - replaces the old single-page ~book(...) popup for Cooking only, for now.
+// Every other skill below still uses the old text popup until this pattern is rolled out further.
+~open_cooking_guide;
 
 [if_button,stats:com_80]
 ~book("Prayer Guide", "@red@Prayer@bla@||Activate blessings that assist you in combat, at the cost of steadily draining prayer points.||Gain experience by burying bones from defeated monsters, or offering them at a Chaos Altar.||Prayer points restore at an altar or with Prayer potions. Higher levels unlock stronger prayers.");
