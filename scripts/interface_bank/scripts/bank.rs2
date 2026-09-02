@@ -19,20 +19,22 @@ if(%bankinsert = 1) {
 // banker.rs2) now comes through here first. If a PIN is set and hasn't been verified yet THIS
 // login session (%bankpin_verified resets to 0 on every login since it has no scope=perm), start
 // the keypad instead of opening the bank; bankpin_finalize_entry's verify_access case calls
-// @openbank_real once the correct PIN is entered.
+// ~bankpin_open_bank_real once the correct PIN is entered. (bankpin_open_bank_real is a PROC, not
+// a label - a proc can't @jump to a label, "Unable to jump to labels from within a proc", so the
+// real bank-opening logic has to be callable with ~ from finalize_entry.)
 [label,openbank]
 if (~bankpin_has_pin = false) {
     %bankpin_verified = 1;
-    @openbank_real;
+    ~bankpin_open_bank_real;
     return;
 }
 if (%bankpin_verified = 1) {
-    @openbank_real;
+    ~bankpin_open_bank_real;
     return;
 }
 ~bankpin_start_entry(^bankpin_flow_verify_access);
 
-[label,openbank_real]
+[proc,bankpin_open_bank_real]
 %bankcert = 0;
 ~reorganize_inv(bank);
 inv_transmit(inv, bank_side:inv);
