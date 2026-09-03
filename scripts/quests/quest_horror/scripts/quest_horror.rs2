@@ -85,9 +85,13 @@ if (%horror = ^horror_not_started) {
 // Gunnjorn is reachable at the Barbarian Outpost agility arena independent of the broken bridges,
 // so the key hand-out is gated on possession (not a %horror stage) to avoid an order-dependent
 // sequence break if he's spoken to before or after the bridges are repaired.
+// [opnpc1,gunnjorn] can only be declared once globally - this merges in the original base flavour
+// dialogue from area_barbarian_outpost/scripts/gunnjorn.rs2 (now removed from there, see that file's
+// own comment) as the not-yet-quest-relevant case, rather than dropping it in favour of the quest line.
 [opnpc1,gunnjorn]
 if (%horror = ^horror_not_started) {
-    ~chatnpc("<p,neutral>Can I help you, adventurer?");
+    ~chatnpc("<p,happy>Haha welcome to my obstacle course.|Have fun, but remember this isn't a child's playground.|People have died here.");
+    ~chatnpc("<p,happy>The best way to train,|is to go round the course in a clockwise direction.");
 } else if (%horror = ^horror_started & inv_total(inv, horror_key) = 0) {
     ~chatplayer("<p,neutral>Larrissa said you might be able to help me get into the lighthouse.");
     ~chatnpc("<p,neutral>Ah, poor Jossik. Here, take this key - it should let you into the basement once you're inside.");
