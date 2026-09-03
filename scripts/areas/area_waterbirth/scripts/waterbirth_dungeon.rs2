@@ -11,19 +11,13 @@
 // clickable) - so this is implemented as a genuine two-player check via map_playercount on both
 // pad coordinates, not guessed at.
 //
-// IMPORTANT CORRECTION from my first message to Corey about this: I originally assumed the
-// "door-support" mechanic was dagannoth_weak_door_south/west/north (npc ids 2440/2443/2446,
-// clustered right next to the ladder in m39_158). Checking their full cache def before wiring them
-// up: every state (standing/falling/fallen) has vislevel=hide AND minimap=no - meaning these NPCs
-// are never actually rendered to the client at all, in any state. A real op2=Destroy is defined on
-// the standing variant, but there'd be nothing on screen for a player to click. That's a strong
-// signal these are either non-functional leftover/placeholder content in this cache revision, or
-// driven by some other mechanism I haven't found evidence for (no content script references them
-// anywhere, confirmed by grep). Rather than script a right-click interaction on something a real
-// client would never show, I've left them alone and built the puzzle against the pressure-door
-// system instead, which has real, visible, correctly-flagged (op1=Open, no vislevel=hide) locs.
-// Worth a second look later in case the hidden npcs turn out to matter after all (e.g. if this
-// cache build turns out to toggle vislevel dynamically some way I haven't found).
+// CORRECTION (superseded, kept for history): I originally assumed dagannoth_weak_door_south/west/
+// north (npc ids 2440/2443/2446, clustered right next to the ladder in m39_158) were unusable
+// because every state has vislevel=hide + minimap=no. Corey confirmed in-game they DO render and
+// ARE attackable, so that assumption was wrong - vislevel=hide evidently doesn't mean "never
+// rendered" the way I read it. These are real, separate content from the pressure-door puzzle above
+// (a different corridor cluster, m39_158 not m38_158) - see the "Door-support puzzle" section below
+// for how they're wired now.
 //
 // Deliberately NOT modelled this pass (matching the wiki's fuller description, flagged rather than
 // guessed): the "can't open the pad facing your own approach" nuance, and the pet-rock/scrambled-egg
@@ -43,15 +37,16 @@
 // first pass of this file.
 
 // --- Entrance (Rellekka coast, m39_58) ---
+// Corey-supplied coords (2026-09-03): the two entrances land in different spots after all - rock
+// goes to the main/"normal" cavern (m38_158), ice lands right by the iron ladder (m39_158), tying
+// the ice entrance and the ladder together as requested.
 [oploc1,dagannoth_caveentrance_rock]
 mes("You duck into the dark, cold cave.");
-p_telejump(^waterbirth_entrance_dest);
+p_telejump(^waterbirth_entrance_rock_dest);
 
 [oploc1,dagannoth_caveentrance_ice]
 mes("You duck into the dark, cold cave.");
-p_telejump(^waterbirth_entrance_dest);
-// No evidence either entrance leads anywhere different (both are plain decorative cave-mouth props
-// per the cache, op1=Enter on both, no distinguishing data found) - both go to the same landing spot.
+p_telejump(^waterbirth_entrance_ice_dest);
 
 
 // --- Ladder (dagannoth_ladder_base, m39_158) and steps (dagannoth_rocky_steps, m38_158) ---
@@ -62,11 +57,17 @@ p_telejump(^waterbirth_entrance_dest);
 // The cache actually gives this loc three ops (op1=Climb, op2=Climb-up, op3=Climb-down) - only op1
 // was wired originally, so right-clicking Climb-down did nothing ("nothing interesting happens").
 // All three now resolve: op1/op3 both go deeper (op1 kept as the ambiguous default, matching op3);
-// op2 goes back to the surface, reusing dagannoth_rocky_steps' destination since this is the same
-// room. NOTE: Corey says the destination coords themselves are wrong for the cave entrances and
-// wants the ice cavern tied to this ladder specifically - tabled until he provides the real coords,
-// so ^waterbirth_entrance_ladder_dest/^waterbirth_surface_return below are still the placeholder
-// values, not yet the corrected ones.
+// op2 goes back to the surface (reusing the rock/steps surface_return - Corey hasn't given a
+// distinct ice-side surface point, so this is a reasonable default until/unless he wants Climb-up
+// to specifically pop back out the ice cave instead).
+//
+// SECOND BUG FOUND (2026-09-03): dagannoth_ladder_base is only the UPPER half of this ladder
+// (plane 1, local(50,31) per the .jm2 sweep). The tile players actually stand on and click - plane
+// 0, same local(50,31) - is a SEPARATE loc, dagannoth_ladder_base_ext2 (same name/desc/three ops,
+// but a different debugname to the compiler). Since only dagannoth_ladder_base had handlers, anyone
+// clicking the ladder from ground level got "nothing interesting happens" regardless of which op -
+// this is almost certainly what Corey was hitting both times he reported the ladder as broken.
+// Wired identically to the base piece below.
 [oploc1,dagannoth_ladder_base]
 mes("You climb down the ladder and squeeze through a narrow passage.");
 p_telejump(^waterbirth_entrance_ladder_dest);
@@ -76,6 +77,18 @@ mes("You climb up the ladder and back out into the cold Rellekka air.");
 p_telejump(^waterbirth_surface_return);
 
 [oploc3,dagannoth_ladder_base]
+mes("You climb down the ladder and squeeze through a narrow passage.");
+p_telejump(^waterbirth_entrance_ladder_dest);
+
+[oploc1,dagannoth_ladder_base_ext2]
+mes("You climb down the ladder and squeeze through a narrow passage.");
+p_telejump(^waterbirth_entrance_ladder_dest);
+
+[oploc2,dagannoth_ladder_base_ext2]
+mes("You climb up the ladder and back out into the cold Rellekka air.");
+p_telejump(^waterbirth_surface_return);
+
+[oploc3,dagannoth_ladder_base_ext2]
 mes("You climb down the ladder and squeeze through a narrow passage.");
 p_telejump(^waterbirth_entrance_ladder_dest);
 
@@ -281,3 +294,36 @@ p_telejump(^wb_ladder33_dest);
 [oploc1,dagexp_ladder34]
 mes("You climb up the ladder.");
 p_telejump(^wb_ladder34_dest);
+
+
+// --- Door-support puzzle (dagannoth_weak_door_south/west/north, m39_158) ---
+// Genuine, separate mechanic from the pressure-door room above - see the corrected header note.
+// Corey confirmed (2026-09-03) killing the support already works via the generic combat pipeline
+// (op2=Destroy functions as this npc's Attack-equivalent slot, same as any other monster - no
+// per-npc opnpc2 trigger needed, matching how dagcave_melee_boss etc never needed one either), but
+// the path stayed blocked afterwards. Found why: each corridor has a real, separate invisible
+// collision loc (dagcave_invisibleblocking, id 8967, desc "A sturdy looking door, propped shut with
+// a support") placed on the SAME tile as its npc - killing the npc alone never touched it. Its
+// unnamed neighbour loc_8968 (id 8968, same blank model, never independently placed anywhere in the
+// 660-region sweep) is the passable pair - given blockwalk=no this pass (see all.loc) and swapped to
+// on death, which is what actually opens the corridor.
+// Not yet modelled: the real fallen-door visual (the cache's _falling_/_fallen_ npc states) -
+// spawning a fresh npc from script wasn't something I could confirm a primitive for this pass, so
+// the support just vanishes on death like a normal kill for now rather than leaving fallen wreckage.
+[ai_queue3,dagannoth_weak_door_south]
+gosub(npc_death);
+if (loc_find(^waterbirth_weakdoor_south_blocker, dagcave_invisibleblocking) = true) {
+    loc_change(loc_8968, ^max_32bit_int);
+}
+
+[ai_queue3,dagannoth_weak_door_west]
+gosub(npc_death);
+if (loc_find(^waterbirth_weakdoor_west_blocker, dagcave_invisibleblocking) = true) {
+    loc_change(loc_8968, ^max_32bit_int);
+}
+
+[ai_queue3,dagannoth_weak_door_north]
+gosub(npc_death);
+if (loc_find(^waterbirth_weakdoor_north_blocker, dagcave_invisibleblocking) = true) {
+    loc_change(loc_8968, ^max_32bit_int);
+}

@@ -3,13 +3,17 @@
 // re-derived from content/maps/m38_158.jm2 / m39_158.jm2 (level_regionX_regionZ_localX_localZ,
 // matching Corey's own ::getcoord readout format).
 
-// Landing spot just inside the cave, roughly centred between the three pressure-door corridors
-// (z18/34/50 local -> world z 10130/10146/10162) so the player can reach any of them.
-^waterbirth_entrance_dest = 0_38_158_55_35
+// Corey-supplied coords (2026-09-03), replacing the earlier guessed shared entrance_dest below -
+// the two cave entrances actually land in different spots, and the ice entrance is deliberately
+// placed right by dagannoth_ladder_base/_ext2 (see "the ice cavern and the iron ladder should be
+// tied together" - waterbirth_dungeon.rs2's ladder handlers use this same landing spot).
+^waterbirth_entrance_ice_dest = 0_39_158_49_31
+^waterbirth_entrance_rock_dest = 0_38_158_10_35
 
-// Just outside dagannoth_caveentrance_rock on the Rellekka coast (rock itself is world 2519,3738,0,
-// width 4x4) - used as the ladder's return-to-surface destination, see waterbirth_dungeon.rs2.
-^waterbirth_surface_return = 0_39_58_25_27
+// Corey-supplied (2026-09-03): the actual steps by the rock/"normal" cavern entrance on the
+// Rellekka coast, replacing the earlier guessed 0_39_58_25_27. Two tiles given (a 1x2 staircase
+// footprint) - 27_27 used as the landing spot, either is valid.
+^waterbirth_surface_return = 0_39_58_27_27
 
 // The three dagannoth_pressure_door/door2/door3 locs and their paired pressure pads
 // (dagannoth_pressure_pad_1/_2, both forcedecor=yes - no op, purely a presence-detection tile).
@@ -21,6 +25,18 @@
 ^waterbirth_door2_pad2 = 0_38_158_58_36
 ^waterbirth_door1_pad1 = 0_38_158_58_50
 ^waterbirth_door1_pad2 = 0_38_158_58_52
+
+// The door-support puzzle (m39_158, plane 0) is a *different* mechanic from the pressure doors
+// above - each of the three weak-door corridors has a real, invisible collision loc
+// (dagcave_invisibleblocking, "A sturdy looking door, propped shut with a support") co-located with
+// its dagannoth_weak_door_south/west/north npc. Confirmed via the .jm2 NPC section: weak_door_west
+// at local(47,31), weak_door_south at local(49,29), weak_door_north at local(49,33) - loc.pack
+// id 8967 sits on the exact same three tiles. Its unnamed neighbour loc_8968 (id 8968, same blank
+// model, never independently placed anywhere in the 660-region sweep) is the open/passable pair -
+// see waterbirth_dungeon.rs2's ai_queue3 handlers.
+^waterbirth_weakdoor_south_blocker = 0_39_158_49_29
+^waterbirth_weakdoor_west_blocker = 0_39_158_47_31
+^waterbirth_weakdoor_north_blocker = 0_39_158_49_33
 
 // --- The main cavern network (m28_68/m29_68/m30_68) and the Kings' lair (m45_69) ---
 // Found this pass: a full 34-piece numbered ladder network (dagexp_ladder1-34, plus
