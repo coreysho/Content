@@ -55,11 +55,27 @@ p_telejump(^waterbirth_entrance_dest);
 
 
 // --- Ladder (dagannoth_ladder_base, m39_158) and steps (dagannoth_rocky_steps, m38_158) ---
-// dagannoth_ladder_base (real op1=Climb, name="Iron ladder", desc="I could climb this if I wanted" -
-// generic, no "surface" framing) now leads deeper, into the cavern's dagexp_entrance_ladder spot -
-// there's no placed loc directly bridging these two void-pocket clusters, so this is an inferred
-// jump, not confirmed placement data (see header comment/project doc).
+// dagannoth_ladder_base (real name="Iron ladder", desc="I could climb this if I wanted" - generic,
+// no "surface" framing) now leads deeper, into the cavern's dagexp_entrance_ladder spot - there's no
+// placed loc directly bridging these two void-pocket clusters, so this is an inferred jump, not
+// confirmed placement data (see header comment/project doc).
+// The cache actually gives this loc three ops (op1=Climb, op2=Climb-up, op3=Climb-down) - only op1
+// was wired originally, so right-clicking Climb-down did nothing ("nothing interesting happens").
+// All three now resolve: op1/op3 both go deeper (op1 kept as the ambiguous default, matching op3);
+// op2 goes back to the surface, reusing dagannoth_rocky_steps' destination since this is the same
+// room. NOTE: Corey says the destination coords themselves are wrong for the cave entrances and
+// wants the ice cavern tied to this ladder specifically - tabled until he provides the real coords,
+// so ^waterbirth_entrance_ladder_dest/^waterbirth_surface_return below are still the placeholder
+// values, not yet the corrected ones.
 [oploc1,dagannoth_ladder_base]
+mes("You climb down the ladder and squeeze through a narrow passage.");
+p_telejump(^waterbirth_entrance_ladder_dest);
+
+[oploc2,dagannoth_ladder_base]
+mes("You climb up the ladder and back out into the cold Rellekka air.");
+p_telejump(^waterbirth_surface_return);
+
+[oploc3,dagannoth_ladder_base]
 mes("You climb down the ladder and squeeze through a narrow passage.");
 p_telejump(^waterbirth_entrance_ladder_dest);
 
