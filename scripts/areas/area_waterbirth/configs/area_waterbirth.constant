@@ -1,0 +1,82 @@
+// Waterbirth Island Dungeon - real-world coordinates found via the full 660-region map sweep
+// (claude/horror-from-the-deep-quest.md, "The basement, found"). All placed loc/npc positions
+// re-derived from content/maps/m38_158.jm2 / m39_158.jm2 (level_regionX_regionZ_localX_localZ,
+// matching Corey's own ::getcoord readout format).
+
+// Landing spot just inside the cave, roughly centred between the three pressure-door corridors
+// (z18/34/50 local -> world z 10130/10146/10162) so the player can reach any of them.
+^waterbirth_entrance_dest = 0_38_158_55_35
+
+// Just outside dagannoth_caveentrance_rock on the Rellekka coast (rock itself is world 2519,3738,0,
+// width 4x4) - used as the ladder's return-to-surface destination, see waterbirth_dungeon.rs2.
+^waterbirth_surface_return = 0_39_58_25_27
+
+// The three dagannoth_pressure_door/door2/door3 locs and their paired pressure pads
+// (dagannoth_pressure_pad_1/_2, both forcedecor=yes - no op, purely a presence-detection tile).
+// Real cache placements, m38_158.jm2: door3 at local(59,18), door2 at local(59,34), door at
+// local(59,50) - each with two pads immediately beside it.
+^waterbirth_door3_pad1 = 0_38_158_58_18
+^waterbirth_door3_pad2 = 0_38_158_58_20
+^waterbirth_door2_pad1 = 0_38_158_58_34
+^waterbirth_door2_pad2 = 0_38_158_58_36
+^waterbirth_door1_pad1 = 0_38_158_58_50
+^waterbirth_door1_pad2 = 0_38_158_58_52
+
+// --- The main cavern network (m28_68/m29_68/m30_68) and the Kings' lair (m45_69) ---
+// Found this pass: a full 34-piece numbered ladder network (dagexp_ladder1-34, plus
+// dagexp_entrance_ladder/dagexp_exit_ladder/dagexp_bossroomladder_up/_down - loc.pack ids
+// 10193-10194/10195-10228/10229-10230) forming the real multi-plane maze between the pressure-door
+// room and the Kings. Pairing verified by proximity: consecutive ladder numbers sit on adjacent
+// tiles one plane apart (e.g. dagexp_ladder1 at plane 3 local(16,53) pairs with dagexp_ladder2 at
+// plane 2 local(17,53), both in m28_68) - each pair is one real climb point connecting those two
+// planes, scripted directly against each other's coordinates in waterbirth_dungeon.rs2.
+// dagexp_entrance_ladder (m28_68, plane 3, local(6,54)) and dagexp_exit_ladder (m30_68, plane 3,
+// local(55,56)) are isolated - no matching second placement anywhere in the 660-region sweep - so
+// they're the maze's two outer doors rather than another teleport pair. dagannoth_ladder_base and
+// dagannoth_rocky_steps (in the pressure-door room) bridge them to the surface entrance/pressure-door
+// room, since no other placed connector was found for that specific jump - an inferred bridge, not
+// confirmed placement data (see the project doc for the full caveat).
+// dagexp_bossroomladder_down (m29_68, plane 0, local(55,15)) and dagexp_bossroomladder_up (m45_69,
+// plane 0, local(19,33)) ARE a genuine cross-region pair (same "bossroomladder" name, no local partner
+// in their own region) - this is the real, evidenced connector into the Kings' lair.
+^waterbirth_entrance_ladder_dest = 3_28_68_6_54
+^waterbirth_bossroom_down_dest = 0_45_69_19_33
+^waterbirth_bossroom_up_dest = 0_29_68_55_15
+// dagannoth_ladder_base's own real placement (m39_158, plane 1, local(50,31)) - used as the return
+// target when climbing back up from dagexp_entrance_ladder.
+^waterbirth_ladder_return_dest = 1_39_158_50_31
+
+^wb_ladder1_dest = 2_28_68_17_53
+^wb_ladder2_dest = 3_28_68_16_53
+^wb_ladder3_dest = 2_28_68_31_52
+^wb_ladder4_dest = 3_28_68_32_52
+^wb_ladder5_dest = 2_28_68_42_36
+^wb_ladder6_dest = 3_28_68_42_37
+^wb_ladder7_dest = 1_28_68_18_42
+^wb_ladder8_dest = 2_28_68_19_42
+^wb_ladder9_dest = 2_28_68_7_35
+^wb_ladder10_dest = 1_28_68_7_36
+^wb_ladder11_dest = 1_28_68_6_30
+^wb_ladder12_dest = 2_28_68_5_30
+^wb_ladder13_dest = 2_28_68_9_17
+^wb_ladder14_dest = 1_28_68_10_17
+^wb_ladder15_dest = 1_28_68_35_10
+^wb_ladder16_dest = 2_28_68_34_10
+^wb_ladder25_dest = 3_28_68_32_28
+^wb_ladder26_dest = 2_28_68_32_29
+^wb_ladder27_dest = 2_28_68_46_23
+^wb_ladder28_dest = 3_28_68_46_24
+^wb_ladder29_dest = 1_28_68_58_33
+^wb_ladder30_dest = 2_28_68_58_34
+^wb_ladder17_dest = 2_29_68_7_20
+^wb_ladder18_dest = 1_29_68_7_19
+^wb_ladder19_dest = 1_29_68_8_37
+^wb_ladder20_dest = 2_29_68_8_36
+^wb_ladder21_dest = 0_29_68_34_56
+^wb_ladder22_dest = 1_29_68_34_55
+^wb_ladder23_dest = 1_30_68_37_20
+^wb_ladder24_dest = 0_30_68_37_19
+^wb_ladder31_dest = 1_30_68_12_26
+^wb_ladder32_dest = 2_30_68_12_27
+^wb_ladder33_dest = 2_30_68_41_39
+^wb_ladder34_dest = 3_30_68_41_40

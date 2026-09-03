@@ -1,0 +1,267 @@
+// Waterbirth Island Dungeon - entrance, ladder and the pressure-door puzzle.
+// Design/coordinates: claude/horror-from-the-deep-quest.md, "The basement, found" (full 660-region
+// map sweep) and "What's actually left" below it. See area_waterbirth.constant for every coordinate
+// used here, all re-derived from content/maps/m39_58.jm2 / m38_158.jm2 / m39_158.jm2.
+//
+// Real wiki mechanic (https://oldschool.runescape.wiki/w/Waterbirth_Island_Dungeon) is a two-player
+// pressure-pad puzzle: "one player must stand on a button while their companion stands on the
+// other" to open one of three doors gating the main cavern. That's exactly what the cache has
+// placed here - dagannoth_pressure_door/_door2/_door3 (real op1=Open) each paired with two
+// dagannoth_pressure_pad_1/_2 tiles (forcedecor=yes, no op - pure presence-detection tiles, not
+// clickable) - so this is implemented as a genuine two-player check via map_playercount on both
+// pad coordinates, not guessed at.
+//
+// IMPORTANT CORRECTION from my first message to Corey about this: I originally assumed the
+// "door-support" mechanic was dagannoth_weak_door_south/west/north (npc ids 2440/2443/2446,
+// clustered right next to the ladder in m39_158). Checking their full cache def before wiring them
+// up: every state (standing/falling/fallen) has vislevel=hide AND minimap=no - meaning these NPCs
+// are never actually rendered to the client at all, in any state. A real op2=Destroy is defined on
+// the standing variant, but there'd be nothing on screen for a player to click. That's a strong
+// signal these are either non-functional leftover/placeholder content in this cache revision, or
+// driven by some other mechanism I haven't found evidence for (no content script references them
+// anywhere, confirmed by grep). Rather than script a right-click interaction on something a real
+// client would never show, I've left them alone and built the puzzle against the pressure-door
+// system instead, which has real, visible, correctly-flagged (op1=Open, no vislevel=hide) locs.
+// Worth a second look later in case the hidden npcs turn out to matter after all (e.g. if this
+// cache build turns out to toggle vislevel dynamically some way I haven't found).
+//
+// Deliberately NOT modelled this pass (matching the wiki's fuller description, flagged rather than
+// guessed): the "can't open the pad facing your own approach" nuance, and the pet-rock/scrambled-egg
+// solo substitute for a second pad-presence - solo players need someone else online to open a door
+// for now.
+//
+// UPDATE (second pass): the main cavern and the Kings' lair are now wired up too. Found a real
+// 34-piece numbered ladder network (dagexp_ladder1-34 + dagexp_entrance_ladder/_exit_ladder/
+// _bossroomladder_up/_down) spanning m28_68/m29_68/m30_68's four planes (0-3), plus a genuine
+// cross-region pair (dagexp_bossroomladder_down/_up) connecting straight into the Kings' lair at
+// m45_69. See area_waterbirth.constant for the full derivation and pairing evidence. The one gap
+// still bridged by inference rather than a placed connector: crossing from the pressure-door room
+// (m38_158/m39_158) into the cavern's dagexp_entrance_ladder - no loc was found linking these two
+// void-pocket clusters directly, so dagannoth_ladder_base (which has no narrative reason to lead
+// back to the surface) was repurposed as that bridge instead, and dagannoth_rocky_steps (real desc
+// "Leads to the surface") takes over the surface-return job that dagannoth_ladder_base held in the
+// first pass of this file.
+
+// --- Entrance (Rellekka coast, m39_58) ---
+[oploc1,dagannoth_caveentrance_rock]
+mes("You duck into the dark, cold cave.");
+p_telejump(^waterbirth_entrance_dest);
+
+[oploc1,dagannoth_caveentrance_ice]
+mes("You duck into the dark, cold cave.");
+p_telejump(^waterbirth_entrance_dest);
+// No evidence either entrance leads anywhere different (both are plain decorative cave-mouth props
+// per the cache, op1=Enter on both, no distinguishing data found) - both go to the same landing spot.
+
+
+// --- Ladder (dagannoth_ladder_base, m39_158) and steps (dagannoth_rocky_steps, m38_158) ---
+// dagannoth_ladder_base (real op1=Climb, name="Iron ladder", desc="I could climb this if I wanted" -
+// generic, no "surface" framing) now leads deeper, into the cavern's dagexp_entrance_ladder spot -
+// there's no placed loc directly bridging these two void-pocket clusters, so this is an inferred
+// jump, not confirmed placement data (see header comment/project doc).
+[oploc1,dagannoth_ladder_base]
+mes("You climb down the ladder and squeeze through a narrow passage.");
+p_telejump(^waterbirth_entrance_ladder_dest);
+
+// dagannoth_rocky_steps (real op1=Climb, name="Steps", desc="Leads to the surface" - explicit in the
+// cache) is the genuine surface exit from the pressure-door room.
+[oploc1,dagannoth_rocky_steps]
+mes("You climb the steps and back out into the cold Rellekka air.");
+p_telejump(^waterbirth_surface_return);
+
+// dagexp_exit_ladder (m30_68, plane 3) is isolated like dagexp_entrance_ladder - no matching second
+// placement found anywhere - so it's treated as the cavern's own "way out" back toward the surface,
+// same destination as dagannoth_rocky_steps, rather than inventing a different one.
+[oploc1,dagexp_exit_ladder]
+mes("You climb up and out, eventually finding your way back to the surface.");
+p_telejump(^waterbirth_surface_return);
+
+[oploc1,dagexp_entrance_ladder]
+mes("You climb up the ladder.");
+p_telejump(^waterbirth_ladder_return_dest);
+
+
+// --- Pressure-door puzzle (m38_158) ---
+// Three independent door+pad installations, ~16 tiles apart (not one shared three-door room). Each
+// needs a player standing on both of its pads at once - since the two pads are always two distinct
+// tiles, checking both independently returns >=1 each only when two different players are involved.
+[oploc1,dagannoth_pressure_door]
+if (map_playercount(^waterbirth_door1_pad1, ^waterbirth_door1_pad1) >= 1 & map_playercount(^waterbirth_door1_pad2, ^waterbirth_door1_pad2) >= 1) {
+    mes("With a grinding of stone, the door slowly swings open!");
+    loc_change(dagannoth_pressure_open, 100);
+} else {
+    mes("The door won't budge - it feels like it needs weight on both pressure pads beside it at once.");
+}
+
+[oploc1,dagannoth_pressure_door2]
+if (map_playercount(^waterbirth_door2_pad1, ^waterbirth_door2_pad1) >= 1 & map_playercount(^waterbirth_door2_pad2, ^waterbirth_door2_pad2) >= 1) {
+    mes("With a grinding of stone, the door slowly swings open!");
+    loc_change(dagannoth_pressure_open, 100);
+} else {
+    mes("The door won't budge - it feels like it needs weight on both pressure pads beside it at once.");
+}
+
+[oploc1,dagannoth_pressure_door3]
+if (map_playercount(^waterbirth_door3_pad1, ^waterbirth_door3_pad1) >= 1 & map_playercount(^waterbirth_door3_pad2, ^waterbirth_door3_pad2) >= 1) {
+    mes("With a grinding of stone, the door slowly swings open!");
+    loc_change(dagannoth_pressure_open, 100);
+} else {
+    mes("The door won't budge - it feels like it needs weight on both pressure pads beside it at once.");
+}
+
+
+// --- The Kings' lair connector (m29_68 <-> m45_69) ---
+// dagexp_bossroomladder_down/_up: the one genuine cross-region pair in this whole network (same
+// "bossroomladder" name, no local partner in either one's own region) - real, evidenced connector
+// straight into the Kings' lair. dagannoth_kings.rs2's combat AI is already wired to the three npcs
+// waiting on the other side.
+[oploc1,dagexp_bossroomladder_down]
+mes("You climb down into a vast, echoing chamber.");
+p_telejump(^waterbirth_bossroom_down_dest);
+
+[oploc1,dagexp_bossroomladder_up]
+mes("You climb up out of the chamber.");
+p_telejump(^waterbirth_bossroom_up_dest);
+
+
+// --- The main cavern's ladder maze (m28_68/m29_68/m30_68, planes 0-3) ---
+// 17 real climb pairs (dagexp_ladder1-34), each connecting two adjacent planes at the same tile (+-1)
+// - see area_waterbirth.constant for the full derivation. This is a genuine maze, not a single
+// corridor: every pair is scripted faithfully rather than collapsed into a shortcut, matching the
+// wiki's description of navigating monster-filled multi-floor corridors between the entrance and the
+// Kings. "Up"/"down" messages are derived from which side of each pair sits on the higher plane.
+[oploc1,dagexp_ladder1]
+mes("You climb down the ladder.");
+p_telejump(^wb_ladder1_dest);
+
+[oploc1,dagexp_ladder2]
+mes("You climb up the ladder.");
+p_telejump(^wb_ladder2_dest);
+
+[oploc1,dagexp_ladder3]
+mes("You climb down the ladder.");
+p_telejump(^wb_ladder3_dest);
+
+[oploc1,dagexp_ladder4]
+mes("You climb up the ladder.");
+p_telejump(^wb_ladder4_dest);
+
+[oploc1,dagexp_ladder5]
+mes("You climb down the ladder.");
+p_telejump(^wb_ladder5_dest);
+
+[oploc1,dagexp_ladder6]
+mes("You climb up the ladder.");
+p_telejump(^wb_ladder6_dest);
+
+[oploc1,dagexp_ladder7]
+mes("You climb down the ladder.");
+p_telejump(^wb_ladder7_dest);
+
+[oploc1,dagexp_ladder8]
+mes("You climb up the ladder.");
+p_telejump(^wb_ladder8_dest);
+
+[oploc1,dagexp_ladder9]
+mes("You climb up the ladder.");
+p_telejump(^wb_ladder9_dest);
+
+[oploc1,dagexp_ladder10]
+mes("You climb down the ladder.");
+p_telejump(^wb_ladder10_dest);
+
+[oploc1,dagexp_ladder11]
+mes("You climb down the ladder.");
+p_telejump(^wb_ladder11_dest);
+
+[oploc1,dagexp_ladder12]
+mes("You climb up the ladder.");
+p_telejump(^wb_ladder12_dest);
+
+[oploc1,dagexp_ladder13]
+mes("You climb up the ladder.");
+p_telejump(^wb_ladder13_dest);
+
+[oploc1,dagexp_ladder14]
+mes("You climb down the ladder.");
+p_telejump(^wb_ladder14_dest);
+
+[oploc1,dagexp_ladder15]
+mes("You climb down the ladder.");
+p_telejump(^wb_ladder15_dest);
+
+[oploc1,dagexp_ladder16]
+mes("You climb up the ladder.");
+p_telejump(^wb_ladder16_dest);
+
+[oploc1,dagexp_ladder25]
+mes("You climb up the ladder.");
+p_telejump(^wb_ladder25_dest);
+
+[oploc1,dagexp_ladder26]
+mes("You climb down the ladder.");
+p_telejump(^wb_ladder26_dest);
+
+[oploc1,dagexp_ladder27]
+mes("You climb down the ladder.");
+p_telejump(^wb_ladder27_dest);
+
+[oploc1,dagexp_ladder28]
+mes("You climb up the ladder.");
+p_telejump(^wb_ladder28_dest);
+
+[oploc1,dagexp_ladder29]
+mes("You climb down the ladder.");
+p_telejump(^wb_ladder29_dest);
+
+[oploc1,dagexp_ladder30]
+mes("You climb up the ladder.");
+p_telejump(^wb_ladder30_dest);
+
+[oploc1,dagexp_ladder17]
+mes("You climb up the ladder.");
+p_telejump(^wb_ladder17_dest);
+
+[oploc1,dagexp_ladder18]
+mes("You climb down the ladder.");
+p_telejump(^wb_ladder18_dest);
+
+[oploc1,dagexp_ladder19]
+mes("You climb down the ladder.");
+p_telejump(^wb_ladder19_dest);
+
+[oploc1,dagexp_ladder20]
+mes("You climb up the ladder.");
+p_telejump(^wb_ladder20_dest);
+
+[oploc1,dagexp_ladder21]
+mes("You climb down the ladder.");
+p_telejump(^wb_ladder21_dest);
+
+[oploc1,dagexp_ladder22]
+mes("You climb up the ladder.");
+p_telejump(^wb_ladder22_dest);
+
+[oploc1,dagexp_ladder23]
+mes("You climb up the ladder.");
+p_telejump(^wb_ladder23_dest);
+
+[oploc1,dagexp_ladder24]
+mes("You climb down the ladder.");
+p_telejump(^wb_ladder24_dest);
+
+[oploc1,dagexp_ladder31]
+mes("You climb down the ladder.");
+p_telejump(^wb_ladder31_dest);
+
+[oploc1,dagexp_ladder32]
+mes("You climb up the ladder.");
+p_telejump(^wb_ladder32_dest);
+
+[oploc1,dagexp_ladder33]
+mes("You climb down the ladder.");
+p_telejump(^wb_ladder33_dest);
+
+[oploc1,dagexp_ladder34]
+mes("You climb up the ladder.");
+p_telejump(^wb_ladder34_dest);

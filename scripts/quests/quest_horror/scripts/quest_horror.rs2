@@ -26,8 +26,14 @@
 //   - horror_lighthouse_windpower_cog (loc 4590, the lighting mechanism): m39_56.jm2, plane 2,
 //     local(11,50) = world(2507,3634,2). horror_lighthouse_cog_broken (loc 4588, the original wrong
 //     guess) is confirmed genuinely unplaced anywhere searched.
-//   - horror_lighthouse_doorway (loc 4577, the strange-door puzzle): m39_56.jm2, plane 0,
-//     local(13,52) = world(2509,3636,0).
+//   - horror_lighthouse_doorway (loc 4577): m39_56.jm2, plane 0, local(13,52) = world(2509,3636,0) -
+//     Corey confirmed in-game this is the lighthouse's plain building entrance (real cache def:
+//     op1=Walk-through), NOT the six-icon rune/sword/arrow puzzle door I'd guessed it was - that
+//     puzzle's real loc is still unknown, see the comment above its (now commented-out) handler below.
+//   - horror_ladder_top (loc 4383, real op1=Climb) / horror_ladder_down (loc 4380, no op, decorative):
+//     m39_56.jm2, plane 0, local(13,60)/local(12,60) = world(2509,3644,0)/world(2508,3644,0) - the way
+//     down to the basement, per Corey's in-game find ("iron ladder to basement"). No script exists for
+//     the Climb op yet since there's no known destination - this is now the concrete blocker.
 //   - horror_girlfriend_prequest / Larrissa (npc 1336): m39_56.jm2, plane 0, local(12,51) =
 //     world(2508,3635,0) - matches Corey's in-game ::getcoord reading exactly.
 //   - horror_lighthousekeeeper_well / Jossik (npc 1334): m39_56.jm2, plane 1, local(13,55) =
@@ -191,48 +197,63 @@ if (getbit_range(%horror_lighting, 0, 2) = 7) {
 }
 
 
-// --- The strange wall in the basement ---
-// %horror_wall bits: 0=fire, 1=air, 2=water, 3=earth, 4=sword, 5=arrow
-[oplocu,horror_lighthouse_doorway]
-if (getbit_range(%horror_lighting, 0, 2) < 7) {
-    mes("Nothing happens - perhaps you should light the lighthouse first.");
-    return;
-}
-if (%horror >= ^horror_wall_opened) {
-    mes("The doorway is already open.");
-    return;
-}
-def_int $bit = -1;
-if (last_useitem = firerune) {
-    $bit = 0;
-} else if (last_useitem = airrune) {
-    $bit = 1;
-} else if (last_useitem = waterrune) {
-    $bit = 2;
-} else if (last_useitem = earthrune) {
-    $bit = 3;
-} else if (last_useitem = bronze_sword | last_useitem = iron_sword | last_useitem = steel_sword | last_useitem = black_sword | last_useitem = mithril_sword | last_useitem = adamant_sword | last_useitem = rune_sword) {
-    $bit = 4;
-} else if (last_useitem = bronze_arrow | last_useitem = iron_arrow | last_useitem = steel_arrow | last_useitem = mithril_arrow | last_useitem = adamant_arrow | last_useitem = rune_arrow) {
-    $bit = 5;
-} else {
-    ~displaymessage(^dm_default);
-    return;
-}
-if (testbit(%horror_wall, $bit) = 1) {
-    mes("You've already used something like that on the wall.");
-    return;
-}
-if ($bit < 4) {
-    inv_del(inv, last_useitem, 1);
-}
-mes("You press the item into a hidden recess in the wall.");
-%horror_wall = setbit(%horror_wall, $bit);
-if (getbit_range(%horror_wall, 0, 5) = 63) {
-    mes("The wall grinds open, revealing a doorway down into darkness!");
-    %horror = ^horror_wall_opened;
-    ~send_quest_progress(questlist:horror, 2, ^horror_complete);
-}
+// --- The strange wall in the basement (NOT YET RE-ATTACHED - see below) ---
+// Corey confirmed in-game (::getcoord) that horror_lighthouse_doorway (loc 4577, world 2509,3635-3636,0)
+// is the lighthouse's plain building entrance, not a puzzle - the real cache def settles it:
+// op1=Walk-through, desc="Lets you walk through walls!" (content/scripts/_unpack/377/all.loc). That's a
+// simple walkable door prop, not something that accepts use-item ops at all, so the six-icon rune/sword/
+// arrow puzzle below was bound to the WRONG loc - it would have fired nonsensically every time a player
+// used an item on the main entrance. Un-bound (commented out below) rather than left wrong.
+//
+// The wiki's six-icon puzzle is still real content that needs building somewhere - almost certainly on
+// a loc inside the still-unfound basement/dungeon (reachable via horror_ladder_top, loc 4383, world
+// 2509,3644,0, real cache op1=Climb - but that Climb interaction has no script yet either, since there's
+// no known destination to send the player to). horror_ladder_down (loc 4380, no op at all, decorative
+// only) sits right next to it. Finding the basement is the one real remaining blocker for this quest -
+// see the project doc (claude/horror-from-the-deep-quest.md) for the search state.
+//
+// %horror_wall bits: 0=fire, 1=air, 2=water, 3=earth, 4=sword, 5=arrow - kept as reference, re-attach to
+// the real loc tag (and change [oplocu,...] to whatever that loc's actual tag is) once it's found:
+//
+// if (getbit_range(%horror_lighting, 0, 2) < 7) {
+//     mes("Nothing happens - perhaps you should light the lighthouse first.");
+//     return;
+// }
+// if (%horror >= ^horror_wall_opened) {
+//     mes("The doorway is already open.");
+//     return;
+// }
+// def_int $bit = -1;
+// if (last_useitem = firerune) {
+//     $bit = 0;
+// } else if (last_useitem = airrune) {
+//     $bit = 1;
+// } else if (last_useitem = waterrune) {
+//     $bit = 2;
+// } else if (last_useitem = earthrune) {
+//     $bit = 3;
+// } else if (last_useitem = bronze_sword | last_useitem = iron_sword | last_useitem = steel_sword | last_useitem = black_sword | last_useitem = mithril_sword | last_useitem = adamant_sword | last_useitem = rune_sword) {
+//     $bit = 4;
+// } else if (last_useitem = bronze_arrow | last_useitem = iron_arrow | last_useitem = steel_arrow | last_useitem = mithril_arrow | last_useitem = adamant_arrow | last_useitem = rune_arrow) {
+//     $bit = 5;
+// } else {
+//     ~displaymessage(^dm_default);
+//     return;
+// }
+// if (testbit(%horror_wall, $bit) = 1) {
+//     mes("You've already used something like that on the wall.");
+//     return;
+// }
+// if ($bit < 4) {
+//     inv_del(inv, last_useitem, 1);
+// }
+// mes("You press the item into a hidden recess in the wall.");
+// %horror_wall = setbit(%horror_wall, $bit);
+// if (getbit_range(%horror_wall, 0, 5) = 63) {
+//     mes("The wall grinds open, revealing a doorway down into darkness!");
+//     %horror = ^horror_wall_opened;
+//     ~send_quest_progress(questlist:horror, 2, ^horror_complete);
+// }
 
 
 // --- Jossik: found injured, then the final reward exchange ---
