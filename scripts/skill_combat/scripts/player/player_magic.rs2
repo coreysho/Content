@@ -226,6 +226,16 @@ else if (npc_type = chronozon) {
     def_int $spell = db_getfield($spell_data, magic_spell_table:spell, 0);
     ~chronozon_spell($spell);
 }
+// Horror from the Deep - Dagannoth Mother (quest_horror): during an elemental phase, only the
+// matching elemental spell family damages her (e.g. horror_dagganoth_air only takes damage from
+// wind strike/bolt/blast/wave); during her melee/ranged-weakness phases, magic is blocked entirely.
+// ~dagmother_spell_matches_phase is defined in quests/quest_horror/scripts/quest_horror_combat.rs2.
+else if (npc_type = horror_dagganoth_air | npc_type = horror_dagganoth_water | npc_type = horror_dagganoth_earth | npc_type = horror_dagganoth_fire | npc_type = horror_dagganoth_ranged | npc_type = horror_dagganoth_melee) {
+    def_int $spell = db_getfield($spell_data, magic_spell_table:spell, 0);
+    if (~dagmother_spell_matches_phase($spell) = false) {
+        $damage = 0;
+    }
+}
 // if maxhit is defined then damage npc
 ~npc_retaliate(calc($duration / 30 + 1)); // delayed an extra tick in osrs
 if ($maxhit ! null) {

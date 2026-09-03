@@ -1,0 +1,310 @@
+// Horror from the Deep - main quest dialogue and puzzles
+// Walkthrough (re-verified this pass): https://oldschool.runescape.wiki/w/Horror_from_the_Deep
+// Requires quest_barcrawl complete (already implemented - see ~visited_all_bars).
+// Uses ~chatplayer/~chatnpc rather than ~mesbox's @tag@ speaker shorthand, since that shorthand
+// depends on a per-NPC abbreviation registered elsewhere that I haven't located/verified for
+// Larrissa/Jossik/Gunnjorn - safer to stick to the plain, confirmed primitives.
+//
+// Item/NPC/loc tags below were cross-checked against the real 377 cache dump
+// (content/scripts/_unpack/377/all.{obj,npc,loc}) rather than guessed - the quest's actual assets
+// are already present there (this cache already shipped this content in 2006), which is a much
+// stronger source than my memory of the wiki walkthrough. Notable corrections made this pass:
+//   - horror_lighthouse_key -> horror_key, horror_rusty_casket -> horror_casket (my invented names
+//     were wrong - the real tags were sitting right there in all.obj)
+//   - damaged prayer books are unfinished_saradominbook / unfinished_zamorakbook / unfinished_guthixbook
+//   - bridge item is `woodplank` (all.obj name=Plank), not `plank`; nails item is `nails`
+//     (all.obj name=Steel nails) - confirmed via the wiki that repair needs a hammer + 60 nails + 2
+//     planks total, split across the two broken spans (horror_broken_bridge_left_spot /
+//     _right_spot - both real loc tags, replacing my earlier guessed horror_broken_bridge1/2)
+// All quest loc/NPC world placements below are now confirmed, cross-checked two ways: against
+// content/maps/*.jm2 (id-based placement data, content/pack/{loc,npc}.pack for id<->name) and,
+// for Larrissa, independently in-game via Corey's own ::getcoord (matched exactly). An earlier pass
+// this session reported zero placements for several of these - that was wrong on two counts, both
+// fixed: (1) a grep `$`-anchor bug against this file format's CRLF line endings silently ate real
+// matches, and (2) horror_lighthouse_doorway's id was misread as 4578 (that's the .pack file's own
+// line number) when the real id is 4577 (4578 is a different loc, horror_lighthouse_inactive).
+//   - horror_lighthouse_windpower_cog (loc 4590, the lighting mechanism): m39_56.jm2, plane 2,
+//     local(11,50) = world(2507,3634,2). horror_lighthouse_cog_broken (loc 4588, the original wrong
+//     guess) is confirmed genuinely unplaced anywhere searched.
+//   - horror_lighthouse_doorway (loc 4577, the strange-door puzzle): m39_56.jm2, plane 0,
+//     local(13,52) = world(2509,3636,0).
+//   - horror_girlfriend_prequest / Larrissa (npc 1336): m39_56.jm2, plane 0, local(12,51) =
+//     world(2508,3635,0) - matches Corey's in-game ::getcoord reading exactly.
+//   - horror_lighthousekeeeper_well / Jossik (npc 1334): m39_56.jm2, plane 1, local(13,55) =
+//     world(2509,3639,1). Only this variant is placed, not horror_lighthousekeeeper_injured (1335) -
+//     see the merged opnpc1 handler below for how that's handled.
+//   - gunnjorn (npc 607): m39_55.jm2, plane 0, local(44,28) = world(2540,3548,0) - near the real
+//     Barbarian Outpost agility arena, matching his own dialogue.
+// horror_girlfriend_postquest (1337) and horror_lighthousekeeeper_injured (1335) are still genuinely
+// unplaced - see the comments at their respective handlers below for how each is handled.
+// Still not found anywhere in a 29-region search: the Waterbirth dungeon itself and the quest's two
+// boss encounters (horror_dagannoth_jr1-4, horror_dagganoth_aira/airb/airc/air/water/fire/earth/
+// ranged/melee) - that's a separate, not-yet-started search, well outside the Lighthouse-surface area
+// covered so far. See the project doc (claude/horror-from-the-deep-quest.md) for the full search log.
+
+[opnpc1,horror_girlfriend_prequest]
+if (%horror = ^horror_not_started) {
+    ~chatplayer("<p,quiz>Hello, is everything alright?");
+    ~chatnpc("<p,sad>Oh, adventurer, thank goodness! Something dreadful has happened - the lighthouse has stopped working, and I fear something has happened to Jossik, the lighthouse keeper!");
+    ~chatplayer("<p,neutral>The lighthouse guards the coast, doesn't it? Someone should find out what's wrong.");
+    ~chatnpc("<p,sad>Would you? Please, I'm too afraid to go in there myself. My name is Larrissa.");
+    def_int $op = ~p_choice2("I'll take a look.", 1, "Sorry, I'm busy right now.", 2);
+    if ($op = 2) {
+        ~chatplayer("<p,neutral>Sorry, I'm busy right now.");
+        return;
+    }
+    ~chatplayer("<p,happy>I'll take a look.");
+    ~chatnpc("<p,happy>Oh, thank you! The bridges to the east are broken though - you'll need some planks to cross them. My cousin Gunnjorn, at the Barbarian Outpost agility arena, might be able to help you further.");
+    %horror = ^horror_started;
+    ~send_quest_progress(questlist:horror, 1, ^horror_complete);
+} else if (%horror = ^horror_started & getbit_range(%horror_wall, 0, 5) < 63) {
+    ~chatnpc("<p,worried>Have you found a way into the lighthouse yet?");
+    ~chatplayer("<p,neutral>Not yet - I think I need to get it working again first.");
+} else if (%horror >= ^horror_started & %horror < ^horror_complete) {
+    ~chatnpc("<p,worried>Please be careful down there.");
+} else {
+    ~chatnpc("<p,happy>Thank you again for rescuing Jossik!");
+}
+
+// Only horror_girlfriend_prequest (npc 1336) is actually placed in the map (confirmed both via
+// content/maps/m39_56.jm2, plane 0, local(12,51) = world(2508,3635,0), and independently in-game via
+// ::getcoord) - horror_girlfriend_postquest (npc 1337) has zero placements. Harmless unlike Jossik's
+// case: the prequest handler's own terminal `else` above already covers %horror >= ^horror_complete
+// with correct post-quest dialogue, so this handler is unreachable dead code, kept only in case 1337
+// ever gets placed for real.
+[opnpc1,horror_girlfriend_postquest]
+~chatnpc("<p,happy>Thank you again for rescuing Jossik - I don't know what I'd have done without you.");
+
+
+// Gunnjorn is reachable at the Barbarian Outpost agility arena independent of the broken bridges,
+// so the key hand-out is gated on possession (not a %horror stage) to avoid an order-dependent
+// sequence break if he's spoken to before or after the bridges are repaired.
+[opnpc1,gunnjorn]
+if (%horror = ^horror_not_started) {
+    ~chatnpc("<p,neutral>Can I help you, adventurer?");
+} else if (%horror = ^horror_started & inv_total(inv, horror_key) = 0) {
+    ~chatplayer("<p,neutral>Larrissa said you might be able to help me get into the lighthouse.");
+    ~chatnpc("<p,neutral>Ah, poor Jossik. Here, take this key - it should let you into the basement once you're inside.");
+    inv_add(inv, horror_key, 1);
+    ~chatplayer("<p,happy>Thanks, I'll head back and see what I can do.");
+} else if (%horror >= ^horror_started) {
+    ~chatnpc("<p,neutral>Good luck down there.");
+}
+
+
+// --- Bridges east of the Lighthouse ---
+// Wiki: "use a hammer and 60 steel nails with 2 planks to cross the broken bridge" - split across
+// the two spans as 30 nails + 1 plank each. Hammer is a tool (checked, not consumed).
+[oplocu,horror_broken_bridge_left_spot]
+if (last_useitem = woodplank) {
+    if (%horror < ^horror_started) {
+        mes("You should speak to Larrissa first.");
+        return;
+    }
+    if (testbit(%horror_bridges, 0) = 1) {
+        mes("This bridge has already been repaired.");
+        return;
+    }
+    if (inv_total(inv, hammer) = 0) {
+        mes("You'll need a hammer to secure the plank in place.");
+        return;
+    }
+    if (inv_total(inv, nails) < 30) {
+        mes("You don't have enough nails to secure the plank - you'll need at least 30.");
+        return;
+    }
+    inv_del(inv, woodplank, 1);
+    inv_del(inv, nails, 30);
+    mes("You nail the plank across the broken span, repairing it.");
+    %horror_bridges = setbit(%horror_bridges, 0);
+    return;
+}
+~displaymessage(^dm_default);
+
+[oplocu,horror_broken_bridge_right_spot]
+if (last_useitem = woodplank) {
+    if (%horror < ^horror_started) {
+        mes("You should speak to Larrissa first.");
+        return;
+    }
+    if (testbit(%horror_bridges, 1) = 1) {
+        mes("This bridge has already been repaired.");
+        return;
+    }
+    if (inv_total(inv, hammer) = 0) {
+        mes("You'll need a hammer to secure the plank in place.");
+        return;
+    }
+    if (inv_total(inv, nails) < 30) {
+        mes("You don't have enough nails to secure the plank - you'll need at least 30.");
+        return;
+    }
+    inv_del(inv, woodplank, 1);
+    inv_del(inv, nails, 30);
+    mes("You nail the plank across the broken span, repairing it.");
+    %horror_bridges = setbit(%horror_bridges, 1);
+    return;
+}
+~displaymessage(^dm_default);
+
+
+// --- Lighting the lighthouse (roof) ---
+// %horror_lighting bits: 0 = swamp tar used, 1 = tinderbox used, 2 = molten glass used
+[oplocu,horror_lighthouse_windpower_cog]
+if (%horror < ^horror_started) {
+    mes("You should investigate the lighthouse first.");
+    return;
+}
+if (getbit_range(%horror_lighting, 0, 2) = 7) {
+    mes("The lighting mechanism is already lit.");
+    return;
+}
+if (last_useitem = swamp_tar) {
+    if (testbit(%horror_lighting, 0) = 1) {
+        mes("You've already applied the swamp tar.");
+        return;
+    }
+    inv_del(inv, swamp_tar, 1);
+    mes("You smear the swamp tar over the mechanism.");
+    %horror_lighting = setbit(%horror_lighting, 0);
+} else if (last_useitem = tinderbox) {
+    if (testbit(%horror_lighting, 1) = 1) {
+        mes("You've already struck the tinderbox here.");
+        return;
+    }
+    mes("You strike the tinderbox against the mechanism.");
+    %horror_lighting = setbit(%horror_lighting, 1);
+} else if (last_useitem = molten_glass) {
+    if (testbit(%horror_lighting, 2) = 1) {
+        mes("You've already fitted the glass.");
+        return;
+    }
+    inv_del(inv, molten_glass, 1);
+    mes("You fit the molten glass into the housing.");
+    %horror_lighting = setbit(%horror_lighting, 2);
+} else {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (getbit_range(%horror_lighting, 0, 2) = 7) {
+    mes("With a satisfying click, the lighthouse's lamp roars back to life!");
+}
+
+
+// --- The strange wall in the basement ---
+// %horror_wall bits: 0=fire, 1=air, 2=water, 3=earth, 4=sword, 5=arrow
+[oplocu,horror_lighthouse_doorway]
+if (getbit_range(%horror_lighting, 0, 2) < 7) {
+    mes("Nothing happens - perhaps you should light the lighthouse first.");
+    return;
+}
+if (%horror >= ^horror_wall_opened) {
+    mes("The doorway is already open.");
+    return;
+}
+def_int $bit = -1;
+if (last_useitem = firerune) {
+    $bit = 0;
+} else if (last_useitem = airrune) {
+    $bit = 1;
+} else if (last_useitem = waterrune) {
+    $bit = 2;
+} else if (last_useitem = earthrune) {
+    $bit = 3;
+} else if (last_useitem = bronze_sword | last_useitem = iron_sword | last_useitem = steel_sword | last_useitem = black_sword | last_useitem = mithril_sword | last_useitem = adamant_sword | last_useitem = rune_sword) {
+    $bit = 4;
+} else if (last_useitem = bronze_arrow | last_useitem = iron_arrow | last_useitem = steel_arrow | last_useitem = mithril_arrow | last_useitem = adamant_arrow | last_useitem = rune_arrow) {
+    $bit = 5;
+} else {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (testbit(%horror_wall, $bit) = 1) {
+    mes("You've already used something like that on the wall.");
+    return;
+}
+if ($bit < 4) {
+    inv_del(inv, last_useitem, 1);
+}
+mes("You press the item into a hidden recess in the wall.");
+%horror_wall = setbit(%horror_wall, $bit);
+if (getbit_range(%horror_wall, 0, 5) = 63) {
+    mes("The wall grinds open, revealing a doorway down into darkness!");
+    %horror = ^horror_wall_opened;
+    ~send_quest_progress(questlist:horror, 2, ^horror_complete);
+}
+
+
+// --- Jossik: found injured, then the final reward exchange ---
+// Only horror_lighthousekeeeper_well (npc 1334) is actually placed in the map (confirmed via
+// content/maps/m39_56.jm2, plane 1, local(13,55) = world(2509,3639,1)) - horror_lighthousekeeeper_
+// injured (npc 1335) exists in the cache but has zero placements anywhere in a 29-region search
+// (see project doc). The original two-handler split assumed an npc_changetype from injured->well
+// partway through, matching Dagannoth Mother's precedent elsewhere in this quest, but there's no
+// confirmed way to target a *different*, non-combat npc instance for changetype from a loc/dialogue
+// context in this codebase (npc_changetype's real precedents are all self-directed, from inside that
+// same npc's own ai_queue hook) - guessing at one would be exactly the kind of unverified engine
+// mechanic this build has been avoiding elsewhere. So this is one merged handler on the npc type
+// that's actually live in the world; Jossik doesn't get a distinct battle-damaged model this pass,
+// only the dialogue conveys he's shaken. If horror_lighthousekeeeper_injured is ever placed for real,
+// split this back into two handlers along the original %horror boundaries.
+[opnpc1,horror_lighthousekeeeper_well]
+if (%horror = ^horror_wall_opened) {
+    ~chatplayer("<p,shock>Jossik! Are you alright?");
+    ~chatnpc("<p,sad>Adventurer! Thank Guthix... there are creatures down here, dagannoth of some kind. Please, be careful.");
+    %horror = ^horror_dagannoth_defeated;
+    // combat with the level 100 Dagannoth and Dagannoth Mother happens in the chambers below -
+    // see the (not yet built) encounter scripts for horror_dagganoth_jr* / horror_dagganoth_aira etc.
+    // TODO: this currently jumps straight from wall_opened to dagannoth_defeated on first meeting
+    // Jossik rather than being set by the encounter scripts themselves once they exist - the combat
+    // stages (^horror_dagannoth_defeated / ^horror_mother_defeated) should eventually be set by
+    // those scripts on kill, with this dialogue only reacting to state rather than driving it.
+    ~send_quest_progress(questlist:horror, 3, ^horror_complete);
+} else if (%horror >= ^horror_dagannoth_defeated & %horror < ^horror_mother_defeated) {
+    ~chatnpc("<p,worried>There's something bigger down there... I can hear it moving.");
+} else if (%horror >= ^horror_mother_defeated & %horror < ^horror_casket_given) {
+    ~chatplayer("<p,happy>I found this rusty casket where that creature was nesting.");
+    ~chatnpc("<p,neutral>A casket? Let's get out of here and I'll take a look upstairs.");
+    %horror = ^horror_casket_given;
+    ~send_quest_progress(questlist:horror, 5, ^horror_complete);
+} else if (%horror >= ^horror_casket_given & %horror < ^horror_complete) {
+    ~chatplayer("<p,neutral>Here's that casket I found.");
+    inv_del(inv, horror_casket, 1);
+    ~chatnpc("<p,happy>Ah, I recognise this - it's one of ours. There should be a damaged prayer book inside. Which order would you like?");
+    @multi4("A book of Saradomin.", horror_book_saradomin, "A book of Zamorak.", horror_book_zamorak, "A book of Guthix.", horror_book_guthix, "None for me, thanks.", horror_book_none);
+} else if (%horror >= ^horror_complete) {
+    ~chatnpc("<p,happy>I can sell you another damaged prayer book for 5,000 coins, if you'd like.");
+    ~openshop_activenpc;
+}
+
+[label,horror_book_saradomin]
+~chatplayer("<p,happy>A book of Saradomin.");
+inv_add(inv, unfinished_saradominbook, 1);
+~mesbox("Jossik hands you a damaged book of Saradomin, salvaged from the wreck of the casket.");
+@finish_horror_quest;
+
+[label,horror_book_zamorak]
+~chatplayer("<p,happy>A book of Zamorak.");
+inv_add(inv, unfinished_zamorakbook, 1);
+~mesbox("Jossik hands you a damaged book of Zamorak, salvaged from the wreck of the casket.");
+@finish_horror_quest;
+
+[label,horror_book_guthix]
+~chatplayer("<p,happy>A book of Guthix.");
+inv_add(inv, unfinished_guthixbook, 1);
+~mesbox("Jossik hands you a damaged book of Guthix, salvaged from the wreck of the casket.");
+@finish_horror_quest;
+
+[label,horror_book_none]
+~chatplayer("<p,neutral>None for me, thanks.");
+~chatnpc("<p,happy>Suit yourself - I'll keep hold of it in case you change your mind.");
+@finish_horror_quest;
+
+[label,finish_horror_quest]
+~chatnpc("<p,happy>Thank you again for everything, adventurer. I don't know what would have happened to me down there without you.");
+stat_advance(magic, 46625);
+stat_advance(strength, 46625);
+stat_advance(ranged, 46625);
+mes("Congratulations, you've completed Horror from the Deep!");
+%horror = ^horror_complete;
+~send_quest_progress(questlist:horror, 6, ^horror_complete);

@@ -1,0 +1,47 @@
+[if_button,questlist:horror]
+def_string $text;
+
+if(%horror = ^horror_not_started) {
+    $text = "@dbl@I can start this quest by speaking to @dre@Larrissa@dbl@, who lives near|@dbl@the lighthouse just north of the @dre@Barbarian Outpost";
+
+} else if(%horror = ^horror_started) {
+    $text = "@str@I spoke to Larrissa, whose boyfriend Jossik - the lighthouse keeper -|@str@has gone missing. She asked me to investigate.||";
+    $text = append($text, "@dbl@The bridges east of the lighthouse are broken. I'll need to|@dbl@repair them with a @dre@hammer@dbl@, some @dre@nails@dbl@ and @dre@planks@dbl@.|");
+    $text = append($text, "@dbl@Larrissa's cousin @dre@Gunnjorn@dbl@, at the Barbarian Outpost agility|@dbl@arena, may be able to give me a @dre@key@dbl@ to the lighthouse.|");
+    $text = append($text, "@dbl@Once inside, I'll need to relight the lighthouse's lamp using|@dbl@@dre@molten glass@dbl@, @dre@swamp tar@dbl@ and a @dre@tinderbox@dbl@ on the broken mechanism,|@dbl@then find a way through a strange door in the basement.");
+
+} else if(%horror >= ^horror_wall_opened & %horror < ^horror_dagannoth_defeated) {
+    $text = "@str@I spoke to Larrissa, whose boyfriend Jossik - the lighthouse keeper -|@str@has gone missing. She asked me to investigate.|";
+    $text = append($text, "@str@I repaired the broken bridges, got a key from Gunnjorn, and relit|@str@the lighthouse's lamp.|");
+    $text = append($text, "@str@I fed a fire rune, an air rune, a water rune, an earth rune, a sword|@str@and an arrow into the strange door in the basement, and it opened.||");
+    $text = append($text, "@dbl@I should head down into the darkness beneath the lighthouse and|@dbl@find @dre@Jossik@dbl@");
+
+} else if(%horror >= ^horror_dagannoth_defeated & %horror < ^horror_mother_defeated) {
+    $text = "@str@I spoke to Larrissa, whose boyfriend Jossik - the lighthouse keeper -|@str@has gone missing. She asked me to investigate.|";
+    $text = append($text, "@str@I repaired the broken bridges, got a key from Gunnjorn, relit the|@str@lighthouse's lamp, and forced open a strange door in the basement.|");
+    $text = append($text, "@str@I found Jossik injured below - he warned me of dagannoth lurking|@str@in the flooded caves, and I fought my way through them.||");
+    $text = append($text, "@dbl@Jossik says something bigger is still down there. I should be|@dbl@ready to fight the @dre@Dagannoth Mother@dbl@");
+
+} else if(%horror >= ^horror_mother_defeated & %horror < ^horror_casket_given) {
+    $text = "@str@I spoke to Larrissa, whose boyfriend Jossik - the lighthouse keeper -|@str@has gone missing. She asked me to investigate.|";
+    $text = append($text, "@str@I repaired the broken bridges, got a key from Gunnjorn, relit the|@str@lighthouse's lamp, and forced open a strange door in the basement.|");
+    $text = append($text, "@str@I found Jossik injured below and fought my way past the dagannoth|@str@guarding the caves.|");
+    $text = append($text, "@str@I defeated the Dagannoth Mother nesting in the deepest cave.||");
+    $text = append($text, "@dbl@I found a @dre@rusty casket@dbl@ where the creature was nesting. I should|@dbl@bring it back to @dre@Jossik@dbl@");
+
+} else if(%horror >= ^horror_casket_given & %horror < ^horror_complete) {
+    $text = "@str@I spoke to Larrissa, whose boyfriend Jossik - the lighthouse keeper -|@str@has gone missing. She asked me to investigate.|";
+    $text = append($text, "@str@I repaired the broken bridges, got a key from Gunnjorn, relit the|@str@lighthouse's lamp, and forced open a strange door in the basement.|");
+    $text = append($text, "@str@I found Jossik injured below, fought my way past the dagannoth,|@str@and defeated the Dagannoth Mother nesting in the deepest cave.|");
+    $text = append($text, "@str@I found a rusty casket where the creature was nesting.||");
+    $text = append($text, "@dbl@I should bring the casket back to @dre@Jossik@dbl@ at the lighthouse");
+
+} else {
+    $text = "@str@I spoke to Larrissa, whose boyfriend Jossik - the lighthouse keeper -|@str@has gone missing. She asked me to investigate.|";
+    $text = append($text, "@str@I repaired the broken bridges, got a key from Gunnjorn, relit the|@str@lighthouse's lamp, and forced open a strange door in the basement.|");
+    $text = append($text, "@str@I found Jossik injured below, fought my way past the dagannoth,|@str@and defeated the Dagannoth Mother nesting in the deepest cave.|");
+    $text = append($text, "@str@I brought the rusty casket I found back to Jossik, who opened it|@str@and let me take a damaged prayer book as thanks for the rescue.||");
+    $text = append($text, "@red@QUEST COMPLETE!");
+}
+
+~quest_journal("Horror from the Deep", $text);

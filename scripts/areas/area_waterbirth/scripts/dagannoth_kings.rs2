@@ -1,0 +1,60 @@
+// Dagannoth Kings combat AI - Waterbirth Island Dungeon (Horror from the Deep)
+// See configs/dagannoth_kings.npc for stats/params. Combat triangle (wiki-confirmed):
+// Rex (melee) weak to Magic, Prime (magic) weak to Ranged, Supreme (ranged) weak to Melee.
+
+// --- Dagannoth Rex ---
+// No overrides needed at all: Rex is a plain melee attacker and the skill_combat wildcard defaults
+// ([ai_queue1,_] npc_default_retaliate, [ai_opplayer2,_] npc_default_attack -> ~npc_meleeattack, see
+// skill_combat/scripts/npc/npc_combat.rs2 + npc_combat_melee.rs2) already do everything Rex needs,
+// driven entirely by the param= values on dagcave_melee_boss. Same pattern as most basic melee mobs.
+
+// --- Dagannoth Supreme (ranged) ---
+[ai_queue1,dagcave_ranged_boss] ~npc_default_retaliate_ap;
+[ai_applayer2,dagcave_ranged_boss] ~npc_rangeattack;
+[ai_opplayer2,dagcave_ranged_boss] ~npc_rangeattack;
+// npc_rangeattack (skill_combat/scripts/npc/npc_combat_ranged.rs2) is fully generic and self-guarding
+// (does its own %npc_action_delay/notcombat checks), so it can be wired directly with no wrapper -
+// it reads rangeattack/rangebonus/rangedefence/attack_anim/proj_travel/proj_height straight off
+// dagcave_ranged_boss's params.
+
+// --- Dagannoth Prime (magic) ---
+[ai_queue1,dagcave_magic_boss] ~npc_default_retaliate_ap;
+[ai_applayer2,dagcave_magic_boss] ~dagannoth_prime_attack;
+[ai_opplayer2,dagcave_magic_boss] ~dagannoth_prime_attack;
+
+// Prime's "spinal wave" isn't a reusable player-castable spell, so - same call as King Black Dragon's
+// breath attacks (area_wilderness/scripts/king_black_dragon.rs2) - this goes straight through the raw
+// ~npc_magic_attack_roll / ~player_defence_roll_specific(^magic_style) primitives rather than through
+// the magic_combat_spells.dbrow/npc_cast_spell system, which is built for reusable player spells.
+[proc,dagannoth_prime_attack]
+if (%npc_action_delay > map_clock) {
+    npc_setmode(applayer2);
+    return;
+}
+if (~npc_check_notcombat = false) {
+    npc_setmode(null);
+    return;
+}
+if (~npc_check_notcombat_self = false) {
+    return;
+}
+if_close;
+npc_anim(npc_param(magicattack_anim), 0);
+spotanim_npc(dagannoth_spine_spotanim_travel, 92, 0);
+%npc_action_delay = add(map_clock, npc_param(attackrate));
+def_int $duration = ~player_projectile(npc_coord, coord, uid, dagannoth_spine_spotanim_travel2, 40, 36, 32, 15, 0, 11, 5);
+
+def_int $damage = 0;
+def_int $attack_roll = ~npc_magic_attack_roll;
+def_int $defence_roll = ~player_defence_roll_specific(^magic_style);
+if (randominc($attack_roll) > randominc($defence_roll)) {
+    $damage = randominc(~dagannoth_prime_maxhit);
+}
+queue(combat_damage_player, calc($duration / 30), $damage);
+queue*(playerhit_n_retaliate, calc($duration / 30))(npc_uid);
+~npc_set_attack_vars;
+
+[proc,dagannoth_prime_maxhit]()(int)
+// https://oldschool.runescape.wiki/w/Dagannoth_Prime - 50 max hit at 2005 launch (no mitigation item
+// existed for this in the 2006 era, unlike KBD's antidragonbreathshield/prayer reductions)
+return(50);

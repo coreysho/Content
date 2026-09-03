@@ -1,0 +1,57 @@
+// Dagannoth Supreme drop table - Waterbirth Island Dungeon
+// Rates adapted from https://oldschool.runescape.wiki/w/Dagannoth_Supreme, pruned the same way as
+// dagannoth_rex_drops.rs2 / dagannoth_prime_drops.rs2:
+//  - archer helm, red d'hide vambraces (as "red_dhide_vambraces"), runite bolts: NOT present anywhere
+//    in the 377 cache (checked against _unpack/377/all.obj) - excluded rather than invented. The
+//    codebase's actual dragonhide vambrace item is "red_dragon_vambraces" (different name, matching
+//    the Fremennik-boss-drop cluster's other early-era items) and IS included below instead.
+//  - full rare-seed table, ensouled dagannoth head, Konar brimstone key, Combat Achievements rate
+//    bonus, pet Dagannoth Supreme: OSRS-only additions, all confirmed 2013+.
+// Note: this is the poisonous king (see dagcave_ranged_boss's poison_severity param) - matches wiki.
+
+[ai_queue3,dagcave_ranged_boss]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+obj_add(npc_coord, dagannoth_king_bones, 1, ^lootdrop_duration);
+
+~trail_hardcluedrop(^trail_hard_droprate, npc_coord);
+
+def_int $random = random(128);
+
+if ($random < 10) { // osrs (25-50 mithril knives)
+    obj_add(npc_coord, mithril_knife, ~random_range(25, 50), ^lootdrop_duration);
+} else if ($random < 15) { // osrs (5-10 rune thrownaxes)
+    obj_add(npc_coord, rune_thrownaxe, ~random_range(5, 10), ^lootdrop_duration);
+} else if ($random < 20) { // osrs (10-25 adamant darts)
+    obj_add(npc_coord, adamant_dart, ~random_range(10, 25), ^lootdrop_duration);
+} else if ($random < 25) { // osrs (200-500 iron knives)
+    obj_add(npc_coord, iron_knife, ~random_range(200, 500), ^lootdrop_duration);
+} else if ($random < 30) { // osrs (50-150 steel knives)
+    obj_add(npc_coord, steel_knife, ~random_range(50, 150), ^lootdrop_duration);
+} else if ($random < 37) { // osrs (replaces "red d'hide vambraces" under this cache's actual name)
+    obj_add(npc_coord, red_dragon_vambraces, 1, ^lootdrop_duration);
+} else if ($random < 38) { // osrs - unique
+    obj_add(npc_coord, daganoth_cave_magic_shortbow, 1, ^lootdrop_duration); // Seercull
+} else if ($random < 39) { // osrs - unique
+    obj_add(npc_coord, ranger_ring, 1, ^lootdrop_duration); // Archers ring
+} else if ($random < 40) { // osrs
+    obj_add(npc_coord, cert_dragon_axe, 1, ^lootdrop_duration);
+} else if ($random < 45) { // osrs (50-250 steel arrows)
+    obj_add(npc_coord, steel_arrow, ~random_range(50, 250), ^lootdrop_duration);
+} else if ($random < 49) { // osrs (200-700 iron arrows)
+    obj_add(npc_coord, iron_arrow, ~random_range(200, 700), ^lootdrop_duration);
+} else if ($random < 59) { // osrs (500-1110 coins)
+    obj_add(npc_coord, coins, ~random_range(500, 1110), ^lootdrop_duration);
+} else if ($random < 65) { // osrs (6 oyster pearls, this cache's noted-pearl item)
+    obj_add(npc_coord, bigoysterpearls, 6, ^lootdrop_duration);
+} else if ($random < 70) { // osrs (50-150 yew logs, noted)
+    obj_add(npc_coord, cert_yew_logs, ~random_range(50, 150), ^lootdrop_duration);
+} else if ($random < 75) { // osrs (5 raw shark)
+    obj_add(npc_coord, shark, 5, ^lootdrop_duration);
+} else if ($random < 100) { // gem table access, same rate band style as kbd
+    obj_add(npc_coord, ~randomjewel, ^lootdrop_duration);
+} else { // rare/ultra-rare table access
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

@@ -1,0 +1,99 @@
+// Horror from the Deep - combat AI (quest_horror). Companion to quest_horror_combat.npc.
+//
+// horror_dagannoth_jr4 (the quest's generic level-100 Dagannoth) needs no code at all here - like
+// Dagannoth Rex, a plain aggressive melee attacker gets everything for free from the skill_combat
+// wildcard defaults (npc_combat.rs2's [ai_queue1,_]/[ai_opplayer2,_]/etc) once its .npc config has
+// op2=Attack and the combat params set. Only Dagannoth Mother needs bespoke code, for her 6-phase
+// elemental/style weakness cycle.
+//
+// Design (OSRS wiki, https://oldschool.runescape.wiki/w/Dagannoth_Mother): she cycles through six
+// colours every 18 seconds (30 ticks) - white/air, blue/water, orange/melee, brown/earth, red/fire,
+// green/ranged - and only damage of the matching type/element hurts her during each phase. The wiki
+// doesn't say what exactly happens to a mismatched hit (blocked vs reduced vs reflected) - implemented
+// here as fully blocked (0 damage), which is the standard OSRS-era pattern for this kind of mechanic
+// and the simplest reading of "shows her weaknesses". The actual damage-zeroing lives in the three
+// combat-resolution files themselves (skill_combat/scripts/player/player_{melee,ranged,magic}.rs2),
+// following the exact same inline per-npc-type special case pattern already used there for
+// salarin_the_twisted/chronozon/kurask/turoth - this file only drives the phase timer and identifies
+// which spell elements match which phase.
+//
+// Her own attacks are implemented as melee-only this pass (same wildcard defaults as the generic
+// Dagannoth, matching her wiki max hit of 9 melee) - deliberately NOT attempting her wiki-documented
+// ranged component (12x2, "Protect from Missiles advised") here, since correctly hybridizing
+// melee-when-adjacent/ranged-when-not against this framework's ai mode semantics (opplayer2 vs
+// applayer2) isn't something I could verify against an existing precedent in this codebase. Flagged
+// as a follow-up rather than guessed at. horror_dagannoth_rangeattack anim exists in the cache and is
+// ready to use once that's built.
+//
+// Emergence (horror_dagganoth_aira/airb/airc before her six real combat forms) and where she actually
+// spawns are both blocked on the same missing Waterbirth-area dungeon coordinates flagged elsewhere -
+// this file assumes she's already active as one of the six phase npc types by the time a player
+// engages her.
+
+[ai_queue1,horror_dagganoth_air] gosub(dagmother_start_cycle); gosub(npc_default_retaliate);
+[ai_queue1,horror_dagganoth_water] gosub(dagmother_start_cycle); gosub(npc_default_retaliate);
+[ai_queue1,horror_dagganoth_melee] gosub(dagmother_start_cycle); gosub(npc_default_retaliate);
+[ai_queue1,horror_dagganoth_earth] gosub(dagmother_start_cycle); gosub(npc_default_retaliate);
+[ai_queue1,horror_dagganoth_fire] gosub(dagmother_start_cycle); gosub(npc_default_retaliate);
+[ai_queue1,horror_dagganoth_ranged] gosub(dagmother_start_cycle); gosub(npc_default_retaliate);
+
+// ai_queue5 is unused elsewhere in this codebase (queue1-3 are the skill_combat defaults, queue8 is
+// the freeze/stun check) - reserved here as Dagannoth Mother's own phase-advance timer slot. Defined
+// against all six phase types since her npc_type changes every cycle, but the queued call must still
+// resolve to a handler regardless of which type she currently is when it fires.
+[ai_queue5,horror_dagganoth_air] gosub(dagmother_advance_phase);
+[ai_queue5,horror_dagganoth_water] gosub(dagmother_advance_phase);
+[ai_queue5,horror_dagganoth_melee] gosub(dagmother_advance_phase);
+[ai_queue5,horror_dagganoth_earth] gosub(dagmother_advance_phase);
+[ai_queue5,horror_dagganoth_fire] gosub(dagmother_advance_phase);
+[ai_queue5,horror_dagganoth_ranged] gosub(dagmother_advance_phase);
+
+[proc,dagmother_start_cycle]
+if (%npc_dagmother_cycling = ^true) {
+    return;
+}
+%npc_dagmother_cycling = ^true;
+%npc_dagmother_phase = 0;
+npc_queue(5, 0, 30); // first phase change 18s (30 ticks) after combat starts, matching the wiki cycle
+
+[proc,dagmother_advance_phase]
+if (npc_stat(hitpoints) = 0) {
+    return; // she's dead - stop the chain rather than queue another change onto a dead/despawning npc
+}
+%npc_dagmother_phase = add(%npc_dagmother_phase, 1);
+if (%npc_dagmother_phase > 5) {
+    %npc_dagmother_phase = 0;
+}
+npc_changetype_keepall(~dagmother_phase_type(%npc_dagmother_phase), ^max_32bit_int);
+npc_queue(5, 0, 30);
+
+// wiki order: white(air) -> blue(water) -> orange(melee) -> brown(earth) -> red(fire) -> green(ranged)
+[proc,dagmother_phase_type](int $phase)(npc)
+switch_int ($phase) {
+    case 0 : return(horror_dagganoth_air);
+    case 1 : return(horror_dagganoth_water);
+    case 2 : return(horror_dagganoth_melee);
+    case 3 : return(horror_dagganoth_earth);
+    case 4 : return(horror_dagganoth_fire);
+    case 5 : return(horror_dagganoth_ranged);
+}
+return(horror_dagganoth_air);
+
+// called from skill_combat/scripts/player/player_magic.rs2's pvm_spell_success. Runs with the current
+// combat target already selected (npc_type refers to Dagannoth Mother's current phase form). Returns
+// false (blocking all magic damage) during her melee/ranged-weakness phases, since none of the four
+// elemental branches below match those two npc_types.
+[proc,dagmother_spell_matches_phase](int $spell)(boolean)
+if (npc_type = horror_dagganoth_air & ($spell = ^wind_strike | $spell = ^wind_bolt | $spell = ^wind_blast | $spell = ^wind_wave)) {
+    return(true);
+}
+if (npc_type = horror_dagganoth_water & ($spell = ^water_strike | $spell = ^water_bolt | $spell = ^water_blast | $spell = ^water_wave)) {
+    return(true);
+}
+if (npc_type = horror_dagganoth_earth & ($spell = ^earth_strike | $spell = ^earth_bolt | $spell = ^earth_blast | $spell = ^earth_wave)) {
+    return(true);
+}
+if (npc_type = horror_dagganoth_fire & ($spell = ^fire_strike | $spell = ^fire_bolt | $spell = ^fire_blast | $spell = ^fire_wave)) {
+    return(true);
+}
+return(false);

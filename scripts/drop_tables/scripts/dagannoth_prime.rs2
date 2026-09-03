@@ -1,0 +1,61 @@
+// Dagannoth Prime drop table - Waterbirth Island Dungeon
+// Rates adapted from https://oldschool.runescape.wiki/w/Dagannoth_Prime, pruned for this server's
+// 2006 target the same way as dagannoth_rex_drops.rs2:
+//  - farseer helm, skeletal top/bottoms: NOT present anywhere in the 377 cache (checked against
+//    _unpack/377/all.obj) - excluded rather than invented, same reasoning as Rex's rock-shell armor.
+//  - pure essence: not in the cache either - Runecrafting's pure essence looks to postdate this
+//    server's cutoff, so kept off the table (regular runes are dropped directly instead).
+//  - the full rare-seed drop table (Toadflax..Torstol): Farming's per-monster seed tables read as a
+//    much later addition than Nov 2005; skipped rather than guess at 2006-era rates that don't exist.
+//  - ensouled dagannoth head, Combat Achievements rate bonus, pet Dagannoth Prime: OSRS-only, 2013+.
+
+[ai_queue3,dagcave_magic_boss]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+obj_add(npc_coord, dagannoth_king_bones, 1, ^lootdrop_duration);
+
+~trail_hardcluedrop(^trail_hard_droprate, npc_coord);
+
+def_int $random = random(128);
+
+if ($random < 10) { // osrs
+    obj_add(npc_coord, earth_battlestaff, 1, ^lootdrop_duration);
+} else if ($random < 15) { // osrs
+    obj_add(npc_coord, water_battlestaff, 1, ^lootdrop_duration);
+} else if ($random < 19) { // osrs
+    obj_add(npc_coord, air_battlestaff, 1, ^lootdrop_duration);
+} else if ($random < 20) { // osrs (noted, count is a guess pending a better source)
+    obj_add(npc_coord, cert_battlestaff, ~random_range(1, 10), ^lootdrop_duration);
+} else if ($random < 21) { // osrs - unique
+    obj_add(npc_coord, seer_ring, 1, ^lootdrop_duration);
+} else if ($random < 22) { // osrs - unique
+    obj_add(npc_coord, mud_battlestaff, 1, ^lootdrop_duration);
+} else if ($random < 23) { // osrs
+    obj_add(npc_coord, cert_dragon_axe, 1, ^lootdrop_duration);
+} else if ($random < 29) { // osrs (100-200 air runes)
+    obj_add(npc_coord, airrune, ~random_range(100, 200), ^lootdrop_duration);
+} else if ($random < 34) { // osrs (50-100 earth runes)
+    obj_add(npc_coord, earthrune, ~random_range(50, 100), ^lootdrop_duration);
+} else if ($random < 36) { // osrs
+    obj_add(npc_coord, bloodrune, 15, ^lootdrop_duration);
+} else if ($random < 38) { // osrs
+    obj_add(npc_coord, lawrune, 15, ^lootdrop_duration);
+} else if ($random < 40) { // osrs
+    obj_add(npc_coord, naturerune, 15, ^lootdrop_duration);
+} else if ($random < 42) { // osrs
+    obj_add(npc_coord, deathrune, 15, ^lootdrop_duration);
+} else if ($random < 44) { // osrs
+    obj_add(npc_coord, mudrune, 15, ^lootdrop_duration);
+} else if ($random < 54) { // osrs (5 raw shark)
+    obj_add(npc_coord, shark, 5, ^lootdrop_duration);
+} else if ($random < 57) { // osrs (500-1109 coins)
+    obj_add(npc_coord, coins, ~random_range(500, 1109), ^lootdrop_duration);
+} else if ($random < 67) { // herb drop, reuse the shared herb table rather than hardcode one herb
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($random < 100) { // gem table access, same rate band style as kbd
+    obj_add(npc_coord, ~randomjewel, ^lootdrop_duration);
+} else { // rare/ultra-rare table access
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

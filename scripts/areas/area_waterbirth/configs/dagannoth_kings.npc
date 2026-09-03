@@ -1,0 +1,145 @@
+// Dagannoth Kings - Waterbirth Island Dungeon (Horror from the Deep)
+// Internal cache names (dagcave_*_boss) sourced from _unpack/377/all.npc, migrated here with full
+// combat configuration. Base appearance/model/size/vislevel fields are the untouched raw cache values;
+// everything below "op2=Attack" is new, added to wire these into the skill_combat framework.
+//
+// Stats sourced from the OSRS wiki (2005 launch values, i.e. explicitly EXCLUDING the 19 Jan 2017
+// Dagannoth Supreme ranged defence buff 255->550, and EXCLUDING the 25 Jun 2025 "35% earth spell
+// weakness" added to all three - neither existed in the 2006 era this server targets).
+// Released 7 November 2005 (https://oldschool.runescape.wiki/w/Dagannoth_Rex) - predates our Jan 2006
+// cutoff, so the trio is authentic content to add.
+//
+// Combat triangle (wiki-confirmed): Rex (melee) is weak to Magic; Prime (magic) is weak to Ranged;
+// Supreme (ranged) is weak to Melee. This falls straight out of each one's low defence stat below.
+
+[dagcave_melee_boss]
+name=Dagannoth Rex
+desc=Firstborn of the legendary dagannoth kings.
+model1=npc_2881
+recol1s=6373
+recol1d=8421
+recol2s=7430
+recol2d=9478
+recol3s=1122
+recol3d=10567
+recol4s=16646
+recol4d=13508
+vislevel=303
+size=3
+resizeh=220
+resizev=190
+contrast=30
+ambient=30
+walkanim=dagannoth_meganoth_walk
+readyanim=dagannoth_meganoth_ready
+op2=Attack
+param=slayer_category,^slayer_dagannoth
+hitpoints=255
+attack=255
+strength=255
+defence=255
+magic=0
+ranged=255
+param=attackbonus,255
+param=strengthbonus,255
+param=stabdefence,255
+param=slashdefence,255
+param=crushdefence,255
+param=magicdefence,10
+param=rangedefence,255
+param=damagetype,^slash_style
+param=attackrate,4
+param=attackrange,1
+param=attack_anim,dagannoth_meganoth_attack_melee
+param=defend_anim,dagannoth_meganoth_defend
+param=death_anim,dagannoth_meganoth_death
+param=death_drop,dagannoth_king_bones
+param=retreat,0
+
+[dagcave_magic_boss]
+name=Dagannoth Prime
+desc=A legendary dagannoth king, rumoured to fly on the North winds.
+model1=npc_2882
+model2=npc_2881i2
+model3=npc_2882i2
+recol1s=10594
+recol1d=19778
+recol2s=1122
+recol2d=10338
+recol3s=6373
+recol3d=6374
+recol4s=7430
+recol4d=7431
+vislevel=303
+size=3
+resizeh=175
+resizev=180
+contrast=30
+ambient=30
+walkanim=dagannoth_meganoth_walk
+readyanim=dagannoth_meganoth_ready
+op2=Attack
+param=slayer_category,^slayer_dagannoth
+hitpoints=255
+attack=255
+strength=255
+defence=255
+magic=255
+ranged=0
+param=magicattack,255
+param=stabdefence,255
+param=slashdefence,255
+param=crushdefence,255
+param=magicdefence,255
+param=rangedefence,10
+param=damagetype,^magic_style
+param=attackrate,4
+param=attackrange,7
+param=magicattack_anim,dagannoth_meganoth_attack_mage
+param=defend_anim,dagannoth_meganoth_defend
+param=death_anim,dagannoth_meganoth_death
+param=death_drop,dagannoth_king_bones
+param=retreat,0
+
+[dagcave_ranged_boss]
+name=Dagannoth Supreme
+desc=The dagannoth king responsible for the death of the Bukalla.
+model1=npc_2881
+model2=npc_2881i2
+vislevel=303
+size=3
+walkanim=dagannoth_meganoth_walk
+readyanim=dagannoth_meganoth_ready
+resizeh=167
+resizev=165
+contrast=30
+ambient=30
+op2=Attack
+param=slayer_category,^slayer_dagannoth
+hitpoints=255
+attack=255
+strength=255
+defence=128
+magic=255
+ranged=255
+param=rangeattack,255
+param=rangebonus,255
+param=stabdefence,10
+param=slashdefence,10
+param=crushdefence,10
+param=magicdefence,255
+param=rangedefence,255
+param=damagetype,^ranged_style
+param=attackrate,4
+param=attackrange,7
+param=attack_anim,dagannoth_meganoth_attack_range
+// TODO: confirm a real synth name for rangeattack_sound - no all.synth dump was available to verify
+// one against the 377 cache, leaving it at its param default (null) rather than guessing.
+param=proj_travel,dagannoth_arrow_spotanim_travel
+param=proj_height,40
+param=defend_anim,dagannoth_meganoth_defend
+param=death_anim,dagannoth_meganoth_death
+param=death_drop,dagannoth_king_bones
+// severity 16 -> first poison_damage tick = (16+4)/5 = 4, matching Supreme's real starting poison hit
+param=poison_severity,16
+param=retreat,0

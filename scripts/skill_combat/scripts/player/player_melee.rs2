@@ -28,6 +28,13 @@ if (~player_npc_hit_roll(%damagetype) = true) {
     if((npc_param(slayer_category) = ^slayer_kurask | npc_param(slayer_category) = ^slayer_turoth) & inv_total(worn, slayer_leafbladed_spear) = 0) {
         $maxhit = 0;
     }
+    // Horror from the Deep - Dagannoth Mother (quest_horror) cycles through six elemental/combat-style
+    // weaknesses every 18 seconds (see quests/quest_horror/scripts/quest_horror_combat.rs2). Melee only
+    // damages her during her orange/melee-weakness phase (horror_dagganoth_melee); every other phase
+    // blocks melee entirely, matching the wiki's "changes weakness" mechanic.
+    if (npc_type = horror_dagganoth_air | npc_type = horror_dagganoth_water | npc_type = horror_dagganoth_earth | npc_type = horror_dagganoth_fire | npc_type = horror_dagganoth_ranged) {
+        $maxhit = 0;
+    }
     $damage = randominc(min($maxhit, npc_param(max_dealt)));
     def_int $damage_capped = min($damage, npc_stat(hitpoints));
     ~give_combat_experience(%damagestyle, $damage_capped, %npc_combat_xp_multiplier);

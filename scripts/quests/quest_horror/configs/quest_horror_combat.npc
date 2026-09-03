@@ -1,0 +1,307 @@
+// Horror from the Deep - combat content (quest_horror). Migrated from the raw 377 cache dump
+// (content/scripts/_unpack/377/all.npc), same pattern as areas/area_waterbirth/configs/
+// dagannoth_kings.npc: base appearance/model/anim fields below "op2=Attack" (or "vislevel=100" where
+// op2 already exists) are untouched raw cache values, everything from "param=slayer_category" onward
+// (existing in the cache) plus the stat/param block after it (new) wires these into skill_combat.
+//
+// Stats sourced from the OSRS wiki for "Dagannoth (Horror from the Deep)" and "Dagannoth Mother":
+// both share the exact same base stat block (level 100, 120 hp, 78 atk/str, 81 def, 1 magic, 50
+// ranged, stab melee, max hit 9, all attack/defence bonuses +0, attack speed 4 ticks) - Mother's is
+// just layered with the elemental/style weakness-cycling mechanic on top (see quest_horror_combat.rs2
+// and the matching edits in skill_combat/scripts/player/player_{melee,ranged,magic}.rs2). Explicitly
+// excludes the 25 Jun 2025 "35% earth spell weakness" update added to the generic Dagannoth - that
+// postdates this server's January 2006 target era.
+//
+// horror_dagannoth_jr1/jr2/jr3 (emergence animation stages, no op2/combat params - not fought
+// directly) precede jr4 in the cache; horror_dagganoth_aira/airb/airc are Dagannoth Mother's
+// equivalent emergence stages. Wiring the actual emergence sequence (and where either of these
+// spawns in the first place) is blocked on the same missing Waterbirth-area/dungeon coordinates
+// flagged in the project doc - only the fightable end-states (jr4, and Mother's six phases) get
+// combat capability here.
+
+[horror_dagannoth_jr4]
+name=Dagannoth
+desc=A horror from the ocean depths...
+model1=poh_dagganoth_8
+recol1s=13740
+recol1d=14796
+recol2s=12683
+recol2d=13739
+recol3s=11626
+recol3d=13706
+recol4s=10569
+recol4d=12649
+vislevel=100
+size=2
+resizeh=82
+resizev=82
+walkanim=horror_dagannoth_walk
+readyanim=horror_dagannoth_ready
+op2=Attack
+param=slayer_category,^slayer_dagannoth
+hitpoints=120
+attack=78
+strength=78
+defence=81
+magic=1
+ranged=50
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,0
+param=strengthbonus,0
+param=damagetype,^stab_style
+param=attackrate,4
+param=attackrange,1
+param=attack_anim,horror_dagannoth_attack
+param=defend_anim,horror_dagannoth_defend
+param=death_anim,horror_dagannoth_death
+param=retreat,0
+
+[horror_dagganoth_air]
+name=Dagannoth mother
+desc=A horror from the ocean depths...
+model1=poh_dagganoth_8
+recol1s=13740
+recol1d=21140
+recol2s=12683
+recol2d=20083
+recol3s=11626
+recol3d=19026
+recol4s=10569
+recol4d=17969
+size=3
+walkanim=horror_dagannoth_walk
+readyanim=horror_dagannoth_ready
+op2=Attack
+resizeh=155
+resizev=155
+vislevel=100
+param=slayer_category,^slayer_dagannoth
+hitpoints=120
+attack=78
+strength=78
+defence=81
+magic=1
+ranged=50
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,0
+param=strengthbonus,0
+param=damagetype,^stab_style
+param=attackrate,4
+param=attackrange,1
+param=attack_anim,horror_dagannoth_attack
+param=defend_anim,horror_dagannoth_defend
+param=death_anim,horror_dagannoth_death
+param=retreat,0
+
+[horror_dagganoth_water]
+name=Dagannoth mother
+desc=A horror from the ocean depths...
+model1=poh_dagganoth_8
+recol1s=13740
+recol1d=15857
+recol2s=12683
+recol2d=14800
+recol3s=11626
+recol3d=13743
+recol4s=10569
+recol4d=12686
+size=3
+walkanim=horror_dagannoth_walk
+readyanim=horror_dagannoth_ready
+op2=Attack
+resizeh=155
+resizev=155
+vislevel=100
+param=slayer_category,^slayer_dagannoth
+hitpoints=120
+attack=78
+strength=78
+defence=81
+magic=1
+ranged=50
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,0
+param=strengthbonus,0
+param=damagetype,^stab_style
+param=attackrate,4
+param=attackrange,1
+param=attack_anim,horror_dagannoth_attack
+param=defend_anim,horror_dagannoth_defend
+param=death_anim,horror_dagannoth_death
+param=retreat,0
+
+[horror_dagganoth_fire]
+name=Dagannoth mother
+desc=A horror from the ocean depths...
+model1=poh_dagganoth_8
+recol1s=13740
+recol1d=15723
+recol2s=12683
+recol2d=15657
+recol3s=11626
+recol3d=14600
+recol4s=10569
+recol4d=13543
+size=3
+walkanim=horror_dagannoth_walk
+readyanim=horror_dagannoth_ready
+op2=Attack
+resizeh=155
+resizev=155
+vislevel=100
+param=slayer_category,^slayer_dagannoth
+hitpoints=120
+attack=78
+strength=78
+defence=81
+magic=1
+ranged=50
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,0
+param=strengthbonus,0
+param=damagetype,^stab_style
+param=attackrate,4
+param=attackrange,1
+param=attack_anim,horror_dagannoth_attack
+param=defend_anim,horror_dagannoth_defend
+param=death_anim,horror_dagannoth_death
+param=retreat,0
+
+[horror_dagganoth_earth]
+name=Dagannoth mother
+desc=A horror from the ocean depths...
+model1=poh_dagganoth_8
+recol1s=13740
+recol1d=19947
+recol2s=12683
+recol2d=18890
+recol3s=11626
+recol3d=18856
+recol4s=10569
+recol4d=17799
+size=3
+walkanim=horror_dagannoth_walk
+readyanim=horror_dagannoth_ready
+op2=Attack
+resizeh=155
+resizev=155
+vislevel=100
+param=slayer_category,^slayer_dagannoth
+hitpoints=120
+attack=78
+strength=78
+defence=81
+magic=1
+ranged=50
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,0
+param=strengthbonus,0
+param=damagetype,^stab_style
+param=attackrate,4
+param=attackrange,1
+param=attack_anim,horror_dagannoth_attack
+param=defend_anim,horror_dagannoth_defend
+param=death_anim,horror_dagannoth_death
+param=retreat,0
+
+[horror_dagganoth_ranged]
+name=Dagannoth mother
+desc=A horror from the ocean depths...
+model1=poh_dagganoth_8
+recol1s=13740
+recol1d=9801
+recol2s=12683
+recol2d=8744
+recol3s=11626
+recol3d=8680
+recol4s=10569
+recol4d=7623
+size=3
+walkanim=horror_dagannoth_walk
+readyanim=horror_dagannoth_ready
+op2=Attack
+resizeh=155
+resizev=155
+vislevel=100
+param=slayer_category,^slayer_dagannoth
+hitpoints=120
+attack=78
+strength=78
+defence=81
+magic=1
+ranged=50
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,0
+param=strengthbonus,0
+param=damagetype,^stab_style
+param=attackrate,4
+param=attackrange,1
+param=attack_anim,horror_dagannoth_attack
+param=defend_anim,horror_dagannoth_defend
+param=death_anim,horror_dagannoth_death
+param=retreat,0
+
+[horror_dagganoth_melee]
+name=Dagannoth mother
+desc=A horror from the ocean depths...
+model1=poh_dagganoth_8
+recol1s=13740
+recol1d=20075
+recol2s=12683
+recol2d=19018
+recol3s=11626
+recol3d=17961
+recol4s=10569
+recol4d=15849
+size=3
+walkanim=horror_dagannoth_walk
+readyanim=horror_dagannoth_ready
+op2=Attack
+resizeh=155
+resizev=155
+vislevel=100
+param=slayer_category,^slayer_dagannoth
+hitpoints=120
+attack=78
+strength=78
+defence=81
+magic=1
+ranged=50
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,0
+param=strengthbonus,0
+param=damagetype,^stab_style
+param=attackrate,4
+param=attackrange,1
+param=attack_anim,horror_dagannoth_attack
+param=defend_anim,horror_dagannoth_defend
+param=death_anim,horror_dagannoth_death
+param=retreat,0
