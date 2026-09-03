@@ -41,12 +41,29 @@
 //     see the merged opnpc1 handler below for how that's handled.
 //   - gunnjorn (npc 607): m39_55.jm2, plane 0, local(44,28) = world(2540,3548,0) - near the real
 //     Barbarian Outpost agility arena, matching his own dialogue.
-// horror_girlfriend_postquest (1337) and horror_lighthousekeeeper_injured (1335) are still genuinely
-// unplaced - see the comments at their respective handlers below for how each is handled.
-// Still not found anywhere in a 29-region search: the Waterbirth dungeon itself and the quest's two
-// boss encounters (horror_dagannoth_jr1-4, horror_dagganoth_aira/airb/airc/air/water/fire/earth/
-// ranged/melee) - that's a separate, not-yet-started search, well outside the Lighthouse-surface area
-// covered so far. See the project doc (claude/horror-from-the-deep-quest.md) for the full search log.
+// horror_girlfriend_postquest (1337) is still genuinely unplaced - see its handler below.
+//
+// UPDATE (2026-09-03): Corey supplied real in-game coords for the lighthouse basement this pass,
+// resolving what used to be this quest's one real remaining blocker. horror_lighthousekeeeper_
+// injured (1335, "Fallen Jossik") IS genuinely placed after all - m39_72.jm2, plane 0, local(22,25),
+// matching Corey's coord exactly - so the merged well/injured handler below is now split back into
+// two (see the "Fallen Jossik" section). The strange wall puzzle's real locs were also found in the
+// same region (horror_mid_left_door/_mid_right_door, op1=Study; horror_far_right_door/_far_left_door,
+// op1=Open - all four tagged "Strange wall", m39_72 plane 1, local z=19 x=17-20) and the six-icon rune/
+// sword/arrow logic below is re-attached to them (wiki-reconfirmed this pass, see that section).
+// horror_ladder_top's Climb op (previously unscripted - "no known destination") now goes to
+// horror_ladder_base2 in that same region, resolving the basement connector too.
+//
+// Still open: the quest's own boss encounters. m39_156.jm2 - a different region, but with byte-
+// identical loc layout to m39_72 (same puzzle room shape, no locs of its own) - turned up placements
+// for horror_dagganoth_jr/_jr_darker/_jr_lighter and horror_dagannoth_medium/_darker/_lighter (npcs
+// 1338-1343), which is almost certainly the "level 100 Dagannoth" encounter chamber referenced in
+// Jossik's own dialogue below. None of these six have any combat stats in the raw cache yet (just
+// op2=Attack and a model) and no connector loc was found bridging m39_72 to m39_156 specifically -
+// horror_ladder_base (loc 4412, m39_72 plane 1, local(23,10), real op1=Climb) is the one isolated,
+// unpaired ladder left in the room and the likeliest candidate, but that's inference, not confirmed
+// placement data. Dagannoth Mother's own world placement is still unfound entirely. Flagged for
+// Corey/a future pass rather than guessed - see the project doc.
 
 [opnpc1,horror_girlfriend_prequest]
 if (%horror = ^horror_not_started) {
@@ -201,85 +218,146 @@ if (getbit_range(%horror_lighting, 0, 2) = 7) {
 }
 
 
-// --- The strange wall in the basement (NOT YET RE-ATTACHED - see below) ---
-// Corey confirmed in-game (::getcoord) that horror_lighthouse_doorway (loc 4577, world 2509,3635-3636,0)
-// is the lighthouse's plain building entrance, not a puzzle - the real cache def settles it:
-// op1=Walk-through, desc="Lets you walk through walls!" (content/scripts/_unpack/377/all.loc). That's a
-// simple walkable door prop, not something that accepts use-item ops at all, so the six-icon rune/sword/
-// arrow puzzle below was bound to the WRONG loc - it would have fired nonsensically every time a player
-// used an item on the main entrance. Un-bound (commented out below) rather than left wrong.
-//
-// The wiki's six-icon puzzle is still real content that needs building somewhere - almost certainly on
-// a loc inside the still-unfound basement/dungeon (reachable via horror_ladder_top, loc 4383, world
-// 2509,3644,0, real cache op1=Climb - but that Climb interaction has no script yet either, since there's
-// no known destination to send the player to). horror_ladder_down (loc 4380, no op at all, decorative
-// only) sits right next to it. Finding the basement is the one real remaining blocker for this quest -
-// see the project doc (claude/horror-from-the-deep-quest.md) for the search state.
-//
-// %horror_wall bits: 0=fire, 1=air, 2=water, 3=earth, 4=sword, 5=arrow - kept as reference, re-attach to
-// the real loc tag (and change [oplocu,...] to whatever that loc's actual tag is) once it's found:
-//
-// if (getbit_range(%horror_lighting, 0, 2) < 7) {
-//     mes("Nothing happens - perhaps you should light the lighthouse first.");
-//     return;
-// }
-// if (%horror >= ^horror_wall_opened) {
-//     mes("The doorway is already open.");
-//     return;
-// }
-// def_int $bit = -1;
-// if (last_useitem = firerune) {
-//     $bit = 0;
-// } else if (last_useitem = airrune) {
-//     $bit = 1;
-// } else if (last_useitem = waterrune) {
-//     $bit = 2;
-// } else if (last_useitem = earthrune) {
-//     $bit = 3;
-// } else if (last_useitem = bronze_sword | last_useitem = iron_sword | last_useitem = steel_sword | last_useitem = black_sword | last_useitem = mithril_sword | last_useitem = adamant_sword | last_useitem = rune_sword) {
-//     $bit = 4;
-// } else if (last_useitem = bronze_arrow | last_useitem = iron_arrow | last_useitem = steel_arrow | last_useitem = mithril_arrow | last_useitem = adamant_arrow | last_useitem = rune_arrow) {
-//     $bit = 5;
-// } else {
-//     ~displaymessage(^dm_default);
-//     return;
-// }
-// if (testbit(%horror_wall, $bit) = 1) {
-//     mes("You've already used something like that on the wall.");
-//     return;
-// }
-// if ($bit < 4) {
-//     inv_del(inv, last_useitem, 1);
-// }
-// mes("You press the item into a hidden recess in the wall.");
-// %horror_wall = setbit(%horror_wall, $bit);
-// if (getbit_range(%horror_wall, 0, 5) = 63) {
-//     mes("The wall grinds open, revealing a doorway down into darkness!");
-//     %horror = ^horror_wall_opened;
-//     ~send_quest_progress(questlist:horror, 2, ^horror_complete);
-// }
+// --- The strange wall (basement, m39_72) - RE-ATTACHED (2026-09-03) ---
+// Real locs confirmed via content/maps/m39_72.jm2 (all four sit in one row, plane 1, local z=19,
+// x=17-20): horror_mid_left_door/horror_mid_right_door (loc 4543/4544, name="Strange wall", real
+// op1=Study) and horror_far_right_door/horror_far_left_door (loc 4545/4546, name="Strange wall",
+// real op1=Open, desc "appears to be hinged" - these two are the actual hinged doors; the mid pair
+// are just the engraved wall panels you study/use items on). Puzzle mechanic wiki-reconfirmed this
+// pass (https://oldschool.runescape.wiki/w/Horror_from_the_Deep): use one of each elemental rune
+// (fire/air/water/earth), a sword, and an arrow, each consumed once regardless of stack size, in any
+// order - "you do not get these back" per the wiki, which corrects the original draft of this logic
+// (kept below, now fixed) that only deleted the runes and not the sword/arrow. The four physical
+// panels aren't distinguished by the wiki, so all four accept any of the six items against one
+// shared %horror_wall bitfield (bits: 0=fire, 1=air, 2=water, 3=earth, 4=sword, 5=arrow).
+[oplocu,horror_mid_left_door]
+@horror_wall_useitem;
+
+[oplocu,horror_mid_right_door]
+@horror_wall_useitem;
+
+[oplocu,horror_far_right_door]
+@horror_wall_useitem;
+
+[oplocu,horror_far_left_door]
+@horror_wall_useitem;
+
+[label,horror_wall_useitem]
+if (%horror < ^horror_started) {
+    mes("You should investigate the lighthouse first.");
+    return;
+}
+if (getbit_range(%horror_wall, 0, 5) = 63) {
+    mes("The wall has already been opened.");
+    return;
+}
+def_int $bit = -1;
+if (last_useitem = firerune) {
+    $bit = 0;
+} else if (last_useitem = airrune) {
+    $bit = 1;
+} else if (last_useitem = waterrune) {
+    $bit = 2;
+} else if (last_useitem = earthrune) {
+    $bit = 3;
+} else if (last_useitem = bronze_sword | last_useitem = iron_sword | last_useitem = steel_sword | last_useitem = black_sword | last_useitem = mithril_sword | last_useitem = adamant_sword | last_useitem = rune_sword) {
+    $bit = 4;
+} else if (last_useitem = bronze_arrow | last_useitem = iron_arrow | last_useitem = steel_arrow | last_useitem = mithril_arrow | last_useitem = adamant_arrow | last_useitem = rune_arrow) {
+    $bit = 5;
+} else {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (testbit(%horror_wall, $bit) = 1) {
+    mes("You've already pressed something like that into the wall.");
+    return;
+}
+mes("You press the item into a hidden recess in the wall.");
+%horror_wall = setbit(%horror_wall, $bit);
+inv_del(inv, last_useitem, 1);
+if (getbit_range(%horror_wall, 0, 5) = 63) {
+    mes("With a grinding of stone, the wall splits open, revealing a doorway down into darkness!");
+    loc_change(horror_far_left_door_inactive, ^max_32bit_int);
+    loc_change(horror_far_right_door_inactive, ^max_32bit_int);
+    if (%horror < ^horror_wall_opened) {
+        %horror = ^horror_wall_opened;
+        ~send_quest_progress(questlist:horror, 2, ^horror_complete);
+    }
+}
+
+[oploc1,horror_mid_left_door]
+gosub(horror_wall_study);
+
+[oploc1,horror_mid_right_door]
+gosub(horror_wall_study);
+
+[proc,horror_wall_study]
+if (getbit_range(%horror_wall, 0, 5) = 63) {
+    mes("The wall has already been opened.");
+    return;
+}
+mes("A strange wall, engraved with symbols representing fire, air, water, earth, a sword and an arrow. There seem to be hidden recesses matching each symbol.");
+
+[oploc1,horror_far_right_door]
+gosub(horror_wall_open_attempt);
+
+[oploc1,horror_far_left_door]
+gosub(horror_wall_open_attempt);
+
+[proc,horror_wall_open_attempt]
+if (getbit_range(%horror_wall, 0, 5) = 63) {
+    mes("You've already opened this.");
+} else {
+    mes("The door won't budge - it looks like it's sealed shut somehow.");
+}
 
 
-// --- Jossik: found injured, then the final reward exchange ---
-// Only horror_lighthousekeeeper_well (npc 1334) is actually placed in the map (confirmed via
-// content/maps/m39_56.jm2, plane 1, local(13,55) = world(2509,3639,1)) - horror_lighthousekeeeper_
-// injured (npc 1335) exists in the cache but has zero placements anywhere in a 29-region search
-// (see project doc). The original two-handler split assumed an npc_changetype from injured->well
-// partway through, matching Dagannoth Mother's precedent elsewhere in this quest, but there's no
-// confirmed way to target a *different*, non-combat npc instance for changetype from a loc/dialogue
-// context in this codebase (npc_changetype's real precedents are all self-directed, from inside that
-// same npc's own ai_queue hook) - guessing at one would be exactly the kind of unverified engine
-// mechanic this build has been avoiding elsewhere. So this is one merged handler on the npc type
-// that's actually live in the world; Jossik doesn't get a distinct battle-damaged model this pass,
-// only the dialogue conveys he's shaken. If horror_lighthousekeeeper_injured is ever placed for real,
-// split this back into two handlers along the original %horror boundaries.
-[opnpc1,horror_lighthousekeeeper_well]
+// --- The lighthouse's basement ladder (m39_56 <-> m39_72) - RESOLVED (2026-09-03) ---
+// horror_ladder_top (loc 4383, real op1=Climb, m39_56) previously had no script since there was no
+// known destination - Corey's coords this pass confirmed it. Lands at horror_ladder_base2 (loc 4413,
+// real op1=Climb, m39_72 plane 0 local(19,23)), the small chamber Jossik himself sits in
+// (local(22,25), a few tiles over - matches the wiki's "Jossik sitting injured by the ladder").
+[oploc1,horror_ladder_top]
+mes("You climb down the ladder into darkness.");
+p_telejump(^horror_ladder_cave_dest);
+
+// horror_ladder_base2 (loc 4413, m39_72 plane 0 local(19,23)) and horror_ladder_top2 (loc 4485, real
+// op1=Climb, m39_72 plane 1 local(19,22)) sit right on top of each other, adjacent tile/adjacent
+// plane - both are "climb up" triggers out of Jossik's chamber up to the strange-wall floor above it
+// (two ladder objects in the same small space - redundant but not a bug, same as a couple of other
+// spots this project has found duplicate functional locs). Corey corrected horror_ladder_top2's
+// destination directly (2026-09-03, round 5: "the id for the ladder is 4485 ... it takes you
+// 1,39,72,19,21") - landing one tile off the loc's own dump tile (19,22), the same "destination tile
+// is adjacent to the loc's own placement, not on top of it" pattern already seen elsewhere. No loc
+// was found leading back down to Jossik's chamber from up here, so that return trip is currently a
+// gap - flagged in the project doc rather than invented.
+[oploc1,horror_ladder_base2]
+mes("You climb up the ladder.");
+p_telejump(^horror_ladder_wallroom_dest);
+
+[oploc1,horror_ladder_top2]
+mes("You climb up the ladder.");
+p_telejump(^horror_ladder_wallroom_dest);
+
+
+// --- Fallen Jossik (found injured, underground) and horror_lighthousekeeeper_well (topside, the
+// final reward exchange) - SPLIT (2026-09-03) ---
+// horror_lighthousekeeeper_injured (npc 1335, "Fallen Jossik") is genuinely placed after all -
+// content/maps/m39_72.jm2, plane 0, local(22,25), matching Corey's own in-game coord exactly. That
+// resolves the uncertainty the merged handler below used to carry (no confirmed way to changetype a
+// *different* non-combat npc instance from a loc/dialogue context) - there's no changetype needed at
+// all, since injured Jossik and well Jossik are just two separate, independently-placed npcs in two
+// separate locations: injured underground for the whole time the player's down here with him, well
+// topside in the lighthouse (m39_56, plane 1, local(13,55)) once the player's made it back up with
+// the casket. Split along that boundary.
+[opnpc1,horror_lighthousekeeeper_injured]
 if (%horror = ^horror_wall_opened) {
     ~chatplayer("<p,shock>Jossik! Are you alright?");
     ~chatnpc("<p,sad>Adventurer! Thank Guthix... there are creatures down here, dagannoth of some kind. Please, be careful.");
     %horror = ^horror_dagannoth_defeated;
-    // combat with the level 100 Dagannoth and Dagannoth Mother happens in the chambers below -
-    // see the (not yet built) encounter scripts for horror_dagganoth_jr* / horror_dagganoth_aira etc.
+    // combat with the level 100 Dagannoth and Dagannoth Mother happens further into these chambers -
+    // see quest_horror_combat.rs2/.npc (Mother's phases are built; the plain Dagannoth encounters'
+    // stats and Mother's own world placement are still open - see the project doc).
     // TODO: this currently jumps straight from wall_opened to dagannoth_defeated on first meeting
     // Jossik rather than being set by the encounter scripts themselves once they exist - the combat
     // stages (^horror_dagannoth_defeated / ^horror_mother_defeated) should eventually be set by
@@ -292,7 +370,12 @@ if (%horror = ^horror_wall_opened) {
     ~chatnpc("<p,neutral>A casket? Let's get out of here and I'll take a look upstairs.");
     %horror = ^horror_casket_given;
     ~send_quest_progress(questlist:horror, 5, ^horror_complete);
-} else if (%horror >= ^horror_casket_given & %horror < ^horror_complete) {
+} else if (%horror >= ^horror_casket_given) {
+    ~chatnpc("<p,relieved>Let's get back up top - I don't want to spend any longer down here than I have to.");
+}
+
+[opnpc1,horror_lighthousekeeeper_well]
+if (%horror >= ^horror_casket_given & %horror < ^horror_complete) {
     ~chatplayer("<p,neutral>Here's that casket I found.");
     inv_del(inv, horror_casket, 1);
     ~chatnpc("<p,happy>Ah, I recognise this - it's one of ours. There should be a damaged prayer book inside. Which order would you like?");

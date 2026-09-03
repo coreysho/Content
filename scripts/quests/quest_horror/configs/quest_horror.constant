@@ -16,3 +16,28 @@
 //   %horror_bridges  - bit0 = left span repaired, bit1 = right span repaired
 //   %horror_lighting - bit0 = swamp tar applied, bit1 = tinderbox struck, bit2 = molten glass fitted
 //   %horror_wall     - bit0=fire, bit1=air, bit2=water, bit3=earth, bit4=sword, bit5=arrow
+
+// The lighthouse basement (2026-09-03) - Corey supplied real in-game coords for this whole area,
+// resolving what the header comment in quest_horror.rs2 called "the one real remaining blocker":
+// Fallen Jossik (0,39,72,22,25) matches horror_lighthousekeeeper_injured's real cache placement
+// exactly; the strange wall puzzle's real locs and a second "iron ladder" were also confirmed
+// against content/maps/m39_72.jm2 - see quest_horror.rs2 for the full derivation.
+// horror_ladder_top (m39_56, the lighthouse building) climbs down into horror_ladder_base2's small
+// chamber (m39_72 plane 0) - the same room Jossik himself sits in.
+^horror_ladder_cave_dest = 0_39_72_19_23
+// Corey corrected this (2026-09-03, round 5): horror_ladder_top2 (loc 4485) is the real "climb up"
+// trigger out of that chamber, landing precisely at 1,39,72,19,21 - not the 19,22 this project had
+// guessed from the raw .jm2 dump alone (one tile off, same "player's own reported position, not the
+// loc's exact tile" pattern already seen elsewhere this project - trusting Corey's precise, tested
+// coordinate over the dump-derived guess).
+^horror_ladder_wallroom_dest = 1_39_72_19_21
+// ^horror_ladder_lighthouse_dest (0_39_56_13_60, horror_ladder_top's own tile) is deliberately not
+// declared here - no loc was found anywhere that climbs back up to it from underground, so there's
+// nothing to wire it to yet. Add it back once a real return connector turns up.
+
+// Corey confirmed (2026-09-03, round 5) where the Waterbirth maze's dagexp_exit_ladder really leads -
+// straight into this same underground complex, not back to the surface as this project had guessed.
+// This ties the two Horror from the Deep entrances (the lighthouse's own basement ladder, and the
+// Waterbirth Island cave maze) together into one connected dungeon - see area_waterbirth.constant/
+// waterbirth_dungeon.rs2 for the ladder itself.
+^horror_maze_exit_dest = 0_39_72_14_36

@@ -25,24 +25,47 @@
 //   an intentional exception to "make them all aggressive" to match real behaviour (flagged for Corey
 //   to override if he'd rather every single one be hostile regardless).
 //
+// - dungeon_water_creature_1x1/_1x12/_1x13 are Spinolyp (real name already in the raw cache -
+//   https://oldschool.runescape.wiki/w/Spinolyp): HP100/atk10/str10/def10/magic1/ranged100, an
+//   aggressive ranged attacker that also drains prayer (real wiki mechanic: "poison damage through
+//   its ranged attacks... can drain prayer points with its magic attacks" - implemented here as its
+//   ranged hit only, going through the same generic ~npc_rangeattack proc as the other ranged
+//   maze npcs; the prayer-drain flavour isn't modelled, no confirmed primitive for it found this
+//   pass). Their three raw "Suspicious water" siblings (vislevel=34, no op, non-interactive) are the
+//   wiki-documented submerge state Spinolyps cycle into periodically - UPDATE (2026-09-03, round 5,
+//   Corey: "for the spinolyps, build the suspicious water stuff"): now fully migrated below with
+//   their own weak-melee combat stats, and a real timed emerge/submerge loop is wired in
+//   dagannoth_maze_monsters.rs2 (npc_settimer + npc_changetype_keepall, the same self-directed
+//   pattern already used for Boulder/Rock). NOTE: neither the visible nor invisible form was found
+//   actually placed in any .jm2 map file this project has (searched every region's NPC section for
+//   ids 2891-2896, all 660 files, zero placements) - the AI/stats are ready regardless, but there's
+//   currently no live spawn point for Corey to test against; flagged rather than guessed at.
+//
 // Explicitly NOT migrated here, left untouched in all.npc:
-// - giant_rockcrab_hidden_deeper ("Boulder") and dagannoth_rock_lobster_2x2_loc ("Rock") - both
-//   vislevel=hide with NO op2 at all in the raw cache (unlike the door-support npcs earlier this
-//   project, which had vislevel=hide but a real op2 already). all.seq has real
-//   horror_crab_hide/_reveal and dagannoth_rock_lobster_spring_up sequences, confirming these ARE
-//   meant to be disguise states that transform into the real monster on interaction (the same
-//   mechanic as regular rock crabs) - but that transform trigger isn't scripted anywhere yet, and
-//   isn't attempted this pass. Flagged rather than guessed at: per the project doc's original map
-//   sweep, it's the DISGUISED "_loc"/hidden forms that are actually placed in the maze (14 instances
-//   of dagannoth_rock_lobster_2x2_loc in m30_68 alone) - so until the reveal mechanic is built,
-//   players may not actually encounter a fightable Rock Lobster or hidden Rock Crab there, even
-//   though the real fightable forms below are now fully wired.
 // - jb_viking_dude ("Bardur") - a real, named, ordinarily-friendly Fremennik NPC
 //   (https://oldschool.runescape.wiki/w/Bardur): "resides deep within the Waterbirth Island Dungeon,
 //   where he fights dagannoth fledgelings" (this exact room), tied to The Fremennik
 //   Exiles/Trials quests, non-hostile since a 2019 update "to make it easier to talk to him". His raw
 //   vislevel=94 matches his old pre-2019 attackable combat level exactly, confirming he's genuine
 //   period content, just not a "make it aggressive" filler monster - left alone.
+//
+// giant_rockcrab_hidden_deeper ("Boulder") and dagannoth_rock_lobster_2x2_loc ("Rock") - UPDATE
+// (2026-09-03): Corey reported these aren't aggressive when walked near, and shouldn't wander while
+// disguised. Both are now migrated below rather than left in all.npc. Root cause of both symptoms:
+// neither had ANY combat/movement fields set, so they fell back to this engine's raw defaults
+// (engine/src/cache/config/NpcType.ts: wanderrange defaults to 5, not 0) - explaining the unwanted
+// wandering - and with no huntmode at all they could never initiate a reveal on their own, matching
+// the same "has combat stats but never attacks" class of bug already found and fixed for the Kings.
+// Real OSRS mechanic (https://oldschool.runescape.wiki/w/Giant_Rock_Crab): "disguised as large
+// boulders. When approached, they attack" - all.seq has the matching real horror_crab_hide/_reveal
+// and dagannoth_rock_lobster_spring_up sequences confirming this is genuine, built content, not a
+// guess. Implemented as: wanderrange=0 (stay put while disguised) + a short huntmode/huntrange (1
+// tile - "when approached", not a long-range hunt; the wiki gives no exact tile radius, so this
+// specific number is a judgment call, not a sourced one) that triggers a self-changetype into the
+// already-aggressive revealed form (giant_rockcrab_deeper / dagannoth_rock_lobster_2x2 above) via
+// npc_changetype_keepall - see dagannoth_maze_monsters.rs2's ai_queue1 overrides for both. That
+// primitive's only confirmed precedent in this codebase is self-directed from an npc's own ai_queue
+// hook (content/scripts/macro events/scripts/general/macro_event_triffid.rs2), which this matches.
 
 [dungeon_dagganoth_magic_monster_deeper]
 name=Wallasalki
@@ -267,4 +290,253 @@ param=attackrange,1
 param=attack_anim,horror_dagannoth_attack
 param=defend_anim,horror_dagannoth_defend
 param=death_anim,horror_dagannoth_death
+param=retreat,0
+
+[giant_rockcrab_hidden_deeper]
+name=Boulder
+desc=Heavy rock!
+model1=npc_2453
+vislevel=hide
+size=2
+resizeh=250
+resizev=250
+turnspeed=0
+// wanderrange=0: stop the default engine wanderrange (5) from letting a "boulder" drift around the
+// room. huntrange=1: reveal only when a player is right up against it ("when approached" per the
+// wiki - no exact radius given, this is a judgment call). See the header note for the changetype
+// wiring in dagannoth_maze_monsters.rs2.
+wanderrange=0
+huntmode=cowardly
+huntrange=1
+
+[dagannoth_rock_lobster_2x2_loc]
+name=Rock
+desc=A Rock.
+model1=npc_2890
+vislevel=hide
+size=2
+resizeh=85
+resizev=85
+contrast=15
+ambient=15
+turnspeed=0
+minimap=no
+// Same disguise-reveal treatment as Boulder above, same reasoning.
+wanderrange=0
+huntmode=cowardly
+huntrange=1
+
+// --- Spinolyp (real name, raw cache) ---
+// https://oldschool.runescape.wiki/w/Spinolyp - HP100, atk10/str10/def10/magic1/ranged100, ranged
+// attack style (poison), attackspeed 4 ticks, max hit 10. Three identical raw copies placed
+// throughout the maze (dagannoth_water_creature_1x1/_1x12/_1x13) plus their own "Suspicious water"
+// submerge-state siblings (left untouched - see header note). Defence bonuses aren't given by the
+// wiki - set proportionally to the def/magic/ranged split below (same judgment-call approach used
+// for the other maze npcs where the wiki doesn't publish a full bonus table), not sourced as fact.
+[dagannoth_water_creature_1x1]
+name=Spinolyp
+desc=A sneaky, spiny, subterranean sea-dwelling scamp.
+model1=npc_2892
+resizeh=40
+resizev=40
+contrast=50
+ambient=50
+walkanim=dagannoth_water_creature_walk
+readyanim=dagannoth_water_creature_ready
+op2=Attack
+vislevel=76
+huntmode=cowardly
+huntrange=6
+hitpoints=100
+attack=10
+strength=10
+defence=10
+magic=1
+ranged=100
+param=rangeattack,100
+param=rangebonus,100
+param=stabdefence,10
+param=slashdefence,10
+param=crushdefence,10
+param=magicdefence,20
+param=rangedefence,10
+param=damagetype,^ranged_style
+param=attackrate,4
+param=attackrange,6
+param=attack_anim,dagannoth_water_creature_attack
+param=proj_travel,dagannoth_water_creature_spine_travel
+param=proj_height,40
+param=defend_anim,dagannoth_water_creature_defend
+param=death_anim,dagannoth_water_creature_death
+param=retreat,0
+
+[dagannoth_water_creature_1x12]
+name=Spinolyp
+desc=A sneaky, spiny, subterranean sea-dwelling scamp.
+model1=npc_2892
+resizeh=40
+resizev=40
+contrast=50
+ambient=50
+walkanim=dagannoth_water_creature_walk
+readyanim=dagannoth_water_creature_ready
+op2=Attack
+vislevel=76
+huntmode=cowardly
+huntrange=6
+hitpoints=100
+attack=10
+strength=10
+defence=10
+magic=1
+ranged=100
+param=rangeattack,100
+param=rangebonus,100
+param=stabdefence,10
+param=slashdefence,10
+param=crushdefence,10
+param=magicdefence,20
+param=rangedefence,10
+param=damagetype,^ranged_style
+param=attackrate,4
+param=attackrange,6
+param=attack_anim,dagannoth_water_creature_attack
+param=proj_travel,dagannoth_water_creature_spine_travel
+param=proj_height,40
+param=defend_anim,dagannoth_water_creature_defend
+param=death_anim,dagannoth_water_creature_death
+param=retreat,0
+
+[dagannoth_water_creature_1x13]
+name=Spinolyp
+desc=A sneaky, spiny, subterranean sea-dwelling scamp.
+model1=npc_2892
+resizeh=40
+resizev=40
+contrast=50
+ambient=50
+walkanim=dagannoth_water_creature_walk
+readyanim=dagannoth_water_creature_ready
+op2=Attack
+vislevel=76
+huntmode=cowardly
+huntrange=6
+hitpoints=100
+attack=10
+strength=10
+defence=10
+magic=1
+ranged=100
+param=rangeattack,100
+param=rangebonus,100
+param=stabdefence,10
+param=slashdefence,10
+param=crushdefence,10
+param=magicdefence,20
+param=rangedefence,10
+param=damagetype,^ranged_style
+param=attackrate,4
+param=attackrange,6
+param=attack_anim,dagannoth_water_creature_attack
+param=proj_travel,dagannoth_water_creature_spine_travel
+param=proj_height,40
+param=defend_anim,dagannoth_water_creature_defend
+param=death_anim,dagannoth_water_creature_death
+param=retreat,0
+
+// --- "Suspicious water" (Spinolyp's submerge state) - migrated (2026-09-03, round 5) ---
+// Corey: "for the spinolyps, build the suspicious water stuff." Real wiki mechanic
+// (https://oldschool.runescape.wiki/w/Spinolyp): Spinolyp periodically submerges into this
+// unattackable "Suspicious water" state and keeps attacking with a rapid, weak melee hit while
+// submerged, before surfacing again. No op1/op2 in the raw cache block (unchanged here, same as
+// Boulder/Rock's hidden forms) - kept unattackable by players, but still hunts/retaliates for free
+// off the skill_combat wildcard defaults (npc_combat.rs2's [ai_queue1,_]/[ai_opplayer2,_]) same as
+// every other plain melee filler npc in this file - op2 only gates PLAYER-initiated attacks, not an
+// npc's own outgoing ones (confirmed against npc_combat.rs2's npc_is_attackable vs
+// npc_default_attack/npc_check_notcombat this project already read closely), so nothing extra needs
+// wiring in dagannoth_maze_monsters.rs2 for the attack itself - just the submerge/emerge timer cycle
+// (see that file). Stats below are NOT wiki-sourced (the wiki doesn't break out separate combat
+// stats for the submerged state) - a deliberate judgment call for "rapid inaccurate melee attack":
+// low accuracy/damage, fast attackrate, crush-style (no ranged/magic while submerged, matching the
+// wiki's "while submerged, it can only perform ... a weak melee attack"). wanderrange=0 so it doesn't
+// drift out of its water tile while invisible.
+[dagannoth_water_creature_1x1_invisible]
+name=Suspicious water
+desc=If I didn't know better, I'd swear there's something in there...
+model1=trollrescue_blankmodel_8
+minimap=no
+vislevel=34
+wanderrange=0
+huntmode=cowardly
+huntrange=1
+hitpoints=100
+attack=10
+strength=5
+defence=10
+magic=1
+ranged=100
+param=stabdefence,10
+param=slashdefence,10
+param=crushdefence,10
+param=magicdefence,20
+param=rangedefence,10
+param=damagetype,^crush_style
+param=attackrate,2
+param=attackrange,1
+param=defend_anim,dagannoth_water_creature_defend
+param=death_anim,dagannoth_water_creature_death
+param=retreat,0
+
+[dagannoth_water_creature_1x1_invisible2]
+name=Suspicious water
+desc=If I didn't know better, I'd swear there's something in there...
+model1=trollrescue_blankmodel_8
+minimap=no
+vislevel=34
+wanderrange=0
+huntmode=cowardly
+huntrange=1
+hitpoints=100
+attack=10
+strength=5
+defence=10
+magic=1
+ranged=100
+param=stabdefence,10
+param=slashdefence,10
+param=crushdefence,10
+param=magicdefence,20
+param=rangedefence,10
+param=damagetype,^crush_style
+param=attackrate,2
+param=attackrange,1
+param=defend_anim,dagannoth_water_creature_defend
+param=death_anim,dagannoth_water_creature_death
+param=retreat,0
+
+[dagannoth_water_creature_1x1_invisible3]
+name=Suspicious water
+desc=If I didn't know better, I'd swear there's something in there...
+model1=trollrescue_blankmodel_8
+minimap=no
+vislevel=34
+wanderrange=0
+huntmode=cowardly
+huntrange=1
+hitpoints=100
+attack=10
+strength=5
+defence=10
+magic=1
+ranged=100
+param=stabdefence,10
+param=slashdefence,10
+param=crushdefence,10
+param=magicdefence,20
+param=rangedefence,10
+param=damagetype,^crush_style
+param=attackrate,2
+param=attackrange,1
+param=defend_anim,dagannoth_water_creature_defend
+param=death_anim,dagannoth_water_creature_death
 param=retreat,0

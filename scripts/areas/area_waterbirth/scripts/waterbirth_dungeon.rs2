@@ -107,11 +107,15 @@ mes("You climb the steps and back out into the cold Rellekka air.");
 p_telejump(^waterbirth_surface_return);
 
 // dagexp_exit_ladder (m30_68, plane 3) is isolated like dagexp_entrance_ladder - no matching second
-// placement found anywhere - so it's treated as the cavern's own "way out" back toward the surface,
-// same destination as dagannoth_rocky_steps, rather than inventing a different one.
+// placement found anywhere in this region. Originally guessed as a "way out" back to the surface
+// (same as dagannoth_rocky_steps); Corey corrected this in-game (2026-09-03, round 5) - it actually
+// connects straight into the Horror from the Deep underground complex (m39_72), the same complex
+// reached from the lighthouse's own basement ladder (see quest_horror.constant's
+// ^horror_maze_exit_dest and quest_horror.rs2's ladder section) - tying the quest's two entrances
+// together into one connected dungeon rather than a dead-end back to Rellekka.
 [oploc1,dagexp_exit_ladder]
-mes("You climb up and out, eventually finding your way back to the surface.");
-p_telejump(^waterbirth_surface_return);
+mes("You climb up through a narrow passage and emerge into a dark, unfamiliar chamber.");
+p_telejump(^horror_maze_exit_dest);
 
 [oploc1,dagexp_entrance_ladder]
 mes("You climb up the ladder.");

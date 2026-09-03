@@ -3,7 +3,11 @@
 // dagannoth_rock_lobster_2x2 and jb_baby_dagganoth are all plain melee attackers and need NOTHING
 // here at all - same as Dagannoth Rex (see dagannoth_kings.rs2's own header note), they get
 // everything for free from the skill_combat wildcard defaults once op2=Attack and the combat params
-// are set. Only the two non-melee ones below need real wiring.
+// are set. Wallasalki, the ranged Dagannoth and Spinolyp (all ranged/magic) need real wiring below,
+// giant_rockcrab_hidden_deeper/dagannoth_rock_lobster_2x2_loc (the disguised "Boulder"/"Rock" forms)
+// need a reveal-on-approach override, and Spinolyp additionally needs a submerge/emerge timer loop
+// into its own "Suspicious water" unattackable state (round 5, see that section further down) - the
+// submerged form's own melee attack needs nothing here either, same free-wildcard reasoning.
 
 // --- Wallasalki (magic) ---
 [ai_queue1,dungeon_dagganoth_magic_monster_deeper] ~npc_default_retaliate_ap;
@@ -30,3 +34,90 @@ return(30);
 // npc_rangeattack (skill_combat/scripts/npc/npc_combat_ranged.rs2) is fully generic, exact same
 // pattern as Dagannoth Supreme (dagannoth_kings.rs2) - reads rangeattack/rangebonus/rangedefence/
 // attack_anim/proj_travel/proj_height straight off this npc's own params, no wrapper needed.
+
+// --- Spinolyp (dagannoth_water_creature_1x1/_1x12/_1x13) - same ranged pattern as above ---
+[ai_queue1,dagannoth_water_creature_1x1] ~npc_default_retaliate_ap;
+[ai_applayer2,dagannoth_water_creature_1x1] ~npc_rangeattack;
+[ai_opplayer2,dagannoth_water_creature_1x1] ~npc_rangeattack;
+
+[ai_queue1,dagannoth_water_creature_1x12] ~npc_default_retaliate_ap;
+[ai_applayer2,dagannoth_water_creature_1x12] ~npc_rangeattack;
+[ai_opplayer2,dagannoth_water_creature_1x12] ~npc_rangeattack;
+
+[ai_queue1,dagannoth_water_creature_1x13] ~npc_default_retaliate_ap;
+[ai_applayer2,dagannoth_water_creature_1x13] ~npc_rangeattack;
+[ai_opplayer2,dagannoth_water_creature_1x13] ~npc_rangeattack;
+
+// --- Spinolyp submerge/emerge cycle ("Suspicious water") ---
+// Corey (2026-09-03, round 5): "for the spinolyps, build the suspicious water stuff." Real wiki
+// mechanic - Spinolyp periodically submerges into an unattackable "Suspicious water" state (still
+// hunts/melees, see configs/dagannoth_maze_monsters.npc's header note), then resurfaces. Built the
+// same way as Boulder/Rock's disguise reveal (self-directed npc_changetype_keepall, the one
+// confirmed precedent for this primitive - macro_event_triffid.rs2), but as a genuine back-and-forth
+// LOOP rather than a one-time reveal, driven by npc_settimer/[ai_timer] (confirmed real recurring
+// timer primitive - see npc_poison.rs2/macro_event_triffid.rs2 precedent) instead of player-aggro.
+// [ai_spawn,tag] is a real, engine-native trigger (ServerTriggerType.ts's AI_SPAWN=166, fired from
+// World.ts on npc spawn) - not used anywhere else in content scripts yet, but backed directly by
+// engine source rather than guessed, and it's the natural place to arm the very first timer tick.
+// Armed on BOTH the visible and invisible forms since no live spawn point for either has turned up
+// in the map data yet (see the .npc header note) - whichever form eventually gets placed, the cycle
+// self-starts correctly. 20-tick (12s) duration in each direction is a judgment call, not
+// wiki-sourced (the wiki doesn't give an exact cycle length) - easy to retune later.
+// dagannoth_water_creature_spring_up/_go_down are real animation names, confirmed present in
+// content/scripts/_unpack/377/all.seq.
+[ai_spawn,dagannoth_water_creature_1x1] npc_settimer(20);
+[ai_spawn,dagannoth_water_creature_1x12] npc_settimer(20);
+[ai_spawn,dagannoth_water_creature_1x13] npc_settimer(20);
+[ai_spawn,dagannoth_water_creature_1x1_invisible] npc_settimer(20);
+[ai_spawn,dagannoth_water_creature_1x1_invisible2] npc_settimer(20);
+[ai_spawn,dagannoth_water_creature_1x1_invisible3] npc_settimer(20);
+
+// emerged -> submerged
+[ai_timer,dagannoth_water_creature_1x1]
+npc_anim(dagannoth_water_creature_go_down, 0);
+npc_changetype_keepall(dagannoth_water_creature_1x1_invisible, ^max_32bit_int);
+npc_settimer(20);
+
+[ai_timer,dagannoth_water_creature_1x12]
+npc_anim(dagannoth_water_creature_go_down, 0);
+npc_changetype_keepall(dagannoth_water_creature_1x1_invisible2, ^max_32bit_int);
+npc_settimer(20);
+
+[ai_timer,dagannoth_water_creature_1x13]
+npc_anim(dagannoth_water_creature_go_down, 0);
+npc_changetype_keepall(dagannoth_water_creature_1x1_invisible3, ^max_32bit_int);
+npc_settimer(20);
+
+// submerged -> emerged
+[ai_timer,dagannoth_water_creature_1x1_invisible]
+npc_changetype_keepall(dagannoth_water_creature_1x1, ^max_32bit_int);
+npc_anim(dagannoth_water_creature_spring_up, 0);
+npc_settimer(20);
+
+[ai_timer,dagannoth_water_creature_1x1_invisible2]
+npc_changetype_keepall(dagannoth_water_creature_1x12, ^max_32bit_int);
+npc_anim(dagannoth_water_creature_spring_up, 0);
+npc_settimer(20);
+
+[ai_timer,dagannoth_water_creature_1x1_invisible3]
+npc_changetype_keepall(dagannoth_water_creature_1x13, ^max_32bit_int);
+npc_anim(dagannoth_water_creature_spring_up, 0);
+npc_settimer(20);
+
+// --- Boulder / Rock disguise reveal ---
+// Corey (2026-09-03): these weren't aggressive when walked near, and shouldn't wander while
+// disguised - see configs/dagannoth_maze_monsters.npc's header note for the wanderrange/huntmode
+// fix and the reasoning behind this changetype approach (self-directed npc_changetype_keepall from
+// this npc's own ai_queue1 hook - the one confirmed precedent for this primitive in this codebase,
+// content/scripts/macro events/scripts/general/macro_event_triffid.rs2). Once revealed, the real
+// giant_rockcrab_deeper/dagannoth_rock_lobster_2x2 type takes over via its own already-wired
+// huntmode/combat params (falls through to the plain melee wildcards - neither needs anything else
+// in this file), so all this override needs to do is switch type and let the normal retaliate
+// flow run.
+[ai_queue1,giant_rockcrab_hidden_deeper]
+npc_changetype_keepall(giant_rockcrab_deeper, ^max_32bit_int);
+gosub(npc_default_retaliate);
+
+[ai_queue1,dagannoth_rock_lobster_2x2_loc]
+npc_changetype_keepall(dagannoth_rock_lobster_2x2, ^max_32bit_int);
+gosub(npc_default_retaliate);
