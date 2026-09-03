@@ -65,6 +65,8 @@
 // placement data. Dagannoth Mother's own world placement is still unfound entirely. Flagged for
 // Corey/a future pass rather than guessed - see the project doc.
 
+
+
 [opnpc1,horror_girlfriend_prequest]
 if (%horror = ^horror_not_started) {
     ~chatplayer("<p,quiz>Hello, is everything alright?");
@@ -311,6 +313,22 @@ if (getbit_range(%horror_wall, 0, 5) = 63) {
     mes("The door won't budge - it looks like it's sealed shut somehow.");
 }
 
+// spiral stairs in lighthouse
+[oploc1,horror_lighthouse_spiralstairs_base]
+mes("You climb up the staircase.");
+p_telejump(^horror_lighthouse_spiralstairs_middle);
+
+[oploc1,horror_lighthouse_spiralstairs_middle]
+mes("You climb up the staircase.");
+p_telejump(^horror_lighthouse_spiralstairs_top);
+
+[oploc1,horror_lighthouse_spiralstairs_top]
+mes("You climb down the staircase.");
+p_telejump(^horror_lighthouse_spiralstairs_middle;
+
+[oploc1,horror_lighthouse_spiralstairs_middle]
+mes("You climb down the staircase.");
+p_telejump(^horror_lighthouse_spiralstairs_base;
 
 // --- The lighthouse's basement ladder (m39_56 <-> m39_72) - RESOLVED (2026-09-03) ---
 // horror_ladder_top (loc 4383, real op1=Climb, m39_56) previously had no script since there was no
@@ -319,7 +337,11 @@ if (getbit_range(%horror_wall, 0, 5) = 63) {
 // (local(22,25), a few tiles over - matches the wiki's "Jossik sitting injured by the ladder").
 [oploc1,horror_ladder_top]
 mes("You climb down the ladder into darkness.");
-p_telejump(^horror_ladder_cave_dest);
+p_telejump(^horror_ladder_door_room_dest);
+
+[oploc1,horror_ladder_base]
+mes("You climb up the ladder.");
+p_telejump(^horror_ladder_lighthouse_dest);
 
 // horror_ladder_base2 (loc 4413, m39_72 plane 0 local(19,23)) and horror_ladder_top2 (loc 4485, real
 // op1=Climb, m39_72 plane 1 local(19,22)) sit right on top of each other, adjacent tile/adjacent
@@ -338,6 +360,9 @@ p_telejump(^horror_ladder_wallroom_dest);
 [oploc1,horror_ladder_top2]
 mes("You climb up the ladder.");
 p_telejump(^horror_ladder_dag_dest);
+
+
+
 
 
 // --- Fallen Jossik (found injured, underground) and horror_lighthousekeeeper_well (topside, the
