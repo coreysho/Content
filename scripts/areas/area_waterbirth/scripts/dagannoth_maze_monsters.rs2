@@ -1,0 +1,32 @@
+// Waterbirth Dungeon maze - ambient/filler npc combat AI. See configs/dagannoth_maze_monsters.npc for
+// stats and identification. giant_rockcrab_deeper, dungeon_dagganoth_mainroom_deeper,
+// dagannoth_rock_lobster_2x2 and jb_baby_dagganoth are all plain melee attackers and need NOTHING
+// here at all - same as Dagannoth Rex (see dagannoth_kings.rs2's own header note), they get
+// everything for free from the skill_combat wildcard defaults once op2=Attack and the combat params
+// are set. Only the two non-melee ones below need real wiring.
+
+// --- Wallasalki (magic) ---
+[ai_queue1,dungeon_dagganoth_magic_monster_deeper] ~npc_default_retaliate_ap;
+[ai_applayer2,dungeon_dagganoth_magic_monster_deeper] ~wallasalki_attack;
+[ai_opplayer2,dungeon_dagganoth_magic_monster_deeper] ~wallasalki_attack;
+
+// Wallasalki's magic attack has no unique name on the wiki (unlike Dagannoth Prime's "spinal wave"),
+// so this goes through the generic player-castable-spell path (skill_combat/scripts/npc/
+// npc_combat_magic.rs2's npc_cast_spell_with_forced_max_hit) instead of a fully bespoke proc like
+// Prime's - water_wave chosen for the "magical water creature" flavour, with damage forced to
+// Wallasalki's own real max hit rather than the spell's normal one. That proc is fully self-guarding
+// (its own %npc_action_delay/notcombat checks), so no wrapper logic is needed here.
+[proc,wallasalki_attack]
+~npc_cast_spell_with_forced_max_hit(^water_wave, npc_param(attackrate), ~wallasalki_maxhit);
+
+[proc,wallasalki_maxhit]()(int)
+// https://oldschool.runescape.wiki/w/Wallasalki - 30 max hit
+return(30);
+
+// --- Dagannoth (Waterbirth Island), ranged variant ---
+[ai_queue1,dungeon_dagganoth_lighter_deeper] ~npc_default_retaliate_ap;
+[ai_applayer2,dungeon_dagganoth_lighter_deeper] ~npc_rangeattack;
+[ai_opplayer2,dungeon_dagganoth_lighter_deeper] ~npc_rangeattack;
+// npc_rangeattack (skill_combat/scripts/npc/npc_combat_ranged.rs2) is fully generic, exact same
+// pattern as Dagannoth Supreme (dagannoth_kings.rs2) - reads rangeattack/rangebonus/rangedefence/
+// attack_anim/proj_travel/proj_height straight off this npc's own params, no wrapper needed.

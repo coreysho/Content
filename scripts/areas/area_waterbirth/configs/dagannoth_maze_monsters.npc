@@ -1,0 +1,270 @@
+// Waterbirth Dungeon maze - ambient/filler combat npcs (m28_68/m29_68/m30_68). Migrated from the raw
+// 377 cache dump (content/scripts/_unpack/377/all.npc), same pattern as this folder's own
+// dagannoth_kings.npc: base appearance/model/anim fields above "op2=Attack" are the untouched raw
+// cache values (including a couple of the cache's own quirks, like jb_baby_dagganoth's duplicated
+// resizeh/resizev lines - kept verbatim rather than "cleaned up"); everything from op2=Attack onward
+// is new, wiring these into skill_combat. Corey (2026-09-03): "all of the npcs in the maze need to be
+// aggressive, they all also need their correct attacks, defense, hp, etc".
+//
+// Real identities confirmed via the OSRS wiki, not assumed from the cache's own tag/name text:
+// - dungeon_dagganoth_lighter_deeper (raw vislevel=88) and dungeon_dagganoth_mainroom_deeper (raw
+//   vislevel=90) ARE the two real "Dagannoth (Waterbirth Island)" variants - ranged and melee
+//   respectively (https://oldschool.runescape.wiki/w/Dagannoth_(Waterbirth_Island)) - it's the raw
+//   vislevel matching the wiki's exact combat levels (88/90) that confirmed this, not the cache's
+//   generic "lighter"/"mainroom" tag names.
+// - giant_rockcrab_deeper (vislevel=137) is the real, already-revealed Giant Rock Crab
+//   (https://oldschool.runescape.wiki/w/Giant_Rock_Crab).
+// - dagannoth_rock_lobster_2x2 (vislevel=127 - NOT the same tag as the placed "_2x2_loc" variant, see
+//   below) is the real, already-revealed Rock Lobster (https://oldschool.runescape.wiki/w/Rock_lobster).
+// - dungeon_dagganoth_magic_monster_deeper is actually Wallasalki (real name="Wallasalki" already in
+//   the raw cache block) - not a Dagannoth at all despite the tag name. A distinct magic attacker
+//   genuinely native to the Waterbirth Island Dungeon per the wiki
+//   (https://oldschool.runescape.wiki/w/Wallasalki - "much stronger than their combat level suggests").
+// - jb_baby_dagganoth is the real Dagannoth fledgeling
+//   (https://oldschool.runescape.wiki/w/Dagannoth_fledgeling) - wiki-confirmed **NOT aggressive**,
+//   an intentional exception to "make them all aggressive" to match real behaviour (flagged for Corey
+//   to override if he'd rather every single one be hostile regardless).
+//
+// Explicitly NOT migrated here, left untouched in all.npc:
+// - giant_rockcrab_hidden_deeper ("Boulder") and dagannoth_rock_lobster_2x2_loc ("Rock") - both
+//   vislevel=hide with NO op2 at all in the raw cache (unlike the door-support npcs earlier this
+//   project, which had vislevel=hide but a real op2 already). all.seq has real
+//   horror_crab_hide/_reveal and dagannoth_rock_lobster_spring_up sequences, confirming these ARE
+//   meant to be disguise states that transform into the real monster on interaction (the same
+//   mechanic as regular rock crabs) - but that transform trigger isn't scripted anywhere yet, and
+//   isn't attempted this pass. Flagged rather than guessed at: per the project doc's original map
+//   sweep, it's the DISGUISED "_loc"/hidden forms that are actually placed in the maze (14 instances
+//   of dagannoth_rock_lobster_2x2_loc in m30_68 alone) - so until the reveal mechanic is built,
+//   players may not actually encounter a fightable Rock Lobster or hidden Rock Crab there, even
+//   though the real fightable forms below are now fully wired.
+// - jb_viking_dude ("Bardur") - a real, named, ordinarily-friendly Fremennik NPC
+//   (https://oldschool.runescape.wiki/w/Bardur): "resides deep within the Waterbirth Island Dungeon,
+//   where he fights dagannoth fledgelings" (this exact room), tied to The Fremennik
+//   Exiles/Trials quests, non-hostile since a 2019 update "to make it easier to talk to him". His raw
+//   vislevel=94 matches his old pre-2019 attackable combat level exactly, confirming he's genuine
+//   period content, just not a "make it aggressive" filler monster - left alone.
+
+[dungeon_dagganoth_magic_monster_deeper]
+name=Wallasalki
+desc=A fearsome magical water creature.
+model1=npc_2457
+walkanim=wallasalki_walk
+readyanim=wallasalki_ready
+resizeh=110
+resizev=110
+op2=Attack
+vislevel=98
+huntmode=cowardly
+huntrange=6
+hitpoints=120
+attack=1
+strength=1
+defence=80
+magic=100
+ranged=1
+param=magicattack,100
+param=stabdefence,100
+param=slashdefence,150
+param=crushdefence,175
+param=magicdefence,250
+param=rangedefence,-10
+param=damagetype,^magic_style
+param=attackrate,6
+param=attackrange,7
+param=magicattack_anim,wallasalki_attack
+param=defend_anim,wallasalki_defend
+param=death_anim,wallasalki_death
+param=retreat,0
+
+[giant_rockcrab_deeper]
+name=Giant Rock Crab
+desc=No one likes crabs... especially really big ones!
+model1=npc_2452
+model2=npc_2452i2
+size=2
+resizeh=250
+resizev=250
+walkanim=horror_crab_walk
+readyanim=horror_crab_ready
+op2=Attack
+vislevel=137
+huntmode=cowardly
+huntrange=6
+hitpoints=180
+attack=50
+strength=80
+defence=200
+magic=1
+ranged=1
+param=stabdefence,225
+param=slashdefence,200
+param=crushdefence,175
+param=magicdefence,-10
+param=rangedefence,250
+param=damagetype,^crush_style
+param=attackrate,4
+param=attackrange,1
+param=attack_anim,horror_crab_attack
+param=defend_anim,horror_crab_defend
+// no dedicated death sequence exists in all.seq for this npc (checked) - left at the combat.param
+// default (human_death) rather than guessing a wrong name.
+param=retreat,0
+
+[dungeon_dagganoth_lighter_deeper]
+name=Dagannoth
+desc=A spiney horror from the ocean depths...
+model1=poh_dagganoth_8
+recol1s=13740
+recol1d=14796
+recol2s=12683
+recol2d=13739
+recol3s=11626
+recol3d=13706
+recol4s=10569
+recol4d=12649
+resizeh=69
+resizev=69
+walkanim=horror_dagannoth_walk
+readyanim=horror_dagannoth_ready
+op2=Attack
+vislevel=88
+param=slayer_category,^slayer_dagannoth
+huntmode=cowardly
+huntrange=6
+hitpoints=85
+attack=10
+strength=10
+defence=75
+magic=1
+ranged=100
+param=rangeattack,100
+param=rangebonus,100
+param=stabdefence,10
+param=slashdefence,10
+param=crushdefence,90
+param=magicdefence,200
+param=rangedefence,150
+param=damagetype,^ranged_style
+param=attackrate,3
+param=attackrange,7
+param=attack_anim,horror_dagannoth_rangeattack
+param=proj_travel,dagannoth_arrow_spotanim_travel
+param=proj_height,40
+param=defend_anim,horror_dagannoth_defend
+param=death_anim,horror_dagannoth_death
+param=retreat,0
+
+[dungeon_dagganoth_mainroom_deeper]
+name=Dagannoth
+desc=A darkened horror from the ocean depths...
+model1=poh_dagganoth_8
+recol1s=13740
+recol1d=12650
+recol2s=12683
+recol2d=11593
+recol3s=11626
+recol3d=10536
+recol4s=10569
+recol4d=9479
+resizeh=69
+resizev=69
+walkanim=horror_dagannoth_walk
+readyanim=horror_dagannoth_ready
+op2=Attack
+vislevel=90
+param=slayer_category,^slayer_dagannoth
+huntmode=cowardly
+huntrange=6
+hitpoints=85
+attack=10
+strength=10
+defence=75
+magic=1
+ranged=100
+param=stabdefence,10
+param=slashdefence,10
+param=crushdefence,90
+param=magicdefence,200
+param=rangedefence,150
+param=damagetype,^stab_style
+param=attackrate,3
+param=attackrange,1
+param=attack_anim,horror_dagannoth_attack
+param=defend_anim,horror_dagannoth_defend
+param=death_anim,horror_dagannoth_death
+param=retreat,0
+
+[dagannoth_rock_lobster_2x2]
+name=Rock lobster
+desc=It wasn't a rock... it was a rock lobster!
+model1=npc_2889
+model2=npc_2889i2
+size=2
+resizeh=85
+resizev=85
+contrast=15
+ambient=15
+walkanim=dagannoth_rock_lobster_walk
+readyanim=dagannoth_rock_lobster_ready
+op2=Attack
+vislevel=127
+huntmode=cowardly
+huntrange=6
+hitpoints=150
+attack=100
+strength=100
+defence=100
+magic=1
+ranged=1
+param=stabdefence,100
+param=slashdefence,100
+param=crushdefence,50
+param=magicdefence,50
+param=rangedefence,150
+param=damagetype,^crush_style
+param=attackrate,2
+param=attackrange,1
+param=attack_anim,dagannoth_rock_lobster_attack
+param=defend_anim,dagannoth_rock_lobster_defend
+param=death_anim,dagannoth_rock_lobster_death
+param=retreat,0
+
+[jb_baby_dagganoth]
+name=Dagannoth fledgeling
+desc=A knee-high horror from the ocean depths...
+model1=npc_2880
+model2=npc_2880i2
+size=2
+resizeh=69
+resizev=69
+contrast=30
+ambient=30
+walkanim=slayer_lizard_walk
+readyanim=slayer_lizard_ready
+resizeh=60
+resizev=60
+op2=Attack
+vislevel=70
+// wiki-confirmed NOT aggressive - deliberately no huntmode here, unlike everything else in this file
+// (see the header note). Still fully fightable when clicked, same as any other monster.
+hitpoints=100
+attack=50
+strength=50
+defence=50
+magic=1
+ranged=1
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=damagetype,^stab_style
+param=attackrate,4
+param=attackrange,1
+// no dedicated sequence set exists for this npc in all.seq (checked) - reusing the shared
+// horror_dagannoth family anims (same underlying Dagannoth model family) rather than guessing a
+// fledgeling-specific name that doesn't exist.
+param=attack_anim,horror_dagannoth_attack
+param=defend_anim,horror_dagannoth_defend
+param=death_anim,horror_dagannoth_death
+param=retreat,0

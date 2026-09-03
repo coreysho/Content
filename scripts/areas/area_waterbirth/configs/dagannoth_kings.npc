@@ -12,6 +12,14 @@
 // Combat triangle (wiki-confirmed): Rex (melee) is weak to Magic; Prime (magic) is weak to Ranged;
 // Supreme (ranged) is weak to Melee. This falls straight out of each one's low defence stat below.
 
+// Corey (2026-09-03): "the kings need to be aggressive too" - none of the three had a huntmode, so
+// none of them would ever initiate combat on their own (Rex only "worked great" because clicking
+// Attack on him drives the fight entirely through retaliation, which doesn't need huntmode at all).
+// huntmode=cowardly is this codebase's real, already-proven convention for "always aggressive,
+// ignore the wilderness too-strong-opponent check" - confirmed via king_dragon/green_dragon in
+// content/scripts/npc/configs/dragons.npc (both genuinely aggressive monsters, both use this exact
+// value - the "cowardly" name is a leftover guess-label from the original cache dump, not literal
+// flee behaviour, per content/scripts/_unpack/377/all.hunt's own header comments).
 [dagcave_melee_boss]
 name=Dagannoth Rex
 desc=Firstborn of the legendary dagannoth kings.
@@ -55,6 +63,8 @@ param=defend_anim,dagannoth_meganoth_defend
 param=death_anim,dagannoth_meganoth_death
 param=death_drop,dagannoth_king_bones
 param=retreat,0
+huntmode=cowardly
+huntrange=10
 
 [dagcave_magic_boss]
 name=Dagannoth Prime
@@ -100,6 +110,8 @@ param=defend_anim,dagannoth_meganoth_defend
 param=death_anim,dagannoth_meganoth_death
 param=death_drop,dagannoth_king_bones
 param=retreat,0
+huntmode=cowardly
+huntrange=10
 
 [dagcave_ranged_boss]
 name=Dagannoth Supreme
@@ -143,3 +155,5 @@ param=death_drop,dagannoth_king_bones
 // severity 16 -> first poison_damage tick = (16+4)/5 = 4, matching Supreme's real starting poison hit
 param=poison_severity,16
 param=retreat,0
+huntmode=cowardly
+huntrange=10

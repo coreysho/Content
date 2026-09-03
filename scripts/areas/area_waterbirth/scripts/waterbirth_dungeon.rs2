@@ -68,29 +68,37 @@ p_telejump(^waterbirth_entrance_ice_dest);
 // clicking the ladder from ground level got "nothing interesting happens" regardless of which op -
 // this is almost certainly what Corey was hitting both times he reported the ladder as broken.
 // Wired identically to the base piece below.
+//
+// THIRD PASS (2026-09-03): op1 now pops the real "Climb Up./Climb Down." choice dialogue via the
+// shared @ladder_options label (content/scripts/ladders+stairs/scripts/ladders.rs2 - the same
+// pattern used by grandtree_laddermiddle/laddermiddle/qip_cook_ladder_middle elsewhere in this
+// codebase), with op2/op3 kept as direct shortcuts for the same two destinations - matching the
+// cache's real op1=Climb/op2=Climb-up/op3=Climb-down layout. Climb-up now goes to the ice cave's
+// real surface exterior (^waterbirth_ladder_surface_dest, Corey-supplied) instead of the rock
+// cavern's steps.
 [oploc1,dagannoth_ladder_base]
-mes("You climb down the ladder and squeeze through a narrow passage.");
-p_telejump(^waterbirth_entrance_ladder_dest);
+p_arrivedelay;
+@ladder_options(^waterbirth_ladder_surface_dest, ^waterbirth_entrance_ladder_dest);
 
 [oploc2,dagannoth_ladder_base]
-mes("You climb up the ladder and back out into the cold Rellekka air.");
-p_telejump(^waterbirth_surface_return);
+p_arrivedelay;
+~climb_ladder(^waterbirth_ladder_surface_dest, true);
 
 [oploc3,dagannoth_ladder_base]
-mes("You climb down the ladder and squeeze through a narrow passage.");
-p_telejump(^waterbirth_entrance_ladder_dest);
+p_arrivedelay;
+~climb_ladder(^waterbirth_entrance_ladder_dest, false);
 
 [oploc1,dagannoth_ladder_base_ext2]
-mes("You climb down the ladder and squeeze through a narrow passage.");
-p_telejump(^waterbirth_entrance_ladder_dest);
+p_arrivedelay;
+@ladder_options(^waterbirth_ladder_surface_dest, ^waterbirth_entrance_ladder_dest);
 
 [oploc2,dagannoth_ladder_base_ext2]
-mes("You climb up the ladder and back out into the cold Rellekka air.");
-p_telejump(^waterbirth_surface_return);
+p_arrivedelay;
+~climb_ladder(^waterbirth_ladder_surface_dest, true);
 
 [oploc3,dagannoth_ladder_base_ext2]
-mes("You climb down the ladder and squeeze through a narrow passage.");
-p_telejump(^waterbirth_entrance_ladder_dest);
+p_arrivedelay;
+~climb_ladder(^waterbirth_entrance_ladder_dest, false);
 
 // dagannoth_rocky_steps (real op1=Climb, name="Steps", desc="Leads to the surface" - explicit in the
 // cache) is the genuine surface exit from the pressure-door room.
