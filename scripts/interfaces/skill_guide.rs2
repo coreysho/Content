@@ -1,26 +1,32 @@
 // Generic driver for the original RS2 skill guide interface (skill_guide.if,
-// dumped from the 377 cache as inter_183 and previously unused).
+// dumped from the 377 cache as inter_183 and unused until now).
 //
 // Layout: a 40-row scrolling list (skill_guide:list) holding a level column
 // (lvl1..lvl40), an icon column backed by the 'skillguide' inv, and a name
-// column (name1..name40); plus up to 13 category buttons (btn1..btn13)
-// revealed by stacking the panel0..panel12 layers.
+// column (name1..name40); plus up to 13 category buttons (btn1..btn13).
 //
 // Usage from a skill's guide script:
-//   ~skillguide_begin("Cooking");
+//   ~skillguide_begin(^guide_cooking, "Cooking");
 //   def_int $lvl = stat(cooking);
 //   ~skillguide_row(1, $lvl, 1, cooked_meat, "Cooked meat");
 //   ...
 //   ~skillguide_show;
-
-// The category buttons are revealed by stacking panel layers cumulatively:
-// panel1 adds btn2+btn3, panel2 adds btn4, panel3 btn5, panel4 btn6, panel5 btn7,
-// panel6 btn1 (which sits ABOVE btn2 - that is how the original Smithing guide got
-// "Smelting" on top), then panel7..panel12 add btn8..btn13. No skill uses them yet.
 //
-// Resets every row, clears the icon inv and hides all optional chrome.
+// CATEGORY BUTTONS. The panel layers stack cumulatively: ~skillguide_panels($n)
+// shows panel1..panel($n-1), which reveals exactly $n buttons. Which btn indices
+// those are is not linear, because panel6 adds a button ABOVE the rest - that is
+// how the original Smithing guide put "Smelting" on top:
+//   2..6 buttons -> btn2 .. btn($n+1)   (top of the column is btn2, at y=67)
+//   7+   buttons -> btn1 .. btn($n)     (btn1 appears at y=48, above btn2)
+// Clicking a button stores its index in %skillguide_page and re-renders through
+// ~skillguide_selectpage, so a guide with categories needs two procs: an
+// open_<skill>_guide entry that sets the default page, and a <skill>_guide_render
+// that both it and the buttons call.
+
+// Resets every row, blanks the buttons, and hides all optional chrome.
 // Call this first, before any ~skillguide_row.
-[proc,skillguide_begin](string $title)
+[proc,skillguide_begin](int $skill, string $title)
+%skillguide_skill = $skill;
 inv_clear(skillguide);
 if_settext(skill_guide:title, $title);
 // skill_model is the parchment backdrop, not a stray model - never hide it.
@@ -43,8 +49,8 @@ if_sethide(skill_guide:panel10, true);
 if_sethide(skill_guide:panel11, true);
 if_sethide(skill_guide:panel12, true);
 ~skillguide_clearrows;
+~skillguide_clearbuttons;
 
-// Blanks all 40 level/name slots so a shorter guide never shows stale rows.
 [proc,skillguide_clearrows]
 if_settext(skill_guide:lvl1, "");
 if_settext(skill_guide:name1, "");
@@ -127,9 +133,85 @@ if_settext(skill_guide:name39, "");
 if_settext(skill_guide:lvl40, "");
 if_settext(skill_guide:name40, "");
 
-// Fills one row. $row is 1-based. $curlevel is the player's current level in
-// the skill; $level is the level this entry needs - the row is drawn green
-// when it is unlocked and red when it is not.
+[proc,skillguide_clearbuttons]
+if_settext(skill_guide:btn1, "");
+if_settext(skill_guide:btn2, "");
+if_settext(skill_guide:btn3, "");
+if_settext(skill_guide:btn4, "");
+if_settext(skill_guide:btn5, "");
+if_settext(skill_guide:btn6, "");
+if_settext(skill_guide:btn7, "");
+if_settext(skill_guide:btn8, "");
+if_settext(skill_guide:btn9, "");
+if_settext(skill_guide:btn10, "");
+if_settext(skill_guide:btn11, "");
+if_settext(skill_guide:btn12, "");
+if_settext(skill_guide:btn13, "");
+
+// Reveals $count category buttons by stacking panel1..panel($count-1).
+[proc,skillguide_panels](int $count)
+if ($count >= 2) {
+    if_sethide(skill_guide:panel1, false);
+}
+if ($count >= 3) {
+    if_sethide(skill_guide:panel2, false);
+}
+if ($count >= 4) {
+    if_sethide(skill_guide:panel3, false);
+}
+if ($count >= 5) {
+    if_sethide(skill_guide:panel4, false);
+}
+if ($count >= 6) {
+    if_sethide(skill_guide:panel5, false);
+}
+if ($count >= 7) {
+    if_sethide(skill_guide:panel6, false);
+}
+if ($count >= 8) {
+    if_sethide(skill_guide:panel7, false);
+}
+if ($count >= 9) {
+    if_sethide(skill_guide:panel8, false);
+}
+if ($count >= 10) {
+    if_sethide(skill_guide:panel9, false);
+}
+if ($count >= 11) {
+    if_sethide(skill_guide:panel10, false);
+}
+if ($count >= 12) {
+    if_sethide(skill_guide:panel11, false);
+}
+if ($count >= 13) {
+    if_sethide(skill_guide:panel12, false);
+}
+
+// Labels one category button. See the btn-index note at the top of this file.
+[proc,skillguide_button](int $btn, string $label)
+switch_int ($btn) {
+    case 1 : if_settext(skill_guide:btn1, $label);
+    case 2 : if_settext(skill_guide:btn2, $label);
+    case 3 : if_settext(skill_guide:btn3, $label);
+    case 4 : if_settext(skill_guide:btn4, $label);
+    case 5 : if_settext(skill_guide:btn5, $label);
+    case 6 : if_settext(skill_guide:btn6, $label);
+    case 7 : if_settext(skill_guide:btn7, $label);
+    case 8 : if_settext(skill_guide:btn8, $label);
+    case 9 : if_settext(skill_guide:btn9, $label);
+    case 10 : if_settext(skill_guide:btn10, $label);
+    case 11 : if_settext(skill_guide:btn11, $label);
+    case 12 : if_settext(skill_guide:btn12, $label);
+    case 13 : if_settext(skill_guide:btn13, $label);
+}
+
+// Flags the guide as members-only. Call between ~skillguide_begin and ~skillguide_show.
+[proc,skillguide_members]
+if_settext(skill_guide:members, "Members only skill");
+
+// Fills one row. $row is 1-based. $curlevel is the player's current level in the
+// gating skill; $level is the level this entry needs - the row is drawn green when
+// it is unlocked and red when it is not.
 [proc,skillguide_row](int $row, int $curlevel, int $level, namedobj $obj, string $name)
 def_int $colour = ^skillguide_locked;
 if ($curlevel >= $level) {
@@ -186,10 +268,6 @@ if_settext($namecom, $name);
 if_setcolour($namecom, $colour);
 
 // Pushes the icon column and opens the guide. Call after the last ~skillguide_row.
-// Flags the guide as members-only. Call between ~skillguide_begin and ~skillguide_show.
-[proc,skillguide_members]
-if_settext(skill_guide:members, "Members only skill");
-
 [proc,skillguide_show]
 inv_transmit(skillguide, skill_guide:icons);
 if_setscrollpos(skill_guide:list, 0);
@@ -198,3 +276,50 @@ if_openmain(skill_guide);
 [if_close,skill_guide]
 inv_stoptransmit(skill_guide:icons);
 inv_clear(skillguide);
+
+[if_button,skill_guide:btn1]
+~skillguide_selectpage(1);
+
+[if_button,skill_guide:btn2]
+~skillguide_selectpage(2);
+
+[if_button,skill_guide:btn3]
+~skillguide_selectpage(3);
+
+[if_button,skill_guide:btn4]
+~skillguide_selectpage(4);
+
+[if_button,skill_guide:btn5]
+~skillguide_selectpage(5);
+
+[if_button,skill_guide:btn6]
+~skillguide_selectpage(6);
+
+[if_button,skill_guide:btn7]
+~skillguide_selectpage(7);
+
+[if_button,skill_guide:btn8]
+~skillguide_selectpage(8);
+
+[if_button,skill_guide:btn9]
+~skillguide_selectpage(9);
+
+[if_button,skill_guide:btn10]
+~skillguide_selectpage(10);
+
+[if_button,skill_guide:btn11]
+~skillguide_selectpage(11);
+
+[if_button,skill_guide:btn12]
+~skillguide_selectpage(12);
+
+[if_button,skill_guide:btn13]
+~skillguide_selectpage(13);
+
+// Re-renders the open guide on the selected category page.
+[proc,skillguide_selectpage](int $page)
+%skillguide_page = $page;
+switch_int (%skillguide_skill) {
+    case ^guide_cooking : ~cooking_guide_render;
+    case ^guide_smithing : ~smithing_guide_render;
+}

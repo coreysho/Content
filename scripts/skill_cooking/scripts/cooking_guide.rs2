@@ -1,40 +1,77 @@
 // Cooking skill guide, shown on the original RS2 skill guide interface
 // (see content/scripts/interfaces/skill_guide.rs2 for the generic driver).
-// Replaces the old single-page ~book(...) popup.
+// Three category buttons, so it needs the open/render split: the buttons call
+// ~cooking_guide_render through ~skillguide_selectpage without resetting the page.
 [proc,open_cooking_guide]
-~skillguide_begin("Cooking");
+%skillguide_page = 2;
+~cooking_guide_render;
+
+[proc,cooking_guide_render]
+~skillguide_begin(^guide_cooking, "Cooking");
+~skillguide_panels(3);
+~skillguide_button(2, "Food");
+~skillguide_button(3, "Drinks");
+~skillguide_button(4, "Misc");
 def_int $lvl = stat(cooking);
+switch_int (%skillguide_page) {
+    case 3 : ~cooking_guide_drinks($lvl);
+    case 4 : ~cooking_guide_misc($lvl);
+    case default : ~cooking_guide_food($lvl);
+}
+~skillguide_show;
+
+[proc,cooking_guide_food](int $lvl)
 ~skillguide_row(1, $lvl, 1, cooked_meat, "Cooked meat");
 ~skillguide_row(2, $lvl, 1, shrimp, "Shrimp");
 ~skillguide_row(3, $lvl, 1, anchovies, "Anchovies");
-~skillguide_row(4, $lvl, 1, cooked_ugthanki_meat, "Ugthanki meat");
-~skillguide_row(5, $lvl, 1, cooked_chicken, "Cooked chicken");
-~skillguide_row(6, $lvl, 1, bread, "Bread");
-~skillguide_row(7, $lvl, 1, soda_ash, "Soda ash");
-~skillguide_row(8, $lvl, 1, swamppaste, "Swamp paste");
-~skillguide_row(9, $lvl, 5, herring, "Herring");
-~skillguide_row(10, $lvl, 7, potato_baked, "Baked potato");
-~skillguide_row(11, $lvl, 10, redberry_pie, "Redberry pie");
-~skillguide_row(12, $lvl, 10, mackerel, "Mackerel");
-~skillguide_row(13, $lvl, 10, giant_carp, "Giant carp");
-~skillguide_row(14, $lvl, 15, trout, "Trout");
-~skillguide_row(15, $lvl, 18, cod, "Cod");
-~skillguide_row(16, $lvl, 20, meat_pie, "Meat pie");
-~skillguide_row(17, $lvl, 20, pike, "Pike");
-~skillguide_row(18, $lvl, 25, salmon, "Salmon");
-~skillguide_row(19, $lvl, 25, stew, "Stew");
-~skillguide_row(20, $lvl, 30, apple_pie, "Apple pie");
-~skillguide_row(21, $lvl, 30, tuna, "Tuna");
-~skillguide_row(22, $lvl, 35, plain_pizza, "Plain pizza");
-~skillguide_row(23, $lvl, 40, cake, "Cake");
-~skillguide_row(24, $lvl, 40, lobster, "Lobster");
-~skillguide_row(25, $lvl, 43, bass, "Bass");
-~skillguide_row(26, $lvl, 45, swordfish, "Swordfish");
-~skillguide_row(27, $lvl, 50, cooked_oomlie, "Cooked oomlie wrap");
-~skillguide_row(28, $lvl, 53, lava_eel, "Lava eel");
-~skillguide_row(29, $lvl, 58, pitta_bread, "Pitta bread");
-~skillguide_row(30, $lvl, 60, curry, "Curry");
-~skillguide_row(31, $lvl, 80, shark, "Shark");
-~skillguide_row(32, $lvl, 82, seaturtle, "Sea turtle");
-~skillguide_row(33, $lvl, 91, mantaray, "Manta ray");
-~skillguide_show;
+~skillguide_row(4, $lvl, 1, sardine, "Sardine");
+~skillguide_row(5, $lvl, 1, cooked_ugthanki_meat, "Ugthanki meat");
+~skillguide_row(6, $lvl, 1, cooked_chicken, "Cooked chicken");
+~skillguide_row(7, $lvl, 1, bread, "Bread");
+~skillguide_row(8, $lvl, 5, herring, "Herring");
+~skillguide_row(9, $lvl, 7, potato_baked, "Baked potato");
+~skillguide_row(10, $lvl, 10, redberry_pie, "Redberry pie");
+~skillguide_row(11, $lvl, 10, mackerel, "Mackerel");
+~skillguide_row(12, $lvl, 10, giant_carp, "Giant carp");
+~skillguide_row(13, $lvl, 15, trout, "Trout");
+~skillguide_row(14, $lvl, 18, cod, "Cod");
+~skillguide_row(15, $lvl, 20, meat_pie, "Meat pie");
+~skillguide_row(16, $lvl, 20, pike, "Pike");
+~skillguide_row(17, $lvl, 25, salmon, "Salmon");
+~skillguide_row(18, $lvl, 25, stew, "Stew");
+~skillguide_row(19, $lvl, 30, apple_pie, "Apple pie");
+~skillguide_row(20, $lvl, 30, tuna, "Tuna");
+~skillguide_row(21, $lvl, 35, plain_pizza, "Plain pizza");
+~skillguide_row(22, $lvl, 40, cake, "Cake");
+~skillguide_row(23, $lvl, 40, lobster, "Lobster");
+~skillguide_row(24, $lvl, 43, bass, "Bass");
+~skillguide_row(25, $lvl, 45, swordfish, "Swordfish");
+~skillguide_row(26, $lvl, 50, cooked_oomlie, "Cooked oomlie wrap");
+~skillguide_row(27, $lvl, 53, lava_eel, "Lava eel");
+~skillguide_row(28, $lvl, 58, pitta_bread, "Pitta bread");
+~skillguide_row(29, $lvl, 60, curry, "Curry");
+~skillguide_row(30, $lvl, 80, shark, "Shark");
+~skillguide_row(31, $lvl, 82, seaturtle, "Sea turtle");
+~skillguide_row(32, $lvl, 91, mantaray, "Manta ray");
+
+[proc,cooking_guide_drinks](int $lvl)
+~skillguide_row(1, $lvl, 1, fruit_blast, "Fruit blast");
+~skillguide_row(2, $lvl, 1, pineapple_punch, "Pineapple punch");
+~skillguide_row(3, $lvl, 1, wizard_blizzard, "Wizard blizzard");
+~skillguide_row(4, $lvl, 1, sgg, "Short green guy");
+~skillguide_row(5, $lvl, 1, drunk_dragon, "Drunk dragon");
+~skillguide_row(6, $lvl, 1, chocolate_saturday, "Chocolate saturday");
+~skillguide_row(7, $lvl, 1, blurberry_special, "Blurberry special");
+~skillguide_row(8, $lvl, 35, jug_wine, "Jug of wine");
+
+[proc,cooking_guide_misc](int $lvl)
+~skillguide_row(1, $lvl, 1, soda_ash, "Soda ash");
+~skillguide_row(2, $lvl, 1, swamppaste, "Swamp paste");
+~skillguide_row(3, $lvl, 1, toads_legs, "Toad's legs");
+~skillguide_row(4, $lvl, 1, spicy_toads_legs, "Spicy toad's legs");
+~skillguide_row(5, $lvl, 1, worm_hole, "Worm hole");
+~skillguide_row(6, $lvl, 1, veg_ball, "Veg ball");
+~skillguide_row(7, $lvl, 1, tangled_toads_legs, "Tangled toad's legs");
+~skillguide_row(8, $lvl, 1, chocolate_bomb, "Chocolate bomb");
+~skillguide_row(9, $lvl, 1, gnome_spice, "Gnome spice");
+~skillguide_row(10, $lvl, 1, gianne_dough, "Gianne dough");
