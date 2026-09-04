@@ -65,8 +65,6 @@
 // placement data. Dagannoth Mother's own world placement is still unfound entirely. Flagged for
 // Corey/a future pass rather than guessed - see the project doc.
 
-
-
 [opnpc1,horror_girlfriend_prequest]
 if (%horror = ^horror_not_started) {
     ~chatplayer("<p,quiz>Hello, is everything alright?");
@@ -118,6 +116,29 @@ if (%horror = ^horror_not_started) {
     ~chatplayer("<p,happy>Thanks, I'll head back and see what I can do.");
 } else if (%horror >= ^horror_started) {
     ~chatnpc("<p,neutral>Good luck down there.");
+}
+
+
+// --- The Lighthouse's building doorway (loc 4577) ---
+// Corey (2026-09-03): this was giving "Nothing interesting happens" - the loc itself was placement-
+// confirmed earlier this project (see header comment above) but never actually got a handler written
+// for its one real op. Real cache def: op1=Walk-through, desc="Lets you walk through walls!" - not a
+// puzzle, not gated on quest state, just a thin decorative wall segment you click through rather than
+// path around, the same "op1=Walk-through" mechanic the raw cache also uses for a handful of other
+// quests' thin walls/doors (bedabin_tentdoor, magearena_scan, legendsquest_force_barrier,
+// freedomfighterundergrounddooropenl/r - none scripted anywhere in this codebase yet, no existing
+// precedent to copy, so this follows the established `coord()`/`movecoord()`/`p_teleport()` pattern
+// already used by this codebase's own ladder-teleport code (ladders+stairs/scripts/ladders.rs2)
+// instead. The doorway sits on the wall row at m39_56 plane 0 local z=52 (loc 4577, local(13,52)) -
+// Larrissa stands one tile south of it at local(12,51), confirming the outside/quest-start side is
+// z<=52 and the lighthouse interior is z>=53 - so this moves the player 2 tiles across whichever side
+// of that wall row they're standing on when they click it, working in both directions.
+[oploc1,horror_lighthouse_doorway]
+p_arrivedelay;
+if (coordz(coord()) <= 52) {
+    p_teleport(movecoord(coord(), 0, 0, 2));
+} else {
+    p_teleport(movecoord(coord(), 0, 0, -2));
 }
 
 
@@ -321,11 +342,7 @@ if (getbit_range(%horror_wall, 0, 5) = 63) {
 // (local(22,25), a few tiles over - matches the wiki's "Jossik sitting injured by the ladder").
 [oploc1,horror_ladder_top]
 mes("You climb down the ladder into darkness.");
-p_telejump(^horror_ladder_door_room_dest);
-
-[oploc1,horror_ladder_base]
-mes("You climb up the ladder.");
-p_telejump(^horror_ladder_lighthouse_dest);
+p_telejump(^horror_ladder_cave_dest);
 
 // horror_ladder_base2 (loc 4413, m39_72 plane 0 local(19,23)) and horror_ladder_top2 (loc 4485, real
 // op1=Climb, m39_72 plane 1 local(19,22)) sit right on top of each other, adjacent tile/adjacent
@@ -343,10 +360,7 @@ p_telejump(^horror_ladder_wallroom_dest);
 
 [oploc1,horror_ladder_top2]
 mes("You climb up the ladder.");
-p_telejump(^horror_ladder_dag_dest);
-
-
-
+p_telejump(^horror_ladder_wallroom_dest);
 
 
 // --- Fallen Jossik (found injured, underground) and horror_lighthousekeeeper_well (topside, the
