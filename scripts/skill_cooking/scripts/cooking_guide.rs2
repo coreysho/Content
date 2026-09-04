@@ -1,21 +1,25 @@
-// Cooking skill guide, shown on the original RS2 skill guide interface
-// (see content/scripts/interfaces/skill_guide.rs2 for the generic driver).
-// Three category buttons, so it needs the open/render split: the buttons call
-// ~cooking_guide_render through ~skillguide_selectpage without resetting the page.
+// Cooking skill guide. Five category buttons. Pies and Pizzas are recipe pages -
+// they walk the actual implemented chain in order (dough -> shell -> filling ->
+// cook), so the level column is the level that step needs, repeating where a step
+// has none.
 [proc,open_cooking_guide]
 %skillguide_page = 2;
 ~cooking_guide_render;
 
 [proc,cooking_guide_render]
 ~skillguide_begin(^guide_cooking, "Cooking");
-~skillguide_panels(3);
+~skillguide_panels(5);
 ~skillguide_button(2, "Food");
 ~skillguide_button(3, "Drinks");
 ~skillguide_button(4, "Misc");
+~skillguide_button(5, "Pies");
+~skillguide_button(6, "Pizzas");
 def_int $lvl = stat(cooking);
 switch_int (%skillguide_page) {
     case 3 : ~cooking_guide_drinks($lvl);
     case 4 : ~cooking_guide_misc($lvl);
+    case 5 : ~cooking_guide_pies($lvl);
+    case 6 : ~cooking_guide_pizzas($lvl);
     case default : ~cooking_guide_food($lvl);
 }
 ~skillguide_show;
@@ -75,3 +79,35 @@ switch_int (%skillguide_page) {
 ~skillguide_row(8, $lvl, 1, chocolate_bomb, "Chocolate bomb");
 ~skillguide_row(9, $lvl, 1, gnome_spice, "Gnome spice");
 ~skillguide_row(10, $lvl, 1, gianne_dough, "Gianne dough");
+
+[proc,cooking_guide_pies](int $lvl)
+~skillguide_row(1, $lvl, 1, pot_flour, "Pot of flour");
+~skillguide_row(2, $lvl, 1, bucket_water, "Bucket of water");
+~skillguide_row(3, $lvl, 1, pastry_dough, "Pastry dough");
+~skillguide_row(4, $lvl, 1, piedish, "Pie dish");
+~skillguide_row(5, $lvl, 1, pie_shell, "Pie shell");
+~skillguide_row(6, $lvl, 10, redberries, "Redberries - filling");
+~skillguide_row(7, $lvl, 10, uncooked_redberry_pie, "Uncooked berry pie");
+~skillguide_row(8, $lvl, 10, redberry_pie, "Redberry pie - cook it");
+~skillguide_row(9, $lvl, 20, cooked_meat, "Cooked meat - filling");
+~skillguide_row(10, $lvl, 20, uncooked_meat_pie, "Uncooked meat pie");
+~skillguide_row(11, $lvl, 20, meat_pie, "Meat pie - cook it");
+~skillguide_row(12, $lvl, 30, cooking_apple, "Cooking apple - filling");
+~skillguide_row(13, $lvl, 30, uncooked_apple_pie, "Uncooked apple pie");
+~skillguide_row(14, $lvl, 30, apple_pie, "Apple pie - cook it");
+
+[proc,cooking_guide_pizzas](int $lvl)
+~skillguide_row(1, $lvl, 1, pot_flour, "Pot of flour");
+~skillguide_row(2, $lvl, 1, bucket_water, "Bucket of water");
+~skillguide_row(3, $lvl, 1, pizza_base, "Pizza base");
+~skillguide_row(4, $lvl, 35, tomato, "Tomato - on the base");
+~skillguide_row(5, $lvl, 35, incomplete_pizza, "Incomplete pizza");
+~skillguide_row(6, $lvl, 35, cheese, "Cheese - on the tomato");
+~skillguide_row(7, $lvl, 35, uncooked_pizza, "Uncooked pizza");
+~skillguide_row(8, $lvl, 35, plain_pizza, "Plain pizza - cook it");
+~skillguide_row(9, $lvl, 45, cooked_meat, "Cooked meat - topping");
+~skillguide_row(10, $lvl, 45, meat_pizza, "Meat pizza");
+~skillguide_row(11, $lvl, 55, anchovies, "Anchovies - topping");
+~skillguide_row(12, $lvl, 55, anchovie_pizza, "Anchovy pizza");
+~skillguide_row(13, $lvl, 65, pineapple_ring, "Pineapple ring - topping");
+~skillguide_row(14, $lvl, 65, pineapple_pizza, "Pineapple pizza");

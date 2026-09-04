@@ -5,13 +5,6 @@
 // (lvl1..lvl40), an icon column backed by the 'skillguide' inv, and a name
 // column (name1..name40); plus up to 13 category buttons (btn1..btn13).
 //
-// Usage from a skill's guide script:
-//   ~skillguide_begin(^guide_cooking, "Cooking");
-//   def_int $lvl = stat(cooking);
-//   ~skillguide_row(1, $lvl, 1, cooked_meat, "Cooked meat");
-//   ...
-//   ~skillguide_show;
-//
 // CATEGORY BUTTONS. The panel layers stack cumulatively: ~skillguide_panels($n)
 // shows panel1..panel($n-1), which reveals exactly $n buttons. Which btn indices
 // those are is not linear, because panel6 adds a button ABOVE the rest - that is
@@ -19,12 +12,10 @@
 //   2..6 buttons -> btn2 .. btn($n+1)   (top of the column is btn2, at y=67)
 //   7+   buttons -> btn1 .. btn($n)     (btn1 appears at y=48, above btn2)
 // Clicking a button stores its index in %skillguide_page and re-renders through
-// ~skillguide_selectpage, so a guide with categories needs two procs: an
-// open_<skill>_guide entry that sets the default page, and a <skill>_guide_render
-// that both it and the buttons call.
+// ~skillguide_selectpage, so a categorised guide needs an open_<skill>_guide entry
+// that sets the default page plus a <skill>_guide_render that both it and the
+// buttons call - and a case in ~skillguide_selectpage at the bottom of this file.
 
-// Resets every row, blanks the buttons, and hides all optional chrome.
-// Call this first, before any ~skillguide_row.
 [proc,skillguide_begin](int $skill, string $title)
 %skillguide_skill = $skill;
 inv_clear(skillguide);
@@ -35,6 +26,7 @@ if_settext(skill_guide:title, $title);
 // drawInterface early-returns unless type == 0), so text like :members has to be
 // blanked with if_settext rather than hidden.
 if_settext(skill_guide:members, "");
+~skillguide_headers("Level", "Advancement");
 if_sethide(skill_guide:panel0, false);
 if_sethide(skill_guide:panel1, true);
 if_sethide(skill_guide:panel2, true);
@@ -50,6 +42,12 @@ if_sethide(skill_guide:panel11, true);
 if_sethide(skill_guide:panel12, true);
 ~skillguide_clearrows;
 ~skillguide_clearbuttons;
+
+// Relabels the two column headers. Reset to Level/Advancement by ~skillguide_begin,
+// so only a guide that lists something other than levels needs to call it.
+[proc,skillguide_headers](string $left, string $right)
+if_settext(skill_guide:hdr_level, $left);
+if_settext(skill_guide:hdr_advancement, $right);
 
 [proc,skillguide_clearrows]
 if_settext(skill_guide:lvl1, "");
@@ -205,13 +203,9 @@ switch_int ($btn) {
     case 13 : if_settext(skill_guide:btn13, $label);
 }
 
-// Flags the guide as members-only. Call between ~skillguide_begin and ~skillguide_show.
 [proc,skillguide_members]
 if_settext(skill_guide:members, "Members only skill");
 
-// Fills one row. $row is 1-based. $curlevel is the player's current level in the
-// gating skill; $level is the level this entry needs - the row is drawn green when
-// it is unlocked and red when it is not.
 [proc,skillguide_row](int $row, int $curlevel, int $level, namedobj $obj, string $name)
 def_int $colour = ^skillguide_locked;
 if ($curlevel >= $level) {
@@ -267,7 +261,6 @@ if_setcolour($lvlcom, $colour);
 if_settext($namecom, $name);
 if_setcolour($namecom, $colour);
 
-// Pushes the icon column and opens the guide. Call after the last ~skillguide_row.
 [proc,skillguide_show]
 inv_transmit(skillguide, skill_guide:icons);
 if_setscrollpos(skill_guide:list, 0);
@@ -316,10 +309,10 @@ inv_clear(skillguide);
 [if_button,skill_guide:btn13]
 ~skillguide_selectpage(13);
 
-// Re-renders the open guide on the selected category page.
 [proc,skillguide_selectpage](int $page)
 %skillguide_page = $page;
 switch_int (%skillguide_skill) {
     case ^guide_cooking : ~cooking_guide_render;
     case ^guide_smithing : ~smithing_guide_render;
+    case ^guide_crafting : ~crafting_guide_render;
 }
