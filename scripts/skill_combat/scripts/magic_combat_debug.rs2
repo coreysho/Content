@@ -39,17 +39,18 @@ if (p_finduid(uid) = true) {
     }
 }
 
-// Flips the underlying %spellbook varp (0=normal, 1=ancient). This does NOT swap the client-side
-// spellbook interface - see magic_combat.varp's comment for why - so visually nothing will change; use
-// ::~cast to actually fire ancient spells regardless of which book this says is active.
+// Flips %spellbook (0=normal, 1=ancient) and swaps the magic tab to match. login.rs2 restores
+// whichever book you were last on.
 [debugproc,spellbook]
 // varp writes need the protected active player, which a debugproc does not start with.
 if (p_finduid(uid) = true) {
     if (%spellbook = 0) {
         %spellbook = 1;
-        mes("Server-side spellbook state switched to Ancient Magicks. (Client UI does not swap - use ::~cast to cast.)");
+        if_settab(ancient_magic, ^tab_magic);
+        mes("Spellbook switched to Ancient Magicks.");
     } else {
         %spellbook = 0;
-        mes("Server-side spellbook state switched to normal.");
+        if_settab(magic, ^tab_magic);
+        mes("Spellbook switched to normal.");
     }
 }
