@@ -1,29 +1,12 @@
 // The original RS2 skill guide, dumped from the 377 cache as inter_183 and
 // unused until now. Renamed and driven by content/scripts/interfaces/skill_guide.rs2.
 //
-// Only two things were added to the dump: the [bg]/[bgedge] parchment behind the
-// list (the cache version has no backdrop at all - it drew straight over the game
-// world, which leaves the default-black row text unreadable), and the list layer
-// was widened from 342 to 420 now that the category panel is hidden by default.
-// Everything else is the original geometry.
-
-[bg]
-type=rect
-x=20
-y=18
-width=474
-height=272
-fill=yes
-colour=0xB29C77
-
-[bgedge]
-type=rect
-x=20
-y=18
-width=474
-height=272
-fill=no
-colour=0x5A4423
+// This is the untouched cache geometry. Note [skill_model]: it looks like a stray
+// 55x81 model at x=200,y=90, but the client draws interface models UNCLIPPED, so
+// com_i161 is the torn-parchment backdrop the whole guide sits on - it renders
+// roughly x36-421, y16-304. That is why there is no background graphic in here,
+// and why [list] is 342 wide: 48+342 = 390, which keeps the scrollbar on the paper.
+// Do not hide skill_model and do not widen the list past ~370.
 
 [skill_model]
 type=model
@@ -48,7 +31,7 @@ text=Skill Name
 type=layer
 x=48
 y=65
-width=420
+width=342
 height=200
 scroll=1290
 

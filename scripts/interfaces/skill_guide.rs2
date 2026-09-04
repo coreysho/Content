@@ -23,9 +23,13 @@
 [proc,skillguide_begin](string $title)
 inv_clear(skillguide);
 if_settext(skill_guide:title, $title);
-if_sethide(skill_guide:skill_model, true);
-if_sethide(skill_guide:members, true);
-if_sethide(skill_guide:panel0, true);
+// skill_model is the parchment backdrop, not a stray model - never hide it.
+// panel0 is the stone frame the Close Window button sits on, so it always shows.
+// The client only honours the hide flag on type=layer components (Client.java,
+// drawInterface early-returns unless type == 0), so text like :members has to be
+// blanked with if_settext rather than hidden.
+if_settext(skill_guide:members, "");
+if_sethide(skill_guide:panel0, false);
 if_sethide(skill_guide:panel1, true);
 if_sethide(skill_guide:panel2, true);
 if_sethide(skill_guide:panel3, true);
@@ -182,6 +186,10 @@ if_settext($namecom, $name);
 if_setcolour($namecom, $colour);
 
 // Pushes the icon column and opens the guide. Call after the last ~skillguide_row.
+// Flags the guide as members-only. Call between ~skillguide_begin and ~skillguide_show.
+[proc,skillguide_members]
+if_settext(skill_guide:members, "Members only skill");
+
 [proc,skillguide_show]
 inv_transmit(skillguide, skill_guide:icons);
 if_setscrollpos(skill_guide:list, 0);
