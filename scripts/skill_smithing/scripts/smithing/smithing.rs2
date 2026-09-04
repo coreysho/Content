@@ -246,20 +246,37 @@ sound_synth(anvil_4, 1, 0);
 // https://oldschool.runescape.wiki/w/Update:Dev_Blog:_Third_Old_School_RuneScape_Content_Poll
 if (%tutorial < ^tutorial_complete) {
     ~tut_smithing_anvil($count);
-} else {
-    ~smithing_anvil($data, $count);
+    return;
 }
+weakqueue*(smith_anvil, 2)($last_item, $count);
 //--------------------------
 
 //--------------------------
 // items appear in the inventory after 2 ticks, then the player is delayed for 3 ticks after
 // https://youtu.be/vQixsBb7wPQ?t=95, level up interface takes 3 ticks to appear
-[proc,smithing_anvil](dbrow $data, int $count)
-p_delay(1);
+// Batch smithing runs on a weak queue rather than a p_delay recursion, so it can be
+// cancelled. A p_delay'd script survives closeModal - Player.ts only nulls activeScript
+// for the COUNTDIALOG and PAUSEBUTTON states - and every input handler early-returns
+// while player.delayed, so Make 10 was ~50 ticks the player had no way to stop.
+// weakQueue.clear() runs on any pending-action clear, which is how cooking's batch loop
+// has always been interruptible.
+//
+// Timing is preserved: the old cycle was p_delay(1) + p_delay(2) = 2 + 3 = 5 ticks,
+// with the first item landing 2 ticks after the click.
+[queue,smith_anvil](obj $ifproduct, int $count)
+db_find(smithing:ifproduct, $ifproduct);
+def_dbrow $data = db_findnext;
+if ($data = null) {
+    return;
+}
 def_int $bar_amount = db_getfield($data,smithing:bar_amount,0);
 def_namedobj $bar = db_getfield($data, smithing:bar, 0);
 def_namedobj $product = db_getfield($data, smithing:product, 0);
 def_int $product_amount = db_getfield($data,smithing:product_amount,0);
+if (inv_total(inv, $bar) < $bar_amount) {
+    ~mesbox("You don't have enough <lowercase(oc_name($bar))>s to make any more.");
+    return;
+}
 // delete bars
 inv_del(inv, $bar, $bar_amount);
 // add product
@@ -269,20 +286,16 @@ def_struct $struct = oc_param($bar, smithing_anvil_struct);
 stat_advance(smithing, calc($bar_amount * struct_param($struct, xpperbar)));
 // display message
 mes("You hammer the <struct_param($struct, name)> and make <db_getfield($data,smithing:end_message,0)>.");
-p_delay(2);
-// end smithing if count is less than 1
 $count = calc($count - 1);
-// check if player has enough bars
-if (inv_total(inv, $bar) < $bar_amount & $count > 0) {
-    ~mesbox("You don't have enough <lowercase(oc_name($bar))>s to make any more."); // https://youtu.be/Xud7h207rZc?t=286
+if ($count < 1) {
     return;
 }
-if ($count < 1) {
+if (inv_total(inv, $bar) < $bar_amount) {
+    ~mesbox("You don't have enough <lowercase(oc_name($bar))>s to make any more."); // https://youtu.be/Xud7h207rZc?t=286
     return;
 }
 // play anim and sound
 anim(human_smithing, 0);
 sound_synth(anvil_4, 1, 0);
-// recall proc
-~smithing_anvil($data, $count);
+weakqueue*(smith_anvil, 5)($ifproduct, $count);
 //--------------------------

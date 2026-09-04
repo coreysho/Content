@@ -1,4 +1,12 @@
-[opnpc1,shipmonk2]
+// Three Monks of Entrana stand at this dock - shipmonk2, shipmonk2_b and
+// shipmonk2_c - but the dialogue was bound to shipmonk2 alone, so two of the three
+// silently did nothing when talked to. None of them carries a category, so the
+// [opnpc1,_category] fallback used elsewhere cannot catch them either.
+[opnpc1,shipmonk2] @entrana_leave_chat;
+[opnpc1,shipmonk2_b] @entrana_leave_chat;
+[opnpc1,shipmonk2_c] @entrana_leave_chat;
+
+[label,entrana_leave_chat]
 ~chatnpc("<p,happy>Do you wish to leave holy Entrana?");
 def_int $option = ~p_choice2("Yes, I'm ready to go.", 1, "Not just yet.", 2);
 if($option = 1){

@@ -4,8 +4,8 @@ mes("You rub the necklace...");
 def_obj $item = last_item;
 def_int $slot = last_slot;
 p_delay(1);
-def_int $choice = ~p_choice2_header("Burthorpe Games Rooms.", 1, "Nowhere.", 2, "Where would you like to teleport to?");
-if($choice = 2) {
+def_int $choice = ~p_choice3_header("Burthorpe Games Rooms.", 1, "Barbarian Outpost.", 2, "Nowhere.", 3, "Where would you like to teleport to?");
+if($choice = 3) {
     mes("You remain where you were.");
     return;
 }
@@ -18,7 +18,14 @@ if (~wilderness_level(coord) > 20) {
 if (~pre_tele_checks(coord) = false) {
     return;
 }
-~player_teleport_normal(map_findsquare(0_34_77_31_12, 0, 2, ^map_findsquare_lineofwalk));
+def_coord $destination;
+if ($choice = 1) {
+    $destination = map_findsquare(0_34_77_31_12, 0, 2, ^map_findsquare_lineofwalk);
+} else if ($choice = 2) {
+    // outside the Barbarian Outpost gate; the agility course itself is live in m39_55
+    $destination = map_findsquare(0_39_55_23_51, 0, 2, ^map_findsquare_lineofwalk);
+}
+~player_teleport_normal($destination);
 def_namedobj $new_necklace = oc_param($item, next_obj_stage);
 if ($new_necklace = null) {
     inv_delslot(inv, $slot);
