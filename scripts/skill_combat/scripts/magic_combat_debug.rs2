@@ -17,40 +17,39 @@
 
 // A [debugproc,...] is handed no pointers by the compiler: no protected active player, and no active
 // npc (unlike [apnpct,...], which is the context ~pvm_default_spell is normally reached through and
-// which supplies the clicked npc). So this has to acquire both itself - p_finduid(uid) for the
-// protected player, and a nearby-npc search to stand in for "the npc you clicked".
+// which supplies the clicked npc). Both have to be acquired here, and the work has to sit INSIDE the
+// success branch of each acquisition - the pointer analysis tracks the positive branch, so the
+// early-return-on-failure shape does not satisfy it. Same nesting as auto_cast.rs2 (p_finduid) and
+// gnomeball.rs2 (npc_findallany/npc_findnext).
 [debugproc,cast](int $spell)
-if (p_finduid(uid) = false) {
-    return;
-}
 if ($spell < ^ice_rush | $spell > ^shadow_barrage) {
     mes("Usage: ::~cast <id> - id must be 200-215 (see magic_combat_debug.rs2 for the list).");
     return;
 }
-// Picks the first npc found within 10 tiles that you can see - near enough to "the one you are
-// standing at" for a dev command. Stand next to the npc you want to hit and nothing else.
-npc_findallany(coord, 10, ^vis_lineofsight);
-if (npc_findnext = false) {
-    mes("No npc in sight within 10 tiles - stand next to the one you want to cast at.");
-    return;
+if (p_finduid(uid) = true) {
+    // Picks the first npc found within 10 tiles that you can see - near enough to "the one you are
+    // standing at" for a dev command. Stand next to the npc you want to hit and nothing else.
+    npc_findallany(coord, 10, ^vis_lineofsight);
+    if (npc_findnext = true) {
+        if (~npc_is_attackable = true) {
+            ~pvm_default_spell($spell);
+        }
+    } else {
+        mes("No npc in sight within 10 tiles - stand next to the one you want to cast at.");
+    }
 }
-if (~npc_is_attackable = false) {
-    return;
-}
-~pvm_default_spell($spell);
 
 // Flips the underlying %spellbook varp (0=normal, 1=ancient). This does NOT swap the client-side
 // spellbook interface - see magic_combat.varp's comment for why - so visually nothing will change; use
 // ::~cast to actually fire ancient spells regardless of which book this says is active.
 [debugproc,spellbook]
 // varp writes need the protected active player, which a debugproc does not start with.
-if (p_finduid(uid) = false) {
-    return;
-}
-if (%spellbook = 0) {
-    %spellbook = 1;
-    mes("Server-side spellbook state switched to Ancient Magicks. (Client UI does not swap - use ::~cast to cast.)");
-} else {
-    %spellbook = 0;
-    mes("Server-side spellbook state switched to normal.");
+if (p_finduid(uid) = true) {
+    if (%spellbook = 0) {
+        %spellbook = 1;
+        mes("Server-side spellbook state switched to Ancient Magicks. (Client UI does not swap - use ::~cast to cast.)");
+    } else {
+        %spellbook = 0;
+        mes("Server-side spellbook state switched to normal.");
+    }
 }
