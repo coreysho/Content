@@ -50,13 +50,21 @@ while ($i < db_getfieldcount($spell_data, magic_combat_spell_table:rune)) {
 [proc,player_infinite_rune](namedobj $rune)(boolean)
 def_obj $weapon = inv_getobj(worn, ^wearpos_rhand);
 if ($rune = airrune) {
-    return($weapon = staff_of_air | $weapon = air_battlestaff | $weapon = mystic_air_staff);
+    if ($weapon = staff_of_air | $weapon = air_battlestaff | $weapon = mystic_air_staff) {
+        return(true);
+    }
 } else if ($rune = waterrune) {
-    return($weapon = staff_of_water | $weapon = water_battlestaff | $weapon = mystic_water_staff);
+    if ($weapon = staff_of_water | $weapon = water_battlestaff | $weapon = mystic_water_staff) {
+        return(true);
+    }
 } else if ($rune = earthrune) {
-    return($weapon = staff_of_earth | $weapon = earth_battlestaff | $weapon = mystic_earth_staff | $weapon = lava_battlestaff | $weapon = mystic_lava_staff);
+    if ($weapon = staff_of_earth | $weapon = earth_battlestaff | $weapon = mystic_earth_staff | $weapon = lava_battlestaff | $weapon = mystic_lava_staff) {
+        return(true);
+    }
 } else if ($rune = firerune) {
-    return($weapon = staff_of_fire | $weapon = fire_battlestaff | $weapon = mystic_fire_staff | $weapon = lava_battlestaff | $weapon = mystic_lava_staff);
+    if ($weapon = staff_of_fire | $weapon = fire_battlestaff | $weapon = mystic_fire_staff | $weapon = lava_battlestaff | $weapon = mystic_lava_staff) {
+        return(true);
+    }
 }
 return(false);
 
@@ -74,7 +82,10 @@ stat_advance(magic, db_getfield($spell_data, magic_combat_spell_table:xp, 0));
 // ============================================================
 
 [proc,player_autocast_enabled]()(boolean)
-return(%autocast_spell ! 0);
+if (%autocast_spell ! 0) {
+    return(true);
+}
+return(false);
 
 [proc,player_autocast_reset]
 %autocast_spell = 0;
