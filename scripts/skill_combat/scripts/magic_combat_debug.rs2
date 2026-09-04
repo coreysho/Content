@@ -11,17 +11,30 @@
 //   201 ice_burst     205 blood_burst    209 smoke_burst    213 shadow_burst
 //   202 ice_blitz     206 blood_blitz    210 smoke_blitz    214 shadow_blitz
 //   203 ice_barrage   207 blood_barrage  211 smoke_barrage  215 shadow_barrage
-// Attack an npc normally first (so there's an active combat target), then use ::~cast - it casts
+// Stand next to the npc you want to hit, then use ::~cast - it casts
 // through the same ~pvm_default_spell entry point a real spellbook click would use, it just skips the
 // (unidentifiable, see the dbrow file's header comment) real ancient spellbook interface component.
 
+// A [debugproc,...] is handed no pointers by the compiler: no protected active player, and no active
+// npc (unlike [apnpct,...], which is the context ~pvm_default_spell is normally reached through and
+// which supplies the clicked npc). So this has to acquire both itself - p_finduid(uid) for the
+// protected player, and a nearby-npc search to stand in for "the npc you clicked".
 [debugproc,cast](int $spell)
+if (p_finduid(uid) = false) {
+    return;
+}
 if ($spell < ^ice_rush | $spell > ^shadow_barrage) {
     mes("Usage: ::~cast <id> - id must be 200-215 (see magic_combat_debug.rs2 for the list).");
     return;
 }
+// Picks the first npc found within 10 tiles that you can see - near enough to "the one you are
+// standing at" for a dev command. Stand next to the npc you want to hit and nothing else.
+npc_findallany(coord, 10, ^vis_lineofsight);
+if (npc_findnext = false) {
+    mes("No npc in sight within 10 tiles - stand next to the one you want to cast at.");
+    return;
+}
 if (~npc_is_attackable = false) {
-    mes("You need an active combat target first - attack an npc, then use ::~cast.");
     return;
 }
 ~pvm_default_spell($spell);
@@ -30,6 +43,10 @@ if (~npc_is_attackable = false) {
 // spellbook interface - see magic_combat.varp's comment for why - so visually nothing will change; use
 // ::~cast to actually fire ancient spells regardless of which book this says is active.
 [debugproc,spellbook]
+// varp writes need the protected active player, which a debugproc does not start with.
+if (p_finduid(uid) = false) {
+    return;
+}
 if (%spellbook = 0) {
     %spellbook = 1;
     mes("Server-side spellbook state switched to Ancient Magicks. (Client UI does not swap - use ::~cast to cast.)");
