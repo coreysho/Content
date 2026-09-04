@@ -342,6 +342,31 @@ stat_advance(agility, 50);
 sound_synth(climb_wall, 1, 0);
 mes("You climb over the wall.");
 
+// Dwarven Mine narrow crevice. Real requirement is Agility 42 and - unusually for a shortcut - no
+// experience at all, per the OSRS wiki; added 6 Sep 2005, so period-correct for 377. The loc
+// (loc_9325, "Just another crack in the wall", op1=Squeeze-through) is placed twice in m47_153, the
+// mine's own mapsquare, as shape-0 wall segments facing west (rotation 0) and east (rotation 2) -
+// north-south walls crossed east<->west, matching the wiki's "get from the east part to the west
+// part of the Dwarven Mine". Same cross-to-the-other-side shape as the crumbling wall above.
+// human_pipesqueeze is the closest real squeeze animation in the cache (the pipe set is the only
+// one); swap it if a dedicated crevice animation ever turns up.
+[oploc1,loc_9325]
+if (stat(agility) < 42) {
+    ~mesbox("You need an Agility level of 42 to squeeze through the crevice.");
+    return;
+}
+if (coordx(coord) > coordx(loc_coord)) {
+    def_coord $end_coord = movecoord(loc_coord, -1, 0, 0);
+    ~agility_exactmove(human_pipesqueeze, 20, 0, coord, $end_coord, 45, 70, ^exact_west, true);
+    p_teleport($end_coord);
+} else {
+    def_coord $end_coord = movecoord(loc_coord, 1, 0, 0);
+    ~agility_exactmove(human_pipesqueeze, 20, 0, coord, $end_coord, 45, 70, ^exact_east, true);
+    p_teleport($end_coord);
+}
+sound_synth(squeeze_through_rocks, 1, 0);
+mes("You squeeze through the crevice.");
+
 [proc,climb_stile]
 def_coord $start_coord = loc_coord;
 def_int $mod = 1;
