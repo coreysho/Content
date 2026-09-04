@@ -1,8 +1,8 @@
-// %autocast_spell is read throughout player_magic.rs2 (player_magic_attack, pvm_combat_spell_checks,
-// pvm_spell_cast) but never had a declaration anywhere - part of the same missing-framework gap as
-// magic_spell_table, see claude/ancient-magicks.md. 0 = no spell selected.
-[autocast_spell]
-scope=perm
+// %autocast_spell already existed as a varbit (_unpack/377/all.varbit, basevar=lastcastspell,
+// startbit=1, endbit=31 - 31 bits, plenty of range) used by the existing auto_cast.rs2 UI. Removed
+// the duplicate declaration that used to be here (caused a 'Non-unique var name' build error) -
+// player_magic.rs2/magic_combat_support.rs2 read/write the same %autocast_spell name and resolve to
+// that existing varbit correctly, no script changes needed. See claude/ancient-magicks.md.
 
 // New: which spellbook is active (0=normal, 1=ancient). Toggled by the ::spellbook dev command.
 // NOTE: this only flips the underlying state - it does not swap the client-side interface, since this
