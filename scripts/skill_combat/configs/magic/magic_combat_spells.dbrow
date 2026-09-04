@@ -1,6 +1,33 @@
-// Data rows for magic_combat_spell_table (magic_combat_spells.dbtable). Populates the framework that
-// player_magic.rs2 / npc_combat_magic.rs2 were already written against but which never existed - see
+// Combat spell rows for magic_spell_table - the ONE pre-existing spell table declared in
+// skill_magic/configs/magic.dbtable, which the utility spells (teleports, alchemy, enchant, charge
+// orb) have always used. This file only adds rows to it; it declares no table of its own.
+//
+// History worth knowing (2026-09-04): these rows were first written against a brand-new parallel
+// magic_spell_table/dbtable + a parallel set of ~10 support procs, on the belief that neither the
+// table nor the procs existed. Both already did - get_spell_data/check_spell_requirements/
+// delete_spell_runes/give_spell_xp/magic_spell_maxhit in skill_magic/scripts/magic.rs2,
+// npc_projectile/player_projectile in skill_combat/scripts/projectile.rs2, player_autocast_enabled/
+// player_autocast_reset in skill_combat/scripts/player/auto_cast.rs2, convert_stat_to_npc_stat in
+// player/scripts/stat.rs2 - and the duplicates broke the build repo-wide. The duplicate table and
+// support file are gone; these rows now use the real schema and the real procs. Full writeup in
 // claude/ancient-magicks.md.
+//
+// Schema notes for this table (see magic.dbtable for the column list):
+//  - runesrequired holds 3 fixed rune/count pairs, padded with null,null. The 8 Smoke/Shadow ancients
+//    cost 4 different runes, so their non-elemental 4th rune goes in the rune4 column (added for
+//    this); elemental runes always occupy the first 3 slots so staff substitution still works.
+//  - spotanim_proj carries the spotanim PLUS the 7 projectile parameters (startheight, endheight,
+//    delay, angle, length, offset, step) - the whole field expands into ~npc_projectile/
+//    ~player_projectile's argument list at the call site. Every row here uses 43,31,51,16,-5,64,10,
+//    this codebase's standard magic-projectile tuple (projectile.rs2's own "// wind" reference
+//    example, and the firebolt/shooting-star call sites in nezikchened.rs2 and ghast.rs2 all use it).
+//  - spotanim_target carries the spotanim plus its render height; 92 (body level) throughout, the
+//    height this codebase uses for spell spotanims everywhere else.
+//  - members is false on every row, preserving the original data's behaviour (it had no members flag
+//    at all). Not strictly accurate - waves, binds, vulnerability/enfeeble/stun, magic dart and all
+//    16 ancients were members-only in 2006 - but the column is now read by the real
+//    check_spell_requirements, and false is the non-blocking choice. Worth setting accurately once
+//    someone can test member-gating in-game.
 //
 // All level/rune/xp/maxhit figures below are the classic (2006-era, pre gear-scaling) OSRS values,
 // cross-checked against the wiki. XP is stored *100 (fixed point), matching this repo's existing
@@ -17,274 +44,262 @@
 // ============================================================
 
 [magic_combat_wind_strike]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^wind_strike
+data=members,false
 data=name,"Wind Strike"
 data=spellcom,magic:wind_strike
-data=level,1
-data=xp,550
+data=levelrequired,1
+data=experience,550
 data=maxhit,2
 data=anim,human_caststrike
 data=spotanim_origin,windstrike_casting
-data=spotanim_proj,windstrike_travel
-data=spotanim_target,windstrike_impact
+data=spotanim_proj,windstrike_travel,43,31,51,16,-5,64,10
+data=spotanim_target,windstrike_impact,92
 data=continue_by_autocast,yes
-data=rune,airrune,1
-data=rune,mindrune,1
+data=runesrequired,airrune,1,mindrune,1,null,null
 
 [magic_combat_water_strike]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^water_strike
+data=members,false
 data=name,"Water Strike"
 data=spellcom,magic:water_strike
-data=level,5
-data=xp,750
+data=levelrequired,5
+data=experience,750
 data=maxhit,4
 data=anim,human_caststrike
 data=spotanim_origin,waterstrike_casting
-data=spotanim_proj,waterstrike_travel
-data=spotanim_target,waterstrike_impact
+data=spotanim_proj,waterstrike_travel,43,31,51,16,-5,64,10
+data=spotanim_target,waterstrike_impact,92
 data=continue_by_autocast,yes
-data=rune,airrune,1
-data=rune,waterrune,1
-data=rune,mindrune,1
+data=runesrequired,airrune,1,waterrune,1,mindrune,1
 
 [magic_combat_earth_strike]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^earth_strike
+data=members,false
 data=name,"Earth Strike"
 data=spellcom,magic:earth_strike
-data=level,9
-data=xp,950
+data=levelrequired,9
+data=experience,950
 data=maxhit,6
 data=anim,human_caststrike
 data=spotanim_origin,earthstrike_casting
-data=spotanim_proj,earthstrike_travel
-data=spotanim_target,earthstrike_impact
+data=spotanim_proj,earthstrike_travel,43,31,51,16,-5,64,10
+data=spotanim_target,earthstrike_impact,92
 data=continue_by_autocast,yes
-data=rune,airrune,1
-data=rune,earthrune,2
-data=rune,mindrune,1
+data=runesrequired,airrune,1,earthrune,2,mindrune,1
 
 [magic_combat_fire_strike]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^fire_strike
+data=members,false
 data=name,"Fire Strike"
 data=spellcom,magic:fire_strike
-data=level,13
-data=xp,1150
+data=levelrequired,13
+data=experience,1150
 data=maxhit,8
 data=anim,human_caststrike
 data=spotanim_origin,firestrike_casting
-data=spotanim_proj,firestrike_travel
-data=spotanim_target,firestrike_impact
+data=spotanim_proj,firestrike_travel,43,31,51,16,-5,64,10
+data=spotanim_target,firestrike_impact,92
 data=continue_by_autocast,yes
-data=rune,airrune,2
-data=rune,firerune,3
-data=rune,mindrune,1
+data=runesrequired,airrune,2,firerune,3,mindrune,1
 
 [magic_combat_wind_bolt]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^wind_bolt
+data=members,false
 data=name,"Wind Bolt"
 data=spellcom,magic:wind_bolt
-data=level,17
-data=xp,1350
+data=levelrequired,17
+data=experience,1350
 data=maxhit,9
 data=anim,human_caststrike
 data=spotanim_origin,windbolt_casting
-data=spotanim_proj,windbolt_travel
-data=spotanim_target,windbolt_impact
+data=spotanim_proj,windbolt_travel,43,31,51,16,-5,64,10
+data=spotanim_target,windbolt_impact,92
 data=continue_by_autocast,yes
-data=rune,airrune,2
-data=rune,chaosrune,1
+data=runesrequired,airrune,2,chaosrune,1,null,null
 
 [magic_combat_water_bolt]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^water_bolt
+data=members,false
 data=name,"Water Bolt"
 data=spellcom,magic:water_bolt
-data=level,23
-data=xp,1650
+data=levelrequired,23
+data=experience,1650
 data=maxhit,10
 data=anim,human_caststrike
 data=spotanim_origin,waterbolt_casting
-data=spotanim_proj,waterbolt_travel
-data=spotanim_target,waterbolt_impact
+data=spotanim_proj,waterbolt_travel,43,31,51,16,-5,64,10
+data=spotanim_target,waterbolt_impact,92
 data=continue_by_autocast,yes
-data=rune,airrune,2
-data=rune,waterrune,2
-data=rune,chaosrune,1
+data=runesrequired,airrune,2,waterrune,2,chaosrune,1
 
 [magic_combat_earth_bolt]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^earth_bolt
+data=members,false
 data=name,"Earth Bolt"
 data=spellcom,magic:earth_bolt
-data=level,29
-data=xp,1950
+data=levelrequired,29
+data=experience,1950
 data=maxhit,11
 data=anim,human_caststrike
 data=spotanim_origin,earthbolt_casting
-data=spotanim_proj,earthbolt_travel
-data=spotanim_target,earthbolt_impact
+data=spotanim_proj,earthbolt_travel,43,31,51,16,-5,64,10
+data=spotanim_target,earthbolt_impact,92
 data=continue_by_autocast,yes
-data=rune,airrune,2
-data=rune,earthrune,3
-data=rune,chaosrune,1
+data=runesrequired,airrune,2,earthrune,3,chaosrune,1
 
 [magic_combat_fire_bolt]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^fire_bolt
+data=members,false
 data=name,"Fire Bolt"
 data=spellcom,magic:fire_bolt
-data=level,35
-data=xp,2250
+data=levelrequired,35
+data=experience,2250
 data=maxhit,12
 data=anim,human_caststrike
 data=spotanim_origin,firebolt_casting
-data=spotanim_proj,firebolt_travel
-data=spotanim_target,firebolt_impact
+data=spotanim_proj,firebolt_travel,43,31,51,16,-5,64,10
+data=spotanim_target,firebolt_impact,92
 data=continue_by_autocast,yes
-data=rune,airrune,3
-data=rune,firerune,4
-data=rune,chaosrune,1
+data=runesrequired,airrune,3,firerune,4,chaosrune,1
 
 [magic_combat_wind_blast]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^wind_blast
+data=members,false
 data=name,"Wind Blast"
 data=spellcom,magic:wind_blast
-data=level,41
-data=xp,2550
+data=levelrequired,41
+data=experience,2550
 data=maxhit,13
 data=anim,human_caststrike
 data=spotanim_origin,windblast_casting
-data=spotanim_proj,windblast_travel
-data=spotanim_target,windblast_impact
+data=spotanim_proj,windblast_travel,43,31,51,16,-5,64,10
+data=spotanim_target,windblast_impact,92
 data=continue_by_autocast,yes
-data=rune,airrune,3
-data=rune,deathrune,1
+data=runesrequired,airrune,3,deathrune,1,null,null
 
 [magic_combat_water_blast]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^water_blast
+data=members,false
 data=name,"Water Blast"
 data=spellcom,magic:water_blast
-data=level,47
-data=xp,2850
+data=levelrequired,47
+data=experience,2850
 data=maxhit,14
 data=anim,human_caststrike
 data=spotanim_origin,waterblast_casting
-data=spotanim_proj,waterblast_travel
-data=spotanim_target,waterblast_impact
+data=spotanim_proj,waterblast_travel,43,31,51,16,-5,64,10
+data=spotanim_target,waterblast_impact,92
 data=continue_by_autocast,yes
-data=rune,airrune,3
-data=rune,waterrune,3
-data=rune,deathrune,1
+data=runesrequired,airrune,3,waterrune,3,deathrune,1
 
 [magic_combat_earth_blast]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^earth_blast
+data=members,false
 data=name,"Earth Blast"
 data=spellcom,magic:earth_blast
-data=level,53
-data=xp,3150
+data=levelrequired,53
+data=experience,3150
 data=maxhit,15
 data=anim,human_caststrike
 data=spotanim_origin,earthblast_casting
-data=spotanim_proj,earthblast_travel
-data=spotanim_target,earthblast_impact
+data=spotanim_proj,earthblast_travel,43,31,51,16,-5,64,10
+data=spotanim_target,earthblast_impact,92
 data=continue_by_autocast,yes
-data=rune,airrune,3
-data=rune,earthrune,4
-data=rune,deathrune,1
+data=runesrequired,airrune,3,earthrune,4,deathrune,1
 
 [magic_combat_fire_blast]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^fire_blast
+data=members,false
 data=name,"Fire Blast"
 data=spellcom,magic:fire_blast
-data=level,59
-data=xp,3450
+data=levelrequired,59
+data=experience,3450
 data=maxhit,16
 data=anim,human_caststrike
 data=spotanim_origin,fireblast_casting
-data=spotanim_proj,fireblast_travel
-data=spotanim_target,fireblast_impact
+data=spotanim_proj,fireblast_travel,43,31,51,16,-5,64,10
+data=spotanim_target,fireblast_impact,92
 data=continue_by_autocast,yes
-data=rune,airrune,4
-data=rune,firerune,5
-data=rune,deathrune,1
+data=runesrequired,airrune,4,firerune,5,deathrune,1
 
 [magic_combat_wind_wave]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^wind_wave
+data=members,false
 data=name,"Wind Wave"
 data=spellcom,magic:wind_wave
-data=level,62
-data=xp,3600
+data=levelrequired,62
+data=experience,3600
 data=maxhit,17
 data=anim,human_castwave
 data=spotanim_origin,windwave_casting
-data=spotanim_proj,windwave_travel
-data=spotanim_target,windwave_impact
+data=spotanim_proj,windwave_travel,43,31,51,16,-5,64,10
+data=spotanim_target,windwave_impact,92
 data=continue_by_autocast,yes
-data=rune,airrune,5
-data=rune,bloodrune,1
+data=runesrequired,airrune,5,bloodrune,1,null,null
 
 // Wallasalki (areas/area_waterbirth/scripts/dagannoth_maze_monsters.rs2) casts this on players via
 // ~npc_cast_spell_with_forced_max_hit - this row is what makes that compile and actually work.
 [magic_combat_water_wave]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^water_wave
+data=members,false
 data=name,"Water Wave"
 data=spellcom,magic:water_wave
-data=level,65
-data=xp,3750
+data=levelrequired,65
+data=experience,3750
 data=maxhit,18
 data=anim,human_castwave
 data=spotanim_origin,waterwave_casting
-data=spotanim_proj,waterwave_travel
-data=spotanim_target,waterwave_impact
+data=spotanim_proj,waterwave_travel,43,31,51,16,-5,64,10
+data=spotanim_target,waterwave_impact,92
 data=continue_by_autocast,yes
-data=rune,airrune,5
-data=rune,waterrune,7
-data=rune,bloodrune,1
+data=runesrequired,airrune,5,waterrune,7,bloodrune,1
 
 [magic_combat_earth_wave]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^earth_wave
+data=members,false
 data=name,"Earth Wave"
 data=spellcom,magic:earth_wave
-data=level,70
-data=xp,4000
+data=levelrequired,70
+data=experience,4000
 data=maxhit,19
 data=anim,human_castwave
 data=spotanim_origin,earthwave_casting
-data=spotanim_proj,earthwave_travel
-data=spotanim_target,earthwave_impact
+data=spotanim_proj,earthwave_travel,43,31,51,16,-5,64,10
+data=spotanim_target,earthwave_impact,92
 data=continue_by_autocast,yes
-data=rune,airrune,5
-data=rune,earthrune,7
-data=rune,bloodrune,1
+data=runesrequired,airrune,5,earthrune,7,bloodrune,1
 
 [magic_combat_fire_wave]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^fire_wave
+data=members,false
 data=name,"Fire Wave"
 data=spellcom,magic:fire_wave
-data=level,75
-data=xp,4250
+data=levelrequired,75
+data=experience,4250
 data=maxhit,20
 data=anim,human_castwave
 data=spotanim_origin,firewave_casting
-data=spotanim_proj,firewave_travel
-data=spotanim_target,firewave_impact
+data=spotanim_proj,firewave_travel,43,31,51,16,-5,64,10
+data=spotanim_target,firewave_impact,92
 data=continue_by_autocast,yes
-data=rune,airrune,5
-data=rune,firerune,7
-data=rune,bloodrune,1
+data=runesrequired,airrune,5,firerune,7,bloodrune,1
 
 // ============================================================
 // Normal spellbook - curses / debuffs (6) - no damage (maxhit=-1/null), stat_change only, never
@@ -293,115 +308,109 @@ data=rune,bloodrune,1
 // ============================================================
 
 [magic_combat_confuse]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^confuse
+data=members,false
 data=name,"Confuse"
 data=spellcom,magic:confuse
-data=level,3
-data=xp,1300
+data=levelrequired,3
+data=experience,1300
 data=maxhit,-1
 data=anim,human_castconfuse
 data=spotanim_origin,confuse_casting
-data=spotanim_proj,confuse_travel
-data=spotanim_target,confuse_impact
+data=spotanim_proj,confuse_travel,43,31,51,16,-5,64,10
+data=spotanim_target,confuse_impact,92
 data=continue_by_autocast,no
 data=stat_change,attack,0,-5
-data=rune,earthrune,2
-data=rune,waterrune,3
-data=rune,bodyrune,1
+data=runesrequired,earthrune,2,waterrune,3,bodyrune,1
 
 [magic_combat_weaken]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^weaken
+data=members,false
 data=name,"Weaken"
 data=spellcom,magic:weaken
-data=level,11
-data=xp,2100
+data=levelrequired,11
+data=experience,2100
 data=maxhit,-1
 data=anim,human_castweaken
 data=spotanim_origin,weaken_casting
-data=spotanim_proj,weaken_travel
-data=spotanim_target,weaken_impact
+data=spotanim_proj,weaken_travel,43,31,51,16,-5,64,10
+data=spotanim_target,weaken_impact,92
 data=continue_by_autocast,no
 data=stat_change,strength,0,-5
-data=rune,earthrune,2
-data=rune,waterrune,3
-data=rune,bodyrune,1
+data=runesrequired,earthrune,2,waterrune,3,bodyrune,1
 
 [magic_combat_curse]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^curse
+data=members,false
 data=name,"Curse"
 data=spellcom,magic:curse
-data=level,19
-data=xp,2900
+data=levelrequired,19
+data=experience,2900
 data=maxhit,-1
 data=anim,human_castcurse
 data=spotanim_origin,curse_casting
-data=spotanim_proj,curse_travel
-data=spotanim_target,curse_impact
+data=spotanim_proj,curse_travel,43,31,51,16,-5,64,10
+data=spotanim_target,curse_impact,92
 data=continue_by_autocast,no
 data=stat_change,defence,0,-5
-data=rune,earthrune,3
-data=rune,waterrune,2
-data=rune,bodyrune,1
+data=runesrequired,earthrune,3,waterrune,2,bodyrune,1
 
 // no dedicated "vulnerability" cast animation exists in all.seq (only its 3 spotanims do) - reusing
 // human_castcurse as the closest real, confirmed-existing tag (same Defence-reduction family as Curse).
 // Flagged to Corey - swap this out if the real tag ever turns up.
 [magic_combat_vulnerability]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^vulnerability
+data=members,false
 data=name,"Vulnerability"
 data=spellcom,magic:vulnerability
-data=level,66
-data=xp,7600
+data=levelrequired,66
+data=experience,7600
 data=maxhit,-1
 data=anim,human_castcurse
 data=spotanim_origin,vulnerability_casting
-data=spotanim_proj,vulnerability_travel
-data=spotanim_target,vulnerability_impact
+data=spotanim_proj,vulnerability_travel,43,31,51,16,-5,64,10
+data=spotanim_target,vulnerability_impact,92
 data=continue_by_autocast,no
 data=stat_change,defence,0,-10
-data=rune,earthrune,5
-data=rune,waterrune,5
-data=rune,soulrune,1
+data=runesrequired,earthrune,5,waterrune,5,soulrune,1
 
 [magic_combat_enfeeble]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^enfeeble
+data=members,false
 data=name,"Enfeeble"
 data=spellcom,magic:enfeeble
-data=level,73
-data=xp,8300
+data=levelrequired,73
+data=experience,8300
 data=maxhit,-1
 data=anim,human_castenfeeble
 data=spotanim_origin,enfeeble_casting
-data=spotanim_proj,enfeeble_travel
-data=spotanim_target,enfeeble_impact
+data=spotanim_proj,enfeeble_travel,43,31,51,16,-5,64,10
+data=spotanim_target,enfeeble_impact,92
 data=continue_by_autocast,no
 data=stat_change,strength,0,-10
-data=rune,earthrune,8
-data=rune,waterrune,8
-data=rune,soulrune,1
+data=runesrequired,earthrune,8,waterrune,8,soulrune,1
 
 [magic_combat_stun]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^stun
+data=members,false
 data=name,"Stun"
 data=spellcom,magic:stun
-data=level,80
-data=xp,9000
+data=levelrequired,80
+data=experience,9000
 data=maxhit,-1
 data=anim,human_caststun
 data=spotanim_origin,stun_casting
-data=spotanim_proj,stun_travel
-data=spotanim_target,stun_impact
+data=spotanim_proj,stun_travel,43,31,51,16,-5,64,10
+data=spotanim_target,stun_impact,92
 data=continue_by_autocast,no
 data=stat_change,attack,0,-10
-data=rune,earthrune,12
-data=rune,waterrune,12
-data=rune,soulrune,1
+data=runesrequired,earthrune,12,waterrune,12,soulrune,1
 
 // ============================================================
 // Normal spellbook - freezes (3) - no damage, no stat_change, freeze_time only. Bind/Snare reuse
@@ -411,58 +420,55 @@ data=rune,soulrune,1
 // ============================================================
 
 [magic_combat_bind]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^bind
+data=members,false
 data=name,"Bind"
 data=spellcom,magic:bind
-data=level,20
-data=xp,3000
+data=levelrequired,20
+data=experience,3000
 data=maxhit,-1
 data=anim,human_castentangle
 data=spotanim_origin,entangle_casting
-data=spotanim_proj,entangle_travel
-data=spotanim_target,bind_impact
+data=spotanim_proj,entangle_travel,43,31,51,16,-5,64,10
+data=spotanim_target,bind_impact,92
 data=freeze_time,8
 data=continue_by_autocast,no
-data=rune,earthrune,3
-data=rune,waterrune,3
-data=rune,naturerune,2
+data=runesrequired,earthrune,3,waterrune,3,naturerune,2
 
 [magic_combat_snare]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^snare
+data=members,false
 data=name,"Snare"
 data=spellcom,magic:snare
-data=level,50
-data=xp,6000
+data=levelrequired,50
+data=experience,6000
 data=maxhit,-1
 data=anim,human_castentangle
 data=spotanim_origin,entangle_casting
-data=spotanim_proj,entangle_travel
-data=spotanim_target,snare_impact
+data=spotanim_proj,entangle_travel,43,31,51,16,-5,64,10
+data=spotanim_target,snare_impact,92
 data=freeze_time,16
 data=continue_by_autocast,no
-data=rune,earthrune,4
-data=rune,waterrune,4
-data=rune,naturerune,3
+data=runesrequired,earthrune,4,waterrune,4,naturerune,3
 
 [magic_combat_entangle]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^entangle
+data=members,false
 data=name,"Entangle"
 data=spellcom,magic:entangle
-data=level,79
-data=xp,8900
+data=levelrequired,79
+data=experience,8900
 data=maxhit,-1
 data=anim,human_castentangle
 data=spotanim_origin,entangle_casting
-data=spotanim_proj,entangle_travel
-data=spotanim_target,entangle_impact
+data=spotanim_proj,entangle_travel,43,31,51,16,-5,64,10
+data=spotanim_target,entangle_impact,92
 data=freeze_time,24
 data=continue_by_autocast,no
-data=rune,earthrune,5
-data=rune,waterrune,5
-data=rune,naturerune,4
+data=runesrequired,earthrune,5,waterrune,5,naturerune,4
 
 // ============================================================
 // Normal spellbook - Magic Dart (1). Simplification flagged to Corey: real OSRS also requires a
@@ -471,19 +477,19 @@ data=rune,naturerune,4
 // ============================================================
 
 [magic_combat_magic_dart]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^magic_dart
+data=members,false
 data=name,"Magic Dart"
 data=spellcom,magic:magic_dart
-data=level,50
-data=xp,3000
+data=levelrequired,50
+data=experience,3000
 data=maxhit,15
 data=anim,slayer_magicdart_cast
-data=spotanim_proj,slayer_magicdart_travel
-data=spotanim_target,slayer_magicdart_impact
+data=spotanim_proj,slayer_magicdart_travel,43,31,51,16,-5,64,10
+data=spotanim_target,slayer_magicdart_impact,92
 data=continue_by_autocast,yes
-data=rune,mindrune,4
-data=rune,deathrune,1
+data=runesrequired,mindrune,4,deathrune,1,null,null
 
 // ============================================================
 // Ancient Magicks (16) - real OSRS release 27 Sept 2005. Icons/travel/impact spotanims and rune
@@ -505,268 +511,253 @@ data=rune,deathrune,1
 // ============================================================
 
 [magic_combat_ice_rush]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^ice_rush
+data=members,false
 data=name,"Ice Rush"
-data=level,58
-data=xp,3400
+data=levelrequired,58
+data=experience,3400
 data=maxhit,16
 data=anim,human_castwave
-data=spotanim_proj,ice_rush_travel
-data=spotanim_target,ice_rush_impact
+data=spotanim_proj,ice_rush_travel,43,31,51,16,-5,64,10
+data=spotanim_target,ice_rush_impact,92
 data=freeze_time,8
 data=continue_by_autocast,no
-data=rune,waterrune,2
-data=rune,chaosrune,2
-data=rune,deathrune,2
+data=runesrequired,waterrune,2,chaosrune,2,deathrune,2
 
 [magic_combat_ice_burst]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^ice_burst
+data=members,false
 data=name,"Ice Burst"
-data=level,70
-data=xp,4000
+data=levelrequired,70
+data=experience,4000
 data=maxhit,22
 data=anim,human_castwave
-data=spotanim_proj,ice_burst_travel
-data=spotanim_target,ice_burst_impact
+data=spotanim_proj,ice_burst_travel,43,31,51,16,-5,64,10
+data=spotanim_target,ice_burst_impact,92
 data=freeze_time,16
 data=continue_by_autocast,no
-data=rune,waterrune,4
-data=rune,chaosrune,4
-data=rune,deathrune,2
+data=runesrequired,waterrune,4,chaosrune,4,deathrune,2
 
 [magic_combat_ice_blitz]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^ice_blitz
+data=members,false
 data=name,"Ice Blitz"
-data=level,82
-data=xp,4600
+data=levelrequired,82
+data=experience,4600
 data=maxhit,26
 data=anim,human_castwave
-data=spotanim_proj,ice_blitz_travel
-data=spotanim_target,ice_blitz_impact
+data=spotanim_proj,ice_blitz_travel,43,31,51,16,-5,64,10
+data=spotanim_target,ice_blitz_impact,92
 data=freeze_time,24
 data=continue_by_autocast,no
-data=rune,waterrune,3
-data=rune,bloodrune,2
-data=rune,deathrune,2
+data=runesrequired,waterrune,3,bloodrune,2,deathrune,2
 
 [magic_combat_ice_barrage]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^ice_barrage
+data=members,false
 data=name,"Ice Barrage"
-data=level,94
-data=xp,5200
+data=levelrequired,94
+data=experience,5200
 data=maxhit,30
 data=anim,human_castwave
-data=spotanim_proj,ice_barrage_travel
-data=spotanim_target,ice_barrage_impact
+data=spotanim_proj,ice_barrage_travel,43,31,51,16,-5,64,10
+data=spotanim_target,ice_barrage_impact,92
 data=freeze_time,32
 data=continue_by_autocast,no
-data=rune,waterrune,6
-data=rune,bloodrune,2
-data=rune,deathrune,4
+data=runesrequired,waterrune,6,bloodrune,2,deathrune,4
 
 [magic_combat_blood_rush]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^blood_rush
+data=members,false
 data=name,"Blood Rush"
-data=level,56
-data=xp,3300
+data=levelrequired,56
+data=experience,3300
 data=maxhit,15
 data=anim,human_castwave
-data=spotanim_proj,blood_rush_travel
-data=spotanim_target,blood_rush_impact
+data=spotanim_proj,blood_rush_travel,43,31,51,16,-5,64,10
+data=spotanim_target,blood_rush_impact,92
 data=continue_by_autocast,yes
 data=heal_percent,25
-data=rune,bloodrune,1
-data=rune,chaosrune,2
-data=rune,deathrune,2
+data=runesrequired,bloodrune,1,chaosrune,2,deathrune,2
 
 // no blood_burst_travel spotanim exists (only the impact) - no spotanim_proj set, matches the real tags
 // available rather than guessing one.
 [magic_combat_blood_burst]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^blood_burst
+data=members,false
 data=name,"Blood Burst"
-data=level,68
-data=xp,3900
+data=levelrequired,68
+data=experience,3900
 data=maxhit,21
 data=anim,human_castwave
-data=spotanim_target,spell_blood_burst_impact
+data=spotanim_target,spell_blood_burst_impact,92
 data=continue_by_autocast,yes
 data=heal_percent,25
-data=rune,bloodrune,2
-data=rune,chaosrune,4
-data=rune,deathrune,2
+data=runesrequired,bloodrune,2,chaosrune,4,deathrune,2
 
 [magic_combat_blood_blitz]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^blood_blitz
+data=members,false
 data=name,"Blood Blitz"
-data=level,80
-data=xp,4500
+data=levelrequired,80
+data=experience,4500
 data=maxhit,25
 data=anim,human_castwave
-data=spotanim_proj,blood_blitz_travel
-data=spotanim_target,blood_blitz_impact
+data=spotanim_proj,blood_blitz_travel,43,31,51,16,-5,64,10
+data=spotanim_target,blood_blitz_impact,92
 data=continue_by_autocast,yes
 data=heal_percent,25
-data=rune,bloodrune,4
-data=rune,deathrune,2
+data=runesrequired,bloodrune,4,deathrune,2,null,null
 
 [magic_combat_blood_barrage]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^blood_barrage
+data=members,false
 data=name,"Blood Barrage"
-data=level,92
-data=xp,5100
+data=levelrequired,92
+data=experience,5100
 data=maxhit,29
 data=anim,human_castwave
-data=spotanim_target,spell_blood_barrage_impact
+data=spotanim_target,spell_blood_barrage_impact,92
 data=continue_by_autocast,yes
 data=heal_percent,25
-data=rune,bloodrune,4
-data=rune,deathrune,4
-data=rune,soulrune,1
+data=runesrequired,bloodrune,4,deathrune,4,soulrune,1
 
 [magic_combat_smoke_rush]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^smoke_rush
+data=members,false
 data=name,"Smoke Rush"
-data=level,50
-data=xp,3000
+data=levelrequired,50
+data=experience,3000
 data=maxhit,13
 data=anim,human_castwave
-data=spotanim_proj,smoke_rush_travel
-data=spotanim_target,smoke_rush_impact
+data=spotanim_proj,smoke_rush_travel,43,31,51,16,-5,64,10
+data=spotanim_target,smoke_rush_impact,92
 data=continue_by_autocast,yes
 data=poison_chance,8
 data=poison_severity,2
-data=rune,airrune,1
-data=rune,firerune,1
-data=rune,chaosrune,2
-data=rune,deathrune,2
+data=runesrequired,airrune,1,firerune,1,chaosrune,2
+data=rune4,deathrune,2
 
 [magic_combat_smoke_burst]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^smoke_burst
+data=members,false
 data=name,"Smoke Burst"
-data=level,62
-data=xp,3600
+data=levelrequired,62
+data=experience,3600
 data=maxhit,17
 data=anim,human_castwave
-data=spotanim_proj,smoke_burst_travel
-data=spotanim_target,smoke_burst_impact
+data=spotanim_proj,smoke_burst_travel,43,31,51,16,-5,64,10
+data=spotanim_target,smoke_burst_impact,92
 data=continue_by_autocast,yes
 data=poison_chance,8
 data=poison_severity,2
-data=rune,airrune,2
-data=rune,firerune,2
-data=rune,chaosrune,4
-data=rune,deathrune,2
+data=runesrequired,airrune,2,firerune,2,chaosrune,4
+data=rune4,deathrune,2
 
 [magic_combat_smoke_blitz]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^smoke_blitz
+data=members,false
 data=name,"Smoke Blitz"
-data=level,74
-data=xp,4200
+data=levelrequired,74
+data=experience,4200
 data=maxhit,23
 data=anim,human_castwave
-data=spotanim_proj,smoke_blitz_travel
-data=spotanim_target,smoke_blitz_impact
+data=spotanim_proj,smoke_blitz_travel,43,31,51,16,-5,64,10
+data=spotanim_target,smoke_blitz_impact,92
 data=continue_by_autocast,yes
 data=poison_chance,8
 data=poison_severity,4
-data=rune,airrune,2
-data=rune,firerune,2
-data=rune,bloodrune,2
-data=rune,deathrune,2
+data=runesrequired,airrune,2,firerune,2,bloodrune,2
+data=rune4,deathrune,2
 
 [magic_combat_smoke_barrage]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^smoke_barrage
+data=members,false
 data=name,"Smoke Barrage"
-data=level,86
-data=xp,4800
+data=levelrequired,86
+data=experience,4800
 data=maxhit,27
 data=anim,human_castwave
-data=spotanim_proj,smoke_barrage_travel
-data=spotanim_target,smoke_barrage_impact
+data=spotanim_proj,smoke_barrage_travel,43,31,51,16,-5,64,10
+data=spotanim_target,smoke_barrage_impact,92
 data=continue_by_autocast,yes
 data=poison_chance,8
 data=poison_severity,4
-data=rune,airrune,4
-data=rune,firerune,4
-data=rune,bloodrune,2
-data=rune,deathrune,4
+data=runesrequired,airrune,4,firerune,4,bloodrune,2
+data=rune4,deathrune,4
 
 [magic_combat_shadow_rush]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^shadow_rush
+data=members,false
 data=name,"Shadow Rush"
-data=level,52
-data=xp,3100
+data=levelrequired,52
+data=experience,3100
 data=maxhit,14
 data=anim,human_castwave
-data=spotanim_proj,shadow_rush_travel
-data=spotanim_target,shadow_rush_impact
+data=spotanim_proj,shadow_rush_travel,43,31,51,16,-5,64,10
+data=spotanim_target,shadow_rush_impact,92
 data=continue_by_autocast,no
 data=stat_change,attack,0,-10
-data=rune,airrune,1
-data=rune,chaosrune,2
-data=rune,deathrune,2
-data=rune,soulrune,1
+data=runesrequired,airrune,1,chaosrune,2,deathrune,2
+data=rune4,soulrune,1
 
 // no shadow_burst_travel spotanim exists (only the impact).
 [magic_combat_shadow_burst]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^shadow_burst
+data=members,false
 data=name,"Shadow Burst"
-data=level,64
-data=xp,3700
+data=levelrequired,64
+data=experience,3700
 data=maxhit,18
 data=anim,human_castwave
-data=spotanim_target,shadow_burst_impact
+data=spotanim_target,shadow_burst_impact,92
 data=continue_by_autocast,no
 data=stat_change,attack,0,-10
-data=rune,airrune,1
-data=rune,chaosrune,4
-data=rune,deathrune,2
-data=rune,soulrune,2
+data=runesrequired,airrune,1,chaosrune,4,deathrune,2
+data=rune4,soulrune,2
 
 [magic_combat_shadow_blitz]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^shadow_blitz
+data=members,false
 data=name,"Shadow Blitz"
-data=level,76
-data=xp,4300
+data=levelrequired,76
+data=experience,4300
 data=maxhit,24
 data=anim,human_castwave
-data=spotanim_proj,shadow_blitz_travel
-data=spotanim_target,shadow_blitz_impact
+data=spotanim_proj,shadow_blitz_travel,43,31,51,16,-5,64,10
+data=spotanim_target,shadow_blitz_impact,92
 data=continue_by_autocast,no
 data=stat_change,attack,0,-15
-data=rune,airrune,2
-data=rune,bloodrune,2
-data=rune,deathrune,2
-data=rune,soulrune,2
+data=runesrequired,airrune,2,bloodrune,2,deathrune,2
+data=rune4,soulrune,2
 
 // no shadow_barrage_travel spotanim exists (only the impact).
 [magic_combat_shadow_barrage]
-table=magic_combat_spell_table
+table=magic_spell_table
 data=spell,^shadow_barrage
+data=members,false
 data=name,"Shadow Barrage"
-data=level,88
-data=xp,4900
+data=levelrequired,88
+data=experience,4900
 data=maxhit,28
 data=anim,human_castwave
-data=spotanim_target,shadow_barrage_impact
+data=spotanim_target,shadow_barrage_impact,92
 data=continue_by_autocast,no
 data=stat_change,attack,0,-15
-data=rune,airrune,4
-data=rune,bloodrune,2
-data=rune,deathrune,4
-data=rune,soulrune,3
+data=runesrequired,airrune,4,bloodrune,2,deathrune,4
+data=rune4,soulrune,3

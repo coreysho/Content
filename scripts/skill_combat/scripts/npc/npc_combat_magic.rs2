@@ -40,7 +40,7 @@ def_int $maxhit;
 if($defined_max_hit ! null) {
     $maxhit = $defined_max_hit;
 } else {
-    $maxhit = db_getfield($spell_data, magic_combat_spell_table:maxhit, 0);
+    $maxhit = db_getfield($spell_data, magic_spell_table:maxhit, 0);
 }
 
 if (~npc_player_hit_roll(^magic_style) = true) {
@@ -76,7 +76,7 @@ if (~npc_check_notcombat_self = false) {
 return(true);
 
 [proc,npc_freeze_allowed](dbrow $spell_data)(boolean)
-if (db_getfield($spell_data, magic_combat_spell_table:freeze_time, 0) > 0) {
+if (db_getfield($spell_data, magic_spell_table:freeze_time, 0) > 0) {
     if (%frozen > map_clock) {
         return(false);
     }
@@ -87,9 +87,9 @@ def_stat $stat;
 def_int $constant;
 def_int $percent;
 def_int $i = 0;
-def_int $spell = db_getfield($spell_data, magic_combat_spell_table:spell, 0);
-while ($i < db_getfieldcount($spell_data, magic_combat_spell_table:stat_change) & $spell ! ^flames_of_zamorak & $spell ! ^claws_of_guthix & $spell ! ^saradomin_strike) {
-    $stat, $constant, $percent = db_getfield($spell_data, magic_combat_spell_table:stat_change, $i);
+def_int $spell = db_getfield($spell_data, magic_spell_table:spell, 0);
+while ($i < db_getfieldcount($spell_data, magic_spell_table:stat_change) & $spell ! ^flames_of_zamorak & $spell ! ^claws_of_guthix & $spell ! ^saradomin_strike) {
+    $stat, $constant, $percent = db_getfield($spell_data, magic_spell_table:stat_change, $i);
     if (stat($stat) < stat_base($stat)) {
         return(false);
     }
@@ -100,24 +100,24 @@ return(true);
 [proc,npc_spell_cast](dbrow $spell_data, int $attackspeed)(int)
 if_close;
 if (npc_param(magicattack_anim) = null) {
-    npc_anim(db_getfield($spell_data, magic_combat_spell_table:anim, 0), 0);
+    npc_anim(db_getfield($spell_data, magic_spell_table:anim, 0), 0);
 } else {
     npc_anim(npc_param(magicattack_anim), 0);
 }
-if (db_getfieldcount($spell_data, magic_combat_spell_table:spotanim_origin) > 0) {
-    spotanim_npc(db_getfield($spell_data, magic_combat_spell_table:spotanim_origin, 0), 92, 0);
+if (db_getfieldcount($spell_data, magic_spell_table:spotanim_origin) > 0) {
+    spotanim_npc(db_getfield($spell_data, magic_spell_table:spotanim_origin, 0), 92, 0);
 }
 %npc_action_delay = add(map_clock, $attackspeed);
 def_int $duration = 64;
-if (db_getfieldcount($spell_data, magic_combat_spell_table:spotanim_proj) > 0) {
-    $duration = ~player_projectile(npc_coord, uid, db_getfield($spell_data, magic_combat_spell_table:spotanim_proj, 0));
+if (db_getfieldcount($spell_data, magic_spell_table:spotanim_proj) > 0) {
+    $duration = ~player_projectile(npc_coord, uid, db_getfield($spell_data, magic_spell_table:spotanim_proj, 0));
 }
 return($duration);
 
 [proc,npc_spell_success](dbrow $spell_data, int $maxhit, int $duration)
 if_close;
-if (db_getfieldcount($spell_data, magic_combat_spell_table:sound_cast) > 0) {
-    sound_synth(db_getfield($spell_data, magic_combat_spell_table:sound_cast, 0), 0, 0);
+if (db_getfieldcount($spell_data, magic_spell_table:sound_cast) > 0) {
+    sound_synth(db_getfield($spell_data, magic_spell_table:sound_cast, 0), 0, 0);
 }
 def_int $damage = randominc($maxhit);
 if ($maxhit ! null) {
@@ -129,9 +129,9 @@ if ($maxhit ! null) {
     // player anim for flinching doesnt exist, even in osrs
     // anim(~combat_defend_anim(inv_getobj(worn, ^wearpos_rhand)), $duration);
 }
-spotanim_pl(db_getfield($spell_data, magic_combat_spell_table:spotanim_target, 0), $duration);
-if (db_getfieldcount($spell_data, magic_combat_spell_table:sound_hit) > 0) {
-    sound_synth(db_getfield($spell_data, magic_combat_spell_table:sound_hit, 0), 0, $duration);
+spotanim_pl(db_getfield($spell_data, magic_spell_table:spotanim_target, 0), $duration);
+if (db_getfieldcount($spell_data, magic_spell_table:sound_hit) > 0) {
+    sound_synth(db_getfield($spell_data, magic_spell_table:sound_hit, 0), 0, $duration);
 }
 queue*(playerhit_n_retaliate, calc($duration / 30))(npc_uid);
 
@@ -140,8 +140,8 @@ def_stat $stat;
 def_int $constant;
 def_int $percent;
 def_int $i = 0;
-while ($i < db_getfieldcount($spell_data, magic_combat_spell_table:stat_change)) {
-    $stat, $constant, $percent = db_getfield($spell_data, magic_combat_spell_table:stat_change, $i);
+while ($i < db_getfieldcount($spell_data, magic_spell_table:stat_change)) {
+    $stat, $constant, $percent = db_getfield($spell_data, magic_spell_table:stat_change, $i);
     if ($constant > 0 & $percent > 0) {
         // if both positive assume statadd
         // nothing ever uses this but i guess if someone wants to add some heal spell or something
@@ -156,15 +156,15 @@ while ($i < db_getfieldcount($spell_data, magic_combat_spell_table:stat_change))
 }
 
 [proc,npc_freeze_effect](dbrow $spell_data)
-def_int $freeze_time = db_getfield($spell_data, magic_combat_spell_table:freeze_time, 0);
+def_int $freeze_time = db_getfield($spell_data, magic_spell_table:freeze_time, 0);
 if ($freeze_time > 0) {
     queue(npc_freeze_player, 0, $freeze_time);
 }
 
 [proc,npc_spell_fail](dbrow $spell_data, int $duration)
 if_close;
-if (db_getfieldcount($spell_data, magic_combat_spell_table:sound_cast) > 0) {
-    sound_synth(db_getfield($spell_data, magic_combat_spell_table:sound_cast, 0), 0, 0);
+if (db_getfieldcount($spell_data, magic_spell_table:sound_cast) > 0) {
+    sound_synth(db_getfield($spell_data, magic_spell_table:sound_cast, 0), 0, 0);
 }
 sound_synth(spellfail, 1, $duration);
 spotanim_pl(failedspell_impact, 92, $duration);

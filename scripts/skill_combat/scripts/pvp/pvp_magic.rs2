@@ -1,12 +1,12 @@
 [label,pvp_magic_attack]
 def_dbrow $spell_data = ~get_spell_data(%autocast_spell);
 if (~check_spell_requirements($spell_data) = false) {
-    if (%autocast_spell = db_getfield($spell_data, magic_combat_spell_table:spell, 0)) { // matches osrs behavior
+    if (%autocast_spell = db_getfield($spell_data, magic_spell_table:spell, 0)) { // matches osrs behavior
         ~player_autocast_reset;
     }
     return;
 }
-p_opplayert(db_getfield($spell_data, magic_combat_spell_table:spellcom, 0));
+p_opplayert(db_getfield($spell_data, magic_spell_table:spellcom, 0));
 
 [applayert,magic:wind_strike] ~pvp_default_spell(^wind_strike);
 [applayert,magic:water_strike] ~pvp_default_spell(^water_strike);
@@ -66,11 +66,11 @@ if (.%death = ^true) {
     return(false);
 }
 if (map_clock < %action_delay) {
-    p_opplayert(db_getfield($spell_data, magic_combat_spell_table:spellcom, 0));
+    p_opplayert(db_getfield($spell_data, magic_spell_table:spellcom, 0));
     return(false);
 }
 if (~check_spell_requirements($spell_data) = false) {
-    if (%autocast_spell = db_getfield($spell_data, magic_combat_spell_table:spell, 0)) { // matches osrs behavior
+    if (%autocast_spell = db_getfield($spell_data, magic_spell_table:spell, 0)) { // matches osrs behavior
         ~player_autocast_reset;
     }
     return(false);
@@ -84,7 +84,7 @@ return(true);
 
 [proc,pvp_freeze_allowed](dbrow $spell_data)(boolean)
 // check if player is already frozen
-if (db_getfield($spell_data, magic_combat_spell_table:freeze_time, 0) > 0) {
+if (db_getfield($spell_data, magic_spell_table:freeze_time, 0) > 0) {
     if (.%frozen > map_clock) {
         mes("Your target is already held by a magical force.");
         return(false);
@@ -110,9 +110,9 @@ def_stat $stat;
 def_int $constant;
 def_int $percent;
 def_int $i = 0;
-def_int $spell = db_getfield($spell_data, magic_combat_spell_table:spell, 0);
-while ($i < db_getfieldcount($spell_data, magic_combat_spell_table:stat_change)) {
-    $stat, $constant, $percent = db_getfield($spell_data, magic_combat_spell_table:stat_change, $i);
+def_int $spell = db_getfield($spell_data, magic_spell_table:spell, 0);
+while ($i < db_getfieldcount($spell_data, magic_spell_table:stat_change)) {
+    $stat, $constant, $percent = db_getfield($spell_data, magic_spell_table:stat_change, $i);
     if (.stat($stat) < .stat_base($stat)) {
         // in osrs, confuse and weaken spell have a different message
         if (($stat = attack & $spell = ^confuse)) {
@@ -135,8 +135,8 @@ def_stat $stat;
 def_int $constant;
 def_int $percent;
 def_int $i = 0;
-while ($i < db_getfieldcount($spell_data, magic_combat_spell_table:stat_change)) {
-    $stat, $constant, $percent = db_getfield($spell_data, magic_combat_spell_table:stat_change, $i);
+while ($i < db_getfieldcount($spell_data, magic_spell_table:stat_change)) {
+    $stat, $constant, $percent = db_getfield($spell_data, magic_spell_table:stat_change, $i);
     if (.stat($stat) >= .stat_base($stat)) {
         if ($constant > 0 & $percent > 0) {
             // if both positive assume statadd
@@ -151,7 +151,7 @@ while ($i < db_getfieldcount($spell_data, magic_combat_spell_table:stat_change))
 }
 
 [proc,pvp_freeze_effect](dbrow $spell_data)
-def_int $freeze_time = db_getfield($spell_data, magic_combat_spell_table:freeze_time, 0);
+def_int $freeze_time = db_getfield($spell_data, magic_spell_table:freeze_time, 0);
 if ($freeze_time > 0) {
     if (~.check_protect_prayer(^magic_style) = true) {
         $freeze_time = divide($freeze_time, 2); // 50% reduction https://oldschool.runescape.wiki/w/Update:RS2_bugfixes_-_part_4
@@ -169,13 +169,13 @@ def_int $damagestyle = ^style_magic_normal;
 if (%damagestyle = ^style_melee_defensive) { // check varp directly
     $damagestyle = ^style_magic_defensive; // casting a spell with defensive on gives mage + def xp
 }
-def_synth $sound = db_getfield($spell_data, magic_combat_spell_table:sound_hit, 0);
+def_synth $sound = db_getfield($spell_data, magic_spell_table:sound_hit, 0);
 sound_synth($sound, 0, 0);
 .sound_synth($sound, 0, 0);
 
 if ($maxhit = null) {
     ~.pvp_damage(calc($duration / 30 + 1), null); // delayed an extra tick: https://youtu.be/eEdE0mvglM4?t=62
-    .spotanim_pl(db_getfield($spell_data, magic_combat_spell_table:spotanim_target, 0), $duration);
+    .spotanim_pl(db_getfield($spell_data, magic_spell_table:spotanim_target, 0), $duration);
     return;
 }
 
@@ -189,7 +189,7 @@ $damage = min($damage, .stat(hitpoints));
 ~give_combat_experience_pvp($damagestyle, $damage, ~pvp_xp_multiplier(~.player_combat_level));
 both_heropoints($damage);
 
-.spotanim_pl(db_getfield($spell_data, magic_combat_spell_table:spotanim_target, 0), $duration);
+.spotanim_pl(db_getfield($spell_data, magic_spell_table:spotanim_target, 0), $duration);
 .queue*(pvp_retaliate, calc($duration / 30 + 1))(uid);
 
 [proc,pvp_spell_fail](dbrow $spell_data, int $duration)
@@ -207,21 +207,21 @@ sound_synth(spellfail, 1, 0);
 ~give_spell_xp($spell_data);
 
 // spell anim
-anim(db_getfield($spell_data, magic_combat_spell_table:anim, 0), 0);
+anim(db_getfield($spell_data, magic_spell_table:anim, 0), 0);
 // player spell visual effect
-if (db_getfieldcount($spell_data, magic_combat_spell_table:spotanim_origin) > 0) {
-    spotanim_pl(db_getfield($spell_data, magic_combat_spell_table:spotanim_origin, 0), 92, 0);
+if (db_getfieldcount($spell_data, magic_spell_table:spotanim_origin) > 0) {
+    spotanim_pl(db_getfield($spell_data, magic_spell_table:spotanim_origin, 0), 92, 0);
 }
 // shoot spell projectile
 %action_delay = add(map_clock, 5);
 def_int $duration = 0;
-if (db_getfieldcount($spell_data, magic_combat_spell_table:spotanim_proj) > 0) {
-    $duration = ~player_projectile(coord, .coord, .uid, db_getfield($spell_data, magic_combat_spell_table:spotanim_proj, 0));
+if (db_getfieldcount($spell_data, magic_spell_table:spotanim_proj) > 0) {
+    $duration = ~player_projectile(coord, .coord, .uid, db_getfield($spell_data, magic_spell_table:spotanim_proj, 0));
 }
 
 // continue by autocast
-if (~player_autocast_enabled = true & db_getfield($spell_data, magic_combat_spell_table:continue_by_autocast, 0) = true) {
-    p_opplayert(db_getfield(~get_spell_data(%autocast_spell), magic_combat_spell_table:spellcom, 0));
+if (~player_autocast_enabled = true & db_getfield($spell_data, magic_spell_table:continue_by_autocast, 0) = true) {
+    p_opplayert(db_getfield(~get_spell_data(%autocast_spell), magic_spell_table:spellcom, 0));
 }
 return($duration);
 

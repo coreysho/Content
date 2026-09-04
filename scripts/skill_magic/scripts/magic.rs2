@@ -43,6 +43,17 @@ if (inv_total(inv, $rune3) < $rune_count3 & $rune3 ! null) {
     mes("You do not have enough <~string_removeright(oc_name($rune3), 5)> Runes to cast this spell.");
     return (false);
 }
+// check the optional 4th rune (Smoke/Shadow ancients cost 4 different runes; runesrequired only
+// holds 3 pairs). Guarded on fieldcount so every pre-existing row without a rune4 is unaffected.
+if (db_getfieldcount($spell_data, magic_spell_table:rune4) > 0) {
+    def_namedobj $rune4;
+    def_int $rune_count4;
+    $rune4, $rune_count4 = db_getfield($spell_data, magic_spell_table:rune4, 0);
+    if (inv_total(inv, $rune4) < $rune_count4 & $rune4 ! null) {
+        mes("You do not have enough <~string_removeright(oc_name($rune4), 5)> Runes to cast this spell.");
+        return (false);
+    }
+}
 // check if worn is correct
 if (db_getfieldcount($spell_data, magic_spell_table:wornrequired) > 0 & inv_total(worn, db_getfield($spell_data, magic_spell_table:wornrequired, 0)) < 1) {
     mes(db_getfield($spell_data, magic_spell_table:worn_reqmessage, 0));
@@ -103,6 +114,16 @@ if ($rune_count2 > 0) {
 }
 if ($rune_count3 > 0) {
     inv_del(inv, $rune3, $rune_count3);
+}
+// optional 4th rune (see check_spell_requirements) - never staff-substituted, so read straight
+// from the row rather than through ~staff_runes.
+if (db_getfieldcount($spell_data, magic_spell_table:rune4) > 0) {
+    def_namedobj $rune4;
+    def_int $rune_count4;
+    $rune4, $rune_count4 = db_getfield($spell_data, magic_spell_table:rune4, 0);
+    if ($rune_count4 > 0) {
+        inv_del(inv, $rune4, $rune_count4);
+    }
 }
 
 [proc,give_spell_xp](dbrow $spell_data)
