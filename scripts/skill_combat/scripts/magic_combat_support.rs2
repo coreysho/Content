@@ -1,0 +1,130 @@
+// Shared support procs for the generic magic-combat framework (player/player_magic.rs2 and
+// npc/npc_combat_magic.rs2 are both written against these, plus a handful of ranged/special-attack
+// scripts share ~player_projectile/~npc_projectile). None of these procs existed anywhere in the repo
+// before this pass even though both magic scripts call them throughout - see claude/ancient-magicks.md
+// for the full writeup of how this was found and what depends on it.
+
+// ============================================================
+// Spell data lookup
+// ============================================================
+
+[proc,get_spell_data](int $spell)(dbrow)
+db_find(magic_spell_table:spell, $spell);
+return(db_findnext);
+
+[proc,check_spell_requirements](dbrow $spell_data)(boolean)
+def_int $level = db_getfield($spell_data, magic_spell_table:level, 0);
+if (stat(magic) < $level) {
+    mes("You need a Magic level of <tostring($level)> to cast this spell.");
+    return(false);
+}
+def_int $i = 0;
+def_namedobj $rune;
+def_int $count;
+while ($i < db_getfieldcount($spell_data, magic_spell_table:rune)) {
+    $rune, $count = db_getfield($spell_data, magic_spell_table:rune, $i);
+    if (~player_infinite_rune($rune) = false & inv_total(inv, $rune) < $count) {
+        mes("You do not have enough runes to cast this spell.");
+        return(false);
+    }
+    $i = add($i, 1);
+}
+return(true);
+
+[proc,delete_spell_runes](dbrow $spell_data)
+def_int $i = 0;
+def_namedobj $rune;
+def_int $count;
+while ($i < db_getfieldcount($spell_data, magic_spell_table:rune)) {
+    $rune, $count = db_getfield($spell_data, magic_spell_table:rune, $i);
+    if (~player_infinite_rune($rune) = false) {
+        inv_del(inv, $rune, $count);
+    }
+    $i = add($i, 1);
+}
+
+// Staff of Air/Water/Earth/Fire, the battlestaves and their mystic upgrades, and the lava battlestaves
+// (fire+earth) all give infinite runes of their element(s) - the standard OSRS elemental staff mechanic.
+// Ancient Magicks' unique runes (blood/soul/chaos/death) have no staff equivalent, so this only ever
+// returns true for air/water/earth/fire.
+[proc,player_infinite_rune](namedobj $rune)(boolean)
+def_obj $weapon = inv_getobj(worn, ^wearpos_rhand);
+if ($rune = airrune) {
+    return($weapon = staff_of_air | $weapon = air_battlestaff | $weapon = mystic_air_staff);
+} else if ($rune = waterrune) {
+    return($weapon = staff_of_water | $weapon = water_battlestaff | $weapon = mystic_water_staff);
+} else if ($rune = earthrune) {
+    return($weapon = staff_of_earth | $weapon = earth_battlestaff | $weapon = mystic_earth_staff | $weapon = lava_battlestaff | $weapon = mystic_lava_staff);
+} else if ($rune = firerune) {
+    return($weapon = staff_of_fire | $weapon = fire_battlestaff | $weapon = mystic_fire_staff | $weapon = lava_battlestaff | $weapon = mystic_lava_staff);
+}
+return(false);
+
+[proc,magic_spell_maxhit](dbrow $spell_data)(int)
+return(db_getfield($spell_data, magic_spell_table:maxhit, 0));
+
+[proc,give_spell_xp](dbrow $spell_data)
+stat_advance(magic, db_getfield($spell_data, magic_spell_table:xp, 0));
+
+// ============================================================
+// Autocast state. %autocast_spell/%damagestyle are read throughout player_magic.rs2 already (see
+// player_magic_attack and pvm_spell_success) - declared here since they didn't exist anywhere either.
+// 0 = no spell autocast-selected (matches the varp int default of 0/null-ish - real selection starts
+// at spells.constant's lowest id, so 0 safely never matches a real spell in ~get_spell_data).
+// ============================================================
+
+[proc,player_autocast_enabled]()(boolean)
+return(%autocast_spell ! 0);
+
+[proc,player_autocast_reset]
+%autocast_spell = 0;
+
+// ============================================================
+// Projectiles. ~npc_projectile (player casting at an npc) and ~player_projectile (npc casting at a
+// player) only need to serve the 2 magic-combat call sites that actually reference them by this exact
+// 3-arg shape (player_magic.rs2 and, after the matching edit there, npc_combat_magic.rs2). Note:
+// ranged combat (player_ranged.rs2, npc_combat_ranged.rs2), pvm_rune_thrownaxe.rs2, and two boss
+// specials (dagannoth_kings.rs2's Prime attack, king_black_dragon.rs2's breath) call procs with these
+// SAME names but an 11-argument long form (from, to-coord, target-uid, spotanim, fromHeight, toHeight,
+// delay, duration, peak, arc, speed) that also has no definition anywhere in the repo - a separate,
+// pre-existing gap, NOT fixed here since it needs its own signature and is a different system (ranged
+// combat + boss specials, not magic). Flagged to Corey rather than silently left; those 6 call sites
+// will still fail to compile after this and need their own pass.
+//
+// .npc_finduid/.finduid set a *secondary* npc/player context (dot-prefixed = secondary, matching
+// .stat_base/.npc_coord etc. elsewhere in engine.rs2) so the target's coord can be read via
+// .npc_coord/.coord without disturbing the primary npc/player context the calling script is already
+// mid-way through (the active combat target). The timing formula (delay + distance*speed, both baked in
+// below to match the 32/5 values the other, unfixed long-form call sites already use as their common
+// default) is a best-effort reconstruction of the classic distance-scaled projectile-flight formula,
+// not verified against any working reference in this repo - worth an in-game timing sanity check.
+[proc,npc_projectile](coord $from, npc_uid $target, spotanim $spotanim)(int)
+.npc_finduid($target);
+projanim_npc($from, $target, $spotanim, 40, 36, 32, 15, 0, 11);
+return(add(32, multiply(distance($from, .npc_coord), 5)));
+
+[proc,player_projectile](coord $from, player_uid $target, spotanim $spotanim)(int)
+.finduid($target);
+projanim_pl($from, $target, $spotanim, 40, 36, 32, 15, 0, 11);
+return(add(32, multiply(distance($from, .coord), 5)));
+
+// ============================================================
+// Stat conversion (player stat -> npc stat), used by pvm_debuff_allowed/pvm_stat_change_effect when a
+// spell's stat_change row targets an npc.
+// ============================================================
+
+[proc,convert_stat_to_npc_stat](stat $stat)(npc_stat)
+if ($stat = attack) {
+    return(attack);
+} else if ($stat = strength) {
+    return(strength);
+} else if ($stat = defence) {
+    return(defence);
+} else if ($stat = magic) {
+    return(magic);
+} else if ($stat = ranged) {
+    return(ranged);
+} else if ($stat = hitpoints) {
+    return(hitpoints);
+}
+return(attack);

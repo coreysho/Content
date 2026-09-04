@@ -110,13 +110,15 @@ if (db_getfieldcount($spell_data, magic_spell_table:spotanim_origin) > 0) {
 %npc_action_delay = add(map_clock, $attackspeed);
 def_int $duration = 64;
 if (db_getfieldcount($spell_data, magic_spell_table:spotanim_proj) > 0) {
-    $duration = ~player_projectile(npc_coord, coord, uid, db_getfield($spell_data, magic_spell_table:spotanim_proj, 0));
+    $duration = ~player_projectile(npc_coord, uid, db_getfield($spell_data, magic_spell_table:spotanim_proj, 0));
 }
 return($duration);
 
 [proc,npc_spell_success](dbrow $spell_data, int $maxhit, int $duration)
 if_close;
-sound_synth(db_getfield($spell_data, magic_spell_table:sound_cast, 0), 0, 0);
+if (db_getfieldcount($spell_data, magic_spell_table:sound_cast) > 0) {
+    sound_synth(db_getfield($spell_data, magic_spell_table:sound_cast, 0), 0, 0);
+}
 def_int $damage = randominc($maxhit);
 if ($maxhit ! null) {
     // npc vs player spells have no 1t extra damage delay. Whereas player vs npc spells do (osrs)
@@ -161,7 +163,9 @@ if ($freeze_time > 0) {
 
 [proc,npc_spell_fail](dbrow $spell_data, int $duration)
 if_close;
-sound_synth(db_getfield($spell_data, magic_spell_table:sound_cast, 0), 0, 0);
+if (db_getfieldcount($spell_data, magic_spell_table:sound_cast) > 0) {
+    sound_synth(db_getfield($spell_data, magic_spell_table:sound_cast, 0), 0, 0);
+}
 sound_synth(spellfail, 1, $duration);
 spotanim_pl(failedspell_impact, 92, $duration);
 // splashing in osrs causes insta auto retal

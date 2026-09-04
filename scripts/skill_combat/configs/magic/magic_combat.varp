@@ -1,0 +1,14 @@
+// %autocast_spell is read throughout player_magic.rs2 (player_magic_attack, pvm_combat_spell_checks,
+// pvm_spell_cast) but never had a declaration anywhere - part of the same missing-framework gap as
+// magic_spell_table, see claude/ancient-magicks.md. 0 = no spell selected.
+[autocast_spell]
+scope=perm
+
+// New: which spellbook is active (0=normal, 1=ancient). Toggled by the ::spellbook dev command.
+// NOTE: this only flips the underlying state - it does not swap the client-side interface, since this
+// repo has no raw interface source to confirm which of the ~540 unlabeled magic:com_NN components are
+// the ancient spellbook icons. Spells are cast directly via the ::cast dev command regardless of this
+// varp's value; this exists so the underlying "which book" state is real and correct for whenever the
+// interface side gets sorted out, and so quest/dialogue scripts can check it if needed.
+[spellbook]
+scope=perm

@@ -130,6 +130,8 @@ else if ($random < 12) { $drop = dragonshield_a; }
 else if ($random < 15) { $drop = dragon_spear; }
 if ($drop ! null) {
     session_log(^log_adventure, "Defeated a <npc_name> and received a <oc_name($drop)>!");
+    // Rare drop broadcast (Corey, 2026-09-04) - see claude/rare-drop-broadcast.md.
+    broadcast_mes(append(append(displayname(), " received a rare drop: "), oc_name($drop)));
     return ($drop, 1);
 }
 

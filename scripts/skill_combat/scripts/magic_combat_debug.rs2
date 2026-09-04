@@ -1,0 +1,39 @@
+// Dev commands for testing Ancient Magicks (Corey, 2026-09-04) - see claude/ancient-magicks.md.
+// [debugproc,X] scripts are invoked as "::<NODE_DEBUGPROC_CHAR>X args" (default char is ~, so
+// "::~spellbook" and "::~cast 200") and only run for staffModLevel 4 (dev) accounts - this is the
+// engine's own existing generic dev-command mechanism (ServerTriggerType.DEBUGPROC), nothing new was
+// added to ClientCheatHandler.ts for this, it was just never used by any content script yet.
+//
+// ::~cast takes the spell's raw numeric id from spells.constant rather than its name: this rs2 dialect
+// has no confirmed-working string-equality precedent anywhere else in the codebase to safely match a
+// typed spell name against, so an int keeps this on solid ground. The 16 ancient ids (200-215):
+//   200 ice_rush     204 blood_rush     208 smoke_rush     212 shadow_rush
+//   201 ice_burst     205 blood_burst    209 smoke_burst    213 shadow_burst
+//   202 ice_blitz     206 blood_blitz    210 smoke_blitz    214 shadow_blitz
+//   203 ice_barrage   207 blood_barrage  211 smoke_barrage  215 shadow_barrage
+// Attack an npc normally first (so there's an active combat target), then use ::~cast - it casts
+// through the same ~pvm_default_spell entry point a real spellbook click would use, it just skips the
+// (unidentifiable, see the dbrow file's header comment) real ancient spellbook interface component.
+
+[debugproc,cast](int $spell)
+if ($spell < ^ice_rush | $spell > ^shadow_barrage) {
+    mes("Usage: ::~cast <id> - id must be 200-215 (see magic_combat_debug.rs2 for the list).");
+    return;
+}
+if (~npc_is_attackable = false) {
+    mes("You need an active combat target first - attack an npc, then use ::~cast.");
+    return;
+}
+~pvm_default_spell($spell);
+
+// Flips the underlying %spellbook varp (0=normal, 1=ancient). This does NOT swap the client-side
+// spellbook interface - see magic_combat.varp's comment for why - so visually nothing will change; use
+// ::~cast to actually fire ancient spells regardless of which book this says is active.
+[debugproc,spellbook]
+if (%spellbook = 0) {
+    %spellbook = 1;
+    mes("Server-side spellbook state switched to Ancient Magicks. (Client UI does not swap - use ::~cast to cast.)");
+} else {
+    %spellbook = 0;
+    mes("Server-side spellbook state switched to normal.");
+}

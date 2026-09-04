@@ -209,7 +209,9 @@ if (%damagestyle = ^style_melee_defensive) { // check varp directly
     $damagestyle = ^style_magic_defensive; // casting a spell with defensive on gives mage + def xp
 }
 // play spell cast sound
-sound_synth(db_getfield($spell_data, magic_spell_table:sound_cast, 0), 0, 0);
+if (db_getfieldcount($spell_data, magic_spell_table:sound_cast) > 0) {
+    sound_synth(db_getfield($spell_data, magic_spell_table:sound_cast, 0), 0, 0);
+}
 // roll 0-maxhit
 def_int $damage = randominc(min($maxhit, npc_param(max_dealt)));
 if(npc_type = salarin_the_twisted) {
@@ -252,6 +254,21 @@ if ($maxhit ! null) {
     def_int $damage_capped = min($damage, npc_stat(hitpoints));
     ~give_combat_experience($damagestyle, $damage_capped, %npc_combat_xp_multiplier);
     npc_heropoints($damage_capped);
+    // Ancient Magicks - Blood spells heal the caster by heal_percent% of the damage dealt, Smoke spells
+    // have a poison_chance in poison_chance (1-in-N) chance to poison for poison_severity. Data-driven
+    // off the dbrow columns rather than a spell-name switch, so any future spell can opt in via data
+    // alone. No existing hook did either of these before this pass - pvm_spell_success previously only
+    // had bespoke hooks for splash-damage overrides (Salarin/Chronozon/Dagannoth Mother).
+    def_int $heal_percent = db_getfield($spell_data, magic_spell_table:heal_percent, 0);
+    if ($heal_percent > 0 & $damage_capped > 0) {
+        stat_heal(hitpoints, divide(multiply($damage_capped, $heal_percent), 100), 0);
+    }
+    // poison_chance is "1 in N" (8 for all 4 smoke spells, per osrs wiki) - randominc(N-1) gives N
+    // equally likely outcomes (0..N-1), so checking for exactly 0 is a clean 1-in-N roll.
+    def_int $poison_chance = db_getfield($spell_data, magic_spell_table:poison_chance, 0);
+    if ($poison_chance > 0 & $damage_capped > 0 & randominc(sub($poison_chance, 1)) = 0) {
+        ~npc_poison_start(db_getfield($spell_data, magic_spell_table:poison_severity, 0));
+    }
 }
 // spell visual
 if (db_getfieldcount($spell_data, magic_spell_table:sound_hit) > 0) {
@@ -262,7 +279,9 @@ spotanim_npc(db_getfield($spell_data, magic_spell_table:spotanim_target, 0), $du
 
 [proc,pvm_spell_fail](dbrow $spell_data, int $duration)
 // splash
-sound_synth(db_getfield($spell_data, magic_spell_table:sound_cast, 0), 0, 0);
+if (db_getfieldcount($spell_data, magic_spell_table:sound_cast) > 0) {
+    sound_synth(db_getfield($spell_data, magic_spell_table:sound_cast, 0), 0, 0);
+}
 sound_synth(spellfail, 1, $duration);
 spotanim_npc(failedspell_impact, 92, $duration);
 // splashing in osrs causes insta auto retal
