@@ -40,6 +40,7 @@ if (p_finduid(uid) = true) {
         mes("You don't have enough free space to do that.");
         return;
     }
+    ~equip_sound($obj);
     // todo: this needs a better home...
     if (%tutorial < ^tutorial_complete) {
         if (%tutorial = ^newbie_combat_instructor_worn_inventory & $obj = bronze_dagger){
@@ -69,6 +70,51 @@ if (p_finduid(uid) = true) {
     }
 
     ~update_all($previous_weapon);
+}
+
+// Equipping sounds. The cache carries 25 equip_* synths but nothing played them, so
+// wearing anything was silent apart from the elemental shield's own spotanim sound.
+// Picked off oc_category, which this repo already tags weapons and armour with, and
+// falls back to the wearpos for the items that carry no category.
+[proc,equip_sound](obj $obj)
+if ($obj = elemental_shield) {
+    // already plays shield_appear alongside its spotanim - don't double up
+    return;
+}
+def_synth $sound = null;
+switch_category (oc_category($obj)) {
+    case weapon_stab, weapon_slash, weapon_2h_sword : $sound = equip_sword;
+    case weapon_blunt, weapon_crush : $sound = equip_blunt;
+    case weapon_axe, weapon_pickaxe : $sound = equip_axe;
+    case weapon_staff : $sound = equip_staff;
+    case weapon_spear, weapon_spiked, weapon_javelin, weapon_claws, weapon_scythe : $sound = equip_spiked;
+    case weapon_whip : $sound = equip_whip;
+    case weapon_bow, weapon_crossbow, weapon_thrown, arrows : $sound = equip_ranged;
+    case bolts : $sound = equip_bolt;
+    case armour_shield : $sound = equip_shield;
+    case armour_helmet : $sound = equip_helmet;
+    case armour_body : $sound = equip_body;
+    case armour_legs : $sound = equip_legs;
+    case armour_feet : $sound = equip_feet;
+    case armour_hands : $sound = equip_hands;
+    case armour_cape, armour_godcape : $sound = equip_leather;
+}
+if ($sound = null) {
+    // no category on this obj - fall back to the slot it goes in
+    switch_int (oc_wearpos($obj)) {
+        case ^wearpos_hat : $sound = equip_helmet;
+        case ^wearpos_torso, ^wearpos_arms : $sound = equip_body;
+        case ^wearpos_legs : $sound = equip_legs;
+        case ^wearpos_feet : $sound = equip_feet;
+        case ^wearpos_hands : $sound = equip_hands;
+        case ^wearpos_lhand : $sound = equip_shield;
+        case ^wearpos_rhand : $sound = equip_sword;
+        case ^wearpos_quiver : $sound = equip_ranged;
+        case ^wearpos_back : $sound = equip_leather;
+    }
+}
+if ($sound ! null) {
+    sound_synth($sound, 1, 0);
 }
 
 [proc,unequip](int $slot)

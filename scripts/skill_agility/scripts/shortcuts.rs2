@@ -350,19 +350,23 @@ mes("You climb over the wall.");
 // part of the Dwarven Mine". Same cross-to-the-other-side shape as the crumbling wall above.
 // human_pipesqueeze is the closest real squeeze animation in the cache (the pipe set is the only
 // one); swap it if a dedicated crevice animation ever turns up.
+// The crevice is a PAIR of loc_9325 tiles - m47_153 local (21,14) and (26,14) - so the
+// exit is not one tile off whichever half was clicked. It is the far end of the whole
+// passage: west lands at 20,14 and east at 27,14. Deriving it from loc_coord dropped you
+// at 25,14, still inside the rocks.
 [oploc1,loc_9325]
 if (stat(agility) < 42) {
     ~mesbox("You need an Agility level of 42 to squeeze through the crevice.");
     return;
 }
-if (coordx(coord) > coordx(loc_coord)) {
-    def_coord $end_coord = movecoord(loc_coord, -1, 0, 0);
-    ~agility_exactmove(human_pipesqueeze, 20, 0, coord, $end_coord, 45, 70, ^exact_west, true);
-    p_teleport($end_coord);
+def_coord $west_exit = 0_47_153_20_14;
+def_coord $east_exit = 0_47_153_27_14;
+if (coordx(coord) > coordx($west_exit)) {
+    ~agility_exactmove(human_pipesqueeze, 20, 0, coord, $west_exit, 45, 70, ^exact_west, true);
+    p_teleport($west_exit);
 } else {
-    def_coord $end_coord = movecoord(loc_coord, 1, 0, 0);
-    ~agility_exactmove(human_pipesqueeze, 20, 0, coord, $end_coord, 45, 70, ^exact_east, true);
-    p_teleport($end_coord);
+    ~agility_exactmove(human_pipesqueeze, 20, 0, coord, $east_exit, 45, 70, ^exact_east, true);
+    p_teleport($east_exit);
 }
 sound_synth(squeeze_through_rocks, 1, 0);
 mes("You squeeze through the crevice.");
