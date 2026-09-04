@@ -9,12 +9,12 @@ if (~npc_is_attackable = false) { // test: wormbrain's special mes shows before 
 }
 def_dbrow $spell_data = ~get_spell_data(%autocast_spell);
 if (~check_spell_requirements($spell_data) = false) {
-    if (%autocast_spell = db_getfield($spell_data, magic_spell_table:spell, 0)) { // matches osrs behavior
+    if (%autocast_spell = db_getfield($spell_data, magic_combat_spell_table:spell, 0)) { // matches osrs behavior
         ~player_autocast_reset;
     }
     return;
 }
-p_opnpct(db_getfield($spell_data, magic_spell_table:spellcom, 0));
+p_opnpct(db_getfield($spell_data, magic_combat_spell_table:spellcom, 0));
 
 // osrs's opnpct triggers are unused
 [apnpct,magic:wind_strike]
@@ -99,11 +99,11 @@ if (~player_npc_hit_roll(^magic_style) = true) {
 if_close;
 p_stopaction;
 if (map_clock < %action_delay) {
-    p_opnpct(db_getfield($spell_data, magic_spell_table:spellcom, 0));
+    p_opnpct(db_getfield($spell_data, magic_combat_spell_table:spellcom, 0));
     return(false);
 }
 if (~check_spell_requirements($spell_data) = false) {
-    if (%autocast_spell = db_getfield($spell_data, magic_spell_table:spell, 0)) { // matches osrs behavior
+    if (%autocast_spell = db_getfield($spell_data, magic_combat_spell_table:spell, 0)) { // matches osrs behavior
         ~player_autocast_reset;
     }
     return(false);
@@ -119,9 +119,9 @@ return(true);
 
 [proc,pvm_freeze_allowed](dbrow $spell_data)(boolean)
 // check if npc is already frozen
-if (db_getfield($spell_data, magic_spell_table:freeze_time, 0) > 0) {
+if (db_getfield($spell_data, magic_combat_spell_table:freeze_time, 0) > 0) {
     if (npc_category = castlewars_barricade) {
-        switch_int (db_getfield($spell_data, magic_spell_table:spell, 0)) {
+        switch_int (db_getfield($spell_data, magic_combat_spell_table:spell, 0)) {
             case ^snare : mes("You can't snare that."); // osrs
             case ^bind : mes("You can't bind that."); // osrs 
             case ^entangle : mes("You can't entangle that."); // guess
@@ -150,13 +150,13 @@ def_int $constant;
 def_int $percent;
 def_npc_stat $npc_stat;
 def_int $i = 0;
-def_int $spell = db_getfield($spell_data, magic_spell_table:spell, 0);
-while ($i < db_getfieldcount($spell_data, magic_spell_table:stat_change) & $spell ! ^flames_of_zamorak & $spell ! ^claws_of_guthix & $spell ! ^saradomin_strike) {
+def_int $spell = db_getfield($spell_data, magic_combat_spell_table:spell, 0);
+while ($i < db_getfieldcount($spell_data, magic_combat_spell_table:stat_change) & $spell ! ^flames_of_zamorak & $spell ! ^claws_of_guthix & $spell ! ^saradomin_strike) {
     if (npc_category = castlewars_barricade) {
         mes("You can't weaken that.");
         return (false);
     }
-    $stat, $constant, $percent = db_getfield($spell_data, magic_spell_table:stat_change, $i);
+    $stat, $constant, $percent = db_getfield($spell_data, magic_combat_spell_table:stat_change, $i);
     $npc_stat = ~convert_stat_to_npc_stat($stat);
     if (npc_stat($npc_stat) < npc_basestat($npc_stat)) {
         // in osrs, confuse and weaken spell have a different message
@@ -181,23 +181,23 @@ return(true);
 // so maybe jagex did it this way?
 
 // spell anim
-anim(db_getfield($spell_data, magic_spell_table:anim, 0), 0);
+anim(db_getfield($spell_data, magic_combat_spell_table:anim, 0), 0);
 // player spell visual effect
-if (db_getfieldcount($spell_data, magic_spell_table:spotanim_origin) > 0) {
-    spotanim_pl(db_getfield($spell_data, magic_spell_table:spotanim_origin, 0), 92, 0);
+if (db_getfieldcount($spell_data, magic_combat_spell_table:spotanim_origin) > 0) {
+    spotanim_pl(db_getfield($spell_data, magic_combat_spell_table:spotanim_origin, 0), 92, 0);
 }
 // shoot spell projectile
 %action_delay = add(map_clock, 5);
 def_int $duration = 0;
-if (db_getfieldcount($spell_data, magic_spell_table:spotanim_proj) > 0) {
-    $duration = ~npc_projectile(coord, npc_uid, db_getfield($spell_data, magic_spell_table:spotanim_proj, 0));
+if (db_getfieldcount($spell_data, magic_combat_spell_table:spotanim_proj) > 0) {
+    $duration = ~npc_projectile(coord, npc_uid, db_getfield($spell_data, magic_combat_spell_table:spotanim_proj, 0));
 }
 // OSRS:
 // only continue fighting if auto cast is turned on
 // freezes, and stat reductions dont continue ever, even if you have autocast enabled.
 // crumble undead continues autocast for some reason
-if (~player_autocast_enabled = true & db_getfield($spell_data, magic_spell_table:continue_by_autocast, 0) = true) {
-    p_opnpct(db_getfield(~get_spell_data(%autocast_spell), magic_spell_table:spellcom, 0));
+if (~player_autocast_enabled = true & db_getfield($spell_data, magic_combat_spell_table:continue_by_autocast, 0) = true) {
+    p_opnpct(db_getfield(~get_spell_data(%autocast_spell), magic_combat_spell_table:spellcom, 0));
 }
 return($duration);
 
@@ -209,13 +209,13 @@ if (%damagestyle = ^style_melee_defensive) { // check varp directly
     $damagestyle = ^style_magic_defensive; // casting a spell with defensive on gives mage + def xp
 }
 // play spell cast sound
-if (db_getfieldcount($spell_data, magic_spell_table:sound_cast) > 0) {
-    sound_synth(db_getfield($spell_data, magic_spell_table:sound_cast, 0), 0, 0);
+if (db_getfieldcount($spell_data, magic_combat_spell_table:sound_cast) > 0) {
+    sound_synth(db_getfield($spell_data, magic_combat_spell_table:sound_cast, 0), 0, 0);
 }
 // roll 0-maxhit
 def_int $damage = randominc(min($maxhit, npc_param(max_dealt)));
 if(npc_type = salarin_the_twisted) {
-    def_int $spell = db_getfield($spell_data, magic_spell_table:spell, 0);
+    def_int $spell = db_getfield($spell_data, magic_combat_spell_table:spell, 0);
     // strike spells are the only way to damage salarin the twisted, the damage is fixed 9-12
     switch_int ($spell) {
         case ^wind_strike : $damage = 9;
@@ -225,7 +225,7 @@ if(npc_type = salarin_the_twisted) {
     }
 }
 else if (npc_type = chronozon) {
-    def_int $spell = db_getfield($spell_data, magic_spell_table:spell, 0);
+    def_int $spell = db_getfield($spell_data, magic_combat_spell_table:spell, 0);
     ~chronozon_spell($spell);
 }
 // Horror from the Deep - Dagannoth Mother (quest_horror): during an elemental phase, only the
@@ -233,7 +233,7 @@ else if (npc_type = chronozon) {
 // wind strike/bolt/blast/wave); during her melee/ranged-weakness phases, magic is blocked entirely.
 // ~dagmother_spell_matches_phase is defined in quests/quest_horror/scripts/quest_horror_combat.rs2.
 else if (npc_type = horror_dagganoth_air | npc_type = horror_dagganoth_water | npc_type = horror_dagganoth_earth | npc_type = horror_dagganoth_fire | npc_type = horror_dagganoth_ranged | npc_type = horror_dagganoth_melee) {
-    def_int $spell = db_getfield($spell_data, magic_spell_table:spell, 0);
+    def_int $spell = db_getfield($spell_data, magic_combat_spell_table:spell, 0);
     if (~dagmother_spell_matches_phase($spell) = false) {
         $damage = 0;
     }
@@ -259,28 +259,28 @@ if ($maxhit ! null) {
     // off the dbrow columns rather than a spell-name switch, so any future spell can opt in via data
     // alone. No existing hook did either of these before this pass - pvm_spell_success previously only
     // had bespoke hooks for splash-damage overrides (Salarin/Chronozon/Dagannoth Mother).
-    def_int $heal_percent = db_getfield($spell_data, magic_spell_table:heal_percent, 0);
+    def_int $heal_percent = db_getfield($spell_data, magic_combat_spell_table:heal_percent, 0);
     if ($heal_percent > 0 & $damage_capped > 0) {
         stat_heal(hitpoints, divide(multiply($damage_capped, $heal_percent), 100), 0);
     }
     // poison_chance is "1 in N" (8 for all 4 smoke spells, per osrs wiki) - randominc(N-1) gives N
     // equally likely outcomes (0..N-1), so checking for exactly 0 is a clean 1-in-N roll.
-    def_int $poison_chance = db_getfield($spell_data, magic_spell_table:poison_chance, 0);
+    def_int $poison_chance = db_getfield($spell_data, magic_combat_spell_table:poison_chance, 0);
     if ($poison_chance > 0 & $damage_capped > 0 & randominc(sub($poison_chance, 1)) = 0) {
-        ~npc_poison_start(db_getfield($spell_data, magic_spell_table:poison_severity, 0));
+        ~npc_poison_start(db_getfield($spell_data, magic_combat_spell_table:poison_severity, 0));
     }
 }
 // spell visual
-if (db_getfieldcount($spell_data, magic_spell_table:sound_hit) > 0) {
-    sound_synth(db_getfield($spell_data, magic_spell_table:sound_hit, 0), 0, $duration);
+if (db_getfieldcount($spell_data, magic_combat_spell_table:sound_hit) > 0) {
+    sound_synth(db_getfield($spell_data, magic_combat_spell_table:sound_hit, 0), 0, $duration);
 }
-spotanim_npc(db_getfield($spell_data, magic_spell_table:spotanim_target, 0), $duration);
+spotanim_npc(db_getfield($spell_data, magic_combat_spell_table:spotanim_target, 0), $duration);
 
 
 [proc,pvm_spell_fail](dbrow $spell_data, int $duration)
 // splash
-if (db_getfieldcount($spell_data, magic_spell_table:sound_cast) > 0) {
-    sound_synth(db_getfield($spell_data, magic_spell_table:sound_cast, 0), 0, 0);
+if (db_getfieldcount($spell_data, magic_combat_spell_table:sound_cast) > 0) {
+    sound_synth(db_getfield($spell_data, magic_combat_spell_table:sound_cast, 0), 0, 0);
 }
 sound_synth(spellfail, 1, $duration);
 spotanim_npc(failedspell_impact, 92, $duration);
@@ -294,8 +294,8 @@ def_int $constant;
 def_int $percent;
 def_npc_stat $npc_stat;
 def_int $i = 0;
-while ($i < db_getfieldcount($spell_data, magic_spell_table:stat_change)) {
-    $stat, $constant, $percent = db_getfield($spell_data, magic_spell_table:stat_change, $i);
+while ($i < db_getfieldcount($spell_data, magic_combat_spell_table:stat_change)) {
+    $stat, $constant, $percent = db_getfield($spell_data, magic_combat_spell_table:stat_change, $i);
     $npc_stat = ~convert_stat_to_npc_stat($stat);
     if (npc_stat($npc_stat) >= npc_basestat($npc_stat)) {
         if ($constant > 0 & $percent > 0) {
@@ -312,8 +312,8 @@ while ($i < db_getfieldcount($spell_data, magic_spell_table:stat_change)) {
 
 [proc,pvm_freeze_effect](dbrow $spell_data)
 // freeze npc if spell has freeze effect
-if (db_getfield($spell_data, magic_spell_table:freeze_time, 0) > 0) {
-    %npc_stunned = calc(map_clock + db_getfield($spell_data, magic_spell_table:freeze_time, 0) + 1);
+if (db_getfield($spell_data, magic_combat_spell_table:freeze_time, 0) > 0) {
+    %npc_stunned = calc(map_clock + db_getfield($spell_data, magic_combat_spell_table:freeze_time, 0) + 1);
     npc_walktrigger(8, 0);
 }
 

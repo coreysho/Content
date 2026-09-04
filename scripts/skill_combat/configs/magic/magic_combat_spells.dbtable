@@ -1,5 +1,5 @@
 // The data table that player_magic.rs2 / npc_combat_magic.rs2 have always been written to read from
-// (see the ~get_spell_data proc and every db_getfield(..., magic_spell_table:X, ...) call in those two
+// (see the ~get_spell_data proc and every db_getfield(..., magic_combat_spell_table:X, ...) call in those two
 // files) but which never actually existed anywhere in the repo - see claude/ancient-magicks.md for the
 // full writeup. This was silently broken for EVERY combat spell (Wallasalki's water wave included), not
 // just the new Ancient Magicks ones added alongside it.
@@ -11,9 +11,10 @@
 // there. spellcom is only ever read for autocast re-triggering (continue_by_autocast=true rows), so the
 // ancient rows all set continue_by_autocast to false and are cast directly via ~pvm_default_spell
 // (either from a real apnpct trigger for normal spells, or the ::cast dev command for ancients).
-[magic_spell_table]
+[magic_combat_spell_table]
 column=spell,int,INDEXED,REQUIRED
 column=spellcom,component
+column=name,string
 column=level,int,REQUIRED
 column=xp,int,REQUIRED
 column=maxhit,int,REQUIRED

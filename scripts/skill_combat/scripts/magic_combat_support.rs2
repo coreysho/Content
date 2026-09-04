@@ -9,11 +9,11 @@
 // ============================================================
 
 [proc,get_spell_data](int $spell)(dbrow)
-db_find(magic_spell_table:spell, $spell);
+db_find(magic_combat_spell_table:spell, $spell);
 return(db_findnext);
 
 [proc,check_spell_requirements](dbrow $spell_data)(boolean)
-def_int $level = db_getfield($spell_data, magic_spell_table:level, 0);
+def_int $level = db_getfield($spell_data, magic_combat_spell_table:level, 0);
 if (stat(magic) < $level) {
     mes("You need a Magic level of <tostring($level)> to cast this spell.");
     return(false);
@@ -21,8 +21,8 @@ if (stat(magic) < $level) {
 def_int $i = 0;
 def_namedobj $rune;
 def_int $count;
-while ($i < db_getfieldcount($spell_data, magic_spell_table:rune)) {
-    $rune, $count = db_getfield($spell_data, magic_spell_table:rune, $i);
+while ($i < db_getfieldcount($spell_data, magic_combat_spell_table:rune)) {
+    $rune, $count = db_getfield($spell_data, magic_combat_spell_table:rune, $i);
     if (~player_infinite_rune($rune) = false & inv_total(inv, $rune) < $count) {
         mes("You do not have enough runes to cast this spell.");
         return(false);
@@ -35,8 +35,8 @@ return(true);
 def_int $i = 0;
 def_namedobj $rune;
 def_int $count;
-while ($i < db_getfieldcount($spell_data, magic_spell_table:rune)) {
-    $rune, $count = db_getfield($spell_data, magic_spell_table:rune, $i);
+while ($i < db_getfieldcount($spell_data, magic_combat_spell_table:rune)) {
+    $rune, $count = db_getfield($spell_data, magic_combat_spell_table:rune, $i);
     if (~player_infinite_rune($rune) = false) {
         inv_del(inv, $rune, $count);
     }
@@ -61,10 +61,10 @@ if ($rune = airrune) {
 return(false);
 
 [proc,magic_spell_maxhit](dbrow $spell_data)(int)
-return(db_getfield($spell_data, magic_spell_table:maxhit, 0));
+return(db_getfield($spell_data, magic_combat_spell_table:maxhit, 0));
 
 [proc,give_spell_xp](dbrow $spell_data)
-stat_advance(magic, db_getfield($spell_data, magic_spell_table:xp, 0));
+stat_advance(magic, db_getfield($spell_data, magic_combat_spell_table:xp, 0));
 
 // ============================================================
 // Autocast state. %autocast_spell/%damagestyle are read throughout player_magic.rs2 already (see
