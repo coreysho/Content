@@ -1,0 +1,106 @@
+// Tindel Marchant, Port Khazard (Corey, 2026-09-05).
+//
+// He was already in the cache and already spawned on the southern dock at (2678, 3153), declaring
+// op1=Talk-to AND op3=Sword give - and absolutely nothing referenced him, so both options were
+// dead. He cleans up a rusty sword or scimitar for 100gp and hands back whatever was under the
+// rust, which is usually worth rather less than the fee.
+//
+// Both rusty items exist: digsitesword ("Rusty sword", from the Digsite, H.A.M. and the Fishing
+// Trawler) and deal_rusty_scimitar ("Rusty scimitar", from Rum Deal's zombie pirates).
+//
+// The outcome tables are the published ones, out of 100. They are modern OSRS figures - the 2006
+// probabilities were never datamined - but the item lists and the 100gp fee are era-correct.
+// The fee constant lives in tindel.constant.
+
+[opnpc1,tindel_marchant]
+~chatnpc("<p,happy>Hello there! I'm Tindel Marchant, weapons expert.");
+~chatnpc("<p,neutral>If you find any old rusty weapons, bring them to me. For a small fee I'll clean them up and see what's underneath.");
+def_int $choice = ~p_choice2("I've got something for you.", 1, "I'll bear that in mind.", 2);
+if ($choice ! 1) {
+    ~chatplayer("<p,neutral>I'll bear that in mind.");
+    return;
+}
+~tindel_offer;
+
+[opnpc3,tindel_marchant]
+~tindel_offer;
+
+[opnpcu,tindel_marchant]
+def_obj $item = last_useitem;
+if ($item ! digsitesword & $item ! deal_rusty_scimitar) {
+    ~chatnpc("<p,neutral>There's nothing I can do with that, I'm afraid.");
+    return;
+}
+~tindel_offer;
+
+// Deals with whichever rusty item the player is carrying. Swords first, since that is the common one.
+[proc,tindel_offer]
+if (inv_total(inv, digsitesword) > 0) {
+    ~tindel_clean(digsitesword, "sword");
+    return;
+}
+if (inv_total(inv, deal_rusty_scimitar) > 0) {
+    ~tindel_clean(deal_rusty_scimitar, "scimitar");
+    return;
+}
+~chatnpc("<p,neutral>You haven't got anything rusty for me to look at.");
+
+[proc,tindel_clean](namedobj $rusty, string $kind)
+~chatnpc(append(append("<p,quiz>A rusty ", $kind), append(append("! I can clean that up for you, for ", tostring(^tindel_fee)), " coins. Interested?")));
+def_int $choice = ~p_choice2("Yes please.", 1, "No thanks.", 2);
+if ($choice ! 1) {
+    ~chatplayer("<p,neutral>No thanks.");
+    return;
+}
+if (inv_total(inv, coins) < ^tindel_fee) {
+    ~chatnpc(append(append("<p,sad>You don't have ", tostring(^tindel_fee)), " coins."));
+    return;
+}
+// Re-check both sides: the dialogue was open, things could have moved.
+if (inv_total(inv, $rusty) < 1) {
+    return;
+}
+inv_del(inv, coins, ^tindel_fee);
+inv_del(inv, $rusty, 1);
+~chatnpc("<p,neutral>Let's have a look at this...");
+
+def_namedobj $result = null;
+def_int $count = 1;
+if ($rusty = digsitesword) {
+    $result, $count = ~tindel_roll_sword;
+} else {
+    $result, $count = ~tindel_roll_scimitar;
+}
+if ($result = null) {
+    ~chatnpc("<p,sad>Ah. There was nothing left under all that rust, sorry. I'll keep it for the collection.");
+    return;
+}
+~chatnpc(append(append("<p,happy>There we go - a ", lowercase(oc_name($result))), ", good as new."));
+inv_add(inv, $result, $count);
+
+// Published rusty sword table, out of 100.
+[proc,tindel_roll_sword]()(namedobj, int)
+def_int $roll = random(100);
+if ($roll < 37) { return(iron_longsword, 1); }
+if ($roll < 57) { return(iron_sword, 1); }
+if ($roll < 74) { return(bronze_sword, 1); }
+if ($roll < 81) { return(bronze_longsword, 1); }
+if ($roll < 87) { return(steel_sword, 1); }
+if ($roll < 91) { return(steel_longsword, 1); }
+if ($roll < 94) { return(black_sword, 1); }
+if ($roll < 96) { return(black_longsword, 1); }
+if ($roll < 97) { return(mithril_sword, 1); }
+if ($roll < 98) { return(mithril_longsword, 1); }
+if ($roll < 99) { return(coins, add(1500, random(500))); }
+return(null, 0);
+
+// Published rusty scimitar table, out of 100.
+[proc,tindel_roll_scimitar]()(namedobj, int)
+def_int $roll = random(100);
+if ($roll < 57) { return(iron_scimitar, 1); }
+if ($roll < 81) { return(bronze_scimitar, 1); }
+if ($roll < 91) { return(steel_scimitar, 1); }
+if ($roll < 96) { return(black_scimitar, 1); }
+if ($roll < 98) { return(mithril_scimitar, 1); }
+if ($roll < 99) { return(coins, add(1500, random(500))); }
+return(null, 0);

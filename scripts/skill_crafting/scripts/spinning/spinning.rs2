@@ -1,56 +1,129 @@
+// Spinning wheel (Corey, 2026-09-05).
+//
+// The wheel's own loc def has carried op2=Spin since the 377 cache and nothing handled it, so the
+// only way to use one was to drag wool or flax onto it, one item at a time. It now opens the real
+// "What would you like to make?" panel with Make X / 10 / 5 / 1.
+//
+// That panel needed a fix of its own first. skillmulti2..5 in interface_chat/scripts/chat.rs2 had
+// their whole switch_component written but never registered any resume buttons, so p_pausebutton
+// had nothing to wake it - which is what the "only skillmulti1 works for now" comment was about.
+// Registering the buttons the switch already handles fixes every make-x menu in the codebase, not
+// just this one.
+//
+// The menu is built from what the player is actually carrying, so it shows one, two or three
+// products and picks the matching interface. The panel shows PRODUCTS (a ball of wool, a bow
+// string), which is why there is a product -> ingredient map: the crafting data is keyed on the
+// ingredient via crafting_spinning_struct.
+
+[oploc2,spinningwheel] ~spinning_menu;
+
 [oplocu,spinningwheel]
-switch_obj (last_useitem) 
+switch_obj (last_useitem)
 {
-    case wool : @craft_spinning(last_useitem);
-    case flax :
-        if (map_members = ^false) {
-            mes(^mes_members_feature);
-            return;
-        }
-        @craft_spinning(last_useitem);
+    case wool : ~spinning_menu;
+    case flax : ~spinning_menu;
+    case magic_roots : ~spinning_menu;
     case ball_of_wool : ~objbox(ball_of_wool, "You have already spun this wool.", 250, 0, divide(^objbox_height, 2));
     case bow_string : ~objbox(bow_string, "You have already spun this bow string.", 250, 0, divide(^objbox_height, 2));
+    case magic_string : ~objbox(magic_string, "You have already spun these magic roots.", 250, 0, divide(^objbox_height, 2));
     case default : ~displaymessage(^dm_default);
 };
 
-[label,craft_spinning](obj $spinning_obj)
-def_struct $struct = oc_param($spinning_obj, crafting_spinning_struct);
-// check if we have the required level
+[proc,spinning_menu]
+def_namedobj $o1 = null;
+def_namedobj $o2 = null;
+def_namedobj $o3 = null;
+def_int $n = 0;
+if (inv_total(inv, wool) > 0) {
+    $o1 = ball_of_wool;
+    $n = 1;
+}
+if (inv_total(inv, flax) > 0) {
+    if ($n = 0) {
+        $o1 = bow_string;
+    } else {
+        $o2 = bow_string;
+    }
+    $n = add($n, 1);
+}
+if (inv_total(inv, magic_roots) > 0) {
+    if ($n = 0) {
+        $o1 = magic_string;
+    } else if ($n = 1) {
+        $o2 = magic_string;
+    } else {
+        $o3 = magic_string;
+    }
+    $n = add($n, 1);
+}
+
+if ($n = 0) {
+    mes("You have nothing you can spin.");
+    return;
+}
+
+def_namedobj $product = null;
+def_int $count = 0;
+if ($n = 1) {
+    $product, $count = ~skillmulti1($o1);
+} else if ($n = 2) {
+    $product, $count = ~skillmulti2($o1, $o2);
+} else {
+    $product, $count = ~skillmulti3($o1, $o2, $o3);
+}
+if ($product = null | $count < 1) {
+    return;
+}
+~craft_spinning_batch($product, $count);
+
+// The panel offers products; the crafting data hangs off the ingredient.
+[proc,spinning_ingredient](obj $product)(namedobj)
+switch_obj ($product) {
+    case ball_of_wool : return(wool);
+    case bow_string : return(flax);
+    case magic_string : return(magic_roots);
+    case default : return(null);
+}
+return(null);
+
+[proc,craft_spinning_batch](obj $product, int $count)
+def_namedobj $ingredient = ~spinning_ingredient($product);
+if ($ingredient = null) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if ($ingredient ! wool & map_members = ^false) {
+    mes(^mes_members_feature);
+    return;
+}
+def_struct $struct = oc_param($ingredient, crafting_spinning_struct);
 def_int $level = struct_param($struct, levelrequire);
 if (stat(crafting) < $level) {
     ~mesbox("You need level <tostring($level)> Crafting to make that.");
     return;
 }
-// macro event
 if (afk_event = ^true) {
     ~macro_event_general_spawn(~macro_event_set_random);
     return;
 }
-// play human animation
-anim(human_spinningwheel, 0);
+
+// One loc_anim before the loop rather than one per item: the active loc reference is not worth
+// relying on after a p_delay, and the player animation carries the rest.
 loc_anim(spinningwheel);
-sound_synth(spinning, 1, 0);
-inv_del(inv, struct_param($struct, ingredient), 1);
-inv_add(inv, struct_param($struct, product), 1);
-mes(struct_param($struct, processmessage));
-stat_advance(crafting, struct_param($struct, productexp));
-p_delay(3);
-//weakqueue(crafting_spinning, 2, $struct);
 
-/**
-//May have not used weakqueue for this back then https://youtu.be/eQEYx8hwA_I?t=410
-// todo flax spinning must have been queue because of 2 diff messages: https://youtu.be/HQEpeWAUMbI?t=51
-// todo one for in queue and one out of queue. -jordan
-[weakqueue,crafting_spinning](struct $struct)
-// delete item
-inv_del(inv, struct_param($struct, ingredient), 1);
-
-// add item
-inv_add(inv, struct_param($struct, product), 1);
-// display game message
-mes(struct_param($struct, processmessage));
-
-stat_advance(crafting, struct_param($struct, productexp));
-*/
-
-
+def_int $made = 0;
+while ($made < $count & inv_total(inv, $ingredient) > 0) {
+    anim(human_spinningwheel, 0);
+    sound_synth(spinning, 1, 0);
+    p_delay(3);
+    if (inv_total(inv, $ingredient) < 1) {
+        $made = $count;
+    } else {
+        inv_del(inv, $ingredient, 1);
+        inv_add(inv, struct_param($struct, product), 1);
+        mes(struct_param($struct, processmessage));
+        stat_advance(crafting, struct_param($struct, productexp));
+        $made = add($made, 1);
+    }
+}
+anim(null, 0);

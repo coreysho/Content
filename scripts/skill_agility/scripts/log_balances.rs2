@@ -1,0 +1,76 @@
+// The two log-balance shortcuts that were in the cache but never wired up (Corey, 2026-09-05).
+//
+// There are FOUR "Log balance" locs in the 377 cache and they are easy to confuse. The examine text
+// is what tells them apart:
+//
+//   loc_2296              "A slippery log I can walk across."     Coal Trucks, agility 20
+//                         - already implemented in shortcuts.rs2, and NOT the one in the bug report
+//   loc_9328/9329/9330    "A slippery well worn log."             East Ardougne, agility 33
+//   loc_9322/9323/9324    "The foam from the river makes this log very slippy."
+//                                                                 Fremennik Province, agility 48
+//   gnome/barbarian/wilderness_log_balance                        course obstacles, not shortcuts
+//
+// The Ardougne one crosses the River Dougne inside East Ardougne itself and nothing referenced it.
+// The Fremennik one (north of Sinclair Mansion) was equally dead, so it is done here too.
+//
+// Both are three tiles wide with a bank either side. Like every other log and bridge in this cache
+// they are stored on plane 1, which is why every coordinate below is derived from loc_coord with
+// movecoord rather than written out - that keeps the plane whatever the map says it is, the same
+// way the working Coal Trucks handler does it.
+//
+// No fail chance. The real East Ardougne log can be failed for 2-6 damage, but that needs a
+// specific in-river tile to wash the player up from and guessing one would be worse than leaving it
+// out. Worth adding once the coordinate is confirmed in game.
+
+// ---------------------------------------------------------------- East Ardougne (agility 33)
+// Logs at x=2599..2601, z=3336. Centre tile x=2600.
+[oploc1,loc_9328] ~log_balance_x(2600, 33, 40);
+[oploc1,loc_9329] ~log_balance_x(2600, 33, 40);
+[oploc1,loc_9330] ~log_balance_x(2600, 33, 40);
+
+// ---------------------------------------------------------------- Fremennik Province (agility 48)
+// Logs at x=2722, z=3593..3595. Centre tile z=3594.
+[oploc1,loc_9322] ~log_balance_z(3594, 48, 40);
+[oploc1,loc_9323] ~log_balance_z(3594, 48, 40);
+[oploc1,loc_9324] ~log_balance_z(3594, 48, 40);
+
+// $centre is the middle log tile's x (or z). The player starts on whichever bank they are already
+// nearest, so one handler serves both directions and all three log tiles behave identically.
+[proc,log_balance_x](int $centre, int $level, int $xp)
+if (stat(agility) < $level) {
+    ~mesbox("You need an Agility level of <tostring($level)> to balance on this log.");
+    return;
+}
+def_int $dir = 1;
+if (coordx(coord) > $centre) {
+    $dir = -1;
+}
+def_int $offset = sub($centre, coordx(loc_coord));
+~log_balance_cross(
+    movecoord(loc_coord, add($offset, multiply(-2, $dir)), 0, 0),
+    movecoord(loc_coord, add($offset, multiply(2, $dir)), 0, 0),
+    $xp);
+
+[proc,log_balance_z](int $centre, int $level, int $xp)
+if (stat(agility) < $level) {
+    ~mesbox("You need an Agility level of <tostring($level)> to balance on this log.");
+    return;
+}
+def_int $dir = 1;
+if (coordz(coord) > $centre) {
+    $dir = -1;
+}
+def_int $offset = sub($centre, coordz(loc_coord));
+~log_balance_cross(
+    movecoord(loc_coord, 0, 0, add($offset, multiply(-2, $dir))),
+    movecoord(loc_coord, 0, 0, add($offset, multiply(2, $dir))),
+    $xp);
+
+[proc,log_balance_cross](coord $start, coord $end, int $xp)
+p_teleport($start);
+p_arrivedelay;
+mes("You walk carefully across the slippery log...");
+sound_synth(log_balance, 2, 0);
+// agility_force_move walks the whole span with the log-balance gait and resets the bas afterwards.
+~agility_force_move($xp, human_walk_logbalance, $end);
+mes("...You make it safely to the other side.");

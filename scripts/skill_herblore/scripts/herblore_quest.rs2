@@ -1,0 +1,18 @@
+// Druidic Ritual gate for Herblore (Corey, 2026-09-05).
+//
+// A note on authenticity, because this is a deliberate departure. In 2006 there was no explicit
+// quest check on Herblore actions - identify.rs2 still carries the comment "early osrs had no
+// druidic ritual check. This is how level 2 herblore accounts were possible". The block was
+// implicit and worked by arithmetic: you start at Herblore 1, the cheapest action (cleaning a guam)
+// needs 3, and Druidic Ritual grants exactly 250 xp, which is level 3. The one way to reach level 3
+// without the quest was an xp lamp, and lamps ARE quest-gated (see general/scripts/xplamp).
+//
+// Corey chose the explicit check, which is how modern OSRS does it: clearer to the player, and it
+// closes the hole if any future xp source lands Herblore levels some other way.
+
+[proc,herblore_requires_druidic_ritual]()(boolean)
+if (%druidquest < ^druid_complete) {
+    mes("You need to complete the Druidic Ritual quest before you can use the Herblore skill.");
+    return(false);
+}
+return(true);

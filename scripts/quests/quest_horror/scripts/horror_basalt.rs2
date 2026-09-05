@@ -1,0 +1,74 @@
+// Basalt rocks - the causeway out to the lighthouse (Corey, 2026-09-05).
+//
+// Ten locs named "Basalt rock" (horror_jumping_spot1..10), all placed on plane 1 around the north
+// side of the lighthouse island, each already carrying op1=Jump-across and the examine "I can jump
+// off this one." Nothing in the repo referenced any of them, so every one of those right-click
+// options was dead.
+//
+// They are not a single line of stones. The map places two separate chains:
+//   spots 1-4   x=2522, z=3595 / 3597 / 3600 / 3602
+//   spots 5-10  (2518,3611) (2516,3611) then x=2514, z=3613 / 3615 / 3617 / 3619
+// so the player hops rock to rock by clicking the next one, which is how the obstacle actually
+// works - you jump ONTO the rock you clicked.
+//
+// There is no Agility level requirement in 2006; it is a chance-based obstacle that gets reliable
+// somewhere around level 35, and the middle rocks of a chain cannot be failed at all. Failing drops
+// you in the water for a few points of damage. That matches the wiki and the cache (none of the ten
+// locs carries a level param).
+
+[oploc1,horror_jumping_spot1]  ~horror_basalt_jump(false);
+[oploc1,horror_jumping_spot2]  ~horror_basalt_jump(false);
+[oploc1,horror_jumping_spot3]  ~horror_basalt_jump(true);
+[oploc1,horror_jumping_spot4]  ~horror_basalt_jump(false);
+[oploc1,horror_jumping_spot5]  ~horror_basalt_jump(false);
+[oploc1,horror_jumping_spot6]  ~horror_basalt_jump(false);
+[oploc1,horror_jumping_spot7]  ~horror_basalt_jump(true);
+[oploc1,horror_jumping_spot8]  ~horror_basalt_jump(true);
+[oploc1,horror_jumping_spot9]  ~horror_basalt_jump(false);
+[oploc1,horror_jumping_spot10] ~horror_basalt_jump(false);
+
+// $safe marks the centremost rocks of each chain, which cannot be failed.
+[proc,horror_basalt_jump](boolean $safe)
+if (coord = loc_coord) {
+    mes("You can't do that from here.");
+    return;
+}
+def_int $dx = sub(coordx(loc_coord), coordx(coord));
+def_int $dz = sub(coordz(loc_coord), coordz(coord));
+
+// Refuse a jump from too far away rather than letting the player teleport across the whole bay by
+// clicking the last rock in the chain.
+if (add(~abs_value($dx), ~abs_value($dz)) > 4) {
+    mes("You need to be closer to jump to that rock.");
+    return;
+}
+
+def_int $dir = ^exact_north;
+if ($dz < 0) {
+    $dir = ^exact_south;
+} else if ($dz = 0) {
+    $dir = ^exact_east;
+    if ($dx < 0) {
+        $dir = ^exact_west;
+    }
+}
+
+mes("You jump from one rock to the next.");
+sound_synth(jump_no_land, 1, 20);
+~agility_exactmove(human_steppingstonejump, 20, 2, coord, loc_coord, 48, 60, $dir, false);
+
+if ($safe = false & stat_random(agility, 60, 200) = false) {
+    mes("You slip on the wet rock and fall into the water.");
+    sound_synth(pool_plop, 1, 0);
+    spotanim_map(watersplash, coord, 0, 1);
+    ~damage_self(calc(random(6) + 3));
+    stat_advance(agility, 5);
+    return;
+}
+stat_advance(agility, 20);
+
+[proc,abs_value](int $n)(int)
+if ($n < 0) {
+    return(multiply($n, -1));
+}
+return($n);

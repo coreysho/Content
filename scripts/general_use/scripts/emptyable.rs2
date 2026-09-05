@@ -1,3 +1,27 @@
-[opheld4,bucket_milk]
-inv_del(inv, bucket_milk, 1);
-inv_add(inv, bucket_empty, 1);
+// Emptying liquid containers (Corey, 2026-09-05).
+//
+// bucket_water, jug_water and bowl_water all declare iop4=Empty in the 377 cache and all carry
+// param=next_obj_stage pointing at their empty version - the data was there, only the handler was
+// missing, so the right-click option existed and did nothing. Vials already worked because
+// vial_water carries category=potion and [opheld4,_potion] in skill_herblore covers it.
+//
+// The proc reads next_obj_stage rather than hardcoding pairs, so a new container only needs its
+// trigger line.
+
+[opheld4,bucket_water] ~empty_container(last_slot);
+[opheld4,bucket_milk] ~empty_container(last_slot);
+[opheld4,jug_water] ~empty_container(last_slot);
+[opheld4,bowl_water] ~empty_container(last_slot);
+
+[proc,empty_container](int $slot)
+def_obj $item = inv_getobj(inv, $slot);
+if ($item = null) {
+    return;
+}
+def_namedobj $empty = oc_param($item, next_obj_stage);
+if ($empty = null) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_setslot(inv, $slot, $empty, 1);
+mes("You empty the <lowercase(oc_name($item))>.");

@@ -1,0 +1,93 @@
+// Desert magic carpet network (Corey, 2026-09-05).
+//
+// Every piece of this was already in the 377 cache and none of it was wired up: eight Rug Merchant
+// npcs (magic_carpet_seller1..8), all spawned at their real stations, all declaring op1=Talk-to and
+// nothing behind it; a rideable carpet loc (carpet_rolledout_multi) placed at seven of the eight;
+// and even the quest gating, encoded as multivars on the npc shells.
+//
+// Layout is hub-and-spoke, exactly as it was in 2006 - endpoints only go back to their hub:
+//
+//   Shantay Pass (hub)          -> Bedabin Camp, Pollnivneach north, Ruins of Uzer
+//   Pollnivneach south (hub)    -> Nardah, Sophanem, Menaphos
+//
+// Two stations are behind quests, and the cache says so itself: magic_carpet_seller5_multi carries
+// multivar=golem_a / multinpc=10 (The Golem, whose completion constant is 10) and sellers 6 and 7
+// carry multivar=ics_ent_open (Icthlarin's Little Helper). Those merchants literally do not appear
+// until the varbit is set, so the hub has to hide the matching destination too - otherwise the
+// player pays 200gp to be dropped somewhere with no merchant to bring them home.
+//
+// Icthlarin's Little Helper is not implemented here at all, so Sophanem and Menaphos will stay
+// hidden until it is. That is the correct behaviour rather than a gap: the route lights up on its
+// own the moment the quest sets the varbit.
+//
+// Fare is the 2006 base of 200gp (declared in rug.constant). The Rogue Trader discount and the
+// ring of Charos (a) each halved it in the real game; neither is implemented here, so one price.
+
+// ---------------------------------------------------------------- hub: Shantay Pass
+[opnpc1,magic_carpet_seller1]
+~chatnpc("<p,happy>Greetings, traveller. Care for a ride on my magic carpet?");
+def_int $choice = -1;
+if (%golem_a >= ^golem_complete) {
+    $choice = ~p_choice4("Bedabin Camp.", 1, "Pollnivneach.", 2, "The Ruins of Uzer.", 3, "Nowhere, thanks.", 4);
+} else {
+    $choice = ~p_choice3("Bedabin Camp.", 1, "Pollnivneach.", 2, "Nowhere, thanks.", 4);
+}
+switch_int ($choice) {
+    case 1 : ~rug_travel(0_49_47_45_36, "Bedabin Camp");
+    case 2 : ~rug_travel(0_52_46_21_58, "Pollnivneach");
+    case 3 : ~rug_travel(0_54_48_10_38, "the Ruins of Uzer");
+    case default : ~chatplayer("<p,neutral>Nowhere, thanks.");
+}
+
+// ---------------------------------------------------------------- hub: Pollnivneach south
+[opnpc1,magic_carpet_seller3]
+~chatnpc("<p,happy>Where can I take you today?");
+def_int $choice = -1;
+if (%ics_ent_open > 0) {
+    $choice = ~p_choice4("Nardah.", 1, "Sophanem.", 2, "Menaphos.", 3, "Nowhere, thanks.", 4);
+} else {
+    $choice = ~p_choice2("Nardah.", 1, "Nowhere, thanks.", 4);
+}
+switch_int ($choice) {
+    case 1 : ~rug_travel(0_53_45_8_37, "Nardah");
+    case 2 : ~rug_travel(0_51_43_22_61, "Sophanem");
+    case 3 : ~rug_travel(0_50_43_44_61, "Menaphos");
+    case default : ~chatplayer("<p,neutral>Nowhere, thanks.");
+}
+
+// ---------------------------------------------------------------- endpoints, back to their hub
+[opnpc1,magic_carpet_seller2] ~rug_return(0_51_48_45_37, "the Shantay Pass");
+[opnpc1,magic_carpet_seller4] ~rug_return(0_51_48_45_37, "the Shantay Pass");
+[opnpc1,magic_carpet_seller5] ~rug_return(0_51_48_45_37, "the Shantay Pass");
+[opnpc1,magic_carpet_seller6] ~rug_return(0_52_45_22_61, "Pollnivneach");
+[opnpc1,magic_carpet_seller7] ~rug_return(0_52_45_22_61, "Pollnivneach");
+[opnpc1,magic_carpet_seller8] ~rug_return(0_52_45_22_61, "Pollnivneach");
+
+[proc,rug_return](coord $dest, string $place)
+~chatnpc(append(append("<p,happy>Want a lift back to ", $place), "?"));
+def_int $choice = ~p_choice2("Yes please.", 1, "No, thank you.", 2);
+if ($choice ! 1) {
+    ~chatplayer("<p,neutral>No, thank you.");
+    return;
+}
+~rug_travel($dest, $place);
+
+// ---------------------------------------------------------------- the ride itself
+[proc,rug_travel](coord $dest, string $place)
+if (inv_total(inv, coins) < ^rug_fare) {
+    ~chatnpc("<p,sad>It's <tostring(^rug_fare)> gold coins for a trip, and you don't have them.");
+    return;
+}
+~chatnpc(append(append("<p,neutral>That'll be ", tostring(^rug_fare)), " coins. Climb aboard."));
+if (inv_total(inv, coins) < ^rug_fare) {
+    return; // the coins moved while the dialogue was open
+}
+inv_del(inv, coins, ^rug_fare);
+if_close;
+mes(append(append("You pay the rug merchant ", tostring(^rug_fare)), " coins."));
+p_delay(1);
+mes("You board the magic carpet and it rises into the air...");
+p_delay(3);
+p_telejump($dest);
+p_delay(1);
+~mesbox(append(append("The magic carpet arrives at ", $place), "."));
