@@ -52,6 +52,16 @@ return(0);
 // one every 90 ticks it continues. 1000 points is 15 hours. Degrading per hit is the usual way
 // servers get this wrong.
 
+// NPC-side combat runs without PROTECTED access to the player, and degradation writes to the
+// worn inventory (inv_setslot), which needs it. Queueing hands the work to the player's own queue,
+// which does have protected access - the same trick npc_poison_player uses to poison from an npc
+// script. Calling the proc directly from an npc context is a compile error, not a runtime one.
+[queue,barrows_degrade_entry](int $unused)
+~barrows_combat_entry;
+
+[queue,crystal_shield_charge](int $unused)
+~crystal_shield_hit;
+
 [proc,barrows_combat_entry]
 %barrows_lastcombat = map_clock;
 if (%barrows_degrading = 1) {
