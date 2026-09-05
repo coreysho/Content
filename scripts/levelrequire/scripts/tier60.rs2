@@ -28,9 +28,12 @@
 
 // --- 60 Attack / 60 Magic gear (2026-09-04) ---
 [opheld2,dragon_2h_sword] @levelrequire_attack(60, last_slot);
-[opheld2,saradomin_staff] @levelrequire_magic(60, last_slot);
-[opheld2,guthix_staff] @levelrequire_magic(60, last_slot);
-[opheld2,zamorak_staff] @levelrequire_magic(60, last_slot);
+// The three god staves are deliberately NOT gated here. They already have an [opheld2,...]
+// in areas/area_mage_arena/scripts/god_gear.rs2 which enforces the god-staff/god-cape
+// mutual-exclusion rule, and a second definition is a duplicate-trigger build error.
+// A hard 60 Magic wield check would also be wrong: the wiki says the staves require
+// 60 Magic "to acquire and therefore wield" - the real gate is Mage Arena entry, not the
+// wield itself, so leaving god_gear.rs2 as the sole owner is the accurate behaviour.
 [opheld2,tzhaar_staff] @levelrequire_magic_and_attack(60, 60, last_slot);
 [opheld2,magictraining_bookofmagic] @levelrequire_magic(60, last_slot);
 [opheld2,magictraining_wand_master] @levelrequire_magic(60, last_slot);
