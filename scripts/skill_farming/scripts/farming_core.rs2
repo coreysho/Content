@@ -1,0 +1,405 @@
+// Farming: state model and growth engine (Corey, 2026-09-05) - see claude/farming-skill.md.
+//
+// HOW A PATCH IS STORED
+// --------------------
+// Three pieces of state per patch:
+//
+//   1. the appearance varbit, which is original cache data and is what the client draws. Its value
+//      encodes crop, stage and condition all at once, because Jagex laid the multiloc tables out as
+//      contiguous blocks: healthy state = base + stage, with stage 0 = just planted and
+//      stage == stages = fully grown; diseased and dead are parallel blocks indexed by stage - 1.
+//   2. farming_time_N   - the world minute at which the patch last advanced.
+//   3. farming_flags_N  - crop id, harvest lives, compost tier, protected, xp-claimed.
+//
+// The varbit is therefore the single source of truth for "what does this look like", and the flags
+// only hold what the picture cannot show. Nothing has to be kept in sync by hand.
+//
+// WHY GROWTH IS COMPUTED, NOT TICKED
+// ----------------------------------
+// Crops grow in real time whether or not you are logged in, and a magic tree takes eight hours. So
+// nothing here runs a timer per patch. Instead each patch remembers when it last moved, and when it
+// is next looked at - on login, once a minute while you are online, or the moment you touch it - the
+// engine works out how many whole growth cycles have passed and replays them, rolling disease once
+// per cycle exactly as the live tick would have. Come back after two days and you get the same
+// answer you would have got by standing there.
+//
+// The replay writes its result back immediately, so the dice are rolled once and only once per
+// cycle. Re-running the update on an already up-to-date patch is free and changes nothing.
+
+// ============================================================================ time
+
+// World clock in minutes. Deliberately NOT map_clock: that counts ticks since the server booted and
+// resets on every restart, which would freeze or rewind every crop in the game.
+[proc,farming_now]()(int)
+return(world_minute);
+
+// ============================================================================ flag accessors
+//
+// bits 0-5 crop id (0 = nothing planted), 6-8 harvest lives, 9-10 compost tier,
+// bit 11 protected by a farmer, bit 12 check-health xp already claimed.
+
+[proc,farming_crop_id](int $patch)(int)
+return(getbit_range(~farming_get_flags($patch), 0, 5));
+
+[proc,farming_lives](int $patch)(int)
+return(getbit_range(~farming_get_flags($patch), 6, 8));
+
+[proc,farming_compost](int $patch)(int)
+return(getbit_range(~farming_get_flags($patch), 9, 10));
+
+[proc,farming_protected](int $patch)(boolean)
+if (testbit(~farming_get_flags($patch), 11) = ^true) {
+    return(true);
+}
+return(false);
+
+[proc,farming_checked](int $patch)(boolean)
+if (testbit(~farming_get_flags($patch), 12) = ^true) {
+    return(true);
+}
+return(false);
+
+[proc,farming_set_crop_id](int $patch, int $crop)
+~farming_set_flags($patch, setbit_range_toint(~farming_get_flags($patch), $crop, 0, 5));
+
+[proc,farming_set_lives](int $patch, int $lives)
+~farming_set_flags($patch, setbit_range_toint(~farming_get_flags($patch), min($lives, 7), 6, 8));
+
+[proc,farming_set_compost](int $patch, int $tier)
+~farming_set_flags($patch, setbit_range_toint(~farming_get_flags($patch), $tier, 9, 10));
+
+[proc,farming_set_protected](int $patch, int $on)
+~farming_set_flags($patch, setbit_range_toint(~farming_get_flags($patch), $on, 11, 11));
+
+[proc,farming_set_checked](int $patch, int $on)
+~farming_set_flags($patch, setbit_range_toint(~farming_get_flags($patch), $on, 12, 12));
+
+// Wipes a patch back to bare, freshly-raked soil. Compost goes with it, because compost is consumed
+// by the crop it was spread for - the cycle is rake, compost, plant, harvest, compost again.
+[proc,farming_clear_patch](int $patch)
+~farming_set_flags($patch, 0);
+~farming_set_state($patch, ^farming_state_weeded);
+~farming_set_time($patch, ~farming_now);
+
+// ============================================================================ state decode
+//
+// Turns the appearance varbit back into (stage, condition, watered). Every crop's four blocks -
+// healthy, watered, diseased, dead - sit in disjoint ranges, so the order of these tests does not
+// matter; they are written widest-first only for readability.
+
+[proc,farming_decode](int $patch, namedobj $seed)(int, int, int)
+def_int $state = ~farming_get_state($patch);
+def_int $stages = oc_param($seed, farming_stages);
+def_int $base = oc_param($seed, farming_base_state);
+def_int $diseased = oc_param($seed, farming_diseased_state);
+def_int $dead = oc_param($seed, farming_dead_state);
+def_int $watered = oc_param($seed, farming_watered_state);
+def_int $stump = oc_param($seed, farming_stump_state);
+
+// A stump sits numerically inside the healthy run for trees, so it has to be ruled out first.
+if ($stump > 0 & $state = $stump) {
+    return($stages, ^farming_stump, 0);
+}
+// Diseased and dead only exist for stages 1 .. stages-1: a seed cannot be diseased and the cycle
+// that finishes a crop never rolls, so there is no sprite for either at stage 0 or at full growth.
+if ($state >= $dead & $state < add($dead, sub($stages, 1))) {
+    return(add(sub($state, $dead), 1), ^farming_dead, 0);
+}
+if ($state >= $diseased & $state < add($diseased, sub($stages, 1))) {
+    return(add(sub($state, $diseased), 1), ^farming_diseased, 0);
+}
+if ($watered > 0 & $state >= $watered & $state < add($watered, $stages)) {
+    return(sub($state, $watered), ^farming_healthy, 1);
+}
+if ($state >= $base) {
+    // Anything past fully grown is the check-health appearance or a produce count, both of which
+    // are still "fully grown" as far as growth is concerned.
+    return(min(sub($state, $base), $stages), ^farming_healthy, 0);
+}
+return(0, ^farming_healthy, 0);
+
+// The inverse, for anything that is still growing, diseased or dead. Fully grown patches go through
+// farming_set_grown instead, because what they show depends on whether the health check has been
+// done and how much produce is hanging on them.
+[proc,farming_encode](namedobj $seed, int $stage, int $condition, int $watered)(int)
+def_int $stages = oc_param($seed, farming_stages);
+if ($condition = ^farming_dead) {
+    return(add(oc_param($seed, farming_dead_state), sub(max($stage, 1), 1)));
+}
+if ($condition = ^farming_diseased) {
+    return(add(oc_param($seed, farming_diseased_state), sub(max($stage, 1), 1)));
+}
+if ($watered = 1 & $stage < $stages & oc_param($seed, farming_watered_state) > 0) {
+    return(add(oc_param($seed, farming_watered_state), $stage));
+}
+return(add(oc_param($seed, farming_base_state), $stage));
+
+// What a freshly finished crop should look like. Trees, fruit trees, bushes, cactus and calquat show
+// a distinct "Check-health" appearance until their one-off xp has been claimed; everything else goes
+// straight to its harvestable state.
+[proc,farming_set_grown](int $patch, namedobj $seed)
+if (oc_param($seed, farming_check_state) > 0 & ~farming_checked($patch) = false) {
+    ~farming_set_state($patch, oc_param($seed, farming_check_state));
+    return;
+}
+~farming_set_state($patch, oc_param($seed, farming_checked_state));
+
+// ============================================================================ disease
+
+// Disease chance for one cycle, out of 128. Zero means this cycle cannot go wrong at all - because
+// the crop is immune (poison ivy), the farmer has been paid, a flower is covering the allotment, or
+// the plant was watered since the last cycle.
+[proc,farming_disease_chance](int $patch, namedobj $seed, int $watered)(int)
+def_int $base = oc_param($seed, farming_disease);
+if ($base <= 0 | $watered = 1) {
+    return(0);
+}
+if (~farming_protected($patch) = true) {
+    return(0);
+}
+if (~farming_flower_protects($patch, $seed) = true) {
+    return(0);
+}
+def_int $compost = ~farming_compost($patch);
+if ($compost = ^farming_compost_super) {
+    return(divide(multiply($base, ^farming_supercompost_disease_num), ^farming_supercompost_disease_div));
+}
+if ($compost = ^farming_compost_normal) {
+    return(divide(multiply($base, ^farming_compost_disease_num), ^farming_compost_disease_div));
+}
+return($base);
+
+// ============================================================================ growth
+
+// How often a fully grown bush/fruit tree/cactus/calquat puts another berry, fruit or spine back.
+[proc,farming_regrow_minutes](namedobj $seed)(int)
+def_int $cycle = oc_param($seed, farming_cycle);
+if (oc_param($seed, farming_family) = ^farming_family_bush) {
+    return($cycle);
+}
+return(max(1, divide($cycle, 4)));
+
+// Bring one patch up to date. Safe to call as often as you like.
+[proc,farming_update](int $patch)
+// Compost bins share the patch numbering and the same two varps, but their "crop id" field holds
+// which kind of bin it is, not a crop. Running the growth engine over one would read that 1 as
+// "potato" and stamp a vegetable patch over the bin, so they are excluded here and handled entirely
+// by farming_compostbin.rs2, which only ever needs the clock when you open the lid.
+if ($patch >= ^farming_compost_bin_first) {
+    return;
+}
+def_int $now = ~farming_now;
+def_int $last = ~farming_get_time($patch);
+if ($last > $now | $last = 0) {
+    // First time we have ever seen this patch, or the host clock moved backwards. Start the timer
+    // from now rather than replaying an implausible number of cycles.
+    ~farming_set_time($patch, $now);
+    return;
+}
+
+def_int $crop = ~farming_crop_id($patch);
+if ($crop = 0) {
+    ~farming_regrow_weeds($patch, $now, $last);
+    return;
+}
+
+def_namedobj $seed = ~farming_crop_obj($crop);
+if ($seed = null) {
+    ~farming_clear_patch($patch);
+    return;
+}
+
+def_int $stages = oc_param($seed, farming_stages);
+def_int $stage;
+def_int $condition;
+def_int $watered;
+$stage, $condition, $watered = ~farming_decode($patch, $seed);
+
+if ($condition = ^farming_dead | $condition = ^farming_stump) {
+    return;
+}
+
+// Already finished growing. From here farming_time_N belongs to the produce clock, which ticks much
+// faster than the growth cycle did, so this has to come before the growth arithmetic rather than
+// after it - otherwise the timestamp would only ever move in whole growth cycles and a fruit tree
+// would drop four fruit at once every two and a half hours instead of one every forty minutes.
+if ($stage >= $stages & $condition = ^farming_healthy) {
+    ~farming_regrow_produce($patch, $seed, $now);
+    return;
+}
+
+def_int $cycle = max(1, divide(oc_param($seed, farming_cycle), ^farming_speed_divisor));
+def_int $elapsed = divide(sub($now, $last), $cycle);
+if ($elapsed < 1) {
+    return;
+}
+// Consume only whole cycles so the remainder carries over instead of being lost.
+~farming_set_time($patch, add($last, multiply($elapsed, $cycle)));
+
+def_int $i = 0;
+while ($i < $elapsed & $condition ! ^farming_dead & $stage < $stages) {
+    $i = add($i, 1);
+    if ($condition = ^farming_diseased) {
+        // An untreated disease kills the plant on the very next cycle.
+        $condition = ^farming_dead;
+    } else {
+        def_int $chance = ~farming_disease_chance($patch, $seed, $watered);
+        $stage = add($stage, 1);
+        $watered = 0;
+        // The cycle that finishes a crop is never rolled, which is why a plant one cycle from done
+        // is always safe.
+        if ($stage < $stages & $chance > 0 & random(^farming_disease_scale) < $chance) {
+            $condition = ^farming_diseased;
+        }
+    }
+}
+
+if ($stage >= $stages & $condition = ^farming_healthy) {
+    ~farming_set_grown($patch, $seed);
+    // The produce clock starts the moment the plant finishes, not when it was sown.
+    ~farming_set_time($patch, $now);
+    return;
+}
+~farming_set_state($patch, ~farming_encode($seed, $stage, $condition, $watered));
+
+// Empty patches slowly go back to weeds: state 3 is bare soil, 2/1/0 are one, two and three weeds.
+[proc,farming_regrow_weeds](int $patch, int $now, int $last)
+def_int $state = ~farming_get_state($patch);
+if ($state > ^farming_state_weeded) {
+    // Left over from a crop that was cleared without going through farming_clear_patch.
+    ~farming_set_state($patch, ^farming_state_weeded);
+    return;
+}
+if ($state <= ^farming_state_weeds_full) {
+    ~farming_set_time($patch, $now);
+    return;
+}
+def_int $interval = max(1, divide(^farming_weed_regrow_minutes, ^farming_speed_divisor));
+def_int $elapsed = divide(sub($now, $last), $interval);
+if ($elapsed < 1) {
+    return;
+}
+~farming_set_time($patch, add($last, multiply($elapsed, $interval)));
+~farming_set_state($patch, max(^farming_state_weeds_full, sub($state, $elapsed)));
+
+// Bushes, fruit trees, cactus and calquat put out produce after their health has been checked, and
+// keep topping it back up as it is picked. The count is carried by the appearance varbit itself -
+// each state past the plain fully-grown one is one more berry, fruit or spine - so the picture and
+// the stock can never disagree.
+//
+// Bittercap mushrooms are the exception and run the other way: the patch starts full and each state
+// past fully-grown is one mushroom FEWER, with no regrowth. That is how the cache draws them
+// (bittercap_fullygrown_6 down to bittercap_fullygrown_1), so it is how they are handled.
+[proc,farming_regrow_produce](int $patch, namedobj $seed, int $now)
+def_int $max = oc_param($seed, farming_produce_max);
+if ($max <= 0 | oc_param($seed, farming_family) = ^farming_family_mushroom) {
+    return;
+}
+if (~farming_checked($patch) = false) {
+    return;
+}
+def_int $full = oc_param($seed, farming_checked_state);
+def_int $state = ~farming_get_state($patch);
+if ($state < $full | $state >= add($full, $max)) {
+    return;
+}
+def_int $interval = max(1, divide(~farming_regrow_minutes($seed), ^farming_speed_divisor));
+// farming_time_N is the produce clock from the moment the plant finishes growing; farming_update
+// and farming_check_health both restamp it at that point.
+def_int $last = ~farming_get_time($patch);
+def_int $regrown = divide(sub($now, $last), $interval);
+if ($regrown < 1) {
+    return;
+}
+// Advance the clock by the whole intervals just consumed, so calling this again in ten seconds
+// does not hand out the same fruit twice.
+~farming_set_time($patch, add($last, multiply($regrown, $interval)));
+~farming_set_state($patch, min(add($full, $max), add($state, $regrown)));
+
+// How much produce a fully grown bush/tree/cactus/mushroom patch is currently holding.
+[proc,farming_produce_left](int $patch, namedobj $seed)(int)
+def_int $max = oc_param($seed, farming_produce_max);
+if ($max <= 0) {
+    return(0);
+}
+def_int $full = oc_param($seed, farming_checked_state);
+def_int $state = ~farming_get_state($patch);
+if (oc_param($seed, farming_family) = ^farming_family_mushroom) {
+    return(max(0, sub($max, sub($state, $full))));
+}
+return(max(0, min($max, sub($state, $full))));
+
+
+// ============================================================================ flower protection
+//
+// A fully grown flower in the flower patch next to an allotment keeps that allotment's crop free of
+// disease, for one specific vegetable each. The pairing is fixed by the map: allotments 1 and 2 sit
+// beside flower patch 1, 3 and 4 beside flower patch 2, and so on, which is exactly what the patch
+// indices encode - allotments are 0..7 and flower patches 12..15.
+[proc,farming_flower_for_allotment](int $patch)(int)
+if ($patch < ^farming_patch_veg_patch_1 | $patch > ^farming_patch_veg_patch_8) {
+    return(-1);
+}
+return(add(^farming_patch_flower_patch_1, divide($patch, 2)));
+
+[proc,farming_flower_protects](int $patch, namedobj $seed)(boolean)
+def_int $flower_patch = ~farming_flower_for_allotment($patch);
+if ($flower_patch < 0) {
+    return(false);
+}
+def_int $flower = ~farming_crop_id($flower_patch);
+if ($flower = 0) {
+    return(false);
+}
+def_namedobj $flower_seed = ~farming_crop_obj($flower);
+if ($flower_seed = null) {
+    return(false);
+}
+// Only a healthy, fully grown flower does anything.
+def_int $stage;
+def_int $condition;
+def_int $watered;
+$stage, $condition, $watered = ~farming_decode($flower_patch, $flower_seed);
+if ($condition ! ^farming_healthy | $stage < oc_param($flower_seed, farming_stages)) {
+    return(false);
+}
+
+def_int $crop = oc_param($seed, farming_crop);
+switch_obj($flower_seed) {
+    case marigold_seed :
+        if ($crop = oc_param(potato_seed, farming_crop) | $crop = oc_param(onion_seed, farming_crop) | $crop = oc_param(tomato_seed, farming_crop)) {
+            return(true);
+        }
+    case rosemary_seed :
+        if ($crop = oc_param(cabbage_seed, farming_crop)) {
+            return(true);
+        }
+    case nasturtium_seed :
+        if ($crop = oc_param(watermelon_seed, farming_crop)) {
+            return(true);
+        }
+    case scarecrow_complete :
+        if ($crop = oc_param(sweetcorn_seed, farming_crop)) {
+            return(true);
+        }
+    case default : return(false);
+}
+return(false);
+
+// ============================================================================ keeping up to date
+
+// Every patch, in one pass. Cheap - 43 patches of integer arithmetic - and it is what makes offline
+// growth work: whatever happened while you were away is resolved the moment you log in.
+[proc,farming_update_all]
+def_int $i = 0;
+while ($i < ^farming_patch_count) {
+    ~farming_update($i);
+    $i = add($i, 1);
+}
+%farming_last_tick = ~farming_now;
+
+// Once a minute while online. Every growth cycle in the game is a whole number of minutes and the
+// shortest is five, so nothing can slip past at this resolution.
+[timer,farming_tick]
+~farming_update_all;
+~farming_grow_seedlings;

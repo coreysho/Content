@@ -1,0 +1,242 @@
+// Farming: compost bins (Corey, 2026-09-05) - see claude/farming-skill.md.
+//
+// A bin holds fifteen items. Close the lid, wait, open it again and fill fifteen buckets from it.
+// Fill it entirely with high-tier produce and you get supercompost; fill it entirely with tomatoes
+// and you get rotten tomatoes; anything else gives ordinary compost, and one wrong item drags a
+// would-be supercompost bin back down to normal.
+//
+// The bin's own 8-bit varbit in the cache already has all three variants laid out as parallel
+// blocks, which is what the numbers below are:
+//
+//     normal   fill 1..15    product 16..30    closed 31
+//     super    fill 33..47   product 48..62    closed 64
+//     tomato   fill 129..143 product 144..158  closed 159
+//
+// so "which kind of bin is this" is carried by the state itself. farming_flags_N holds the same
+// thing in its crop-id field, because the closed states cannot tell filling apart from rotted.
+
+// Bin kinds, stored in the bin's flags where a patch would keep its crop id.
+[proc,farming_bin_kind](int $patch)(int)
+return(~farming_crop_id($patch));
+
+[proc,farming_bin_offset](int $kind)(int)
+if ($kind = 2) {
+    return(32);
+}
+if ($kind = 3) {
+    return(128);
+}
+return(0);
+
+// Is this item worth supercompost on its own? The 2006 rule is roughly "produce from level 47+
+// crops", which is the list below. One non-super item in the bin downgrades the whole batch.
+[proc,farming_is_supercompostable](obj $item)(boolean)
+switch_obj($item) {
+    case watermelon : return(true);
+    case pineapple : return(true);
+    case papaya : return(true);
+    case coconut : return(true);
+    case calquat_fruit : return(true);
+    case jangerberries : return(true);
+    case white_berries : return(true);
+    case poisonivy_berries : return(true);
+    case unidentified_toadflax : return(true);
+    case unidentified_irit : return(true);
+    case unidentified_avantoe : return(true);
+    case unidentified_kwuarm : return(true);
+    case unidentified_snapdragon : return(true);
+    case unidentified_cadantine : return(true);
+    case unidentified_lantadyme : return(true);
+    case unidentified_dwarf_weed : return(true);
+    case unidentified_torstol : return(true);
+    case default : return(false);
+}
+return(false);
+
+// Anything a bin will accept at all. Deliberately generous - if it came out of a patch, it rots.
+[proc,farming_is_compostable](obj $item)(boolean)
+if (~farming_is_supercompostable($item) = true) {
+    return(true);
+}
+switch_obj($item) {
+    case weeds : return(true);
+    case potato : return(true);
+    case onion : return(true);
+    case cabbage : return(true);
+    case tomato : return(true);
+    case sweetcorn : return(true);
+    case strawberry : return(true);
+    case barley : return(true);
+    case jute_fibre : return(true);
+    case hammerstone_hops : return(true);
+    case asgarnian_hops : return(true);
+    case yanillian_hops : return(true);
+    case krandorian_hops : return(true);
+    case wildblood_hops : return(true);
+    case marigold : return(true);
+    case rosemary : return(true);
+    case nasturtium : return(true);
+    case woadleaf : return(true);
+    case limpwurt_root : return(true);
+    case redberries : return(true);
+    case cadavaberries : return(true);
+    case dwellberries : return(true);
+    case cooking_apple : return(true);
+    case banana : return(true);
+    case orange : return(true);
+    case curry_leaf : return(true);
+    case cactus_spine : return(true);
+    case bittercap_mushroom : return(true);
+    case unidentified_guam : return(true);
+    case unidentified_marentill : return(true);
+    case unidentified_tarromin : return(true);
+    case unidentified_harralander : return(true);
+    case unidentified_ranarr : return(true);
+    case default : return(false);
+}
+return(false);
+
+// ============================================================================ adding items
+
+[proc,farming_bin_useitem](int $patch, obj $item, int $slot)
+def_int $state = ~farming_get_state($patch);
+def_int $kind = ~farming_bin_kind($patch);
+def_int $offset = ~farming_bin_offset($kind);
+
+// Buckets come out, everything else goes in.
+if ($item = bucket_empty) {
+    ~farming_bin_take($patch);
+    return;
+}
+if ($state >= add($offset, 16)) {
+    mes("The bin is full of compost. Use a bucket on it to collect some.");
+    return;
+}
+if ($kind ! 0 & $state >= add($offset, 31)) {
+    mes("The bin is closed while its contents rot down.");
+    return;
+}
+if (~farming_is_compostable($item) = false) {
+    mes("That will not rot down into anything useful.");
+    return;
+}
+
+def_int $filled = 0;
+if ($kind ! 0) {
+    $filled = sub($state, add($offset, 1));
+    $filled = add($filled, 1);
+}
+if ($filled >= ^farming_compost_bin_size) {
+    mes("The bin is full. Close the lid and let it rot down.");
+    return;
+}
+
+// The first item decides what kind of bin this is; later items can only downgrade it.
+def_int $newkind = 1;
+if ($item = tomato) {
+    $newkind = 3;
+} else if (~farming_is_supercompostable($item) = true) {
+    $newkind = 2;
+}
+if ($kind = 0) {
+    $kind = $newkind;
+} else if ($kind ! $newkind) {
+    // Mixed contents always rot down to ordinary compost.
+    $kind = 1;
+}
+$offset = ~farming_bin_offset($kind);
+
+inv_del(inv, $item, 1);
+$filled = add($filled, 1);
+~farming_set_crop_id($patch, $kind);
+~farming_set_state($patch, add($offset, $filled));
+mes("You put the <lowercase(oc_name($item))> in the compost bin.");
+if ($filled >= ^farming_compost_bin_size) {
+    mes("The bin is full. Close the lid to start it rotting.");
+}
+
+// ============================================================================ open / close
+
+[proc,farming_bin_op1](int $patch)
+def_int $kind = ~farming_bin_kind($patch);
+def_int $offset = ~farming_bin_offset($kind);
+def_int $state = ~farming_get_state($patch);
+
+// Closed and rotting: opening it either shows a finished batch or tells you to come back.
+if ($kind ! 0 & $state = add($offset, 31)) {
+    def_int $rot = max(1, divide(^farming_compost_rot_minutes, ^farming_speed_divisor));
+    if (sub(~farming_now, ~farming_get_time($patch)) < $rot) {
+        mes("The contents are still rotting down. Come back later.");
+        return;
+    }
+    ~farming_set_state($patch, add($offset, 16));
+    mes("You open the bin. The contents have rotted down nicely.");
+    return;
+}
+
+// Full and open: close the lid.
+if ($kind ! 0 & $state = add($offset, ^farming_compost_bin_size)) {
+    ~farming_set_state($patch, add($offset, 31));
+    ~farming_set_time($patch, ~farming_now);
+    mes("You close the lid. The contents will take a while to rot down.");
+    return;
+}
+
+if ($kind ! 0 & $state >= add($offset, 16) & $state <= add($offset, 30)) {
+    mes("Use a bucket on the bin to collect what is inside.");
+    return;
+}
+mes("The bin needs <tostring(^farming_compost_bin_size)> items in it before it will rot down.");
+
+[proc,farming_bin_inspect](int $patch)
+def_int $kind = ~farming_bin_kind($patch);
+if ($kind = 0) {
+    mes("The compost bin is empty.");
+    return;
+}
+def_int $offset = ~farming_bin_offset($kind);
+def_int $state = ~farming_get_state($patch);
+if ($state = add($offset, 31)) {
+    mes("The bin is closed, with its contents rotting down.");
+    return;
+}
+if ($state >= add($offset, 16)) {
+    mes("The bin holds <tostring(sub(add($offset, 31), $state))> more bucket(s) worth.");
+    return;
+}
+mes("The bin holds <tostring(sub($state, $offset))> of <tostring(^farming_compost_bin_size)> items.");
+
+// ============================================================================ taking compost out
+
+[proc,farming_bin_take](int $patch)
+def_int $kind = ~farming_bin_kind($patch);
+def_int $offset = ~farming_bin_offset($kind);
+def_int $state = ~farming_get_state($patch);
+if ($kind = 0 | $state < add($offset, 16) | $state > add($offset, 30)) {
+    mes("There is nothing in the bin to collect.");
+    return;
+}
+
+def_namedobj $product = bucket_compost;
+def_int $xp = ^farming_compost_xp;
+if ($kind = 2) {
+    $product = bucket_supercompost;
+    $xp = ^farming_supercompost_xp;
+} else if ($kind = 3) {
+    $product = rotten_tomato;
+    $xp = 0;
+}
+
+inv_del(inv, bucket_empty, 1);
+inv_add(inv, $product, 1);
+~farming_xp($xp);
+mes("You fill a bucket from the compost bin.");
+
+if ($state >= add($offset, 30)) {
+    ~farming_set_crop_id($patch, 0);
+    ~farming_set_state($patch, 0);
+    ~farming_set_time($patch, ~farming_now);
+    mes("That was the last of it.");
+    return;
+}
+~farming_set_state($patch, add($state, 1));

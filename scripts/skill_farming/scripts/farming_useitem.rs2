@@ -1,0 +1,278 @@
+// Farming: using an item on a patch (Corey, 2026-09-05) - see claude/farming-skill.md.
+//
+// In the 377 build almost everything you do to a patch is item-on-patch rather than a right-click
+// option: the weeds locs carry only Inspect and Guide, so raking is "use rake on patch". The same
+// goes for the dibber, spade, watering can, compost, plant cure and secateurs. This file is the
+// whole of that surface.
+
+[proc,farming_useitem](int $patch, obj $item, int $slot)
+~farming_update($patch);
+
+switch_obj($item) {
+    case rake : ~farming_rake($patch);
+    case spade : ~farming_spade($patch);
+    case dibber : ~farming_dibber_hint($patch);
+    case bucket_compost : ~farming_apply_compost($patch, bucket_compost, ^farming_compost_normal);
+    case bucket_supercompost : ~farming_apply_compost($patch, bucket_supercompost, ^farming_compost_super);
+    case plant_cure : ~farming_cure($patch);
+    case secateurs : ~farming_prune($patch);
+    case fairy_enchanted_secateurs : ~farming_prune($patch);
+    case watering_can_1 : ~farming_water($patch, $slot, watering_can_0);
+    case watering_can_2 : ~farming_water($patch, $slot, watering_can_1);
+    case watering_can_3 : ~farming_water($patch, $slot, watering_can_2);
+    case watering_can_4 : ~farming_water($patch, $slot, watering_can_3);
+    case watering_can_5 : ~farming_water($patch, $slot, watering_can_4);
+    case watering_can_6 : ~farming_water($patch, $slot, watering_can_5);
+    case watering_can_7 : ~farming_water($patch, $slot, watering_can_6);
+    case watering_can_8 : ~farming_water($patch, $slot, watering_can_7);
+    case watering_can_0 : mes("Your watering can is empty.");
+    case gardening_trowel : ~farming_fill_plantpot($patch);
+    case default : ~farming_plant($patch, $item);
+}
+
+// ============================================================================ rake
+
+[proc,farming_rake](int $patch)
+if (~farming_crop_id($patch) ! 0) {
+    mes("There is something growing here already.");
+    return;
+}
+def_int $state = ~farming_get_state($patch);
+if ($state >= ^farming_state_weeded) {
+    mes("The patch is already clear.");
+    return;
+}
+anim(farming_raking, 0);
+p_delay(3);
+~farming_set_state($patch, add($state, 1));
+~farming_set_time($patch, ~farming_now);
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, weeds, 1);
+}
+mes("You rake the weeds out of the patch.");
+~farming_xp(^farming_rake_xp);
+
+// ============================================================================ spade
+//
+// Clears dead plants and digs out tree stumps. It deliberately refuses to dig up a living crop -
+// that is a lot of lost hours to one misclick, and the real game does not let you either.
+
+[proc,farming_spade](int $patch)
+def_int $crop = ~farming_crop_id($patch);
+if ($crop = 0) {
+    mes("There is nothing to clear.");
+    return;
+}
+def_namedobj $seed = ~farming_crop_obj($crop);
+def_int $stage;
+def_int $condition;
+def_int $watered;
+$stage, $condition, $watered = ~farming_decode($patch, $seed);
+
+if ($condition = ^farming_diseased) {
+    mes("The <lowercase(oc_name($seed))> is diseased, not dead. Cure it, or wait for it to die off.");
+    return;
+}
+if ($condition = ^farming_healthy) {
+    if (oc_param($seed, farming_family) = ^farming_family_tree) {
+        mes("You need to chop the tree down before you can dig out the stump.");
+        return;
+    }
+    if ($stage < oc_param($seed, farming_stages)) {
+        mes("The <lowercase(oc_name($seed))> is still growing. Clearing it now would waste it.");
+        return;
+    }
+    mes("The crop is ready - harvest it rather than digging it up.");
+    return;
+}
+
+anim(human_dig, 0);
+p_delay(3);
+~farming_clear_patch($patch);
+mes("You clear the patch.");
+
+// ============================================================================ planting
+
+[proc,farming_dibber_hint](int $patch)
+mes("Use the seeds on the patch - the dibber is used automatically.");
+
+[proc,farming_plant](int $patch, obj $item)
+def_int $crop = oc_param($item, farming_crop);
+if ($crop = 0) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (~farming_crop_id($patch) ! 0) {
+    mes("There is something growing here already.");
+    return;
+}
+if (~farming_get_state($patch) < ^farming_state_weeded) {
+    mes("The patch needs raking before anything will grow in it.");
+    return;
+}
+if (~farming_patch_family($patch) ! oc_param($item, farming_family)) {
+    mes("You cannot plant that here.");
+    return;
+}
+def_int $level = oc_param($item, farming_level);
+if (stat(farming) < $level) {
+    mes("You need a Farming level of <tostring($level)> to plant that.");
+    return;
+}
+
+// Saplings and the scarecrow go into the ground by hand; everything else - including bush seeds,
+// which do have a check-health state - needs a seed dibber.
+def_int $count = oc_param($item, farming_seed_count);
+def_int $family = oc_param($item, farming_family);
+if ($family ! ^farming_family_tree & $family ! ^farming_family_fruit_tree
+    & $family ! ^farming_family_calquat & $family ! ^farming_family_spirit_tree
+    & $item ! scarecrow_complete) {
+    if (~farming_need_tool(dibber) = false) {
+        return;
+    }
+}
+if (inv_total(inv, $item) < $count) {
+    mes("You need <tostring($count)> of those to fill this patch.");
+    return;
+}
+
+anim(farming_seed_dibbing, 0);
+p_delay(3);
+inv_del(inv, $item, $count);
+
+~farming_set_crop_id($patch, $crop);
+~farming_set_checked($patch, 0);
+~farming_set_protected($patch, 0);
+~farming_set_lives($patch, add(^farming_base_lives, ~farming_compost($patch)));
+~farming_set_state($patch, oc_param($item, farming_base_state));
+~farming_set_time($patch, ~farming_now);
+
+mes("You plant the <lowercase(oc_name($item))> in the patch.");
+~farming_xp(oc_param($item, farming_plant_xp));
+
+// ============================================================================ compost
+//
+// Compost has to go on an empty, raked patch: in 2006 you treat the soil before you sow, not after.
+
+[proc,farming_apply_compost](int $patch, namedobj $bucket, int $tier)
+if (~farming_crop_id($patch) ! 0) {
+    mes("The patch already has something growing in it.");
+    return;
+}
+if (~farming_get_state($patch) < ^farming_state_weeded) {
+    mes("Rake the weeds out first.");
+    return;
+}
+if (~farming_compost($patch) >= $tier) {
+    mes("This patch has already been treated.");
+    return;
+}
+anim(human_dig, 0);
+p_delay(2);
+inv_del(inv, $bucket, 1);
+inv_add(inv, bucket_empty, 1);
+~farming_set_compost($patch, $tier);
+mes("You treat the patch with <lowercase(oc_name($bucket))>.");
+
+// ============================================================================ watering
+//
+// Watering does one thing and one thing only: it stops the NEXT growth cycle from rolling for
+// disease. It does not speed anything up and it does not increase the yield. Only allotments, hops
+// and flowers can be watered, which is exactly the set of crops whose cache tables have a watered
+// appearance - so the check is simply "does this crop have one".
+
+[proc,farming_water](int $patch, int $slot, namedobj $emptier)
+def_int $crop = ~farming_crop_id($patch);
+if ($crop = 0) {
+    mes("There is nothing planted here to water.");
+    return;
+}
+def_namedobj $seed = ~farming_crop_obj($crop);
+if (oc_param($seed, farming_watered_state) = 0) {
+    mes("This crop does not need watering.");
+    return;
+}
+def_int $stage;
+def_int $condition;
+def_int $watered;
+$stage, $condition, $watered = ~farming_decode($patch, $seed);
+if ($condition ! ^farming_healthy) {
+    mes("Watering will not help this plant now.");
+    return;
+}
+if ($stage >= oc_param($seed, farming_stages)) {
+    mes("The crop is already fully grown.");
+    return;
+}
+if ($watered = 1) {
+    mes("The crop is already watered.");
+    return;
+}
+
+anim(farming_watering, 0);
+p_delay(2);
+inv_setslot(inv, $slot, $emptier, 1);
+~farming_set_state($patch, ~farming_encode($seed, $stage, ^farming_healthy, 1));
+mes("You water the <lowercase(oc_name($seed))>.");
+
+// ============================================================================ plant cure and secateurs
+
+[proc,farming_cure](int $patch)
+def_int $crop = ~farming_crop_id($patch);
+if ($crop = 0) {
+    mes("There is nothing planted here.");
+    return;
+}
+def_namedobj $seed = ~farming_crop_obj($crop);
+def_int $stage;
+def_int $condition;
+def_int $watered;
+$stage, $condition, $watered = ~farming_decode($patch, $seed);
+if ($condition = ^farming_dead) {
+    mes("This plant is beyond saving. Clear the patch with a spade.");
+    return;
+}
+if ($condition ! ^farming_diseased) {
+    mes("There is nothing wrong with this plant.");
+    return;
+}
+anim(farming_plant_cure, 0);
+p_delay(2);
+inv_del(inv, plant_cure, 1);
+inv_add(inv, vial_empty, 1);
+~farming_set_state($patch, ~farming_encode($seed, $stage, ^farming_healthy, 0));
+mes("You treat the <lowercase(oc_name($seed))> with the plant cure.");
+
+// Secateurs prune trees and fruit trees. They do NOT cure disease - that is what the plant cure is
+// for, and mixing the two up is the usual mistake.
+[proc,farming_prune](int $patch)
+def_int $crop = ~farming_crop_id($patch);
+if ($crop = 0) {
+    mes("There is nothing planted here.");
+    return;
+}
+def_namedobj $seed = ~farming_crop_obj($crop);
+def_int $family = oc_param($seed, farming_family);
+if ($family ! ^farming_family_tree & $family ! ^farming_family_fruit_tree) {
+    mes("The secateurs are for pruning trees.");
+    return;
+}
+p_delay(2);
+mes("You prune the tree. It looks a little healthier for it.");
+
+// ============================================================================ plant pots
+
+[proc,farming_fill_plantpot](int $patch)
+if (inv_total(inv, plantpot_empty) < 1) {
+    mes("You need an empty plant pot to fill.");
+    return;
+}
+if (inv_freespace(inv) < 0) {
+    mes("You do not have room for that.");
+    return;
+}
+anim(farming_filling_plantpot, 0);
+p_delay(2);
+inv_del(inv, plantpot_empty, 1);
+inv_add(inv, plantpot_compost, 1);
+mes("You fill the plant pot with soil from the patch.");

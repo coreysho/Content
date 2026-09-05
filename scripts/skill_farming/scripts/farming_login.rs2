@@ -1,0 +1,10 @@
+// Farming: bringing a returning player's patches up to date (Corey, 2026-09-05).
+//
+// Crops grow in real time whether or not anyone is logged in, so the first thing that has to happen
+// on login is replaying whatever happened while the player was away. After that a one-minute timer
+// keeps things current while they are online, which matters because a patch has to already be in
+// the right state by the time they walk up to it - the client draws it straight from the varbit.
+
+[proc,farming_login]
+~farming_update_all;
+settimer(farming_tick, ^farming_tick_interval);

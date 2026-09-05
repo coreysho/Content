@@ -1,0 +1,243 @@
+// Farming: gardeners and the tool leprechaun (Corey, 2026-09-05) - see claude/farming-skill.md.
+//
+// Every farming site in the 377 cache already has its gardener standing beside it, named and
+// spawned - Elstan at Falador, Dantaera at Catherby, Kragen at Ardougne, Lyra at Port Phasmatys,
+// and the numbered gardener npcs at the hops, bush, tree and fruit tree patches. Their spawn
+// coordinates were checked against the patch coordinates, so the pairings below are the map's, not
+// a guess.
+//
+// Herbs and flowers have no protection payment in 2006, which is why the four allotment gardeners
+// only ever offer to look after their two allotments even though they stand next to a herb and a
+// flower patch as well. The cactus and calquat patches have no gardener in this cache at all.
+
+// ============================================================================ protection
+
+// Everything a gardener needs to know about one patch, so the dialogue can stay short.
+[proc,farming_protectable](int $patch)(boolean)
+def_int $crop = ~farming_crop_id($patch);
+if ($crop = 0) {
+    return(false);
+}
+if (~farming_protected($patch) = true) {
+    return(false);
+}
+def_namedobj $seed = ~farming_crop_obj($crop);
+if ($seed = null | oc_param($seed, farming_protect_obj) = null) {
+    return(false);
+}
+def_int $stage;
+def_int $condition;
+def_int $watered;
+$stage, $condition, $watered = ~farming_decode($patch, $seed);
+// Paying after the plant is already diseased does not save it, and there is nothing to protect once
+// it is fully grown.
+if ($condition ! ^farming_healthy | $stage >= oc_param($seed, farming_stages)) {
+    return(false);
+}
+return(true);
+
+[proc,farming_offer_protection](int $patch)
+def_namedobj $seed = ~farming_crop_obj(~farming_crop_id($patch));
+def_namedobj $want = oc_param($seed, farming_protect_obj);
+def_int $count = oc_param($seed, farming_protect_count);
+
+~chatnpc("<p,happy>I'll look after your <lowercase(oc_name($seed))> for <tostring($count)> <lowercase(oc_name($want))>. Deal?");
+def_int $choice = ~p_choice2("Yes, here you go.", 1, "No thanks.", 2);
+if ($choice ! 1) {
+    ~chatplayer("<p,neutral>No thanks.");
+    return;
+}
+if (inv_total(inv, $want) < $count) {
+    ~chatnpc("<p,sad>You don't have <tostring($count)> <lowercase(oc_name($want))> on you.");
+    return;
+}
+// Re-check: the crop could have grown, died or been paid for while the dialogue was open.
+if (~farming_protectable($patch) = false) {
+    ~chatnpc("<p,neutral>Never mind - that patch doesn't need me any more.");
+    return;
+}
+inv_del(inv, $want, $count);
+~farming_set_protected($patch, 1);
+~chatnpc("<p,happy>Lovely. I'll keep an eye on it for you.");
+
+// Two patches is the most any one gardener covers, so one choice covers every case.
+[proc,farming_farmer](int $a, int $b)
+~farming_update($a);
+~farming_update($b);
+def_boolean $can_a = ~farming_protectable($a);
+def_boolean $can_b = ~farming_protectable($b);
+
+if ($can_a = false & $can_b = false) {
+    ~chatnpc("<p,neutral>Nothing of yours needs looking after just now. Come back when you've something growing.");
+    return;
+}
+if ($can_a = true & $can_b = false) {
+    ~farming_offer_protection($a);
+    return;
+}
+if ($can_a = false & $can_b = true) {
+    ~farming_offer_protection($b);
+    return;
+}
+
+def_namedobj $seed_a = ~farming_crop_obj(~farming_crop_id($a));
+def_namedobj $seed_b = ~farming_crop_obj(~farming_crop_id($b));
+~chatnpc("<p,quiz>Which patch would you like me to look after?");
+def_int $choice = ~p_choice3(
+    append("The ", lowercase(oc_name($seed_a))), 1,
+    append("The ", lowercase(oc_name($seed_b))), 2,
+    "Neither, thanks.", 3);
+if ($choice = 1) {
+    ~farming_offer_protection($a);
+} else if ($choice = 2) {
+    ~farming_offer_protection($b);
+}
+
+// One patch only - the hops, bush, tree and fruit tree gardeners.
+[proc,farming_farmer_single](int $a)
+~farming_update($a);
+if (~farming_protectable($a) = false) {
+    ~chatnpc("<p,neutral>Nothing of yours needs looking after just now. Come back when you've something growing.");
+    return;
+}
+~farming_offer_protection($a);
+
+// ---------------------------------------------------------------- allotment gardeners
+[opnpc1,elstan]   ~farming_farmer(^farming_patch_veg_patch_1, ^farming_patch_veg_patch_2);
+[opnpc1,dantaera] ~farming_farmer(^farming_patch_veg_patch_3, ^farming_patch_veg_patch_4);
+[opnpc1,kragen]   ~farming_farmer(^farming_patch_veg_patch_5, ^farming_patch_veg_patch_6);
+[opnpc1,lyra]     ~farming_farmer(^farming_patch_veg_patch_7, ^farming_patch_veg_patch_8);
+
+// ---------------------------------------------------------------- hops
+// francis is Entrana; the numbered npcs are Yanille, Lumbridge and McGrubor's Wood.
+[opnpc1,farming_gardener_hops_1] ~farming_farmer_single(^farming_patch_hops_patch_1);
+[opnpc1,francis]                 ~farming_farmer_single(^farming_patch_hops_patch_2);
+[opnpc1,farming_gardener_hops_3] ~farming_farmer_single(^farming_patch_hops_patch_3);
+[opnpc1,farming_gardener_hops_4] ~farming_farmer_single(^farming_patch_hops_patch_4);
+
+// ---------------------------------------------------------------- bushes
+[opnpc1,farming_gardener_bush_1] ~farming_farmer_single(^farming_patch_bush_patch_1);
+[opnpc1,farming_gardener_bush_2] ~farming_farmer_single(^farming_patch_bush_patch_2);
+[opnpc1,farming_gardener_bush_3] ~farming_farmer_single(^farming_patch_bush_patch_3);
+[opnpc1,farming_gardener_bush_4] ~farming_farmer_single(^farming_patch_bush_patch_4);
+
+// ---------------------------------------------------------------- trees
+[opnpc1,farming_gardener_tree_1] ~farming_farmer_single(^farming_patch_tree_patch_1);
+[opnpc1,farming_gardener_tree_2] ~farming_farmer_single(^farming_patch_tree_patch_2);
+[opnpc1,farming_gardener_tree_3] ~farming_farmer_single(^farming_patch_tree_patch_3);
+[opnpc1,farming_gardener_tree_4] ~farming_farmer_single(^farming_patch_tree_patch_4);
+
+// ---------------------------------------------------------------- fruit trees
+[opnpc1,farming_gardener_fruit_1] ~farming_farmer_single(^farming_patch_fruit_tree_patch_1);
+[opnpc1,farming_gardener_fruit_2] ~farming_farmer_single(^farming_patch_fruit_tree_patch_2);
+[opnpc1,farming_gardener_fruit_3] ~farming_farmer_single(^farming_patch_fruit_tree_patch_3);
+[opnpc1,farming_gardener_fruit_4] ~farming_farmer_single(^farming_patch_fruit_tree_patch_4);
+
+// ============================================================================ tool leprechaun
+//
+// He stores your tools anywhere in the world (there is one store, not one per patch), fills your
+// watering can, and turns farming produce into banknotes. Twenty-five of him are already spawned.
+
+[proc,farming_store_get](int $bit_start, int $bit_end)(int)
+return(getbit_range(%farming_store_tools, $bit_start, $bit_end));
+
+[proc,farming_store_set](int $value, int $bit_start, int $bit_end)
+%farming_store_tools = setbit_range_toint(%farming_store_tools, $value, $bit_start, $bit_end);
+
+[proc,farming_store_tool](namedobj $tool, int $bit_start, int $bit_end)
+if (inv_total(inv, $tool) < 1) {
+    ~chatnpc("<p,neutral>You haven't got <lowercase(oc_name($tool))> to give me.");
+    return;
+}
+def_int $held = ~farming_store_get($bit_start, $bit_end);
+if ($held >= 7) {
+    ~chatnpc("<p,neutral>I'm not carrying any more of those for you.");
+    return;
+}
+inv_del(inv, $tool, 1);
+~farming_store_set(add($held, 1), $bit_start, $bit_end);
+mes("You hand the <lowercase(oc_name($tool))> to the leprechaun.");
+
+[proc,farming_withdraw_tool](namedobj $tool, int $bit_start, int $bit_end)
+def_int $held = ~farming_store_get($bit_start, $bit_end);
+if ($held < 1) {
+    ~chatnpc("<p,neutral>I'm not holding one of those for you.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,neutral>You've no room for it.");
+    return;
+}
+~farming_store_set(sub($held, 1), $bit_start, $bit_end);
+inv_add(inv, $tool, 1);
+mes("The leprechaun hands you <lowercase(oc_name($tool))>.");
+
+[proc,farming_leprechaun_tools]
+def_int $choice = ~p_choice3("Rake", 1, "Seed dibber", 2, "Spade", 3);
+switch_int($choice) {
+    case 1 : ~farming_leprechaun_toolmenu(rake, 0, 2);
+    case 2 : ~farming_leprechaun_toolmenu(dibber, 3, 5);
+    case 3 : ~farming_leprechaun_toolmenu(spade, 6, 8);
+    case default : return;
+}
+
+[proc,farming_leprechaun_toolmenu](namedobj $tool, int $bit_start, int $bit_end)
+~chatnpc(append(append("<p,neutral>I'm holding ", tostring(~farming_store_get($bit_start, $bit_end))), " of those for you."));
+def_int $choice = ~p_choice2("Take one out.", 1, "Put one in.", 2);
+if ($choice = 1) {
+    ~farming_withdraw_tool($tool, $bit_start, $bit_end);
+    return;
+}
+~farming_store_tool($tool, $bit_start, $bit_end);
+
+[opnpc1,farming_tools_leprechaun]
+~chatnpc("<p,happy>Top o' the mornin'! Need a hand with your tools?");
+def_int $choice = ~p_choice3("My tools, please.", 1, "Fill my watering can.", 2, "Nothing, thanks.", 3);
+switch_int($choice) {
+    case 1 : ~farming_leprechaun_tools;
+    case 2 : ~farming_leprechaun_fill_can;
+    case default : ~chatplayer("<p,neutral>Nothing, thanks.");
+}
+
+[opnpc3,farming_tools_leprechaun]
+~chatnpc("<p,neutral>Use any of your farming produce on me and I'll turn it into a banknote for you.");
+
+// He fills a watering can straight to eight doses, which is the whole reason to look for him.
+[proc,farming_leprechaun_fill_can]
+def_int $slot = 0;
+def_boolean $found = false;
+while ($slot < inv_size(inv) & $found = false) {
+    def_obj $item = inv_getobj(inv, $slot);
+    if ($item = watering_can_0 | $item = watering_can_1 | $item = watering_can_2 | $item = watering_can_3
+        | $item = watering_can_4 | $item = watering_can_5 | $item = watering_can_6 | $item = watering_can_7) {
+        inv_setslot(inv, $slot, watering_can_8, 1);
+        $found = true;
+    }
+    $slot = add($slot, 1);
+}
+if ($found = false) {
+    ~chatnpc("<p,neutral>You've no watering can that needs filling.");
+    return;
+}
+mes("The leprechaun fills your watering can.");
+
+// Noting produce. Anything with a cert form that came out of a farming patch is fair game.
+[opnpcu,farming_tools_leprechaun]
+def_obj $item = last_useitem;
+def_int $slot = last_useslot;
+if (~farming_is_compostable($item) = false) {
+    ~chatnpc("<p,neutral>That's not something I grew, so it's not something I'll note.");
+    return;
+}
+def_obj $note = oc_cert($item);
+if ($note = $item | $note = null) {
+    ~chatnpc("<p,neutral>I can't do anything with that, I'm afraid.");
+    return;
+}
+def_int $count = inv_total(inv, $item);
+if ($count < 1) {
+    return;
+}
+inv_del(inv, $item, $count);
+inv_add(inv, $note, $count);
+mes("The leprechaun exchanges your <lowercase(oc_name($item))> for banknotes.");

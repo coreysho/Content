@@ -1,0 +1,202 @@
+// Farming: plant pots, seedlings and saplings (Corey, 2026-09-05) - see claude/farming-skill.md.
+//
+// Trees and fruit trees are not planted from a seed. You fill an empty plant pot with soil using a
+// gardening trowel on any farming patch, put the seed in it, water it, wait five minutes and get a
+// sapling - and it is the sapling that carries all the crop data and goes in the ground.
+//
+// The whole chain already exists as items in the 377 cache (plantpot_acorn ->
+// plantpot_acorn_watered -> plantpot_oak_sapling and the same for all fourteen types), so this is
+// just the plumbing between them.
+
+// seed -> potted seedling
+[proc,farming_seed_to_pot](obj $seed)(namedobj)
+switch_obj($seed) {
+    case acorn : return(plantpot_acorn);
+    case willow_seed : return(plantpot_willow_seed);
+    case maple_seed : return(plantpot_maple_seed);
+    case yew_seed : return(plantpot_yew_seed);
+    case magic_tree_seed : return(plantpot_magic_tree_seed);
+    case spirit_tree_seed : return(plantpot_spirit_tree_seed);
+    case apple_tree_seed : return(plantpot_apple_seed);
+    case banana_tree_seed : return(plantpot_banana_seed);
+    case orange_tree_seed : return(plantpot_orange_seed);
+    case curry_tree_seed : return(plantpot_curry_seed);
+    case pineapple_tree_seed : return(plantpot_pineapple_seed);
+    case papaya_tree_seed : return(plantpot_papaya_seed);
+    case palm_tree_seed : return(plantpot_palm_seed);
+    case calquat_tree_seed : return(plantpot_calquat_seed);
+    case default : return(null);
+}
+return(null);
+
+// potted seedling -> watered
+[proc,farming_pot_to_watered](obj $pot)(namedobj)
+switch_obj($pot) {
+    case plantpot_acorn : return(plantpot_acorn_watered);
+    case plantpot_willow_seed : return(plantpot_willow_seed_watered);
+    case plantpot_maple_seed : return(plantpot_maple_seed_watered);
+    case plantpot_yew_seed : return(plantpot_yew_seed_watered);
+    case plantpot_magic_tree_seed : return(plantpot_magic_tree_seed_watered);
+    case plantpot_spirit_tree_seed : return(plantpot_spirit_tree_seed_watered);
+    case plantpot_apple_seed : return(plantpot_apple_seed_watered);
+    case plantpot_banana_seed : return(plantpot_banana_seed_watered);
+    case plantpot_orange_seed : return(plantpot_orange_seed_watered);
+    case plantpot_curry_seed : return(plantpot_curry_seed_watered);
+    case plantpot_pineapple_seed : return(plantpot_pineapple_seed_watered);
+    case plantpot_papaya_seed : return(plantpot_papaya_seed_watered);
+    case plantpot_palm_seed : return(plantpot_palm_seed_watered);
+    case plantpot_calquat_seed : return(plantpot_calquat_seed_watered);
+    case default : return(null);
+}
+return(null);
+
+// watered seedling -> sapling
+[proc,farming_watered_to_sapling](obj $pot)(namedobj)
+switch_obj($pot) {
+    case plantpot_acorn_watered : return(plantpot_oak_sapling);
+    case plantpot_willow_seed_watered : return(plantpot_willow_sapling);
+    case plantpot_maple_seed_watered : return(plantpot_maple_sapling);
+    case plantpot_yew_seed_watered : return(plantpot_yew_sapling);
+    case plantpot_magic_tree_seed_watered : return(plantpot_magic_tree_sapling);
+    case plantpot_spirit_tree_seed_watered : return(plantpot_spirit_tree_sapling);
+    case plantpot_apple_seed_watered : return(plantpot_apple_sapling);
+    case plantpot_banana_seed_watered : return(plantpot_banana_sapling);
+    case plantpot_orange_seed_watered : return(plantpot_orange_sapling);
+    case plantpot_curry_seed_watered : return(plantpot_curry_sapling);
+    case plantpot_pineapple_seed_watered : return(plantpot_pineapple_sapling);
+    case plantpot_papaya_seed_watered : return(plantpot_papaya_sapling);
+    case plantpot_palm_seed_watered : return(plantpot_palm_sapling);
+    case plantpot_calquat_seed_watered : return(plantpot_calquat_sapling);
+    case default : return(null);
+}
+return(null);
+
+// ============================================================================ putting a seed in a pot
+
+[proc,farming_pot_seed](obj $seed, int $seed_slot, obj $pot, int $pot_slot)
+def_namedobj $result = ~farming_seed_to_pot($seed);
+if ($result = null) {
+    ~displaymessage(^dm_default);
+    return;
+}
+def_int $level = oc_param(~farming_sapling_for_seed($seed), farming_level);
+if (stat(farming) < $level) {
+    mes("You need a Farming level of <tostring($level)> to plant that.");
+    return;
+}
+inv_del(inv, $seed, 1);
+inv_setslot(inv, $pot_slot, $result, 1);
+mes("You plant the <lowercase(oc_name($seed))> in the plant pot.");
+
+// The level requirement and every other stat live on the sapling, since that is what goes into the
+// ground, so the seed has to be able to point at it.
+[proc,farming_sapling_for_seed](obj $seed)(namedobj)
+def_namedobj $pot = ~farming_seed_to_pot($seed);
+if ($pot = null) {
+    return(null);
+}
+return(~farming_watered_to_sapling(~farming_pot_to_watered($pot)));
+
+// The engine tries [opheldu,<target>] before [opheldu,<used item>], so hanging the trigger on the
+// plant pot catches both "seed on pot" and "pot on seed" with one script.
+[proc,farming_pot_pair](obj $a, int $a_slot, obj $b, int $b_slot)
+if ($b = plantpot_compost | $b = plantpot_supercompost) {
+    ~farming_pot_seed($a, $a_slot, $b, $b_slot);
+    return;
+}
+if ($a = plantpot_compost | $a = plantpot_supercompost) {
+    ~farming_pot_seed($b, $b_slot, $a, $a_slot);
+    return;
+}
+~displaymessage(^dm_default);
+
+[opheldu,plantpot_compost] ~farming_pot_pair(last_useitem, last_useslot, last_item, last_slot);
+[opheldu,plantpot_supercompost] ~farming_pot_pair(last_useitem, last_useslot, last_item, last_slot);
+
+// ============================================================================ watering a seedling
+
+[proc,farming_water_seedling](obj $can, int $can_slot, obj $pot, int $pot_slot)
+def_namedobj $watered = ~farming_pot_to_watered($pot);
+if ($watered = null) {
+    ~displaymessage(^dm_default);
+    return;
+}
+def_namedobj $emptier = null;
+switch_obj($can) {
+    case watering_can_1 : $emptier = watering_can_0;
+    case watering_can_2 : $emptier = watering_can_1;
+    case watering_can_3 : $emptier = watering_can_2;
+    case watering_can_4 : $emptier = watering_can_3;
+    case watering_can_5 : $emptier = watering_can_4;
+    case watering_can_6 : $emptier = watering_can_5;
+    case watering_can_7 : $emptier = watering_can_6;
+    case watering_can_8 : $emptier = watering_can_7;
+    case default : $emptier = null;
+}
+if ($emptier = null) {
+    mes("Your watering can is empty.");
+    return;
+}
+inv_setslot(inv, $can_slot, $emptier, 1);
+inv_setslot(inv, $pot_slot, $watered, 1);
+%farming_seedling_time = ~farming_now;
+mes("You water the seedling. It should be ready to plant in a few minutes.");
+
+
+// Same trick for the watering can: the trigger lives on the seedling, so it fires whichever way
+// round the player does it.
+[proc,farming_water_pair](obj $a, int $a_slot, obj $b, int $b_slot)
+if (~farming_pot_to_watered($b) ! null) {
+    ~farming_water_seedling($a, $a_slot, $b, $b_slot);
+    return;
+}
+if (~farming_pot_to_watered($a) ! null) {
+    ~farming_water_seedling($b, $b_slot, $a, $a_slot);
+    return;
+}
+~displaymessage(^dm_default);
+
+[opheldu,plantpot_acorn] ~farming_water_pair(last_useitem, last_useslot, last_item, last_slot);
+[opheldu,plantpot_willow_seed] ~farming_water_pair(last_useitem, last_useslot, last_item, last_slot);
+[opheldu,plantpot_maple_seed] ~farming_water_pair(last_useitem, last_useslot, last_item, last_slot);
+[opheldu,plantpot_yew_seed] ~farming_water_pair(last_useitem, last_useslot, last_item, last_slot);
+[opheldu,plantpot_magic_tree_seed] ~farming_water_pair(last_useitem, last_useslot, last_item, last_slot);
+[opheldu,plantpot_spirit_tree_seed] ~farming_water_pair(last_useitem, last_useslot, last_item, last_slot);
+[opheldu,plantpot_apple_seed] ~farming_water_pair(last_useitem, last_useslot, last_item, last_slot);
+[opheldu,plantpot_banana_seed] ~farming_water_pair(last_useitem, last_useslot, last_item, last_slot);
+[opheldu,plantpot_orange_seed] ~farming_water_pair(last_useitem, last_useslot, last_item, last_slot);
+[opheldu,plantpot_curry_seed] ~farming_water_pair(last_useitem, last_useslot, last_item, last_slot);
+[opheldu,plantpot_pineapple_seed] ~farming_water_pair(last_useitem, last_useslot, last_item, last_slot);
+[opheldu,plantpot_papaya_seed] ~farming_water_pair(last_useitem, last_useslot, last_item, last_slot);
+[opheldu,plantpot_palm_seed] ~farming_water_pair(last_useitem, last_useslot, last_item, last_slot);
+[opheldu,plantpot_calquat_seed] ~farming_water_pair(last_useitem, last_useslot, last_item, last_slot);
+
+// ============================================================================ ripening
+
+// Called once a minute alongside the patches. Any watered seedling in the inventory becomes a
+// sapling five minutes after the last watering.
+[proc,farming_grow_seedlings]
+if (%farming_seedling_time = 0) {
+    return;
+}
+def_int $wait = max(1, divide(5, ^farming_speed_divisor));
+if (sub(~farming_now, %farming_seedling_time) < $wait) {
+    return;
+}
+def_int $slot = 0;
+def_boolean $any = false;
+while ($slot < inv_size(inv)) {
+    def_obj $item = inv_getobj(inv, $slot);
+    if ($item ! null) {
+        def_namedobj $sapling = ~farming_watered_to_sapling($item);
+        if ($sapling ! null) {
+            inv_setslot(inv, $slot, $sapling, 1);
+            $any = true;
+        }
+    }
+    $slot = add($slot, 1);
+}
+%farming_seedling_time = 0;
+if ($any = true) {
+    mes("One of your seedlings has grown into a sapling.");
+}

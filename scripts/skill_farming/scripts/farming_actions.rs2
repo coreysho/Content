@@ -1,0 +1,302 @@
+// Farming: what happens when you touch a patch (Corey, 2026-09-05) - see claude/farming-skill.md.
+//
+// A patch on the map is a multiloc, so the right-click options the player sees come from whichever
+// appearance its varbit is currently showing - "Harvest" on a grown allotment, "Check-health" on a
+// new tree, "Pick-spine" on a cactus, and nothing at all on bare soil. All of those arrive here as
+// op1 on the same parent loc, so every handler starts by asking the patch what it is showing.
+//
+// Everything else is item-on-patch, which is how the 377 cache was built: there is no "Rake" option
+// on a weedy patch, you use the rake on it. Same for the dibber, spade, watering can, compost,
+// plant cure and secateurs.
+
+// ============================================================================ helpers
+
+// The tool checks are deliberately forgiving about where the tool is: anything in the inventory
+// counts, and the tool leprechaun hands things back on request.
+[proc,farming_has_tool](namedobj $tool)(boolean)
+if (inv_total(inv, $tool) > 0) {
+    return(true);
+}
+return(false);
+
+[proc,farming_need_tool](namedobj $tool)(boolean)
+if (~farming_has_tool($tool) = true) {
+    return(true);
+}
+mes("You need <lowercase(oc_name($tool))> to do that.");
+return(false);
+
+// Magic secateurs give a 10% better chance to save a harvest life, whether worn or carried.
+[proc,farming_has_magic_secateurs]()(boolean)
+if (inv_total(inv, fairy_enchanted_secateurs) > 0) {
+    return(true);
+}
+if (inv_total(worn, fairy_enchanted_secateurs) > 0) {
+    return(true);
+}
+return(false);
+
+// Farming xp is stored x10 on the seed so the published half-points survive; stat_advance wants the
+// same x10 scale, so this is a straight pass-through with a guard.
+[proc,farming_xp](int $amount)
+if ($amount <= 0) {
+    return;
+}
+stat_advance(farming, $amount);
+
+// ============================================================================ op1 - the context action
+
+[proc,farming_op1](int $patch)
+~farming_update($patch);
+def_int $crop = ~farming_crop_id($patch);
+if ($crop = 0) {
+    ~farming_inspect($patch);
+    return;
+}
+def_namedobj $seed = ~farming_crop_obj($crop);
+if ($seed = null) {
+    ~farming_inspect($patch);
+    return;
+}
+
+def_int $stage;
+def_int $condition;
+def_int $watered;
+$stage, $condition, $watered = ~farming_decode($patch, $seed);
+
+if ($condition = ^farming_stump) {
+    mes("You need a spade to dig up the stump.");
+    return;
+}
+if ($condition = ^farming_dead) {
+    mes("This plant is dead. Clear the patch with a spade.");
+    return;
+}
+if ($condition = ^farming_diseased) {
+    mes("This plant is diseased. Treat it with a plant cure before it dies.");
+    return;
+}
+if ($stage < oc_param($seed, farming_stages)) {
+    ~farming_inspect($patch);
+    return;
+}
+
+// Fully grown and healthy. The check-health xp comes first where the family has one.
+if (oc_param($seed, farming_check_state) > 0 & ~farming_checked($patch) = false) {
+    ~farming_check_health($patch, $seed);
+    return;
+}
+
+switch_int(oc_param($seed, farming_family)) {
+    case ^farming_family_tree : ~farming_chop_tree($patch, $seed);
+    case ^farming_family_fruit_tree : ~farming_pick_produce($patch, $seed);
+    case ^farming_family_bush : ~farming_pick_produce($patch, $seed);
+    case ^farming_family_calquat : ~farming_pick_produce($patch, $seed);
+    case ^farming_family_cactus : ~farming_pick_produce($patch, $seed);
+    case ^farming_family_mushroom : ~farming_pick_produce($patch, $seed);
+    case ^farming_family_spirit_tree : ~farming_spirit_tree($patch, $seed);
+    case default : ~farming_harvest($patch, $seed);
+}
+
+// ============================================================================ check-health
+//
+// The single biggest xp drop in the skill, and the reason a magic tree is worth eight hours: it is
+// paid once, the first time you look at a finished tree, bush or cactus.
+
+[proc,farming_check_health](int $patch, namedobj $seed)
+~farming_set_checked($patch, 1);
+~farming_set_grown($patch, $seed);
+~farming_set_time($patch, ~farming_now);
+mes("You examine the <lowercase(oc_name($seed))> for signs of disease and find that it is in perfect health.");
+~farming_xp(oc_param($seed, farming_check_xp));
+
+// ============================================================================ harvesting
+//
+// Allotments, hops and herbs use the "lives" system: every pick rolls a chance to save, and only a
+// failed roll costs one of the patch's three (or four with compost, five with supercompost) lives.
+// That is why a ranarr patch usually gives more than three herbs.
+
+[proc,farming_cts](namedobj $seed)(int)
+def_int $low = oc_param($seed, farming_cts_low);
+def_int $high = oc_param($seed, farming_cts_high);
+if ($low <= 0) {
+    return(0);
+}
+def_int $level = min(stat(farming), 99);
+def_int $cts = add(add(divide(multiply($low, sub(99, $level)), 98), divide(multiply($high, sub($level, 1)), 98)), 10);
+if (~farming_has_magic_secateurs = true) {
+    $cts = divide(multiply($cts, ^farming_magic_secateurs_num), ^farming_magic_secateurs_div);
+}
+return($cts);
+
+[proc,farming_harvest](int $patch, namedobj $seed)
+def_namedobj $produce = oc_param($seed, farming_produce);
+if ($produce = null) {
+    ~farming_inspect($patch);
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("Your inventory is too full to hold any more <lowercase(oc_name($produce))>.");
+    return;
+}
+if (oc_param($seed, farming_family) = ^farming_family_allotment & ~farming_need_tool(spade) = false) {
+    return;
+}
+
+anim(human_farming, 0);
+sound_synth(pick, 1, 0);
+p_delay(2);
+
+inv_add(inv, $produce, 1);
+mes("You harvest <lowercase(oc_name($produce))>.");
+~farming_xp(oc_param($seed, farming_harvest_xp));
+
+// Flowers are a single pick - there is only ever one flower - so they end here.
+if (oc_param($seed, farming_family) = ^farming_family_flower) {
+    ~farming_clear_patch($patch);
+    return;
+}
+
+def_int $lives = ~farming_lives($patch);
+if (random(multiply(^farming_cts_scale, 10)) >= ~farming_cts($seed)) {
+    $lives = sub($lives, 1);
+}
+if ($lives <= 0) {
+    ~farming_clear_patch($patch);
+    mes("You have harvested everything this patch had to offer.");
+    return;
+}
+~farming_set_lives($patch, $lives);
+
+// Berries, fruit, spines and mushrooms: no lives, just a stock that (mushrooms aside) grows back.
+[proc,farming_pick_produce](int $patch, namedobj $seed)
+def_namedobj $produce = oc_param($seed, farming_produce);
+if ($produce = null) {
+    ~farming_inspect($patch);
+    return;
+}
+def_int $left = ~farming_produce_left($patch, $seed);
+if ($left <= 0) {
+    mes("There is nothing to pick yet.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("Your inventory is too full to hold any more <lowercase(oc_name($produce))>.");
+    return;
+}
+
+anim(human_farming, 0);
+sound_synth(pick, 1, 0);
+p_delay(2);
+
+inv_add(inv, $produce, 1);
+mes("You pick <lowercase(oc_name($produce))>.");
+~farming_xp(oc_param($seed, farming_harvest_xp));
+
+def_int $full = oc_param($seed, farming_checked_state);
+if (oc_param($seed, farming_family) = ^farming_family_mushroom) {
+    // Mushrooms count the other way and never come back - the last one empties the patch.
+    if ($left <= 1) {
+        ~farming_clear_patch($patch);
+        return;
+    }
+    ~farming_set_state($patch, add(~farming_get_state($patch), 1));
+    return;
+}
+~farming_set_state($patch, max($full, sub(~farming_get_state($patch), 1)));
+// Restart the regrowth clock from this pick.
+~farming_set_time($patch, ~farming_now);
+
+// ============================================================================ trees
+
+[proc,farming_chop_tree](int $patch, namedobj $seed)
+if (~farming_need_tool_axe = false) {
+    return;
+}
+mes("You chop the tree down. The stump can be dug out with a spade.");
+def_int $stump = oc_param($seed, farming_stump_state);
+if ($stump > 0) {
+    ~farming_set_state($patch, $stump);
+    return;
+}
+~farming_clear_patch($patch);
+
+// Any hatchet will do. The list is the wieldable set in axes.obj, cheapest first.
+[proc,farming_need_tool_axe]()(boolean)
+if (inv_total(inv, bronze_axe) > 0 | inv_total(inv, iron_axe) > 0 | inv_total(inv, steel_axe) > 0
+    | inv_total(inv, black_axe) > 0 | inv_total(inv, mithril_axe) > 0 | inv_total(inv, adamant_axe) > 0
+    | inv_total(inv, rune_axe) > 0 | inv_total(inv, dragon_axe) > 0) {
+    return(true);
+}
+if (inv_total(worn, bronze_axe) > 0 | inv_total(worn, iron_axe) > 0 | inv_total(worn, steel_axe) > 0
+    | inv_total(worn, black_axe) > 0 | inv_total(worn, mithril_axe) > 0 | inv_total(worn, adamant_axe) > 0
+    | inv_total(worn, rune_axe) > 0 | inv_total(worn, dragon_axe) > 0) {
+    return(true);
+}
+mes("You need an axe to chop this down.");
+return(false);
+
+[proc,farming_spirit_tree](int $patch, namedobj $seed)
+mes("The spirit tree rustles, but says nothing you can understand yet.");
+
+// ============================================================================ inspect and guide
+
+[proc,farming_inspect](int $patch)
+~farming_update($patch);
+def_int $crop = ~farming_crop_id($patch);
+if ($crop = 0) {
+    def_int $weeds = ~farming_get_state($patch);
+    if ($weeds >= ^farming_state_weeded) {
+        if (~farming_compost($patch) = ^farming_compost_super) {
+            mes("The patch is empty and treated with supercompost.");
+        } else if (~farming_compost($patch) = ^farming_compost_normal) {
+            mes("The patch is empty and treated with compost.");
+        } else {
+            mes("The patch is empty and ready for planting.");
+        }
+        return;
+    }
+    mes("The patch is overgrown with weeds. Use a rake on it to clear them.");
+    return;
+}
+
+def_namedobj $seed = ~farming_crop_obj($crop);
+def_int $stage;
+def_int $condition;
+def_int $watered;
+$stage, $condition, $watered = ~farming_decode($patch, $seed);
+def_int $stages = oc_param($seed, farming_stages);
+
+if ($condition = ^farming_stump) {
+    mes("Only a stump is left. Dig it out with a spade.");
+    return;
+}
+if ($condition = ^farming_dead) {
+    mes("The <lowercase(oc_name($seed))> has died. Clear the patch with a spade.");
+    return;
+}
+if ($condition = ^farming_diseased) {
+    mes("The <lowercase(oc_name($seed))> is diseased. Use a plant cure on it, or it will die.");
+    return;
+}
+if ($stage >= $stages) {
+    if (oc_param($seed, farming_produce_max) > 0) {
+        mes("The plant is fully grown and is holding <tostring(~farming_produce_left($patch, $seed))> item(s).");
+        return;
+    }
+    mes("The crop is ready to harvest.");
+    return;
+}
+
+mes("The crop is at stage <tostring($stage)> of <tostring($stages)>.");
+if ($watered = 1) {
+    mes("It has been watered.");
+}
+if (~farming_protected($patch) = true) {
+    mes("The farmer is looking after this patch.");
+}
+
+[proc,farming_guide](int $patch)
+mes("Farming lets you grow your own crops. Rake a patch clear, use a seed dibber to plant a seed,");
+mes("then come back later to harvest it. Compost lowers the risk of disease and a farmer will");
+mes("protect a patch for you if you pay them.");
