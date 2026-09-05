@@ -276,3 +276,32 @@ if (stat_base(prayer) < $prayer_level | stat_base(magic) < $magic_level) {
     return;
 }
 ~equip($slot);
+
+// --- added 2026-09-04 with the equipment stat/requirement pass (see claude/equipment-audit.md) ---
+
+[label,levelrequire_defence_and_strength](int $defence_level, int $strength_level, int $slot)
+if (stat_base(defence) < $defence_level | stat_base(strength) < $strength_level) {
+    mes("You are not a high enough level to use this item.");
+    mes("You need to have a defence level of <tostring($defence_level)> and a strength level of <tostring($strength_level)>.");
+    return;
+}
+~equip($slot);
+
+[label,levelrequire_viking_quest_attack](int $level, int $slot)
+if (~levelrequire_viking_quest = false) {
+    return;
+}
+@levelrequire_attack($level, $slot);
+
+[label,levelrequire_viking_quest_magic_and_defence](int $magic_level, int $defence_level, int $slot)
+if (~levelrequire_viking_quest = false) {
+    return;
+}
+@levelrequire_magic_and_defence($magic_level, $defence_level, $slot);
+
+[label,levelrequire_viking_quest_ranged_and_defence](int $ranged_level, int $defence_level, int $slot)
+if (~levelrequire_viking_quest = false) {
+    return;
+}
+@levelrequire_ranged_and_defence($ranged_level, $defence_level, $slot);
+
