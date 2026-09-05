@@ -19,6 +19,33 @@ if($option = 1) {
 [opnpcu,bob]
 def_obj $item = last_useitem;
 def_int $slot = last_useslot;
+// Barrows repair (Corey, 2026-09-05) - see claude/equipment-degradation.md. Price is strictly
+// proportional to how far the piece has degraded: degrade_points * degrade_repair_rate, where the
+// rate is 60/90/80/100 gp per point for helm/body/legs/weapon. A fully broken helm is therefore
+// 60 * 1000 = 60,000gp and a barely-used one costs almost nothing. Checked before the axe branch
+// because broken hatchets also carry a "fixed" param, but never a degrade_repair_rate.
+if (oc_param($item, degrade_repair_rate) > 0 & oc_param($item, fixed) ! null) {
+    def_int $repair = multiply(oc_param($item, degrade_points), oc_param($item, degrade_repair_rate));
+    if ($repair = 0) {
+        ~chatnpc("<p,neutral>There's not a scratch on that. Nothing for me to do.");
+        return;
+    }
+    if (inv_total(inv, coins) < $repair) {
+        ~chatnpc("<p,sad>I'll need <tostring($repair)>gp to repair that.");
+        return;
+    }
+    ~chatnpc("<p,neutral>I can put that right for <tostring($repair)>gp. Shall I?");
+    def_int $repair_choice = ~p_choice2("Yes, please.", 1, "No, thank you.", 2);
+    if ($repair_choice = 1) {
+        if (inv_total(inv, coins) < $repair | inv_getobj(inv, $slot) ! $item) {
+            return; // coins or the item moved while the dialogue was open
+        }
+        inv_del(inv, coins, $repair);
+        inv_setslot(inv, $slot, oc_param($item, fixed), 1);
+        mes("Bob repairs your <lowercase(oc_name($item))>.");
+    }
+    return;
+}
 def_int $cost = oc_cost($item);
 if (oc_param($item, to_be_fixed_by_bob) = ^true) {
 // https://youtu.be/bdvD8uxlEAs?list=PLn23LiLYLb1aYjPgadhUQGX61AeHWaT4y

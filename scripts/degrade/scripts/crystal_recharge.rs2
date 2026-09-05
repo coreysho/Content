@@ -1,0 +1,60 @@
+// Islwyn re-enchants a spent crystal seed back into a bow or a shield.
+// Corey, 2026-09-05 - see claude/equipment-degradation.md.
+//
+// HEADS UP: roving_islwyn (npc 1680) exists in the cache but is NOT placed on any map square, so
+// until he is spawned this script is inert and a spent seed cannot be turned back into equipment.
+// Crystal gear is not obtainable in-game either (Roving Elves is not implemented), so nothing is
+// currently lost by that - but if you hand yourself a crystal bow, degrade it, and want it back,
+// either spawn Islwyn or use ::~rechargecrystal below.
+//
+// His price drops each time he enchants a seed for you, bottoming out on the fifth. The counter is
+// deliberately shared between the bow and the shield: the discount is per player, not per item.
+
+[proc,crystal_recharge_price](int $base, int $step)(int)
+return(sub($base, multiply($step, min(%crystal_enchant_count, ^crystal_recharge_min_tier))));
+
+[proc,crystal_recharge_give](namedobj $result, int $price, int $slot)
+if (inv_total(inv, coins) < $price) {
+    ~chatnpc("<p,sad>I will need <tostring($price)> coins to sing the crystal back to life.");
+    return;
+}
+~chatnpc("<p,neutral>That will be <tostring($price)> coins. Shall I begin?");
+def_int $choice = ~p_choice2("Yes, please.", 1, "No, thank you.", 2);
+if ($choice ! 1) {
+    return;
+}
+if (inv_total(inv, coins) < $price | inv_getobj(inv, $slot) ! crystal_seed_old) {
+    return; // coins or the seed moved while the dialogue was open
+}
+inv_del(inv, coins, $price);
+inv_setslot(inv, $slot, $result, 1);
+%crystal_enchant_count = add(%crystal_enchant_count, 1);
+mes("Islwyn sings to the seed, and it unfolds into <lowercase(oc_name($result))>.");
+
+[opnpcu,roving_islwyn]
+def_obj $item = last_useitem;
+def_int $slot = last_useslot;
+if ($item ! crystal_seed_old) {
+    ~chatnpc("<p,neutral>I am afraid I can do nothing with that.");
+    return;
+}
+~chatnpc("<p,quiz>A crystal seed. Would you have me sing it into a bow, or a shield?");
+def_int $choice = ~p_choice2("A bow, please.", 1, "A shield, please.", 2);
+if ($choice = 1) {
+    ~crystal_recharge_give(roving_crystal_bow_new,
+        ~crystal_recharge_price(^crystal_bow_recharge_base, ^crystal_bow_recharge_step), $slot);
+} else {
+    ~crystal_recharge_give(roving_crystal_shield_new,
+        ~crystal_recharge_price(^crystal_shield_recharge_base, ^crystal_shield_recharge_step), $slot);
+}
+
+// Stand-in for Islwyn while he is unspawned: turns a held crystal seed straight back into a full
+// bow, free. ::~rechargecrystal
+[debugproc,rechargecrystal]
+if (inv_total(inv, crystal_seed_old) < 1) {
+    mes("You need a crystal seed in your inventory.");
+    return;
+}
+inv_del(inv, crystal_seed_old, 1);
+inv_add(inv, roving_crystal_bow_new, 1);
+mes("Crystal seed restored to a new crystal bow.");

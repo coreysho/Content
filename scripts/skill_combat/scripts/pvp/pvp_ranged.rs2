@@ -80,6 +80,15 @@ switch_category(oc_category($rhand)) {
 return($delay);
 
 [proc,ranged_dropammo_pvp](obj $ammo, int $delay)
+// Self-supplied ammo is the weapon itself - never consume or drop it. No-drop ammo is used
+// up but never lands on the floor (bolt racks).
+if (oc_param($ammo, ammo_self_supplied) = true) {
+    return;
+}
+if (oc_param($ammo, ammo_no_drop) = true) {
+    inv_del(worn, $ammo, 1);
+    return;
+}
 if($ammo = holy_water) {
     ~ranged_dropammo_holywater(.coord, $delay);
     return;
@@ -96,6 +105,15 @@ if (random(^dropammo_chance) ! 0) {
 inv_del(worn, $ammo, 1);
 
 [proc,ranged_dropammo_pvp_specific](obj $ammo, coord $coord, int $delay)
+// Self-supplied ammo is the weapon itself - never consume or drop it. No-drop ammo is used
+// up but never lands on the floor (bolt racks).
+if (oc_param($ammo, ammo_self_supplied) = true) {
+    return;
+}
+if (oc_param($ammo, ammo_no_drop) = true) {
+    inv_del(worn, $ammo, 1);
+    return;
+}
 if($ammo = holy_water) {
     ~ranged_dropammo_holywater($coord, $delay);
     return;

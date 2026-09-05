@@ -121,7 +121,10 @@ if ($consumable ! null & oc_category($consumable) = potion) {
         }
     }
     // potions have delay: https://www.youtube.com/watch?v=s5sDZdBzapk&t=151s
-    if (db_getfieldcount($message_data, consume_messages_table:message_delay) > 0) {
+    // A potion with no consume_messages row leaves $message_data null, and db_getfieldcount on a
+    // null row throws and disconnects the player - which is what drinking a Saradomin brew did.
+    // The food path below already guards this; the potion path did not.
+    if ($message_data ! null & db_getfieldcount($message_data, consume_messages_table:message_delay) > 0) {
         p_delay(db_getfield($message_data, consume_messages_table:message_delay, 0));
     }
     if ($consumable = vial_empty) {

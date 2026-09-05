@@ -84,6 +84,11 @@ if (npc_param(defend_sound) ! null) {
 }
 
 [proc,player_ranged_check_ammo](obj $rhand)(obj)
+// The crystal bow makes its own arrows, so it is its own ammo. This has to come before the
+// category checks below, which would otherwise reject a bow for not being arrows.
+if (oc_param($rhand, ammo_self_supplied) = true) {
+    return($rhand);
+}
 def_category $weapon_cat = oc_category($rhand);
 if ($weapon_cat ! weapon_bow & $weapon_cat ! weapon_crossbow) {
     return($rhand); // in this case, the rhand is the ammo.
@@ -115,6 +120,7 @@ return($ammo);
 if ($ammo = ogre_arrow) spotanim_pl(oc_param($ammo, proj_launch), 50, 0);
 else spotanim_pl(oc_param($ammo, proj_launch), 96, 0);
 def_int $delay = 30;
+~crystal_bow_shot; // crystal bow spends one charge per shot - see degrade/scripts/degrade.rs2
 switch_category(oc_category($rhand)) {
     case weapon_bow, weapon_crossbow : 
         $delay = ~npc_projectile(coord, npc_uid, oc_param($ammo, proj_travel), 40, 36, 41, 15, 5, 11, 5);
@@ -131,6 +137,15 @@ switch_category(oc_category($rhand)) {
 return($delay);
 
 [proc,ranged_dropammo_npc](obj $ammo, int $delay)
+// Self-supplied ammo is the weapon itself - never consume or drop it. No-drop ammo is used
+// up but never lands on the floor (bolt racks).
+if (oc_param($ammo, ammo_self_supplied) = true) {
+    return;
+}
+if (oc_param($ammo, ammo_no_drop) = true) {
+    inv_del(worn, $ammo, 1);
+    return;
+}
 if($ammo = holy_water) {
     ~ranged_dropammo_holywater(npc_coord, $delay);
     return;

@@ -1,0 +1,24 @@
+// Equipment degradation (Corey, 2026-09-05) - see claude/equipment-degradation.md.
+//
+// NOTE: next_obj_stage was NOT reused for this. It already means "what this consumable becomes when
+// used" and 32 worn items rely on it for other things (every arrow points at its unlit version), so
+// degrading "any worn item with a next_obj_stage" would quietly turn a quiver of rune arrows into
+// unlit arrows. degrade_next is a separate, unambiguous marker.
+
+// The item this one turns into at the next degradation step. null = does not degrade any further.
+[degrade_next]
+type=namedobj
+default=null
+
+// How many degradation points this state has already used up, out of the item's total lifespan.
+// Barrows pieces have 1000 points (15 hours of combat); this is what makes a repair from 25%
+// cost more than a repair from 100%.
+[degrade_points]
+type=int
+default=0
+
+// Gold per degradation point when an NPC repairs this item. Barrows rates are per slot:
+// helm 60, body 90, legs 80, weapon 100 - so a fully broken helm is 60 * 1000 = 60,000gp.
+[degrade_repair_rate]
+type=int
+default=0

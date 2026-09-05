@@ -1,0 +1,45 @@
+// Equipment degradation counters (Corey, 2026-09-05) - see claude/equipment-degradation.md.
+//
+// These hold progress WITHIN the item's current visible state, not its total wear. The item id is
+// the authoritative coarse state (a "Dharoks helm 50" is 50%, whatever any varp says) and these just
+// count how far through that quarter the player is. That keeps the two in sync automatically: swap
+// to a different helm mid-quarter and the most that can be lost or gained is part of one step,
+// rather than the counter and the item disagreeing permanently.
+
+// Barrows wear, one per equipment slot a barrows piece can occupy. 0..249, then the piece steps
+// down a state and this resets.
+[barrows_wear_hat]
+scope=perm
+
+[barrows_wear_torso]
+scope=perm
+
+[barrows_wear_legs]
+scope=perm
+
+[barrows_wear_weapon]
+scope=perm
+
+// map_clock of the last combat action, refreshed from both sides of a fight. %lastcombat only
+// covers npc-initiated combat (npc_combat.rs2 sets it; a player swinging first does not), so
+// degradation keeps its own marker rather than degrading only when something hits back.
+[barrows_lastcombat]
+scope=perm
+
+// 1 while the barrows degrade timer is running. Used instead of gettimer() so that "am I already
+// in combat" is a value this code sets itself rather than a reading whose exact semantics
+// (remaining ticks vs interval vs 0) would need confirming.
+[barrows_degrading]
+scope=perm
+
+// Crystal bow shots fired / crystal shield hits taken within the current 1/10 step. 0..249.
+[crystal_bow_shots]
+scope=perm
+
+[crystal_shield_hits]
+scope=perm
+
+// How many crystal seeds Islwyn has enchanted for this player. Drives the recharge discount, and
+// is deliberately shared between the bow and the shield - the discount is per player, not per item.
+[crystal_enchant_count]
+scope=perm

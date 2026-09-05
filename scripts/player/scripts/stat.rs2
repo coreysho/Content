@@ -55,8 +55,14 @@ while ($i <= enum_getoutputcount(stats)) {
     $i = calc($i + 1);
 }
 
-//hp is on a seperate timer, because of rapid heal and rapid restore
+//hp is on a seperate timer, because of rapid heal and rapid restore.
+// stat_boost_restore deliberately skips hitpoints, so the drain back down from an overheal
+// (Saradomin brew) has to happen here too - otherwise boosted hp just stayed there forever.
 [timer,health_regen]
+if (stat(hitpoints) > stat_base(hitpoints)) {
+    stat_sub(hitpoints, 1, 0);
+    return;
+}
 stat_heal(hitpoints, 1, 0);
 
 [proc,stat_reset](stat $stat)

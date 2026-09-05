@@ -1,0 +1,155 @@
+// Equipment degradation (Corey, 2026-09-05) - see claude/equipment-degradation.md.
+//
+// How the state is split: the ITEM ID is the authoritative coarse state (a "Dharoks helm 50" is at
+// 50% no matter what any varp says) and the varps below only count progress within the current
+// state. That means the two can never disagree permanently - the worst a mismatched varp can do is
+// shift one step slightly early or late.
+//
+// How long each step takes is NOT hardcoded: it is the difference between this state's
+// degrade_points and the next state's. That falls out of the data correctly for every case -
+// barrows undamaged -> 100 is 1 point (it happens the instant you enter combat), 100 -> 75 is the
+// remaining 249, and each later quarter is a full 250, totalling the authentic 1000. Crystal's
+// "new" -> "full" comes out as 0, i.e. immediate on first use, which is also correct.
+
+// ============================================================================ shared
+
+// How many degradation points the step from $item to $next costs, after the speed divisor.
+[proc,degrade_step_size](obj $item, namedobj $next)(int)
+def_int $raw = sub(oc_param($next, degrade_points), oc_param($item, degrade_points));
+if ($raw <= 0) {
+    return(0); // immediate transition
+}
+return(max(1, divide($raw, ^degrade_speed_divisor)));
+
+// Advances one degradation step on whatever is in $slot. Returns the new within-state counter.
+// Items that are not degradable, or that have reached the end of their chain, are left alone.
+[proc,degrade_worn_slot](int $slot, int $points)(int)
+def_obj $item = inv_getobj(worn, $slot);
+if ($item = null) {
+    return(0);
+}
+def_namedobj $next = oc_param($item, degrade_next);
+if ($next = null) {
+    return($points);
+}
+def_int $limit = ~degrade_step_size($item, $next);
+$points = add($points, 1);
+if ($limit > 0 & $points < $limit) {
+    return($points);
+}
+inv_setslot(worn, $slot, $next, 1);
+if (oc_param($next, degrade_next) = null) {
+    mes("Your <lowercase(oc_name($item))> has fully degraded.");
+} else if ($limit > 0) {
+    mes("Your <lowercase(oc_name($item))> has degraded.");
+}
+~update_bas;
+return(0);
+
+// ============================================================================ barrows
+//
+// Barrows degrades on TIME SPENT IN COMBAT, not per hit - one point the moment combat starts, then
+// one every 90 ticks it continues. 1000 points is 15 hours. Degrading per hit is the usual way
+// servers get this wrong.
+
+[proc,barrows_combat_entry]
+%barrows_lastcombat = map_clock;
+if (%barrows_degrading = 1) {
+    return; // already in combat, the timer is doing the work
+}
+%barrows_degrading = 1;
+settimer(barrows_degrade, ^barrows_degrade_interval);
+~barrows_degrade_tick; // entering combat costs a point immediately
+
+[proc,barrows_degrade_tick]
+%barrows_wear_hat = ~degrade_worn_slot(^wearpos_hat, %barrows_wear_hat);
+%barrows_wear_torso = ~degrade_worn_slot(^wearpos_torso, %barrows_wear_torso);
+%barrows_wear_legs = ~degrade_worn_slot(^wearpos_legs, %barrows_wear_legs);
+%barrows_wear_weapon = ~degrade_worn_slot(^wearpos_rhand, %barrows_wear_weapon);
+
+[timer,barrows_degrade]
+// The 8-tick idle window is the same one npc_combat.rs2 and pvp_combat.rs2 use to decide
+// whether a player is still fighting.
+if (add(%barrows_lastcombat, 8) < map_clock) {
+    cleartimer(barrows_degrade);
+    %barrows_degrading = 0;
+    return;
+}
+~barrows_degrade_tick;
+
+// A fully degraded piece keeps no bonuses (its obj config has no stat params at all) and cannot be
+// put back on once removed. It is deliberately not force-unequipped: a piece that breaks while worn
+// stays on until the player takes it off, which is the authentic behaviour.
+[proc,barrows_broken_refuse]
+mes("This item is broken and needs repairing before it can be worn again.");
+mes("Bob in Lumbridge will repair it for you.");
+
+// ============================================================================ crystal
+//
+// 2500 charges over ten visible states. The bow spends one per shot, the shield one per non-zero
+// hit taken. Unlike barrows, crystal bonuses genuinely drop at every step - that data is already
+// in the obj configs.
+
+[proc,crystal_degrade](int $slot, int $points)(int)
+def_obj $item = inv_getobj(worn, $slot);
+if ($item = null) {
+    return(0);
+}
+def_namedobj $next = oc_param($item, degrade_next);
+if ($next = null) {
+    return($points);
+}
+def_int $limit = ~degrade_step_size($item, $next);
+$points = add($points, 1);
+if ($limit > 0 & $points < $limit) {
+    return($points);
+}
+if ($next = crystal_seed_old) {
+    // Reverting needs a free inventory slot for the seed. Rather than destroy the item or drop the
+    // seed on the floor mid-fight, hold at 1/10 and tell the player.
+    if (inv_freespace(inv) < 1) {
+        mes("Your crystal equipment is about to revert, but your inventory is full.");
+        return($points);
+    }
+    inv_delslot(worn, $slot);
+    inv_add(inv, crystal_seed_old, 1);
+    mes("Your crystal equipment has used its last charge and reverted to a seed.");
+    ~update_bas;
+    return(0);
+}
+inv_setslot(worn, $slot, $next, 1);
+if ($limit > 0) {
+    mes("Your <lowercase(oc_name($item))> degrades a little.");
+}
+~update_bas;
+return(0);
+
+// Called from player_ranged.rs2 once per shot fired.
+[proc,crystal_bow_shot]
+def_obj $rhand = inv_getobj(worn, ^wearpos_rhand);
+if ($rhand = null | oc_param($rhand, degrade_next) = null) {
+    return;
+}
+%crystal_bow_shots = ~crystal_degrade(^wearpos_rhand, %crystal_bow_shots);
+
+// Called from damage.rs2 whenever the player takes a non-zero hit.
+[proc,crystal_shield_hit]
+def_obj $lhand = inv_getobj(worn, ^wearpos_lhand);
+if ($lhand = null | oc_param($lhand, degrade_next) = null) {
+    return;
+}
+%crystal_shield_hits = ~crystal_degrade(^wearpos_lhand, %crystal_shield_hits);
+
+// ============================================================================ dev command
+//
+// 15 hours of combat is a long time to wait to confirm this works, so this forces one step on
+// everything currently worn. Passing a count larger than any step size means the very next point
+// tips it over, so one call advances each piece a whole state. ::~degrade
+[debugproc,degrade]
+%barrows_wear_hat = ~degrade_worn_slot(^wearpos_hat, 100000);
+%barrows_wear_torso = ~degrade_worn_slot(^wearpos_torso, 100000);
+%barrows_wear_legs = ~degrade_worn_slot(^wearpos_legs, 100000);
+%barrows_wear_weapon = ~degrade_worn_slot(^wearpos_rhand, 100000);
+%crystal_bow_shots = ~crystal_degrade(^wearpos_rhand, 100000);
+%crystal_shield_hits = ~crystal_degrade(^wearpos_lhand, 100000);
+mes("Forced one degradation step on all worn degradable equipment.");
