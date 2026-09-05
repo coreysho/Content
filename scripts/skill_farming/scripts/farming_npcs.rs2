@@ -36,18 +36,46 @@ if ($condition ! ^farming_healthy | $stage >= oc_param($seed, farming_stages)) {
 }
 return(true);
 
+// Gardeners take payment noted or unnoted, and will happily take a mix of the two - which matters,
+// because 40 cabbages for a redberry bush do not fit in an inventory alongside your tools otherwise.
+// oc_cert returns the item itself when it has no banknote form, hence the guard.
+[proc,farming_payment_held](namedobj $want)(int)
+def_obj $plain = $want;
+def_obj $noted = oc_cert($plain);
+def_int $total = inv_total(inv, $plain);
+if ($noted ! $plain) {
+    $total = add($total, inv_total(inv, $noted));
+}
+return($total);
+
+// Spends the loose ones first, then makes up the difference out of the notes.
+[proc,farming_payment_take](namedobj $want, int $count)
+def_obj $plain = $want;
+def_int $loose = min(inv_total(inv, $plain), $count);
+if ($loose > 0) {
+    inv_del(inv, $plain, $loose);
+    $count = sub($count, $loose);
+}
+if ($count <= 0) {
+    return;
+}
+def_obj $noted = oc_cert($plain);
+if ($noted ! $plain) {
+    inv_del(inv, $noted, $count);
+}
+
 [proc,farming_offer_protection](int $patch)
 def_namedobj $seed = ~farming_crop_obj(~farming_crop_id($patch));
 def_namedobj $want = oc_param($seed, farming_protect_obj);
 def_int $count = oc_param($seed, farming_protect_count);
 
-~chatnpc("<p,happy>I'll look after your <lowercase(oc_name($seed))> for <tostring($count)> <lowercase(oc_name($want))>. Deal?");
+~chatnpc("<p,happy>I'll look after your <lowercase(oc_name($seed))> for <tostring($count)> <lowercase(oc_name($want))>. Noted ones are fine. Deal?");
 def_int $choice = ~p_choice2("Yes, here you go.", 1, "No thanks.", 2);
 if ($choice ! 1) {
     ~chatplayer("<p,neutral>No thanks.");
     return;
 }
-if (inv_total(inv, $want) < $count) {
+if (~farming_payment_held($want) < $count) {
     ~chatnpc("<p,sad>You don't have <tostring($count)> <lowercase(oc_name($want))> on you.");
     return;
 }
@@ -56,7 +84,7 @@ if (~farming_protectable($patch) = false) {
     ~chatnpc("<p,neutral>Never mind - that patch doesn't need me any more.");
     return;
 }
-inv_del(inv, $want, $count);
+~farming_payment_take($want, $count);
 ~farming_set_protected($patch, 1);
 ~chatnpc("<p,happy>Lovely. I'll keep an eye on it for you.");
 

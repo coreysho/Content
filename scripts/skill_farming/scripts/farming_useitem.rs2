@@ -32,6 +32,13 @@ switch_obj($item) {
 
 // ============================================================================ rake
 
+// Rakes until the patch is clear rather than one weed per click. A patch holds at most three weeds,
+// so this is bounded at three swings; the safety counter is only there so that a set_state that
+// somehow fails to stick can never spin forever.
+//
+// p_delay inside a while loop is a real idiom in this codebase (see rashiliyia.rs2) - the script
+// suspends and resumes on the next tick, so the player sees three separate swings rather than one
+// long pause and then three weeds at once.
 [proc,farming_rake](int $patch)
 if (~farming_crop_id($patch) ! 0) {
     mes("There is something growing here already.");
@@ -42,15 +49,25 @@ if ($state >= ^farming_state_weeded) {
     mes("The patch is already clear.");
     return;
 }
-anim(farming_raking, 0);
-p_delay(3);
-~farming_set_state($patch, add($state, 1));
-~farming_set_time($patch, ~farming_now);
-if (inv_freespace(inv) > 0) {
-    inv_add(inv, weeds, 1);
+
+def_int $safety = 0;
+while ($state < ^farming_state_weeded & $safety < 4) {
+    $safety = add($safety, 1);
+    anim(farming_raking, 0);
+    p_delay(3);
+
+    // Re-read rather than trusting the local copy: the once-a-minute update could have regrown a
+    // weed underneath us while the delay was running.
+    $state = min(^farming_state_weeded, add(~farming_get_state($patch), 1));
+    ~farming_set_state($patch, $state);
+    ~farming_set_time($patch, ~farming_now);
+    if (inv_freespace(inv) > 0) {
+        inv_add(inv, weeds, 1);
+    }
+    mes("You rake the weeds out of the patch.");
+    ~farming_xp(^farming_rake_xp);
 }
-mes("You rake the weeds out of the patch.");
-~farming_xp(^farming_rake_xp);
+anim(null, 0);
 
 // ============================================================================ spade
 //
