@@ -221,17 +221,70 @@ if ($found = false) {
 }
 mes("The leprechaun fills your watering can.");
 
-// Noting produce. Anything with a cert form that came out of a farming patch is fair game.
+// Noting produce. oc_cert returns an obj, but inv_add takes a namedobj and the compiler will not
+// narrow one to the other, so the mapping is spelled out. That is no bad thing here: it also keeps
+// him to actual farming produce rather than anything that merely happens to be compostable.
+// Woad leaf and cave nightshade have no banknote form in this cache and are left out.
+[proc,farming_note_obj](obj $item)(namedobj)
+switch_obj($item) {
+    case potato : return(cert_potato);
+    case onion : return(cert_onion);
+    case cabbage : return(cert_cabbage);
+    case tomato : return(cert_tomato);
+    case sweetcorn : return(cert_sweetcorn);
+    case strawberry : return(cert_strawberry);
+    case watermelon : return(cert_watermelon);
+    case barley : return(cert_barley);
+    case jute_fibre : return(cert_jute_fibre);
+    case hammerstone_hops : return(cert_hammerstone_hops);
+    case asgarnian_hops : return(cert_asgarnian_hops);
+    case yanillian_hops : return(cert_yanillian_hops);
+    case krandorian_hops : return(cert_krandorian_hops);
+    case wildblood_hops : return(cert_wildblood_hops);
+    case marigold : return(cert_marigold);
+    case rosemary : return(cert_rosemary);
+    case nasturtium : return(cert_nasturtium);
+    case limpwurt_root : return(cert_limpwurt_root);
+    case redberries : return(cert_redberries);
+    case cadavaberries : return(cert_cadavaberries);
+    case dwellberries : return(cert_dwellberries);
+    case jangerberries : return(cert_jangerberries);
+    case white_berries : return(cert_white_berries);
+    case poisonivy_berries : return(cert_poisonivy_berries);
+    case cooking_apple : return(cert_cooking_apple);
+    case banana : return(cert_banana);
+    case orange : return(cert_orange);
+    case curry_leaf : return(cert_curry_leaf);
+    case pineapple : return(cert_pineapple);
+    case papaya : return(cert_papaya);
+    case coconut : return(cert_coconut);
+    case calquat_fruit : return(cert_calquat_fruit);
+    case cactus_spine : return(cert_cactus_spine);
+    case bittercap_mushroom : return(cert_bittercap_mushroom);
+    case weeds : return(cert_weeds);
+    case unidentified_guam : return(cert_unidentified_guam);
+    case unidentified_marentill : return(cert_unidentified_marentill);
+    case unidentified_tarromin : return(cert_unidentified_tarromin);
+    case unidentified_harralander : return(cert_unidentified_harralander);
+    case unidentified_ranarr : return(cert_unidentified_ranarr);
+    case unidentified_toadflax : return(cert_unidentified_toadflax);
+    case unidentified_irit : return(cert_unidentified_irit);
+    case unidentified_avantoe : return(cert_unidentified_avantoe);
+    case unidentified_kwuarm : return(cert_unidentified_kwuarm);
+    case unidentified_snapdragon : return(cert_unidentified_snapdragon);
+    case unidentified_cadantine : return(cert_unidentified_cadantine);
+    case unidentified_lantadyme : return(cert_unidentified_lantadyme);
+    case unidentified_dwarf_weed : return(cert_unidentified_dwarf_weed);
+    case unidentified_torstol : return(cert_unidentified_torstol);
+    case default : return(null);
+}
+return(null);
+
 [opnpcu,farming_tools_leprechaun]
 def_obj $item = last_useitem;
-def_int $slot = last_useslot;
-if (~farming_is_compostable($item) = false) {
+def_namedobj $note = ~farming_note_obj($item);
+if ($note = null) {
     ~chatnpc("<p,neutral>That's not something I grew, so it's not something I'll note.");
-    return;
-}
-def_obj $note = oc_cert($item);
-if ($note = $item | $note = null) {
-    ~chatnpc("<p,neutral>I can't do anything with that, I'm afraid.");
     return;
 }
 def_int $count = inv_total(inv, $item);
