@@ -1,0 +1,112 @@
+// Farming skill guide. Eight category buttons, one per patch type.
+//
+// Every level here is read straight off the seed's farming_level param via
+// tools/farming/gen.py, so the guide and the thing it documents cannot drift apart.
+//
+// Icons are the crop's produce rather than its seed - a row of near-identical seed
+// sprites is unreadable, and the produce is what the player is actually after. Trees
+// show their logs and the spirit tree its seed, since neither yields a farming item.
+//
+// Eight buttons means btn1..btn8 (7+ categories use the btn1-first ladder; see the
+// note at the top of interfaces/skill_guide.rs2).
+[proc,open_farming_guide]
+%skillguide_page = 1;
+~farming_guide_render;
+
+[proc,farming_guide_render]
+~skillguide_begin(^guide_farming, "Farming");
+~skillguide_members;
+~skillguide_panels(8);
+~skillguide_button(1, "Allotment");
+~skillguide_button(2, "Hops");
+~skillguide_button(3, "Flowers");
+~skillguide_button(4, "Herbs");
+~skillguide_button(5, "Bushes");
+~skillguide_button(6, "Trees");
+~skillguide_button(7, "Fruit tree");
+~skillguide_button(8, "Other");
+def_int $lvl = stat(farming);
+switch_int (%skillguide_page) {
+    case 2 : ~farming_guide_hops($lvl);
+    case 3 : ~farming_guide_flowers($lvl);
+    case 4 : ~farming_guide_herbs($lvl);
+    case 5 : ~farming_guide_bushes($lvl);
+    case 6 : ~farming_guide_trees($lvl);
+    case 7 : ~farming_guide_fruittrees($lvl);
+    case 8 : ~farming_guide_other($lvl);
+    case default : ~farming_guide_allotment($lvl);
+}
+~skillguide_show;
+
+[proc,farming_guide_allotment](int $lvl)
+~skillguide_row(1, $lvl, 1, potato, "Potatoes");
+~skillguide_row(2, $lvl, 5, onion, "Onions");
+~skillguide_row(3, $lvl, 7, cabbage, "Cabbages");
+~skillguide_row(4, $lvl, 12, tomato, "Tomatoes");
+~skillguide_row(5, $lvl, 20, sweetcorn, "Sweetcorn");
+~skillguide_row(6, $lvl, 31, strawberry, "Strawberries");
+~skillguide_row(7, $lvl, 47, watermelon, "Watermelons");
+
+[proc,farming_guide_hops](int $lvl)
+~skillguide_row(1, $lvl, 3, barley, "Barley");
+~skillguide_row(2, $lvl, 4, hammerstone_hops, "Hammerstone hops");
+~skillguide_row(3, $lvl, 8, asgarnian_hops, "Asgarnian hops");
+~skillguide_row(4, $lvl, 13, jute_fibre, "Jute");
+~skillguide_row(5, $lvl, 16, yanillian_hops, "Yanillian hops");
+~skillguide_row(6, $lvl, 21, krandorian_hops, "Krandorian hops");
+~skillguide_row(7, $lvl, 28, wildblood_hops, "Wildblood hops");
+
+[proc,farming_guide_flowers](int $lvl)
+~skillguide_row(1, $lvl, 2, marigold, "Marigolds");
+~skillguide_row(2, $lvl, 11, rosemary, "Rosemary");
+~skillguide_row(3, $lvl, 23, scarecrow_complete, "Scarecrow");
+~skillguide_row(4, $lvl, 24, nasturtium, "Nasturtiums");
+~skillguide_row(5, $lvl, 25, woadleaf, "Woad");
+~skillguide_row(6, $lvl, 26, limpwurt_root, "Limpwurt");
+
+[proc,farming_guide_herbs](int $lvl)
+~skillguide_row(1, $lvl, 9, unidentified_guam, "Guam");
+~skillguide_row(2, $lvl, 14, unidentified_marentill, "Marrentill");
+~skillguide_row(3, $lvl, 19, unidentified_tarromin, "Tarromin");
+~skillguide_row(4, $lvl, 26, unidentified_harralander, "Harralander");
+~skillguide_row(5, $lvl, 32, unidentified_ranarr, "Ranarr");
+~skillguide_row(6, $lvl, 38, unidentified_toadflax, "Toadflax");
+~skillguide_row(7, $lvl, 44, unidentified_irit, "Irit");
+~skillguide_row(8, $lvl, 50, unidentified_avantoe, "Avantoe");
+~skillguide_row(9, $lvl, 56, unidentified_kwuarm, "Kwuarm");
+~skillguide_row(10, $lvl, 62, unidentified_snapdragon, "Snapdragon");
+~skillguide_row(11, $lvl, 67, unidentified_cadantine, "Cadantine");
+~skillguide_row(12, $lvl, 73, unidentified_lantadyme, "Lantadyme");
+~skillguide_row(13, $lvl, 79, unidentified_dwarf_weed, "Dwarf weed");
+~skillguide_row(14, $lvl, 85, unidentified_torstol, "Torstol");
+
+[proc,farming_guide_bushes](int $lvl)
+~skillguide_row(1, $lvl, 10, redberries, "Redberries");
+~skillguide_row(2, $lvl, 22, cadavaberries, "Cadava berries");
+~skillguide_row(3, $lvl, 36, dwellberries, "Dwellberries");
+~skillguide_row(4, $lvl, 48, jangerberries, "Jangerberries");
+~skillguide_row(5, $lvl, 59, white_berries, "White berries");
+~skillguide_row(6, $lvl, 70, poisonivy_berries, "Poison ivy berries");
+
+[proc,farming_guide_trees](int $lvl)
+~skillguide_row(1, $lvl, 15, oak_logs, "Oak tree");
+~skillguide_row(2, $lvl, 30, willow_logs, "Willow tree");
+~skillguide_row(3, $lvl, 45, maple_logs, "Maple tree");
+~skillguide_row(4, $lvl, 60, yew_logs, "Yew tree");
+~skillguide_row(5, $lvl, 75, magic_logs, "Magic tree");
+
+[proc,farming_guide_fruittrees](int $lvl)
+~skillguide_row(1, $lvl, 27, cooking_apple, "Apple tree");
+~skillguide_row(2, $lvl, 33, banana, "Banana tree");
+~skillguide_row(3, $lvl, 39, orange, "Orange tree");
+~skillguide_row(4, $lvl, 42, curry_leaf, "Curry tree");
+~skillguide_row(5, $lvl, 51, pineapple, "Pineapple plant");
+~skillguide_row(6, $lvl, 57, papaya, "Papaya tree");
+~skillguide_row(7, $lvl, 68, coconut, "Palm tree");
+
+[proc,farming_guide_other](int $lvl)
+~skillguide_row(1, $lvl, 53, bittercap_mushroom, "Bittercap mushrooms");
+~skillguide_row(2, $lvl, 55, cactus_spine, "Cactus");
+~skillguide_row(3, $lvl, 63, nightshade, "Belladonna");
+~skillguide_row(4, $lvl, 72, calquat_fruit, "Calquat tree");
+~skillguide_row(5, $lvl, 83, spirit_tree_seed, "Spirit tree");

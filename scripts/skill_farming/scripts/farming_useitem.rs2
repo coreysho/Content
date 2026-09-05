@@ -169,26 +169,64 @@ mes("You plant the <lowercase(oc_name($item))> in the patch.");
 
 // ============================================================================ compost
 //
-// Compost has to go on an empty, raked patch: in 2006 you treat the soil before you sow, not after.
+// Compost can go on an empty raked patch OR on a crop that is still growing. Strict 2006 only
+// allowed the former - you treated the soil before you sowed - but forgetting the compost and
+// having to waste the whole grow is a miserable way to learn that, and OSRS itself relaxed the
+// rule in 2016. Composting mid-grow is the one concession to the modern behaviour here.
+//
+// Two things happen when it lands on a growing crop:
+//   - the disease roll reads the tier fresh on every cycle, so the remaining cycles are protected
+//     immediately with no extra work;
+//   - harvest lives were fixed at planting time, so they have to be topped up to match the new
+//     tier. Only ever upwards - a bucket of ordinary compost can never cut a supercomposted
+//     patch back down.
+//
+// A fully grown crop is refused: there are no cycles left to protect and the only effect would be
+// free harvest lives, which is not a thing you can buy in any version of the game.
 
 [proc,farming_apply_compost](int $patch, namedobj $bucket, int $tier)
-if (~farming_crop_id($patch) ! 0) {
-    mes("The patch already has something growing in it.");
-    return;
-}
-if (~farming_get_state($patch) < ^farming_state_weeded) {
-    mes("Rake the weeds out first.");
-    return;
-}
 if (~farming_compost($patch) >= $tier) {
     mes("This patch has already been treated.");
     return;
 }
+
+def_int $crop = ~farming_crop_id($patch);
+if ($crop = 0) {
+    if (~farming_get_state($patch) < ^farming_state_weeded) {
+        mes("Rake the weeds out first.");
+        return;
+    }
+} else {
+    def_namedobj $seed = ~farming_crop_obj($crop);
+    def_int $stage;
+    def_int $condition;
+    def_int $watered;
+    $stage, $condition, $watered = ~farming_decode($patch, $seed);
+    if ($condition = ^farming_dead | $condition = ^farming_stump) {
+        mes("There is nothing alive in this patch to treat.");
+        return;
+    }
+    if ($stage >= oc_param($seed, farming_stages)) {
+        mes("The <lowercase(oc_name($seed))> is already fully grown - compost would do nothing now.");
+        return;
+    }
+}
+
 anim(human_dig, 0);
 p_delay(2);
 inv_del(inv, $bucket, 1);
 inv_add(inv, bucket_empty, 1);
 ~farming_set_compost($patch, $tier);
+
+if ($crop ! 0) {
+    // Bring the harvest lives up to what planting into this tier would have given.
+    def_int $lives = add(^farming_base_lives, $tier);
+    if ($lives > ~farming_lives($patch)) {
+        ~farming_set_lives($patch, $lives);
+    }
+    mes("You work the <lowercase(oc_name($bucket))> into the soil around the crop.");
+    return;
+}
 mes("You treat the patch with <lowercase(oc_name($bucket))>.");
 
 // ============================================================================ watering
