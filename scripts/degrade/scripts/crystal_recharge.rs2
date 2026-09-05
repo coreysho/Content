@@ -51,6 +51,10 @@ if ($choice = 1) {
 // Stand-in for Islwyn while he is unspawned: turns a held crystal seed straight back into a full
 // bow, free. ::~rechargecrystal
 [debugproc,rechargecrystal]
+// debugprocs run unprotected; the inv_del/inv_add below need protected access.
+if (p_finduid(uid) = false) {
+    return;
+}
 if (inv_total(inv, crystal_seed_old) < 1) {
     mes("You need a crystal seed in your inventory.");
     return;

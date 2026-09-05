@@ -156,6 +156,10 @@ if ($lhand = null | oc_param($lhand, degrade_next) = null) {
 // everything currently worn. Passing a count larger than any step size means the very next point
 // tips it over, so one call advances each piece a whole state. ::~degrade
 [debugproc,degrade]
+// debugprocs run unprotected, so take protected access first the way [proc,equip] does.
+if (p_finduid(uid) = false) {
+    return;
+}
 %barrows_wear_hat = ~degrade_worn_slot(^wearpos_hat, 100000);
 %barrows_wear_torso = ~degrade_worn_slot(^wearpos_torso, 100000);
 %barrows_wear_legs = ~degrade_worn_slot(^wearpos_legs, 100000);
