@@ -129,6 +129,15 @@ if (~farming_has_magic_secateurs = true) {
 }
 return($cts);
 
+// Allotments are dug up with a spade; everything else is picked by hand. human_farming is the
+// spade animation, farming_pick_mushroom is the bare-handed crouch-and-pick.
+[proc,farming_harvest_anim](namedobj $seed)
+if (oc_param($seed, farming_family) = ^farming_family_allotment) {
+    anim(human_farming, 0);
+    return;
+}
+anim(farming_pick_mushroom, 0);
+
 [proc,farming_harvest](int $patch, namedobj $seed)
 def_namedobj $produce = oc_param($seed, farming_produce);
 if ($produce = null) {
@@ -143,30 +152,47 @@ if (oc_param($seed, farming_family) = ^farming_family_allotment & ~farming_need_
     return;
 }
 
-anim(human_farming, 0);
-sound_synth(pick, 1, 0);
-p_delay(2);
-
-inv_add(inv, $produce, 1);
-mes("You harvest <lowercase(oc_name($produce))>.");
-~farming_xp(oc_param($seed, farming_harvest_xp));
-
-// Flowers are a single pick - there is only ever one flower - so they end here.
-if (oc_param($seed, farming_family) = ^farming_family_flower) {
+// A crop with no chance-to-save table is a single pick: most flowers are one bloom and done.
+// Limpwurt is the exception - it carries a cts table and so runs the harvest-lives loop below,
+// which is what gives the modern OSRS yield of three roots minimum, more as Farming rises.
+if (~farming_cts($seed) <= 0) {
+    ~farming_harvest_anim($seed);
+    sound_synth(pick, 1, 0);
+    p_delay(2);
+    inv_add(inv, $produce, 1);
+    mes("You harvest <lowercase(oc_name($produce))>.");
+    ~farming_xp(oc_param($seed, farming_harvest_xp));
     ~farming_clear_patch($patch);
     return;
 }
 
+// Keep picking until the patch is spent, the bag is full or the player walks away, rather than
+// making them re-click for every single item. Same shape as the raking loop.
 def_int $lives = ~farming_lives($patch);
-if (random(multiply(^farming_cts_scale, 10)) >= ~farming_cts($seed)) {
-    $lives = sub($lives, 1);
+def_int $safety = 0;
+while ($lives > 0 & $safety < 30) {
+    $safety = add($safety, 1);
+    if (inv_freespace(inv) < 1) {
+        mes("Your inventory is too full to hold any more <lowercase(oc_name($produce))>.");
+        anim(null, 0);
+        return;
+    }
+    ~farming_harvest_anim($seed);
+    sound_synth(pick, 1, 0);
+    p_delay(2);
+
+    inv_add(inv, $produce, 1);
+    mes("You harvest <lowercase(oc_name($produce))>.");
+    ~farming_xp(oc_param($seed, farming_harvest_xp));
+
+    if (random(multiply(^farming_cts_scale, 10)) >= ~farming_cts($seed)) {
+        $lives = sub($lives, 1);
+    }
+    ~farming_set_lives($patch, max($lives, 0));
 }
-if ($lives <= 0) {
-    ~farming_clear_patch($patch);
-    mes("You have harvested everything this patch had to offer.");
-    return;
-}
-~farming_set_lives($patch, $lives);
+anim(null, 0);
+~farming_clear_patch($patch);
+mes("You have harvested everything this patch had to offer.");
 
 // Berries, fruit, spines and mushrooms: no lives, just a stock that (mushrooms aside) grows back.
 [proc,farming_pick_produce](int $patch, namedobj $seed)
@@ -185,7 +211,7 @@ if (inv_freespace(inv) < 1) {
     return;
 }
 
-anim(human_farming, 0);
+~farming_harvest_anim($seed);
 sound_synth(pick, 1, 0);
 p_delay(2);
 
@@ -209,32 +235,88 @@ if (oc_param($seed, farming_family) = ^farming_family_mushroom) {
 
 // ============================================================================ trees
 
-[proc,farming_chop_tree](int $patch, namedobj $seed)
-if (~farming_need_tool_axe = false) {
-    return;
+// A grown farm tree is chopped like any other tree: it keeps yielding logs until it happens to
+// come down, and only then leaves the stump. The rates, xp, log type and level requirement all
+// come out of the woodcutting_trees table, which already lists the five farmed tree locs
+// (oak_tree_fullygrown_2 and friends) alongside their wild counterparts - so a farmed oak cuts at
+// exactly the same rate as a wild one.
+[proc,farming_tree_loc](namedobj $seed)(loc)
+switch_obj ($seed) {
+    case plantpot_oak_sapling        : return(oak_tree_fullygrown_2);
+    case plantpot_willow_sapling     : return(willow_tree_fullygrown_2);
+    case plantpot_maple_sapling      : return(maple_tree_fullygrown_2);
+    case plantpot_yew_sapling        : return(yew_tree_fullygrown_2);
+    case plantpot_magic_tree_sapling : return(magic_tree_fullygrown_2);
+    case default                     : return(null);
 }
-mes("You chop the tree down. The stump can be dug out with a spade.");
+
+[proc,farming_fell_tree](int $patch, namedobj $seed)
+sound_synth(tree_fall, 1, 0);
+anim(null, 0);
+mes("The tree falls. Only the stump is left - dig it out with a spade.");
 def_int $stump = oc_param($seed, farming_stump_state);
 if ($stump > 0) {
     ~farming_set_state($patch, $stump);
+    ~farming_set_time($patch, ~farming_now);
     return;
 }
 ~farming_clear_patch($patch);
 
-// Any hatchet will do. The list is the wieldable set in axes.obj, cheapest first.
-[proc,farming_need_tool_axe]()(boolean)
-if (inv_total(inv, bronze_axe) > 0 | inv_total(inv, iron_axe) > 0 | inv_total(inv, steel_axe) > 0
-    | inv_total(inv, black_axe) > 0 | inv_total(inv, mithril_axe) > 0 | inv_total(inv, adamant_axe) > 0
-    | inv_total(inv, rune_axe) > 0 | inv_total(inv, dragon_axe) > 0) {
-    return(true);
+[proc,farming_chop_tree](int $patch, namedobj $seed)
+def_loc $tree = ~farming_tree_loc($seed);
+if ($tree = null) {
+    ~farming_fell_tree($patch, $seed);
+    return;
 }
-if (inv_total(worn, bronze_axe) > 0 | inv_total(worn, iron_axe) > 0 | inv_total(worn, steel_axe) > 0
-    | inv_total(worn, black_axe) > 0 | inv_total(worn, mithril_axe) > 0 | inv_total(worn, adamant_axe) > 0
-    | inv_total(worn, rune_axe) > 0 | inv_total(worn, dragon_axe) > 0) {
-    return(true);
+db_find(woodcutting_trees:tree, $tree);
+def_dbrow $data = db_findnext;
+if ($data = null) {
+    ~farming_fell_tree($patch, $seed);
+    return;
 }
-mes("You need an axe to chop this down.");
-return(false);
+def_int $level = db_getfield($data, woodcutting_trees:levelrequired, 0);
+if (stat(woodcutting) < $level) {
+    mes("You need a Woodcutting level of <tostring($level)> to chop down this tree.");
+    return;
+}
+def_namedobj $axe = ~woodcutting_axe_checker(true);
+if ($axe = null) {
+    return;
+}
+def_int $low;
+def_int $high;
+$low, $high = ~woodcutting_successchance($data, $axe);
+def_namedobj $logs = db_getfield($data, woodcutting_trees:product, 0);
+def_int $xp = db_getfield($data, woodcutting_trees:productexp, 0);
+
+mes("You swing your axe at the tree.");
+def_int $safety = 0;
+while ($safety < 60) {
+    $safety = add($safety, 1);
+    if (inv_freespace(inv) < 1) {
+        anim(null, 0);
+        mes("Your inventory is too full to hold any more logs.");
+        return;
+    }
+    anim(struct_param(oc_param($axe, woodcutting_struct), skill_anim), 0);
+    sound_synth(woodchop1, 1, 0);
+    p_delay(3);
+
+    if (stat_random(woodcutting, $low, $high) = true) {
+        mes("You get some <lowercase(oc_name($logs))>.");
+        inv_add(inv, $logs, 1);
+        stat_advance(woodcutting, $xp);
+        if (map_members = ^true & random(256) = 0) {
+            ~drop_bird_nest;
+        }
+        // The tree comes down on roughly one log in eight, same as a wild tree depleting.
+        if (random(8) = 0) {
+            ~farming_fell_tree($patch, $seed);
+            return;
+        }
+    }
+}
+anim(null, 0);
 
 [proc,farming_spirit_tree](int $patch, namedobj $seed)
 mes("The spirit tree rustles, but says nothing you can understand yet.");

@@ -14,6 +14,25 @@ if (%shantay_jail_progress = ^not_talked_to_shantay) {
 }
 @multi4("What is this place?", shantay_what_is_this_place, "Can I see what you have to sell please?", shantay_can_i_see_what_you_have_to_sell_please, "I must be going.", shantay_i_must_be_going, "I want to buy a shantay pass for 5 gold coins.", shantay_buy_shantay_pass);
 
+// Shantay carries op4=Buy-pass in the cache, but nothing handled it, so the option was dead.
+// It skips straight to the purchase rather than walking the whole Talk-to tree.
+[opnpc4,shantay]
+if (map_members = ^false) {
+    ~chatnpc("<p,neutral>Sorry effendi, I can't offer this service right now.");
+    return;
+}
+if (inv_total(inv, coins) < 5) {
+    ~chatnpc("<p,neutral>Sorry friend, the Shantay Pass is 5 gold coins. You|don't seem to have enough money!");
+    return;
+}
+if (inv_freespace(inv) < 1 & inv_total(inv, shantay_pass) = 0) {
+    ~chatnpc("<p,neutral>You don't have room for it, effendi.");
+    return;
+}
+inv_add(inv, shantay_pass, 1);
+inv_del(inv, coins, 5);
+~objbox(shantay_pass, "You purchase a Shantay Pass.", 250, 0, divide(^objbox_height, 2));
+
 [opnpc3,shantay]
 if (map_members = ^false) {
     mes(^mes_members_store_owner); // guess

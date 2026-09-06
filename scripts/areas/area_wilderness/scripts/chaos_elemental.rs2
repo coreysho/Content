@@ -1,0 +1,15 @@
+// Chaos Elemental (level 305, Wilderness crater).
+//
+// It attacks from range and was walking into melee. The cache carries three complete attack
+// spotanim sets for it - confusion, discord and madness - which is what the wiki\'s three
+// signature attacks (teleport, disarm and the damaging blast) are drawn from. Only the damaging
+// one is wired here; the teleport and disarm gimmicks need inventory manipulation and are a
+// separate job.
+
+[ai_queue1,chaoselemental] ~npc_default_retaliate_ap;
+[ai_applayer2,chaoselemental] ~chaos_elemental_attack;
+[ai_opplayer2,chaoselemental] ~chaos_elemental_attack;
+
+[proc,chaos_elemental_attack]
+// 28 is its published max hit, and the derived melee max hit matches it too.
+~npc_cast_spell_with_forced_max_hit(^fire_wave, npc_param(attackrate), 28);

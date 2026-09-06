@@ -371,6 +371,76 @@ if (coordx(coord) > coordx($west_exit)) {
 sound_synth(squeeze_through_rocks, 1, 0);
 mes("You squeeze through the crevice.");
 
+// ---------------------------------------------------------------- Fremennik Slayer Dungeon
+//
+// Two shortcuts inside the Rellekka slayer cave, both placed in the cache with their op already
+// authored and neither wired to anything, so both right-click options were dead:
+//
+//   loc_9326 "Strange floor"  (Jump-over)      m43_156 - abs (2769, 10002) and (2774, 10003)
+//   loc_9321 "Crevice"        (Squeeze-through) m42_156 - abs (2731, 10008) and (2734, 10008)
+//
+// The level requirements here are the ORIGINAL ones - Agility 62 for the floor and 81 for the
+// crevice. OSRS cut them to 43 and 61 on 8 May 2024, which is far outside this revision.
+//
+// The crevice is a PAIR of tiles three apart on the same row, exactly like the Dwarven Mine one
+// above, so the exits are the far ends of the whole passage rather than one tile off whichever
+// half was clicked. The strange floor is a single tile each time, so it is crossed generically:
+// step through the loc and out the far side.
+
+[oploc1,loc_9326]
+if (stat(agility) < 62) {
+    ~mesbox("You need an Agility level of 62 to cross the strange floor.");
+    return;
+}
+def_int $dx = 0;
+def_int $dz = 0;
+if (coordx(coord) < coordx(loc_coord)) {
+    $dx = 1;
+} else if (coordx(coord) > coordx(loc_coord)) {
+    $dx = -1;
+}
+if (coordz(coord) < coordz(loc_coord)) {
+    $dz = 1;
+} else if (coordz(coord) > coordz(loc_coord)) {
+    $dz = -1;
+}
+if ($dx = 0 & $dz = 0) {
+    mes("You can't do that from here.");
+    return;
+}
+def_int $dir = ^exact_north;
+if ($dz < 0) {
+    $dir = ^exact_south;
+} else if ($dz = 0) {
+    $dir = ^exact_east;
+    if ($dx < 0) {
+        $dir = ^exact_west;
+    }
+}
+def_coord $exit = movecoord(loc_coord, $dx, 0, $dz);
+mes("You jump over the strange floor.");
+sound_synth(jump_no_land, 1, 20);
+~agility_exactmove(human_steppingstonejump, 20, 2, coord, $exit, 48, 60, $dir, true);
+p_teleport($exit);
+stat_advance(agility, 50);
+
+[oploc1,loc_9321]
+if (stat(agility) < 81) {
+    ~mesbox("You need an Agility level of 81 to squeeze through the crevice.");
+    return;
+}
+def_coord $west_exit = 0_42_156_42_24;
+def_coord $east_exit = 0_42_156_47_24;
+if (coordx(coord) > coordx(loc_coord)) {
+    ~agility_exactmove(human_pipesqueeze, 20, 0, coord, $east_exit, 45, 70, ^exact_east, true);
+    p_teleport($east_exit);
+} else {
+    ~agility_exactmove(human_pipesqueeze, 20, 0, coord, $west_exit, 45, 70, ^exact_west, true);
+    p_teleport($west_exit);
+}
+sound_synth(squeeze_through_rocks, 1, 0);
+mes("You squeeze through the crevice.");
+
 [proc,climb_stile]
 def_coord $start_coord = loc_coord;
 def_int $mod = 1;

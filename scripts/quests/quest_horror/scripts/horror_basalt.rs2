@@ -16,6 +16,22 @@
 // you in the water for a few points of damage. That matches the wiki and the cache (none of the ten
 // locs carries a level param).
 
+// The rocks stand 2-3 tiles apart in open water, so no tile beside one is ever walkable and
+// [oploc1] can never fire - the engine answers "I can't reach that" before the script runs.
+// [aploc1] fires on approach instead; the 4-tile guard below still forces you onto a
+// neighbouring rock rather than letting you cross the bay in one click. The whole causeway
+// is on PLANE 1 - walking there from plane 0 will never reach it.
+[aploc1,horror_jumping_spot1]  ~horror_basalt_jump(false);
+[aploc1,horror_jumping_spot2]  ~horror_basalt_jump(false);
+[aploc1,horror_jumping_spot3]  ~horror_basalt_jump(true);
+[aploc1,horror_jumping_spot4]  ~horror_basalt_jump(false);
+[aploc1,horror_jumping_spot5]  ~horror_basalt_jump(false);
+[aploc1,horror_jumping_spot6]  ~horror_basalt_jump(false);
+[aploc1,horror_jumping_spot7]  ~horror_basalt_jump(true);
+[aploc1,horror_jumping_spot8]  ~horror_basalt_jump(true);
+[aploc1,horror_jumping_spot9]  ~horror_basalt_jump(false);
+[aploc1,horror_jumping_spot10] ~horror_basalt_jump(false);
+
 [oploc1,horror_jumping_spot1]  ~horror_basalt_jump(false);
 [oploc1,horror_jumping_spot2]  ~horror_basalt_jump(false);
 [oploc1,horror_jumping_spot3]  ~horror_basalt_jump(true);
@@ -28,6 +44,18 @@
 [oploc1,horror_jumping_spot10] ~horror_basalt_jump(false);
 
 // $safe marks the centremost rocks of each chain, which cannot be failed.
+// The lighthouse dagannoths are ranged monsters (damagetype ^ranged_style, spike projectile) that
+// had no ranged AI, so they closed to melee. Same generic path the Waterbirth ones use.
+[ai_queue1,horror_dagganoth_jr] ~npc_default_retaliate_ap;
+[ai_queue1,horror_dagganoth_jr_darker] ~npc_default_retaliate_ap;
+[ai_queue1,horror_dagganoth_jr_lighter] ~npc_default_retaliate_ap;
+[ai_applayer2,horror_dagganoth_jr] ~npc_rangeattack;
+[ai_applayer2,horror_dagganoth_jr_darker] ~npc_rangeattack;
+[ai_applayer2,horror_dagganoth_jr_lighter] ~npc_rangeattack;
+[ai_opplayer2,horror_dagganoth_jr] ~npc_rangeattack;
+[ai_opplayer2,horror_dagganoth_jr_darker] ~npc_rangeattack;
+[ai_opplayer2,horror_dagganoth_jr_lighter] ~npc_rangeattack;
+
 [proc,horror_basalt_jump](boolean $safe)
 if (coord = loc_coord) {
     mes("You can't do that from here.");

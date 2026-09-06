@@ -88,6 +88,61 @@ if (~farming_protectable($patch) = false) {
 ~farming_set_protected($patch, 1);
 ~chatnpc("<p,happy>Lovely. I'll keep an eye on it for you.");
 
+// ============================================================================ paying to clear
+//
+// A gardener will dig out a stump or clear a dead crop for coins. Digging a tree stump out by hand
+// is the one genuinely tedious step in the skill, and paying to skip it is how OSRS handles it.
+
+[proc,farming_clearable](int $patch)(boolean)
+def_int $crop = ~farming_crop_id($patch);
+if ($crop = 0) {
+    return(false);
+}
+def_namedobj $seed = ~farming_crop_obj($crop);
+if ($seed = null) {
+    return(false);
+}
+def_int $stage;
+def_int $condition;
+def_int $watered;
+$stage, $condition, $watered = ~farming_decode($patch, $seed);
+if ($condition = ^farming_stump | $condition = ^farming_dead) {
+    return(true);
+}
+return(false);
+
+[proc,farming_clear_fee](int $patch)(int)
+def_namedobj $seed = ~farming_crop_obj(~farming_crop_id($patch));
+def_int $stage;
+def_int $condition;
+def_int $watered;
+$stage, $condition, $watered = ~farming_decode($patch, $seed);
+if ($condition = ^farming_stump) {
+    return(^farming_clear_fee_stump);
+}
+return(^farming_clear_fee_patch);
+
+[proc,farming_offer_clearing](int $patch)
+def_int $fee = ~farming_clear_fee($patch);
+~chatnpc("<p,happy>That patch wants clearing. I'll do it for <tostring($fee)> coins and save you the digging.");
+def_int $choice = ~p_choice2("Yes, here you go.", 1, "No thanks, I'll do it myself.", 2);
+if ($choice ! 1) {
+    ~chatplayer("<p,neutral>No thanks, I'll do it myself.");
+    return;
+}
+if (inv_total(inv, coins) < $fee) {
+    ~chatnpc("<p,sad>You don't have <tostring($fee)> coins on you.");
+    return;
+}
+// Re-check: the player could have dug it out themselves while the dialogue was open.
+if (~farming_clearable($patch) = false) {
+    ~chatnpc("<p,neutral>Never mind - that patch is clear already.");
+    return;
+}
+inv_del(inv, coins, $fee);
+~farming_clear_patch($patch);
+~chatnpc("<p,happy>Done. It's ready for planting again.");
+
 // Two patches is the most any one gardener covers, so one choice covers every case.
 [proc,farming_farmer](int $a, int $b)
 ~farming_update($a);
@@ -96,6 +151,14 @@ def_boolean $can_a = ~farming_protectable($a);
 def_boolean $can_b = ~farming_protectable($b);
 
 if ($can_a = false & $can_b = false) {
+    if (~farming_clearable($a) = true) {
+        ~farming_offer_clearing($a);
+        return;
+    }
+    if (~farming_clearable($b) = true) {
+        ~farming_offer_clearing($b);
+        return;
+    }
     ~chatnpc("<p,neutral>Nothing of yours needs looking after just now. Come back when you've something growing.");
     return;
 }
@@ -125,6 +188,10 @@ if ($choice = 1) {
 [proc,farming_farmer_single](int $a)
 ~farming_update($a);
 if (~farming_protectable($a) = false) {
+    if (~farming_clearable($a) = true) {
+        ~farming_offer_clearing($a);
+        return;
+    }
     ~chatnpc("<p,neutral>Nothing of yours needs looking after just now. Come back when you've something growing.");
     return;
 }
