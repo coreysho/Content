@@ -62,9 +62,14 @@ if (inv_total(worn, antidragonbreathshield) > 0) {
     mes("Your shield absorbs most of the wyvern's icy breath!");
 } else {
     mes("You are frozen by the wyvern's icy breath!");
-    // The breath freezes the player the way the ancient ice spells do.
-    if (%frozen < map_clock) {
-        %frozen = add(map_clock, 8);
+    // The breath freezes the player the way the ancient ice spells do. A varp WRITE needs the
+    // protected active player, which an ai_ trigger does not start with - and the analysis only
+    // tracks the positive branch, so the work has to sit inside the p_finduid success case
+    // rather than behind an early return. Same shape as auto_cast.rs2 and magic_combat_debug.rs2.
+    if (p_finduid(uid) = true) {
+        if (%frozen < map_clock) {
+            %frozen = add(map_clock, 8);
+        }
     }
 }
 queue(combat_damage_player, calc($duration / 30), randominc($maxhit));
