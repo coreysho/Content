@@ -1,0 +1,33 @@
+// White Knight - https://oldschool.runescape.wiki/w/White_Knight
+
+[ai_queue3,white_knight_blue_plumes_f] @white_knight_blue_plumes_f_drop_table;
+[ai_queue3,white_knight_green_plumes_f] @white_knight_blue_plumes_f_drop_table;
+[ai_queue3,white_knight_yellow_plumes_f] @white_knight_blue_plumes_f_drop_table;
+
+[label,white_knight_blue_plumes_f_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+def_int $dropint = random(128);
+if ($dropint < 11) {
+    obj_add(npc_coord, mindrune, 5, ^lootdrop_duration);
+} else if ($dropint < 15) {
+    obj_add(npc_coord, naturerune, 4, ^lootdrop_duration);
+} else if ($dropint < 18) {
+    obj_add(npc_coord, bodyrune, calc(random(10) + 15), ^lootdrop_duration);
+} else if ($dropint < 20) {
+    obj_add(npc_coord, iron_longsword, 1, ^lootdrop_duration);
+} else if ($dropint < 22) {
+    obj_add(npc_coord, steel_med_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 24) {
+    obj_add(npc_coord, steel_sword, 1, ^lootdrop_duration);
+} else if ($dropint < 31) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 32) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

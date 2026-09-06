@@ -1,0 +1,46 @@
+// Tortoise - https://oldschool.runescape.wiki/w/Tortoise
+
+[ai_queue3,battle_tortoise] @battle_tortoise_drop_table;
+[ai_queue3,battle_tortoise_war2] @battle_tortoise_drop_table;
+
+[label,battle_tortoise_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+obj_add(npc_coord, bones, 1, ^lootdrop_duration);
+
+def_int $dropint = random(128);
+if ($dropint < 18) {
+    obj_add(npc_coord, steel_arrow, calc(random(12) + 12), ^lootdrop_duration);
+} else if ($dropint < 36) {
+    obj_add(npc_coord, cabbage, calc(random(40) + 20), ^lootdrop_duration);
+} else if ($dropint < 54) {
+    obj_add(npc_coord, swamp_toad, 1, ^lootdrop_duration);
+} else if ($dropint < 63) {
+    obj_add(npc_coord, naturerune, calc(random(3) + 1), ^lootdrop_duration);
+} else if ($dropint < 72) {
+    obj_add(npc_coord, cabbage_seed, calc(random(10) + 10), ^lootdrop_duration);
+} else if ($dropint < 81) {
+    obj_add(npc_coord, pineapple, 1, ^lootdrop_duration);
+} else if ($dropint < 90) {
+    obj_add(npc_coord, battle_tortoise_shell, calc(random(3) + 1), ^lootdrop_duration);
+} else if ($dropint < 97) {
+    obj_add(npc_coord, worm_batta, 1, ^lootdrop_duration);
+} else if ($dropint < 101) {
+    obj_add(npc_coord, earthrune, calc(random(5) + 10), ^lootdrop_duration);
+} else if ($dropint < 102) {
+    obj_add(npc_coord, mahogany_logs, 1, ^lootdrop_duration);
+} else if ($dropint < 103) {
+    obj_add(npc_coord, teak_logs, 1, ^lootdrop_duration);
+} else if ($dropint < 104) {
+    obj_add(npc_coord, teak_logs, 2, ^lootdrop_duration);
+} else if ($dropint < 113) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 121) {
+    obj_add(npc_coord, ~roll_general_seed_table(92), ^lootdrop_duration);
+}

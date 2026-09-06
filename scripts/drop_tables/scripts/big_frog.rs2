@@ -1,0 +1,33 @@
+// Big frog - https://oldschool.runescape.wiki/w/Big_frog
+
+[ai_queue3,medium_frog] @medium_frog_drop_table;
+
+[label,medium_frog_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+obj_add(npc_coord, rag_medium_frog_bone, 1, ^lootdrop_duration);
+
+def_int $dropint = random(128);
+if ($dropint < 32) {
+    obj_add(npc_coord, coins, 5, ^lootdrop_duration);
+} else if ($dropint < 51) {
+    obj_add(npc_coord, coins, 15, ^lootdrop_duration);
+} else if ($dropint < 61) {
+    obj_add(npc_coord, waterrune, 12, ^lootdrop_duration);
+} else if ($dropint < 71) {
+    obj_add(npc_coord, earthrune, 12, ^lootdrop_duration);
+} else if ($dropint < 78) {
+    obj_add(npc_coord, naturerune, 4, ^lootdrop_duration);
+} else if ($dropint < 84) {
+    obj_add(npc_coord, cosmicrune, 2, ^lootdrop_duration);
+} else if ($dropint < 85) {
+    obj_add(npc_coord, water_talisman, 1, ^lootdrop_duration);
+} else if ($dropint < 86) {
+    obj_add(npc_coord, earth_talisman, 1, ^lootdrop_duration);
+}

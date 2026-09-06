@@ -1,0 +1,79 @@
+// Mummy - https://oldschool.runescape.wiki/w/Mummy
+
+[ai_queue3,deserttreasure_mummy_2] @deserttreasure_mummy_2_drop_table;
+[ai_queue3,deserttreasure_mummy_3] @deserttreasure_mummy_2_drop_table;
+[ai_queue3,deserttreasure_mummy_4] @deserttreasure_mummy_2_drop_table;
+[ai_queue3,deserttreasure_mummy_5] @deserttreasure_mummy_2_drop_table;
+[ai_queue3,ics_little_mummy_1] @deserttreasure_mummy_2_drop_table;
+[ai_queue3,ics_little_mummy_2] @deserttreasure_mummy_2_drop_table;
+[ai_queue3,ics_little_mummy_3] @deserttreasure_mummy_2_drop_table;
+[ai_queue3,ics_little_mummy_4] @deserttreasure_mummy_2_drop_table;
+[ai_queue3,ics_little_mummy_5] @deserttreasure_mummy_2_drop_table;
+
+[label,deserttreasure_mummy_2_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+~trail_mediumcluedrop(^trail_medium_droprate, npc_coord);
+
+if (random(512) = 0) {
+    obj_add(npc_coord, staff_of_zaros, 1, ^lootdrop_duration);
+}
+
+def_int $dropint = random(512);
+if ($dropint < 100) {
+    obj_add(npc_coord, gold_ore, 1, ^lootdrop_duration);
+} else if ($dropint < 144) {
+    obj_add(npc_coord, papyrus, 1, ^lootdrop_duration);
+} else if ($dropint < 184) {
+    obj_add(npc_coord, gold_ring, 1, ^lootdrop_duration);
+} else if ($dropint < 224) {
+    obj_add(npc_coord, silk, 1, ^lootdrop_duration);
+} else if ($dropint < 254) {
+    obj_add(npc_coord, swamp_tar, 1, ^lootdrop_duration);
+} else if ($dropint < 279) {
+    obj_add(npc_coord, unstrung_gold_amulet, 1, ^lootdrop_duration);
+} else if ($dropint < 299) {
+    obj_add(npc_coord, gold_necklace, 1, ^lootdrop_duration);
+} else if ($dropint < 319) {
+    obj_add(npc_coord, gold_bar, 1, ^lootdrop_duration);
+} else if ($dropint < 339) {
+    obj_add(npc_coord, coins, 36, ^lootdrop_duration);
+} else if ($dropint < 359) {
+    obj_add(npc_coord, coins, 95, ^lootdrop_duration);
+} else if ($dropint < 379) {
+    obj_add(npc_coord, coins, 106, ^lootdrop_duration);
+} else if ($dropint < 399) {
+    obj_add(npc_coord, coins, 183, ^lootdrop_duration);
+} else if ($dropint < 419) {
+    obj_add(npc_coord, coins, 222, ^lootdrop_duration);
+} else if ($dropint < 436) {
+    obj_add(npc_coord, coins, 46, ^lootdrop_duration);
+} else if ($dropint < 446) {
+    obj_add(npc_coord, coins, 472, ^lootdrop_duration);
+} else if ($dropint < 456) {
+    obj_add(npc_coord, sapphire_necklace, 1, ^lootdrop_duration);
+} else if ($dropint < 466) {
+    obj_add(npc_coord, sapphire_ring, 1, ^lootdrop_duration);
+} else if ($dropint < 476) {
+    obj_add(npc_coord, unstrung_emerald_amulet, 1, ^lootdrop_duration);
+} else if ($dropint < 486) {
+    obj_add(npc_coord, emerald_ring, 1, ^lootdrop_duration);
+} else if ($dropint < 496) {
+    obj_add(npc_coord, ring_of_dueling_1, 1, ^lootdrop_duration);
+} else if ($dropint < 499) {
+    obj_add(npc_coord, rune_sq_shield, 1, ^lootdrop_duration);
+} else if ($dropint < 502) {
+    obj_add(npc_coord, rune_scimitar, 1, ^lootdrop_duration);
+} else if ($dropint < 505) {
+    obj_add(npc_coord, casket, 1, ^lootdrop_duration);
+} else if ($dropint < 508) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 510) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

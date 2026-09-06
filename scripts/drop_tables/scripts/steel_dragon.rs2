@@ -1,0 +1,60 @@
+// Steel dragon - https://oldschool.runescape.wiki/w/Steel_dragon
+
+[ai_queue3,steel_dragon] @steel_dragon_drop_table;
+
+[label,steel_dragon_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+obj_add(npc_coord, steel_bar, 5, ^lootdrop_duration);
+
+~trail_hardcluedrop(^trail_hard_droprate, npc_coord);
+
+if (random(512) = 0) {
+    obj_add(npc_coord, dragon_platelegs, 1, ^lootdrop_duration);
+}
+if (random(512) = 0) {
+    obj_add(npc_coord, dragon_plateskirt, 1, ^lootdrop_duration);
+}
+
+def_int $dropint = random(128);
+if ($dropint < 20) {
+    obj_add(npc_coord, rune_javelin, 7, ^lootdrop_duration);
+} else if ($dropint < 39) {
+    obj_add(npc_coord, bloodrune, 20, ^lootdrop_duration);
+} else if ($dropint < 56) {
+    obj_add(npc_coord, coins, 470, ^lootdrop_duration);
+} else if ($dropint < 69) {
+    obj_add(npc_coord, 3dose2attack, 1, ^lootdrop_duration);
+} else if ($dropint < 76) {
+    obj_add(npc_coord, rune_dart_p, 12, ^lootdrop_duration);
+} else if ($dropint < 82) {
+    obj_add(npc_coord, bolt, calc(random(11) + 2), ^lootdrop_duration);
+} else if ($dropint < 87) {
+    obj_add(npc_coord, soulrune, 5, ^lootdrop_duration);
+} else if ($dropint < 92) {
+    obj_add(npc_coord, coins, 650, ^lootdrop_duration);
+} else if ($dropint < 96) {
+    obj_add(npc_coord, rune_mace, 1, ^lootdrop_duration);
+} else if ($dropint < 99) {
+    obj_add(npc_coord, rune_knife, 7, ^lootdrop_duration);
+} else if ($dropint < 102) {
+    obj_add(npc_coord, runite_bar, 1, ^lootdrop_duration);
+} else if ($dropint < 105) {
+    obj_add(npc_coord, 2dose2defense, 1, ^lootdrop_duration);
+} else if ($dropint < 107) {
+    obj_add(npc_coord, adamant_kiteshield, 1, ^lootdrop_duration);
+} else if ($dropint < 109) {
+    obj_add(npc_coord, rune_axe, 1, ^lootdrop_duration);
+} else if ($dropint < 110) {
+    obj_add(npc_coord, rune_full_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 111) {
+    obj_add(npc_coord, curry, calc(random(2) + 1), ^lootdrop_duration);
+} else if ($dropint < 115) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

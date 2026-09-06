@@ -1,0 +1,56 @@
+// Giant Mole - https://oldschool.runescape.wiki/w/Giant_Mole
+
+[ai_queue3,mole_giant] @mole_giant_drop_table;
+
+[label,mole_giant_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+obj_add(npc_coord, mole_claw, 1, ^lootdrop_duration);
+obj_add(npc_coord, mole_skin, calc(random(3) + 1), ^lootdrop_duration);
+
+def_int $dropint = random(512);
+if ($dropint < 38) {
+    obj_add(npc_coord, adamant_longsword, 1, ^lootdrop_duration);
+} else if ($dropint < 72) {
+    obj_add(npc_coord, mithril_platebody, 1, ^lootdrop_duration);
+} else if ($dropint < 98) {
+    obj_add(npc_coord, amulet_of_strength, 1, ^lootdrop_duration);
+} else if ($dropint < 105) {
+    obj_add(npc_coord, mithril_axe, 1, ^lootdrop_duration);
+} else if ($dropint < 108) {
+    obj_add(npc_coord, mithril_battleaxe, 1, ^lootdrop_duration);
+} else if ($dropint < 111) {
+    obj_add(npc_coord, rune_med_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 188) {
+    obj_add(npc_coord, airrune, 105, ^lootdrop_duration);
+} else if ($dropint < 261) {
+    obj_add(npc_coord, bloodrune, 15, ^lootdrop_duration);
+} else if ($dropint < 303) {
+    obj_add(npc_coord, firerune, 105, ^lootdrop_duration);
+} else if ($dropint < 341) {
+    obj_add(npc_coord, iron_arrow, 690, ^lootdrop_duration);
+} else if ($dropint < 360) {
+    obj_add(npc_coord, lawrune, 15, ^lootdrop_duration);
+} else if ($dropint < 371) {
+    obj_add(npc_coord, deathrune, 50, ^lootdrop_duration);
+} else if ($dropint < 409) {
+    obj_add(npc_coord, yew_logs, 100, ^lootdrop_duration);
+} else if ($dropint < 424) {
+    obj_add(npc_coord, shark, 4, ^lootdrop_duration);
+} else if ($dropint < 435) {
+    obj_add(npc_coord, mithril_bar, 1, ^lootdrop_duration);
+} else if ($dropint < 446) {
+    obj_add(npc_coord, ranarr_seed, 1, ^lootdrop_duration);
+} else if ($dropint < 453) {
+    obj_add(npc_coord, iron_ore, 100, ^lootdrop_duration);
+} else if ($dropint < 456) {
+    obj_add(npc_coord, bigoysterpearls, 1, ^lootdrop_duration);
+} else if ($dropint < 494) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

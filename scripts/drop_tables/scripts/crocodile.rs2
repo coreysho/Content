@@ -1,0 +1,17 @@
+// Crocodile - https://oldschool.runescape.wiki/w/Crocodile
+
+[ai_queue3,ics_little_croc] @ics_little_croc_drop_table;
+
+[label,ics_little_croc_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+def_int $dropint = random(512);
+if ($dropint < 26) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+}

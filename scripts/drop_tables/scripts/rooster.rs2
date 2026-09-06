@@ -1,0 +1,22 @@
+// Rooster - https://oldschool.runescape.wiki/w/Rooster
+
+[ai_queue3,misc_rooster] @misc_rooster_drop_table;
+[ai_queue3,rooster] @misc_rooster_drop_table;
+
+[label,misc_rooster_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+obj_add(npc_coord, raw_chicken, 1, ^lootdrop_duration);
+
+def_int $dropint = random(128);
+if ($dropint < 64) {
+    obj_add(npc_coord, feather, 5, ^lootdrop_duration);
+} else if ($dropint < 96) {
+    obj_add(npc_coord, feather, 15, ^lootdrop_duration);
+}

@@ -1,0 +1,61 @@
+// Thrower Troll - https://oldschool.runescape.wiki/w/Thrower_Troll
+
+[ai_queue3,troll_thrower1] @troll_thrower1_drop_table;
+[ai_queue3,troll_thrower2] @troll_thrower1_drop_table;
+[ai_queue3,troll_thrower3] @troll_thrower1_drop_table;
+[ai_queue3,troll_thrower4] @troll_thrower1_drop_table;
+[ai_queue3,troll_thrower5] @troll_thrower1_drop_table;
+
+[label,troll_thrower1_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+def_int $dropint = random(128);
+if ($dropint < 29) {
+    obj_add(npc_coord, coins, 35, ^lootdrop_duration);
+} else if ($dropint < 39) {
+    obj_add(npc_coord, coins, 100, ^lootdrop_duration);
+} else if ($dropint < 46) {
+    obj_add(npc_coord, coins, 8, ^lootdrop_duration);
+} else if ($dropint < 52) {
+    obj_add(npc_coord, coins, 50, ^lootdrop_duration);
+} else if ($dropint < 53) {
+    obj_add(npc_coord, coins, 250, ^lootdrop_duration);
+} else if ($dropint < 61) {
+    obj_add(npc_coord, earthrune, 60, ^lootdrop_duration);
+} else if ($dropint < 66) {
+    obj_add(npc_coord, naturerune, 7, ^lootdrop_duration);
+} else if ($dropint < 70) {
+    obj_add(npc_coord, steel_med_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 73) {
+    obj_add(npc_coord, lawrune, 2, ^lootdrop_duration);
+} else if ($dropint < 76) {
+    obj_add(npc_coord, black_warhammer, 1, ^lootdrop_duration);
+} else if ($dropint < 79) {
+    obj_add(npc_coord, steel_warhammer, 1, ^lootdrop_duration);
+} else if ($dropint < 82) {
+    obj_add(npc_coord, coal, 3, ^lootdrop_duration);
+} else if ($dropint < 84) {
+    obj_add(npc_coord, raw_mackerel, 3, ^lootdrop_duration);
+} else if ($dropint < 85) {
+    obj_add(npc_coord, earthrune, 45, ^lootdrop_duration);
+} else if ($dropint < 86) {
+    obj_add(npc_coord, earthrune, 25, ^lootdrop_duration);
+} else if ($dropint < 87) {
+    obj_add(npc_coord, adamant_med_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 88) {
+    obj_add(npc_coord, adamnt_warhammer, 1, ^lootdrop_duration);
+} else if ($dropint < 89) {
+    obj_add(npc_coord, mithril_sq_shield, 1, ^lootdrop_duration);
+} else if ($dropint < 104) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 123) {
+    obj_add(npc_coord, ~roll_general_seed_table(68), ^lootdrop_duration);
+} else if ($dropint < 128) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

@@ -1,0 +1,67 @@
+// Abyssal demon - https://oldschool.runescape.wiki/w/Abyssal_demon
+
+[ai_queue3,slayer_abyssal] @slayer_abyssal_drop_table;
+
+[label,slayer_abyssal_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+~trail_hardcluedrop(^trail_hard_droprate, npc_coord);
+
+if (random(512) = 0) {
+    obj_add(npc_coord, abyssal_whip, 1, ^lootdrop_duration);
+}
+
+def_int $dropint = random(128);
+if ($dropint < 4) {
+    obj_add(npc_coord, black_sword, 1, ^lootdrop_duration);
+} else if ($dropint < 7) {
+    obj_add(npc_coord, steel_battleaxe, 1, ^lootdrop_duration);
+} else if ($dropint < 9) {
+    obj_add(npc_coord, black_axe, 1, ^lootdrop_duration);
+} else if ($dropint < 10) {
+    obj_add(npc_coord, mithril_kiteshield, 1, ^lootdrop_duration);
+} else if ($dropint < 11) {
+    obj_add(npc_coord, rune_chainbody, 1, ^lootdrop_duration);
+} else if ($dropint < 12) {
+    obj_add(npc_coord, rune_med_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 20) {
+    obj_add(npc_coord, airrune, 50, ^lootdrop_duration);
+} else if ($dropint < 27) {
+    obj_add(npc_coord, chaosrune, 10, ^lootdrop_duration);
+} else if ($dropint < 31) {
+    obj_add(npc_coord, bloodrune, 7, ^lootdrop_duration);
+} else if ($dropint < 32) {
+    obj_add(npc_coord, lawrune, 3, ^lootdrop_duration);
+} else if ($dropint < 51) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 56) {
+    obj_add(npc_coord, blankrune_high, 60, ^lootdrop_duration);
+} else if ($dropint < 58) {
+    obj_add(npc_coord, adamantite_bar, 1, ^lootdrop_duration);
+} else if ($dropint < 93) {
+    obj_add(npc_coord, coins, 132, ^lootdrop_duration);
+} else if ($dropint < 102) {
+    obj_add(npc_coord, coins, 220, ^lootdrop_duration);
+} else if ($dropint < 109) {
+    obj_add(npc_coord, coins, 30, ^lootdrop_duration);
+} else if ($dropint < 115) {
+    obj_add(npc_coord, coins, 44, ^lootdrop_duration);
+} else if ($dropint < 116) {
+    obj_add(npc_coord, coins, 460, ^lootdrop_duration);
+} else if ($dropint < 118) {
+    obj_add(npc_coord, lobster, 1, ^lootdrop_duration);
+} else if ($dropint < 119) {
+    obj_add(npc_coord, cosmic_talisman, 1, ^lootdrop_duration);
+} else if ($dropint < 120) {
+    obj_add(npc_coord, chaos_talisman, 1, ^lootdrop_duration);
+} else if ($dropint < 121) {
+    obj_add(npc_coord, 3dose1defense, 1, ^lootdrop_duration);
+} else if ($dropint < 128) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

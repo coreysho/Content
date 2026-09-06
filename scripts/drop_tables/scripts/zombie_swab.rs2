@@ -1,0 +1,64 @@
+// Zombie Swab - https://oldschool.runescape.wiki/w/Zombie_Swab
+
+[ai_queue3,deal_pirate_a] @deal_pirate_a_drop_table;
+[ai_queue3,deal_pirate_b] @deal_pirate_a_drop_table;
+[ai_queue3,deal_pirate_c] @deal_pirate_a_drop_table;
+[ai_queue3,deal_pirate_d] @deal_pirate_a_drop_table;
+[ai_queue3,deal_pirate_e] @deal_pirate_a_drop_table;
+[ai_queue3,deal_pirate_f] @deal_pirate_a_drop_table;
+
+[label,deal_pirate_a_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+def_int $dropint = random(128);
+if ($dropint < 16) {
+    obj_add(npc_coord, coins, 18, ^lootdrop_duration);
+} else if ($dropint < 24) {
+    obj_add(npc_coord, coins, 10, ^lootdrop_duration);
+} else if ($dropint < 30) {
+    obj_add(npc_coord, coins, 26, ^lootdrop_duration);
+} else if ($dropint < 34) {
+    obj_add(npc_coord, coins, 35, ^lootdrop_duration);
+} else if ($dropint < 35) {
+    obj_add(npc_coord, coins, 40, ^lootdrop_duration);
+} else if ($dropint < 51) {
+    obj_add(npc_coord, fishing_bait, 7, ^lootdrop_duration);
+} else if ($dropint < 55) {
+    obj_add(npc_coord, fishing_bait, 10, ^lootdrop_duration);
+} else if ($dropint < 57) {
+    obj_add(npc_coord, steel_scimitar, 1, ^lootdrop_duration);
+} else if ($dropint < 58) {
+    obj_add(npc_coord, iron_dagger, 1, ^lootdrop_duration);
+} else if ($dropint < 60) {
+    obj_add(npc_coord, bolt, calc(random(11) + 2), ^lootdrop_duration);
+} else if ($dropint < 62) {
+    obj_add(npc_coord, airrune, 3, ^lootdrop_duration);
+} else if ($dropint < 64) {
+    obj_add(npc_coord, cosmicrune, 2, ^lootdrop_duration);
+} else if ($dropint < 65) {
+    obj_add(npc_coord, bodyrune, 3, ^lootdrop_duration);
+} else if ($dropint < 66) {
+    obj_add(npc_coord, waterrune, 17, ^lootdrop_duration);
+} else if ($dropint < 67) {
+    obj_add(npc_coord, chaosrune, 4, ^lootdrop_duration);
+} else if ($dropint < 69) {
+    obj_add(npc_coord, deal_karamthulhu, 1, ^lootdrop_duration);
+} else if ($dropint < 70) {
+    obj_add(npc_coord, iron_ore, 1, ^lootdrop_duration);
+} else if ($dropint < 71) {
+    obj_add(npc_coord, eye_patch, 1, ^lootdrop_duration);
+} else if ($dropint < 72) {
+    obj_add(npc_coord, deal_rusty_scimitar, 1, ^lootdrop_duration);
+} else if ($dropint < 96) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 97) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+} else if ($dropint < 122) {
+    obj_add(npc_coord, rag_zombie_bone, 1, ^lootdrop_duration);
+}

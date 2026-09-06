@@ -1,0 +1,58 @@
+// Kurask - https://oldschool.runescape.wiki/w/Kurask
+
+[ai_queue3,slayer_kursk_1] @slayer_kursk_1_drop_table;
+[ai_queue3,slayer_kursk_2] @slayer_kursk_1_drop_table;
+
+[label,slayer_kursk_1_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+~trail_hardcluedrop(^trail_hard_droprate, npc_coord);
+
+if (random(512) = 0) {
+    obj_add(npc_coord, mystic_robe_top_light, 1, ^lootdrop_duration);
+}
+
+def_int $dropint = random(128);
+if ($dropint < 3) {
+    obj_add(npc_coord, mithril_kiteshield, 1, ^lootdrop_duration);
+} else if ($dropint < 6) {
+    obj_add(npc_coord, rune_longsword, 1, ^lootdrop_duration);
+} else if ($dropint < 9) {
+    obj_add(npc_coord, adamant_platebody, 1, ^lootdrop_duration);
+} else if ($dropint < 12) {
+    obj_add(npc_coord, rune_axe, 1, ^lootdrop_duration);
+} else if ($dropint < 22) {
+    obj_add(npc_coord, naturerune, 10, ^lootdrop_duration);
+} else if ($dropint < 29) {
+    obj_add(npc_coord, naturerune, 15, ^lootdrop_duration);
+} else if ($dropint < 33) {
+    obj_add(npc_coord, naturerune, 30, ^lootdrop_duration);
+} else if ($dropint < 49) {
+    obj_add(npc_coord, coins, calc(random(1001) + 2000), ^lootdrop_duration);
+} else if ($dropint < 54) {
+    obj_add(npc_coord, coins, 10000, ^lootdrop_duration);
+} else if ($dropint < 60) {
+    obj_add(npc_coord, flax, 100, ^lootdrop_duration);
+} else if ($dropint < 66) {
+    obj_add(npc_coord, white_berries, 12, ^lootdrop_duration);
+} else if ($dropint < 70) {
+    obj_add(npc_coord, papaya, 10, ^lootdrop_duration);
+} else if ($dropint < 74) {
+    obj_add(npc_coord, coconut, 10, ^lootdrop_duration);
+} else if ($dropint < 79) {
+    obj_add(npc_coord, big_bones, 20, ^lootdrop_duration);
+} else if ($dropint < 85) {
+    obj_add(npc_coord, limpwurt_seed, 1, ^lootdrop_duration);
+} else if ($dropint < 103) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 118) {
+    obj_add(npc_coord, ~roll_general_seed_table(106), ^lootdrop_duration);
+} else if ($dropint < 124) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

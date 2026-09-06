@@ -1,0 +1,55 @@
+// Black Guard Berserker - https://oldschool.runescape.wiki/w/Black_Guard_Berserker
+
+[ai_queue3,dwarf_city_berserker1] @dwarf_city_berserker1_drop_table;
+[ai_queue3,dwarf_city_berserker2] @dwarf_city_berserker1_drop_table;
+[ai_queue3,dwarf_city_berserker3] @dwarf_city_berserker1_drop_table;
+
+[label,dwarf_city_berserker1_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+~trail_mediumcluedrop(^trail_medium_droprate, npc_coord);
+
+def_int $dropint = random(128);
+if ($dropint < 45) {
+    obj_add(npc_coord, coins, 35, ^lootdrop_duration);
+} else if ($dropint < 54) {
+    obj_add(npc_coord, coins, 46, ^lootdrop_duration);
+} else if ($dropint < 59) {
+    obj_add(npc_coord, coins, 42, ^lootdrop_duration);
+} else if ($dropint < 62) {
+    obj_add(npc_coord, coins, 57, ^lootdrop_duration);
+} else if ($dropint < 68) {
+    obj_add(npc_coord, iron_warhammer, 1, ^lootdrop_duration);
+} else if ($dropint < 71) {
+    obj_add(npc_coord, bronze_warhammer, 1, ^lootdrop_duration);
+} else if ($dropint < 73) {
+    obj_add(npc_coord, black_warhammer, 1, ^lootdrop_duration);
+} else if ($dropint < 74) {
+    obj_add(npc_coord, steel_warhammer, 1, ^lootdrop_duration);
+} else if ($dropint < 78) {
+    obj_add(npc_coord, keg_of_beer, 1, ^lootdrop_duration);
+} else if ($dropint < 82) {
+    obj_add(npc_coord, cake, 1, ^lootdrop_duration);
+} else if ($dropint < 85) {
+    obj_add(npc_coord, iron_ore, 2, ^lootdrop_duration);
+} else if ($dropint < 87) {
+    obj_add(npc_coord, copper_ore, 5, ^lootdrop_duration);
+} else if ($dropint < 88) {
+    obj_add(npc_coord, tin_ore, 1, ^lootdrop_duration);
+} else if ($dropint < 89) {
+    obj_add(npc_coord, beer, 1, ^lootdrop_duration);
+} else if ($dropint < 90) {
+    obj_add(npc_coord, bucket_water, 1, ^lootdrop_duration);
+} else if ($dropint < 91) {
+    obj_add(npc_coord, ring_mould, 1, ^lootdrop_duration);
+} else if ($dropint < 93) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 94) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

@@ -1,0 +1,53 @@
+// Giant Rock Crab - https://oldschool.runescape.wiki/w/Giant_Rock_Crab
+
+[ai_queue3,giant_rockcrab_deeper] @giant_rockcrab_deeper_drop_table;
+
+[label,giant_rockcrab_deeper_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+~trail_mediumcluedrop(^trail_medium_droprate, npc_coord);
+
+def_int $dropint = random(128);
+if ($dropint < 10) {
+    obj_add(npc_coord, mithril_axe, 1, ^lootdrop_duration);
+} else if ($dropint < 20) {
+    obj_add(npc_coord, waterrune, calc(random(40) + 1), ^lootdrop_duration);
+} else if ($dropint < 30) {
+    obj_add(npc_coord, earthrune, calc(random(40) + 1), ^lootdrop_duration);
+} else if ($dropint < 40) {
+    obj_add(npc_coord, coins, calc(random(140) + 1), ^lootdrop_duration);
+} else if ($dropint < 50) {
+    obj_add(npc_coord, raw_lobster, 1, ^lootdrop_duration);
+} else if ($dropint < 60) {
+    obj_add(npc_coord, raw_bass, 1, ^lootdrop_duration);
+} else if ($dropint < 70) {
+    obj_add(npc_coord, tinderbox, 1, ^lootdrop_duration);
+} else if ($dropint < 75) {
+    obj_add(npc_coord, steel_platebody, 1, ^lootdrop_duration);
+} else if ($dropint < 80) {
+    obj_add(npc_coord, black_claws, 1, ^lootdrop_duration);
+} else if ($dropint < 85) {
+    obj_add(npc_coord, black_platebody, 1, ^lootdrop_duration);
+} else if ($dropint < 90) {
+    obj_add(npc_coord, black_warhammer, 1, ^lootdrop_duration);
+} else if ($dropint < 95) {
+    obj_add(npc_coord, adamant_longsword, 1, ^lootdrop_duration);
+} else if ($dropint < 97) {
+    obj_add(npc_coord, dagganoth_melee_gloves, 1, ^lootdrop_duration);
+} else if ($dropint < 99) {
+    obj_add(npc_coord, dagganoth_melee_feet, 1, ^lootdrop_duration);
+} else if ($dropint < 101) {
+    obj_add(npc_coord, casket, 1, ^lootdrop_duration);
+} else if ($dropint < 109) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 110) {
+    obj_add(npc_coord, ~roll_general_seed_table(137), ^lootdrop_duration);
+} else if ($dropint < 111) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

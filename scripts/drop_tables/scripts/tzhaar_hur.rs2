@@ -1,0 +1,38 @@
+// TzHaar-Hur - https://oldschool.runescape.wiki/w/TzHaar-Hur
+
+[ai_queue3,tzhaar_hur3] @tzhaar_hur3_drop_table;
+[ai_queue3,tzhaar_hur4] @tzhaar_hur3_drop_table;
+[ai_queue3,tzhaar_hur5] @tzhaar_hur3_drop_table;
+[ai_queue3,tzhaar_hur6] @tzhaar_hur3_drop_table;
+
+[label,tzhaar_hur3_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+if (random(512) = 0) {
+    obj_add(npc_coord, uncut_ruby, 1, ^lootdrop_duration);
+}
+if (random(2048) = 0) {
+    obj_add(npc_coord, uncut_diamond, 1, ^lootdrop_duration);
+}
+
+def_int $dropint = random(512);
+if ($dropint < 256) {
+    obj_add(npc_coord, tzhaar_token, calc(random(16) + 1), ^lootdrop_duration);
+} else if ($dropint < 288) {
+    obj_add(npc_coord, chisel, 1, ^lootdrop_duration);
+} else if ($dropint < 320) {
+    obj_add(npc_coord, hammer, 1, ^lootdrop_duration);
+} else if ($dropint < 352) {
+    obj_add(npc_coord, jug_empty, 1, ^lootdrop_duration);
+} else if ($dropint < 384) {
+    obj_add(npc_coord, knife, 1, ^lootdrop_duration);
+} else if ($dropint < 416) {
+    obj_add(npc_coord, pot_empty, 1, ^lootdrop_duration);
+} else if ($dropint < 420) {
+    obj_add(npc_coord, uncut_sapphire, 1, ^lootdrop_duration);
+} else if ($dropint < 422) {
+    obj_add(npc_coord, uncut_emerald, 1, ^lootdrop_duration);
+}

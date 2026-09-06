@@ -1,0 +1,19 @@
+// Crab - https://oldschool.runescape.wiki/w/Crab
+
+[ai_queue3,hundred_pirate_giant_crab] @hundred_pirate_giant_crab_drop_table;
+[ai_queue3,hundred_pirate_giant_crab_2] @hundred_pirate_giant_crab_drop_table;
+
+[label,hundred_pirate_giant_crab_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+def_int $dropint = random(512);
+if ($dropint < 51) {
+    obj_add(npc_coord, oystershell, 1, ^lootdrop_duration);
+} else if ($dropint < 83) {
+    obj_add(npc_coord, hundred_pirate_crab_shell_claw, 1, ^lootdrop_duration);
+} else if ($dropint < 115) {
+    obj_add(npc_coord, hundred_pirate_crab_shell_head, 1, ^lootdrop_duration);
+}

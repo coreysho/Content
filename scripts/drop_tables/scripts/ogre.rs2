@@ -1,0 +1,19 @@
+// Ogre - https://oldschool.runescape.wiki/w/Ogre
+
+[ai_queue3,lathastrainingogre] @lathastrainingogre_drop_table;
+[ai_queue3,ogre] @lathastrainingogre_drop_table;
+[ai_queue3,ogre2] @lathastrainingogre_drop_table;
+
+[label,lathastrainingogre_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+def_int $dropint = random(128);
+if ($dropint < 19) {
+    obj_add(npc_coord, ~roll_general_seed_table(63), ^lootdrop_duration);
+}

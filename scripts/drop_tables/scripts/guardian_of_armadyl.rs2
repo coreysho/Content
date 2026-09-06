@@ -1,0 +1,18 @@
+// Guardian of Armadyl - https://oldschool.runescape.wiki/w/Guardian_of_Armadyl
+
+[ai_queue3,ikov_guardianfemale] @ikov_guardianfemale_drop_table;
+[ai_queue3,ikov_guardianmale] @ikov_guardianfemale_drop_table;
+
+[label,ikov_guardianfemale_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+def_int $dropint = random(128);
+if ($dropint < 13) {
+    obj_add(npc_coord, ikov_pendantofarmardyl, 1, ^lootdrop_duration);
+}

@@ -1,0 +1,48 @@
+// Cave Slime - https://oldschool.runescape.wiki/w/Cave_Slime
+
+[ai_queue3,swamp_cave_slime] @swamp_cave_slime_drop_table;
+
+[label,swamp_cave_slime_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+obj_add(npc_coord, swamp_tar, calc(random(6) + 1), ^lootdrop_duration);
+
+~trail_easycluedrop(^trail_easy_droprate, npc_coord);
+
+def_int $dropint = random(128);
+if ($dropint < 39) {
+    obj_add(npc_coord, coins, 10, ^lootdrop_duration);
+} else if ($dropint < 69) {
+    obj_add(npc_coord, coins, 4, ^lootdrop_duration);
+} else if ($dropint < 80) {
+    obj_add(npc_coord, torch_unlit, 1, ^lootdrop_duration);
+} else if ($dropint < 90) {
+    obj_add(npc_coord, coins, 22, ^lootdrop_duration);
+} else if ($dropint < 97) {
+    obj_add(npc_coord, iron_sword, 1, ^lootdrop_duration);
+} else if ($dropint < 104) {
+    obj_add(npc_coord, coins, 1, ^lootdrop_duration);
+} else if ($dropint < 109) {
+    obj_add(npc_coord, waterrune, 15, ^lootdrop_duration);
+} else if ($dropint < 112) {
+    obj_add(npc_coord, bronze_axe, 1, ^lootdrop_duration);
+} else if ($dropint < 115) {
+    obj_add(npc_coord, earthrune, 5, ^lootdrop_duration);
+} else if ($dropint < 117) {
+    obj_add(npc_coord, iron_kiteshield, 1, ^lootdrop_duration);
+} else if ($dropint < 119) {
+    obj_add(npc_coord, gold_bar, 1, ^lootdrop_duration);
+} else if ($dropint < 121) {
+    obj_add(npc_coord, coins, 46, ^lootdrop_duration);
+} else if ($dropint < 122) {
+    obj_add(npc_coord, bronze_full_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 123) {
+    obj_add(npc_coord, iron_armoured_boots, 1, ^lootdrop_duration);
+} else if ($dropint < 124) {
+    obj_add(npc_coord, oil_lantern_frame, 1, ^lootdrop_duration);
+} else if ($dropint < 128) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

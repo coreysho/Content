@@ -1,0 +1,17 @@
+// Mudskipper - https://oldschool.runescape.wiki/w/Mudskipper
+
+[ai_queue3,hundred_pirate_giant_mudskipper] @hundred_pirate_giant_mudskipper_drop_table;
+[ai_queue3,hundred_pirate_giant_mudskipper_2] @hundred_pirate_giant_mudskipper_drop_table;
+
+[label,hundred_pirate_giant_mudskipper_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+obj_add(npc_coord, hundred_pirate_mudskipper_hide, 1, ^lootdrop_duration);
+
+def_int $dropint = random(128);
+if ($dropint < 22) {
+    obj_add(npc_coord, oystershell, 1, ^lootdrop_duration);
+}

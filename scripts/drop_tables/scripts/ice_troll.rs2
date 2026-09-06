@@ -1,0 +1,59 @@
+// Ice Troll - https://oldschool.runescape.wiki/w/Ice_Troll
+
+[ai_queue3,trollrescue_icetroll_melee1] @trollrescue_icetroll_melee1_drop_table;
+[ai_queue3,trollrescue_icetroll_melee2] @trollrescue_icetroll_melee1_drop_table;
+[ai_queue3,trollrescue_icetroll_melee3] @trollrescue_icetroll_melee1_drop_table;
+[ai_queue3,trollrescue_icetroll_melee4] @trollrescue_icetroll_melee1_drop_table;
+[ai_queue3,trollrescue_icetroll_melee5] @trollrescue_icetroll_melee1_drop_table;
+[ai_queue3,trollrescue_icetroll_melee6] @trollrescue_icetroll_melee1_drop_table;
+[ai_queue3,trollrescue_icetroll_melee7] @trollrescue_icetroll_melee1_drop_table;
+
+[label,trollrescue_icetroll_melee1_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+def_int $dropint = random(128);
+if ($dropint < 29) {
+    obj_add(npc_coord, coins, 30, ^lootdrop_duration);
+} else if ($dropint < 54) {
+    obj_add(npc_coord, coins, 136, ^lootdrop_duration);
+} else if ($dropint < 64) {
+    obj_add(npc_coord, coins, 200, ^lootdrop_duration);
+} else if ($dropint < 68) {
+    obj_add(npc_coord, coins, 20, ^lootdrop_duration);
+} else if ($dropint < 76) {
+    obj_add(npc_coord, bloodrune, 2, ^lootdrop_duration);
+} else if ($dropint < 81) {
+    obj_add(npc_coord, bloodrune, 5, ^lootdrop_duration);
+} else if ($dropint < 84) {
+    obj_add(npc_coord, lawrune, 4, ^lootdrop_duration);
+} else if ($dropint < 85) {
+    obj_add(npc_coord, deathrune, 15, ^lootdrop_duration);
+} else if ($dropint < 86) {
+    obj_add(npc_coord, waterrune, 65, ^lootdrop_duration);
+} else if ($dropint < 90) {
+    obj_add(npc_coord, black_platebody, 1, ^lootdrop_duration);
+} else if ($dropint < 92) {
+    obj_add(npc_coord, adamant_axe, 1, ^lootdrop_duration);
+} else if ($dropint < 93) {
+    obj_add(npc_coord, adamant_kiteshield, 1, ^lootdrop_duration);
+} else if ($dropint < 94) {
+    obj_add(npc_coord, black_warhammer, 1, ^lootdrop_duration);
+} else if ($dropint < 95) {
+    obj_add(npc_coord, mithril_platebody, 1, ^lootdrop_duration);
+} else if ($dropint < 96) {
+    obj_add(npc_coord, rune_battleaxe, 1, ^lootdrop_duration);
+} else if ($dropint < 99) {
+    obj_add(npc_coord, lobster, 6, ^lootdrop_duration);
+} else if ($dropint < 101) {
+    obj_add(npc_coord, raw_tuna, 4, ^lootdrop_duration);
+} else if ($dropint < 119) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 127) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

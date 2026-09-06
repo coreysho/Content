@@ -1,0 +1,48 @@
+// TzHaar-Mej - https://oldschool.runescape.wiki/w/TzHaar-Mej
+
+[ai_queue3,tzhaar_mej1] @tzhaar_mej1_drop_table;
+[ai_queue3,tzhaar_mej2] @tzhaar_mej1_drop_table;
+[ai_queue3,tzhaar_mej5] @tzhaar_mej1_drop_table;
+[ai_queue3,tzhaar_mej7] @tzhaar_mej1_drop_table;
+
+[label,tzhaar_mej1_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+if (random(512) = 0) {
+    obj_add(npc_coord, uncut_ruby, 1, ^lootdrop_duration);
+}
+if (random(2048) = 0) {
+    obj_add(npc_coord, uncut_diamond, 1, ^lootdrop_duration);
+}
+if (random(4096) = 0) {
+    obj_add(npc_coord, tzhaar_cape_obsidian, 1, ^lootdrop_duration);
+}
+if (random(4096) = 0) {
+    obj_add(npc_coord, tzhaar_staff, 1, ^lootdrop_duration);
+}
+
+def_int $dropint = random(512);
+if ($dropint < 248) {
+    obj_add(npc_coord, tzhaar_token, calc(random(21) + 1), ^lootdrop_duration);
+} else if ($dropint < 256) {
+    obj_add(npc_coord, tzhaar_token, 22, ^lootdrop_duration);
+} else if ($dropint < 272) {
+    obj_add(npc_coord, earthrune, 25, ^lootdrop_duration);
+} else if ($dropint < 288) {
+    obj_add(npc_coord, firerune, 25, ^lootdrop_duration);
+} else if ($dropint < 304) {
+    obj_add(npc_coord, airrune, 25, ^lootdrop_duration);
+} else if ($dropint < 312) {
+    obj_add(npc_coord, chaosrune, 5, ^lootdrop_duration);
+} else if ($dropint < 320) {
+    obj_add(npc_coord, naturerune, 2, ^lootdrop_duration);
+} else if ($dropint < 328) {
+    obj_add(npc_coord, deathrune, 2, ^lootdrop_duration);
+} else if ($dropint < 332) {
+    obj_add(npc_coord, uncut_sapphire, 1, ^lootdrop_duration);
+} else if ($dropint < 334) {
+    obj_add(npc_coord, uncut_emerald, 1, ^lootdrop_duration);
+}

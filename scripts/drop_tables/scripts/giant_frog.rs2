@@ -1,0 +1,39 @@
+// Giant frog - https://oldschool.runescape.wiki/w/Giant_frog
+
+[ai_queue3,giant_frog] @giant_frog_drop_table;
+
+[label,giant_frog_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+def_int $dropint = random(128);
+if ($dropint < 64) {
+    obj_add(npc_coord, giant_frog_legs, 1, ^lootdrop_duration);
+} else if ($dropint < 74) {
+    obj_add(npc_coord, naturerune, calc(random(9) + 1), ^lootdrop_duration);
+} else if ($dropint < 84) {
+    obj_add(npc_coord, coins, 30, ^lootdrop_duration);
+} else if ($dropint < 92) {
+    obj_add(npc_coord, coins, 2, ^lootdrop_duration);
+} else if ($dropint < 97) {
+    obj_add(npc_coord, coins, 37, ^lootdrop_duration);
+} else if ($dropint < 100) {
+    obj_add(npc_coord, cosmicrune, 5, ^lootdrop_duration);
+} else if ($dropint < 102) {
+    obj_add(npc_coord, mithril_spear, 1, ^lootdrop_duration);
+} else if ($dropint < 104) {
+    obj_add(npc_coord, iron_arrow, 22, ^lootdrop_duration);
+} else if ($dropint < 105) {
+    obj_add(npc_coord, bloodrune, 1, ^lootdrop_duration);
+} else if ($dropint < 106) {
+    obj_add(npc_coord, steel_arrow, 45, ^lootdrop_duration);
+} else if ($dropint < 107) {
+    obj_add(npc_coord, coal, 1, ^lootdrop_duration);
+} else if ($dropint < 108) {
+    obj_add(npc_coord, spinach_roll, 1, ^lootdrop_duration);
+}

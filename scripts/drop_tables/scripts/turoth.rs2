@@ -1,0 +1,54 @@
+// Turoth - https://oldschool.runescape.wiki/w/Turoth
+
+[ai_queue3,slayer_turoth_baby] @slayer_turoth_baby_drop_table;
+[ai_queue3,slayer_turoth_child] @slayer_turoth_baby_drop_table;
+[ai_queue3,slayer_turoth_dad] @slayer_turoth_baby_drop_table;
+[ai_queue3,slayer_turoth_mum] @slayer_turoth_baby_drop_table;
+
+[label,slayer_turoth_baby_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+~trail_hardcluedrop(^trail_hard_droprate, npc_coord);
+
+if (random(512) = 0) {
+    obj_add(npc_coord, mystic_robe_bottom_light, 1, ^lootdrop_duration);
+}
+
+def_int $dropint = random(128);
+if ($dropint < 7) {
+    obj_add(npc_coord, steel_platelegs, 1, ^lootdrop_duration);
+} else if ($dropint < 10) {
+    obj_add(npc_coord, mithril_axe, 1, ^lootdrop_duration);
+} else if ($dropint < 11) {
+    obj_add(npc_coord, mithril_kiteshield, 1, ^lootdrop_duration);
+} else if ($dropint < 12) {
+    obj_add(npc_coord, adamant_full_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 13) {
+    obj_add(npc_coord, rune_dagger, 1, ^lootdrop_duration);
+} else if ($dropint < 19) {
+    obj_add(npc_coord, lawrune, 3, ^lootdrop_duration);
+} else if ($dropint < 24) {
+    obj_add(npc_coord, naturerune, 15, ^lootdrop_duration);
+} else if ($dropint < 25) {
+    obj_add(npc_coord, naturerune, 37, ^lootdrop_duration);
+} else if ($dropint < 32) {
+    obj_add(npc_coord, limpwurt_root, 1, ^lootdrop_duration);
+} else if ($dropint < 61) {
+    obj_add(npc_coord, coins, 44, ^lootdrop_duration);
+} else if ($dropint < 73) {
+    obj_add(npc_coord, coins, 132, ^lootdrop_duration);
+} else if ($dropint < 74) {
+    obj_add(npc_coord, coins, 440, ^lootdrop_duration);
+} else if ($dropint < 105) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 123) {
+    obj_add(npc_coord, ~roll_general_seed_table(89), ^lootdrop_duration);
+} else if ($dropint < 128) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

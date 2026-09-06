@@ -1,0 +1,63 @@
+// Dwarf - https://oldschool.runescape.wiki/w/Dwarf
+
+[ai_queue3,fai_dwarf_worker_01] @fai_dwarf_worker_01_drop_table;
+[ai_queue3,fai_dwarf_worker_02] @fai_dwarf_worker_01_drop_table;
+[ai_queue3,fai_dwarf_worker_03] @fai_dwarf_worker_01_drop_table;
+[ai_queue3,fai_dwarf_worker_04] @fai_dwarf_worker_01_drop_table;
+[ai_queue3,fai_dwarf_worker_05] @fai_dwarf_worker_01_drop_table;
+[ai_queue3,fai_dwarf_worker_06] @fai_dwarf_worker_01_drop_table;
+[ai_queue3,fai_dwarf_worker_07] @fai_dwarf_worker_01_drop_table;
+[ai_queue3,fai_dwarf_worker_08] @fai_dwarf_worker_01_drop_table;
+[ai_queue3,fai_falador_dwarf_normal1] @fai_dwarf_worker_01_drop_table;
+[ai_queue3,fai_falador_dwarf_normal2] @fai_dwarf_worker_01_drop_table;
+[ai_queue3,fai_falador_dwarf_normal3] @fai_dwarf_worker_01_drop_table;
+
+[label,fai_dwarf_worker_01_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+obj_add(npc_coord, bones, 1, ^lootdrop_duration);
+
+def_int $dropint = random(128);
+if ($dropint < 20) {
+    obj_add(npc_coord, coins, 4, ^lootdrop_duration);
+} else if ($dropint < 35) {
+    obj_add(npc_coord, coins, 10, ^lootdrop_duration);
+} else if ($dropint < 48) {
+    obj_add(npc_coord, bronze_pickaxe, 1, ^lootdrop_duration);
+} else if ($dropint < 58) {
+    obj_add(npc_coord, hammer, 1, ^lootdrop_duration);
+} else if ($dropint < 65) {
+    obj_add(npc_coord, bolt, calc(random(11) + 2), ^lootdrop_duration);
+} else if ($dropint < 72) {
+    obj_add(npc_coord, bronze_bar, 1, ^lootdrop_duration);
+} else if ($dropint < 76) {
+    obj_add(npc_coord, bronze_med_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 80) {
+    obj_add(npc_coord, chaosrune, 2, ^lootdrop_duration);
+} else if ($dropint < 84) {
+    obj_add(npc_coord, naturerune, 2, ^lootdrop_duration);
+} else if ($dropint < 88) {
+    obj_add(npc_coord, iron_ore, 1, ^lootdrop_duration);
+} else if ($dropint < 91) {
+    obj_add(npc_coord, tin_ore, 1, ^lootdrop_duration);
+} else if ($dropint < 94) {
+    obj_add(npc_coord, copper_ore, 1, ^lootdrop_duration);
+} else if ($dropint < 97) {
+    obj_add(npc_coord, iron_bar, 1, ^lootdrop_duration);
+} else if ($dropint < 99) {
+    obj_add(npc_coord, bronze_battleaxe, 1, ^lootdrop_duration);
+} else if ($dropint < 101) {
+    obj_add(npc_coord, coins, 30, ^lootdrop_duration);
+} else if ($dropint < 103) {
+    obj_add(npc_coord, coal, 1, ^lootdrop_duration);
+} else if ($dropint < 104) {
+    obj_add(npc_coord, iron_battleaxe, 1, ^lootdrop_duration);
+} else if ($dropint < 105) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

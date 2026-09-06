@@ -1,0 +1,19 @@
+// Enclave guard - https://oldschool.runescape.wiki/w/Enclave_guard
+
+[ai_queue3,enclave_guard] @enclave_guard_drop_table;
+
+[label,enclave_guard_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+obj_add(npc_coord, big_bones, 1, ^lootdrop_duration);
+
+def_int $dropint = random(128);
+if ($dropint < 19) {
+    obj_add(npc_coord, ~roll_general_seed_table(83), ^lootdrop_duration);
+}

@@ -1,0 +1,41 @@
+// Vampire - https://oldschool.runescape.wiki/w/Vampire
+
+[ai_queue3,vampire_juve] @vampire_juve_drop_table;
+
+[label,vampire_juve_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+obj_add(npc_coord, vampire_dust, 1, ^lootdrop_duration);
+
+~trail_mediumcluedrop(^trail_medium_droprate, npc_coord);
+
+def_int $dropint = random(128);
+if ($dropint < 40) {
+    obj_add(npc_coord, coins, 15, ^lootdrop_duration);
+} else if ($dropint < 50) {
+    obj_add(npc_coord, earthrune, 4, ^lootdrop_duration);
+} else if ($dropint < 60) {
+    obj_add(npc_coord, deathrune, 2, ^lootdrop_duration);
+} else if ($dropint < 68) {
+    obj_add(npc_coord, chaosrune, 3, ^lootdrop_duration);
+} else if ($dropint < 73) {
+    obj_add(npc_coord, bloodrune, 1, ^lootdrop_duration);
+} else if ($dropint < 74) {
+    obj_add(npc_coord, bloodrune, 2, ^lootdrop_duration);
+} else if ($dropint < 77) {
+    obj_add(npc_coord, black_axe, 1, ^lootdrop_duration);
+} else if ($dropint < 79) {
+    obj_add(npc_coord, earth_talisman, 1, ^lootdrop_duration);
+} else if ($dropint < 89) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 108) {
+    obj_add(npc_coord, ~roll_general_seed_table(61), ^lootdrop_duration);
+} else if ($dropint < 112) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

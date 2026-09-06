@@ -1,0 +1,53 @@
+// Rusty - https://oldschool.runescape.wiki/w/Rusty
+
+[ai_queue3,falador_doric_area_man3] @falador_doric_area_man3_drop_table;
+
+[label,falador_doric_area_man3_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+~trail_easycluedrop(^trail_easy_droprate, npc_coord);
+
+def_int $dropint = random(128);
+if ($dropint < 2) {
+    obj_add(npc_coord, bronze_med_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 3) {
+    obj_add(npc_coord, iron_dagger, 1, ^lootdrop_duration);
+} else if ($dropint < 25) {
+    obj_add(npc_coord, bolt, calc(random(11) + 2), ^lootdrop_duration);
+} else if ($dropint < 28) {
+    obj_add(npc_coord, bronze_arrow, 7, ^lootdrop_duration);
+} else if ($dropint < 30) {
+    obj_add(npc_coord, earthrune, 4, ^lootdrop_duration);
+} else if ($dropint < 32) {
+    obj_add(npc_coord, firerune, 6, ^lootdrop_duration);
+} else if ($dropint < 34) {
+    obj_add(npc_coord, mindrune, 9, ^lootdrop_duration);
+} else if ($dropint < 35) {
+    obj_add(npc_coord, chaosrune, 2, ^lootdrop_duration);
+} else if ($dropint < 58) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 73) {
+    obj_add(npc_coord, coins, 3, ^lootdrop_duration);
+} else if ($dropint < 96) {
+    obj_add(npc_coord, coins, 10, ^lootdrop_duration);
+} else if ($dropint < 105) {
+    obj_add(npc_coord, coins, 5, ^lootdrop_duration);
+} else if ($dropint < 109) {
+    obj_add(npc_coord, coins, 15, ^lootdrop_duration);
+} else if ($dropint < 110) {
+    obj_add(npc_coord, coins, 25, ^lootdrop_duration);
+} else if ($dropint < 115) {
+    obj_add(npc_coord, fishing_bait, 1, ^lootdrop_duration);
+} else if ($dropint < 117) {
+    obj_add(npc_coord, copper_ore, 1, ^lootdrop_duration);
+} else if ($dropint < 119) {
+    obj_add(npc_coord, earth_talisman, 1, ^lootdrop_duration);
+} else if ($dropint < 120) {
+    obj_add(npc_coord, cabbage, 1, ^lootdrop_duration);
+}

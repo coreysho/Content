@@ -1,0 +1,44 @@
+// Bandit - https://oldschool.runescape.wiki/w/Bandit
+
+[ai_queue3,fourdiamonds_sword_bandit_1] @fourdiamonds_sword_bandit_1_drop_table;
+[ai_queue3,fourdiamonds_sword_bandit_free] @fourdiamonds_sword_bandit_1_drop_table;
+
+[label,fourdiamonds_sword_bandit_1_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+def_int $dropint = random(128);
+if ($dropint < 23) {
+    obj_add(npc_coord, coins, 12, ^lootdrop_duration);
+} else if ($dropint < 35) {
+    obj_add(npc_coord, coins, 20, ^lootdrop_duration);
+} else if ($dropint < 41) {
+    obj_add(npc_coord, coins, 45, ^lootdrop_duration);
+} else if ($dropint < 42) {
+    obj_add(npc_coord, coins, 30, ^lootdrop_duration);
+} else if ($dropint < 63) {
+    obj_add(npc_coord, chaosrune, 2, ^lootdrop_duration);
+} else if ($dropint < 66) {
+    obj_add(npc_coord, deathrune, 2, ^lootdrop_duration);
+} else if ($dropint < 68) {
+    obj_add(npc_coord, naturerune, 2, ^lootdrop_duration);
+} else if ($dropint < 70) {
+    obj_add(npc_coord, cosmicrune, 2, ^lootdrop_duration);
+} else if ($dropint < 72) {
+    obj_add(npc_coord, lawrune, 2, ^lootdrop_duration);
+} else if ($dropint < 74) {
+    obj_add(npc_coord, iron_battleaxe, 1, ^lootdrop_duration);
+} else if ($dropint < 75) {
+    obj_add(npc_coord, steel_axe, 1, ^lootdrop_duration);
+} else if ($dropint < 80) {
+    obj_add(npc_coord, steel_bar, 1, ^lootdrop_duration);
+} else if ($dropint < 84) {
+    obj_add(npc_coord, coal, 1, ^lootdrop_duration);
+} else if ($dropint < 98) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+}

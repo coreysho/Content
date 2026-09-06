@@ -1,0 +1,55 @@
+// Moss giant - https://oldschool.runescape.wiki/w/Moss_giant
+
+[ai_queue3,roving_mossgiant] @roving_mossgiant_drop_table;
+
+[label,roving_mossgiant_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+~trail_easycluedrop(^trail_easy_droprate, npc_coord);
+
+def_int $dropint = random(128);
+if ($dropint < 5) {
+    obj_add(npc_coord, black_sq_shield, 1, ^lootdrop_duration);
+} else if ($dropint < 7) {
+    obj_add(npc_coord, magic_staff, 1, ^lootdrop_duration);
+} else if ($dropint < 9) {
+    obj_add(npc_coord, steel_med_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 11) {
+    obj_add(npc_coord, mithril_sword, 1, ^lootdrop_duration);
+} else if ($dropint < 13) {
+    obj_add(npc_coord, mithril_spear, 1, ^lootdrop_duration);
+} else if ($dropint < 14) {
+    obj_add(npc_coord, steel_kiteshield, 1, ^lootdrop_duration);
+} else if ($dropint < 18) {
+    obj_add(npc_coord, lawrune, 3, ^lootdrop_duration);
+} else if ($dropint < 21) {
+    obj_add(npc_coord, airrune, 18, ^lootdrop_duration);
+} else if ($dropint < 24) {
+    obj_add(npc_coord, earthrune, 27, ^lootdrop_duration);
+} else if ($dropint < 27) {
+    obj_add(npc_coord, chaosrune, 7, ^lootdrop_duration);
+} else if ($dropint < 30) {
+    obj_add(npc_coord, naturerune, 6, ^lootdrop_duration);
+} else if ($dropint < 32) {
+    obj_add(npc_coord, cosmicrune, 3, ^lootdrop_duration);
+} else if ($dropint < 34) {
+    obj_add(npc_coord, iron_arrow, 15, ^lootdrop_duration);
+} else if ($dropint < 35) {
+    obj_add(npc_coord, steel_arrow, 30, ^lootdrop_duration);
+} else if ($dropint < 36) {
+    obj_add(npc_coord, deathrune, 3, ^lootdrop_duration);
+} else if ($dropint < 37) {
+    obj_add(npc_coord, bloodrune, 1, ^lootdrop_duration);
+} else if ($dropint < 42) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 77) {
+    obj_add(npc_coord, ~roll_general_seed_table(84), ^lootdrop_duration);
+} else if ($dropint < 81) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

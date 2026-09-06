@@ -1,0 +1,18 @@
+// Cow calf - https://oldschool.runescape.wiki/w/Cow_calf
+
+[ai_queue3,calf] @calf_drop_table;
+[ai_queue3,cow2_calf] @calf_drop_table;
+[ai_queue3,cow3_calf] @calf_drop_table;
+
+[label,calf_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+obj_add(npc_coord, cow_hide, 1, ^lootdrop_duration);
+obj_add(npc_coord, raw_beef, 1, ^lootdrop_duration);
+

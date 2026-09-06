@@ -1,0 +1,73 @@
+// Mourner - https://oldschool.runescape.wiki/w/Mourner
+
+[ai_queue3,mourner2] @mourner2_drop_table;
+[ai_queue3,mourner3] @mourner2_drop_table;
+[ai_queue3,mourner_armed] @mourner2_drop_table;
+[ai_queue3,mourner_hideout_guard] @mourner2_drop_table;
+[ai_queue3,mournerstew1] @mourner2_drop_table;
+[ai_queue3,mournerstew3] @mourner2_drop_table;
+[ai_queue3,mourning_overpass_mourner1] @mourner2_drop_table;
+[ai_queue3,mourning_overpass_mourner2] @mourner2_drop_table;
+[ai_queue3,mourning_overpass_mourner3] @mourner2_drop_table;
+
+[label,mourner2_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+obj_add(npc_coord, bones, 1, ^lootdrop_duration);
+obj_add(npc_coord, mourning_mourner_top, 1, ^lootdrop_duration);
+obj_add(npc_coord, mourning_mourner_legs, 1, ^lootdrop_duration);
+obj_add(npc_coord, mourning_mourner_cloak, 1, ^lootdrop_duration);
+obj_add(npc_coord, mourning_mourner_boots, 1, ^lootdrop_duration);
+obj_add(npc_coord, mourning_mourner_gloves, 1, ^lootdrop_duration);
+obj_add(npc_coord, gasmask, 1, ^lootdrop_duration);
+
+~trail_hardcluedrop(^trail_hard_droprate, npc_coord);
+
+def_int $dropint = random(128);
+if ($dropint < 4) {
+    obj_add(npc_coord, dragonhide_body, 1, ^lootdrop_duration);
+} else if ($dropint < 7) {
+    obj_add(npc_coord, dragonhide_chaps, 1, ^lootdrop_duration);
+} else if ($dropint < 9) {
+    obj_add(npc_coord, mithril_spear, 1, ^lootdrop_duration);
+} else if ($dropint < 10) {
+    obj_add(npc_coord, mithril_kiteshield, 1, ^lootdrop_duration);
+} else if ($dropint < 11) {
+    obj_add(npc_coord, adamant_full_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 12) {
+    obj_add(npc_coord, rune_dagger, 1, ^lootdrop_duration);
+} else if ($dropint < 20) {
+    obj_add(npc_coord, waterrune, 70, ^lootdrop_duration);
+} else if ($dropint < 25) {
+    obj_add(npc_coord, naturerune, 12, ^lootdrop_duration);
+} else if ($dropint < 28) {
+    obj_add(npc_coord, lawrune, 2, ^lootdrop_duration);
+} else if ($dropint < 29) {
+    obj_add(npc_coord, firerune, 37, ^lootdrop_duration);
+} else if ($dropint < 44) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 73) {
+    obj_add(npc_coord, coins, 44, ^lootdrop_duration);
+} else if ($dropint < 98) {
+    obj_add(npc_coord, coins, 132, ^lootdrop_duration);
+} else if ($dropint < 108) {
+    obj_add(npc_coord, coins, 180, ^lootdrop_duration);
+} else if ($dropint < 113) {
+    obj_add(npc_coord, coins, 20, ^lootdrop_duration);
+} else if ($dropint < 114) {
+    obj_add(npc_coord, coins, 440, ^lootdrop_duration);
+} else if ($dropint < 117) {
+    obj_add(npc_coord, bass, 1, ^lootdrop_duration);
+} else if ($dropint < 120) {
+    obj_add(npc_coord, shark, 1, ^lootdrop_duration);
+} else if ($dropint < 123) {
+    obj_add(npc_coord, adamantite_ore, 1, ^lootdrop_duration);
+} else if ($dropint < 128) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

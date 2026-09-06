@@ -1,0 +1,58 @@
+// Black Guard - https://oldschool.runescape.wiki/w/Black_Guard
+
+[ai_queue3,dwarf_city_black_guard1] @dwarf_city_black_guard1_drop_table;
+[ai_queue3,dwarf_city_black_guard2] @dwarf_city_black_guard1_drop_table;
+[ai_queue3,dwarf_city_black_guard3] @dwarf_city_black_guard1_drop_table;
+[ai_queue3,dwarf_city_black_guard4] @dwarf_city_black_guard1_drop_table;
+[ai_queue3,fai_black_guard_01] @dwarf_city_black_guard1_drop_table;
+[ai_queue3,fai_black_guard_02] @dwarf_city_black_guard1_drop_table;
+[ai_queue3,fai_black_guard_03] @dwarf_city_black_guard1_drop_table;
+[ai_queue3,fai_black_guard_04] @dwarf_city_black_guard1_drop_table;
+
+[label,dwarf_city_black_guard1_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+def_int $dropint = random(128);
+if ($dropint < 3) {
+    obj_add(npc_coord, bronze_warhammer, 1, ^lootdrop_duration);
+} else if ($dropint < 9) {
+    obj_add(npc_coord, iron_warhammer, 1, ^lootdrop_duration);
+} else if ($dropint < 10) {
+    obj_add(npc_coord, steel_warhammer, 1, ^lootdrop_duration);
+} else if ($dropint < 12) {
+    obj_add(npc_coord, black_warhammer, 1, ^lootdrop_duration);
+} else if ($dropint < 14) {
+    obj_add(npc_coord, copper_ore, 5, ^lootdrop_duration);
+} else if ($dropint < 15) {
+    obj_add(npc_coord, tin_ore, 1, ^lootdrop_duration);
+} else if ($dropint < 18) {
+    obj_add(npc_coord, iron_ore, 2, ^lootdrop_duration);
+} else if ($dropint < 63) {
+    obj_add(npc_coord, coins, 15, ^lootdrop_duration);
+} else if ($dropint < 68) {
+    obj_add(npc_coord, coins, 17, ^lootdrop_duration);
+} else if ($dropint < 77) {
+    obj_add(npc_coord, coins, 22, ^lootdrop_duration);
+} else if ($dropint < 80) {
+    obj_add(npc_coord, coins, 27, ^lootdrop_duration);
+} else if ($dropint < 81) {
+    obj_add(npc_coord, beer, 1, ^lootdrop_duration);
+} else if ($dropint < 85) {
+    obj_add(npc_coord, keg_of_beer, 1, ^lootdrop_duration);
+} else if ($dropint < 89) {
+    obj_add(npc_coord, cake, 1, ^lootdrop_duration);
+} else if ($dropint < 90) {
+    obj_add(npc_coord, bucket_water, 1, ^lootdrop_duration);
+} else if ($dropint < 91) {
+    obj_add(npc_coord, ring_mould, 1, ^lootdrop_duration);
+} else if ($dropint < 93) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 94) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

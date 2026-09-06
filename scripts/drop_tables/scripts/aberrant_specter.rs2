@@ -1,0 +1,39 @@
+// Aberrant specter - https://oldschool.runescape.wiki/w/Aberrant_specter
+
+[ai_queue3,slayer_abberant_spectre_1] @slayer_abberant_spectre_1_drop_table;
+[ai_queue3,slayer_abberant_spectre_2] @slayer_abberant_spectre_1_drop_table;
+[ai_queue3,slayer_abberant_spectre_3] @slayer_abberant_spectre_1_drop_table;
+[ai_queue3,slayer_abberant_spectre_4] @slayer_abberant_spectre_1_drop_table;
+
+[label,slayer_abberant_spectre_1_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+~trail_hardcluedrop(^trail_hard_droprate, npc_coord);
+
+if (random(512) = 0) {
+    obj_add(npc_coord, mystic_robe_bottom_dark, 1, ^lootdrop_duration);
+}
+
+def_int $dropint = random(128);
+if ($dropint < 3) {
+    obj_add(npc_coord, steel_axe, 1, ^lootdrop_duration);
+} else if ($dropint < 4) {
+    obj_add(npc_coord, mithril_kiteshield, 1, ^lootdrop_duration);
+} else if ($dropint < 5) {
+    obj_add(npc_coord, lava_battlestaff, 1, ^lootdrop_duration);
+} else if ($dropint < 6) {
+    obj_add(npc_coord, adamant_platelegs, 1, ^lootdrop_duration);
+} else if ($dropint < 7) {
+    obj_add(npc_coord, rune_full_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 8) {
+    obj_add(npc_coord, coins, 460, ^lootdrop_duration);
+} else if ($dropint < 86) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 105) {
+    obj_add(npc_coord, ~roll_general_seed_table(96), ^lootdrop_duration);
+} else if ($dropint < 110) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

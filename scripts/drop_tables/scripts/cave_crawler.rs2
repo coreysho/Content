@@ -1,0 +1,51 @@
+// Cave crawler - https://oldschool.runescape.wiki/w/Cave_crawler
+
+[ai_queue3,slayer_cave_crawler_1] @slayer_cave_crawler_1_drop_table;
+[ai_queue3,slayer_cave_crawler_2] @slayer_cave_crawler_1_drop_table;
+[ai_queue3,slayer_cave_crawler_3] @slayer_cave_crawler_1_drop_table;
+[ai_queue3,slayer_cave_crawler_4] @slayer_cave_crawler_1_drop_table;
+
+[label,slayer_cave_crawler_1_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+def_int $dropint = random(128);
+if ($dropint < 1) {
+    obj_add(npc_coord, bronze_armoured_boots, 1, ^lootdrop_duration);
+} else if ($dropint < 7) {
+    obj_add(npc_coord, naturerune, calc(random(2) + 3), ^lootdrop_duration);
+} else if ($dropint < 12) {
+    obj_add(npc_coord, firerune, 12, ^lootdrop_duration);
+} else if ($dropint < 14) {
+    obj_add(npc_coord, earthrune, 9, ^lootdrop_duration);
+} else if ($dropint < 27) {
+    obj_add(npc_coord, vial_water, 1, ^lootdrop_duration);
+} else if ($dropint < 32) {
+    obj_add(npc_coord, white_berries, 1, ^lootdrop_duration);
+} else if ($dropint < 34) {
+    obj_add(npc_coord, unicorn_horn_dust, 1, ^lootdrop_duration);
+} else if ($dropint < 35) {
+    obj_add(npc_coord, eye_of_newt, 1, ^lootdrop_duration);
+} else if ($dropint < 36) {
+    obj_add(npc_coord, red_spiders_eggs, 1, ^lootdrop_duration);
+} else if ($dropint < 37) {
+    obj_add(npc_coord, limpwurt_root, 1, ^lootdrop_duration);
+} else if ($dropint < 38) {
+    obj_add(npc_coord, snape_grass, 1, ^lootdrop_duration);
+} else if ($dropint < 43) {
+    obj_add(npc_coord, coins, 3, ^lootdrop_duration);
+} else if ($dropint < 46) {
+    obj_add(npc_coord, coins, 8, ^lootdrop_duration);
+} else if ($dropint < 47) {
+    obj_add(npc_coord, coins, 10, ^lootdrop_duration);
+} else if ($dropint < 50) {
+    obj_add(npc_coord, coins, 29, ^lootdrop_duration);
+} else if ($dropint < 72) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 98) {
+    obj_add(npc_coord, ~roll_general_seed_table(23), ^lootdrop_duration);
+} else if ($dropint < 99) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

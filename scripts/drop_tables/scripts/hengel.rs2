@@ -1,0 +1,51 @@
+// Hengel - https://oldschool.runescape.wiki/w/Hengel
+
+[ai_queue3,rimmington_hengel] @rimmington_hengel_drop_table;
+
+[label,rimmington_hengel_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+~trail_easycluedrop(^trail_easy_droprate, npc_coord);
+
+def_int $dropint = random(128);
+if ($dropint < 38) {
+    obj_add(npc_coord, coins, 3, ^lootdrop_duration);
+} else if ($dropint < 47) {
+    obj_add(npc_coord, coins, 5, ^lootdrop_duration);
+} else if ($dropint < 51) {
+    obj_add(npc_coord, coins, 15, ^lootdrop_duration);
+} else if ($dropint < 52) {
+    obj_add(npc_coord, coins, 25, ^lootdrop_duration);
+} else if ($dropint < 74) {
+    obj_add(npc_coord, bolt, 1, ^lootdrop_duration);
+} else if ($dropint < 77) {
+    obj_add(npc_coord, bronze_arrow, 1, ^lootdrop_duration);
+} else if ($dropint < 79) {
+    obj_add(npc_coord, earthrune, 1, ^lootdrop_duration);
+} else if ($dropint < 81) {
+    obj_add(npc_coord, firerune, 1, ^lootdrop_duration);
+} else if ($dropint < 83) {
+    obj_add(npc_coord, mindrune, 1, ^lootdrop_duration);
+} else if ($dropint < 84) {
+    obj_add(npc_coord, chaosrune, 1, ^lootdrop_duration);
+} else if ($dropint < 86) {
+    obj_add(npc_coord, bronze_med_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 87) {
+    obj_add(npc_coord, iron_dagger, 1, ^lootdrop_duration);
+} else if ($dropint < 92) {
+    obj_add(npc_coord, fishing_bait, 1, ^lootdrop_duration);
+} else if ($dropint < 94) {
+    obj_add(npc_coord, copper_ore, 1, ^lootdrop_duration);
+} else if ($dropint < 96) {
+    obj_add(npc_coord, earth_talisman, 1, ^lootdrop_duration);
+} else if ($dropint < 97) {
+    obj_add(npc_coord, cabbage, 1, ^lootdrop_duration);
+} else if ($dropint < 120) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+}

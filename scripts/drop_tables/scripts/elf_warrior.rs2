@@ -1,0 +1,58 @@
+// Elf warrior - https://oldschool.runescape.wiki/w/Elf_warrior
+
+[ai_queue3,mourning_guard_melee] @mourning_guard_melee_drop_table;
+[ai_queue3,mourning_guard_melee2] @mourning_guard_melee_drop_table;
+[ai_queue3,mourning_guard_range] @mourning_guard_melee_drop_table;
+[ai_queue3,mourning_guard_range2] @mourning_guard_melee_drop_table;
+[ai_queue3,regicide_darkelf] @mourning_guard_melee_drop_table;
+[ai_queue3,regicide_darkelf2] @mourning_guard_melee_drop_table;
+
+[label,mourning_guard_melee_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+~trail_hardcluedrop(^trail_hard_droprate, npc_coord);
+
+def_int $dropint = random(128);
+if ($dropint < 29) {
+    obj_add(npc_coord, coins, 44, ^lootdrop_duration);
+} else if ($dropint < 39) {
+    obj_add(npc_coord, coins, 180, ^lootdrop_duration);
+} else if ($dropint < 47) {
+    obj_add(npc_coord, waterrune, 70, ^lootdrop_duration);
+} else if ($dropint < 52) {
+    obj_add(npc_coord, naturerune, 12, ^lootdrop_duration);
+} else if ($dropint < 57) {
+    obj_add(npc_coord, coins, 20, ^lootdrop_duration);
+} else if ($dropint < 61) {
+    obj_add(npc_coord, dragonhide_body, 1, ^lootdrop_duration);
+} else if ($dropint < 64) {
+    obj_add(npc_coord, dragonhide_chaps, 1, ^lootdrop_duration);
+} else if ($dropint < 67) {
+    obj_add(npc_coord, lawrune, 2, ^lootdrop_duration);
+} else if ($dropint < 70) {
+    obj_add(npc_coord, firerune, 37, ^lootdrop_duration);
+} else if ($dropint < 73) {
+    obj_add(npc_coord, bass, 3, ^lootdrop_duration);
+} else if ($dropint < 76) {
+    obj_add(npc_coord, shark, 1, ^lootdrop_duration);
+} else if ($dropint < 78) {
+    obj_add(npc_coord, mithril_spear, 1, ^lootdrop_duration);
+} else if ($dropint < 79) {
+    obj_add(npc_coord, mithril_kiteshield, 1, ^lootdrop_duration);
+} else if ($dropint < 80) {
+    obj_add(npc_coord, adamant_full_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 81) {
+    obj_add(npc_coord, rune_dagger, 1, ^lootdrop_duration);
+} else if ($dropint < 82) {
+    obj_add(npc_coord, adamantite_ore, 1, ^lootdrop_duration);
+} else if ($dropint < 97) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 102) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

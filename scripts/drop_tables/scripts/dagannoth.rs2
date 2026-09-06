@@ -1,0 +1,72 @@
+// Dagannoth - https://oldschool.runescape.wiki/w/Dagannoth
+
+[ai_queue3,dungeon_dagganoth_lighter] @dungeon_dagganoth_lighter_drop_table;
+[ai_queue3,dungeon_dagganoth_lighter_deeper] @dungeon_dagganoth_lighter_drop_table;
+[ai_queue3,dungeon_dagganoth_mainroom] @dungeon_dagganoth_lighter_drop_table;
+[ai_queue3,dungeon_dagganoth_mainroom_deeper] @dungeon_dagganoth_lighter_drop_table;
+[ai_queue3,horror_dagannoth_medium] @dungeon_dagganoth_lighter_drop_table;
+[ai_queue3,horror_dagannoth_medium_darker] @dungeon_dagganoth_lighter_drop_table;
+[ai_queue3,horror_dagannoth_medium_lighter] @dungeon_dagganoth_lighter_drop_table;
+[ai_queue3,horror_dagganoth_jr] @dungeon_dagganoth_lighter_drop_table;
+[ai_queue3,horror_dagganoth_jr_darker] @dungeon_dagganoth_lighter_drop_table;
+[ai_queue3,horror_dagganoth_jr_lighter] @dungeon_dagganoth_lighter_drop_table;
+
+[label,dungeon_dagganoth_lighter_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+~trail_mediumcluedrop(^trail_medium_droprate, npc_coord);
+
+def_int $dropint = random(128);
+if ($dropint < 29) {
+    obj_add(npc_coord, coins, 56, ^lootdrop_duration);
+} else if ($dropint < 41) {
+    obj_add(npc_coord, lobster_pot, 1, ^lootdrop_duration);
+} else if ($dropint < 50) {
+    obj_add(npc_coord, coins, 25, ^lootdrop_duration);
+} else if ($dropint < 58) {
+    obj_add(npc_coord, coins, 44, ^lootdrop_duration);
+} else if ($dropint < 64) {
+    obj_add(npc_coord, iron_spear, 1, ^lootdrop_duration);
+} else if ($dropint < 70) {
+    obj_add(npc_coord, coins, 41, ^lootdrop_duration);
+} else if ($dropint < 75) {
+    obj_add(npc_coord, bronze_spear, 1, ^lootdrop_duration);
+} else if ($dropint < 79) {
+    obj_add(npc_coord, waterrune, 15, ^lootdrop_duration);
+} else if ($dropint < 83) {
+    obj_add(npc_coord, raw_herring, 3, ^lootdrop_duration);
+} else if ($dropint < 87) {
+    obj_add(npc_coord, raw_sardine, 5, ^lootdrop_duration);
+} else if ($dropint < 90) {
+    obj_add(npc_coord, harpoon, 1, ^lootdrop_duration);
+} else if ($dropint < 92) {
+    obj_add(npc_coord, steel_arrow, 15, ^lootdrop_duration);
+} else if ($dropint < 94) {
+    obj_add(npc_coord, feather, 15, ^lootdrop_duration);
+} else if ($dropint < 96) {
+    obj_add(npc_coord, fishing_bait, 50, ^lootdrop_duration);
+} else if ($dropint < 98) {
+    obj_add(npc_coord, raw_lobster, 1, ^lootdrop_duration);
+} else if ($dropint < 100) {
+    obj_add(npc_coord, raw_tuna, 1, ^lootdrop_duration);
+} else if ($dropint < 102) {
+    obj_add(npc_coord, seaweed, 10, ^lootdrop_duration);
+} else if ($dropint < 103) {
+    obj_add(npc_coord, mithril_spear, 1, ^lootdrop_duration);
+} else if ($dropint < 104) {
+    obj_add(npc_coord, mithril_javelin, 3, ^lootdrop_duration);
+} else if ($dropint < 105) {
+    obj_add(npc_coord, bigoysterpearls, 1, ^lootdrop_duration);
+} else if ($dropint < 106) {
+    obj_add(npc_coord, smalloysterpearls, 2, ^lootdrop_duration);
+} else if ($dropint < 124) {
+    obj_add(npc_coord, ~roll_general_seed_table(92), ^lootdrop_duration);
+} else if ($dropint < 125) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

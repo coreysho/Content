@@ -1,0 +1,78 @@
+// Lensa - https://oldschool.runescape.wiki/w/Lensa
+
+[ai_queue3,viking_woman2] @viking_woman2_drop_table;
+
+[label,viking_woman2_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+obj_add(npc_coord, bones, 1, ^lootdrop_duration);
+
+~trail_easycluedrop(^trail_easy_droprate, npc_coord);
+
+if (random(512) = 0) {
+    obj_add(npc_coord, viking_sword, 1, ^lootdrop_duration);
+}
+if (random(512) = 0) {
+    obj_add(npc_coord, viking_shield, 1, ^lootdrop_duration);
+}
+if (random(512) = 0) {
+    obj_add(npc_coord, viking_helmet, 1, ^lootdrop_duration);
+}
+if (random(512) = 0) {
+    obj_add(npc_coord, blamish_oil, 1, ^lootdrop_duration);
+}
+
+def_int $dropint = random(512);
+if ($dropint < 100) {
+    obj_add(npc_coord, bronze_warhammer, 1, ^lootdrop_duration);
+} else if ($dropint < 170) {
+    obj_add(npc_coord, iron_warhammer, 1, ^lootdrop_duration);
+} else if ($dropint < 220) {
+    obj_add(npc_coord, tinderbox, 1, ^lootdrop_duration);
+} else if ($dropint < 270) {
+    obj_add(npc_coord, jangervial, 1, ^lootdrop_duration);
+} else if ($dropint < 320) {
+    obj_add(npc_coord, vial_water, 1, ^lootdrop_duration);
+} else if ($dropint < 350) {
+    obj_add(npc_coord, viking_strung_lyre, 1, ^lootdrop_duration);
+} else if ($dropint < 370) {
+    obj_add(npc_coord, coins, 6, ^lootdrop_duration);
+} else if ($dropint < 387) {
+    obj_add(npc_coord, bucket_empty, 1, ^lootdrop_duration);
+} else if ($dropint < 402) {
+    obj_add(npc_coord, coins, 15, ^lootdrop_duration);
+} else if ($dropint < 412) {
+    obj_add(npc_coord, copper_ore, 5, ^lootdrop_duration);
+} else if ($dropint < 422) {
+    obj_add(npc_coord, tin_ore, 5, ^lootdrop_duration);
+} else if ($dropint < 432) {
+    obj_add(npc_coord, iron_ore, 5, ^lootdrop_duration);
+} else if ($dropint < 442) {
+    obj_add(npc_coord, coal, 1, ^lootdrop_duration);
+} else if ($dropint < 452) {
+    obj_add(npc_coord, steel_bar, 1, ^lootdrop_duration);
+} else if ($dropint < 462) {
+    obj_add(npc_coord, coins, 16, ^lootdrop_duration);
+} else if ($dropint < 472) {
+    obj_add(npc_coord, coins, 20, ^lootdrop_duration);
+} else if ($dropint < 477) {
+    obj_add(npc_coord, coins, 38, ^lootdrop_duration);
+} else if ($dropint < 481) {
+    obj_add(npc_coord, eye_of_newt, 1, ^lootdrop_duration);
+} else if ($dropint < 483) {
+    obj_add(npc_coord, beer, 1, ^lootdrop_duration);
+} else if ($dropint < 485) {
+    obj_add(npc_coord, snape_grass, 1, ^lootdrop_duration);
+} else if ($dropint < 487) {
+    obj_add(npc_coord, jangerberries, 1, ^lootdrop_duration);
+} else if ($dropint < 497) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 498) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}

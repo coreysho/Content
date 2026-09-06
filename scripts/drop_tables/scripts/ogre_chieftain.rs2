@@ -1,0 +1,17 @@
+// Ogre chieftain - https://oldschool.runescape.wiki/w/Ogre_chieftain
+
+[ai_queue3,ogre_chieftan] @ogre_chieftan_drop_table;
+
+[label,ogre_chieftan_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+def_int $dropint = random(128);
+if ($dropint < 19) {
+    obj_add(npc_coord, ~roll_general_seed_table(81), ^lootdrop_duration);
+}

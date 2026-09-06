@@ -1,0 +1,40 @@
+// Skeleton Mage - https://oldschool.runescape.wiki/w/Skeleton_Mage
+
+[ai_queue3,skeletonmage] @skeletonmage_drop_table;
+[ai_queue3,swan_skeleton_training] @skeletonmage_drop_table;
+
+[label,skeletonmage_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+def_int $dropint = random(128);
+if ($dropint < 33) {
+    obj_add(npc_coord, coins, calc(random(30) + 25), ^lootdrop_duration);
+} else if ($dropint < 45) {
+    obj_add(npc_coord, mindrune, calc(random(3) + 7), ^lootdrop_duration);
+} else if ($dropint < 57) {
+    obj_add(npc_coord, lawrune, calc(random(2) + 2), ^lootdrop_duration);
+} else if ($dropint < 68) {
+    obj_add(npc_coord, naturerune, calc(random(3) + 1), ^lootdrop_duration);
+} else if ($dropint < 78) {
+    obj_add(npc_coord, chaosrune, calc(random(2) + 3), ^lootdrop_duration);
+} else if ($dropint < 88) {
+    obj_add(npc_coord, uncut_opal, 1, ^lootdrop_duration);
+} else if ($dropint < 98) {
+    obj_add(npc_coord, pot_flour, 1, ^lootdrop_duration);
+} else if ($dropint < 104) {
+    obj_add(npc_coord, big_bones, calc(random(3) + 2), ^lootdrop_duration);
+} else if ($dropint < 109) {
+    obj_add(npc_coord, iron_bar, calc(random(2) + 1), ^lootdrop_duration);
+} else if ($dropint < 111) {
+    obj_add(npc_coord, pink_skirt, 1, ^lootdrop_duration);
+} else if ($dropint < 123) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($dropint < 128) {
+    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
+}
