@@ -221,13 +221,16 @@ if (%deserttreasure = ^dt_eblis_wants_materials) {
 [label,dt_eblis_list_materials]
 ~chatnpc("<p,neutral>Twelve magic logs for the frames. Six molten glass and six steel bars for the mirrors themselves.");
 ~chatnpc("<p,neutral>Ashes, charcoal, a set of bones and one blood rune for the binding. Give them to me one at a time and I shall keep count.");
-@dt_eblis_progress;
+~dt_eblis_progress;
 
 // Each material is a varbit Jagex already reserved: fd_magiclog (12 bits), fd_steelbar and fd_glass
 // (6 each), fd_bones, fd_ash, fd_charcoal, fd_bloodrune. Nothing set them until now.
-[label,dt_eblis_progress]
+//
+// proc rather than label: ~dt_give_material has to reach this, and a proc cannot @jump to a label.
+[proc,dt_eblis_progress]
 if (~dt_eblis_has_everything = true) {
-    @dt_eblis_finish;
+    ~dt_eblis_finish;
+    return;
 }
 mes("Eblis still needs:");
 if (%fd_magiclog < 12) {
@@ -262,7 +265,7 @@ if (%fd_bones = 0) { return(false); }
 if (%fd_bloodrune = 0) { return(false); }
 return(true);
 
-[label,dt_eblis_finish]
+[proc,dt_eblis_finish]
 ~chatnpc("<p,happy>That is everything. Give me a day and a night with it.");
 ~chatnpc("<p,neutral>Meet me south-east of the camp, at the six mirrors on the hill. I will show you where your diamonds went.");
 %deserttreasure = ^dt_eblis_at_mirrors;
@@ -314,7 +317,7 @@ else if ($obj = charcoal) { %fd_charcoal = $have; }
 else if ($obj = bones) { %fd_bones = $have; }
 else { %fd_bloodrune = $have; }
 mes("You hand Eblis <tostring($give)> <lowercase(oc_name($obj))>.");
-@dt_eblis_progress;
+~dt_eblis_progress;
 
 // ================================================================================ the mirrors
 //
@@ -395,16 +398,18 @@ mes(append(append("The vision fades. That was ", $place), "."));
 // Setting the varbit swaps the plain obelisk for the charged one, so "placing a diamond" is a
 // one-line varbit write and the client does the rest. 50 Magic is required, as in the real quest.
 
-[oploc1,desert_treasure_oblix1] ~dt_place_diamond(fd_blood_diamond, "blood");
-[oploc1,desert_treasure_oblix2] ~dt_place_diamond(fd_diamond_fire, "smoke");
-[oploc1,desert_treasure_oblix3] ~dt_place_diamond(fd_icediamond, "ice");
-[oploc1,desert_treasure_oblix4] ~dt_place_diamond(fd_dark_diamond, "shadow");
-[oploc1,desert_treasure_oblix_a] ~dt_place_diamond(fd_blood_diamond, "blood");
-[oploc1,desert_treasure_oblix_b] ~dt_place_diamond(fd_diamond_fire, "smoke");
-[oploc1,desert_treasure_oblix_c] ~dt_place_diamond(fd_icediamond, "ice");
-[oploc1,desert_treasure_oblix_d] ~dt_place_diamond(fd_dark_diamond, "shadow");
+// The element is an int, not a string: rs2 has no string equality operator, so "=" on two strings
+// is a type error. ~dt_element_name turns the id back into words for the messages.
+[oploc1,desert_treasure_oblix1] ~dt_place_diamond(fd_blood_diamond, ^dt_elem_blood);
+[oploc1,desert_treasure_oblix2] ~dt_place_diamond(fd_diamond_fire, ^dt_elem_smoke);
+[oploc1,desert_treasure_oblix3] ~dt_place_diamond(fd_icediamond, ^dt_elem_ice);
+[oploc1,desert_treasure_oblix4] ~dt_place_diamond(fd_dark_diamond, ^dt_elem_shadow);
+[oploc1,desert_treasure_oblix_a] ~dt_place_diamond(fd_blood_diamond, ^dt_elem_blood);
+[oploc1,desert_treasure_oblix_b] ~dt_place_diamond(fd_diamond_fire, ^dt_elem_smoke);
+[oploc1,desert_treasure_oblix_c] ~dt_place_diamond(fd_icediamond, ^dt_elem_ice);
+[oploc1,desert_treasure_oblix_d] ~dt_place_diamond(fd_dark_diamond, ^dt_elem_shadow);
 
-[proc,dt_place_diamond](namedobj $diamond, string $element)
+[proc,dt_place_diamond](namedobj $diamond, int $element)
 if (%deserttreasure < ^dt_hunting_diamonds) {
     ~mesbox("A mysterious power flows through the obelisk. You have no idea what it is for.");
     return;
@@ -414,18 +419,18 @@ if (~dt_obelisk_charged($element) = true) {
     return;
 }
 if (inv_total(inv, $diamond) < 1) {
-    ~mesbox(append(append("This obelisk is carved with the sign of ", $element), ". You do not have that diamond."));
+    ~mesbox(append(append("This obelisk is carved with the sign of ", ~dt_element_name($element)), ". You do not have that diamond."));
     return;
 }
 if (stat(magic) < 50) {
     ~mesbox("You need a Magic level of 50 to place a diamond in the obelisk.");
     return;
 }
-mes(append(append("You place the diamond of ", $element), " into the obelisk."));
+mes(append(append("You place the diamond of ", ~dt_element_name($element)), " into the obelisk."));
 inv_del(inv, $diamond, 1);
-if ($element = "blood") { %fd_column_blood = 1; }
-else if ($element = "smoke") { %fd_column_fire = 1; }
-else if ($element = "ice") { %fd_column_ice = 1; }
+if ($element = ^dt_elem_blood) { %fd_column_blood = 1; }
+else if ($element = ^dt_elem_smoke) { %fd_column_fire = 1; }
+else if ($element = ^dt_elem_ice) { %fd_column_ice = 1; }
 else { %fd_column_shadow = 1; }
 sound_synth(magical_barrier, 1, 0);
 p_delay(2);
@@ -437,21 +442,27 @@ if (%fd_column_blood = 1 & %fd_column_fire = 1 & %fd_column_ice = 1 & %fd_column
 }
 ~mesbox("The obelisk hums with light. Three more to go.");
 
-[proc,dt_obelisk_charged](string $element)(boolean)
-if ($element = "blood") {
+[proc,dt_obelisk_charged](int $element)(boolean)
+if ($element = ^dt_elem_blood) {
     if (%fd_column_blood = 1) { return(true); }
     return(false);
 }
-if ($element = "smoke") {
+if ($element = ^dt_elem_smoke) {
     if (%fd_column_fire = 1) { return(true); }
     return(false);
 }
-if ($element = "ice") {
+if ($element = ^dt_elem_ice) {
     if (%fd_column_ice = 1) { return(true); }
     return(false);
 }
 if (%fd_column_shadow = 1) { return(true); }
 return(false);
+
+[proc,dt_element_name](int $element)(string)
+if ($element = ^dt_elem_blood) { return("blood"); }
+if ($element = ^dt_elem_smoke) { return("smoke"); }
+if ($element = ^dt_elem_ice) { return("ice"); }
+return("shadow");
 
 // ================================================================================ the Stranger
 //
