@@ -86,20 +86,53 @@ inv_del(inv, coins, ^rug_fare);
 if_close;
 mes(append(append("You pay the rug merchant ", tostring(^rug_fare)), " coins."));
 p_delay(1);
+@rug_flight($dest, $place);
 
-// The whole ride is animated in the cache and none of it was being used: carpet_sit_down,
-// carpet_raise, the two banking anims for the flight itself, and carpet_land at the far end.
+// The ride used to play the animations on the spot and then telejump, which reads as a teleport
+// rather than a flight. The carpet now actually leaves the ground: two 8-tile glides out of the
+// station along the bearing of the route, the long hop across the desert, then two glides back
+// down onto the landing tile - 32 tiles of ground genuinely travelled, and exactly one scene
+// rebuild, placed at the point where the carpet is already clear of the station.
+//
+// Everything used here was already in the cache and unused: carpet_sit_down, carpet_raise (which
+// carries replaceheldright=magic_carpet, so the carpet itself renders in the player's hands), the
+// two banking anims, carpet_land, and magic_carpet_var - the multivar on carpet_rolledout_multi,
+// which hides the station's rolled-out carpet while you are the one riding it. magic_carpet_var is
+// a temp varp, so an interrupted ride heals itself on the next login.
+[label,rug_flight](coord $dest, string $place)
+def_coord $start = coord;
+def_int $bearing_out = ~coord_direction2($start, $dest); // 8-way, drives the glide geometry
+def_int $bearing_in = ~coord_direction2($dest, $start);
+def_int $facing = ~coord_direction($start, $dest);       // 4-way, drives the exactmove facing
+
+def_coord $out1 = ~movecoord_indirection($start, $bearing_out, 8);
+def_coord $out2 = ~movecoord_indirection($start, $bearing_out, 16);
+def_coord $in2 = ~movecoord_indirection($dest, $bearing_in, 16);
+def_coord $in1 = ~movecoord_indirection($dest, $bearing_in, 8);
+
+%magic_carpet_var = 1;
 anim(carpet_sit_down, 0);
 p_delay(2);
 mes("You board the magic carpet and it rises into the air...");
+
 anim(carpet_raise, 0);
-p_delay(3);
-anim(carpet_bank_left, 0);
-p_delay(3);
-anim(carpet_bank_right, 0);
-p_delay(3);
-p_telejump($dest);
-anim(carpet_land, 0);
+p_exactmove($start, $out1, 0, 60, $facing);
 p_delay(2);
+anim(carpet_bank_left, 0);
+p_exactmove($out1, $out2, 0, 60, $facing);
+p_delay(2);
+
+// the long hop, taken while the carpet is already well away from the merchant
+p_teleport($in2);
+anim(carpet_bank_right, 0);
+p_delay(2);
+
+p_exactmove($in2, $in1, 0, 60, $facing);
+p_delay(2);
+anim(carpet_land, 0);
+p_exactmove($in1, $dest, 0, 60, $facing);
+p_delay(2);
+
 anim(null, 0);
+%magic_carpet_var = 0;
 ~mesbox(append(append("The magic carpet arrives at ", $place), "."));
