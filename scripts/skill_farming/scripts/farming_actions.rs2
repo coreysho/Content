@@ -46,6 +46,19 @@ stat_advance(farming, $amount);
 
 // ============================================================================ op1 - the context action
 
+// Reached only from p_oploc(3). The three repeatable jobs are mutually exclusive states of a
+// patch - weeds mean no crop, a grown crop is not a stump - so the patch's own state says which
+// one to continue, and no extra bookkeeping is needed.
+[proc,farming_continue](int $patch)
+~farming_update($patch);
+if (~farming_crop_id($patch) = 0) {
+    if (~farming_get_state($patch) < ^farming_state_weeded & ~farming_has_tool(rake) = true) {
+        ~farming_rake($patch);
+    }
+    return;
+}
+~farming_op1($patch);
+
 [proc,farming_op1](int $patch)
 ~farming_update($patch);
 def_int $crop = ~farming_crop_id($patch);
@@ -166,29 +179,24 @@ if (~farming_cts($seed) <= 0) {
     return;
 }
 
-// Keep picking until the patch is spent, the bag is full or the player walks away, rather than
-// making them re-click for every single item. Same shape as the raking loop.
+// One pick per call, then re-queue through the hidden op3 so the player keeps harvesting without
+// re-clicking but can still stop by walking away or clicking something else.
 def_int $lives = ~farming_lives($patch);
-def_int $safety = 0;
-while ($lives > 0 & $safety < 30) {
-    $safety = add($safety, 1);
-    if (inv_freespace(inv) < 1) {
-        mes("Your inventory is too full to hold any more <lowercase(oc_name($produce))>.");
-        anim(null, 0);
-        return;
-    }
-    ~farming_harvest_anim($seed);
-    sound_synth(pick, 1, 0);
-    p_delay(2);
+~farming_harvest_anim($seed);
+sound_synth(pick, 1, 0);
+p_delay(2);
 
-    inv_add(inv, $produce, 1);
-    mes("You harvest <lowercase(oc_name($produce))>.");
-    ~farming_xp(oc_param($seed, farming_harvest_xp));
+inv_add(inv, $produce, 1);
+mes("You harvest <lowercase(oc_name($produce))>.");
+~farming_xp(oc_param($seed, farming_harvest_xp));
 
-    if (random(multiply(^farming_cts_scale, 10)) >= ~farming_cts($seed)) {
-        $lives = sub($lives, 1);
-    }
-    ~farming_set_lives($patch, max($lives, 0));
+if (random(multiply(^farming_cts_scale, 10)) >= ~farming_cts($seed)) {
+    $lives = sub($lives, 1);
+}
+~farming_set_lives($patch, max($lives, 0));
+if ($lives > 0) {
+    p_oploc(3);
+    return;
 }
 anim(null, 0);
 ~farming_clear_patch($patch);
@@ -289,34 +297,31 @@ $low, $high = ~woodcutting_successchance($data, $axe);
 def_namedobj $logs = db_getfield($data, woodcutting_trees:product, 0);
 def_int $xp = db_getfield($data, woodcutting_trees:productexp, 0);
 
-mes("You swing your axe at the tree.");
-def_int $safety = 0;
-while ($safety < 60) {
-    $safety = add($safety, 1);
-    if (inv_freespace(inv) < 1) {
-        anim(null, 0);
-        mes("Your inventory is too full to hold any more logs.");
+// One swing per call, re-queued through the hidden op3 - the same way ordinary woodcutting
+// re-queues with p_oploc, and the same reason: it has to be possible to stop.
+if (inv_freespace(inv) < 1) {
+    anim(null, 0);
+    mes("Your inventory is too full to hold any more logs.");
+    return;
+}
+anim(struct_param(oc_param($axe, woodcutting_struct), skill_anim), 0);
+sound_synth(woodchop1, 1, 0);
+p_delay(3);
+
+if (stat_random(woodcutting, $low, $high) = true) {
+    mes("You get some <lowercase(oc_name($logs))>.");
+    inv_add(inv, $logs, 1);
+    stat_advance(woodcutting, $xp);
+    if (map_members = ^true & random(256) = 0) {
+        ~drop_bird_nest;
+    }
+    // The tree comes down on roughly one log in eight, same as a wild tree depleting.
+    if (random(8) = 0) {
+        ~farming_fell_tree($patch, $seed);
         return;
     }
-    anim(struct_param(oc_param($axe, woodcutting_struct), skill_anim), 0);
-    sound_synth(woodchop1, 1, 0);
-    p_delay(3);
-
-    if (stat_random(woodcutting, $low, $high) = true) {
-        mes("You get some <lowercase(oc_name($logs))>.");
-        inv_add(inv, $logs, 1);
-        stat_advance(woodcutting, $xp);
-        if (map_members = ^true & random(256) = 0) {
-            ~drop_bird_nest;
-        }
-        // The tree comes down on roughly one log in eight, same as a wild tree depleting.
-        if (random(8) = 0) {
-            ~farming_fell_tree($patch, $seed);
-            return;
-        }
-    }
 }
-anim(null, 0);
+p_oploc(3);
 
 [proc,farming_spirit_tree](int $patch, namedobj $seed)
 mes("The spirit tree rustles, but says nothing you can understand yet.");

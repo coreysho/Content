@@ -50,22 +50,25 @@ if ($state >= ^farming_state_weeded) {
     return;
 }
 
-def_int $safety = 0;
-while ($state < ^farming_state_weeded & $safety < 4) {
-    $safety = add($safety, 1);
-    anim(farming_raking, 0);
-    p_delay(3);
+// One swing per call, then re-queue through the hidden op3. A while loop here would hold the
+// player for the whole job with no way to stop it.
+anim(farming_raking, 0);
+p_delay(3);
 
-    // Re-read rather than trusting the local copy: the once-a-minute update could have regrown a
-    // weed underneath us while the delay was running.
-    $state = min(^farming_state_weeded, add(~farming_get_state($patch), 1));
-    ~farming_set_state($patch, $state);
-    ~farming_set_time($patch, ~farming_now);
-    if (inv_freespace(inv) > 0) {
-        inv_add(inv, weeds, 1);
-    }
-    mes("You rake the weeds out of the patch.");
-    ~farming_xp(^farming_rake_xp);
+// Re-read rather than trusting the local copy: the once-a-minute update could have regrown a
+// weed underneath us while the delay was running.
+$state = min(^farming_state_weeded, add(~farming_get_state($patch), 1));
+~farming_set_state($patch, $state);
+~farming_set_time($patch, ~farming_now);
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, weeds, 1);
+}
+mes("You rake the weeds out of the patch.");
+~farming_xp(^farming_rake_xp);
+
+if ($state < ^farming_state_weeded) {
+    p_oploc(3);
+    return;
 }
 anim(null, 0);
 

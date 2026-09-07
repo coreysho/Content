@@ -16,6 +16,12 @@
 [oploc1,_farming_patch] ~farming_op1(loc_param(farming_patch));
 [oploc2,_farming_patch] ~farming_inspect(loc_param(farming_patch));
 [oploc4,_farming_patch] ~farming_guide(loc_param(farming_patch));
+// op3 is a hidden continuation op - the cache declares no op3 on any patch, so nothing in the
+// right-click menu can reach it and only p_oploc(3) fires it. Raking, harvesting and chopping do
+// one swing and re-queue through here, which is what makes them stoppable: walk away or click
+// anything else and the re-queued op is simply dropped. Same shape woodcutting uses (its own
+// comment calls op3 "the hidden op").
+[oploc3,_farming_patch] ~farming_continue(loc_param(farming_patch));
 [oplocu,_farming_patch] ~farming_useitem(loc_param(farming_patch), last_useitem, last_useslot);
 
 [oploc1,_farming_compost_bin] ~farming_bin_op1(loc_param(farming_patch));

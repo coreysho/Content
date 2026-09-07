@@ -1,50 +1,168 @@
-// Hitpoints guide. Nothing in this repo gates on a Hitpoints level, so instead of
-// an empty list this shows what food heals, straight from consume_table:stat_heal
-// (content/scripts/player/configs/consumption/consume_normal.dbrow).
-// The left column is hitpoints restored, not a level requirement, so the headers
-// are relabelled and every row is drawn unlocked.
+// Hitpoints guide. Nothing in this repo gates on a Hitpoints level, so instead of an empty list
+// this shows what restores hitpoints, and the left column is the amount healed rather than a
+// level requirement - the headers are relabelled and every row is drawn unlocked.
+//
+// The values are read out of the consume_table dbrows (player/configs/consumption/), the same
+// place the eating code reads them, so the guide and the food cannot drift apart. Four pages,
+// because there are far more than 40 things that heal now: three of food by amount healed, and
+// one for the potions, which restore through a stat boost rather than a flat heal.
 [proc,open_hitpoints_guide]
+%skillguide_page = 1;
+~hitpoints_guide_render;
+
+[proc,hitpoints_guide_render]
 ~skillguide_begin(^guide_hitpoints, "Hitpoints");
-~skillguide_headers("Heals", "Food");
-def_int $lvl = 99;
-~skillguide_row(1, $lvl, 1, cabbage, "Cabbage");
-~skillguide_row(2, $lvl, 2, banana, "Banana");
-~skillguide_row(3, $lvl, 2, cheese, "Cheese");
-~skillguide_row(4, $lvl, 3, shrimp, "Shrimps");
-~skillguide_row(5, $lvl, 3, cooked_meat, "Cooked meat");
-~skillguide_row(6, $lvl, 3, cooked_chicken, "Cooked chicken");
-~skillguide_row(7, $lvl, 3, anchovies, "Anchovies");
-~skillguide_row(8, $lvl, 3, redberry_pie, "Redberry pie");
-~skillguide_row(9, $lvl, 4, bread, "Bread");
-~skillguide_row(10, $lvl, 4, cake, "Cake");
-~skillguide_row(11, $lvl, 4, meat_pie, "Meat pie");
-~skillguide_row(12, $lvl, 4, sardine, "Sardine");
-~skillguide_row(13, $lvl, 5, herring, "Herring");
-~skillguide_row(14, $lvl, 5, plain_pizza, "Plain pizza");
-~skillguide_row(15, $lvl, 5, apple_pie, "Apple pie");
-~skillguide_row(16, $lvl, 5, chocolate_cake, "Chocolate cake");
-~skillguide_row(17, $lvl, 6, mackerel, "Mackerel");
-~skillguide_row(18, $lvl, 6, giant_carp, "Giant carp");
-~skillguide_row(19, $lvl, 7, trout, "Trout");
-~skillguide_row(20, $lvl, 7, cod, "Cod");
-~skillguide_row(21, $lvl, 7, meat_pizza, "Meat pizza");
-~skillguide_row(22, $lvl, 8, pike, "Pike");
-~skillguide_row(23, $lvl, 8, anchovie_pizza, "Anchovy pizza");
-~skillguide_row(24, $lvl, 9, salmon, "Salmon");
-~skillguide_row(25, $lvl, 9, stew, "Stew");
-~skillguide_row(26, $lvl, 9, ugthanki_kebab_bad, "Ugthanki kebab");
-~skillguide_row(27, $lvl, 10, tuna, "Tuna");
-~skillguide_row(28, $lvl, 10, pineapple_pizza, "Pineapple pizza");
-~skillguide_row(29, $lvl, 10, cooked_chompy, "Cooked chompy");
-~skillguide_row(30, $lvl, 11, worm_batta, "Worm batta");
-~skillguide_row(31, $lvl, 11, jug_wine, "Jug of wine");
-~skillguide_row(32, $lvl, 12, lobster, "Lobster");
-~skillguide_row(33, $lvl, 12, worm_hole, "Worm hole");
-~skillguide_row(34, $lvl, 13, bass, "Bass");
-~skillguide_row(35, $lvl, 14, swordfish, "Swordfish");
-~skillguide_row(36, $lvl, 14, lava_eel, "Lava eel");
-~skillguide_row(37, $lvl, 15, chocolate_bomb, "Chocolate bomb");
-~skillguide_row(38, $lvl, 19, curry, "Curry");
-~skillguide_row(39, $lvl, 20, shark, "Shark");
-~skillguide_row(40, $lvl, 21, seaturtle, "Sea turtle");
+~skillguide_headers("Heals", "Restores hitpoints");
+~skillguide_panels(4);
+~skillguide_button(2, "Best food");
+~skillguide_button(3, "Good food");
+~skillguide_button(4, "Basic food");
+~skillguide_button(5, "Potions");
+switch_int (%skillguide_page) {
+    case 3 : ~hitpoints_guide_good;
+    case 4 : ~hitpoints_guide_basic;
+    case 5 : ~hitpoints_guide_potions;
+    case default : ~hitpoints_guide_best;
+}
 ~skillguide_show;
+
+[proc,hitpoints_guide_best]
+// Every row is unlocked: the number is hitpoints healed, not a level.
+def_int $lvl = 99;
+~skillguide_row(1, $lvl, 22, mantaray, "Manta ray");
+~skillguide_row(2, $lvl, 21, seaturtle, "Sea turtle");
+~skillguide_row(3, $lvl, 20, shark, "Shark");
+~skillguide_row(4, $lvl, 20, hundred_ilm_cooked_stuffed_snake, "Stuffed snake");
+~skillguide_row(5, $lvl, 19, curry, "Curry");
+~skillguide_row(6, $lvl, 19, ugthanki_kebab, "Ugthanki kebab");
+~skillguide_row(7, $lvl, 18, tbwt_cooked_karambwan, "Cooked karambwan");
+~skillguide_row(8, $lvl, 16, monkfish, "Monkfish");
+~skillguide_row(9, $lvl, 16, potato_cheese, "Potato with cheese");
+~skillguide_row(10, $lvl, 15, chocolate_bomb, "Chocolate bomb");
+~skillguide_row(11, $lvl, 15, 100_jubbly_meat_cooked, "Cooked jubbly");
+~skillguide_row(12, $lvl, 15, tangled_toads_legs, "Tangled toad's legs");
+~skillguide_row(13, $lvl, 14, cooked_oomlie, "Cooked oomlie wrap");
+~skillguide_row(14, $lvl, 14, lava_eel, "Lava eel");
+~skillguide_row(15, $lvl, 14, potato_butter, "Potato with butter");
+~skillguide_row(16, $lvl, 14, pumpkin, "Pumpkin");
+~skillguide_row(17, $lvl, 14, swordfish, "Swordfish");
+~skillguide_row(18, $lvl, 13, bass, "Bass");
+~skillguide_row(19, $lvl, 12, cave_eel, "Cave eel");
+~skillguide_row(20, $lvl, 12, village_rare_tuber, "Gout tuber");
+~skillguide_row(21, $lvl, 12, lobster, "Lobster");
+~skillguide_row(22, $lvl, 12, veg_ball, "Veg ball");
+~skillguide_row(23, $lvl, 12, worm_hole, "Worm hole");
+~skillguide_row(24, $lvl, 11, mm_banana_stew, "Banana stew");
+~skillguide_row(25, $lvl, 11, hundred_pirate_fishcake, "Cooked fishcake");
+~skillguide_row(26, $lvl, 11, fruit_batta, "Fruit batta");
+~skillguide_row(27, $lvl, 11, half_summer_pie, "Half a summer pie");
+~skillguide_row(28, $lvl, 11, half_wild_pie, "Half a wild pie");
+~skillguide_row(29, $lvl, 11, jug_wine, "Jug of wine");
+~skillguide_row(30, $lvl, 11, hundred_dave_stew, "Spicy stew");
+~skillguide_row(31, $lvl, 11, summer_pie, "Summer pie");
+~skillguide_row(32, $lvl, 11, toad_batta, "Toad batta");
+~skillguide_row(33, $lvl, 11, wild_pie, "Wild pie");
+~skillguide_row(34, $lvl, 11, worm_batta, "Worm batta");
+~skillguide_row(35, $lvl, 10, half_pineapple_pizza, "1/2pineapple pizza");
+~skillguide_row(36, $lvl, 10, bowl_tuna, "Chopped tuna");
+~skillguide_row(37, $lvl, 10, chompy_cooked, "Cooked chompy");
+~skillguide_row(38, $lvl, 10, mort_slimey_eel_cooked, "Cooked slimy eel");
+~skillguide_row(39, $lvl, 10, pineapple_pizza, "Pineapple pizza");
+~skillguide_row(40, $lvl, 10, tbw_spider_on_shaft_cooked, "Spider on shaft");
+
+[proc,hitpoints_guide_good]
+// Every row is unlocked: the number is hitpoints healed, not a level.
+def_int $lvl = 99;
+~skillguide_row(1, $lvl, 10, tbw_spider_on_stick_cooked, "Spider on stick");
+~skillguide_row(2, $lvl, 10, sweetcorn_cooked, "Sweetcorn");
+~skillguide_row(3, $lvl, 10, tuna, "Tuna");
+~skillguide_row(4, $lvl, 10, vegetable_batta, "Vegetable batta");
+~skillguide_row(5, $lvl, 9, snail_corpse_cooked3, "Fat snail meat");
+~skillguide_row(6, $lvl, 9, fruit_blast, "Fruit blast");
+~skillguide_row(7, $lvl, 9, pineapple_punch, "Pineapple punch");
+~skillguide_row(8, $lvl, 9, salmon, "Salmon");
+~skillguide_row(9, $lvl, 9, stew, "Stew");
+~skillguide_row(10, $lvl, 9, super_kebab, "Super kebab");
+~skillguide_row(11, $lvl, 8, half_anchovie_pizza, "1/2 anchovy pizza");
+~skillguide_row(12, $lvl, 8, admiral_pie, "Admiral pie");
+~skillguide_row(13, $lvl, 8, anchovie_pizza, "Anchovy pizza");
+~skillguide_row(14, $lvl, 8, half_admiral_pie, "Half a admiral pie");
+~skillguide_row(15, $lvl, 8, snail_corpse_cooked2, "Lean snail meat");
+~skillguide_row(16, $lvl, 8, papaya, "Papaya fruit");
+~skillguide_row(17, $lvl, 8, peach, "Peach");
+~skillguide_row(18, $lvl, 8, pike, "Pike");
+~skillguide_row(19, $lvl, 8, toad_crunchies, "Toad crunchies");
+~skillguide_row(20, $lvl, 8, worm_crunchies, "Worm crunchies");
+~skillguide_row(21, $lvl, 7, half_meat_pizza, "1/2 meat pizza");
+~skillguide_row(22, $lvl, 7, blurberry_special, "Blurberry special");
+~skillguide_row(23, $lvl, 7, elid_choc_ice, "Choc-ice");
+~skillguide_row(24, $lvl, 7, chocchip_crunchies, "Chocchip crunchies");
+~skillguide_row(25, $lvl, 7, cod, "Cod");
+~skillguide_row(26, $lvl, 7, half_full_wine_jug, "Half full wine jug");
+~skillguide_row(27, $lvl, 7, meat_pizza, "Meat pizza");
+~skillguide_row(28, $lvl, 7, spit_roasted_rabbit_meat, "Roast rabbit");
+~skillguide_row(29, $lvl, 7, spicy_crunchies, "Spicy crunchies");
+~skillguide_row(30, $lvl, 7, snail_corpse_cooked1, "Thin snail meat");
+~skillguide_row(31, $lvl, 7, trout, "Trout");
+~skillguide_row(32, $lvl, 6, baguette, "Baguette");
+~skillguide_row(33, $lvl, 6, fish_pie, "Fish pie");
+~skillguide_row(34, $lvl, 6, garden_pie, "Garden pie");
+~skillguide_row(35, $lvl, 6, giant_carp, "Giant carp");
+~skillguide_row(36, $lvl, 6, giant_frog_legs, "Giant frog legs");
+~skillguide_row(37, $lvl, 6, half_fish_pie, "Half a fish pie");
+~skillguide_row(38, $lvl, 6, half_garden_pie, "Half a garden pie");
+~skillguide_row(39, $lvl, 6, mackerel, "Mackerel");
+~skillguide_row(40, $lvl, 6, mature_moonlight_mead, "Moonlight mead(m)");
+
+[proc,hitpoints_guide_basic]
+// Every row is unlocked: the number is hitpoints healed, not a level.
+def_int $lvl = 99;
+~skillguide_row(1, $lvl, 6, roll, "Roll");
+~skillguide_row(2, $lvl, 6, square_sandwich, "Square sandwich");
+~skillguide_row(3, $lvl, 6, strawberry, "Strawberry");
+~skillguide_row(4, $lvl, 6, triangle_sandwich, "Triangle sandwich");
+~skillguide_row(5, $lvl, 5, half_plain_pizza, "1/2 plain pizza");
+~skillguide_row(6, $lvl, 5, partial_chocolate_cake, "2/3 chocolate cake");
+~skillguide_row(7, $lvl, 5, apple_pie, "Apple pie");
+~skillguide_row(8, $lvl, 5, brandy, "Brandy");
+~skillguide_row(9, $lvl, 5, chocolate_saturday, "Choc saturday");
+~skillguide_row(10, $lvl, 5, chocolate_cake, "Chocolate cake");
+~skillguide_row(11, $lvl, 5, chocolate_slice, "Chocolate slice");
+~skillguide_row(12, $lvl, 5, cooked_rabbit, "Cooked rabbit");
+~skillguide_row(13, $lvl, 5, drunk_dragon, "Drunk dragon");
+~skillguide_row(14, $lvl, 5, bowl_mushroom_fried, "Fried mushrooms");
+~skillguide_row(15, $lvl, 5, bowl_onion_fried, "Fried onions");
+~skillguide_row(16, $lvl, 5, gin, "Gin");
+~skillguide_row(17, $lvl, 5, half_an_apple_pie, "Half an apple pie");
+~skillguide_row(18, $lvl, 5, herring, "Herring");
+~skillguide_row(19, $lvl, 5, mm_monkey_bar, "Monkey bar");
+~skillguide_row(20, $lvl, 5, plain_pizza, "Plain pizza");
+~skillguide_row(21, $lvl, 5, hundred_ilm_red_banana, "Red banana");
+~skillguide_row(22, $lvl, 5, bowl_egg_scrambled, "Scrambled egg");
+~skillguide_row(23, $lvl, 5, sgg, "Short green guy");
+~skillguide_row(24, $lvl, 5, hundred_ilm_sliced_red_banana, "Sliced red banana");
+~skillguide_row(25, $lvl, 5, hundred_ilm_tchiki_monkey_nuts, "Tchiki monkey nuts");
+~skillguide_row(26, $lvl, 5, hundred_ilm_tchiki_monkey_nut_paste, "Tchiki nut paste");
+~skillguide_row(27, $lvl, 5, vodka, "Vodka");
+~skillguide_row(28, $lvl, 5, watermelon, "Watermelon");
+~skillguide_row(29, $lvl, 5, watermelon_slice, "Watermelon slice");
+~skillguide_row(30, $lvl, 5, whisky, "Whisky");
+~skillguide_row(31, $lvl, 5, wizard_blizzard, "Wizard blizzard");
+~skillguide_row(32, $lvl, 4, partial_cake, "2/3 cake");
+~skillguide_row(33, $lvl, 4, potato_baked, "Baked potato");
+~skillguide_row(34, $lvl, 4, bread, "Bread");
+~skillguide_row(35, $lvl, 4, cake, "Cake");
+~skillguide_row(36, $lvl, 4, chocolaty_milk, "Chocolatey milk");
+~skillguide_row(37, $lvl, 4, half_a_meat_pie, "Half a meat pie");
+~skillguide_row(38, $lvl, 4, meat_pie, "Meat pie");
+~skillguide_row(39, $lvl, 4, mm_monkey_nuts, "Monkey nuts");
+~skillguide_row(40, $lvl, 4, moonlight_mead, "Moonlight mead");
+
+[proc,hitpoints_guide_potions]
+// Saradomin brew heals a share of your maximum rather than a flat amount, so the number here is
+// the percentage it restores. It also raises Defence and lowers the four attacking stats.
+def_int $lvl = 99;
+~skillguide_row(1, $lvl, 15, 4dosepotionofsaradomin, "Saradomin brew - 15% + 2");
+~skillguide_row(2, $lvl, 15, 3dosepotionofsaradomin, "Saradomin brew(3)");
+~skillguide_row(3, $lvl, 15, 2dosepotionofsaradomin, "Saradomin brew(2)");
+~skillguide_row(4, $lvl, 15, 1dosepotionofsaradomin, "Saradomin brew(1)");

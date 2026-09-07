@@ -429,14 +429,17 @@ if (stat(agility) < 81) {
     ~mesbox("You need an Agility level of 81 to squeeze through the crevice.");
     return;
 }
+// You come out the OPPOSITE side from the one you went in on. Testing against the west exit
+// rather than the loc itself is what the Dwarven Mine crevice above does, and it is the reason
+// this reads the right way round: standing east of the passage sends you west, and vice versa.
 def_coord $west_exit = 0_42_156_42_24;
 def_coord $east_exit = 0_42_156_47_24;
-if (coordx(coord) > coordx(loc_coord)) {
-    ~agility_exactmove(human_pipesqueeze, 20, 0, coord, $east_exit, 45, 70, ^exact_east, true);
-    p_teleport($east_exit);
-} else {
+if (coordx(coord) > coordx($west_exit)) {
     ~agility_exactmove(human_pipesqueeze, 20, 0, coord, $west_exit, 45, 70, ^exact_west, true);
     p_teleport($west_exit);
+} else {
+    ~agility_exactmove(human_pipesqueeze, 20, 0, coord, $east_exit, 45, 70, ^exact_east, true);
+    p_teleport($east_exit);
 }
 sound_synth(squeeze_through_rocks, 1, 0);
 mes("You squeeze through the crevice.");

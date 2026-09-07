@@ -11,12 +11,15 @@
 [proc,slayer_guide_render]
 ~skillguide_begin(^guide_slayer, "Slayer");
 ~skillguide_members;
+// Two panels means the buttons are btn2 and btn3 - btn1 only appears once there are 7 or more.
+// See the btn-index note at the top of interfaces/skill_guide.rs2. Labelling btn1 put "Monsters"
+// on a hidden component, which is why only the Masters tab showed.
 ~skillguide_panels(2);
-~skillguide_button(1, "Monsters");
-~skillguide_button(2, "Masters");
+~skillguide_button(2, "Monsters");
+~skillguide_button(3, "Masters");
 def_int $lvl = stat(slayer);
 switch_int (%skillguide_page) {
-    case 2 : ~slayer_guide_masters;
+    case 3 : ~slayer_guide_masters;
     case default : ~slayer_guide_monsters($lvl);
 }
 ~skillguide_show;

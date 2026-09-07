@@ -86,8 +86,20 @@ inv_del(inv, coins, ^rug_fare);
 if_close;
 mes(append(append("You pay the rug merchant ", tostring(^rug_fare)), " coins."));
 p_delay(1);
+
+// The whole ride is animated in the cache and none of it was being used: carpet_sit_down,
+// carpet_raise, the two banking anims for the flight itself, and carpet_land at the far end.
+anim(carpet_sit_down, 0);
+p_delay(2);
 mes("You board the magic carpet and it rises into the air...");
+anim(carpet_raise, 0);
+p_delay(3);
+anim(carpet_bank_left, 0);
+p_delay(3);
+anim(carpet_bank_right, 0);
 p_delay(3);
 p_telejump($dest);
-p_delay(1);
+anim(carpet_land, 0);
+p_delay(2);
+anim(null, 0);
 ~mesbox(append(append("The magic carpet arrives at ", $place), "."));
