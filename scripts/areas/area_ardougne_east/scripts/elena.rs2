@@ -1,4 +1,24 @@
-[opnpc1,elena2]
+// Biohazard - Elena at home, after Plague City (Corey, 2026-09-07).
+//
+// "You can't talk to Elena when she appears in her house - nothing interesting happens."
+//
+// areas/area_ardougne_east/scripts/doors.rs2 spawns her with
+//
+//     npc_add(0_40_52_31_9, elena2_vis, 200)
+//
+// i.e. the RESOLVED child of the multi, not the elena2 shell - a workaround for
+// plaguecity_elena_at_home never being written, which is what the shell's multivar reads. But the
+// whole of the dialogue below was authored against the shell, [opnpc1,elena2], and a trigger on
+// the shell does not fire for the child. So the npc that actually stands in the house had no
+// opnpc1 handler at all and fell through to "Nothing interesting happens".
+//
+// Rather than move the dialogue onto the child and break the shell (which is what the world
+// places once the multivar is ever set), the body is now a proc and both npcs call it.
+
+[opnpc1,elena2] ~elena_home_chat;
+[opnpc1,elena2_vis] ~elena_home_chat;
+
+[proc,elena_home_chat]
 switch_int(%biohazard) { // ^biohazard_used_birdfeed intentionally has no dialogue!
     case ^biohazard_complete :
         ~chatplayer("<p,happy>Hello Elena.");

@@ -285,18 +285,18 @@ switch_int(~p_choice5("How do we make the chompys come?", 1, "What are 'fatsy to
     case 1 :
         ~chatplayer("<p,neutral>How do we make the chompys come?");
         ~chatnpc("<p,neutral>Chompys love da fatsy toadies. Toadies get big on der swamp gas and der chompys are licking der lips for em as me is licking lips for da chompy. Da chompys don't like da smaller toadies from nearby swampy.");
-        if (%chompybird < ^chompybird_kids_play_with_toad) {
-            %chompybird = ^chompybird_kids_play_with_toad;
-        }
+        ~chompybird_told_about_toads;
         ~chatnpc("<p,happy>Dey's fussie eaters just like Rantz. Fycie an' Bugs play with toadies and blower dey's all times making fatsy toadies.");
         @toadies_questions;
     case 2 :
         ~chatplayer("<p,neutral>What are 'fatsy toadies'?");
         ~chatnpc("<p,neutral>Fatsy toadies are da chompy burds bestest yumms. But da toadies here are too small for da chompy. You've godda make da toadies big and round!");
+        ~chompybird_told_about_toads;
         @toadies_questions;
     case 3 :
         ~chatplayer("<p,neutral>Where do we put the 'fatsy toadies'?");
         ~chatnpc("<p,angry>Over der!");
+        ~chompybird_told_about_toads;
 
         ~mesbox("The ogre points to a small clearing to da south.");
 
@@ -790,4 +790,14 @@ if(.npc_finduid(%rantz_attacking_chompy) = true) {
         mes("Rantz: Grrr...de'ese arrows are rubbish.");
         npc_say("Grrr...de'ese arrows are rubbish.");
     }
+}
+
+// The ogre chest is gated on ^chompybird_kids_play_with_toad, and until now that stage was set by
+// exactly one of the five options in @toadies_questions - "How do we make the chompys come?".
+// Ask Rantz anything else about the plan and the chest stayed shut with "Perhaps you'd better ask
+// permission before opening this", with nothing in the dialogue to suggest which question to ask.
+// Every one of these options is Rantz explaining the toadies to you, so any of them is permission.
+[proc,chompybird_told_about_toads]
+if (%chompybird < ^chompybird_kids_play_with_toad) {
+    %chompybird = ^chompybird_kids_play_with_toad;
 }

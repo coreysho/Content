@@ -286,10 +286,7 @@ if(stat(agility) < 26) {
     return;
 }
 p_teleport(0_46_51_4_45);
-def_coord $end_coord = movecoord(coord, 0, 0, 4);
-p_delay(0);
-~agility_exactmove(null, 20, 0, coord, $end_coord, 45, 70, ^exact_north, false);
-p_teleport($end_coord);
+~agility_underwall_tunnel(movecoord(coord, 0, 0, 4), ^exact_north);
 
 [oploc1,loc_9310]
 if(stat(agility) < 26) { 
@@ -297,10 +294,7 @@ if(stat(agility) < 26) {
     return;
 }
 p_teleport(0_46_51_4_49);
-def_coord $end_coord = movecoord(coord, 0, 0, -4);
-p_delay(0);
-~agility_exactmove(null, 20, 0, coord, $end_coord, 45, 70, ^exact_south, false);
-p_teleport($end_coord);
+~agility_underwall_tunnel(movecoord(coord, 0, 0, -4), ^exact_south);
 
 [oploc1,loc_9311]
 if(stat(agility) < 21) { 
@@ -308,10 +302,7 @@ if(stat(agility) < 21) {
     return;
 }
 p_teleport(0_49_54_52_37);
-def_coord $end_coord = movecoord(coord, 5, 0, 0);
-p_delay(0);
-~agility_exactmove(null, 20, 0, coord, $end_coord, 45, 70, ^exact_east, false);
-p_teleport($end_coord);
+~agility_underwall_tunnel(movecoord(coord, 5, 0, 0), ^exact_east);
 
 [oploc1,loc_9312]
 if(stat(agility) < 21) { 
@@ -319,10 +310,7 @@ if(stat(agility) < 21) {
     return;
 }
 p_teleport(0_49_54_57_37);
-def_coord $end_coord = movecoord(coord, -5, 0, 0);
-p_delay(0);
-~agility_exactmove(null, 20, 0, coord, $end_coord, 45, 70, ^exact_west, false);
-p_teleport($end_coord);
+~agility_underwall_tunnel(movecoord(coord, -5, 0, 0), ^exact_west);
 
 [oploc1,falador_crumbling_wall]
 if(stat(agility) < 5) {
@@ -490,3 +478,76 @@ p_teleport($start_coord);
 p_delay(0);
 ~agility_exactmove(human_crawling, 30, 2, $start_coord, $end_coord, 30, 94, $dir, true);
 p_teleport($walk_coord);
+
+// ---------------------------------------------------------------- under-wall tunnels
+//
+// All four of the tunnels above passed null as the animation, so the player slid through the hole
+// standing bolt upright. The cache has had the whole three-part animation since the dump and
+// nothing referenced it:
+//
+//   agilty_shortcut_enter_hole   (seq 2589)  12 frames, ending held - dropping into the hole
+//   agilty_shortcut_tunnel_walk  (seq 2590)  one frame, loops=1 - the crawl pose, held while moving
+//   agilty_shortcut_exit_hole    (seq 2591)  10 frames - climbing back out the far side
+//
+// The "agilty" misspelling is in content/pack/seq.pack, so it has to be written that way here.
+// climb_under (synth 1786) is likewise the sound authored for exactly this obstacle.
+[proc,agility_underwall_tunnel](coord $end_coord, int $direction)
+anim(agilty_shortcut_enter_hole, 0);
+sound_synth(climb_under, 1, 0);
+p_delay(2);
+~agility_exactmove(agilty_shortcut_tunnel_walk, 20, 0, coord, $end_coord, 45, 70, $direction, false);
+p_teleport($end_coord);
+anim(agilty_shortcut_exit_hole, 0);
+p_delay(1);
+
+// ---------------------------------------------------------------- Taverley Dungeon
+//
+// Two shortcuts that the cache placed, gave op text to, and then nobody ever wired up - there was
+// no [oploc1] for either of them anywhere in the codebase, so both right-click options were dead:
+//
+//   loc_9293 "Obstacle pipe" (Squeeze-through), width=2, placed twice in m45_153 at local (7,7)
+//            rotation 0 and (10,7) rotation 2 - a pair of pipe halves with a centrepiece between
+//            them, spanning x=7..11 on row z=7. m45_153 places a babybluedragon at (12,7) and blue
+//            dragons at (17,5), (19,10) and (24,10), which is how you can tell this is the blue
+//            dragon shortcut and not some other pipe.
+//   loc_9294 "Strange floor" (Jump-over), a single tile at m44_153 local (63,21), right on the
+//            mapsquare boundary. (63,20) and (63,22) are both blocking wall_diagonal locs, so it
+//            is crossed east<->west and nothing else: west is m44_153 (62,21), east is m45_153
+//            (0,21), which is the same tile as x=64 on the square it sits on.
+//
+// Both are 2006-era requirements: Agility 70 for the pipe, 80 for the floor, and neither grants
+// experience - the same as the Dwarven Mine crevice above.
+
+[oploc1,loc_9293]
+if (stat(agility) < 70) {
+    ~mesbox("You need an Agility level of 70 to squeeze through the pipe.");
+    return;
+}
+def_coord $west_exit = 0_45_153_6_7;
+def_coord $east_exit = 0_45_153_12_7;
+if (coordx(coord) > coordx($west_exit)) {
+    ~agility_exactmove(human_pipesqueeze, 20, 0, coord, $west_exit, 45, 70, ^exact_west, true);
+    p_teleport($west_exit);
+} else {
+    ~agility_exactmove(human_pipesqueeze, 20, 0, coord, $east_exit, 45, 70, ^exact_east, true);
+    p_teleport($east_exit);
+}
+sound_synth(squeeze_in, 1, 0);
+mes("You squeeze through the pipe.");
+
+[oploc1,loc_9294]
+if (stat(agility) < 80) {
+    ~mesbox("You need an Agility level of 80 to cross the strange floor.");
+    return;
+}
+def_coord $west_exit = 0_44_153_62_21;
+def_coord $east_exit = 0_45_153_0_21;
+mes("You jump over the strange floor.");
+sound_synth(jump_no_land, 1, 20);
+if (coordx(coord) > coordx($west_exit)) {
+    ~agility_exactmove(human_steppingstonejump, 20, 2, coord, $west_exit, 48, 60, ^exact_west, true);
+    p_teleport($west_exit);
+} else {
+    ~agility_exactmove(human_steppingstonejump, 20, 2, coord, $east_exit, 48, 60, ^exact_east, true);
+    p_teleport($east_exit);
+}

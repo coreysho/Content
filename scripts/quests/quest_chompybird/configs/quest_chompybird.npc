@@ -1,0 +1,31 @@
+// Big Chompy Bird Hunting - Rantz (Corey, 2026-09-07).
+//
+// Moved out of content/scripts/_unpack/377/all.npc for a single added line: timer=1. Redeclaring
+// an npc that still exists there is a "Duplicate config found" build error, so the whole block has
+// to come with it. Everything except timer= is untouched cache data.
+//
+// Why it matters. [ai_timer,rantz] in ../scripts/rantz.rs2 is the script that spots a chompy bird,
+// makes Rantz shoot at it and miss, and sets ^chompybird_rantz_tried_to_shoot_chompy - the stage
+// that unlocks the ogre bow. An ai_timer trigger only ever runs if the npc config declares a
+// timer interval, and [rantz] declared none, so the trigger was dead code and the stage was
+// unreachable: the quest could not be finished at all. Only two npcs in all.npc carry timer= and
+// both use timer=1, which is the interval this script is written for (it already rate-limits
+// itself with random(20)).
+
+[rantz]
+name=Rantz
+desc=A large dim looking humanoid.
+model1=npc_ogre
+model2=npc_rantz
+vislevel=hide
+size=2
+walkanim=ogre_walk
+readyanim=ogre_ready
+op1=Talk-to
+head1=npc_ogre_chieftan_head
+wanderrange=2
+timer=1
+param=damagetype,^crush_style
+param=death_anim,ogre_death
+param=death_sound,giant_death
+

@@ -72,6 +72,28 @@ return (false);
 [proc,trail_casket_obtained](namedobj $casket)
 ~objbox($casket, "You've found a casket!", 250, 0, divide(^objbox_height, 2));
 
+// ---------------------------------------------------------------- casket rewards
+//
+// Opening a second casket used to lose the loot from the first. Three separate things were wrong
+// and all three are fixed below.
+//
+// 1. The handover ran out of [queue,trail_give_reward]. Player.processQueue only runs a queued
+//    script while canAccess() holds, and canAccess() is !protect && !busy() with busy() including
+//    containsModalInterface() - so the queue could not fire until the reward window was closed.
+//    That is exactly "the reward doesn't show up in the inventory until you close the window".
+// 2. Because trail_rewardinv was therefore still full of the previous casket's loot, the next
+//    ~trail_clue_*_reward rolled into an inv that already had all nine slots occupied.
+//    trail_rewardinv is size=9 (scripts/_unpack/727/all.inv), and inv_add on a full inv drops the
+//    item on the floor. That is "the reward disappears".
+// 3. inv_movefromslot does not fail when the destination is full either - INV_MOVEFROMSLOT in
+//    engine/src/engine/script/handlers/InvOps.ts calls World.addObj for the overflow, so a full
+//    inventory quietly dumped the reward on the ground with a 200 tick despawn.
+//
+// The fix is one flush proc used from three places - before rolling a new casket, the moment the
+// reward window closes, and from the queue as a backstop - and nothing is ever moved into an
+// inventory that cannot hold it. Loot that will not fit stays in trail_rewardinv and the player is
+// told to make room, rather than being deleted or dropped where they will not see it.
+
 [proc,trail_complete]
 ~clear_trail_progress;
 mes("Well done you've completed the Treasure Trail!");
@@ -80,12 +102,42 @@ inv_transmit(trail_rewardinv, trail_reward:inv);
 if_openmain(trail_reward);
 queue(trail_give_reward, 0, 0);
 
-[queue,trail_give_reward]
+// Called first thing by each of the three ~trail_clue_*_reward procs, so a casket always rolls
+// into an empty reward inv even if the previous one has not been collected yet.
+[proc,trail_prepare_rewardinv]
+if (~trail_flush_rewards > 0) {
+    mes("You still have rewards waiting from your last casket - make some inventory space.");
+}
+
+// Moves everything out of the reward inv and into the player's, and returns how many slots it
+// could not empty. No inv_clear: what stays put is collected by the next flush.
+[proc,trail_flush_rewards]()(int)
 def_int $slot = 0;
+def_int $stuck = 0;
 while ($slot < inv_size(trail_rewardinv)) {
-    if (inv_getnum(trail_rewardinv, $slot) > 0) {
-        inv_movefromslot(trail_rewardinv, inv, $slot);
+    def_obj $slotobj = inv_getobj(trail_rewardinv, $slot);
+    if ($slotobj ! null) {
+        if (inv_freespace(inv) > 0 | (oc_stackable($slotobj) = true & inv_total(inv, $slotobj) > 0)) {
+            inv_movefromslot(trail_rewardinv, inv, $slot);
+        } else {
+            $stuck = calc($stuck + 1);
+        }
     }
     $slot = calc($slot + 1);
 }
-inv_clear(trail_rewardinv);
+return($stuck);
+
+// The real handover. Closing the window is not queued, so this runs immediately and the loot is in
+// the inventory by the time the player can click anything else.
+[if_close,trail_reward]
+inv_stoptransmit(trail_reward:inv);
+if (~trail_flush_rewards > 0) {
+    mes("Make some space in your inventory - the rest of your reward is still waiting for you.");
+}
+
+// Backstop for an interface dismissed without an if_close (a forced interface swap, for instance).
+// Silent: if_close has already spoken if anything is stuck.
+[queue,trail_give_reward]
+if (~trail_flush_rewards > 0) {
+    return;
+}

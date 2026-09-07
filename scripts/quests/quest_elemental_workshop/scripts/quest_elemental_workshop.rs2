@@ -57,7 +57,11 @@ if(inv_total(inv, needle) > 0 | testbit(%elemental_workshop_bits, ^elemental_wor
 }
 inv_add(inv, needle, 1);
 mes("You find a needle.");
-%elemental_workshop_bits = setbit(%elemental_workshop_bits, ^elemental_workshop_leather_found);
+// This set ^elemental_workshop_leather_found, not ^elemental_workshop_needle_found. Taking the
+// needle therefore flagged the leather as already found, elemental_workshop_box_4 answered "It's
+// empty." from then on, and the bellows could never be repaired - which is the other half of the
+// air lever doing nothing.
+%elemental_workshop_bits = setbit(%elemental_workshop_bits, ^elemental_workshop_needle_found);
 
 [oploc1,elemental_workshop_box_4]
 if(inv_total(inv, leather) > 0 | testbit(%elemental_workshop_bits, ^elemental_workshop_leather_found) = ^true) {
@@ -76,20 +80,25 @@ mes("You find some leather.");
 [label,elemental_workshop_box_empty]
 mes("It's empty.");
 
+// The right-hand valve has to be opened BEFORE the left one - the water lever below needs both
+// control bits set, and this valve refuses to move while the left one is open. That part is
+// correct and deliberate. What was wrong is that it printed "You turn the handle." first and then
+// silently did nothing, so a player who opened the left valve first got a valve that appeared to
+// work, a lever that reported "Nothing happens; the lever resets itself", and no way to tell why.
 [oploc1,elemental_workshop_valve_1]
 if(testbit(%elemental_workshop_bits, ^elemental_workshop_water_flowing) = ^true) {
     mes("Now that the water wheel is running, the valve seems locked off.");
     return;
 }
+if(testbit(%elemental_workshop_bits, ^elemental_workshop_water_controls_left) = ^true) {
+    mes("You strain at the handle, but the pressure from the other valve holds it shut.");
+    mes("You will have to close the other valve before this one will move.");
+    sound_synth(sluice_gate, 1, 0);
+    return;
+}
 mes("You turn the handle.");
-if(testbit(%elemental_workshop_bits, ^elemental_workshop_water_controls_left) = ^false) { // cant toggle this side if left side is on
-    %elemental_workshop_bits = togglebit(%elemental_workshop_bits, ^elemental_workshop_water_controls_right);
-}
-if(testbit(%elemental_workshop_bits, ^elemental_workshop_water_flowing) = ^true) {
-    sound_synth(squeaky_valve_gush, 1, 0);
-} else {
-    sound_synth(squeaky_valve, 1, 0);
-}
+%elemental_workshop_bits = togglebit(%elemental_workshop_bits, ^elemental_workshop_water_controls_right);
+sound_synth(squeaky_valve, 1, 0);
 
 [oploc1,elemental_workshop_valve_2]
 if(testbit(%elemental_workshop_bits, ^elemental_workshop_water_flowing) = ^true) {
@@ -98,10 +107,11 @@ if(testbit(%elemental_workshop_bits, ^elemental_workshop_water_flowing) = ^true)
 }
 mes("You turn the handle.");
 %elemental_workshop_bits = togglebit(%elemental_workshop_bits, ^elemental_workshop_water_controls_left);
-if(testbit(%elemental_workshop_bits, ^elemental_workshop_water_flowing) = ^true) {
-    sound_synth(squeaky_valve_gush, 1, 0);
-} else {
-    sound_synth(squeaky_valve, 1, 0);
+sound_synth(squeaky_valve, 1, 0);
+// With both valves open the lever will start the wheel; say so, since nothing else in the room
+// does and the lever is a long walk away.
+if(testbit(%elemental_workshop_bits, ^elemental_workshop_water_controls_right) = ^true & testbit(%elemental_workshop_bits, ^elemental_workshop_water_controls_left) = ^true) {
+    mes("Water begins to build up behind the gates.");
 }
 
 [oploc1,elemental_workshop_water_lever]
