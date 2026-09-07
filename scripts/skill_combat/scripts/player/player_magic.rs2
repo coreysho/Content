@@ -93,6 +93,84 @@ if (~player_npc_hit_roll(^magic_style) = true) {
 } else {
     ~pvm_spell_fail($spell_data, $duration);
 }
+// Ancient Burst and Barrage spells also hit everything in the 3x3 around the primary target. Runs
+// whether or not the primary connected - accuracy is rolled per target, so a splash on the main
+// target does not cancel the rest.
+if (db_getfieldcount($spell_data, magic_spell_table:aoe) > 0) {
+    ~pvm_spell_aoe($spell_data, $duration);
+}
+
+// Area effect for the eight Ancient Burst/Barrage spells (aoe column in magic_spell_table; 1 = the
+// 3x3 grid). Two passes, because the damage ops all act on the PRIMARY npc pointer and the search
+// runs on the secondary one: collect the uids first with .npc_findnext, then switch the primary
+// pointer onto each in turn. This is the same shape pvm_rune_thrownaxe_hunt/_hit already use for the
+// rune thrownaxe special, including its multiway rule - the caster and the extra target must both be
+// in a multiway zone, so in singles a barrage still only hits what you aimed at.
+//
+// Eight is the whole rest of a 3x3, so the cap can never truncate a legitimate target.
+[proc,pvm_spell_aoe](dbrow $spell_data, int $duration)
+def_npc_uid $primary = npc_uid;
+def_coord $centre = npc_coord;
+if (map_multiway(coord) = false) {
+    return;
+}
+def_npc_uid $t1;
+def_npc_uid $t2;
+def_npc_uid $t3;
+def_npc_uid $t4;
+def_npc_uid $t5;
+def_npc_uid $t6;
+def_npc_uid $t7;
+def_npc_uid $t8;
+def_int $found = 0;
+npc_huntall($centre, db_getfield($spell_data, magic_spell_table:aoe, 0), ^vis_lineofsight);
+while (.npc_findnext = true) {
+    if (.npc_uid ! $primary & $found < 8 & map_multiway(.npc_coord) = true) {
+        switch_int ($found) {
+            case 0 : $t1 = .npc_uid;
+            case 1 : $t2 = .npc_uid;
+            case 2 : $t3 = .npc_uid;
+            case 3 : $t4 = .npc_uid;
+            case 4 : $t5 = .npc_uid;
+            case 5 : $t6 = .npc_uid;
+            case 6 : $t7 = .npc_uid;
+            case 7 : $t8 = .npc_uid;
+        }
+        $found = add($found, 1);
+    }
+}
+~pvm_spell_aoe_target($spell_data, $t1, $duration);
+~pvm_spell_aoe_target($spell_data, $t2, $duration);
+~pvm_spell_aoe_target($spell_data, $t3, $duration);
+~pvm_spell_aoe_target($spell_data, $t4, $duration);
+~pvm_spell_aoe_target($spell_data, $t5, $duration);
+~pvm_spell_aoe_target($spell_data, $t6, $duration);
+~pvm_spell_aoe_target($spell_data, $t7, $duration);
+~pvm_spell_aoe_target($spell_data, $t8, $duration);
+// put the pointer back on whatever the player actually aimed at
+npc_finduid($primary);
+
+[proc,pvm_spell_aoe_target](dbrow $spell_data, npc_uid $target, int $duration)
+if ($target = null) {
+    return;
+}
+if (npc_finduid($target) = false) {
+    return;
+}
+if (~npc_is_attackable = false) {
+    return;
+}
+if (~player_npc_hit_roll(^magic_style) = true) {
+    def_int $maxhit = ~magic_spell_maxhit($spell_data);
+    ~pvm_spell_success($spell_data, $maxhit, $duration);
+    ~pvm_stat_change_effect($spell_data);
+    // an already-frozen secondary target is left alone rather than having its freeze refreshed
+    if (%npc_stunned < map_clock) {
+        ~pvm_freeze_effect($spell_data);
+    }
+} else {
+    ~pvm_spell_fail($spell_data, $duration);
+}
 
 // no 0 hp check for magic: you can attack slayer npcs when they're at 0 hp
 [proc,pvm_combat_spell_checks](dbrow $spell_data)(boolean)
@@ -235,6 +313,14 @@ else if (npc_type = chronozon) {
 else if (npc_type = horror_dagganoth_air | npc_type = horror_dagganoth_water | npc_type = horror_dagganoth_earth | npc_type = horror_dagganoth_fire | npc_type = horror_dagganoth_ranged | npc_type = horror_dagganoth_melee) {
     def_int $spell = db_getfield($spell_data, magic_spell_table:spell, 0);
     if (~dagmother_spell_matches_phase($spell) = false) {
+        $damage = 0;
+    }
+}
+// Desert Treasure - Kamil takes damage only from Fire spells, Fareed only from Water spells.
+// ~dt_spell_damage_allowed is in quests/quest_deserttreasure/scripts/dt_combat.rs2 and returns true
+// for every other npc, so this costs one proc call on spells cast at anything else.
+else if (npc_type = icediamond_icewarrior | npc_type = firediamond_firewarrior) {
+    if (~dt_spell_damage_allowed(db_getfield($spell_data, magic_spell_table:spell, 0)) = false) {
         $damage = 0;
     }
 }

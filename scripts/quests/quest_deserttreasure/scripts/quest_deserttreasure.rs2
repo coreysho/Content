@@ -1,0 +1,477 @@
+// Desert Treasure - the spine of the quest (Corey, 2026-09-07).
+//
+// This file carries the parts that are not one of the four diamond sub-quests: the Archaeologist,
+// Terry Balando, the Bandit Camp, Eblis and his scrying glass, the mirrors, and the four obelisks
+// at the pyramid. The sub-quests live in dt_blood / dt_ice / dt_smoke / dt_shadow, and the pyramid
+// itself in dt_pyramid.
+//
+// Requirements. The real quest wanted six quests plus 50 Magic, 53 Thieving, 50 Firemaking and 10
+// Slayer. Of the six, five exist on this server (Dig Site, Temple of Ikov, Troll Stronghold, Priest
+// in Peril, Waterfall) and are gated below; The Tourist Trap is not implemented at all here, so
+// gating on it would make Desert Treasure permanently unstartable. It is deliberately left out
+// rather than faked, and should be added the day that quest lands.
+//
+// Only Magic 50 is checked at the start, exactly as in the real quest - Thieving, Firemaking and
+// Slayer gate their own individual steps (the bandit chest, the smoke dungeon torches, the
+// facemask) rather than the quest as a whole.
+
+// ================================================================================ the Archaeologist
+//
+// Asgarnia Smith, at the Bedabin Camp beside the magic carpet merchant.
+
+[opnpc1,fourdiamonds_indiana]
+if (%deserttreasure = ^dt_not_started) {
+    ~chatnpc("<p,happy>Hello there. You look like the adventuring sort.");
+    def_int $choice = ~p_choice2("What are you doing out here?", 1, "Not interested, thanks.", 2);
+    if ($choice = 2) {
+        ~chatplayer("<p,neutral>Not interested, thanks.");
+        return;
+    }
+    ~chatplayer("<p,quiz>What are you doing out here?");
+    ~chatnpc("<p,happy>Digging, mostly. There is a great treasure buried somewhere in this desert - four diamonds of astonishing power - and I intend to find it.");
+    ~chatnpc("<p,neutral>Trouble is, all I have to go on is a set of etchings I took off a stone tablet, and I can't read a word of them.");
+    ~chatplayer("<p,quiz>Can I help?");
+    ~chatnpc("<p,happy>You could at that! Take these etchings to the Archaeological Expert at the Digsite - he'll translate them. Fifty-fifty on whatever we find.");
+    if (stat(magic) < 50) {
+        ~chatnpc("<p,sad>Mind you, there'll be magic involved before the end. You'd want a Magic level of at least 50 before you got far.");
+        ~mesbox("You need a Magic level of 50 to start Desert Treasure.");
+        return;
+    }
+    if (~dt_quest_requirements = false) {
+        return;
+    }
+    if (inv_freespace(inv) = 0) {
+        ~chatnpc("<p,neutral>Make yourself some space first - I can't hand you anything as it is.");
+        return;
+    }
+    ~objbox(four_diamonds_etchings, "The Archaeologist hands you a sheaf of etchings.", 250, 0, ^objbox_height);
+    inv_add(inv, four_diamonds_etchings, 1);
+    %deserttreasure = ^dt_got_etchings;
+    ~send_quest_progress(questlist:deserttreasure, %deserttreasure, ^deserttreasure_complete);
+    return;
+}
+if (%deserttreasure = ^dt_got_etchings) {
+    ~chatnpc("<p,neutral>Take those etchings to the Archaeological Expert at the Digsite, east of Varrock.");
+    return;
+}
+if (%deserttreasure = ^dt_got_translation) {
+    if (inv_total(inv, four_diamonds_translation_primer) < 1) {
+        ~chatnpc("<p,worried>Where's my translation gone? Go back to the Expert and get another.");
+        return;
+    }
+    ~chatplayer("<p,happy>I've got your translation.");
+    ~chatnpc("<p,happy>Splendid! Let me see... 'Four diamonds, of blood and ice, of smoke and of shadow...' Ha! I knew it!");
+    ~chatnpc("<p,neutral>There's a bandit camp south of here. Rough sort of place - they steal everything that isn't nailed down, so they'll know where the diamonds went. Ask around there.");
+    ~chatnpc("<p,worried>And take off anything with a god's symbol on it before you walk in. They don't hold with Saradomin or Zamorak, and they aren't polite about it.");
+    %deserttreasure = ^dt_sent_to_bandits;
+    ~send_quest_progress(questlist:deserttreasure, %deserttreasure, ^deserttreasure_complete);
+    return;
+}
+if (%deserttreasure < ^deserttreasure_complete) {
+    ~chatnpc("<p,happy>Any luck with those diamonds? Remember - fifty-fifty!");
+    return;
+}
+~chatnpc("<p,happy>So there really was a treasure. I'd have preferred gold to a spellbook, mind you.");
+
+[opnpcu,fourdiamonds_indiana]
+if (last_useitem = four_diamonds_translation_primer & %deserttreasure = ^dt_got_translation) {
+    @dt_indiana_translation;
+}
+~chatnpc("<p,neutral>No use to me, that.");
+
+[label,dt_indiana_translation]
+~chatplayer("<p,happy>I've got your translation.");
+~chatnpc("<p,happy>Splendid! Let me see... 'Four diamonds, of blood and ice, of smoke and of shadow...' Ha! I knew it!");
+~chatnpc("<p,neutral>There's a bandit camp south of here. Ask around there - and take off anything with a god's symbol on it before you go in.");
+%deserttreasure = ^dt_sent_to_bandits;
+~send_quest_progress(questlist:deserttreasure, %deserttreasure, ^deserttreasure_complete);
+
+// The five prerequisite quests this server actually implements. The Tourist Trap is missing here
+// (not implemented), and Death Plateau is transitive through Troll Stronghold.
+[proc,dt_quest_requirements](boolean)
+if (%itexamlevel < ^itexam_complete) {
+    ~mesbox("You need to have completed The Dig Site to start this quest.");
+    return(false);
+}
+if (%ikov < ^ikov_completed_armadyl) {
+    ~mesbox("You need to have completed Temple of Ikov to start this quest.");
+    return(false);
+}
+if (%troll_quest < ^troll_complete) {
+    ~mesbox("You need to have completed Troll Stronghold to start this quest.");
+    return(false);
+}
+if (%priestperil < ^priestperil_complete) {
+    ~mesbox("You need to have completed Priest in Peril to start this quest.");
+    return(false);
+}
+if (%waterfall_quest < ^waterfall_complete) {
+    ~mesbox("You need to have completed Waterfall Quest to start this quest.");
+    return(false);
+}
+return(true);
+
+// ================================================================================ Terry Balando
+//
+// The Archaeological Expert at the Digsite Exam Centre already has dialogue of his own for The Dig
+// Site, so this is a use-item trigger rather than a talk-to, which keeps both working.
+
+// Called from quest_itexam/scripts/arcaeological_expert.rs2's [opnpcu] switch - see the note there.
+[proc,dt_translate_etchings]
+if (%deserttreasure ! ^dt_got_etchings) {
+    ~chatnpc("<p,neutral>I've already translated that for you.");
+    return;
+}
+~chatplayer("<p,quiz>Could you translate these etchings for me?");
+~chatnpc("<p,quiz>Hmm. Let me see... my word. This is old. Older than the Digsite, older than Varrock.");
+~chatnpc("<p,neutral>It speaks of four diamonds and a sealed tomb. Give me a moment.");
+if (inv_freespace(inv) = 0 & inv_total(inv, four_diamonds_etchings) = 1) {
+    ~chatnpc("<p,neutral>Make some space first, would you?");
+    return;
+}
+inv_del(inv, four_diamonds_etchings, 1);
+~objbox(four_diamonds_translation_primer, "The Expert hands you a rough translation.", 250, 0, ^objbox_height);
+inv_add(inv, four_diamonds_translation_primer, 1);
+%deserttreasure = ^dt_got_translation;
+~send_quest_progress(questlist:deserttreasure, %deserttreasure, ^deserttreasure_complete);
+~chatnpc("<p,worried>Take care with whatever you dig up. Some things stay buried for a reason.");
+
+// ================================================================================ the Bandit Camp
+//
+// The bartender sells the Bandit's brew, which in the real quest is bought solely to open the
+// conversation about the diamonds - it is not an ingredient in anything later, despite what several
+// guides claim. His shop inventory (fd_bandit_bar, inv 257) exists in the cache but is not bound to
+// him, so the brew is sold straight out of the dialogue.
+
+[opnpc1,fourdiamonds_bartender]
+if (%deserttreasure < ^dt_sent_to_bandits) {
+    ~chatnpc("<p,neutral>We don't get many strangers. Buy something or move along.");
+    return;
+}
+if (%deserttreasure > ^dt_heard_of_diamonds) {
+    ~chatnpc("<p,happy>Back again? Eblis is still out east if you want him.");
+    return;
+}
+~chatnpc("<p,neutral>What'll it be?");
+def_int $choice = ~p_choice3("A Bandit's brew, please.", 1, "I'm looking for four diamonds.", 2, "Nothing, thanks.", 3);
+switch_int ($choice) {
+    case 1 : @dt_buy_brew;
+    case 2 : @dt_ask_diamonds;
+    case default : ~chatplayer("<p,neutral>Nothing, thanks.");
+}
+
+[label,dt_buy_brew]
+~chatplayer("<p,neutral>A Bandit's brew, please.");
+~chatnpc("<p,neutral>That'll be <tostring(^dt_fare_bandit_brew)> coins. It's not cheap and it's not good, but it's what we have.");
+if (inv_total(inv, coins) < ^dt_fare_bandit_brew) {
+    ~chatplayer("<p,sad>I don't have that much.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>You've nowhere to put it.");
+    return;
+}
+inv_del(inv, coins, ^dt_fare_bandit_brew);
+inv_add(inv, bandit_brew, 1);
+~objbox(bandit_brew, "You buy a Bandit's brew.", 250, 0, ^objbox_height);
+if (%deserttreasure = ^dt_sent_to_bandits) {
+    ~chatnpc("<p,happy>You're all right, for an outsider. Ask me anything.");
+    %deserttreasure = ^dt_heard_of_diamonds;
+    ~send_quest_progress(questlist:deserttreasure, %deserttreasure, ^deserttreasure_complete);
+}
+
+[label,dt_ask_diamonds]
+~chatplayer("<p,quiz>I'm looking for four diamonds.");
+if (%deserttreasure < ^dt_heard_of_diamonds) {
+    ~chatnpc("<p,angry>Are you now. And why would I tell a stranger anything?");
+    ~chatnpc("<p,neutral>Buy a drink first. Then we'll see.");
+    return;
+}
+~chatnpc("<p,neutral>Diamonds, is it. We had them, once. Four of them, and every one of them trouble.");
+~chatnpc("<p,worried>Zamorak's lot came for them. Took them off east, north, to the mountains and down a hole. Killed six of us doing it.");
+~chatnpc("<p,neutral>You want the whole story, talk to Eblis. He's the old man on the east side. He's been waiting years for someone to ask.");
+
+// ================================================================================ Eblis
+//
+// Eblis exists twice in the cache - once in the camp (fourdiamonds_elder -> fd_elder_village, shown
+// while the quest varbit is 0-10) and once at the mirrors (fourdiamonds_elder2 ->
+// fd_elder_by_mirrors, 10-15). That multi is why the "materials given" stage has to be 10: it is the
+// stage at which he moves.
+
+[opnpc1,fd_elder_village]
+if (%deserttreasure < ^dt_heard_of_diamonds) {
+    ~chatnpc("<p,neutral>I have nothing to say to you yet.");
+    return;
+}
+if (%deserttreasure = ^dt_heard_of_diamonds) {
+    ~chatplayer("<p,quiz>The bartender said you know about four diamonds.");
+    ~chatnpc("<p,neutral>He would. I have talked of little else for thirty years.");
+    ~chatnpc("<p,neutral>Beneath the pyramid to the south-east lies a Mahjarrat named Azzanadra, sealed in by four diamonds - of blood, of ice, of smoke, and of shadow. Zamorak's servants hold them still.");
+    ~chatplayer("<p,quiz>And you want them back?");
+    ~chatnpc("<p,happy>I want Azzanadra free. For that I must find where the diamonds went, and for that I must build a scrying glass. Bring me what it needs and I will show you.");
+    %deserttreasure = ^dt_eblis_wants_materials;
+    ~send_quest_progress(questlist:deserttreasure, %deserttreasure, ^deserttreasure_complete);
+    @dt_eblis_list_materials;
+}
+if (%deserttreasure = ^dt_eblis_wants_materials) {
+    @dt_eblis_list_materials;
+}
+~chatnpc("<p,neutral>Meet me at the mirrors, south-east of here.");
+
+[label,dt_eblis_list_materials]
+~chatnpc("<p,neutral>Twelve magic logs for the frames. Six molten glass and six steel bars for the mirrors themselves.");
+~chatnpc("<p,neutral>Ashes, charcoal, a set of bones and one blood rune for the binding. Give them to me one at a time and I shall keep count.");
+@dt_eblis_progress;
+
+// Each material is a varbit Jagex already reserved: fd_magiclog (12 bits), fd_steelbar and fd_glass
+// (6 each), fd_bones, fd_ash, fd_charcoal, fd_bloodrune. Nothing set them until now.
+[label,dt_eblis_progress]
+if (~dt_eblis_has_everything = true) {
+    @dt_eblis_finish;
+}
+mes("Eblis still needs:");
+if (%fd_magiclog < 12) {
+    mes("<tostring(sub(12, %fd_magiclog))> magic logs.");
+}
+if (%fd_glass < 6) {
+    mes("<tostring(sub(6, %fd_glass))> molten glass.");
+}
+if (%fd_steelbar < 6) {
+    mes("<tostring(sub(6, %fd_steelbar))> steel bars.");
+}
+if (%fd_ash = 0) {
+    mes("Some ashes.");
+}
+if (%fd_charcoal = 0) {
+    mes("Some charcoal.");
+}
+if (%fd_bones = 0) {
+    mes("A set of bones.");
+}
+if (%fd_bloodrune = 0) {
+    mes("One blood rune.");
+}
+
+[proc,dt_eblis_has_everything](boolean)
+if (%fd_magiclog < 12) { return(false); }
+if (%fd_glass < 6) { return(false); }
+if (%fd_steelbar < 6) { return(false); }
+if (%fd_ash = 0) { return(false); }
+if (%fd_charcoal = 0) { return(false); }
+if (%fd_bones = 0) { return(false); }
+if (%fd_bloodrune = 0) { return(false); }
+return(true);
+
+[label,dt_eblis_finish]
+~chatnpc("<p,happy>That is everything. Give me a day and a night with it.");
+~chatnpc("<p,neutral>Meet me south-east of the camp, at the six mirrors on the hill. I will show you where your diamonds went.");
+%deserttreasure = ^dt_eblis_at_mirrors;
+%fd_mirror_present = 1;
+~send_quest_progress(questlist:deserttreasure, %deserttreasure, ^deserttreasure_complete);
+
+[opnpcu,fd_elder_village]
+if (%deserttreasure ! ^dt_eblis_wants_materials) {
+    ~chatnpc("<p,neutral>I have no use for that.");
+    return;
+}
+switch_obj (last_useitem) {
+    case magic_logs : ~dt_give_material(magic_logs, 12, "magic logs");
+    case molten_glass : ~dt_give_material(molten_glass, 6, "molten glass");
+    case steel_bar : ~dt_give_material(steel_bar, 6, "steel bars");
+    case ashes : ~dt_give_material(ashes, 1, "ashes");
+    case charcoal : ~dt_give_material(charcoal, 1, "charcoal");
+    case bones : ~dt_give_material(bones, 1, "bones");
+    case bloodrune : ~dt_give_material(bloodrune, 1, "blood runes");
+    case default : ~chatnpc("<p,neutral>I have no use for that.");
+}
+
+// One proc for all seven, reading and writing whichever varbit matches the item. Hands over as many
+// as the player is carrying, up to what is still needed.
+[proc,dt_give_material](namedobj $obj, int $needed, string $plural)
+def_int $have = 0;
+if ($obj = magic_logs) { $have = %fd_magiclog; }
+else if ($obj = molten_glass) { $have = %fd_glass; }
+else if ($obj = steel_bar) { $have = %fd_steelbar; }
+else if ($obj = ashes) { $have = %fd_ash; }
+else if ($obj = charcoal) { $have = %fd_charcoal; }
+else if ($obj = bones) { $have = %fd_bones; }
+else { $have = %fd_bloodrune; }
+if ($have >= $needed) {
+    ~chatnpc("<p,neutral>I have all the <$plural> I need.");
+    return;
+}
+def_int $give = min(sub($needed, $have), inv_total(inv, $obj));
+if ($give < 1) {
+    return;
+}
+inv_del(inv, $obj, $give);
+$have = add($have, $give);
+if ($obj = magic_logs) { %fd_magiclog = $have; }
+else if ($obj = molten_glass) { %fd_glass = $have; }
+else if ($obj = steel_bar) { %fd_steelbar = $have; }
+else if ($obj = ashes) { %fd_ash = $have; }
+else if ($obj = charcoal) { %fd_charcoal = $have; }
+else if ($obj = bones) { %fd_bones = $have; }
+else { %fd_bloodrune = $have; }
+mes("You hand Eblis <tostring($give)> <lowercase(oc_name($obj))>.");
+@dt_eblis_progress;
+
+// ================================================================================ the mirrors
+//
+// fd_mirror_present is the multivar on sword_mirror1..6 - with it clear the map shows cacti, with it
+// set the six mirrors appear. Two of the six show false leads, exactly as in 2005.
+
+[opnpc1,fd_elder_by_mirrors]
+if (%deserttreasure = ^dt_eblis_at_mirrors) {
+    ~chatnpc("<p,happy>You came. Good. Look into the mirrors - each one holds a place, and four of them hold a diamond.");
+    ~chatnpc("<p,neutral>Beware: two of the visions are false. The bandits' own camp, and the pyramid itself. Neither holds anything you need yet.");
+    ~chatnpc("<p,worried>And be careful. Zamorak's people know I am looking. They will know you are too, before long.");
+    %deserttreasure = ^dt_hunting_diamonds;
+    ~send_quest_progress(questlist:deserttreasure, %deserttreasure, ^deserttreasure_complete);
+    return;
+}
+if (%deserttreasure = ^dt_hunting_diamonds) {
+    if (~dt_has_all_diamonds = true) {
+        ~chatnpc("<p,happy>All four! Take them to the pyramid south-east of here. There are four obelisks at its corners - a diamond in each, and the tomb will open.");
+        ~chatnpc("<p,neutral>Blood to the red, ice to the blue, smoke to the grey, shadow to the purple. Do not mix them.");
+        return;
+    }
+    ~chatnpc("<p,neutral>Four diamonds. Blood in Morytania, ice in the trolls' mountains, smoke beneath the desert, shadow under Baxtorian.");
+    return;
+}
+if (%deserttreasure < ^deserttreasure_complete) {
+    ~chatnpc("<p,neutral>The tomb is open. Go down and free him.");
+    return;
+}
+~chatnpc("<p,happy>You freed him. Thirty years I waited, and it took you a fortnight.");
+~chatnpc("<p,neutral>There is one thing more I can offer you - a staff of the old empire. Eighty thousand coins, and it is yours.");
+def_int $choice = ~p_choice2("Buy the ancient staff (80,000 coins).", 1, "Not today.", 2);
+if ($choice ! 1) {
+    ~chatplayer("<p,neutral>Not today.");
+    return;
+}
+if (inv_total(inv, coins) < 80000) {
+    ~chatplayer("<p,sad>I can't afford that.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>You have nowhere to put it.");
+    return;
+}
+inv_del(inv, coins, 80000);
+inv_add(inv, staff_of_zaros, 1);
+%fd_got_zaros_staff = 1;
+~objbox(staff_of_zaros, "Eblis hands you the ancient staff.", 250, 0, ^objbox_height);
+
+[proc,dt_has_all_diamonds](boolean)
+if (inv_total(inv, fd_blood_diamond) < 1) { return(false); }
+if (inv_total(inv, fd_icediamond) < 1) { return(false); }
+if (inv_total(inv, fd_diamond_fire) < 1) { return(false); }
+if (inv_total(inv, fd_dark_diamond) < 1) { return(false); }
+return(true);
+
+// The six mirrors. Four show a real destination, two are the false leads Eblis warns about.
+[oploc1,fd_mirror1] ~dt_mirror_vision("a graveyard under a red sky, and something moving in the tomb", "Morytania");
+[oploc1,fd_mirror2] ~dt_mirror_vision("a frozen path through the mountains, and a warrior in white", "Trollheim");
+[oploc1,fd_mirror3] ~dt_mirror_vision("a well full of smoke, and fires burning in the dark below", "the desert, west of Pollnivneach");
+[oploc1,fd_mirror4] ~dt_mirror_vision("a ladder that is barely there at all, beside a waterfall", "Baxtorian");
+[oploc1,fd_mirror5] ~dt_mirror_vision("this very camp - tents, sand, and nothing else", "here");
+[oploc1,fd_mirror6] ~dt_mirror_vision("the pyramid to the south-east, sealed and silent", "the pyramid");
+
+[proc,dt_mirror_vision](string $vision, string $place)
+if (%deserttreasure < ^dt_hunting_diamonds) {
+    mes("You see nothing but your own reflection.");
+    return;
+}
+mes("You look into the mirror.");
+spotanim_map(legends_lightbeam, loc_coord, 0, 0);
+p_delay(1);
+~mesbox(append(append("You see ", $vision), "."));
+mes(append(append("The vision fades. That was ", $place), "."));
+
+// ================================================================================ the obelisks
+//
+// desert_treasure_oblix1..4 are multiloc shells reading fd_column_blood / _fire / _ice / _shadow.
+// Setting the varbit swaps the plain obelisk for the charged one, so "placing a diamond" is a
+// one-line varbit write and the client does the rest. 50 Magic is required, as in the real quest.
+
+[oploc1,desert_treasure_oblix1] ~dt_place_diamond(fd_blood_diamond, "blood");
+[oploc1,desert_treasure_oblix2] ~dt_place_diamond(fd_diamond_fire, "smoke");
+[oploc1,desert_treasure_oblix3] ~dt_place_diamond(fd_icediamond, "ice");
+[oploc1,desert_treasure_oblix4] ~dt_place_diamond(fd_dark_diamond, "shadow");
+[oploc1,desert_treasure_oblix_a] ~dt_place_diamond(fd_blood_diamond, "blood");
+[oploc1,desert_treasure_oblix_b] ~dt_place_diamond(fd_diamond_fire, "smoke");
+[oploc1,desert_treasure_oblix_c] ~dt_place_diamond(fd_icediamond, "ice");
+[oploc1,desert_treasure_oblix_d] ~dt_place_diamond(fd_dark_diamond, "shadow");
+
+[proc,dt_place_diamond](namedobj $diamond, string $element)
+if (%deserttreasure < ^dt_hunting_diamonds) {
+    ~mesbox("A mysterious power flows through the obelisk. You have no idea what it is for.");
+    return;
+}
+if (~dt_obelisk_charged($element) = true) {
+    mes("This obelisk already holds its diamond.");
+    return;
+}
+if (inv_total(inv, $diamond) < 1) {
+    ~mesbox(append(append("This obelisk is carved with the sign of ", $element), ". You do not have that diamond."));
+    return;
+}
+if (stat(magic) < 50) {
+    ~mesbox("You need a Magic level of 50 to place a diamond in the obelisk.");
+    return;
+}
+mes(append(append("You place the diamond of ", $element), " into the obelisk."));
+inv_del(inv, $diamond, 1);
+if ($element = "blood") { %fd_column_blood = 1; }
+else if ($element = "smoke") { %fd_column_fire = 1; }
+else if ($element = "ice") { %fd_column_ice = 1; }
+else { %fd_column_shadow = 1; }
+sound_synth(magical_barrier, 1, 0);
+p_delay(2);
+if (%fd_column_blood = 1 & %fd_column_fire = 1 & %fd_column_ice = 1 & %fd_column_shadow = 1) {
+    ~mesbox("All four obelisks blaze at once. Somewhere below you, something very old shifts in its sleep.|The pyramid has opened.");
+    %deserttreasure = ^dt_diamonds_placed;
+    ~send_quest_progress(questlist:deserttreasure, %deserttreasure, ^deserttreasure_complete);
+    return;
+}
+~mesbox("The obelisk hums with light. Three more to go.");
+
+[proc,dt_obelisk_charged](string $element)(boolean)
+if ($element = "blood") {
+    if (%fd_column_blood = 1) { return(true); }
+    return(false);
+}
+if ($element = "smoke") {
+    if (%fd_column_fire = 1) { return(true); }
+    return(false);
+}
+if ($element = "ice") {
+    if (%fd_column_ice = 1) { return(true); }
+    return(false);
+}
+if (%fd_column_shadow = 1) { return(true); }
+return(false);
+
+// ================================================================================ the Stranger
+//
+// The assassin ambush. Zamorak's people notice you the moment Eblis sets you on the diamonds; the
+// cache reserved fd_killed_ninja for it and nothing ever set it. Triggered off the mirrors area
+// rather than a timer so it is deterministic and testable.
+
+[opnpc1,fourdiamonds_assasin]
+~chatnpc("<p,angry>You have been asking about diamonds that are not yours.");
+~chatplayer("<p,quiz>And you are?");
+~chatnpc("<p,angry>Nobody. That is rather the point.");
+if_close;
+~npc_retaliate(0);
+%aggressive_npc = npc_uid;
+
+// No varbit write here: an ai_queue trigger starts with neither the protected active player nor a
+// player pointer at all, so %fd_killed_ninja cannot be set from a death hook. Nothing reads it.
+[ai_queue3,fourdiamonds_assasin]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+obj_add(npc_coord, coins, 500, ^lootdrop_duration);

@@ -64,6 +64,15 @@ if (inv_total(inv, digexpertscroll) > 0) {
 [opnpcu,archaeological_expert]
 def_obj $item = last_useitem;
 
+// Desert Treasure (2026-09-07). The etchings branch lives here rather than in the quest's own file
+// because [opnpcu,<npc>] can only be declared once in the whole codebase - the same reason
+// quest_horror had to absorb Gunnjorn's flavour dialogue. ~dt_translate_etchings is defined in
+// quests/quest_deserttreasure/scripts/quest_deserttreasure.rs2.
+if ($item = four_diamonds_etchings) {
+    ~dt_translate_etchings;
+    return;
+}
+
 // Not all the mesanims in here are correct
 if ($item = digtalisman) {
     if (~itexam_testbit(^itexam_bit_shown_ancient_symbol) = ^true) {

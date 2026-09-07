@@ -1,0 +1,234 @@
+// Desert Treasure - Jaldraocht Pyramid and the Ancient Temple (Corey, 2026-09-07).
+//
+// The last section, not the first - a common mix-up. Once all four diamonds are in the obelisks the
+// pyramid opens and you descend four levels to the temple at the bottom.
+//
+// The maze is already built and populated: content/maps has 4,173 tomb walls, 119 sarcophagus
+// walls, all six sarcophagus doors and 78 mummy spawns across m43_77, m44_77 and m45_77 at levels
+// 1, 2 and 3, and the Ancient Temple with the Zaros altar, Azzanadra and the exit portal on
+// m50_145. Every ladder between them already declares its op. Nothing here places a single loc.
+//
+// The descent, read out of the map data:
+//   exterior desert_laddertop  0_50_45_33_17  ->  level 3  3_45_77_33_25
+//   3 -> 2   desert_laddertop3_2  ->  desert_ladder2_3
+//   2 -> 1   desert_laddertop2_1  ->  desert_ladder1_2
+//   1 -> 0   desert_laddertop1_0  ->  the temple, desert_ladder0_1  0_50_145_32_13
+//
+// Azzanadra can only be SEEN at quest stages 13 and 14 - that is a multi baked into the cache npc,
+// not a choice - so praying at the altar is what sets stage 13 and makes him appear. The exit portal
+// is the same story: dia_down only becomes dt_portal at stage 15.
+
+// ================================================================================ getting in
+
+[oploc1,four_diamonds_door_1] @dt_pyramid_door;
+[oploc1,four_diamonds_door_mirror] @dt_pyramid_door;
+
+[label,dt_pyramid_door]
+if (%deserttreasure < ^dt_diamonds_placed) {
+    ~mesbox("The door is sealed. Four obelisks stand at the corners of this pyramid, and all four are dark.");
+    return;
+}
+mes("The door grinds open.");
+loc_change(four_diamonds_dooropen_1, 100);
+
+[oploc1,desert_laddertop]
+if (%deserttreasure < ^dt_diamonds_placed) {
+    ~mesbox("The way down is sealed.");
+    return;
+}
+~dt_pyramid_descend(^dt_pyramid_level3, "You climb down into the pyramid.");
+
+[oploc1,desert_ladder] ~dt_pyramid_climb(^dt_pyramid_exterior, "You climb out into the desert sun.");
+[oploc1,desert_laddertop3_2] ~dt_pyramid_descend(^dt_pyramid_l3_down, "You climb down to the next level.");
+[oploc1,desert_ladder2_3] ~dt_pyramid_climb(^dt_pyramid_l3_up, "You climb back up.");
+[oploc1,desert_laddertop2_1] ~dt_pyramid_descend(^dt_pyramid_l2_down, "You climb down to the next level.");
+[oploc1,desert_ladder1_2] ~dt_pyramid_climb(^dt_pyramid_l2_up, "You climb back up.");
+[oploc1,desert_laddertop1_0] ~dt_pyramid_descend(^dt_pyramid_l1_down, "You climb down. The air below is cold and very still.");
+[oploc1,desert_ladder0_1] ~dt_pyramid_climb(^dt_pyramid_l1_up, "You climb back up.");
+
+[proc,dt_pyramid_descend](coord $dest, string $message)
+mes($message);
+p_delay(1);
+p_telejump($dest);
+
+[proc,dt_pyramid_climb](coord $dest, string $message)
+mes($message);
+p_delay(1);
+p_telejump($dest);
+
+// The back entrance. In the real quest this is the post-quest shortcut straight to the altar, used
+// for switching spellbooks without running the maze again.
+[oploc1,desert_trasure_back_door_skew]
+if (%deserttreasure < ^deserttreasure_complete) {
+    ~mesbox("The tunnel is sealed from the inside.");
+    return;
+}
+mes("You duck into the tunnel.");
+p_delay(1);
+p_telejump(map_findsquare(^dt_temple_altar, 0, 3, ^map_findsquare_lineofwalk));
+
+// ================================================================================ the sarcophagi
+//
+// Searching one wakes what is inside it. The real danger is not the mummy's damage but that it
+// stops you dead in a corridor you were trying to run down.
+
+[oploc1,deserttreasure_sarcophigi_door] @dt_search_sarcophagus;
+[oploc1,deserttreasure_sarcophigi_door_2] @dt_search_sarcophagus;
+[oploc1,deserttreasure_sarcophigi_door_3] @dt_search_sarcophagus;
+[oploc1,deserttreasure_sarcophigi_door_4] @dt_search_sarcophagus;
+[oploc1,deserttreasure_sarcophigi_door_5] @dt_search_sarcophagus;
+[oploc1,deserttreasure_sarcophigi_door_6] @dt_search_sarcophagus;
+
+[label,dt_search_sarcophagus]
+if (random(3) > 0) {
+    ~mesbox("You search the sarcophagus. It is empty, and has been for a very long time.");
+    return;
+}
+mes("Something inside the sarcophagus moves.");
+sound_synth(smokepuff, 1, 0);
+p_delay(1);
+def_coord $spot = map_findsquare(loc_coord, 1, 2, ^map_findsquare_lineofwalk);
+npc_add($spot, deserttreasure_mummy_1, 300);
+npc_setmode(none);
+npc_anim(deserttreasure_mummy_emerge, 0);
+npc_say("Rawr!");
+p_delay(2);
+npc_facesquare(coord);
+~npc_retaliate(0);
+%aggressive_npc = npc_uid;
+p_stopaction;
+
+// ================================================================================ scarabs and pitfalls
+//
+// deserttreasure_cracks_test carries the wall-crack animation and deserttreasure_scarab_pour the
+// swarm pour; both were in the cache with nothing behind them. The wall crusher is the level-3
+// hazard.
+
+[oploc1,deserttreasure_wall_crusher]
+mes("The wall shudders.");
+anim(human_stumble_back, 0);
+~damage_self(randominc(8));
+p_delay(2);
+~mesbox("A slab of the wall swings out and catches you.");
+
+[oploc1,dt_dummy_square]
+if (%deserttreasure < ^dt_diamonds_placed) {
+    ~mesbox("A small fissure in the ground. Nothing comes out of it.");
+    return;
+}
+if (random(2) = 0) {
+    ~mesbox("Nothing happens.");
+    return;
+}
+mes("The fissure widens, and scarabs pour out of it.");
+sound_synth(smokepuff, 1, 0);
+p_delay(1);
+npc_add(map_findsquare(coord, 1, 2, ^map_findsquare_lineofwalk), scarab_swarm, 300);
+npc_setmode(none);
+npc_anim(scarab_spiral, 0);
+p_delay(1);
+npc_facesquare(coord);
+~npc_retaliate(0);
+%aggressive_npc = npc_uid;
+p_stopaction;
+
+// ================================================================================ the Zaros altar
+//
+// Praying here is what makes Azzanadra visible - stage 13 is the first stage his multi resolves at.
+// After the quest, the same altar is the ONLY way to switch spellbooks, and it drains Prayer to
+// nothing doing it, exactly as in 2006.
+
+[oploc1,dt_zaros_altar]
+if (%deserttreasure < ^dt_diamonds_placed) {
+    ~mesbox("An ancient altar. Whatever it was raised to, nobody has prayed here in a very long time.");
+    return;
+}
+if (%deserttreasure = ^dt_diamonds_placed) {
+    mes("You kneel at the altar.");
+    anim(human_pray, 0);
+    p_delay(3);
+    ~mesbox("The air goes very cold, and something enormous turns its attention on you.|A figure is standing where nothing was standing a moment ago.");
+    %deserttreasure = ^dt_azzanadra_found;
+    ~send_quest_progress(questlist:deserttreasure, %deserttreasure, ^deserttreasure_complete);
+    return;
+}
+if (%deserttreasure < ^deserttreasure_complete) {
+    ~mesbox("Azzanadra is here. You should speak to him.");
+    return;
+}
+@dt_swap_spellbook;
+
+// The 2006 spellbook switch: this altar, and nothing else. It costs all your Prayer points and does
+// not give them back.
+[label,dt_swap_spellbook]
+def_int $choice = -1;
+if (%spellbook = 1) {
+    $choice = ~p_choice2("Return to the normal spellbook.", 1, "Leave the altar alone.", 2);
+} else {
+    $choice = ~p_choice2("Switch to Ancient Magicks.", 1, "Leave the altar alone.", 2);
+}
+if ($choice ! 1) {
+    return;
+}
+if_close;
+mes("You kneel at the altar.");
+anim(human_pray, 0);
+sound_synth(magical_barrier, 1, 0);
+p_delay(3);
+stat_sub(prayer, stat(prayer), 0);
+if (%spellbook = 1) {
+    %spellbook = 0;
+    if_settab(magic, ^tab_magic);
+    ~mesbox("You feel the ancient words drain out of you.|Your prayer points have been used up.");
+    return;
+}
+%spellbook = 1;
+if_settab(ancient_magic, ^tab_magic);
+~mesbox("An ancient power flows into you.|Your prayer points have been used up.");
+
+// ================================================================================ Azzanadra
+
+[opnpc1,azzanadra_real]
+if (%deserttreasure = ^dt_azzanadra_found) {
+    ~chatnpc("<p,angry>Who are you? Speak quickly - I have been asleep a long time and I am not patient.");
+    ~chatplayer("<p,quiz>My name doesn't matter. Are you Azzanadra?");
+    ~chatnpc("<p,neutral>I am. How goes the war? Has Zaros retaken the north yet?");
+    ~chatplayer("<p,sad>The... war? Azzanadra, the God Wars ended thousands of years ago.");
+    ~chatnpc("<p,shock>Thousands...");
+    ~chatnpc("<p,sad>Then I have been in this box for rather longer than I thought.");
+    %deserttreasure = ^dt_azzanadra_freed;
+    ~send_quest_progress(questlist:deserttreasure, %deserttreasure, ^deserttreasure_complete);
+    return;
+}
+if (%deserttreasure = ^dt_azzanadra_freed) {
+    ~chatnpc("<p,neutral>You broke the seal. Zamorak's people spent four diamonds and four warriors keeping me in here, and you undid it in an afternoon.");
+    ~chatplayer("<p,neutral>You could say thank you.");
+    ~chatnpc("<p,happy>I could. Instead I will give you something more useful.");
+    ~chatnpc("<p,neutral>The magic of the old empire. It is not gentle and it is not subtle, but nothing since has matched it.");
+    if_close;
+    p_delay(1);
+    anim(human_pray, 0);
+    spotanim_pl(zaros_teleport, 92, 0);
+    sound_synth(magical_barrier, 1, 0);
+    p_delay(3);
+    queue(dt_quest_complete, 0);
+    return;
+}
+~chatnpc("<p,happy>Go well. And if you ever meet a follower of Zamorak, give him my regards.");
+
+// ================================================================================ completion
+
+[queue,dt_quest_complete]
+session_log(^log_adventure, "Quest complete: Desert Treasure");
+%deserttreasure = ^deserttreasure_complete;
+%spellbook = 1;
+if_settab(ancient_magic, ^tab_magic);
+stat_advance(magic, 2000000);
+~send_quest_complete(questlist:deserttreasure, staff_of_zaros, 250, ^deserttreasure_questpoints, "You have completed\\nDesert Treasure!", "Ancient Magicks|20,000 Magic XP|The Ring of Visibility|Access to the Smoke and Shadow Dungeons|The Ancient Staff, from Eblis");
+
+// ================================================================================ the exit portal
+
+[oploc1,dt_portal]
+mes("You step into the portal.");
+p_delay(1);
+p_telejump(^dt_temple_backdoor);

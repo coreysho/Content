@@ -6,6 +6,18 @@
 [if_button,magic:watchtower_teleport] @magic_teleport(^watchtower_teleport);
 [if_button,magic:trollheim_teleport] @magic_teleport(^trollheim_teleport);
 
+// The eight Ancient Magicks teleports (Corey, 2026-09-07). Same label as the normal book - the
+// wilderness, quest and pre-tele checks are identical - and the destination comes from the same
+// tele_coord column. The only difference is the animation, picked inside magic_teleport below.
+[if_button,ancient_magic:paddewwa_teleport] @magic_teleport(^paddewwa_teleport);
+[if_button,ancient_magic:senntisten_teleport] @magic_teleport(^senntisten_teleport);
+[if_button,ancient_magic:kharyrll_teleport] @magic_teleport(^kharyrll_teleport);
+[if_button,ancient_magic:lassar_teleport] @magic_teleport(^lassar_teleport);
+[if_button,ancient_magic:dareeyak_teleport] @magic_teleport(^dareeyak_teleport);
+[if_button,ancient_magic:carrallanger_teleport] @magic_teleport(^carrallanger_teleport);
+[if_button,ancient_magic:annakarl_teleport] @magic_teleport(^annakarl_teleport);
+[if_button,ancient_magic:ghorrock_teleport] @magic_teleport(^ghorrock_teleport);
+
 [label,magic_teleport](int $spell)
 if_close;
 if (p_finduid(uid) = true) {
@@ -44,7 +56,16 @@ if (p_finduid(uid) = true) {
     ~give_spell_xp($spell_data);
     // give additional affects
     // teleport player. Always a radius of 2
-    ~player_teleport_normal(map_findsquare(db_getfield($spell_data, magic_spell_table:tele_coord, 0), 0, 2, ^map_findsquare_lineofwalk));
+    def_coord $dest = map_findsquare(db_getfield($spell_data, magic_spell_table:tele_coord, 0), 0, 2, ^map_findsquare_lineofwalk);
+    // The ancient teleports use the cache's own zaros_teleport seq and spotanim rather than the
+    // normal book's human_castteleport / teleport_casting pair. Both were already in the 377 cache
+    // (seq 1988, spotanim 392) and unused. Keyed off the spell id range so no other caller of
+    // ~player_teleport_normal - jewellery, quest teleports, random events - is affected.
+    if ($spell >= ^paddewwa_teleport & $spell <= ^ghorrock_teleport) {
+        ~player_teleport_ancient($dest);
+        return;
+    }
+    ~player_teleport_normal($dest);
 }
 
 [proc,player_teleport_normal](coord $coord)
@@ -53,6 +74,15 @@ p_stopaction;
 sound_synth(teleport_all, 1, 0);
 anim(human_castteleport, 0);
 spotanim_pl(teleport_casting, 92, 0);
+p_delay(2);
+~p_telejump_safe($coord);
+
+[proc,player_teleport_ancient](coord $coord)
+if_close;
+p_stopaction;
+sound_synth(teleport_all, 1, 0);
+anim(zaros_teleport, 0);
+spotanim_pl(zaros_teleport, 92, 0);
 p_delay(2);
 ~p_telejump_safe($coord);
 

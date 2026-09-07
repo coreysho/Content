@@ -1,0 +1,119 @@
+// Desert Treasure - the quest journal (Corey, 2026-09-07).
+//
+// questlist:deserttreasure is component 12852 and has been sitting in interface.pack since the cache
+// was dumped with no handler behind it. Cumulative fall-through shape, the same one regicide uses -
+// each block appends the step just completed and then returns if that is where the player is.
+
+[if_button,questlist:deserttreasure]
+def_string $n = "Desert Treasure";
+def_string $x;
+
+if (%deserttreasure = ^deserttreasure_complete) {
+    $x = append($x, "@str@I recovered the four diamonds of blood, ice, smoke and shadow from|");
+    $x = append($x, "@str@Zamorak's warriors, opened the pyramid of Jaldraocht and freed the|");
+    $x = append($x, "@str@Mahjarrat Azzanadra, who taught me the Ancient Magicks.|");
+    $x = append($x, "|@red@QUEST COMPLETE!");
+    ~quest_journal($n, $x);
+    return;
+}
+
+if (%deserttreasure = ^dt_not_started) {
+    $x = append($x, "@dbl@I can start this quest by speaking to the @dre@Archaeologist@dbl@ at the|");
+    $x = append($x, "@dbl@@dre@Bedabin Camp@dbl@, south-west of the Shantay Pass.||");
+    $x = append($x, "@dbl@I will need a @dre@Magic@dbl@ level of @dre@50@dbl@, and to have completed|");
+    $x = append($x, "@dbl@@dre@The Dig Site@dbl@, @dre@Temple of Ikov@dbl@, @dre@Troll Stronghold@dbl@,|");
+    $x = append($x, "@dbl@@dre@Priest in Peril@dbl@ and the @dre@Waterfall Quest@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+
+$x = append($x, "@str@An archaeologist at the Bedabin Camp believes four diamonds of great|");
+$x = append($x, "@str@power are buried somewhere in the desert.|");
+
+if (%deserttreasure = ^dt_got_etchings) {
+    $x = append($x, "|@dbl@I should take the @dre@etchings@dbl@ to the @dre@Archaeological Expert@dbl@|");
+    $x = append($x, "@dbl@at the @dre@Digsite Exam Centre@dbl@, east of Varrock.");
+    ~quest_journal($n, $x);
+    return;
+}
+
+$x = append($x, "@str@The Archaeological Expert translated the etchings for me.|");
+
+if (%deserttreasure = ^dt_got_translation) {
+    $x = append($x, "|@dbl@I should take the @dre@translation@dbl@ back to the @dre@Archaeologist@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+
+if (%deserttreasure = ^dt_sent_to_bandits) {
+    $x = append($x, "|@dbl@The Archaeologist sent me to the @dre@Bandit Camp@dbl@ in the desert.|");
+    $x = append($x, "@dbl@I should buy a drink from the @dre@bartender@dbl@ and ask about the diamonds.|");
+    $x = append($x, "@dbl@I must not wear anything bearing a god's symbol there.");
+    ~quest_journal($n, $x);
+    return;
+}
+
+$x = append($x, "@str@The bandits' bartender told me Zamorak's servants took the diamonds.|");
+
+if (%deserttreasure = ^dt_heard_of_diamonds) {
+    $x = append($x, "|@dbl@I should speak to @dre@Eblis@dbl@ on the east side of the Bandit Camp.");
+    ~quest_journal($n, $x);
+    return;
+}
+
+if (%deserttreasure = ^dt_eblis_wants_materials) {
+    $x = append($x, "|@dbl@Eblis is building a @dre@scrying glass@dbl@. He needs @dre@12 magic logs@dbl@,|");
+    $x = append($x, "@dbl@@dre@6 molten glass@dbl@, @dre@6 steel bars@dbl@, @dre@ashes@dbl@, @dre@charcoal@dbl@,|");
+    $x = append($x, "@dbl@@dre@bones@dbl@ and a @dre@blood rune@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+
+$x = append($x, "@str@I gave Eblis everything he needed for his scrying glass.|");
+
+if (%deserttreasure = ^dt_eblis_at_mirrors) {
+    $x = append($x, "|@dbl@I should meet Eblis at the @dre@six mirrors@dbl@, south-east of the camp.");
+    ~quest_journal($n, $x);
+    return;
+}
+
+if (%deserttreasure = ^dt_hunting_diamonds) {
+    $x = append($x, "@str@The mirrors showed me where the four diamonds went.|");
+    $x = append($x, "|@dbl@I need to recover all four:|");
+    if (%fdvw_subquest >= ^fdvw_done) {
+        $x = append($x, "@str@  Blood - Dessous, in Morytania. Done.|");
+    } else {
+        $x = append($x, "@dbl@  @dre@Blood@dbl@ - speak to @dre@Malak@dbl@ in Canifis.|");
+    }
+    if (%fd_icewarrior_subquest >= ^fdiw_diamond_given) {
+        $x = append($x, "@str@  Ice - Kamil, in the troll mountains. Done.|");
+    } else {
+        $x = append($x, "@dbl@  @dre@Ice@dbl@ - past the ice gate north-west of @dre@Trollheim@dbl@.|");
+    }
+    if (inv_total(inv, fd_diamond_fire) > 0 | %fd_column_fire = 1) {
+        $x = append($x, "@str@  Smoke - Fareed, under the desert. Done.|");
+    } else {
+        $x = append($x, "@dbl@  @dre@Smoke@dbl@ - down the @dre@Smokey well@dbl@ west of Pollnivneach.|");
+    }
+    if (%fd_shadowwarrior_quest >= ^fdsw_damis_dead | inv_total(inv, fd_dark_diamond) > 0 | %fd_column_shadow = 1) {
+        $x = append($x, "@str@  Shadow - Damis, below Baxtorian. Done.|");
+    } else {
+        $x = append($x, "@dbl@  @dre@Shadow@dbl@ - speak to @dre@Rasolo@dbl@, west of the Fishing Guild.|");
+    }
+    ~quest_journal($n, $x);
+    return;
+}
+
+$x = append($x, "@str@I recovered all four diamonds and placed them in the obelisks at the|");
+$x = append($x, "@str@corners of the pyramid. The pyramid has opened.|");
+
+if (%deserttreasure = ^dt_diamonds_placed) {
+    $x = append($x, "|@dbl@I should climb down into the @dre@pyramid@dbl@ and find what the diamonds|");
+    $x = append($x, "@dbl@were sealing in. The @dre@altar@dbl@ is at the very bottom.");
+    ~quest_journal($n, $x);
+    return;
+}
+
+$x = append($x, "@str@I prayed at the altar, and Azzanadra appeared.|");
+$x = append($x, "|@dbl@I should speak to @dre@Azzanadra@dbl@.");
+~quest_journal($n, $x);

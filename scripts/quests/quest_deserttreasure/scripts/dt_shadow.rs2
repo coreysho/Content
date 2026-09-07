@@ -1,0 +1,183 @@
+// Desert Treasure - the Shadow diamond, Damis (Corey, 2026-09-07).
+//
+// Rasolo is npc shadow_warrior_rasool in the cache (already a working shop keeper, with
+// param=owned_shop,rasoolshop1 - so he keeps his Trade option and only gains dialogue). The ladder
+// into the Shadow Dungeon is fd_shadowladder1, a multiloc shell reading fd_ladder_present: with the
+// varbit clear the tile is empty, with it set the ladder appears. That is the cache's own
+// implementation of "invisible without the ring of visibility", and nothing was setting it.
+//
+// Progress is fd_shadowwarrior_quest, a 5-bit varbit the cache reserved.
+
+// ================================================================================ Rasolo
+
+[opnpc1,shadow_warrior_rasool]
+if (%deserttreasure < ^dt_hunting_diamonds) {
+    ~chatnpc("<p,happy>Wares! Fine wares! Nothing you want, I expect, but have a look anyway.");
+    return;
+}
+if (%fd_shadowwarrior_quest >= ^fdsw_got_ring) {
+    ~chatnpc("<p,happy>Mind how you go down there. It is not a friendly hole.");
+    if (inv_total(inv, fd_ring_visibility) < 1 & inv_total(worn, fd_ring_visibility) < 1) {
+        ~chatnpc("<p,neutral>Lost the ring? Here, take another. I have no other use for them.");
+        if (inv_freespace(inv) = 0) {
+            return;
+        }
+        inv_add(inv, fd_ring_visibility, 1);
+        ~objbox(fd_ring_visibility, "Rasolo hands you another ring of visibility.", 250, 0, ^objbox_height);
+    }
+    return;
+}
+if (%fd_shadowwarrior_quest = ^fdsw_asked_for_cross & inv_total(inv, fd_sword_cross) > 0) {
+    @dt_rasolo_reward;
+}
+if (%fd_shadowwarrior_quest = ^fdsw_asked_for_cross) {
+    ~chatnpc("<p,sad>Still no cross? The bandits have it, in the southernmost tent. Locked chest, three locks. You'll want lockpicks and something for the poison.");
+    return;
+}
+~chatplayer("<p,quiz>I'm looking for a diamond of shadow.");
+~chatnpc("<p,worried>Shadow, is it. There is a hole in the ground east of here full of shadow, and a thing at the bottom of it I would not go near.");
+~chatplayer("<p,quiz>Can you get me in?");
+~chatnpc("<p,neutral>I can. There is a ladder, but you cannot see it - not without a ring my family made, three generations back.");
+~chatnpc("<p,angry>Which the desert bandits stole, along with a gilded cross that meant rather more to me.");
+~chatnpc("<p,neutral>Bring me back the cross and the ring is yours.");
+%fd_shadowwarrior_quest = ^fdsw_asked_for_cross;
+%fd_shadowwar_intro = 1;
+
+[label,dt_rasolo_reward]
+~chatplayer("<p,happy>I found your cross.");
+~chatnpc("<p,happy>You did! After all these years. Here - the ring, as promised. Wear it and the ladder will show itself.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>Make some space and I'll hand it over.");
+    return;
+}
+inv_del(inv, fd_sword_cross, 1);
+inv_add(inv, fd_ring_visibility, 1);
+%fd_shadowwarrior_quest = ^fdsw_got_ring;
+%fd_ladder_present = 1;
+~objbox(fd_ring_visibility, "Rasolo hands you the ring of visibility.", 250, 0, ^objbox_height);
+~chatnpc("<p,worried>The ladder is east of here, past the moss giants. Wear the ring or you will walk straight over it.");
+
+// ================================================================================ the bandit chest
+//
+// Three locks, all three of which must be picked in a row. A failure poisons you and breaks a
+// lockpick, exactly as in 2005. fd_banditchest_disarmed records that the cross has been taken.
+
+[oploc1,fd_bandit_shutchest]
+if (%deserttreasure < ^dt_hunting_diamonds) {
+    ~mesbox("A very sturdy chest. It is not yours and you have no reason to open it.");
+    return;
+}
+if (%fd_banditchest_disarmed = 1) {
+    ~mesbox("The chest is empty.");
+    return;
+}
+if (stat(thieving) < 53) {
+    ~mesbox("You need a Thieving level of 53 to pick these locks.");
+    return;
+}
+if (inv_total(inv, lockpick) < 1) {
+    ~mesbox("The chest has three locks on it. You would need lockpicks.");
+    return;
+}
+mes("You set to work on the first of the three locks.");
+def_int $lock = 0;
+while ($lock < 3) {
+    anim(human_pickpocket, 0);
+    sound_synth(pick_lock, 1, 0);
+    p_delay(3);
+    if (inv_total(inv, lockpick) < 1) {
+        mes("You have run out of lockpicks.");
+        return;
+    }
+    if (stat_random(thieving, ^dt_lockpick_chance_low, ^dt_lockpick_chance_high) = false) {
+        inv_del(inv, lockpick, 1);
+        mes("The lockpick snaps, and a needle jabs your hand.");
+        ~damage_self(2);
+        queue(poison_player, 0, 4);
+        return;
+    }
+    mes("One of the locks clicks open.");
+    $lock = add($lock, 1);
+}
+if (inv_freespace(inv) = 0) {
+    mes("The chest is open, but you have no room to take anything.");
+    return;
+}
+loc_change(fd_bandit_openchest, 200);
+inv_add(inv, fd_sword_cross, 1);
+%fd_banditchest_disarmed = 1;
+~objbox(fd_sword_cross, "Inside the chest is an old, strangely shaped metal cross.", 250, 0, ^objbox_height);
+
+[oploc1,fd_bandit_openchest]
+~mesbox("The chest is empty.");
+
+// ================================================================================ the ladder
+//
+// fd_ladder_present is the multivar on fd_shadowladder1. It is kept in step with the ring on every
+// interaction rather than on a timer, so taking the ring off makes the ladder vanish again.
+
+[oploc1,fd_shadow_ladder_there]
+if (inv_total(worn, fd_ring_visibility) < 1) {
+    mes("You cannot get a grip on the ladder. It is barely there at all.");
+    return;
+}
+mes("You climb down into the dark.");
+p_delay(1);
+p_telejump(^dt_shadow_dungeon);
+
+[oploc1,fd_shadowladder]
+mes("You climb back up towards the daylight.");
+p_delay(1);
+p_telejump(^dt_shadow_ladder_top);
+
+// No [opheld2,fd_ring_visibility] here. The obj already declares iop2=Wear and the engine's own
+// equip handling covers it; declaring the trigger would override that and make us reimplement
+// equipping. So fd_ladder_present is set once, when Rasolo hands the ring over, and the ladder stays
+// visible from then on. The requirement to actually WEAR the ring is still enforced below, on the
+// climb - a small fidelity loss (the tile is no longer bare when the ring is off) in exchange for
+// not fighting the engine.
+
+// ================================================================================ Damis
+//
+// Two forms. Form 1 is spawned on entry to the lair; when it dies its ai_queue3 hook spawns form 2
+// in the same place. Neither form drops the diamond until form 2 dies.
+
+[oploc1,deserttreasure_shadowladder]
+mes("You climb down.");
+p_delay(1);
+p_telejump(^dt_damis_lair);
+~dt_spawn_damis;
+
+[proc,dt_spawn_damis]
+if (%deserttreasure < ^dt_hunting_diamonds) {
+    return;
+}
+if (%fd_shadowwarrior_quest >= ^fdsw_damis_dead) {
+    return;
+}
+if (npc_find(^dt_damis_lair, fd_damis_normal, 20, 0) = true) {
+    return;
+}
+if (npc_find(^dt_damis_lair, fd_damis_tougher, 20, 0) = true) {
+    return;
+}
+npc_add(map_findsquare(^dt_damis_lair, 0, 3, ^map_findsquare_lineofwalk), fd_damis_normal, 2000);
+npc_setmode(none);
+npc_say("Another one. They keep sending you.");
+~npc_retaliate(0);
+%aggressive_npc = npc_uid;
+
+// Form 1's death is not a death at all - he changes. No drop, no pause.
+[ai_queue3,fd_damis_normal]
+gosub(npc_death);
+npc_add(npc_coord, fd_damis_tougher, 2000);
+npc_setmode(none);
+npc_say("Did you think that was all of me?");
+
+[ai_queue3,fd_damis_tougher]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+obj_add(npc_coord, fd_dark_diamond, 1, ^lootdrop_duration);
+obj_add(npc_coord, coins, 3000, ^lootdrop_duration);

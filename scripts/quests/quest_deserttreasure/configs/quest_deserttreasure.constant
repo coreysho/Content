@@ -1,0 +1,110 @@
+// Desert Treasure (Corey, 2026-09-07). Released 18 April 2005, so squarely in era for a 377 server.
+//
+// Almost nothing here had to be invented. The 377 cache already contains every npc, loc, obj,
+// animation, spotanim and - most usefully - the entire varbit state model Jagex designed for this
+// quest, and content/maps already has all four boss areas, the Bandit Camp, the mirrors, the
+// obelisks, the pyramid maze and the Ancient Temple built and populated. What was missing was the
+// logic. See claude/desert-treasure.md.
+//
+// ^deserttreasure_complete = 15 already lives in general/configs/quest.constant and must NOT be
+// redeclared here - doing so is a hard "Duplicate constant found" build error.
+//
+// The stage numbers are not free choices. Three cache multis read the deserttreasure varbit
+// directly and pin them:
+//   npc fourdiamonds_elder  multinpc 0..10  -> fd_elder_village   (Eblis in the Bandit Camp)
+//   npc fourdiamonds_elder2 multinpc 10..15 -> fd_elder_by_mirrors (Eblis at the mirrors)
+//   npc azzanadra          multinpc 13,14  -> azzanadra_real      (only visible in those two stages)
+//   loc dia_down           multiloc 15     -> dt_portal           (the exit portal, once complete)
+// So Eblis has to move to the mirrors at stage 10, Azzanadra can only be seen at 13 and 14, and the
+// portal only exists at 15. The stages below are laid out to satisfy that exactly.
+
+^dt_not_started = 0
+^dt_got_etchings = 1
+^dt_got_translation = 2
+^dt_sent_to_bandits = 3
+^dt_heard_of_diamonds = 4
+^dt_eblis_wants_materials = 5
+^dt_eblis_at_mirrors = 10
+^dt_hunting_diamonds = 11
+^dt_diamonds_placed = 12
+^dt_azzanadra_found = 13
+^dt_azzanadra_freed = 14
+
+// ---------------------------------------------------------------- coordinates
+//
+// Every coord below was read out of content/maps rather than guessed - each one is the tile the
+// .jm2 places the matching loc or npc on.
+
+// Pyramid: the exterior ladder drops you into the TOP of the maze and you descend. The maze is
+// three map squares at three levels (m45_77 lvl 3, m44_77 lvl 2, m43_77 lvl 1) and the bottom
+// "level" is the Ancient Temple itself on m50_145.
+^dt_pyramid_exterior = 0_50_45_33_17
+^dt_pyramid_level3 = 3_45_77_33_25
+^dt_pyramid_l3_down = 2_44_77_29_36
+^dt_pyramid_l3_up = 3_45_77_29_36
+^dt_pyramid_l2_down = 1_43_77_30_45
+^dt_pyramid_l2_up = 2_44_77_30_45
+^dt_pyramid_l1_down = 0_50_145_32_13
+^dt_pyramid_l1_up = 1_43_77_32_13
+^dt_temple_altar = 0_50_145_32_31
+^dt_temple_backdoor = 0_50_45_33_8
+
+// Bandit Camp and the mirrors
+^dt_bandit_chest = 0_49_46_33_23
+^dt_mirrors = 0_50_46_14_7
+
+// The four obelisks at the pyramid's corners
+^dt_obelisk_blood = 0_50_45_20_29
+^dt_obelisk_smoke = 0_50_45_44_29
+^dt_obelisk_ice = 0_50_45_44_5
+^dt_obelisk_shadow = 0_50_45_20_5
+
+// Blood: Dessous's tomb in Morytania, and Ruantun under Draynor
+^dt_dessous_tomb = 0_55_53_48_9
+^dt_ruantun = 0_48_151_40_26
+
+// Smoke: the Smokey well west of Pollnivneach, and Fareed's gate at the far east of the dungeon
+^dt_smoke_well_bottom = 0_50_146_5_35
+^dt_smoke_well_top = 0_51_46_46_18
+^dt_fareed_gate = 0_51_146_41_31
+^dt_fareed_arena = 0_51_146_45_31
+
+// Shadow: Rasolo's invisible ladder near Baxtorian, and the dungeon it leads to
+^dt_shadow_ladder_top = 0_39_53_51_29
+^dt_shadow_dungeon = 0_41_79_5_16
+^dt_damis_lair = 0_41_79_2_9
+
+// Ice: the troll child at the ice gate on Trollheim's north-west edge
+^dt_ice_gate = 0_44_58_20_60
+^dt_kamil_arena = 0_44_58_36_20
+
+// ---------------------------------------------------------------- tuning
+^dt_fare_bandit_brew = 650
+^dt_lockpick_chance_low = 30
+^dt_lockpick_chance_high = 200
+^dt_ice_path_drain_ticks = 25
+^dt_smoke_damage_ticks = 8
+^dt_torch_burn_ticks = 100
+
+// ---------------------------------------------------------------- blood sub-quest (fdvw_subquest)
+// fdvw = "four diamonds vampire warrior" - a 4-bit varbit the cache reserved and nothing ever wrote.
+^fdvw_not_started = 0
+^fdvw_asked_malak = 1
+^fdvw_got_pot = 2
+^fdvw_pot_blessed = 3
+^fdvw_pot_filled = 4
+^fdvw_dessous_summoned = 5
+^fdvw_dessous_dead = 6
+^fdvw_done = 7
+
+// ---------------------------------------------------------------- ice sub-quest (fd_icewarrior_subquest)
+^fdiw_not_started = 0
+^fdiw_gave_sweet = 1
+^fdiw_parents_freed = 2
+^fdiw_diamond_given = 3
+
+// ---------------------------------------------------------------- shadow sub-quest (fd_shadowwarrior_quest)
+^fdsw_not_started = 0
+^fdsw_asked_for_cross = 1
+^fdsw_got_ring = 2
+^fdsw_damis_dead = 3

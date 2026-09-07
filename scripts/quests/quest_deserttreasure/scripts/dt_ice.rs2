@@ -1,0 +1,189 @@
+// Desert Treasure - the Ice diamond, Kamil (Corey, 2026-09-07).
+//
+// Progress is fd_icewarrior_subquest, a 5-bit varbit the cache reserved. The troll child is a
+// multi npc reading it: fourdiamonds_troll_child shows _crying at 0 and _okay at 1 and above, so
+// cheering him up with a sweet is literally a one-line varbit write and the client swaps the model.
+//
+// Kamil's defining mechanic - immune to every spell except Fire - is enforced in dt_combat.rs2,
+// which hooks the same place in player_magic.rs2 that Salarin, Chronozon and the Dagannoth Mother
+// already hook.
+//
+// NOT implemented, and flagged rather than faked: the Ice Path's environmental stat drain and
+// forced-walk. Both need a per-tick zone effect this codebase has no existing mechanism for, and a
+// bad one would be worse than none. The path is otherwise complete.
+
+// ================================================================================ the troll child
+
+[opnpc1,fourdiamonds_troll_child_crying]
+@dt_troll_child;
+
+[opnpc1,fourdiamonds_troll_child_okay]
+@dt_troll_child;
+
+[label,dt_troll_child]
+if (%deserttreasure < ^dt_hunting_diamonds) {
+    ~chatnpc("<p,sad>Go away. Not want talk.");
+    return;
+}
+if (%fd_icewarrior_subquest >= ^fdiw_diamond_given) {
+    ~chatnpc("<p,happy>You good human. Mummy and daddy say hello.");
+    return;
+}
+if (%fd_icewarrior_subquest >= ^fdiw_parents_freed) {
+    @dt_troll_child_reward;
+}
+if (%fd_icewarrior_subquest >= ^fdiw_gave_sweet) {
+    ~chatnpc("<p,sad>Mummy and daddy still ice. Please help.");
+    ~chatnpc("<p,neutral>Ice man live past gate. Him freeze them. Smash ice blocks to let them out.");
+    return;
+}
+if (%fd_trollchild_intro = 0) {
+    ~chatnpc("<p,sad>*sniff*");
+    ~chatplayer("<p,quiz>Are you all right?");
+    ~chatnpc("<p,sad>No! Bad man come. Freeze mummy. Freeze daddy. Me all alone.");
+    ~chatplayer("<p,quiz>What bad man?");
+    ~chatnpc("<p,sad>White man. Cold man. Him live past gate with shiny stone.");
+    ~chatnpc("<p,sad>Me hungry too. Me want sweet.");
+    %fd_trollchild_intro = 1;
+    return;
+}
+~chatnpc("<p,sad>Me want sweet. Then me let you past gate.");
+
+[opnpcu,fourdiamonds_troll_child_crying]
+@dt_troll_child_sweet;
+
+[opnpcu,fourdiamonds_troll_child_okay]
+@dt_troll_child_sweet;
+
+[label,dt_troll_child_sweet]
+if (%deserttreasure < ^dt_hunting_diamonds) {
+    ~chatnpc("<p,sad>Not want.");
+    return;
+}
+if (%fd_icewarrior_subquest >= ^fdiw_gave_sweet) {
+    ~chatnpc("<p,happy>Me full. Thank you.");
+    return;
+}
+if (~dt_is_sweet(last_useitem) = false) {
+    ~chatnpc("<p,sad>Not sweet. Me want sweet.");
+    return;
+}
+inv_del(inv, last_useitem, 1);
+~chatnpc("<p,happy>SWEET! Me like you now. You go past gate. Ice man there.");
+~chatnpc("<p,neutral>Please free mummy and daddy. Them in ice past cold path.");
+%fd_icewarrior_subquest = ^fdiw_gave_sweet;
+~dt_spawn_kamil;
+~send_quest_progress(questlist:deserttreasure, %deserttreasure, ^deserttreasure_complete);
+
+[proc,dt_is_sweet](obj $item)(boolean)
+switch_obj ($item) {
+    case cake : return(true);
+    case cake_slice : return(true);
+    case chocolate_cake : return(true);
+    case chocolate_slice : return(true);
+    case chocolate_bar : return(true);
+    case cooking_apple : return(true);
+    case default : return(false);
+}
+return(false);
+
+// ================================================================================ Kamil
+//
+// The seven ice trolls guarding the path already have a drop table wired in
+// drop_tables/scripts/ice_troll.rs2, which owns their [ai_queue3] triggers - a second declaration
+// is a build error - so the "kill five trolls to open the gate" gate is NOT implemented. They are
+// still in the way and still have to be fought through; there is just no counter.
+//
+// Kamil is spawned the moment the troll child lets you past rather than standing on the map, which
+// keeps him from being farmed before the quest and matches how the fight really starts.
+[proc,dt_spawn_kamil]
+if (npc_find(^dt_kamil_arena, icediamond_icewarrior, 20, 0) = true) {
+    return;
+}
+npc_add(^dt_kamil_arena, icediamond_icewarrior, 2000);
+
+[ai_queue3,icediamond_icewarrior]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+obj_add(npc_coord, bones, 1, ^lootdrop_duration);
+obj_add(npc_coord, coins, 2000, ^lootdrop_duration);
+
+// Kamil's death is recorded from the player's side rather than the death hook, because an ai_queue
+// trigger has no player varp pointer. Talking to the ice blocks is the natural place.
+
+// ================================================================================ the ice blocks
+
+[opnpc2,fd_trollblock1] ~dt_smash_ice(1);
+[opnpc2,fd_trollblock2] ~dt_smash_ice(2);
+[opnpc1,fd_trollblock1] ~dt_look_at_ice;
+[opnpc1,fd_trollblock2] ~dt_look_at_ice;
+
+[proc,dt_look_at_ice]
+if (%deserttreasure < ^dt_hunting_diamonds) {
+    ~mesbox("A troll, frozen solid inside a block of ice. There is nothing you can do for it.");
+    return;
+}
+~mesbox("A troll, frozen solid inside a block of ice. The ice looks brittle - you could smash it.");
+
+[proc,dt_smash_ice](int $which)
+if (%deserttreasure < ^dt_hunting_diamonds | %fd_icewarrior_subquest < ^fdiw_gave_sweet) {
+    mes("You have no reason to break this open.");
+    return;
+}
+if ($which = 1 & %fd_icewarrior_dadfree = 1) {
+    mes("This block is already broken open.");
+    return;
+}
+if ($which = 2 & %fd_icewarrior_mumfree = 1) {
+    mes("This block is already broken open.");
+    return;
+}
+// Kamil's death is checked by his absence rather than by a varbit. An [ai_queue3] death hook runs
+// with no player pointer at all, so it cannot write a player varbit - and "he is not here any more"
+// is the same test from the player's side.
+if (npc_find(coord, icediamond_icewarrior, 20, 0) = true) {
+    mes("Kamil is still here. You will not get near the ice while he lives.");
+    return;
+}
+mes("You strike the block of ice.");
+anim(human_axe_smash, 0);
+sound_synth(smash_gem, 1, 0);
+p_delay(3);
+mes("The ice cracks and falls away.");
+if ($which = 1) {
+    %fd_icewarrior_dadfree = 1;
+} else {
+    %fd_icewarrior_mumfree = 1;
+}
+if (%fd_icewarrior_dadfree = 1 & %fd_icewarrior_mumfree = 1) {
+    %fd_icewarrior_subquest = ^fdiw_parents_freed;
+    ~mesbox("Both trolls are free. You should tell their child.");
+}
+
+[opnpc1,fd_troll_dad]
+if (%fd_icewarrior_subquest >= ^fdiw_parents_freed) {
+    ~chatnpc("<p,happy>You break ice. Good human. Child waiting for you.");
+    return;
+}
+~chatnpc("<p,neutral>Grrr.");
+
+[opnpc1,fd_troll_mum]
+if (%fd_icewarrior_subquest >= ^fdiw_parents_freed) {
+    ~chatnpc("<p,happy>Thank you. Go see child - him have shiny stone cold man dropped.");
+    return;
+}
+~chatnpc("<p,neutral>Grrr.");
+
+[label,dt_troll_child_reward]
+~chatnpc("<p,happy>Mummy! Daddy! You free them!");
+~chatplayer("<p,happy>They're both fine.");
+~chatnpc("<p,happy>Cold man drop shiny stone when him fall. Me keep for you.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>You hands full. Come back.");
+    return;
+}
+inv_add(inv, fd_icediamond, 1);
+%fd_icewarrior_subquest = ^fdiw_diamond_given;
+~objbox(fd_icediamond, "The troll child hands you the Diamond of Ice.", 250, 0, ^objbox_height);

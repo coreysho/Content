@@ -1,0 +1,311 @@
+// Desert Treasure - the Blood diamond (Corey, 2026-09-07).
+//
+// The longest of the four, and the only one that is a chain of items rather than a dungeon. Every
+// pot variant it needs already exists in the cache - fd_silver_pot through
+// fd_silver_pot_blood_garlic_spiced_blessed, ten of them, covering every order the ingredients can
+// be added in. None of them was referenced by a single script.
+//
+// Two cache traps worth knowing. The npc NAMED malak is not Malak - its display name is Ruantun,
+// the silversmith in the Draynor sewers. The real Malak is fourdiamonds_vampire_lord, in Canifis.
+// And the tomb loc is vampire_big_grave_noblood, which swaps to vampire_big_grave_withblood (which
+// carries anim=vampire_coffin_open) when the ritual is performed.
+//
+// Progress is fdvw_subquest, a 4-bit varbit the cache reserved for exactly this and nothing ever
+// wrote to. fdvw = "four diamonds vampire warrior".
+
+// ================================================================================ Malak, in Canifis
+
+[opnpc1,fourdiamonds_vampire_lord]
+if (%deserttreasure < ^dt_hunting_diamonds) {
+    ~chatnpc("<p,neutral>You are not interesting to me. Go away.");
+    return;
+}
+if (%fdvw_subquest = ^fdvw_dessous_dead) {
+    @dt_malak_hands_over_diamond;
+}
+if (%fdvw_subquest >= ^fdvw_done) {
+    ~chatnpc("<p,happy>Our business is concluded. Do not make me regret it.");
+    return;
+}
+if (%fdvw_subquest = ^fdvw_pot_blessed) {
+    @dt_malak_fills_pot;
+}
+if (%fdvw_subquest >= ^fdvw_pot_filled) {
+    ~chatnpc("<p,neutral>Garlic and spices, and then the grave north of Castle Drakan. Do not come back until it is done.");
+    return;
+}
+if (%fdvw_subquest = ^fdvw_asked_malak | %fdvw_subquest = ^fdvw_got_pot) {
+    ~chatnpc("<p,neutral>A silver pot from Ruantun, blessed on Entrana. Then come back to me.");
+    return;
+}
+~chatplayer("<p,quiz>I'm looking for a diamond of blood.");
+~chatnpc("<p,angry>Are you indeed. And what makes you think I would help a human find it?");
+def_int $choice = ~p_choice2("Because you want Dessous dead.", 1, "I'll pay you.", 2);
+if ($choice = 2) {
+    ~chatplayer("<p,neutral>I'll pay you.");
+    ~chatnpc("<p,angry>With what? Coins? I have been rich for four hundred years.");
+}
+~chatplayer("<p,neutral>Because you want Dessous dead.");
+~chatnpc("<p,happy>...You are cleverer than you look. Yes. Dessous is a rival, and a bore, and I would very much like him gone.");
+~chatnpc("<p,neutral>He cannot be reached. He sleeps in a tomb north of Castle Drakan and will not rise for anything less than fresh blood, blessed and spiced.");
+~chatnpc("<p,neutral>Find Ruantun. He is a silversmith, and he lives in the sewers under Draynor because he has poor taste in everything. He will make you a silver pot.");
+~chatnpc("<p,neutral>Have it blessed on Entrana. Then bring it back to me, and I will fill it.");
+~chatplayer("<p,quiz>Fill it with what?");
+~chatnpc("<p,happy>Your blood, of course. Whose else would work?");
+%fdvw_subquest = ^fdvw_asked_malak;
+
+[label,dt_malak_fills_pot]
+~chatnpc("<p,happy>You brought it. And it is blessed. Hold still.");
+if_close;
+p_delay(1);
+anim(human_death, 0);
+~damage_self(5);
+p_delay(2);
+inv_del(inv, fd_silver_pot_blessed, 1);
+inv_add(inv, fd_silver_pot_blood_blessed, 1);
+%fdvw_subquest = ^fdvw_pot_filled;
+~objbox(fd_silver_pot_blood_blessed, "Malak fills the blessed pot with your blood.", 250, 0, ^objbox_height);
+~chatnpc("<p,neutral>Now: garlic, ground to powder, and spice from Ardougne. Add both. Then pour it on his grave.");
+~chatnpc("<p,worried>And do not come back here with a half-finished pot. It offends me.");
+
+[label,dt_malak_hands_over_diamond]
+~chatplayer("<p,angry>Dessous is dead. Where is the diamond?");
+~chatnpc("<p,happy>Here.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>When you have a hand free.");
+    return;
+}
+inv_add(inv, fd_blood_diamond, 1);
+%fdvw_subquest = ^fdvw_done;
+~objbox(fd_blood_diamond, "Malak hands you the Diamond of Blood.", 250, 0, ^objbox_height);
+~chatplayer("<p,angry>You had it all along.");
+~chatnpc("<p,happy>Of course I did. I wanted Dessous dead, not a diamond. You were very helpful.");
+// Malak confiscates every spare blessed pot, exactly as in the real quest.
+~dt_malak_confiscate;
+
+[proc,dt_malak_confiscate]
+def_int $taken = 0;
+$taken = add($taken, ~dt_take_all(fd_silver_pot_blessed));
+$taken = add($taken, ~dt_take_all(fd_silver_pot_blood_blessed));
+$taken = add($taken, ~dt_take_all(fd_silver_pot_blood_garlic_blessed));
+$taken = add($taken, ~dt_take_all(fd_silver_pot_blood_spiced_blessed));
+$taken = add($taken, ~dt_take_all(fd_silver_pot_blood_garlic_spiced_blessed));
+if ($taken > 0) {
+    ~chatnpc("<p,neutral>And I will take those pots back. Blessed silver makes me itch.");
+}
+
+[proc,dt_take_all](namedobj $obj)(int)
+def_int $n = inv_total(inv, $obj);
+if ($n > 0) {
+    inv_del(inv, $obj, $n);
+}
+return($n);
+
+// ================================================================================ Ruantun
+
+[opnpc1,malak]
+if (%deserttreasure < ^dt_hunting_diamonds) {
+    ~chatnpc("<p,worried>Go away. I'm working.");
+    return;
+}
+if (%fdvw_subquest < ^fdvw_asked_malak) {
+    ~chatnpc("<p,neutral>Silver. That's all I do. Silver pots, silver bowls, silver anything.");
+    return;
+}
+if (%fdvw_subquest = ^fdvw_asked_malak) {
+    ~chatplayer("<p,quiz>I need a silver pot.");
+    ~chatnpc("<p,neutral>Then bring me a silver bar and I'll make you one. Use it on me, I'm not going to rummage through your bag.");
+    return;
+}
+~chatnpc("<p,happy>Made you one already, didn't I.");
+
+[opnpcu,malak]
+if (last_useitem ! silver_bar) {
+    ~chatnpc("<p,neutral>Silver. Only silver.");
+    return;
+}
+if (%fdvw_subquest < ^fdvw_asked_malak) {
+    ~chatnpc("<p,neutral>And what would you want a pot for?");
+    return;
+}
+if (inv_total(inv, silver_bar) < 1) {
+    return;
+}
+inv_del(inv, silver_bar, 1);
+mes("Ruantun works the silver over his little forge.");
+p_delay(2);
+inv_add(inv, fd_silver_pot, 1);
+if (%fdvw_subquest = ^fdvw_asked_malak) {
+    %fdvw_subquest = ^fdvw_got_pot;
+}
+~objbox(fd_silver_pot, "Ruantun hands you a silver pot.", 250, 0, ^objbox_height);
+~chatnpc("<p,neutral>There. Whatever you want it for, I'd rather not know.");
+
+// ================================================================================ Entrana blessing
+//
+// The High Priest already owns [opnpc1,high_priest_of_entrana], so this is a use-item trigger.
+
+// Called from areas/area_entrana/scripts/high_priest_of_entrana.rs2's [opnpcu] - see the note there.
+[proc,dt_bless_silver_pot]
+if (inv_total(inv, fd_silver_pot) < 1) {
+    return;
+}
+~chatplayer("<p,quiz>Could you bless this for me?");
+~chatnpc("<p,quiz>A silver pot? An odd thing to want blessed.");
+~chatnpc("<p,happy>Still - a blessing costs me nothing and may do you some good. Hold it up.");
+if_close;
+anim(human_castteleport, 0);
+spotanim_pl(teleport_casting, 92, 0);
+p_delay(2);
+inv_del(inv, fd_silver_pot, 1);
+inv_add(inv, fd_silver_pot_blessed, 1);
+if (%fdvw_subquest = ^fdvw_got_pot) {
+    %fdvw_subquest = ^fdvw_pot_blessed;
+}
+~objbox(fd_silver_pot_blessed, "The High Priest blesses the silver pot.", 250, 0, ^objbox_height);
+
+// ================================================================================ garlic and spice
+//
+// Ten pot variants exist, so both ingredient orders are supported without inventing anything.
+
+[opheldu,garlic]
+if (last_useitem ! pestle_and_mortar) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@dt_grind_garlic;
+
+[opheldu,pestle_and_mortar]
+if (last_useitem ! garlic) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@dt_grind_garlic;
+
+[label,dt_grind_garlic]
+inv_del(inv, garlic, 1);
+inv_add(inv, fd_crushed_garlic, 1);
+mes("You grind the garlic into a fine powder.");
+
+[opheldu,fd_silver_pot_blood_blessed]
+switch_obj (last_useitem) {
+    case fd_crushed_garlic : ~dt_pot_add(fd_silver_pot_blood_blessed, fd_crushed_garlic, fd_silver_pot_blood_garlic_blessed, "garlic powder");
+    case spicespot : ~dt_pot_add(fd_silver_pot_blood_blessed, spicespot, fd_silver_pot_blood_spiced_blessed, "spice");
+    case default : ~displaymessage(^dm_default);
+}
+
+[opheldu,fd_silver_pot_blood_garlic_blessed]
+if (last_useitem ! spicespot) {
+    ~displaymessage(^dm_default);
+    return;
+}
+~dt_pot_add(fd_silver_pot_blood_garlic_blessed, spicespot, fd_silver_pot_blood_garlic_spiced_blessed, "spice");
+
+[opheldu,fd_silver_pot_blood_spiced_blessed]
+if (last_useitem ! fd_crushed_garlic) {
+    ~displaymessage(^dm_default);
+    return;
+}
+~dt_pot_add(fd_silver_pot_blood_spiced_blessed, fd_crushed_garlic, fd_silver_pot_blood_garlic_spiced_blessed, "garlic powder");
+
+[opheldu,fd_crushed_garlic]
+switch_obj (last_useitem) {
+    case fd_silver_pot_blood_blessed : ~dt_pot_add(fd_silver_pot_blood_blessed, fd_crushed_garlic, fd_silver_pot_blood_garlic_blessed, "garlic powder");
+    case fd_silver_pot_blood_spiced_blessed : ~dt_pot_add(fd_silver_pot_blood_spiced_blessed, fd_crushed_garlic, fd_silver_pot_blood_garlic_spiced_blessed, "garlic powder");
+    case default : ~displaymessage(^dm_default);
+}
+
+// No [opheldu,spicespot] here: skill_cooking's stew.rs2 already owns that trigger, and a second
+// declaration is a build error. The pot-side handlers above cover using spice on a pot; only
+// "use spice on pot" rather than "use pot on spice" is unavailable, which is how the real quest
+// reads anyway.
+
+[proc,dt_pot_add](namedobj $pot, namedobj $ingredient, namedobj $result, string $what)
+if (inv_total(inv, $pot) < 1 | inv_total(inv, $ingredient) < 1) {
+    return;
+}
+inv_del(inv, $pot, 1);
+inv_del(inv, $ingredient, 1);
+inv_add(inv, $result, 1);
+mes(append(append("You add the ", $what), " to the pot."));
+
+// ================================================================================ Dessous's tomb
+//
+// vampire_big_grave_noblood is the placed loc; withblood is the same tomb with the coffin animation.
+
+[oploc1,vampire_big_grave_noblood]
+@dt_dessous_tomb;
+
+[oploc1,vampire_big_grave_withblood]
+@dt_dessous_tomb;
+
+[label,dt_dessous_tomb]
+if (%deserttreasure < ^dt_hunting_diamonds) {
+    ~mesbox("An ancient tomb. Whatever is inside it, you would rather it stayed there.");
+    return;
+}
+if (%fdvw_subquest >= ^fdvw_dessous_dead) {
+    ~mesbox("The tomb is empty. Whatever slept here does not any more.");
+    return;
+}
+~mesbox("The tomb is sealed. There is a shallow basin cut into the lid.");
+
+[oplocu,vampire_big_grave_noblood]
+@dt_pour_pot;
+
+[oplocu,vampire_big_grave_withblood]
+@dt_pour_pot;
+
+[label,dt_pour_pot]
+if (last_useitem ! fd_silver_pot_blood_garlic_spiced_blessed) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%deserttreasure < ^dt_hunting_diamonds) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%fdvw_subquest >= ^fdvw_dessous_dead) {
+    mes("There is nothing left here to summon.");
+    return;
+}
+if (npc_find(coord, blooddiamond_vampirewarrior, 12, 0) = true) {
+    mes("Dessous is already awake.");
+    return;
+}
+inv_del(inv, fd_silver_pot_blood_garlic_spiced_blessed, 1);
+if_close;
+mes("You pour the pot over the tomb.");
+loc_change(vampire_big_grave_withblood, 200);
+sound_synth(coffin_open, 1, 0);
+p_delay(2);
+spotanim_map(vampire_coffin_jump, movecoord(loc_coord, 0, 0, 2), 0, 0);
+p_delay(2);
+npc_add(movecoord(loc_coord, 0, 0, 2), blooddiamond_vampirewarrior, 500);
+npc_setmode(none);
+npc_say("Who dares...?");
+%fdvw_subquest = ^fdvw_dessous_summoned;
+p_delay(1);
+npc_facesquare(coord);
+npc_say("You will regret waking me.");
+~npc_retaliate(0);
+%aggressive_npc = npc_uid;
+
+// Dessous never drops the diamond - Malak had it the whole time.
+[ai_queue3,blooddiamond_vampirewarrior]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+obj_add(npc_coord, bones, 1, ^lootdrop_duration);
+
+// The pre-ritual copy exists so the tomb can show an untouchable Dessous. It is not spawned by this
+// implementation - the fight only starts from the pot - but the trigger is here so that attacking
+// one gives an explanation rather than silence.
+[apnpc2,blooddiamond_vampirewarrior_unkillable]
+mes("Dessous is not truly here. You will need to wake him properly.");
+p_stopaction;
+
+[opnpc2,blooddiamond_vampirewarrior_unkillable]
+mes("Dessous is not truly here. You will need to wake him properly.");
+p_stopaction;

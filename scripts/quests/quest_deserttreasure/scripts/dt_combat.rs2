@@ -1,0 +1,55 @@
+// Desert Treasure - boss combat mechanics (Corey, 2026-09-07).
+//
+// Two of the four bosses are gated on the element of the spell you cast at them, which the cache has
+// no way to express as config. Both hook the same place in
+// skill_combat/scripts/player/player_magic.rs2 that Salarin the Twisted, Chronozon and the Dagannoth
+// Mother already hook - the damage-override chain in ~pvm_spell_success - so nothing new had to be
+// invented for it.
+//
+//   Kamil  is immune to every spell except Fire.
+//   Fareed is immune to every spell except Water.
+//
+// Not implemented, and flagged rather than faked: Fareed's melee disarm (he unequips your weapon
+// unless you are wearing ice gloves) and Damis's second-form prayer drain. Both would need a hook in
+// player_melee.rs2 / npc_combat.rs2 that does not exist yet, and a wrong one would break ordinary
+// combat for everything else on the server. Ice gloves are still worth wearing - the message when
+// Fareed spawns says so - they just are not enforced.
+
+[proc,dt_spell_damage_allowed](int $spell)(boolean)
+if (npc_type = icediamond_icewarrior) {
+    return(~dt_is_fire_spell($spell));
+}
+if (npc_type = firediamond_firewarrior) {
+    return(~dt_is_water_spell($spell));
+}
+return(true);
+
+[proc,dt_is_fire_spell](int $spell)(boolean)
+switch_int ($spell) {
+    case ^fire_strike : return(true);
+    case ^fire_bolt : return(true);
+    case ^fire_blast : return(true);
+    case ^fire_wave : return(true);
+    case ^iban_blast : return(true);
+    case ^flames_of_zamorak : return(true);
+    case ^smoke_rush : return(true);
+    case ^smoke_burst : return(true);
+    case ^smoke_blitz : return(true);
+    case ^smoke_barrage : return(true);
+    case default : return(false);
+}
+return(false);
+
+[proc,dt_is_water_spell](int $spell)(boolean)
+switch_int ($spell) {
+    case ^water_strike : return(true);
+    case ^water_bolt : return(true);
+    case ^water_blast : return(true);
+    case ^water_wave : return(true);
+    case ^ice_rush : return(true);
+    case ^ice_burst : return(true);
+    case ^ice_blitz : return(true);
+    case ^ice_barrage : return(true);
+    case default : return(false);
+}
+return(false);

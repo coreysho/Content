@@ -1,0 +1,697 @@
+// Desert Treasure - combat stat blocks (Corey, 2026-09-07).
+//
+// Every npc below was MOVED here out of content/scripts/_unpack/377/all.npc rather than copied -
+// redeclaring a name that still exists there is a hard "Duplicate config found" build error. The
+// same migration pattern quest_horror_combat.npc and areas/area_waterbirth/configs/
+// dagannoth_kings.npc already use. Everything from "op2=Attack" (or vislevel, where op2 comes
+// first) upward is the untouched raw cache appearance data; everything below it is new.
+//
+// This cache has NO combat data for Desert Treasure at all. Not one boss, mummy or scarab carried
+// hitpoints, attack, strength, defence, respawnrate or a single combat param - the only Desert
+// Treasure npcs with stats in the whole dump are the two Bandit Camp bandits. So the maps, models,
+// animations and varbits were all built and shipped, and the fights were never wired. All numbers
+// below are the OSRS values (the closest verifiable proxy for 2005 - no source records a
+// 2005-specific figure that differs) with two adjustments explained inline.
+//
+// strengthbonus is chosen to land the documented max hit through this engine's own formula,
+// ~npc_melee_maxhit:  maxhit = floor(((strength + 9) * (strengthbonus + 64) + 320) / 640)
+// so the numbers are derived, not guessed. Each one is shown in a comment.
+
+// ================================================================================ Kamil (ice)
+// OSRS: level 154, 130 hp, 190/80/135, +60 att +100 str, def 35 stab / 60 slash / 35 crush / 0 magic.
+// max hit 23 melee: ((80+9) * (100+64) + 320) / 640 = 23.
+// Kamil's defining mechanic - immune to every spell except fire - is enforced in dt_ice.rs2, not
+// here; there is no config flag for elemental immunity.
+[icediamond_icewarrior]
+name=Kamil
+desc=Ice warrior.
+model1=obj_khazard_helmet_manwear
+model2=obj_iron_platelegs_manwear
+model3=idk_man_jaw_medium
+model4=obj_iron_platebody_manwear2
+model5=obj_gauntlets_of_cooking_manwear
+model6=obj_ikov_bootsoflightness_manwear
+model7=obj_black_platebody_trim_manwear
+model8=obj_bronze_longsword_manwear
+model9=obj_viking_cloak_green_manwear
+recol1s=24075
+recol1d=29494
+recol2s=15855
+recol2d=32767
+recol3s=10570
+recol3d=32767
+recol4s=14798
+recol4d=32767
+walkanim=human_transwalk_f
+readyanim=human_transready
+op2=Attack
+vislevel=154
+head1=obj_khazard_helmet_manhead
+head2=idk_man_jaw_medium_head
+hitpoints=130
+attack=190
+strength=80
+defence=135
+magic=150
+ranged=1
+param=stabdefence,35
+param=slashdefence,60
+param=crushdefence,35
+param=magicdefence,0
+param=rangedefence,35
+param=attackbonus,60
+param=strengthbonus,100
+param=damagetype,^slash_style
+param=attackrate,4
+param=attackrange,1
+param=attack_anim,human_sword_transslash
+param=defend_anim,human_sword_transdef
+param=death_anim,human_transdeath
+param=attack_sound,hacksword_slash
+param=defend_sound,ice_warrior_hit
+param=death_sound,ice_warrior_death
+param=retreat,0
+respawnrate=50
+wanderrange=6
+maxrange=10
+
+// ================================================================================ Dessous (blood)
+// OSRS: level 139, 200 hp, 99/99/99, +50 att +50 str, def +10 stab / +150 slash / +150 crush.
+// max hit 19 melee: ((99+9) * (50+64) + 320) / 640 = 19.
+// The huge slash/crush defence is the whole reason stab and magic are the sane ways to fight him.
+[blooddiamond_vampirewarrior]
+name=Dessous
+desc=Vampire warrior of Zamorak.
+model1=npc_1914
+model2=npc_1220i3
+model3=npc_1914i2
+model4=idk_man_legs_tatty
+model5=idk_42
+recol1s=24075
+recol1d=30582
+recol2s=2340
+recol2d=7364
+recol3s=7298
+recol3d=30582
+recol4s=32727
+recol4d=15781
+recol5s=18991
+recol5d=30582
+recol6s=26390
+recol6d=17866
+walkanim=human_walk_f,human_walk_b,human_walk_l,human_walk_r
+readyanim=human_ready
+op2=Attack
+vislevel=139
+head1=npc_1914_head
+hitpoints=200
+attack=99
+strength=99
+defence=99
+magic=99
+ranged=99
+param=stabdefence,10
+param=slashdefence,150
+param=crushdefence,150
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,50
+param=strengthbonus,50
+param=damagetype,^crush_style
+param=attackrate,3
+param=attackrange,1
+param=attack_anim,human_sword_slash
+param=defend_anim,human_sword_def
+param=death_anim,human_death
+param=retreat,0
+respawnrate=100
+wanderrange=5
+maxrange=8
+
+// The pre-ritual copy. Identical body in the cache; the difference is behavioural and lives in
+// dt_blood.rs2 - it exists so Dessous can be seen but not killed before the pot is used on the tomb.
+[blooddiamond_vampirewarrior_unkillable]
+name=Dessous
+desc=Vampire warrior of Zamorak.
+model1=npc_1914
+model2=npc_1220i3
+model3=npc_1914i2
+model4=idk_man_legs_tatty
+model5=idk_42
+recol1s=24075
+recol1d=30582
+recol2s=2340
+recol2d=7364
+recol3s=7298
+recol3d=30582
+recol4s=32727
+recol4d=15781
+recol5s=18991
+recol5d=30582
+recol6s=26390
+recol6d=17866
+walkanim=human_walk_f,human_walk_b,human_walk_l,human_walk_r
+readyanim=human_ready
+op2=Attack
+vislevel=139
+head1=npc_1914_head
+hitpoints=200
+attack=99
+strength=99
+defence=99
+magic=99
+ranged=99
+param=stabdefence,32767
+param=slashdefence,32767
+param=crushdefence,32767
+param=magicdefence,32767
+param=rangedefence,32767
+param=attackbonus,50
+param=strengthbonus,50
+param=damagetype,^crush_style
+param=attackrate,3
+param=attackrange,1
+param=attack_anim,human_sword_slash
+param=defend_anim,human_sword_def
+param=death_anim,human_death
+param=retreat,0
+respawnrate=100
+wanderrange=0
+maxrange=2
+
+// ================================================================================ Fareed (smoke)
+// OSRS: level 167, 130 hp, 190/120/135, +0 att +120 str, melee def +100 across the board.
+// max hit 40 melee needs strengthbonus 132 through this engine's formula, not the wiki's 120:
+// ((120+9) * (132+64) + 320) / 640 = 40. With the wiki's +120 it would come out at 37, which is
+// coincidentally the ice-gloves figure - so the two are easy to confuse. 40 is the real one.
+// The disarm-without-ice-gloves and water-spells-only rules are in dt_smoke.rs2.
+[firediamond_firewarrior]
+name=Fareed
+desc=Zamorak's warrior of fire.
+model1=npc_1977
+model2=npc_1977i2
+model3=npc_1977i3
+model4=npc_1977i4
+model5=npc_1977i5
+walkanim=human_walk_f,human_walk_b,human_walk_l,human_walk_r
+readyanim=human_ready
+op2=Attack
+vislevel=167
+hitpoints=130
+attack=190
+strength=120
+defence=135
+magic=150
+ranged=1
+param=stabdefence,100
+param=slashdefence,100
+param=crushdefence,100
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,0
+param=strengthbonus,132
+param=damagetype,^slash_style
+param=attackrate,4
+param=attackrange,1
+param=attack_anim,human_sword_slash
+param=defend_anim,human_sword_def
+param=death_anim,human_death
+param=retreat,0
+respawnrate=50
+wanderrange=6
+maxrange=10
+
+// ================================================================================ Damis (shadow)
+// Two forms. Form 1 dies and is immediately replaced by form 2 - see dt_shadow.rs2.
+//
+// Form 1, OSRS: level 103, 90 hp, 90/90/90, +0 att +80 str, +60 defence across the board including
+// magic. max hit 22: ((90+9) * (80+64) + 320) / 640 = 22. Crush, melee only, 4-tick.
+[fd_damis_normal]
+name=Damis
+desc=The warrior of darkness.
+model1=obj_khazard_helmet_manwear
+model2=obj_iron_platelegs_manwear
+model3=idk_man_jaw_short
+model4=obj_iron_platebody_manwear2
+model5=obj_cert_drill_top_manwear3
+model6=idk_42
+model7=obj_khazard_platemail_manwear
+model8=obj_bronze_2h_sword_manwear
+recol1s=24075
+recol1d=15652
+recol2s=15855
+recol2d=4228
+recol3s=10570
+recol3d=3171
+recol4s=14798
+recol4d=3171
+walkanim=human_walk_f,human_walk_b,human_walk_l,human_walk_r
+readyanim=human_ready
+op2=Attack
+alwaysontop=yes
+vislevel=103
+head1=obj_khazard_helmet_manhead
+head2=idk_man_jaw_short_head
+hitpoints=90
+attack=90
+strength=90
+defence=90
+magic=1
+ranged=1
+param=stabdefence,60
+param=slashdefence,60
+param=crushdefence,60
+param=magicdefence,60
+param=rangedefence,60
+param=attackbonus,0
+param=strengthbonus,80
+param=damagetype,^crush_style
+param=attackrate,4
+param=attackrange,1
+param=attack_anim,human_dhsword_chop
+param=defend_anim,human_sword_def
+param=death_anim,human_death
+param=retreat,0
+respawnrate=100
+wanderrange=5
+maxrange=8
+
+// Form 2, level 174 and 160 hp - the only two figures anyone records. Its max hit is documented
+// only as "around 30" and its bonuses not at all, so attack/strength/defence and the bonuses below
+// are chosen to land exactly 30 and to sit sensibly between form 1 and the other three bosses:
+// ((130+9) * (72+64) + 320) / 640 = 30. Flagged as picked rather than sourced.
+// The prayer drain on every hit is form 2's real mechanic and lives in dt_shadow.rs2.
+[fd_damis_tougher]
+name=Damis
+desc=The warrior of darkness.
+model1=obj_viking_helmet_manwear
+model2=obj_macro_mime_legs_manwear
+model3=idk_man_jaw_short
+model4=npc_barbarian
+model5=obj_cert_drill_top_manwear3
+model6=idk_42
+model7=obj_barrows_verac_body_manwear
+model8=obj_bronze_2h_sword_manwear
+recol1s=24075
+recol1d=15652
+recol2s=15855
+recol2d=4228
+recol3s=10570
+recol3d=3171
+recol4s=14798
+recol4d=3171
+walkanim=human_walk_f,human_walk_b,human_walk_l,human_walk_r
+readyanim=human_ready
+op2=Attack
+alwaysontop=yes
+vislevel=174
+head1=obj_pickpocket_guide_man
+head2=idk_man_jaw_short_head
+hitpoints=160
+attack=150
+strength=130
+defence=120
+magic=1
+ranged=1
+param=stabdefence,70
+param=slashdefence,70
+param=crushdefence,70
+param=magicdefence,40
+param=rangedefence,70
+param=attackbonus,20
+param=strengthbonus,72
+param=damagetype,^crush_style
+param=attackrate,3
+param=attackrange,1
+param=attack_anim,human_dhsword_chop
+param=defend_anim,human_sword_def
+param=death_anim,human_death
+param=retreat,0
+respawnrate=100
+wanderrange=5
+maxrange=8
+
+// ================================================================================ pyramid hazards
+//
+// The four roaming mummies (level 103) share one stat block. max hit 10:
+// ((90+9) * (0+64) + 320) / 640 = 10. Their param=death_drop,ashes and the drop table in
+// drop_tables/scripts/mummy.rs2 - including the 1/512 Ancient staff - were already wired; only the
+// combat was missing.
+[deserttreasure_mummy_2]
+name=Mummy
+desc=A tightly wrapped monster.
+model1=npc_1961
+recol1s=16911
+recol1d=12615
+recol2s=27447
+recol2d=21036
+recol3s=29595
+recol3d=20971
+recol4s=0
+recol4d=7296
+recol5s=28504
+recol5d=20971
+walkanim=deserttreasure_mummy_walk
+readyanim=deserttreasure_mummy_ready
+op2=Attack
+vislevel=103
+param=death_drop,ashes
+hitpoints=90
+attack=80
+strength=90
+defence=80
+magic=1
+ranged=1
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,0
+param=strengthbonus,0
+param=damagetype,^crush_style
+param=attackrate,4
+param=attackrange,1
+param=attack_anim,deserttreasure_mummy_attack
+param=defend_anim,deserttreasure_mummy_block
+param=death_anim,deserttreasure_mummy_death
+respawnrate=50
+wanderrange=6
+maxrange=10
+huntmode=aggressive_melee
+huntrange=6
+
+[deserttreasure_mummy_3]
+name=Mummy
+desc=But who's the Daddy?
+model1=npc_1962
+recol1s=16911
+recol1d=12615
+recol2s=27447
+recol2d=21036
+recol3s=29595
+recol3d=20971
+recol4s=0
+recol4d=7296
+recol5s=28504
+recol5d=20971
+walkanim=deserttreasure_mummy_walk
+readyanim=deserttreasure_mummy_ready
+op2=Attack
+vislevel=103
+param=death_drop,ashes
+hitpoints=90
+attack=80
+strength=90
+defence=80
+magic=1
+ranged=1
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,0
+param=strengthbonus,0
+param=damagetype,^crush_style
+param=attackrate,4
+param=attackrange,1
+param=attack_anim,deserttreasure_mummy_attack
+param=defend_anim,deserttreasure_mummy_block
+param=death_anim,deserttreasure_mummy_death
+respawnrate=50
+wanderrange=6
+maxrange=10
+huntmode=aggressive_melee
+huntrange=6
+
+[deserttreasure_mummy_4]
+name=Mummy
+desc=A victim of poor first aid.
+model1=npc_1963
+recol1s=16911
+recol1d=12615
+recol2s=27447
+recol2d=21036
+recol3s=29595
+recol3d=20971
+recol4s=0
+recol4d=7296
+recol5s=28504
+recol5d=20971
+walkanim=deserttreasure_mummy_walk
+readyanim=deserttreasure_mummy_ready
+op2=Attack
+vislevel=103
+param=death_drop,ashes
+hitpoints=90
+attack=80
+strength=90
+defence=80
+magic=1
+ranged=1
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,0
+param=strengthbonus,0
+param=damagetype,^crush_style
+param=attackrate,4
+param=attackrange,1
+param=attack_anim,deserttreasure_mummy_attack
+param=defend_anim,deserttreasure_mummy_block
+param=death_anim,deserttreasure_mummy_death
+respawnrate=50
+wanderrange=6
+maxrange=10
+huntmode=aggressive_melee
+huntrange=6
+
+[deserttreasure_mummy_5]
+name=Mummy
+desc=Spooky bandaged dead dude.
+model1=npc_1964
+recol1s=16911
+recol1d=12615
+recol2s=27447
+recol2d=21036
+recol3s=29595
+recol3d=20971
+recol4s=0
+recol4d=7296
+recol5s=29562
+recol5d=30449
+walkanim=deserttreasure_mummy_walk
+readyanim=deserttreasure_mummy_ready
+op2=Attack
+vislevel=103
+param=death_drop,ashes
+hitpoints=90
+attack=80
+strength=90
+defence=80
+magic=1
+ranged=1
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,0
+param=strengthbonus,0
+param=damagetype,^crush_style
+param=attackrate,4
+param=attackrange,1
+param=attack_anim,deserttreasure_mummy_attack
+param=defend_anim,deserttreasure_mummy_block
+param=death_anim,deserttreasure_mummy_death
+respawnrate=50
+wanderrange=6
+maxrange=10
+huntmode=aggressive_melee
+huntrange=6
+
+// The sarcophagus mummy. It is spawned by dt_pyramid.rs2 when you walk past a sarcophagus, and its
+// real danger is that emerging halts your run rather than that it kills you - hence the low hp and
+// the short leash. vislevel stays "hide" exactly as the cache has it.
+[deserttreasure_mummy_1]
+name=Mummy
+desc=Highly flammable!
+model1=npc_1958
+recol1s=16911
+recol1d=12615
+recol2s=27447
+recol2d=21036
+recol3s=29595
+recol3d=20971
+recol4s=0
+recol4d=7296
+vislevel=hide
+walkanim=deserttreasure_mummy_walk
+readyanim=deserttreasure_mummy_ready
+op2=Attack
+hitpoints=30
+attack=70
+strength=70
+defence=60
+magic=1
+ranged=1
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,0
+param=strengthbonus,0
+param=damagetype,^crush_style
+param=attackrate,4
+param=attackrange,1
+param=attack_anim,deserttreasure_mummy_attack
+param=defend_anim,deserttreasure_mummy_block
+param=death_anim,deserttreasure_mummy_death
+param=death_drop,ashes
+respawnrate=100
+wanderrange=3
+maxrange=5
+huntmode=aggressive_melee
+huntrange=4
+
+// Scarabs boil out of the floor, halt you and poison. scarab_parry and scarab_attack were both in
+// the cache and referenced by nothing.
+[scarab_swarm]
+name=Scarabs
+desc=I think they're some kind of beetle...
+model1=npc_1969
+walkanim=scarab_swarming
+readyanim=scarab_ready
+op2=Attack
+vislevel=92
+hitpoints=60
+attack=65
+strength=55
+defence=60
+magic=1
+ranged=1
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,0
+param=strengthbonus,0
+param=damagetype,^stab_style
+param=attackrate,4
+param=attackrange,1
+param=attack_anim,scarab_attack
+param=defend_anim,scarab_parry
+param=death_anim,scarab_spiral
+respawnrate=100
+wanderrange=3
+maxrange=5
+huntmode=aggressive_melee
+huntrange=4
+
+// ================================================================================ shadow dungeon
+// Giant skeletons, level 80. Fifteen of them are already spawned on m41_79 around Damis.
+[sword_skeleton_3]
+name=Giant skeleton
+desc=A giant skeleton.
+model1=poh_skeleton_8
+model2=npc_skeleton_armed
+recol1s=29562
+recol1d=20015
+recol2s=24071
+recol2d=20937
+recol3s=28543
+recol3d=21140
+walkanim=skeleton_walk
+readyanim=skeleton_ready
+resizev=190
+resizeh=190
+op2=Attack
+vislevel=80
+param=death_drop,big_bones
+hitpoints=70
+attack=65
+strength=65
+defence=65
+magic=1
+ranged=1
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,0
+param=strengthbonus,0
+param=damagetype,^slash_style
+param=attackrate,4
+param=attackrange,1
+param=attack_anim,skeleton_attack
+param=defend_anim,skeleton_block
+param=death_anim,skeleton_death
+param=slayer_category,^slayer_skeleton
+respawnrate=50
+wanderrange=5
+maxrange=8
+huntmode=aggressive_melee
+huntrange=5
+
+// ================================================================================ the Stranger
+// The assassin who ambushes you in the desert once Eblis sets you on the diamonds - level 95.
+// Killing him sets fd_killed_ninja, a varbit the cache reserved and nothing ever set.
+[fourdiamonds_assasin]
+name=Stranger
+desc=Very mysterious looking...
+model1=npc_pirate1
+model2=idk_man_jaw_short
+model3=obj_priest_gown_manwear
+model4=obj_doctor_gown_manwear2
+model5=obj_gauntlets_of_cooking_manwear
+model6=obj_macro_mime_legs_manwear
+model7=obj_ikov_bootsoflightness_manwear
+model8=npc_1919
+model9=obj_dragon_dagger_manwear
+recol1s=24075
+recol1d=11458
+recol2s=9473
+recol2d=2114
+recol3s=14724
+recol3d=2114
+recol4s=2340
+recol4d=2114
+recol5s=3491
+recol5d=2114
+recol6s=7298
+recol6d=2114
+walkanim=human_walk_f,human_walk_b,human_walk_l,human_walk_r
+readyanim=human_ready
+op2=Attack
+vislevel=95
+head1=npc_pirate1_head
+head2=npc_1919_head
+hitpoints=80
+attack=75
+strength=75
+defence=70
+magic=1
+ranged=1
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,10
+param=strengthbonus,10
+param=damagetype,^stab_style
+param=attackrate,4
+param=attackrange,1
+param=attack_anim,human_ddagger_lunge
+param=defend_anim,human_ddagger_block
+param=death_anim,human_death
+param=retreat,0
+respawnrate=200
+wanderrange=4
+maxrange=8

@@ -1,0 +1,203 @@
+// Desert Treasure - the Smoke diamond, Fareed (Corey, 2026-09-07).
+//
+// This is the sub-quest most often mis-described. There is no "fire diamond": Fareed guards the
+// SMOKE diamond, in the Smoke Dungeon under the Smokey well west of Pollnivneach, and the key is the
+// Warm key, not a fire key. The cache agrees with the wiki and not with the guides - the obj is
+// named fd_diamond_fire but examines as "The Diamond of Smoke", and the varbit is fd_column_fire
+// while the loc it charges is fd_smoke_column.
+//
+// The well itself is sword_haunted_well - "Smokey well", op1=Climb-down, sitting on the map west of
+// Pollnivneach with nothing behind it. The "sword_" prefix is the Desert Treasure loc family (the
+// six mirrors are sword_mirror1..6), which is why it does not look like a quest loc at a glance.
+//
+// The four torches burn on a timer. fd_torch_count1..4 are the multiloc varbits that make them
+// visibly catch light, and fd_pyramid_timer - a 10-bit varbit the cache reserved and nothing used -
+// holds the map_clock tick at which they go out.
+
+// ================================================================================ the well
+
+[oploc1,sword_haunted_well]
+if (~dt_smoke_mask_worn = false) {
+    ~mesbox("Thick smoke pours out of the well. You would not last long down there without something over your face.");
+    return;
+}
+mes("You climb down into the smoke.");
+p_delay(1);
+p_telejump(^dt_smoke_well_bottom);
+
+[oploc1,sword_haunted_well_go_up]
+mes("You climb back up out of the smoke.");
+p_delay(1);
+p_telejump(^dt_smoke_well_top);
+
+// A facemask (10 Slayer to buy) or a gas mask (Plague City). Both were valid in 2006.
+[proc,dt_smoke_mask_worn](boolean)
+if (inv_total(worn, slayer_facemask) > 0) {
+    return(true);
+}
+if (inv_total(worn, gasmask) > 0) {
+    return(true);
+}
+return(false);
+
+// ================================================================================ the torches
+
+[oploc1,4d_standing_torch1_unlit] ~dt_light_torch(1);
+[oploc1,4d_standing_torch2_unlit] ~dt_light_torch(2);
+[oploc1,4d_standing_torch3_unlit] ~dt_light_torch(3);
+[oploc1,4d_standing_torch4_unlit] ~dt_light_torch(4);
+
+[proc,dt_light_torch](int $which)
+if (%deserttreasure < ^dt_hunting_diamonds) {
+    mes("You have no reason to light this.");
+    return;
+}
+if (inv_total(inv, tinderbox) < 1) {
+    mes("You need a tinderbox to light the torch.");
+    return;
+}
+if (stat(firemaking) < 50) {
+    ~mesbox("You need a Firemaking level of 50 to light these torches.");
+    return;
+}
+if (~dt_torch_lit($which) = true) {
+    mes("This torch is already burning.");
+    return;
+}
+mes("You put the tinderbox to the torch.");
+anim(human_createfire, 0);
+sound_synth(tinderbox_strike, 1, 0);
+p_delay(3);
+// If every torch had gone out, this is the start of a fresh burn.
+if (~dt_torches_lit = 0) {
+    %fd_pyramid_timer = add(map_clock, ^dt_torch_burn_ticks);
+}
+~dt_set_torch($which, 1);
+mes("The torch catches, and burns with a sickly green light.");
+if (~dt_torches_lit = 4) {
+    ~mesbox("All four torches are burning. Something in the middle of the room has begun to glow.|You should be quick.");
+}
+
+// The burn timer is checked on read rather than ticked, so no queue is needed: if the deadline has
+// passed, every torch is treated as out and the varbits are cleared so the client shows them unlit.
+[proc,dt_torch_lit](int $which)(boolean)
+~dt_torch_expiry_check;
+if ($which = 1) {
+    if (%fd_torch_count1 = 1) { return(true); }
+    return(false);
+}
+if ($which = 2) {
+    if (%fd_torch_count2 = 1) { return(true); }
+    return(false);
+}
+if ($which = 3) {
+    if (%fd_torch_count3 = 1) { return(true); }
+    return(false);
+}
+if (%fd_torch_count4 = 1) { return(true); }
+return(false);
+
+[proc,dt_torch_expiry_check]
+if (%fd_pyramid_timer = 0) {
+    return;
+}
+if (map_clock < %fd_pyramid_timer) {
+    return;
+}
+%fd_torch_count1 = 0;
+%fd_torch_count2 = 0;
+%fd_torch_count3 = 0;
+%fd_torch_count4 = 0;
+%fd_pyramid_timer = 0;
+
+[proc,dt_set_torch](int $which, int $value)
+if ($which = 1) { %fd_torch_count1 = $value; return; }
+if ($which = 2) { %fd_torch_count2 = $value; return; }
+if ($which = 3) { %fd_torch_count3 = $value; return; }
+%fd_torch_count4 = $value;
+
+[proc,dt_torches_lit](int)
+~dt_torch_expiry_check;
+def_int $n = 0;
+if (%fd_torch_count1 = 1) { $n = add($n, 1); }
+if (%fd_torch_count2 = 1) { $n = add($n, 1); }
+if (%fd_torch_count3 = 1) { $n = add($n, 1); }
+if (%fd_torch_count4 = 1) { $n = add($n, 1); }
+return($n);
+
+// ================================================================================ the burnt chest
+
+[oploc1,fd_firedungeon_shutchest]
+if (%deserttreasure < ^dt_hunting_diamonds) {
+    ~mesbox("A burnt chest, welded shut by the heat. There is nothing you can do with it.");
+    return;
+}
+if (%fd_firechest = 1) {
+    ~mesbox("There is nothing inside the chest.");
+    return;
+}
+if (~dt_torches_lit < 4) {
+    ~mesbox("The chest will not open. Four torches stand in the corners of this room, and none of the ones that are lit is enough.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room for whatever is inside.");
+    return;
+}
+mes("With all four torches burning, the chest swings open.");
+loc_change(fd_firedungeon_openchest, 100);
+p_delay(2);
+inv_add(inv, fd_firekey, 1);
+%fd_firechest = 1;
+~objbox(fd_firekey, "You find a key. It is unusually warm to the touch.", 250, 0, ^objbox_height);
+
+[oploc1,fd_firedungeon_openchest]
+~mesbox("There is nothing inside the chest.");
+
+// ================================================================================ Fareed's gate
+
+[oploc1,fd_fw_metalgateclosed_l] @dt_fareed_gate;
+[oploc1,fd_fw_metalgateclosed_r] @dt_fareed_gate;
+
+[label,dt_fareed_gate]
+if (%fd_firewargate = 1) {
+    mes("The gate stands open.");
+    p_telejump(^dt_fareed_arena);
+    return;
+}
+if (inv_total(inv, fd_firekey) < 1) {
+    ~mesbox("The gate is locked. The keyhole is warm.");
+    return;
+}
+mes("You put the warm key into the lock. It turns, and crumbles away.");
+inv_del(inv, fd_firekey, 1);
+%fd_firewargate = 1;
+sound_synth(sluice_gate, 1, 0);
+p_delay(2);
+p_telejump(^dt_fareed_arena);
+if (%fd_killed_firewarrior = 1) {
+    return;
+}
+~dt_spawn_fareed;
+
+// Fareed is spawned rather than left on the map, so he cannot be farmed before the quest.
+[proc,dt_spawn_fareed]
+if (npc_find(^dt_fareed_arena, firediamond_firewarrior, 20, 0) = true) {
+    return;
+}
+npc_add(map_findsquare(^dt_fareed_arena, 0, 3, ^map_findsquare_lineofwalk), firediamond_firewarrior, 2000);
+npc_setmode(none);
+npc_say("You are a long way from the sun, little thing.");
+if (inv_total(worn, ice_gloves) < 1) {
+    mes("Fareed's heat is unbearable. Something to protect your hands would help.");
+}
+~npc_retaliate(0);
+%aggressive_npc = npc_uid;
+
+[ai_queue3,firediamond_firewarrior]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+obj_add(npc_coord, fd_diamond_fire, 1, ^lootdrop_duration);
+obj_add(npc_coord, coins, 2000, ^lootdrop_duration);
