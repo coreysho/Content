@@ -9,11 +9,15 @@
 //   Kamil  is immune to every spell except Fire.
 //   Fareed is immune to every spell except Water.
 //
-// Not implemented, and flagged rather than faked: Fareed's melee disarm (he unequips your weapon
-// unless you are wearing ice gloves) and Damis's second-form prayer drain. Both would need a hook in
-// player_melee.rs2 / npc_combat.rs2 that does not exist yet, and a wrong one would break ordinary
-// combat for everything else on the server. Ice gloves are still worth wearing - the message when
-// Fareed spawns says so - they just are not enforced.
+// Added 2026-09-07: the two melee mechanics. Both hang off a single call in an existing path
+// rather than a new system, so nothing else on the server changes shape.
+//
+//   Fareed   disarms anyone who swings at him without ice gloves. ~dt_melee_attack_allowed is
+//            called once at the top of [label,player_melee_attack], after the target is known to be
+//            alive and attackable but before the hit roll, and returns true for every other npc.
+//   Damis 2  drains prayer on every hit he lands. Queued from ~playerhit_n_melee alongside the
+//            poison queue that was already there - that queue is the only shape which reaches the
+//            player from inside npc combat.
 
 [proc,dt_spell_damage_allowed](int $spell)(boolean)
 if (npc_type = icediamond_icewarrior) {
@@ -52,4 +56,29 @@ switch_int ($spell) {
     case ^ice_barrage : return(true);
     case default : return(false);
 }
+return(false);
+
+
+// ================================================================================ Fareed's disarm
+//
+// "Fareed will disarm players not wearing ice gloves" - so the swing never happens and the weapon
+// comes off instead. An unarmed player is left alone: there is nothing to disarm, and unarmed melee
+// against a level 167 with +100 melee defence is its own punishment.
+//
+// ~unequip refuses when the inventory is full rather than dropping the weapon on the floor, so a
+// full-inventory player keeps their weapon and simply cannot land a hit. That is the safe failure.
+[proc,dt_melee_attack_allowed]()(boolean)
+if (npc_type ! firediamond_firewarrior) {
+    return(true);
+}
+if (inv_total(worn, ice_gloves) > 0) {
+    return(true);
+}
+if (inv_getobj(worn, ^wearpos_rhand) = null) {
+    return(true);
+}
+mes("Fareed's heat sears your hands and you lose your grip on your weapon.");
+~unequip(^wearpos_rhand);
+~update_bas;
+p_stopaction;
 return(false);

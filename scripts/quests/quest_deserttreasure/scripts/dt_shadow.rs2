@@ -181,3 +181,19 @@ if (npc_findhero = ^false) {
 }
 obj_add(npc_coord, fd_dark_diamond, 1, ^lootdrop_duration);
 obj_add(npc_coord, coins, 3000, ^lootdrop_duration);
+
+// Damis's second form drains prayer on every hit he lands - the mechanic that makes form 2 a real
+// fight rather than form 1 with more hitpoints. Queued from ~playerhit_n_melee in
+// skill_combat/scripts/npc/npc_combat_melee.rs2, next to the poison queue it copies.
+//
+// Half the damage dealt, minimum one point, so it scales with how badly the fight is going and a
+// player who is tanking him well is not punished for it. Only the moment prayer runs out is
+// announced - a message on every hit would drown the chatbox.
+[queue,dt_damis_prayer_drain](int $damage)
+if (stat(prayer) = 0) {
+    return;
+}
+stat_sub(prayer, max(1, divide($damage, 2)), 0);
+if (stat(prayer) = 0) {
+    mes("Damis has drained your prayer completely.");
+}

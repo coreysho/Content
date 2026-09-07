@@ -15,6 +15,13 @@ if (npc_stat(hitpoints) = 0) {
     return; // this means the npc is not avail to fight i.e dead
 }
 
+// Desert Treasure - Fareed disarms anyone who swings at him without ice gloves. Returns true for
+// every other npc, so this is one proc call on the melee path.
+// ~dt_melee_attack_allowed is in quests/quest_deserttreasure/scripts/dt_combat.rs2.
+if (~dt_melee_attack_allowed = false) {
+    return;
+}
+
 // check hit, give combat xp
 def_int $damage = 0;
 if (~player_npc_hit_roll(%damagetype) = true) {

@@ -23,6 +23,11 @@ if (%elenaquest < ^quest_elena_mud_patch4) {
 ~objbox(spade, "You dig deep into the soft soil...|Suddenly it crumbles away!", 250, 0, 0);
 if (%elenaquest < ^quest_elena_opened_tunnel) ~quest_elena_set_progress(^quest_elena_opened_tunnel);
 p_telejump(^quest_elena_sewer_mud_pile_coord);
+// The message below has always claimed Edmond follows you down, and the cache has always had the
+// mechanism for it - edmond_top and edmond_bottom are two placed shells reading the same varbit,
+// plaguecity_can_see_edmond_up_top, one showing Edmond at 0 and the other at 1. Nothing had ever
+// written to that varbit, so he stayed in his garden and the message was a lie.
+%plaguecity_can_see_edmond_up_top = 1;
 ~mesbox("You fall through...|...you land in the sewer.|Edmond follows you down the hole.");
 
 [label,elena_bucket_mud_patch](int $slot)

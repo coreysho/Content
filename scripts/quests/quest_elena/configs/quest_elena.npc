@@ -1,0 +1,39 @@
+// Plague City - the two Elena multi shells (Corey, 2026-09-07).
+//
+// Moved out of content/scripts/_unpack/377/all.npc purely to give them a name; redeclaring a name
+// that still exists there is a "Duplicate config found" build error. Everything below except the
+// name= line is untouched cache data.
+//
+// Why they need one. Both are multivar shells - elena2 resolves to elena2_vis (Elena at home) and
+// elenap to elenap_vis (Elena in the plague house) - and the cache ships shells without a name=,
+// because the CLIENT resolves the multi before it draws anything. The SERVER does not: script ops
+// read the type the world actually placed, which is the shell. So NC_NAME in
+// engine/src/engine/script/handlers/NpcConfigOps.ts falls through
+//
+//     state.pushString(npcType.name ?? npcType.debugname ?? 'null');
+//
+// to the debugname, and every one of the ~25 <nc_name(elena2)> interpolations across nine files -
+// Edmond, Alrena, Bravek, Jethick, the Rehnisons, the mourners, the man and woman in West Ardougne -
+// printed "elena2" instead of "Elena". The same fall-through would have made [opnpc1,elenap]'s
+// dialogue header read "elenap".
+//
+// Naming the shell fixes all of them at once and is safe: a shell is only ever drawn as whatever
+// child its multivar resolves to, so this name is a server-side fallback and nothing more.
+
+[elena2]
+name=Elena
+walkanim=human_walk_f,human_walk_b,human_walk_l,human_walk_r
+readyanim=human_ready
+vislevel=1
+multivar=plaguecity_elena_at_home
+multinpc=1,elena2_vis
+param=death_sound,female_death
+
+[elenap]
+name=Elena
+walkanim=human_walk_f,human_walk_b,human_walk_l,human_walk_r
+readyanim=human_ready
+vislevel=1
+multivar=plaguecity_elena_at_home
+multinpc=0,elenap_vis
+param=death_sound,female_death
