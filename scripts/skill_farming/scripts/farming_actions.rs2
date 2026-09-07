@@ -181,10 +181,20 @@ if (~farming_cts($seed) <= 0) {
 
 // One pick per call, then re-queue through the hidden op3 so the player keeps harvesting without
 // re-clicking but can still stop by walking away or clicking something else.
+//
+// Pacing here comes from %action_delay against map_clock, never p_delay. p_delay sets
+// player.delayed, and both MoveClickHandler and OpLocHandler drop the player's input while that
+// is set - so a p_delay + p_oploc re-queue loop runs to completion and cannot be stopped by
+// walking away or clicking something else. Ordinary woodcutting uses the map_clock idiom for
+// exactly this reason (skill_woodcutting/scripts/woodcut.rs2).
+if (%action_delay > map_clock) {
+    p_oploc(3);
+    return;
+}
+%action_delay = calc(map_clock + 3);
 def_int $lives = ~farming_lives($patch);
 ~farming_harvest_anim($seed);
 sound_synth(pick, 1, 0);
-p_delay(2);
 
 inv_add(inv, $produce, 1);
 mes("You harvest <lowercase(oc_name($produce))>.");
@@ -299,14 +309,24 @@ def_int $xp = db_getfield($data, woodcutting_trees:productexp, 0);
 
 // One swing per call, re-queued through the hidden op3 - the same way ordinary woodcutting
 // re-queues with p_oploc, and the same reason: it has to be possible to stop.
+//
+// Pacing here comes from %action_delay against map_clock, never p_delay. p_delay sets
+// player.delayed, and both MoveClickHandler and OpLocHandler drop the player's input while that
+// is set - so a p_delay + p_oploc re-queue loop runs to completion and cannot be stopped by
+// walking away or clicking something else. Ordinary woodcutting uses the map_clock idiom for
+// exactly this reason (skill_woodcutting/scripts/woodcut.rs2).
 if (inv_freespace(inv) < 1) {
     anim(null, 0);
     mes("Your inventory is too full to hold any more logs.");
     return;
 }
+if (%action_delay > map_clock) {
+    p_oploc(3);
+    return;
+}
+%action_delay = calc(map_clock + 3);
 anim(struct_param(oc_param($axe, woodcutting_struct), skill_anim), 0);
 sound_synth(woodchop1, 1, 0);
-p_delay(3);
 
 if (stat_random(woodcutting, $low, $high) = true) {
     mes("You get some <lowercase(oc_name($logs))>.");
