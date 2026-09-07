@@ -86,7 +86,7 @@ inv_del(inv, coins, ^rug_fare);
 if_close;
 mes(append(append("You pay the rug merchant ", tostring(^rug_fare)), " coins."));
 p_delay(1);
-@rug_flight($dest, $place);
+~rug_flight($dest, $place);
 
 // The ride used to play the animations on the spot and then telejump, which reads as a teleport
 // rather than a flight. The carpet now actually leaves the ground: two 8-tile glides out of the
@@ -99,7 +99,7 @@ p_delay(1);
 // two banking anims, carpet_land, and magic_carpet_var - the multivar on carpet_rolledout_multi,
 // which hides the station's rolled-out carpet while you are the one riding it. magic_carpet_var is
 // a temp varp, so an interrupted ride heals itself on the next login.
-[label,rug_flight](coord $dest, string $place)
+[proc,rug_flight](coord $dest, string $place)
 def_coord $start = coord;
 def_int $bearing_out = ~coord_direction2($start, $dest); // 8-way, drives the glide geometry
 def_int $bearing_in = ~coord_direction2($dest, $start);
