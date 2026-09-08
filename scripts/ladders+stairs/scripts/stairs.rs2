@@ -947,7 +947,14 @@ switch_coord (loc_coord) {
     case default : @unhandled_stairs(loc_coord);
 }
 
-[oploc1,cavewalltunnel_to_temple_open]
+// FIXED 2026-09-08 (dead-op audit): this was declared on cavewalltunnel_to_temple_open, which is the
+// state-1 child of the multi-loc cavewalltunnel_to_temple (quest_mourning2/configs/mourning2.loc).
+// OpLocHandler resolves the multi only to validate the op and then calls setInteraction with the
+// original loc, so a handler on the child never fires - the same trap that killed the Recruitment
+// Drive statue handlers. Moved to the shell. State 0 is a solid cave wall with no ops, so this can
+// only be reached in state 1, when the tunnel is open. The body is still the unbuilt Mourning's End
+// Part II stub it always was.
+[oploc1,cavewalltunnel_to_temple]
 // arrive delay?
 switch_coord (loc_coord) {
     case default : @unhandled_stairs(loc_coord);

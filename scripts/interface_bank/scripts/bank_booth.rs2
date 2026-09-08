@@ -5,4 +5,14 @@ if (npc_findcat(loc_coord, bank_teller, 2, 0) = true) {
 @openbank; // default to just open bank if a bank teller was not found to start dialogue.
 
 [oploc2,bankbooth] @openbank;
+
+// FIXED 2026-09-08 (dead-op audit): loc_11758 is the Mos Le'Harmless bank booth and declares the same
+// op1=Use / op2=Use-quickly pair as [bankbooth], but only op2 was ever wired - clicking Use did
+// nothing. Mirrors [oploc1,bankbooth] above.
+[oploc1,loc_11758]
+if (npc_findcat(loc_coord, bank_teller, 2, 0) = true) {
+    @talk_to_banker;
+}
+@openbank;
+
 [oploc2,loc_11758] @openbank;

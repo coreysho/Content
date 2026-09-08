@@ -14,6 +14,11 @@ loc_change(gripcbopen, 500); // todo - how long to keep open?
 [oploc1,gripcbopen]
 @summon_grip;
 
+// FIXED 2026-09-08 (dead-op audit): op2=Shut was declared and unserved.
+[oploc2,gripcbopen]
+mes("You shut the drinks cabinet.");
+loc_change(gripcbshut, 0);
+
 [label,summon_grip]
 if (npc_find(coord, pirate_guard, 4, 0) = true) {
   facesquare(npc_coord);
@@ -70,6 +75,12 @@ if (last_useitem = grip_keys) {
   return;
 }
 ~displaymessage(^dm_default);
+
+// FIXED 2026-09-08 (dead-op audit): op2=Close was declared and unserved. The op1 handler below already
+// shuts the chest after searching it; this is the explicit Close the loc advertises.
+[oploc2,opencandlechest]
+mes("You close the chest.");
+loc_change(shutcandlechest, 0);
 
 [oploc1,shutcandlechest]
 mes("You open the chest.");

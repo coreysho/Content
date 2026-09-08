@@ -793,6 +793,12 @@ if (last_useitem = digchestkey) {
 inv_add(inv, unidentified_powder, 1);
 ~objbox(unidentified_powder, "You find some unusual powder inside...", 250, 0, divide(^objbox_height, 2));
 
+// FIXED 2026-09-08 (dead-op audit): digchestopen declares op2=Close and nothing served it, so the
+// chest could be opened and never shut.
+[oploc2,digchestopen]
+mes("You close the chest.");
+loc_change(digchestclosed, 0);
+
 ////////////////////////////////////////////////
 // NITROGLYCERIN BARREL
 ////////////////////////////////////////////////

@@ -13,6 +13,19 @@ if(%fishingcompo = ^fishingcompo_in_comp | %fishingcompo = ^fishingcompo_garlic_
     @bonzo_champ;
 }
 
+// FIXED 2026-09-08 (dead-op audit): Bonzo declares op3=Pay and nothing served it, so the shortcut did
+// nothing - the 5gp entry fee could only be paid by walking the whole Talk-to dialogue.
+[opnpc3,bonzo]
+if (%fishingcompo ! ^fishingcompo_started) {
+    ~chatnpc("<p,quiz>Pay me for what, champ? There's no competition running for you.");
+    return;
+}
+if (%hemenster_comp_stage = ^hemenster_comp_paidfee) {
+    ~chatnpc("<p,happy>You've already paid, champ. Get to your spot!");
+    return;
+}
+@bonzo_waiting_entry;
+
 [label,bonzo_waiting_entry]
 ~chatnpc("<p,happy>Roll up, roll up!");
 ~chatnpc("<p,happy>Enter the great Hemenster fishing competition!");

@@ -1,3 +1,16 @@
+// FIXED 2026-09-08 (dead-op audit): the coal truck declares op2=Investigate and nothing served it, so
+// there was no way to see how much coal was in it short of trying to take some out.
+[oploc2,loc_2114]
+if (%coal_truck = 0) {
+    mes("The coal truck is empty.");
+    return;
+}
+if (%coal_truck >= ^coal_truck_max) {
+    mes("The coal truck is full. It holds <tostring(^coal_truck_max)> pieces of coal.");
+    return;
+}
+mes("The coal truck holds <tostring(%coal_truck)> pieces of coal.");
+
 [oploc1,loc_2114]
 def_int $coal_to_remove = %coal_truck;
 def_string $coal_mes = "You remove the coal from the truck.";
