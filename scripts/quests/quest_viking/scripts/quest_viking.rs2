@@ -96,3 +96,56 @@ if (testbit(%viking_bits, ^viking_vote_thorvald) = 0) {
 if (testbit(%viking_bits, ^viking_vote_peer) = 0) {
     mes("Peer the Seer has not given you his vote.");
 }
+
+// --- Quest journal ---
+// FIXED 2026-09-08 (quest persistence + reward audit): this was the only one of the 67 quests
+// coloured in the quest list on login that had no [if_button,questlist:...] behind it, so clicking
+// The Fremennik Trials in the journal did nothing at all. The same gap that was found in Regicide
+// by clicking it in-game; found here by sweeping every questlist component in
+// ~update_questlist against the buttons that actually exist.
+//
+// The six trials are done in any order, so the journal lists which votes are still outstanding
+// rather than pretending there is a next step.
+
+[if_button,questlist:viking]
+def_string $n = "The Fremennik Trials";
+def_string $x;
+if (%viking >= ^viking_complete) {
+    $x = append($x, "@str@I won the votes of all six members of the Fremennik council and|");
+    $x = append($x, "@str@Brundt the Chieftain gave me a Fremennik name.|");
+    $x = append($x, "|@dre@QUEST COMPLETE!");
+    ~quest_journal($n, $x);
+    return;
+}
+if (%viking = ^viking_not_started) {
+    $x = append($x, "@dbl@I can start this quest by speaking to @dre@Brundt the Chieftain@dbl@ in|");
+    $x = append($x, "@dbl@the longhall at @dre@Rellekka@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "@str@To be made a Fremennik I must win the votes of all six members|");
+$x = append($x, "@str@of the council. They can be won in any order.|");
+$x = append($x, "|@str@I have <tostring(~viking_votes_won)> of the six.|");
+$x = append($x, "|@dbl@Still to win over:|");
+if (testbit(%viking_bits, ^viking_vote_manni) = 0) {
+    $x = append($x, "@dbl@@dre@Manni the Reveller@dbl@ - a drinking contest.|");
+}
+if (testbit(%viking_bits, ^viking_vote_sigli) = 0) {
+    $x = append($x, "@dbl@@dre@Sigli the Huntsman@dbl@ - hunt the Draugen.|");
+}
+if (testbit(%viking_bits, ^viking_vote_olaf) = 0) {
+    $x = append($x, "@dbl@@dre@Olaf the Bard@dbl@ - bring him a lyre.|");
+}
+if (testbit(%viking_bits, ^viking_vote_sigmund) = 0) {
+    $x = append($x, "@dbl@@dre@Sigmund the Merchant@dbl@ - his chain of favours.|");
+}
+if (testbit(%viking_bits, ^viking_vote_thorvald) = 0) {
+    $x = append($x, "@dbl@@dre@Thorvald the Warrior@dbl@ - fight Koschei the deathless.|");
+}
+if (testbit(%viking_bits, ^viking_vote_peer) = 0) {
+    $x = append($x, "@dbl@@dre@Peer the Seer@dbl@ - his riddle house.|");
+}
+if (~viking_votes_won = 6) {
+    $x = append($x, "|@dbl@I have every vote. I should return to @dre@Brundt the Chieftain@dbl@.");
+}
+~quest_journal($n, $x);
