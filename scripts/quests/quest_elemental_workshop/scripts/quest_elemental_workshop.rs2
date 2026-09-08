@@ -80,38 +80,39 @@ mes("You find some leather.");
 [label,elemental_workshop_box_empty]
 mes("It's empty.");
 
-// The right-hand valve has to be opened BEFORE the left one - the water lever below needs both
-// control bits set, and this valve refuses to move while the left one is open. That part is
-// correct and deliberate. What was wrong is that it printed "You turn the handle." first and then
-// silently did nothing, so a player who opened the left valve first got a valve that appeared to
-// work, a lever that reported "Nothing happens; the lever resets itself", and no way to tell why.
-[oploc1,elemental_workshop_valve_1]
-if(testbit(%elemental_workshop_bits, ^elemental_workshop_water_flowing) = ^true) {
-    mes("Now that the water wheel is running, the valve seems locked off.");
-    return;
-}
-if(testbit(%elemental_workshop_bits, ^elemental_workshop_water_controls_left) = ^true) {
-    mes("You strain at the handle, but the pressure from the other valve holds it shut.");
-    mes("You will have to close the other valve before this one will move.");
-    sound_synth(sluice_gate, 1, 0);
-    return;
-}
-mes("You turn the handle.");
-%elemental_workshop_bits = togglebit(%elemental_workshop_bits, ^elemental_workshop_water_controls_right);
-sound_synth(squeaky_valve, 1, 0);
+// The two water valves.
+//
+// The water lever needs BOTH control bits set (its getbit_range check is = 3). valve_1 used to
+// refuse to move at all while valve_2 was open:
+//
+//     if(testbit(bits, water_controls_left) = ^false) { togglebit(bits, water_controls_right); }
+//
+// so turning the left valve first made the right one a silent no-op, the lever then saw one bit
+// instead of two and cleared them both ("the flow gates reset"), and the player was in a loop with
+// nothing on screen to explain it. That ordering rule has no backing anywhere: neither valve is a
+// multiloc, neither has any visible state, and nothing in the cache distinguishes them - they are
+// two copies of the same sewervalve1 model with op1=Turn. It was an invented constraint on top of
+// invisible state, so it is gone: either valve can now be turned in either order.
+//
+// What replaces it is feedback. Because the bits drive nothing the player can see, each valve now
+// says which way it just went and calls out the moment both are open.
+[oploc1,elemental_workshop_valve_1] ~elemental_workshop_turn_valve(^elemental_workshop_water_controls_right);
+[oploc1,elemental_workshop_valve_2] ~elemental_workshop_turn_valve(^elemental_workshop_water_controls_left);
 
-[oploc1,elemental_workshop_valve_2]
+[proc,elemental_workshop_turn_valve](int $bit)
 if(testbit(%elemental_workshop_bits, ^elemental_workshop_water_flowing) = ^true) {
     mes("Now that the water wheel is running, the valve seems locked off.");
     return;
 }
-mes("You turn the handle.");
-%elemental_workshop_bits = togglebit(%elemental_workshop_bits, ^elemental_workshop_water_controls_left);
+%elemental_workshop_bits = togglebit(%elemental_workshop_bits, $bit);
 sound_synth(squeaky_valve, 1, 0);
-// With both valves open the lever will start the wheel; say so, since nothing else in the room
-// does and the lever is a long walk away.
-if(testbit(%elemental_workshop_bits, ^elemental_workshop_water_controls_right) = ^true & testbit(%elemental_workshop_bits, ^elemental_workshop_water_controls_left) = ^true) {
-    mes("Water begins to build up behind the gates.");
+if(testbit(%elemental_workshop_bits, $bit) = ^false) {
+    mes("You turn the handle. The gate grinds shut.");
+    return;
+}
+mes("You turn the handle. The gate opens and water runs through it.");
+if(getbit_range(%elemental_workshop_bits, ^elemental_workshop_water_controls_left, ^elemental_workshop_water_controls_right) = 3) {
+    mes("Both gates are open now. The lever should turn the wheel.");
 }
 
 [oploc1,elemental_workshop_water_lever]

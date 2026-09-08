@@ -66,7 +66,17 @@ if(coord ! ^grandtree_jail_coord) {
     return;
 }
 if_close;
-npc_add(movecoord(^grandtree_jail_coord, 3, 0, 0), grandtree_narnode, 200);
+// Unguarded, this spawned a second King Narnode every time the label ran. @charlie_shouldnt_tell is
+// reachable from [opnpc1,grandtree_charlie] at stage ^grandtree_found_prisoner and does not advance
+// the stage until @narnode_trust_glough at the very end - so dismissing the chat part-way through
+// and talking to Charlie again re-entered it and added another king. ~grandtree_spawn_charlie in
+// quest_grandtree.rs2 already guards its own npc_add with npc_findexact for exactly this reason;
+// this one did not. npc_findexact sets the active npc pointer when it succeeds, so the npc_walk and
+// npc_say below work whether the king was just added or was already standing there.
+def_coord $king_spot = movecoord(^grandtree_jail_coord, 3, 0, 0);
+if(npc_findexact($king_spot, grandtree_narnode) = false) {
+    npc_add($king_spot, grandtree_narnode, 200);
+}
 p_delay(0); 
 npc_walk(movecoord(coord, 1, 0, 0));
 p_delay(2); // 3t

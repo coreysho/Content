@@ -200,7 +200,12 @@ def_int $balls = min(inv_total(inv, ball_of_wool), $balls_left);
 inv_del(inv, ball_of_wool, $balls);
 
 %sheep = calc(%sheep + $balls);
-if(%sheep = calc(^sheep_last_wool) & inv_total(inv, ball_of_wool) > 0) {
+// The second half of this used to be `& inv_total(inv, ball_of_wool) > 0` - wool still in the pack
+// AFTER the inv_del three lines up had already taken it. Hand in exactly the twenty Fred asks for
+// and the delete empties the stack, so the test was false and the quest silently refused to finish:
+// you were told "I need more before I can pay you" with all twenty balls gone. Only a player
+// carrying a spare 21st ball could ever complete it.
+if(%sheep >= ^sheep_last_wool) {
     @fred_end_giving_wool;
 }
 
@@ -214,7 +219,7 @@ if(%sheep = calc(^sheep_last_wool) & inv_total(inv, ball_of_wool) > 0) {
 ~chatplayer("<p,neutral>Ok, I'll work on it.");
 
 [label,fred_end_giving_wool]
-if(%sheep = calc(^sheep_last_wool) & inv_total(inv, ball_of_wool) > 0) {
+if(%sheep >= ^sheep_last_wool) {
     // 225 dialog, 2025 OSRS still matches
     ~chatplayer("<p,happy>That's the last of them.");
     ~chatnpc("<p,sad>I guess I'd better pay you then.");

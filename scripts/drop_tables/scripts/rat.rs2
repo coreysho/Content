@@ -1,4 +1,17 @@
-[ai_queue3,rat]
+// Witch's Potion - the rat's tail.
+//
+// The four rats standing around Hetty's house in Rimmington (m46_50 local 9,4 / 11,2 / 15,2 / 16,5)
+// are npc type rat_indoors, NOT rat. rat_indoors had no [ai_queue3] of its own anywhere in the
+// codebase, so it fell through to [ai_queue3,_] -> ~npc_default_death, which drops only
+// npc_param(death_drop) - and rat_indoors declares death_drop,null. They dropped nothing at all.
+//
+// The only rat type wired to the tail was `rat`, and the nearest `rat` spawns to Hetty are the nine
+// inside Melzar's Maze, behind a Dragon Slayer key. So the quest could not be finished from
+// Rimmington. Both types share the table now; the quest gating below is unchanged.
+[ai_queue3,rat] @rat_drop_table;
+[ai_queue3,rat_indoors] @rat_drop_table;
+
+[label,rat_drop_table]
 gosub(npc_death);
 if (npc_findhero = ^false) {
     return;

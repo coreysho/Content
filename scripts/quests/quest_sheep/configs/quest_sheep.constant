@@ -1,3 +1,12 @@
 ^sheep_not_started = 0
 ^sheep_started = 1
-^sheep_last_wool = 20
+// %sheep counts 1 for "started" plus one per ball handed in, and ^sheep_complete is 22 - so after
+// all twenty balls it reads 21, not 20. At 20 this constant was one short of a value %sheep could
+// ever hold at the right moment, which broke three separate checks in fred_the_farmer.rs2:
+//   line 4    %sheep <= ^sheep_last_wool  - the "quest in progress" branch stopped matching once
+//             the wool was handed in, dropping the player into @fred_post_quest
+//   line 203  %sheep = ^sheep_last_wool   - the completion branch could never be reached
+//   line 217  the same test again inside @fred_end_giving_wool
+// Both ~fred_the_farmer and sheep_journal.rs2 already do their arithmetic against a literal 21
+// (calc(21 - %sheep)), which is what this now agrees with.
+^sheep_last_wool = 21

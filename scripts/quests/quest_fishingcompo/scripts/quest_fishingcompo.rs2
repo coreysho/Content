@@ -78,9 +78,19 @@ switch_obj (last_useitem) {
     case default : ~displaymessage(^dm_default);
 }
 
-// option doesn't exist in RSC, but based off the 2005 image, I think it probably always sends nothing interesting happens
-// when searching it (this matches the behaviour of OSRS when searching it from 3-8 tiles away)
-[aplocu,garlicpipe] ~displaymessage(^dm_default);
+// The note above is about SEARCHING the pipe (op1=Search), but the trigger written for it was
+// [aplocu] - the "use an item on this loc, from a distance" one - and that intercepted the garlic.
+//
+// engine/entity/Player.ts:1173-1219: the op trigger only wins when the player is already in
+// operable distance; otherwise, if an ap trigger exists and the player is inside apRange, the ap
+// script runs and the interaction ENDS. ~displaymessage never calls p_aprange, so it never asked
+// the engine to walk closer. Using garlic on the pipe from anywhere but the one adjacent tile
+// printed "Nothing interesting happens" and [oplocu,garlicpipe] below never ran - which is exactly
+// "can't put the garlic in the pipe".
+//
+// Removing it restores the default behaviour: walk to the pipe, then run the oplocu handler.
+// Searching the pipe still says nothing interesting happens - there is no [oploc1,garlicpipe] at
+// all, so it falls through to the engine's own default, which is what the note wanted anyway.
 
 [label,stash_garlic]
 mes("You stash the garlic in the pipe.");
