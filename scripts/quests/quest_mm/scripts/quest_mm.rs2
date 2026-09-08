@@ -1,0 +1,277 @@
+// Monkey Madness, stage one - the Grand Tree, the hangar, Crash Island, and the crossing to Ape Atoll.
+// See configs/quest_mm.constant for what the cache already ships and for the list of what is not
+// built yet. The quest starts off King Narnode, whose handler lives in quest_grandtree and is jumped
+// into from there.
+
+// --- King Narnode ---
+// Jumped to from [opnpc1,grandtree_narnode] once The Grand Tree is complete.
+
+[label,mm_narnode]
+if (%mm_main >= ^mm_started) {
+    @mm_narnode_progress;
+}
+~chatplayer("<p,happy>Hello your highness!");
+~chatnpc("<p,sad>Ah... Traveller. I am glad it is you and not another of my advisors.");
+~chatplayer("<p,quiz>Is something wrong?");
+~chatnpc("<p,sad>The 10th Squad. My finest soldiers. I sent them out months ago and not one of them has come home.");
+~chatplayer("<p,quiz>Sent them where?");
+~chatnpc("<p,worried>That is the difficulty. Officially I sent them nowhere at all, and officially I am not asking you to find them.");
+~chatnpc("<p,neutral>Glough had his fingers in more than the shipyard, Traveller. Some of what he started did not stop when he did.");
+~chatplayer("<p,quiz>So who do I talk to?");
+~chatnpc("<p,neutral>Daero. He drinks in the Blurberry bar upstairs, and he knows every unofficial thing this stronghold has ever done. Tell him I sent you.");
+%mm_main = ^mm_started;
+~send_quest_progress(questlist:mm, 1, ^mm_complete);
+~chatnpc("<p,worried>And Traveller - do not tell my advisors.");
+
+[label,mm_narnode_progress]
+~chatplayer("<p,happy>Hello your highness!");
+switch_int (%mm_main) {
+    case ^mm_started, ^mm_daero_briefed :
+        ~chatnpc("<p,neutral>Daero. Upstairs, in the bar. He will not look pleased to see you; that is simply his face.");
+    case ^mm_in_hangar :
+        ~chatnpc("<p,shock>You found the hangar? Then you have already seen more than I am supposed to know about.");
+    case ^mm_crash_island, ^mm_ape_atoll :
+        ~chatnpc("<p,worried>You have been out there. Tell me when you find them, Traveller. Only when you find them.");
+    case default :
+        ~chatnpc("<p,happy>Better than ever, thanks to you!");
+}
+
+// --- Daero ---
+// Placed twice: m38_54 p1 (52,30) in the Blurberry bar, and m41_70 (24,34) in the hangar. Which one
+// you are standing in front of is read off the npc's own coordinate, not off a quest stage, because
+// the Grand Tree copy is still there after you have been taken down.
+
+[opnpc1,mm_daero]
+if (inzone(^mm_hangar_zone_min, ^mm_hangar_zone_max, npc_coord) = true) {
+    @mm_daero_hangar;
+}
+if (%mm_main < ^mm_started) {
+    ~chatplayer("<p,happy>Hello.");
+    ~chatnpc("<p,neutral>I'm drinking. Whatever it is, ask someone with a desk.");
+    return;
+}
+if (%mm_main > ^mm_daero_briefed) {
+    ~chatnpc("<p,neutral>You know the way down now. Go on.");
+    return;
+}
+if (%mm_main = ^mm_daero_briefed) {
+    @mm_daero_offer_trip;
+}
+// The three topics are the cache's own mm_daero_option_bit_one/two/three. Read as the three things
+// you get to ask him about before he will take you anywhere; each is remembered so he does not
+// repeat himself, and when all three are done the trip is offered.
+~chatplayer("<p,neutral>King Narnode sent me. It's about the 10th Squad.");
+~chatnpc("<p,angry>Did he. In a bar. Sit down and keep your voice at that level.");
+@mm_daero_topics;
+
+[label,mm_daero_topics]
+def_int $one = %mm_daero_option_bit_one;
+def_int $two = %mm_daero_option_bit_two;
+def_int $three = %mm_daero_option_bit_three;
+if ($one = 1 & $two = 1 & $three = 1) {
+    %mm_main = ^mm_daero_briefed;
+    ~send_quest_progress(questlist:mm, 2, ^mm_complete);
+    @mm_daero_offer_trip;
+}
+def_int $choice = ~p_choice3(
+    "Where did the 10th Squad actually go?", 1,
+    "Why can't the King ask about it himself?", 2,
+    "What do you need me to do?", 3);
+if ($choice = 1) {
+    ~chatplayer("<p,quiz>Where did the 10th Squad actually go?");
+    ~chatnpc("<p,neutral>South. A long way south, past Karamja, to an island that isn't on any gnome chart because we drew the charts.");
+    ~chatnpc("<p,sad>They were told it was a reconnaissance. It was not a reconnaissance.");
+    %mm_daero_option_bit_one = 1;
+} else if ($choice = 2) {
+    ~chatplayer("<p,quiz>Why can't the King ask about it himself?");
+    ~chatnpc("<p,angry>Because the order that sent them out has Glough's handwriting on it and the King's seal underneath, and only one of those two knew what he was signing.");
+    ~chatnpc("<p,neutral>Narnode can send you. He cannot send an army without admitting there was something to send it about.");
+    %mm_daero_option_bit_two = 1;
+} else {
+    ~chatplayer("<p,quiz>What do you need me to do?");
+    ~chatnpc("<p,neutral>Go and look. That is all. Find them, or find out what happened to them.");
+    ~chatnpc("<p,neutral>I can get you as far as the water. After that you are on your own, and you will want to be armed.");
+    %mm_daero_option_bit_three = 1;
+}
+@mm_daero_topics;
+
+[label,mm_daero_offer_trip]
+~chatnpc("<p,neutral>There is a hangar under this tree that the stronghold does not have. Do you want to see it?");
+def_int $go = ~p_choice2("Yes. Take me down.", 1, "Not just yet.", 2);
+if ($go = 2) {
+    ~chatplayer("<p,neutral>Not just yet.");
+    ~chatnpc("<p,neutral>It will still be there. So will I.");
+    return;
+}
+~chatplayer("<p,neutral>Yes. Take me down.");
+~chatnpc("<p,neutral>Then you wear this, and you do not take it off until I say.");
+// The stage moves before the pausing calls below, so a player who clicks away mid-cutscene is still
+// counted as having made the trip rather than being left half-way through it.
+if (%mm_main < ^mm_in_hangar) {
+    %mm_main = ^mm_in_hangar;
+    ~send_quest_progress(questlist:mm, 3, ^mm_complete);
+}
+~mesbox("Daero ties a strip of cloth over your eyes. You are led down a great many stairs, along something that echoes, and down a great many more.");
+p_telejump(^mm_hangar_arrive);
+~mesbox("The blindfold comes off. You are standing in a lit cavern the size of the Grand Tree's roots, and most of it is taken up by gliders.");
+
+[label,mm_daero_hangar]
+~chatplayer("<p,quiz>So what is all this?");
+~chatnpc("<p,neutral>Officially, nothing. Waydar over there flies the only one of these that still has a pilot. Talk to him when you are ready to leave.");
+~chatnpc("<p,worried>And do not touch the levers.");
+
+// --- Waydar ---
+// Placed at m41_70 (24,39) in the hangar and at m45_42 (17,39) on Crash Island, so he is the whole
+// round trip on his own.
+
+[opnpc1,mm_waydar]
+if (%mm_main < ^mm_in_hangar) {
+    ~chatnpc("<p,neutral>Nobody flies without Daero saying so.");
+    return;
+}
+if (inzone(^mm_crash_island_min, ^mm_crash_island_max, npc_coord) = true) {
+    @mm_waydar_return;
+}
+~chatplayer("<p,quiz>Daero says you can fly me out.");
+~chatnpc("<p,neutral>He would. It's a two-seater and the second seat is where the cargo goes, so mind your knees.");
+def_int $go = ~p_choice2("Let's go.", 1, "Give me a minute.", 2);
+if ($go = 2) {
+    ~chatplayer("<p,neutral>Give me a minute.");
+    ~chatnpc("<p,neutral>Take two. I'm not going anywhere.");
+    return;
+}
+~chatplayer("<p,neutral>Let's go.");
+if (%mm_main < ^mm_crash_island) {
+    %mm_main = ^mm_crash_island;
+    ~send_quest_progress(questlist:mm, 4, ^mm_complete);
+}
+@mm_travel(^mm_crash_island_arrive, "The glider drops out of the hangar mouth, and for a long time there is nothing under you but water. Then there is an island.");
+
+[label,mm_waydar_return]
+~chatplayer("<p,quiz>Can you take me back?");
+~chatnpc("<p,neutral>To the hangar, yes. Anywhere a gnome would admit to, no.");
+def_int $go = ~p_choice2("The hangar will do.", 1, "I'll stay here.", 2);
+if ($go = 2) {
+    ~chatplayer("<p,neutral>I'll stay here.");
+    ~chatnpc("<p,neutral>Suit yourself. Watch the snakes.");
+    return;
+}
+~chatplayer("<p,neutral>The hangar will do.");
+@mm_travel(^mm_hangar_arrive, "The island falls away behind you, and a long while later the hangar mouth swallows the glider whole.");
+
+// One label for both the glider and the boat: the two were byte-identical, and a trigger or label
+// that exists twice in different words is the kind of thing that drifts apart later.
+[label,mm_travel](coord $dest, string $arrival)
+if (~pre_tele_checks(coord) = false) {
+    return;
+}
+if_close;
+p_delay(1);
+p_telejump($dest);
+~mesbox($arrival);
+
+// --- Lumdo ---
+// Placed at m45_42 (11,36) beside the Crash Island rowboat and at m43_42 (51,19) beside the Ape Atoll
+// one. Same two-ended arrangement as Waydar.
+
+[opnpc1,mm_lumdo]
+if (%mm_main < ^mm_crash_island) {
+    ~chatnpc("<p,neutral>I row for the squad, not for tourists.");
+    return;
+}
+if (inzone(^mm_crash_island_min, ^mm_crash_island_max, npc_coord) = false) {
+    @mm_lumdo_return;
+}
+if (%mm_main < ^mm_ape_atoll) {
+    ~chatplayer("<p,quiz>What's across the water?");
+    ~chatnpc("<p,worried>The place the squad went. I rowed them over myself and I have rowed nobody back.");
+    ~chatnpc("<p,neutral>Garkor is still there. He signals sometimes. The rest, I don't know.");
+    ~chatplayer("<p,quiz>Will you take me?");
+    ~chatnpc("<p,angry>I'll take you. I won't wait long, and I won't come looking.");
+}
+def_int $go = ~p_choice2("Take me across.", 1, "Not yet.", 2);
+if ($go = 2) {
+    ~chatplayer("<p,neutral>Not yet.");
+    ~chatnpc("<p,neutral>Sensible.");
+    return;
+}
+~chatplayer("<p,neutral>Take me across.");
+if (%mm_main < ^mm_ape_atoll) {
+    %mm_main = ^mm_ape_atoll;
+    ~send_quest_progress(questlist:mm, 5, ^mm_complete);
+}
+@mm_travel(^mm_ape_atoll_arrive, "Lumdo rows you across in silence and puts you ashore on a beach under a wall of jungle. He does not get out of the boat.");
+
+[label,mm_lumdo_return]
+~chatplayer("<p,quiz>Back to the island, please.");
+def_int $go = ~p_choice2("Yes, get me out of here.", 1, "Actually, I'll stay.", 2);
+if ($go = 2) {
+    ~chatplayer("<p,neutral>Actually, I'll stay.");
+    ~chatnpc("<p,worried>Then keep to the beach.");
+    return;
+}
+~chatplayer("<p,neutral>Yes, get me out of here.");
+@mm_travel(^mm_crash_island_boat, "Lumdo has the boat off the sand before you are properly sitting down.");
+
+
+// --- The way out of the hangar ---
+// Without this the hangar is a trap: Waydar only flies between the hangar and Crash Island, Lumdo only
+// rows between Crash Island and Ape Atoll, and nothing else on m40_70 leads anywhere. The cache's own
+// answer is the bunker_teleport pad at (29,14) - op1=Operate, "some kind of Gnome teleportation
+// device" - with a bunker_exitsign pointing at it from (32,14). It had no handler.
+
+[oploc1,bunker_teleport]
+if (%mm_main < ^mm_in_hangar) {
+    mes("Nothing happens. Whatever this is, it is not listening to you.");
+    return;
+}
+mes("You step onto the pad and press the only button on it.");
+p_delay(2);
+~mesbox("The cavern folds itself away and you are standing on the walkway outside the Blurberry bar, several hundred feet above where you were.");
+p_telejump(^mm_grand_tree_return);
+
+// --- Quest journal ---
+
+[if_button,questlist:mm]
+def_string $n = "Monkey Madness";
+def_string $x;
+if (%mm_main < ^mm_started) {
+    $x = append($x, "@dbl@I can start this quest by speaking to @dre@King Narnode Shareen@dbl@ in|");
+    $x = append($x, "@dbl@the @dre@Grand Tree@dbl@, once I have finished @dre@The Grand Tree@dbl@ and|");
+    $x = append($x, "@dbl@@dre@Tree Gnome Village@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "@str@King Narnode's 10th Squad went south months ago on an order with|");
+$x = append($x, "@str@Glough's handwriting on it, and none of them came back.|");
+if (%mm_main = ^mm_started) {
+    $x = append($x, "|@dbl@I should find @dre@Daero@dbl@, who drinks in the @dre@Blurberry bar@dbl@ on the|");
+    $x = append($x, "@dbl@first floor of the Grand Tree.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@Daero knows where they went, and can get me as far as the water.|");
+if (%mm_main = ^mm_daero_briefed) {
+    $x = append($x, "|@dbl@@dre@Daero@dbl@ has offered to take me down to a hangar the stronghold|");
+    $x = append($x, "@dbl@does not officially have.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@There is a hidden glider hangar under the Grand Tree.|");
+if (%mm_main = ^mm_in_hangar) {
+    $x = append($x, "|@dbl@@dre@Waydar@dbl@ will fly me out from the hangar when I am ready. I|");
+    $x = append($x, "@dbl@should go armed.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@Waydar flew me to a small island a long way south of Karamja.|");
+if (%mm_main = ^mm_crash_island) {
+    $x = append($x, "|@dbl@@dre@Lumdo@dbl@ rowed the squad across from here and has rowed nobody|");
+    $x = append($x, "@dbl@back. He will take me if I ask.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@Lumdo rowed me across to the island the squad went to. Garkor is|");
+$x = append($x, "@str@supposed to still be alive somewhere on it.|");
+$x = append($x, "|@dbl@This is as far as this quest goes on this server for now.");
+~quest_journal($n, $x);

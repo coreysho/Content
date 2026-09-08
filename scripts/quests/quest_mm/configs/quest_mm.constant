@@ -1,0 +1,103 @@
+// Monkey Madness. Wiki: https://oldschool.runescape.wiki/w/Monkey_Madness_I
+// Released October 2004, so era-appropriate for a 377 build.
+//
+// THIS FILE COVERS STAGE ONE ONLY - getting to Ape Atoll. See "NOT BUILT" at the bottom. The quest is
+// far too large to land in one piece; this is the first self-contained, testable chunk, and it ends
+// with the player standing on the Ape Atoll shore, which is a real milestone.
+//
+// --- The cache ships more of this quest than of any other in the project ---
+// 88 npcs, 175 locs, 35 objs, EIGHT varps and THIRTY-SIX varbits, and the varbit names alone document
+// the intended design well enough to build from:
+//
+//   mm_main            the stage counter
+//   mm_flags           18 booleans: mm_daero_option_bit_one/two/three, mm_hangar_cutscene_flag,
+//                      mm_hangar_puzzle_complete, mm_player_is_unconscious, mm_rock_falling,
+//                      six mm_zooknock_has_* / _player_is_collecting_for_*, mm_monkey_child_*,
+//                      mm_waiting_for_final_battle, mm_been_to_final_battle, mm_player_received_*
+//   mm_gnomes          a 2-4 bit dialogue-progress counter per gnome: narnode, caranock, daero,
+//                      waydar, lumdo, garkor, zooknock, karam, lumo
+//   mm_monkeys         same per monkey: kruk, awowogei, monkey_child, elder_guard
+//   mm_misc            foreman, jail_count (8 bits), monkey_minder, zooknock_monkey_relic,
+//                      final_battle_gnomes
+//   mm_cutscene_part / mm_cutscene_coord / mm_guards_cooldown
+//
+// The world is placed at BOTH ends of every hop this stage needs:
+//   Grand Tree      m38_54   Narnode p0 (34,41), Daero p1 (52,30) beside the Blurberry bar
+//   Hangar          m40_70   Daero (24,34), Waydar (24,39), five mm_glider, five mm_bunker_lever,
+//                            the mm_gnome_cave_door_* set at z=54, three mm_pipe_end, the
+//                            bunker_controlpanal (26,27) and the bunker_teleport pad (29,14)
+//   Crash Island    m45_42   Waydar (17,39), Lumdo (11,36), mm_glider_open (20,37), rowboat (8,37)
+//   Ape Atoll shore m43_42   Lumdo (51,19), rowboat (52,16)
+//
+// There are THREE copies of the hangar - m40_70, m41_70 and m37_154 - with near-identical loc and npc
+// layouts. m37_154 additionally carries mm_reinitialisation_crate and mm_wallcrack_final_battle_room,
+// so it is the late-quest copy. m40_70 is used here as the canonical one because it is the only copy
+// that carries the operable bunker_teleport pad (op1=Operate) rather than just its corner pieces and
+// the bunker_exitsign - i.e. it is the only one you can walk out of. The cache also ships a
+// cutscene set (mm_awowogei_cutscene, mm_caranock_cutscene, mm_waydar_cutscene, mm_foreman_cutscene,
+// mm_cutscene_spider) on m40_71 and m41_71 p1, the same trick Regicide's m36_71 Tyras Camp copy uses.
+//
+// p_transmogrify(npc) already exists as an engine command and Castle Wars already uses it
+// (minigames/game_castlewars/scripts/castlewars_transmog.rs2), so the greegrees of stage two are
+// buildable without new engine work.
+
+^mm_not_started = 0
+^mm_started = 1          // Narnode told you the 10th squad never came home; find Daero
+^mm_daero_briefed = 2    // Daero has answered all three of your questions
+^mm_in_hangar = 3        // Daero has taken you down to the hangar
+^mm_crash_island = 4     // Waydar has flown you to Crash Island
+^mm_ape_atoll = 5        // Lumdo has rowed you to Ape Atoll - the end of what is built
+// 6..9 are reserved for stage two so nothing built now has to be renumbered later.
+// ^mm_complete = 10 was already declared, globally, in general/configs/quest.constant.
+
+// --- Requirements ---
+// The Grand Tree and Tree Gnome Village, both implemented. No skill requirements; the real quest
+// gates on combat ability rather than levels.
+
+// --- Coordinates ---
+// Each arrival tile was picked by reading the LOC section of the map square and finding a tile with
+// either nothing on it or only shape-22 ground decoration, which does not block.
+^mm_hangar_arrive = 0_40_70_24_36        // between Daero (24,34) and Waydar (24,39)
+^mm_crash_island_arrive = 0_45_42_19_38  // beside the Crash Island glider at (20,37)
+^mm_crash_island_boat = 0_45_42_10_37    // beside the Crash Island rowboat at (8,37)
+^mm_ape_atoll_arrive = 0_43_42_51_17     // beside the Ape Atoll rowboat at (52,16)
+^mm_grand_tree_return = 1_38_54_51_30    // back beside Daero's usual spot in the Blurberry bar
+
+// The map square each of the two travelling npcs can stand in. Waydar and Lumdo are each placed
+// twice, at both ends of their own route, so which end you are talking to has to be read off the
+// npc's own coordinate rather than off a quest stage.
+^mm_hangar_zone_min = 0_40_70_0_0
+^mm_hangar_zone_max = 0_40_70_63_63
+^mm_crash_island_min = 0_45_42_0_0
+^mm_crash_island_max = 0_45_42_63_63
+
+// --- Rewards, for when the rest lands ---
+// 3 quest points, 35,000 XP in two of Attack/Strength/Defence/Hitpoints, and the dragon scimitar.
+// stat_advance takes tenths.
+^mm_reward_xp = 350000
+
+// ===================================================================================================
+// NOT BUILT - stage two onwards
+// ===================================================================================================
+// * APE ATOLL ITSELF. m42_43, m43_43 and m43_42 are fully placed - Garkor and the 10th squad, Kruk,
+//   Awowogei, the monkey child and its aunt and uncle, the five monkey shops (all wired to their
+//   cache inventories by the dead-op audit), the temple, the jail, the bamboo ladders. None of it has
+//   a script. Landing there right now gets you a shore and nothing else, and the monkey archers and
+//   guards have no combat behaviour, so nothing will attack you either.
+// * THE GREEGREES. mm_monkey_talisman, mm_monkey_dentures, mm_monkey_amulet_mould and the greegree
+//   objs all exist. The chain needs Zooknock's dungeon (m43_142/m43_143, placed, with the zombie
+//   monkeys), a gold bar, and the Ardougne Zoo monkey - mm_zoo_monkey and mm_monkey_minder are
+//   placed at m40_51 (46,16) and (48,15).
+// * THE REINITIALISATION PANEL. bunker_controlpanal (op1=Operate, "the panel controlling the hangar
+//   reinitialisation") is placed on all three hangar copies and has no script. It belongs with
+//   mm_reinitialisation_crate on the m37_154 copy, which is late-quest.
+// * THE HANGAR PUZZLE. mm_hangar_puzzle_complete exists as a varbit and the hangar ships five
+//   mm_glider and five mm_bunker_lever in matched rows, which is clearly a lever-to-glider puzzle,
+//   but nothing in the cache says which lever goes with which glider. Stage one routes around it:
+//   Waydar simply flies you, the way he does once the puzzle is solved.
+// * THE JUNGLE DEMON and the final battle. mm_wallcrack_final_battle_room is placed only on the
+//   m37_154 hangar copy, and mm_final_battle_gnomes is a 4-bit counter for the 10th squad.
+// * CARANOCK at m46_47 (12,17), the gnome shipyard agent on Karamja, has no script.
+// * ^mm_complete = 10 is declared but unreachable. The quest is registered in ~count_questpoints,
+//   ~update_questlist and quest.enum so the journal colours and the questpoint total are right, but
+//   nothing sets the completion value yet.
