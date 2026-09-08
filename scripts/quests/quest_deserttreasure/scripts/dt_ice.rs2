@@ -67,6 +67,16 @@ if (%fd_icewarrior_bootshint = 0) {
     %fd_icewarrior_bootshint = 1;
     mes("The cold here is not natural. You will not be able to stand it for long.");
 }
+// If Kamil's death hook could not take protected access, notice it here instead: standing in his
+// arena with no Kamil in it means he is gone.
+if (%fd_icewarrior_subquest = ^fdiw_gave_sweet & distance(coord, ^dt_kamil_arena) < 8) {
+    if (npc_find(^dt_kamil_arena, icediamond_icewarrior, 12, 0) = false) {
+        %fd_icewarrior_dead = 1;
+        %fd_icewarrior_dadfree = 1;
+        %fd_icewarrior_mumfree = 1;
+        %fd_icewarrior_subquest = ^fdiw_parents_freed;
+    }
+}
 mes("The cold bites into you.");
 ~damage_self(randominc(3));
 switch_int (random(3)) {
@@ -112,7 +122,7 @@ if (%fd_icewarrior_subquest >= ^fdiw_parents_freed) {
 }
 if (%fd_icewarrior_subquest >= ^fdiw_gave_sweet) {
     ~chatnpc("<p,sad>Mummy and daddy still ice. Please help.");
-    ~chatnpc("<p,neutral>Ice man live past gate. Him freeze them. Smash ice blocks to let them out.");
+    ~chatnpc("<p,neutral>Ice man live past gate. Him freeze them. Him fall, ice go away.");
     return;
 }
 if (%fd_trollchild_intro = 0) {
@@ -186,7 +196,7 @@ npc_add(^dt_kamil_arena, icediamond_icewarrior, 2000);
 //
 // so everything after a successful npc_findhero runs with the killer as the active player.
 // areas/area_mage_arena/scripts/kolodion_fight.rs2 has been relying on exactly that for %magearena
-// the whole time. That is what makes the automatic thaw below possible.
+// the whole time. Writing a PROTECTED varp needs one step more than that - see below.
 [ai_queue3,icediamond_icewarrior]
 gosub(npc_death);
 if (npc_findhero = ^false) {
@@ -194,6 +204,15 @@ if (npc_findhero = ^false) {
 }
 obj_add(npc_coord, bones, 1, ^lootdrop_duration);
 obj_add(npc_coord, coins, 2000, ^lootdrop_duration);
+// npc_findhero grants active_player, but WRITING a varp needs p_active_player whenever the varp
+// is protected - and VarPlayerType.protect defaults to true, which deserttreasurevarbit2 takes.
+// Only P_FINDUID sets p_active_player (ScriptOpcodePointers.ts:343), so the upgrade has to be
+// asked for explicitly. This is the same shape [ai_queue3,san_tojalon] uses in Legends' Quest.
+// It is conditional - protected access is refused while the player has a modal open - hence the
+// guard, and hence the belt-and-braces check in [timer,dt_ice_path] below.
+if (p_finduid(uid) = false) {
+    return;
+}
 %fd_icewarrior_dead = 1;
 %fd_icewarrior_dadfree = 1;
 %fd_icewarrior_mumfree = 1;
@@ -255,9 +274,9 @@ if ($which = 2 & %fd_icewarrior_mumfree = 1) {
     mes("This block is already broken open.");
     return;
 }
-// Kamil's death is checked by his absence rather than by a varbit. An [ai_queue3] death hook runs
-// with no player pointer at all, so it cannot write a player varbit - and "he is not here any more"
-// is the same test from the player's side.
+// A belt-and-braces path. Kamil's death hook already sets dadfree/mumfree directly, so this only
+// matters if troll_block_1/2 are ever actually placed on a map - at present only troll_frozen_1/2
+// are. Checking his absence rather than %fd_icewarrior_dead keeps it working either way.
 if (npc_find(coord, icediamond_icewarrior, 20, 0) = true) {
     mes("Kamil is still here. You will not get near the ice while he lives.");
     return;
