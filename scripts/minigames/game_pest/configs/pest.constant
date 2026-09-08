@@ -1,0 +1,37 @@
+// The Void Knights' Outpost and the ship that reaches it.
+//
+// The outpost island (m41_41 and m41_40) was one of only three FULLY ISOLATED map squares on the
+// server - a two-square pocket with no neighbouring square at all, so nothing but a script could
+// ever put a player on it. See claude/unreachable-content-audit.md. Everything on it was stranded:
+// eighteen npcs including three shops the dead-op audit had already wired to their cache
+// inventories, four Void Knights, a blacksmith and two bank squires.
+//
+// The cache places BOTH ends of the ship route and neither was scripted - the same shape as
+// Waydar and Lumdo in Monkey Madness:
+//   pest_squire_ship_portsarim   m47_50 (33,2)   Port Sarim pier, on the reachable mainland
+//   pest_squire_ship_island      m41_41 (35,52)  the outpost pier
+//
+// THESE TWO COORDS ARE NOT THE transportation_icon TILES, and that is deliberate. Both piers carry
+// the game's own transportation_icon (loc 7389, mapfunction=56), and taking it as the boarding tile
+// is wrong: it is a MINIMAP marker, forcedecor, and on both squares it is placed one tile off the
+// walkable deck, over open water.
+//
+// Both piers are BRIDGES. Level 0 at every tile here is gungywater with land flag f1 - GameMap's
+// BLOCK_MAP_SQUARE - and the plank deck is level 1, flagged f2 (LINK_BELOW). GameMap.loadGround
+// treats a level-1 f2 tile as bridging: the level-0 tile beneath it is skipped rather than blocked,
+// which is what makes the deck walkable while the water around it is not. So the walkable tiles are
+// exactly the ones whose LEVEL 1 entry carries f2, and a coord picked off the level-0 map or off the
+// icon lands a player in the sea.
+//
+//   ^pest_sarim_pier    m47_50 (33,3)   level 1 "o42 f2", no level-0 loc, due north of the squire
+//   ^pest_outpost_pier  m41_41 (36,52)  level 1 "o42 f2", no level-0 loc, due east of the squire
+^pest_sarim_pier = 0_47_50_33_3
+^pest_outpost_pier = 0_41_41_36_52
+
+// NOT BUILT: the Pest Control minigame itself. pest_squire_lander stands beside a fully modelled
+// lander boat on the outpost (pest_lander_boat_* locs on both island squares, plus a hatch and a
+// ladder), and m41_40 south of it is the pest island proper with its watchtowers. None of that has
+// a script, and neither does the Void Knights' commendation-point exchange (op3=Exchange on all
+// four pest_voidknight_*). Sailing to the outpost is a complete, self-contained thing on its own -
+// it is a place with shops and a pier, exactly as it is before a game starts - so this ships the
+// travel and leaves the minigame flagged rather than half-built.

@@ -16,6 +16,10 @@ gosub(npc_death);
 if (npc_findhero = ^false) {
     return;
 }
+
+// Boss pet roll. Immediately after npc_findhero so active_player is set, and before any other
+// drop so the pet can never be crowded out. See npc/configs/boss_pets.constant.
+~bosspet_roll(bosspet_dagannoth_rex_item);
 // Default drop
 obj_add(npc_coord, dagannoth_king_bones, 1, ^lootdrop_duration);
 

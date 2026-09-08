@@ -1,0 +1,91 @@
+// The Void Knights' Outpost - the ship from Port Sarim, and the squires and knights on the island.
+// See configs/pest.constant for why the island was unreachable and what is deliberately not built.
+
+// --- The ship ---
+
+[opnpc1,pest_squire_ship_portsarim]
+~chatplayer("<p,quiz>Where does this ship go?");
+~chatnpc("<p,neutral>The Void Knights' Outpost. We are always short of hands, if you have the stomach for it.");
+def_int $go = ~p_choice2("Take me there.", 1, "Not right now.", 2);
+if ($go = 2) {
+    ~chatplayer("<p,neutral>Not right now.");
+    ~chatnpc("<p,neutral>The offer stands.");
+    return;
+}
+~chatplayer("<p,neutral>Take me there.");
+@pest_sail(^pest_outpost_pier, "The ship puts out into the southern sea, and after a long while a low grey island comes up out of the water.");
+
+[opnpc1,pest_squire_ship_island]
+~chatplayer("<p,quiz>Can you take me back to the mainland?");
+~chatnpc("<p,neutral>Port Sarim. Nowhere else, and not quickly.");
+def_int $go = ~p_choice2("Port Sarim will do.", 1, "I'll stay here.", 2);
+if ($go = 2) {
+    ~chatplayer("<p,neutral>I'll stay here.");
+    ~chatnpc("<p,happy>Good. There is work here.");
+    return;
+}
+~chatplayer("<p,neutral>Port Sarim will do.");
+@pest_sail(^pest_sarim_pier, "The island drops away behind you, and the ship ties up at the Port Sarim pier.");
+
+// A plain journey rather than ~set_sail. set_sail drives the ship_journey interface's map animation
+// off %journey_number, and the ^sail_* route constants it takes do not include a Port Sarim to
+// outpost route - passing an id that does not exist would show a blank or wrong map. This is the
+// same shape as Waydar's glider and Lumdo's boat in Monkey Madness.
+[label,pest_sail](coord $dest, string $arrival)
+if (~pre_tele_checks(coord) = false) {
+    return;
+}
+if_close;
+mes("You board the ship.");
+p_delay(2);
+p_telejump($dest);
+~mesbox($arrival);
+
+// --- The lander ---
+// The minigame is not built. Said in world rather than as an error, and flagged in the constant file.
+
+[opnpc1,pest_squire_lander]
+~chatplayer("<p,quiz>What's the lander for?");
+~chatnpc("<p,sad>Nothing, at the moment. The Void Knights have not called a landing in a long while.");
+~chatnpc("<p,neutral>Stay on the outpost. There is a store, an armoury and a bank, and none of them will try to eat you.");
+
+// --- The Void Knights ---
+// op3=Exchange was one of the four dead options the dead-op audit could not fix: it needs a
+// commendation-point system, and there is none. Answered in world instead of doing nothing.
+
+[opnpc1,pest_voidknight_1] @pest_voidknight_talk;
+[opnpc1,pest_voidknight_2] @pest_voidknight_talk;
+[opnpc1,pest_voidknight_3] @pest_voidknight_talk;
+[opnpc1,pest_voidknight_4] @pest_voidknight_talk;
+
+[label,pest_voidknight_talk]
+~chatplayer("<p,quiz>Who are you?");
+~chatnpc("<p,neutral>A Void Knight. We hold the balance, and lately we hold it thinly.");
+~chatplayer("<p,quiz>Can I help?");
+~chatnpc("<p,neutral>When the landings resume you may. Until then, speak to the squires.");
+
+[opnpc3,pest_voidknight_1] @pest_voidknight_exchange;
+[opnpc3,pest_voidknight_2] @pest_voidknight_exchange;
+[opnpc3,pest_voidknight_3] @pest_voidknight_exchange;
+[opnpc3,pest_voidknight_4] @pest_voidknight_exchange;
+
+[label,pest_voidknight_exchange]
+~chatnpc("<p,neutral>You have earned no commendations. Come back when you have fought for us.");
+
+// --- The squires ---
+// pest_squire_1 to _4 and the blacksmith all declared op1=Talk-to with nothing behind it. None of
+// the five carries a shop - the outpost's stores hang off pest_squire_runeshop and its siblings,
+// which the dead-op audit bound separately - so these type triggers shadow nothing.
+
+[opnpc1,pest_squire_1] @pest_squire_talk;
+[opnpc1,pest_squire_2] @pest_squire_talk;
+[opnpc1,pest_squire_3] @pest_squire_talk;
+[opnpc1,pest_squire_4] @pest_squire_talk;
+
+[label,pest_squire_talk]
+~chatplayer("<p,happy>Hello.");
+~chatnpc("<p,neutral>Outsider. Mind the pier, it is older than it looks.");
+
+[opnpc1,pest_squire_blacksmith]
+~chatplayer("<p,quiz>Do you make armour here?");
+~chatnpc("<p,neutral>Void knight equipment, for those who earn it. Nobody has earned it lately.");

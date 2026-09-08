@@ -3,6 +3,10 @@ gosub(npc_death);
 if (npc_findhero = ^false) {
     return;
 }
+
+// Boss pet roll. Immediately after npc_findhero so active_player is set, and before any other
+// drop so the pet can never be crowded out. See npc/configs/boss_pets.constant.
+~bosspet_roll(bosspet_kbd_item);
 // Default drop
 obj_add(npc_coord, dragon_bones, 1, ^lootdrop_duration);
 obj_add(npc_coord, dragonhide_black, 1, ^lootdrop_duration);

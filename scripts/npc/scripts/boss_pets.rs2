@@ -1,0 +1,84 @@
+// Boss pets - the follower behaviour. See configs/boss_pets.npc for the era note and the models.
+//
+// This is deliberately a thin parallel of the cat system in quest_fluffs/scripts/pet.rs2 rather than
+// a reuse of it: cats carry growth, hunger, attention and vermin-hunting on the same category, none
+// of which a boss pet should inherit. What IS shared is the engine-level follower slot the cats
+// established - %follower_uid, %follower_obj and %npc_attacking_uid as the ownership marker - so a
+// player still has exactly one follower and cats and boss pets cannot both be out at once.
+
+// Dropping the item puts the pet down. opheld5 is Drop, served globally by player/scripts/drop.rs2;
+// a category trigger beats the global, which is how the cats do it too.
+[opheld5,_bosspet]
+if (npc_finduid(%follower_uid) = true) {
+    mes("You already have a follower.");
+    return;
+}
+def_int $slot = last_slot;
+def_npc $type = oc_param(last_item, follower_id);
+inv_delslot(inv, $slot);
+sound_synth(put_down, 1, 0);
+npc_add(coord, $type, ^max_32bit_int);
+%follower_obj = nc_param(npc_type, pet_item_id);
+%follower_uid = npc_uid;
+%npc_attacking_uid = uid;
+npc_setmode(playerfollow);
+
+// Picking it back up. Mirrors [opnpc1,_petcat] including the ownership check, so you cannot pocket
+// somebody else's pet.
+[opnpc1,_bosspet]
+if (%npc_attacking_uid ! uid | %follower_uid ! npc_uid) {
+    mes("That isn't yours to take.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You don't have enough inventory space to pick that up.");
+    return;
+}
+p_delay(0);
+%follower_obj = null;
+%follower_uid = null;
+inv_add(inv, npc_param(pet_item_id), 1);
+sound_synth(pick, 1, 0);
+npc_del;
+
+[opnpc3,_bosspet]
+if (%npc_attacking_uid ! uid | %follower_uid ! npc_uid) {
+    mes("That isn't yours.");
+    return;
+}
+mes("It looks up at you and makes a noise you would rather it did not make at full size.");
+
+// Keeping up. This is the body of [ai_timer,_petcat] - if the owner is more than 15 tiles away or on
+// a different floor, the pet teleports to them; if the owner is gone, the pet despawns. It only runs
+// because boss_pets.npc sets timer=20; the cache's own cats never set it, so their copy of this has
+// never run. See the note in that file.
+[ai_timer,_bosspet]
+if (finduid(%npc_attacking_uid) = true) {
+    if (coordy(coord) ! coordy(npc_coord) | npc_range(coord) > 15) {
+        npc_tele(map_findsquare(coord, 1, 1, ^map_findsquare_lineofwalk));
+    }
+    return;
+}
+npc_del;
+
+// --- The drop ---
+// Called from each boss's death table. 1 in 3000, the Old School rate for this family of pets.
+// A player who already owns the pet - in the inventory, the bank, or currently following them -
+// cannot roll a second one, which is what stops them being farmed for a trade that tradeable=no
+// already forbids anyway.
+[proc,bosspet_roll](namedobj $pet)
+if (random(^bosspet_droprate) ! 0) {
+    return;
+}
+if (~obj_gettotal($pet) > 0) {
+    return;
+}
+if (%follower_obj = $pet) {
+    return;
+}
+obj_add(npc_coord, $pet, 1, ^lootdrop_duration);
+// mes, not ~mesbox. This runs inside the boss's [ai_queue3] death script; ~mesbox pauses on
+// p_pausebutton and would stall the npc's queue waiting for a click. The other drop tables use
+// the same non-blocking style (broadcast_mes), and in Old School this line is a plain game
+// message rather than a dialogue box anyway.
+mes("You have a funny feeling like you're being followed.");

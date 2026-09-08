@@ -1,0 +1,119 @@
+// Boss pets - miniature followers for the King Black Dragon, the Kalphite Queen, the Giant Mole and
+// the three Dagannoth Kings.
+//
+// ERA NOTE, stated once and deliberately: boss pets are a 2015-16 Old School feature, about a decade
+// after this server's 2006 target. Everything else in this repo has been kept era-accurate; this is
+// the first knowing anachronism and it was asked for.
+//
+// Each pet is the boss's own models at pet scale. size=1 so they path like a cat rather than a boss,
+// resizeh/resizev shrunk from whatever the boss used, vislevel=hide, and no combat stats at all -
+// these are followers, not monsters, and giving them stats would make them attackable.
+//
+// timer=20 matters. It is what makes [ai_timer,_bosspet] fire, which is the logic that teleports a
+// pet back to its owner when it falls behind or the owner changes floor. NOT ONE of the cache's own
+// petcat npcs sets it - kittenpet_*, growncat_* and overgrowncat_* all omit it - so [ai_timer,_petcat]
+// in quest_fluffs/scripts/pet.rs2 has never fired for any cat in the game. Recorded rather than
+// changed here; fixing cats is a separate call.
+//
+// The op set mirrors the cats: op1=Pick-up, op3=Talk-to. The cats' op4=Interact-with (shoo away) is
+// deliberately left off - a pet you can pick up does not also need a way to lose it permanently.
+
+[bosspet_kbd]
+name=Prince black dragon
+desc=The biggest, meanest dragon around. Eventually.
+model1=npc_king_dragon
+model2=npc_king_dragoni2
+size=1
+resizeh=40
+resizev=40
+walkanim=dragon_walk
+readyanim=dragon_ready
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+category=bosspet
+param=pet_item_id,bosspet_kbd_item
+
+[bosspet_kalphite_queen]
+name=Kalphite princess
+desc=I don't think insect repellent will work on her either.
+model1=npc_1158
+size=1
+resizeh=40
+resizev=40
+walkanim=kalphite_walk
+readyanim=kalphite_ready
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+category=bosspet
+param=pet_item_id,bosspet_kalphite_queen_item
+
+// The one pet that needed no shrinking - the cache already ships a Baby Mole model, npc_3341,
+// described as "I will call him, Mini Mole".
+[bosspet_giant_mole]
+name=Baby mole
+desc=I will call him, Mini Mole.
+model1=npc_3341
+size=1
+walkanim=mole_walk
+readyanim=mole_ready
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+category=bosspet
+param=pet_item_id,bosspet_giant_mole_item
+
+[bosspet_dagannoth_rex]
+name=Pet dagannoth rex
+desc=Firstborn of the legendary dagannoth kings, and still quite small.
+model1=npc_2881
+size=1
+resizeh=55
+resizev=48
+walkanim=dagannoth_meganoth_walk
+readyanim=dagannoth_meganoth_ready
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+category=bosspet
+param=pet_item_id,bosspet_dagannoth_rex_item
+
+[bosspet_dagannoth_prime]
+name=Pet dagannoth prime
+desc=Rumoured to fly on the North winds. Currently rumoured to fly onto furniture.
+model1=npc_2882
+model2=npc_2881i2
+model3=npc_2882i2
+size=1
+resizeh=44
+resizev=45
+walkanim=dagannoth_meganoth_walk
+readyanim=dagannoth_meganoth_ready
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+category=bosspet
+param=pet_item_id,bosspet_dagannoth_prime_item
+
+[bosspet_dagannoth_supreme]
+name=Pet dagannoth supreme
+desc=Not yet responsible for the death of anything much.
+model1=npc_2881
+model2=npc_2881i2
+size=1
+resizeh=42
+resizev=41
+walkanim=dagannoth_meganoth_walk
+readyanim=dagannoth_meganoth_ready
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+category=bosspet
+param=pet_item_id,bosspet_dagannoth_supreme_item
