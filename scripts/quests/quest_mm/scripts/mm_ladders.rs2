@@ -1,0 +1,69 @@
+// Ape Atoll's ladders and the dungeon entrance.
+//
+// Ape Atoll is built vertically - the island is a ground level with bamboo walkways on p1 and
+// watchtowers on p2, and m43_43 alone carries nine ladder pairs. All twelve of the ladder loc types
+// shipped with a Climb-up or Climb-down option and NOT ONE had a handler, so the island was a single
+// flat floor with a lot of decorative ladders on it. Found by the dead-op audit's loc sweep.
+//
+// Every one of these moves the player relative to their own level rather than to a fixed
+// destination, which is what makes one handler serve a loc that is placed on three floors at once:
+// mm_bamboo_ladder_watchtower_east, for instance, sits at p0 AND p1 with Climb-up on both.
+//
+// ~climb_ladder is the repo's own helper (ladders+stairs/scripts/ladders.rs2), and p_arrivedelay
+// before it is the convention every other ladder in that file follows.
+
+[oploc1,mm_bamboo_ladder]
+p_arrivedelay;
+~climb_ladder(movecoord(coord(), 0, 1, 0), true);
+
+[oploc1,mm_bamboo_ladder_reverse]
+p_arrivedelay;
+~climb_ladder(movecoord(coord(), 0, 1, 0), true);
+
+[oploc1,mm_bamboo_ladder_watchtower_east]
+p_arrivedelay;
+~climb_ladder(movecoord(coord(), 0, 1, 0), true);
+
+[oploc1,mm_bamboo_ladder_watchtower_west]
+p_arrivedelay;
+~climb_ladder(movecoord(coord(), 0, 1, 0), true);
+
+[oploc1,mm_bridge_ladder]
+p_arrivedelay;
+~climb_ladder(movecoord(coord(), 0, 1, 0), true);
+
+[oploc1,mm_bamboo_ladder_top]
+p_arrivedelay;
+~climb_ladder(movecoord(coord(), 0, -1, 0), false);
+
+[oploc1,mm_bamboo_ladder_top_reverse]
+p_arrivedelay;
+~climb_ladder(movecoord(coord(), 0, -1, 0), false);
+
+[oploc1,mm_bamboo_ladder_top_watchtower_east]
+p_arrivedelay;
+~climb_ladder(movecoord(coord(), 0, -1, 0), false);
+
+[oploc1,mm_bamboo_ladder_top_watchtower_west]
+p_arrivedelay;
+~climb_ladder(movecoord(coord(), 0, -1, 0), false);
+
+[oploc1,mm_bridge_ladder_top]
+p_arrivedelay;
+~climb_ladder(movecoord(coord(), 0, -1, 0), false);
+
+// The dungeon. Its entrance on the surface at m43_42 (11,15) and its exit at m43_142 (11,15) are the
+// same tile a hundred map squares apart, which is the 6400-tile underground offset every trapdoor in
+// general_use/scripts/trapdoors.rs2 uses, so the move is the same relative one in both directions.
+
+[oploc1,mm_bamboo_ladder_dungeon_entrance]
+if (%mm_main < ^mm_met_garkor) {
+    mes("You have no reason to go down there.");
+    return;
+}
+p_arrivedelay;
+~climb_ladder(movecoord(coord(), 0, 0, 6400), false);
+
+[oploc1,mm_bamboo_ladder_dungeon_exit]
+p_arrivedelay;
+~climb_ladder(movecoord(coord(), 0, 0, -6400), true);

@@ -21,6 +21,15 @@ if (%mm_main >= ^mm_started) {
 ~chatnpc("<p,neutral>Daero. He drinks in the Blurberry bar upstairs, and he knows every unofficial thing this stronghold has ever done. Tell him I sent you.");
 %mm_main = ^mm_started;
 ~send_quest_progress(questlist:mm, 1, ^mm_complete);
+// The seal and the orders are what Garkor will accept in place of a name. Both objs exist in the
+// cache - "the official Gnome Royal Seal, signed by King Narnode Shareen" and "unreadable orders
+// handwritten by King Narnode Shareen" - and nothing gave either of them out.
+if (inv_freespace(inv) >= 2) {
+    inv_add(inv, mm_gnome_royal_seal, 1);
+    inv_add(inv, mm_narnode_orders, 1);
+    ~objbox(mm_gnome_royal_seal, "The King presses his seal into your hand, with a folded order underneath it.", 250, 0, divide(^objbox_height, 2));
+    ~chatnpc("<p,neutral>Whoever you find out there will want to see that before they believe a word.");
+}
 ~chatnpc("<p,worried>And Traveller - do not tell my advisors.");
 
 [label,mm_narnode_progress]
@@ -32,6 +41,12 @@ switch_int (%mm_main) {
         ~chatnpc("<p,shock>You found the hangar? Then you have already seen more than I am supposed to know about.");
     case ^mm_crash_island, ^mm_ape_atoll :
         ~chatnpc("<p,worried>You have been out there. Tell me when you find them, Traveller. Only when you find them.");
+        // The seal can be dropped, and without it Garkor will not talk. He can always cut another.
+        if (~obj_gettotal(mm_gnome_royal_seal) < 1 & inv_freespace(inv) >= 1) {
+            ~chatplayer("<p,sad>I've lost your seal.");
+            ~chatnpc("<p,neutral>Then take another. I have a drawer of them and only one stronghold.");
+            inv_add(inv, mm_gnome_royal_seal, 1);
+        }
     case default :
         ~chatnpc("<p,happy>Better than ever, thanks to you!");
 }
@@ -230,6 +245,169 @@ p_delay(2);
 ~mesbox("The cavern folds itself away and you are standing on the walkway outside the Blurberry bar, several hundred feet above where you were.");
 p_telejump(^mm_grand_tree_return);
 
+
+// ===================================================================================================
+// STAGE TWO - Ape Atoll: Garkor, the tunnels, and the M'speak amulet
+// ===================================================================================================
+
+// --- Garkor ---
+// The 10th Squad's commander, placed at m43_43 (53,10) beside the temple. He has been on this island
+// for months and has no reason to believe a human who walks up out of the jungle, which is what
+// King Narnode's seal is for.
+
+[opnpc1,mm_garkor]
+if (%mm_main < ^mm_ape_atoll) {
+    return;
+}
+if (%mm_main > ^mm_met_garkor) {
+    @mm_garkor_progress;
+}
+if (inv_total(inv, mm_gnome_royal_seal) < 1) {
+    ~chatnpc("<p,angry>Stop there. A human, walking about on Ape Atoll as though it were a market.");
+    ~chatplayer("<p,neutral>King Narnode sent me.");
+    ~chatnpc("<p,angry>Everyone says that. Show me something that says it for you.");
+    return;
+}
+~chatplayer("<p,neutral>King Narnode sent me. This is his seal.");
+~chatnpc("<p,shock>...that is his seal. That is actually his seal.");
+~chatnpc("<p,sad>Then he got my message. Six of us landed. Four of us are still standing, and two of those are in a cage.");
+~chatplayer("<p,quiz>What happened?");
+~chatnpc("<p,neutral>Glough's business. The monkeys here are being made ready for something, and we came to find out what, and we cannot ask them because we cannot talk to them.");
+~chatplayer("<p,quiz>So teach me the language.");
+~chatnpc("<p,laugh>You cannot learn it. Your mouth is the wrong shape. Zooknock can get around that - he is our mage, and he is in the tunnels under the island.");
+// The mould and the dentures are handed over here rather than being scattered around the island.
+// Flagged as an interpretation: the cache ships both objs and the three mm_zooknock_has_* varbits
+// that consume them, but nothing in it says where either one is meant to come from. Having the squad
+// that has been camped here for months already hold them keeps the chain non-circular - you cannot
+// be sent to ask a monkey for the thing that lets you talk to monkeys.
+if (inv_freespace(inv) < 2) {
+    ~chatnpc("<p,neutral>I have two things to give you and you have nowhere to put them. Come back with your hands free.");
+    return;
+}
+inv_add(inv, mm_monkey_amulet_mould, 1);
+inv_add(inv, mm_monkey_dentures, 1);
+%mm_main = ^mm_met_garkor;
+~send_quest_progress(questlist:mm, 6, ^mm_complete);
+~objbox(mm_monkey_amulet_mould, "Garkor hands you an amulet mould shaped like a monkey's head, and a set of dentures that are still chattering.", 250, 0, divide(^objbox_height, 2));
+~chatnpc("<p,neutral>Zooknock needs those and a gold bar. Bring him all three. The tunnel mouth is on the west shore.");
+~chatnpc("<p,worried>And human - the tunnels are worse than the island.");
+
+[label,mm_garkor_progress]
+~chatplayer("<p,happy>Garkor.");
+switch_int (%mm_main) {
+    case ^mm_zooknock_briefed :
+        ~chatnpc("<p,neutral>Zooknock is waiting on you. A gold bar, the mould and the dentures.");
+    case ^mm_has_amulet :
+        ~chatnpc("<p,happy>You can hear them now, can't you. Go and listen to what they say when they think nobody understands.");
+    case default :
+        ~chatnpc("<p,neutral>Keep out of the open, human.");
+}
+
+// --- Zooknock ---
+// The squad's mage, at m43_142 (52,57), the far corner of the tunnels from the entrance at (11,15).
+// Bunkwicket and Waymottin are placed either side of him and have no scripts yet.
+
+[opnpc1,mm_zooknock]
+if (%mm_main < ^mm_met_garkor) {
+    ~chatnpc("<p,angry>How did you even get down here?");
+    return;
+}
+if (%mm_main >= ^mm_has_amulet) {
+    ~chatnpc("<p,happy>It holds, then. Good. I have never made one for a human mouth before.");
+    return;
+}
+if (%mm_main = ^mm_met_garkor) {
+    %mm_main = ^mm_zooknock_briefed;
+    ~send_quest_progress(questlist:mm, 7, ^mm_complete);
+    ~chatplayer("<p,neutral>Garkor sent me. He said you could make me able to talk to them.");
+    ~chatnpc("<p,neutral>He would say that. It is not a small thing.");
+    ~chatnpc("<p,neutral>A gold bar, the mould he gave you, and the dentures. The dentures do the talking; the gold only holds them still.");
+}
+@mm_zooknock_check;
+
+[label,mm_zooknock_check]
+if (inv_total(inv, gold_bar) < 1) {
+    ~chatnpc("<p,neutral>No gold bar. Bring me one and we can begin.");
+    return;
+}
+if (inv_total(inv, mm_monkey_amulet_mould) < 1) {
+    ~chatnpc("<p,neutral>Where is the mould? I am not carving one by hand.");
+    return;
+}
+if (inv_total(inv, mm_monkey_dentures) < 1) {
+    ~chatnpc("<p,neutral>And the dentures. Without those it is a lump of gold on a string.");
+    return;
+}
+~chatplayer("<p,happy>I have all three.");
+~chatnpc("<p,neutral>Then stand back and do not speak while I am counting.");
+// Everything is spent and granted in one block before the first pausing call, so a player who
+// dismisses the message cannot lose a gold bar without gaining an amulet.
+inv_del(inv, gold_bar, 1);
+inv_del(inv, mm_monkey_amulet_mould, 1);
+inv_del(inv, mm_monkey_dentures, 1);
+inv_add(inv, mm_amulet_of_monkey_speak_without_string, 1);
+%mm_zooknock_has_gold_bar = 1;
+%mm_zooknock_has_amulet_mould = 1;
+%mm_zooknock_has_dentures = 1;
+~mesbox("Zooknock melts the bar into the mould, drops the dentures in while it is still liquid, and hands you back something that is chattering quietly to itself. It has no string.");
+~chatnpc("<p,neutral>String it with wool and wear it. And do not take it off while you are above ground.");
+
+// Stringing is the ordinary amulet pattern. [opheldu,X] fires for both click orders - OpHeldUHandler
+// tries the target item's trigger first and then the used item's, swapping the pointers - so inside
+// this trigger last_useitem is always the other item.
+[opheldu,mm_amulet_of_monkey_speak_without_string]
+def_obj $used = last_useitem;
+if ($used ! ball_of_wool) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, mm_amulet_of_monkey_speak_without_string, 1);
+inv_del(inv, ball_of_wool, 1);
+inv_add(inv, mm_amulet_of_monkey_speak, 1);
+if (%mm_main < ^mm_has_amulet) {
+    %mm_main = ^mm_has_amulet;
+    ~send_quest_progress(questlist:mm, 8, ^mm_complete);
+}
+mes("You string the amulet.");
+~mesbox("The chattering resolves itself into words. Somewhere above you, an island full of monkeys is having a conversation you can suddenly follow.");
+
+// --- The monkeys you can now talk to ---
+// The payoff for the amulet rather than a prerequisite for it. All three are placed on m42_43: the
+// child at (55,43), its aunt at (50,42) and its uncle on p1 at (49,41).
+
+[proc,mm_can_speak_monkey]()(boolean)
+if (inv_total(worn, mm_amulet_of_monkey_speak) > 0) { return(true); }
+return(false);
+
+[opnpc1,mm_monkey_child]
+if (~mm_can_speak_monkey = false) {
+    @mm_monkey_gibberish;
+}
+~chatnpc("<p,quiz>You're the human. You're much taller close up.");
+~chatplayer("<p,happy>You can understand me?");
+~chatnpc("<p,happy>You're wearing the shouty necklace. Everyone can understand you. Uncle says you'll get eaten.");
+~chatnpc("<p,sad>I want my talisman back. The big ones took it.");
+
+[opnpc1,mm_monkeys_aunt]
+if (~mm_can_speak_monkey = false) {
+    @mm_monkey_gibberish;
+}
+~chatnpc("<p,angry>Don't talk to the child. Talk to me.");
+~chatplayer("<p,neutral>Sorry.");
+~chatnpc("<p,sad>Everyone with a spear is at the temple and everyone without one is here. That is the whole of it.");
+
+[opnpc1,mm_monkeys_uncle]
+if (~mm_can_speak_monkey = false) {
+    @mm_monkey_gibberish;
+}
+~chatnpc("<p,neutral>A human wearing a talking necklace. I have been alive a long time and that is new.");
+~chatplayer("<p,quiz>What's happening on this island?");
+~chatnpc("<p,worried>Awowogei is what's happening. Ask at the temple, if you want to be a story the children tell.");
+
+[label,mm_monkey_gibberish]
+~chatnpc("<p,quiz>Ook ook. Eek?");
+~chatplayer("<p,confused>I have absolutely no idea what that means.");
+
 // --- Quest journal ---
 
 [if_button,questlist:mm]
@@ -271,7 +449,30 @@ if (%mm_main = ^mm_crash_island) {
     ~quest_journal($n, $x);
     return;
 }
-$x = append($x, "|@str@Lumdo rowed me across to the island the squad went to. Garkor is|");
-$x = append($x, "@str@supposed to still be alive somewhere on it.|");
+$x = append($x, "|@str@Lumdo rowed me across to the island the squad went to.|");
+if (%mm_main = ^mm_ape_atoll) {
+    $x = append($x, "|@dbl@@dre@Garkor@dbl@ commands what is left of the 10th Squad and is|");
+    $x = append($x, "@dbl@somewhere near the @dre@temple@dbl@. He will want to see the @dre@royal seal@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@Garkor took the King's seal. Four of the six are alive and two of|");
+$x = append($x, "@str@those are caged. Nobody can question the monkeys because nobody|");
+$x = append($x, "@str@can speak to them.|");
+if (%mm_main = ^mm_met_garkor) {
+    $x = append($x, "|@dbl@@dre@Zooknock@dbl@ is in the tunnels under the island - the entrance is|");
+    $x = append($x, "@dbl@on the @dre@west shore@dbl@. I have the mould and the dentures; I will|");
+    $x = append($x, "@dbl@also need a @dre@gold bar@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+if (%mm_main = ^mm_zooknock_briefed) {
+    $x = append($x, "|@dbl@@dre@Zooknock@dbl@ needs a @dre@gold bar@dbl@, the @dre@M'amulet mould@dbl@ and the|");
+    $x = append($x, "@dbl@@dre@monkey dentures@dbl@ to make the amulet.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@Zooknock cast the amulet and I strung it. I can understand every|");
+$x = append($x, "@str@monkey on the island.|");
 $x = append($x, "|@dbl@This is as far as this quest goes on this server for now.");
 ~quest_journal($n, $x);

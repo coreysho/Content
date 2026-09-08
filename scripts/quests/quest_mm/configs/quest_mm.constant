@@ -1,9 +1,10 @@
 // Monkey Madness. Wiki: https://oldschool.runescape.wiki/w/Monkey_Madness_I
 // Released October 2004, so era-appropriate for a 377 build.
 //
-// THIS FILE COVERS STAGE ONE ONLY - getting to Ape Atoll. See "NOT BUILT" at the bottom. The quest is
-// far too large to land in one piece; this is the first self-contained, testable chunk, and it ends
-// with the player standing on the Ape Atoll shore, which is a real milestone.
+// THIS FILE COVERS STAGES ONE AND TWO. See "NOT BUILT" at the bottom for what is still missing.
+// Stage one is the journey out: King Narnode, Daero, the hidden hangar, Waydar's glider to Crash
+// Island and Lumdo's boat to Ape Atoll. Stage two is Garkor, the crossing of the tunnels to
+// Zooknock, and the M'speak amulet - the point at which the island stops being scenery.
 //
 // --- The cache ships more of this quest than of any other in the project ---
 // 88 npcs, 175 locs, 35 objs, EIGHT varps and THIRTY-SIX varbits, and the varbit names alone document
@@ -46,8 +47,11 @@
 ^mm_daero_briefed = 2    // Daero has answered all three of your questions
 ^mm_in_hangar = 3        // Daero has taken you down to the hangar
 ^mm_crash_island = 4     // Waydar has flown you to Crash Island
-^mm_ape_atoll = 5        // Lumdo has rowed you to Ape Atoll - the end of what is built
-// 6..9 are reserved for stage two so nothing built now has to be renumbered later.
+^mm_ape_atoll = 5        // Lumdo has rowed you to Ape Atoll
+^mm_met_garkor = 6       // Garkor accepted the royal seal and handed over mould and dentures
+^mm_zooknock_briefed = 7 // Zooknock has told you what he needs
+^mm_has_amulet = 8       // the M'speak amulet is strung - the end of what is built
+// 9 is reserved for stage three so nothing built now has to be renumbered later.
 // ^mm_complete = 10 was already declared, globally, in general/configs/quest.constant.
 
 // --- Requirements ---
@@ -76,8 +80,39 @@
 // stat_advance takes tenths.
 ^mm_reward_xp = 350000
 
+// --- Stage two: what the varbits told us ---
+// The four mm_zooknock_has_* bits name the four things Zooknock consumes, and that is enough to
+// separate the two chains the cache supports:
+//   M'speak amulet   gold bar + M'amulet mould + monkey dentures, then strung with a ball of wool
+//   greegree         monkey talisman + a monkey relic (mm_zooknock_has_monkey_relic, and the 5-bit
+//                    mm_zooknock_monkey_relic that records which one)
+// which is why mm_zooknock_player_is_collecting_for_amulet and _for_talisman are separate flags.
+// The obj descriptions confirm it: mm_enchanted_gold_bar is "a gold bar invested with a talkative
+// monkey spirit", and mm_monkey_dentures are "magical monkey talking dentures".
+//
+// DEVIATION, FLAGGED: Garkor hands over both the mould and the dentures. The cache ships both objs
+// and the varbits that consume them but says nothing about where either is meant to come from, and
+// every other candidate source on the island is a monkey - which would mean being sent to ask a
+// monkey for the thing that lets you talk to monkeys. Having the squad that has been camped here for
+// months already hold them keeps the chain non-circular, and makes the aunt, uncle and child the
+// payoff for the amulet rather than a prerequisite for it.
+//
+// mm_gnome_royal_seal ("the official Gnome Royal Seal, signed by King Narnode Shareen") and
+// mm_narnode_orders ("unreadable orders handwritten by King Narnode") are now handed over by Narnode
+// when the quest starts. Garkor will not talk to a human without the seal.
+
+// --- Ape Atoll's ladders ---
+// All TWELVE bamboo and bridge ladder loc types shipped with a Climb-up or Climb-down option and not
+// one had a handler, so the island - which is built vertically, with walkways on p1 and watchtowers
+// on p2 - was a single flat floor with decorative ladders on it. m43_43 alone carries nine pairs.
+// Handled in scripts/mm_ladders.rs2, moving the player relative to their own level so that one
+// handler serves a loc placed on three floors at once.
+//
+// The tunnel entrance at m43_42 (11,15) and its exit at m43_142 (11,15) are the same tile a hundred
+// map squares apart - the 6400-tile underground offset trapdoors.rs2 already uses.
+
 // ===================================================================================================
-// NOT BUILT - stage two onwards
+// NOT BUILT - stage three onwards
 // ===================================================================================================
 // * APE ATOLL ITSELF. m42_43, m43_43 and m43_42 are fully placed - Garkor and the 10th squad, Kruk,
 //   Awowogei, the monkey child and its aunt and uncle, the five monkey shops (all wired to their
