@@ -198,7 +198,27 @@ if (%deserttreasure < ^dt_heard_of_diamonds) {
 // fd_elder_by_mirrors, 10-15). That multi is why the "materials given" stage has to be 10: it is the
 // stage at which he moves.
 
-[opnpc1,fd_elder_village]
+// ---------------------------------------------------------------- multi shells
+//
+// Every opnpc handler below is declared TWICE: once on the multi child and once on the shell the
+// map actually places. That is not belt-and-braces, it is required.
+//
+// network/game/client/handler/OpNpcHandler.ts:38-51 resolves a multi npc - but only far enough to
+// validate that the option exists, so the right-click menu looks perfectly correct. It then sets
+// the interaction on the placed entity, and engine/entity/Player.ts:1001 (getOpTrigger) looks the
+// script up with
+//
+//     type = NpcType.get(this.target.type)
+//
+// with no multi resolution at all. So the script is searched for under the SHELL's name, the
+// handler on the child is never found, and the click silently does nothing.
+//
+// Same fault as the Biohazard elena2/elena2_vis bug, from the other direction.
+
+[opnpc1,fourdiamonds_elder] @dt_eblis_village_chat;
+[opnpc1,fd_elder_village] @dt_eblis_village_chat;
+
+[label,dt_eblis_village_chat]
 if (%deserttreasure < ^dt_heard_of_diamonds) {
     ~chatnpc("<p,neutral>I have nothing to say to you yet.");
     return;
@@ -272,7 +292,10 @@ return(true);
 %fd_mirror_present = 1;
 ~send_quest_progress(questlist:deserttreasure, %deserttreasure, ^deserttreasure_complete);
 
-[opnpcu,fd_elder_village]
+[opnpcu,fourdiamonds_elder] @dt_eblis_village_useitem;
+[opnpcu,fd_elder_village] @dt_eblis_village_useitem;
+
+[label,dt_eblis_village_useitem]
 if (%deserttreasure ! ^dt_eblis_wants_materials) {
     ~chatnpc("<p,neutral>I have no use for that.");
     return;
@@ -324,7 +347,10 @@ mes("You hand Eblis <tostring($give)> <lowercase(oc_name($obj))>.");
 // fd_mirror_present is the multivar on sword_mirror1..6 - with it clear the map shows cacti, with it
 // set the six mirrors appear. Two of the six show false leads, exactly as in 2005.
 
-[opnpc1,fd_elder_by_mirrors]
+[opnpc1,fourdiamonds_elder2] @dt_eblis_mirrors_chat;
+[opnpc1,fd_elder_by_mirrors] @dt_eblis_mirrors_chat;
+
+[label,dt_eblis_mirrors_chat]
 if (%deserttreasure = ^dt_eblis_at_mirrors) {
     ~chatnpc("<p,happy>You came. Good. Look into the mirrors - each one holds a place, and four of them hold a diamond.");
     ~chatnpc("<p,neutral>Beware: two of the visions are false. The bandits' own camp, and the pyramid itself. Neither holds anything you need yet.");

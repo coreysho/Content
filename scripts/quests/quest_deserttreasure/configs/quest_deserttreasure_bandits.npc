@@ -1,0 +1,162 @@
+// Desert Treasure - the Bandit Camp (Corey, 2026-09-08).
+//
+// Three npcs moved out of content/scripts/_unpack/377/all.npc. Redeclaring a name that still exists
+// there is a "Duplicate config found" build error, so the whole block comes with it; everything
+// except the lines noted below is untouched cache data.
+//
+// ---------------------------------------------------------------- the shop
+//
+// dt_bandit_shopkeeper stands in the camp with op1=Talk-to and op3=Trade already authored and had
+// no handler of any kind. The shop inventory he is meant to own also already exists - fd_bandit_bar
+// in _unpack/727/all.inv, 40 slots, scope=shared, restock=yes, stocking bandit_brew - and was bound
+// to nobody. Adding category=shop_keeper is what makes shop/scripts/shop.rs2's
+// [opnpc3,_shop_keeper] fire; the shop params are modelled on Rasolo's, who is the nearest thing to
+// a comparable one-line merchant in the cache.
+//
+// ---------------------------------------------------------------- the god-symbol bandits
+//
+// Both the Archaeologist's dialogue and the quest journal warn you not to walk into the camp
+// wearing a god's symbol, and nothing enforced it. The mechanic turns out to be entirely
+// pre-authored: the cache has three params - zamorakitem (88), guthixitem (89) and saradominitem
+// (90) - already set on 36 objects, the hunt system reads exactly that shape via check_invparam
+// (engine/src/engine/entity/Npc.ts:1039 calls player.invTotalParam), and _unpack/377/all.hunt even
+// ships an [example3] doing check_invparam=worn,zamorakitem,>0 with nothing using it.
+//
+// A hunt can only carry one check_invparam, so the two fightable bandits take one god each -
+// which matches the quest, where it is Saradomin and Zamorak items that get you attacked and
+// Guthix ones that do not. Both types are placed several times around the camp, so wearing either
+// kind gets you jumped. The sitting bandits are vislevel=hide scenery and are left alone.
+
+[dt_bandit_shopkeeper]
+name=Bandit shopkeeper
+desc=I guess he sells what he steals...?
+model1=idk_man_hair_medium
+model2=idk_man_jaw_none
+model3=obj_feud_desert_disguise_manwear2
+model4=npc_1862i3
+model5=npc_squirei2
+model6=obj_priest_gown_manwear2
+model7=obj_cert_drill_top_manwear3
+model8=npc_1862i5
+model9=obj_ikov_bootsoflightness_manwear
+recol1s=14724
+recol1d=32767
+recol2s=2340
+recol2d=32767
+recol3s=7298
+recol3d=32767
+recol4s=21894
+recol4d=32767
+recol5s=14801
+recol5d=32767
+recol6s=24075
+recol6d=14596
+vislevel=hide
+walkanim=human_walk_f,human_walk_b,human_walk_l,human_walk_r
+readyanim=human_ready
+op1=Talk-to
+op3=Trade
+head1=obj_pickpocket_guide_farmer
+head2=npc_gem_trader_head
+category=shop_keeper
+param=owned_shop,fd_bandit_bar
+param=shop_sell_multiplier,1300
+param=shop_buy_multiplier,40
+param=shop_delta,15
+param=shop_title,Bandit Camp General Store
+
+[fourdiamonds_sword_bandit_1]
+name=Bandit
+desc=A tough-looking criminal.
+model1=obj_viking_helmet_manwear
+model2=obj_macro_mime_legs_manwear
+model3=idk_man_jaw_short
+model4=obj_priest_gown_manwear2
+model5=obj_cert_drill_top_manwear3
+model6=idk_42
+model7=obj_red_cape_manwear
+model8=obj_priest_gown_manwear
+model9=obj_feud_desert_disguise_manwear2
+model10=obj_iron_dagger_manwear
+recol1s=24075
+recol1d=15652
+recol2s=2340
+recol2d=32767
+recol3s=6273
+recol3d=4226
+recol4s=14724
+recol4d=32767
+recol5s=8386
+recol5d=15360
+recol6s=31649
+recol6d=15360
+walkanim=human_walk_f,human_walk_b,human_walk_l,human_walk_r
+readyanim=human_ready
+op3=Pickpocket
+op2=Attack
+op1=Talk-to
+vislevel=74
+head1=obj_pickpocket_guide_man
+head2=idk_man_jaw_short_head
+head3=npc_gem_trader_head
+wanderrange=5
+maxrange=8
+respawnrate=15
+hitpoints=50
+attack=50
+strength=50
+defence=50
+magic=1
+ranged=1
+param=damagetype,^crush_style
+param=death_anim,human_death
+huntmode=dt_bandit_saradomin
+huntrange=5
+
+[fourdiamonds_sword_bandit_free]
+name=Bandit
+desc=A tough-looking criminal.
+model1=obj_viking_helmet_manwear
+model2=obj_macro_mime_legs_manwear
+model3=idk_man_jaw_short
+model4=obj_priest_gown_manwear2
+model5=obj_cert_drill_top_manwear3
+model6=idk_42
+model7=obj_red_cape_manwear
+model8=obj_priest_gown_manwear
+model9=obj_feud_desert_disguise_manwear2
+model10=obj_iron_dagger_manwear
+recol1s=24075
+recol1d=15652
+recol2s=2340
+recol2d=32767
+recol3s=6273
+recol3d=4226
+recol4s=14724
+recol4d=32767
+recol5s=8386
+recol5d=15360
+recol6s=31649
+recol6d=15360
+walkanim=human_walk_f,human_walk_b,human_walk_l,human_walk_r
+readyanim=human_ready
+op3=Pickpocket
+op2=Attack
+op1=Talk-to
+vislevel=57
+head1=obj_pickpocket_guide_man
+head2=idk_man_jaw_short_head
+head3=npc_gem_trader_head
+wanderrange=5
+maxrange=8
+respawnrate=15
+hitpoints=50
+attack=50
+strength=50
+defence=50
+magic=1
+ranged=1
+param=damagetype,^crush_style
+param=death_anim,human_death
+huntmode=dt_bandit_zamorak
+huntrange=5

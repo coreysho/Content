@@ -24,6 +24,7 @@ if (~dt_smoke_mask_worn = false) {
 mes("You climb down into the smoke.");
 p_delay(1);
 p_telejump(^dt_smoke_well_bottom);
+settimer(dt_smoke_choke, ^dt_smoke_damage_ticks);
 
 [oploc1,sword_haunted_well_go_up]
 mes("You climb back up out of the smoke.");
@@ -31,6 +32,21 @@ p_delay(1);
 p_telejump(^dt_smoke_well_top);
 
 // A facemask (10 Slayer to buy) or a gas mask (Plague City). Both were valid in 2006.
+// The mask was only ever checked at the top of the well, so taking it off once you were down cost
+// nothing. ^dt_smoke_damage_ticks was declared for this and never referenced. Same [timer] shape as
+// the Ice Path, and it clears itself the moment you leave the dungeon.
+[timer,dt_smoke_choke]
+if (inzone(^dt_smoke_dungeon_sw, ^dt_smoke_dungeon_ne, coord) = false) {
+    cleartimer(dt_smoke_choke);
+    return;
+}
+if (~dt_smoke_mask_worn = true) {
+    return;
+}
+mes("The smoke sears your lungs.");
+sound_synth(smokepuff, 1, 0);
+~damage_self(randominc(4));
+
 [proc,dt_smoke_mask_worn]()(boolean)
 if (inv_total(worn, slayer_facemask) > 0) {
     return(true);

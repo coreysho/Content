@@ -57,6 +57,88 @@ if (~pvp_hit_roll(^magic_style) = true) {
 } else {
     ~pvp_spell_fail($spell_data, $duration);
 }
+// The Ancient Burst and Barrage spells also hit everything in the 3x3 around the target. Until now
+// the only area effect lived in ~pvm_spell_aoe, which is built on npc_huntall - so a barrage in the
+// wilderness splashed onto exactly nobody and was a worse blitz. Runs whether or not the primary
+// connected: accuracy is rolled per target.
+if (db_getfieldcount($spell_data, magic_spell_table:aoe) > 0) {
+    ~pvp_spell_aoe($spell_data, $duration);
+}
+
+// Player-side twin of ~pvm_spell_aoe. Two passes for the same reason: the damage ops act on the
+// SECONDARY player pointer and the search walks that same pointer, so the uids are collected first
+// and then visited one at a time. huntall/.huntnext and the multiway rule are lifted straight from
+// ~pvp_rune_thrownaxe_hunt, which is the only other thing on the server that hits several players
+// from one action.
+//
+// Multiway is checked for the caster AND for each extra target, so in singles a barrage still only
+// hits what you aimed at. Eight is the whole rest of a 3x3, so the cap can never truncate a
+// legitimate target.
+[proc,pvp_spell_aoe](dbrow $spell_data, int $duration)
+def_player_uid $primary = .uid;
+def_coord $centre = .coord;
+if (map_multiway(coord) = false) {
+    return;
+}
+def_player_uid $t1;
+def_player_uid $t2;
+def_player_uid $t3;
+def_player_uid $t4;
+def_player_uid $t5;
+def_player_uid $t6;
+def_player_uid $t7;
+def_player_uid $t8;
+def_int $found = 0;
+huntall($centre, db_getfield($spell_data, magic_spell_table:aoe, 0), ^vis_lineofsight);
+while (.huntnext = true) {
+    if (.uid ! $primary & .uid ! uid & $found < 8 & map_multiway(.coord) = true) {
+        switch_int ($found) {
+            case 0 : $t1 = .uid;
+            case 1 : $t2 = .uid;
+            case 2 : $t3 = .uid;
+            case 3 : $t4 = .uid;
+            case 4 : $t5 = .uid;
+            case 5 : $t6 = .uid;
+            case 6 : $t7 = .uid;
+            case 7 : $t8 = .uid;
+        }
+        $found = add($found, 1);
+    }
+}
+~pvp_spell_aoe_target($spell_data, $t1, $duration);
+~pvp_spell_aoe_target($spell_data, $t2, $duration);
+~pvp_spell_aoe_target($spell_data, $t3, $duration);
+~pvp_spell_aoe_target($spell_data, $t4, $duration);
+~pvp_spell_aoe_target($spell_data, $t5, $duration);
+~pvp_spell_aoe_target($spell_data, $t6, $duration);
+~pvp_spell_aoe_target($spell_data, $t7, $duration);
+~pvp_spell_aoe_target($spell_data, $t8, $duration);
+// Put the pointer back on whoever the player actually aimed at. Tested rather than discarded -
+// .finduid returns a boolean and a bare call warns - and false just means they logged out or died.
+if (.finduid($primary) = false) {
+    return;
+}
+
+[proc,pvp_spell_aoe_target](dbrow $spell_data, player_uid $target, int $duration)
+if ($target = null) {
+    return;
+}
+if (.finduid($target) = false) {
+    return;
+}
+if (~pvp_is_attackable = false) {
+    return;
+}
+if (~pvp_hit_roll(^magic_style) = true) {
+    ~pvp_spell_success($spell_data, ~magic_spell_maxhit($spell_data), $duration);
+    ~pvp_stat_change_effect($spell_data);
+    // an already-frozen secondary target keeps its existing freeze rather than having it refreshed
+    if (.%frozen < map_clock) {
+        ~pvp_freeze_effect($spell_data);
+    }
+} else {
+    ~pvp_spell_fail($spell_data, $duration);
+}
 
 [proc,pvp_combat_spell_checks](dbrow $spell_data)(boolean)
 if_close;

@@ -1,4 +1,10 @@
-[opnpc1,fairy_queen]
+// fairy_queen_multi (multivar=fairy_queen_check, multinpc=0,fairy_queen) is what Zanaris places;
+// fairy_queen is only what it resolves to. engine/entity/Player.ts:1001 looks the trigger up on the
+// placed type without resolving the multi, so this dialogue never ran. Declared on both.
+[opnpc1,fairy_queen_multi] @fairy_queen_chat;
+[opnpc1,fairy_queen] @fairy_queen_chat;
+
+[label,fairy_queen_chat]
 def_int $option = ~p_choice2("How do crops and such survive down here?", 1, "What's so good about this place?", 2);
 if($option = 1) {
     ~chatplayer("<p,quiz>How do crops and such survive down here?|Surely they need a bit of sunlight?");

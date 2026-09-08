@@ -14,6 +14,18 @@ if (npc_findhero = ^false) {
     return;
 }
 
+// Desert Treasure counts these. fd_icewarrior_trollskilled is a 5-bit varbit (bits 11-15 of
+// deserttreasurevarbit2) that Jagex reserved and nothing ever wrote to. npc_findhero has already
+// put the killer in the active player slot by this point - see NpcOps.ts:129-143 - so the write
+// lands on the right person.
+//
+// Tracked, NOT gated on. The 2006 Ice Path has no "kill five trolls" barrier; the gate is opened by
+// the troll child, and inventing a barrier would be worse than leaving a counter unread. These npcs
+// are named trollrescue_*, so the varbit was very likely meant for Troll Stronghold anyway.
+if (%deserttreasure >= ^dt_hunting_diamonds & %fd_icewarrior_trollskilled < 31) {
+    %fd_icewarrior_trollskilled = add(%fd_icewarrior_trollskilled, 1);
+}
+
 // Bones / ashes, set on the npc config.
 obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
 

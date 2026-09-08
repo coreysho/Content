@@ -1,0 +1,21 @@
+// Desert Treasure - the Bandit Camp shopkeeper (Corey, 2026-09-08).
+//
+// op3=Trade is handled for free by [opnpc3,_shop_keeper] in shop/scripts/shop.rs2 now that the npc
+// carries category=shop_keeper and param=owned_shop - see the config note. Only op1 needs a script.
+
+[opnpc1,dt_bandit_shopkeeper]
+if (%deserttreasure < ^dt_sent_to_bandits) {
+    ~chatnpc("<p,neutral>We don't get many visitors. Buy something or move along.");
+    return;
+}
+~chatplayer("<p,quiz>What have you got?");
+~chatnpc("<p,neutral>Whatever came in on the last caravan, mostly. I don't ask and I don't tell.");
+switch_int(~p_choice2("Let's see it, then.", 1, "Do you know anything about four diamonds?", 2)) {
+    case 1 :
+        ~chatplayer("<p,neutral>Let's see it, then.");
+        if_close;
+        ~openshop_activenpc;
+    case 2 :
+        ~chatplayer("<p,quiz>Do you know anything about four diamonds?");
+        ~chatnpc("<p,worried>I know better than to talk about them. Ask the bartender, he's had enough of his own stock not to care.");
+}

@@ -8,17 +8,95 @@
 // which hooks the same place in player_magic.rs2 that Salarin, Chronozon and the Dagannoth Mother
 // already hook.
 //
-// NOT implemented, and flagged rather than faked: the Ice Path's environmental stat drain and
-// forced-walk. Both need a per-tick zone effect this codebase has no existing mechanism for, and a
-// bad one would be worse than none. The path is otherwise complete.
+// Added 2026-09-08: the ice gate, the Ice Path's cold, and the automatic thaw.
+//
+// The gate (icegate_left / icegate_right, m44_58 x=22) ships with op1=Go-through already authored
+// and had no handler anywhere in the codebase, so there was no way onto the path at all.
+//
+// The cold uses [timer]/settimer/cleartimer - the same mechanism poison, prayer drain and barrows
+// degradation all use - rather than the per-tick zone system I said this codebase did not have. It
+// does; I was looking for the wrong thing.
+
+// ================================================================================ the ice gate
+//
+// Two halves of one gate, three tiles long, standing north-south at m44_58 x=22. You come through
+// it westwards or eastwards depending on which side you were on.
+
+[oploc1,icegate_left] @dt_ice_gate;
+[oploc1,icegate_right] @dt_ice_gate;
+
+[label,dt_ice_gate]
+if (%deserttreasure < ^dt_hunting_diamonds) {
+    ~mesbox("A huge gate of ice. There is nothing beyond it that you want.");
+    return;
+}
+if (%fd_icewarrior_subquest < ^fdiw_gave_sweet) {
+    ~mesbox("The troll child is sitting in front of the gate and will not budge.|He wants something to eat first.");
+    return;
+}
+def_int $dx = calc(coordx(loc_coord) - coordx(coord) + 1);
+if (coordx(coord) > coordx(loc_coord)) {
+    $dx = calc(coordx(loc_coord) - coordx(coord) - 1);
+}
+def_coord $dest = movecoord(coord, $dx, 0, 0);
+mes("You squeeze through the ice gate.");
+sound_synth(sluice_gate, 1, 0);
+p_delay(1);
+p_telejump($dest);
+settimer(dt_ice_path, ^dt_ice_path_drain_ticks);
+
+// ================================================================================ the Ice Path
+//
+// ^dt_ice_path_drain_ticks was declared when the quest went in and never referenced. The path is
+// bitterly cold: it takes a little damage and knocks a combat stat down every 25 ticks for as long
+// as you are on it, and stops the moment you step off. fd_icewarrior_bootshint is the cache's own
+// varbit for the one-time warning.
+//
+// The timer starts when you come through the gate. Logging out on the path and back in does not
+// restart it - you get a free run until you cross the gate again - which is the safe failure.
+
+[timer,dt_ice_path]
+if (inzone(^dt_ice_path_sw, ^dt_ice_path_ne, coord) = false) {
+    cleartimer(dt_ice_path);
+    return;
+}
+// mes rather than mesbox: ~damage_self does an if_close, so a modal opened here would be shut
+// again the same tick, and a box popping up mid-fight with the ice trolls would be worse than
+// useless anyway.
+if (%fd_icewarrior_bootshint = 0) {
+    %fd_icewarrior_bootshint = 1;
+    mes("The cold here is not natural. You will not be able to stand it for long.");
+}
+mes("The cold bites into you.");
+~damage_self(randominc(3));
+switch_int (random(3)) {
+    case 0 : stat_sub(attack, 1, 0);
+    case 1 : stat_sub(strength, 1, 0);
+    case default : stat_sub(defence, 1, 0);
+}
 
 // ================================================================================ the troll child
 
-[opnpc1,fourdiamonds_troll_child_crying]
-@dt_troll_child;
+// ---------------------------------------------------------------- multi shells
+//
+// Every opnpc handler below is declared TWICE: once on the multi child and once on the shell the
+// map actually places. That is not belt-and-braces, it is required.
+//
+// network/game/client/handler/OpNpcHandler.ts:38-51 resolves a multi npc - but only far enough to
+// validate that the option exists, so the right-click menu looks perfectly correct. It then sets
+// the interaction on the placed entity, and engine/entity/Player.ts:1001 (getOpTrigger) looks the
+// script up with
+//
+//     type = NpcType.get(this.target.type)
+//
+// with no multi resolution at all. So the script is searched for under the SHELL's name, the
+// handler on the child is never found, and the click silently does nothing.
+//
+// Same fault as the Biohazard elena2/elena2_vis bug, from the other direction.
 
-[opnpc1,fourdiamonds_troll_child_okay]
-@dt_troll_child;
+[opnpc1,fourdiamonds_troll_child] @dt_troll_child;
+[opnpc1,fourdiamonds_troll_child_crying] @dt_troll_child;
+[opnpc1,fourdiamonds_troll_child_okay] @dt_troll_child;
 
 [label,dt_troll_child]
 if (%deserttreasure < ^dt_hunting_diamonds) {
@@ -49,11 +127,9 @@ if (%fd_trollchild_intro = 0) {
 }
 ~chatnpc("<p,sad>Me want sweet. Then me let you past gate.");
 
-[opnpcu,fourdiamonds_troll_child_crying]
-@dt_troll_child_sweet;
-
-[opnpcu,fourdiamonds_troll_child_okay]
-@dt_troll_child_sweet;
+[opnpcu,fourdiamonds_troll_child] @dt_troll_child_sweet;
+[opnpcu,fourdiamonds_troll_child_crying] @dt_troll_child_sweet;
+[opnpcu,fourdiamonds_troll_child_okay] @dt_troll_child_sweet;
 
 [label,dt_troll_child_sweet]
 if (%deserttreasure < ^dt_hunting_diamonds) {
@@ -102,6 +178,15 @@ if (npc_find(^dt_kamil_arena, icediamond_icewarrior, 20, 0) = true) {
 }
 npc_add(^dt_kamil_arena, icediamond_icewarrior, 2000);
 
+// Correcting an earlier mistake of mine: an ai_queue3 death hook CAN write the killer's varbits.
+// NPC_FINDHERO in engine/src/engine/script/handlers/NpcOps.ts:129-143 does
+//
+//     state.activePlayer = player;
+//     state.pointerAdd(ActivePlayer[state.intOperand]);
+//
+// so everything after a successful npc_findhero runs with the killer as the active player.
+// areas/area_mage_arena/scripts/kolodion_fight.rs2 has been relying on exactly that for %magearena
+// the whole time. That is what makes the automatic thaw below possible.
 [ai_queue3,icediamond_icewarrior]
 gosub(npc_death);
 if (npc_findhero = ^false) {
@@ -109,16 +194,46 @@ if (npc_findhero = ^false) {
 }
 obj_add(npc_coord, bones, 1, ^lootdrop_duration);
 obj_add(npc_coord, coins, 2000, ^lootdrop_duration);
-
-// Kamil's death is recorded from the player's side rather than the death hook, because an ai_queue
-// trigger has no player varp pointer. Talking to the ice blocks is the natural place.
+%fd_icewarrior_dead = 1;
+%fd_icewarrior_dadfree = 1;
+%fd_icewarrior_mumfree = 1;
+if (%fd_icewarrior_subquest < ^fdiw_parents_freed) {
+    %fd_icewarrior_subquest = ^fdiw_parents_freed;
+    mes("Somewhere behind you, ice cracks.");
+}
 
 // ================================================================================ the ice blocks
 
+// troll_block_1 and troll_block_2 are the shells the map places, and each covers BOTH states:
+// multinpc=0 is the ice block (op1 Talk-to, op2 Smash-ice) and multinpc=1 is the freed parent
+// (op1 Talk-to). So op1 on the shell has to branch on the same varbit the multi reads.
+// troll_frozen_1/2 are a second pair of shells for the same two parents at subquest stage 4-5.
+[opnpc2,troll_block_1] ~dt_smash_ice(1);
+[opnpc2,troll_block_2] ~dt_smash_ice(2);
 [opnpc2,fd_trollblock1] ~dt_smash_ice(1);
 [opnpc2,fd_trollblock2] ~dt_smash_ice(2);
+
+[opnpc1,troll_block_1] ~dt_iceblock_talk(1);
+[opnpc1,troll_block_2] ~dt_iceblock_talk(2);
 [opnpc1,fd_trollblock1] ~dt_look_at_ice;
 [opnpc1,fd_trollblock2] ~dt_look_at_ice;
+
+[opnpc1,troll_frozen_1] ~dt_troll_parent(1);
+[opnpc1,troll_frozen_2] ~dt_troll_parent(2);
+[opnpc1,fd_troll_dad] ~dt_troll_parent(1);
+[opnpc1,fd_troll_mum] ~dt_troll_parent(2);
+
+// Which of the two the shell is currently showing.
+[proc,dt_iceblock_talk](int $which)
+if ($which = 1 & %fd_icewarrior_dadfree = 1) {
+    ~dt_troll_parent(1);
+    return;
+}
+if ($which = 2 & %fd_icewarrior_mumfree = 1) {
+    ~dt_troll_parent(2);
+    return;
+}
+~dt_look_at_ice;
 
 [proc,dt_look_at_ice]
 if (%deserttreasure < ^dt_hunting_diamonds) {
@@ -162,19 +277,16 @@ if (%fd_icewarrior_dadfree = 1 & %fd_icewarrior_mumfree = 1) {
     ~mesbox("Both trolls are free. You should tell their child.");
 }
 
-[opnpc1,fd_troll_dad]
-if (%fd_icewarrior_subquest >= ^fdiw_parents_freed) {
+[proc,dt_troll_parent](int $which)
+if (%fd_icewarrior_subquest < ^fdiw_parents_freed) {
+    ~chatnpc("<p,neutral>Grrr.");
+    return;
+}
+if ($which = 1) {
     ~chatnpc("<p,happy>You break ice. Good human. Child waiting for you.");
     return;
 }
-~chatnpc("<p,neutral>Grrr.");
-
-[opnpc1,fd_troll_mum]
-if (%fd_icewarrior_subquest >= ^fdiw_parents_freed) {
-    ~chatnpc("<p,happy>Thank you. Go see child - him have shiny stone cold man dropped.");
-    return;
-}
-~chatnpc("<p,neutral>Grrr.");
+~chatnpc("<p,happy>Thank you. Go see child - him have shiny stone cold man dropped.");
 
 [label,dt_troll_child_reward]
 ~chatnpc("<p,happy>Mummy! Daddy! You free them!");
