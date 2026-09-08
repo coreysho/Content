@@ -133,11 +133,13 @@ if(~obj_gettotal(deathdagger) > 0) {
 } else {
     ~chatnpc("<p,neutral>You would release me from my torment and the source would be available to you. However, you must realise that this will be no easy task.");
     ~chatnpc("<p,neutral>I will furnish you with a weapon which will help you to achieve your aims... Here, take this...");
+    // Dagger and stage before the three lines of presentation - two of them wait on a click, and
+    // aborting used to leave the player with neither the dagger nor the stage.
+    inv_add(inv, deathdagger, 1);
+    if(%legendsquest < ^legends_received_dagger) %legendsquest = ^legends_received_dagger;
     ~objbox(deathdagger, "The spirit waves an arm and in front of you appears a dark black dagger made of pure obsidian.", 250, 0, 0);
     ~chatnpc("<p,neutral>To complete your task you must use this weapon on Viyeldi.");
     mes("You take the dagger and place it in your backpack.");
-    inv_add(inv, deathdagger, 1);
-    if(%legendsquest < ^legends_received_dagger) %legendsquest = ^legends_received_dagger;
 }
 @multi2("Ok, I'll do it.", echned_ok, "I've changed my mind, I can't do it.", echned_changedmind);
 

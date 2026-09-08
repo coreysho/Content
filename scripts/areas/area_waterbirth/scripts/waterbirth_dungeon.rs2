@@ -339,3 +339,92 @@ gosub(npc_death);
 if (loc_find(^waterbirth_weakdoor_north_blocker, dagcave_invisibleblocking) = true) {
     loc_change(loc_8968, ^max_32bit_int);
 }
+
+
+// ---------------------------------------------------------------- Jarvald's ferry
+//
+// The whole Waterbirth Island Dungeon above hangs off two cave entrances that are themselves ON
+// Waterbirth Island (m39_58) - and nothing in the repo ever wired up the only way to get to the
+// island, so the entire dungeon, the maze and the three Dagannoth Kings were unreachable except by
+// teleporting in.
+//
+// This is another instance of the multi-shell trigger bug (claude/multi-shell-trigger-bug.md).
+// The npc the map actually places on the Rellekka pier is the SHELL:
+//
+//   [viking_dagganoth_cave_ferryman_rellekka]   npc 2435, m40_57 local(61,35), no ops of its own
+//     multivar=dag_island_quick_travel
+//     multinpc=0,viking_dagganoth_cave_ferryman_1op      (op1=Talk-to)
+//     multinpc=1,viking_dagganoth_cave_ferryman_island   (op1=Talk-to, op3=Travel)
+//
+// The op TEXT has to live on the children (the client resolves the multi before it draws the menu)
+// but the TRIGGER has to live on the shell (Player.getOpTrigger does NpcType.get(target.type) with
+// no multi resolution), so both are declared here and routed to one shared label. The children are
+// never placed in any map, so their handlers are belt-and-braces only.
+//
+// The island-side Jarvald (viking_dagganoth_cave_waterbirth_island, npc 2438, m39_58 local(48,49))
+// is a plain npc, not a multi, and already carries op1=Talk-to + op3=Travel in the cache.
+//
+// dag_island_quick_travel is what flips the shell to the Travel-bearing child, so it is set on the
+// first successful crossing - talk once, then use Travel from either side thereafter. See
+// configs/area_waterbirth.varp for why its base varp had to be re-scoped to perm.
+//
+// No quest gate: The Fremennik Trials does not exist in this repo, and the 2006 ferry itself has no
+// requirement of its own beyond being able to reach Jarvald.
+[opnpc1,viking_dagganoth_cave_ferryman_rellekka] @jarvald_mainland_talk;
+[opnpc1,viking_dagganoth_cave_ferryman_1op] @jarvald_mainland_talk;
+[opnpc1,viking_dagganoth_cave_ferryman_island] @jarvald_mainland_talk;
+[opnpc3,viking_dagganoth_cave_ferryman_rellekka] @jarvald_sail;
+[opnpc3,viking_dagganoth_cave_ferryman_island] @jarvald_sail;
+
+// The Rellekka shell has no name and no head models of its own (everything visual lives on the two
+// children), so ~chatnpc - which reads npc_name/npc_type straight off the ACTIVE npc with no multi
+// resolution, exactly like getOpTrigger - would draw a blank chathead with an empty name. All of
+// Jarvald's lines go through ~chatnpc_specific with an explicit child type instead, which is safe
+// from the shell and from either real npc.
+[proc,jarvald_says](string $line)
+~chatnpc_specific("Jarvald", viking_dagganoth_cave_ferryman_1op, $line);
+
+[label,jarvald_mainland_talk]
+~chatplayer("<p,quiz>Hello. What's out there across the water?");
+~jarvald_says("<p,neutral>Waterbirth Island. Nothing on it but rock, crabs and a hole in the ground - and whatever crawls out of the hole.");
+def_int $op = ~p_choice2("Take me there.", 1, "I'll pass, thanks.", 2);
+if ($op = 2) {
+    ~chatplayer("<p,neutral>I'll pass, thanks.");
+    ~jarvald_says("<p,neutral>Wise. Come back if you change your mind.");
+    return;
+}
+~chatplayer("<p,neutral>Take me there.");
+~jarvald_says("<p,neutral>Get in the boat then. Don't touch anything.");
+@jarvald_sail;
+
+[opnpc1,viking_dagganoth_cave_waterbirth_island] @jarvald_island_talk;
+[opnpc3,viking_dagganoth_cave_waterbirth_island] @jarvald_sail;
+
+[label,jarvald_island_talk]
+~chatplayer("<p,quiz>Can you take me back to Rellekka?");
+if (~p_choice2("Yes, take me back.", 1, "Not yet.", 2) = 2) {
+    ~chatplayer("<p,neutral>Not yet.");
+    ~jarvald_says("<p,neutral>I'll be here. I'm not going anywhere without you.");
+    return;
+}
+~chatplayer("<p,neutral>Yes, take me back.");
+@jarvald_sail;
+
+// Both directions come through this one label. coordx() of the Rellekka pier is 2621 and of the
+// island dock 2544, so anything east of the midpoint is the mainland side. Deciding from the
+// PLAYER's own coord rather than from which npc was clicked keeps this correct however the multi
+// happened to resolve, and means the island Jarvald can reuse it unchanged.
+[label,jarvald_sail]
+def_coord $dest = ^waterbirth_ferry_island_dest;
+def_string $arrival = "You arrive at Waterbirth Island.";
+if (coordx(coord) < 2600) {
+    $dest = ^waterbirth_ferry_rellekka_dest;
+    $arrival = "You arrive back at Rellekka.";
+}
+p_teleport($dest);
+sound_synth(pool_plop, 1, 0);
+// Unlocks the Travel right-click option on the Rellekka shell from here on - this varbit IS the
+// shell's multivar, so setting it is what swaps in the child that carries op3.
+%dag_island_quick_travel = 1;
+~mesbox("You climb aboard and Jarvald rows you across the freezing water.");
+~mesbox($arrival);

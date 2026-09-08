@@ -45,11 +45,13 @@ if (inv_total(inv, airrune) < 25 & inv_total(inv, mindrune) < 25) {
     inv_add(inv, airrune, ~newbie_magic_instructor_runes_to_give(airrune));
     inv_add(inv, mindrune, ~newbie_magic_instructor_runes_to_give(mindrune));
 }else if (inv_total(inv, airrune) < 25) {
-    ~objbox(airrune, "Terrova gives you some |@blu@Air runes!", 250, 0, 0);
+    // inv_add before the box: ~objbox ends in p_pausebutton, so dismissing it aborts the script.
     inv_add(inv, airrune, ~newbie_magic_instructor_runes_to_give(airrune));
+    ~objbox(airrune, "Terrova gives you some |@blu@Air runes!", 250, 0, 0);
 }else if (inv_total(inv, mindrune) < 25) {
-    ~objbox(mindrune, "Terrova gives you some |@blu@Mind runes!", 250, 0, 0);
+    // inv_add before the box: ~objbox ends in p_pausebutton, so dismissing it aborts the script.
     inv_add(inv, mindrune, ~newbie_magic_instructor_runes_to_give(mindrune));
+    ~objbox(mindrune, "Terrova gives you some |@blu@Mind runes!", 250, 0, 0);
 }
 
 [proc,newbie_magic_instructor_runes_to_give](obj $obj)(int)

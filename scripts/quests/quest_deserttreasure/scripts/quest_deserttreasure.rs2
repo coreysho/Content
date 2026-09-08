@@ -44,10 +44,16 @@ if (%deserttreasure = ^dt_not_started) {
         ~chatnpc("<p,neutral>Make yourself some space first - I can't hand you anything as it is.");
         return;
     }
-    ~objbox(four_diamonds_etchings, "The Archaeologist hands you a sheaf of etchings.", 250, 0, ^objbox_height);
+    // Item and stage BEFORE the box, not after. ~objbox ends in p_pausebutton
+    // (interface_chat/scripts/chat.rs2:538), so it waits on a click and closing the interface aborts
+    // the script where it stands. With the inv_add behind it, dismissing the box left the player at
+    // ^dt_got_etchings with no etchings - and the Archaeologist only hands them over in this branch,
+    // which no longer runs at that stage. That is a soft-lock on the first step of the quest.
+    // The box is presentation; nothing should depend on the player clicking it.
     inv_add(inv, four_diamonds_etchings, 1);
     %deserttreasure = ^dt_got_etchings;
     ~send_quest_progress(questlist:deserttreasure, %deserttreasure, ^deserttreasure_complete);
+    ~objbox(four_diamonds_etchings, "The Archaeologist hands you a sheaf of etchings.", 250, 0, ^objbox_height);
     return;
 }
 if (%deserttreasure = ^dt_got_etchings) {
@@ -129,11 +135,15 @@ if (inv_freespace(inv) = 0 & inv_total(inv, four_diamonds_etchings) = 1) {
     ~chatnpc("<p,neutral>Make some space first, would you?");
     return;
 }
+// Same fix, and this one was worse: the etchings were deleted, then ~objbox waited on a click, and
+// only then was the translation added. Dismissing that box destroyed the etchings and gave nothing
+// back, with the stage still at ^dt_got_etchings and no way to obtain another sheaf. Swap the
+// item over first and show the box afterwards.
 inv_del(inv, four_diamonds_etchings, 1);
-~objbox(four_diamonds_translation_primer, "The Expert hands you a rough translation.", 250, 0, ^objbox_height);
 inv_add(inv, four_diamonds_translation_primer, 1);
 %deserttreasure = ^dt_got_translation;
 ~send_quest_progress(questlist:deserttreasure, %deserttreasure, ^deserttreasure_complete);
+~objbox(four_diamonds_translation_primer, "The Expert hands you a rough translation.", 250, 0, ^objbox_height);
 ~chatnpc("<p,worried>Take care with whatever you dig up. Some things stay buried for a reason.");
 
 // ================================================================================ the Bandit Camp
@@ -400,6 +410,33 @@ if (inv_total(inv, fd_dark_diamond) < 1) { return(false); }
 return(true);
 
 // The six mirrors. Four show a real destination, two are the false leads Eblis warns about.
+// ---------------------------------------------------------------- multiloc shells
+//
+// Declared on the SHELL as well as the child, for the same reason the npc handlers in this quest
+// are. It is not belt-and-braces, it is required.
+//
+// network/game/client/handler/OpLocHandler.ts:38-50 resolves a multiloc - but only far enough to
+// check the clicked option exists, so the right-click menu is correct. The interaction is then set
+// on the placed loc, and engine/entity/Player.ts:1003 (getOpTrigger) looks the script up with
+//
+//     type = LocType.get(this.target.type)
+//
+// with no multi resolution at all. The script is searched for under the SHELL's name, the handler
+// on the child is never found, and the click does nothing.
+//
+// Exactly the fault fixed for npcs earlier; I checked locs afterwards and found it applies there
+// too. The op text still has to live on the CHILD (the client resolves the multi before it draws
+// the menu), which is why quest_deserttreasure.loc adds op1=Light to the _unlit torches and this
+// adds the trigger to the shell - both halves are needed.
+//
+// sword_mirrorN is what m50_46 places. Its multivar is fd_mirror_present, and at 0 it resolves to a
+// cactus - which is the cache's own way of saying the mirrors are not built until Eblis builds them.
+[oploc1,sword_mirror1] ~dt_mirror_vision("a graveyard under a red sky, and something moving in the tomb", "Morytania");
+[oploc1,sword_mirror2] ~dt_mirror_vision("a frozen path through the mountains, and a warrior in white", "Trollheim");
+[oploc1,sword_mirror3] ~dt_mirror_vision("a well full of smoke, and fires burning in the dark below", "the desert, west of Pollnivneach");
+[oploc1,sword_mirror4] ~dt_mirror_vision("a ladder that is barely there at all, beside a waterfall", "Baxtorian");
+[oploc1,sword_mirror5] ~dt_mirror_vision("this very camp - tents, sand, and nothing else", "here");
+[oploc1,sword_mirror6] ~dt_mirror_vision("the pyramid to the south-east, sealed and silent", "the pyramid");
 [oploc1,fd_mirror1] ~dt_mirror_vision("a graveyard under a red sky, and something moving in the tomb", "Morytania");
 [oploc1,fd_mirror2] ~dt_mirror_vision("a frozen path through the mountains, and a warrior in white", "Trollheim");
 [oploc1,fd_mirror3] ~dt_mirror_vision("a well full of smoke, and fires burning in the dark below", "the desert, west of Pollnivneach");

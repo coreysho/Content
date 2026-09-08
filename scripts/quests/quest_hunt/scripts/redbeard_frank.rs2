@@ -8,8 +8,9 @@ if (%hunt = ^hunt_fetch_rum) {
     ~chatplayer("<p,sad>I seem to have lost my chest key...");
     ~chatnpc("<p,neutral>Arr, silly you. Fortunately I took the precaution to have another one made.");
 
-    ~objbox(chest_key, "Frank hands you a chest key", 250, 0, divide(^objbox_height, 2));
+    // inv_add before the box: ~objbox ends in p_pausebutton, so dismissing it aborts the script.
     inv_add(inv, chest_key, 1);
+    ~objbox(chest_key, "Frank hands you a chest key", 250, 0, divide(^objbox_height, 2));
 
     @redbeard_options;
 } else {

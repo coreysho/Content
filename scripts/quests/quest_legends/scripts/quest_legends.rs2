@@ -43,8 +43,9 @@ mes("You try your best to decode the writing, this is what you make out.");
 [oploc2,shaman_small_table]
 mes("You start searching the table...");
 if (inv_total(inv, scrawled_note2) = 0 & %legendsquest < ^legends_complete) {
-    ~objbox(scrawled_note2, "You find a scrap of paper with what looks like nonsense written on it.", 250, 0, 0);
+    // inv_add before the box: ~objbox ends in p_pausebutton, so dismissing it aborts the script.
     inv_add(inv, scrawled_note2, 1);
+    ~objbox(scrawled_note2, "You find a scrap of paper with what looks like nonsense written on it.", 250, 0, 0);
     return;
 }
 mes("You cannot find anything else in here.");
@@ -56,8 +57,9 @@ mes("You cannot find anything else in here.");
 mes("You search the crate.");
 p_delay(1); // this is the only one with delay, check scrawled note video
 if (inv_total(inv, scrawled_note1) = 0 & %legendsquest < ^legends_complete) {
-    ~objbox(scrawled_note1, "After some time you find a scrumpled up piece of paper. It looks like rubbish.", 250, 0, 0);
+    // inv_add before the box: ~objbox ends in p_pausebutton, so dismissing it aborts the script.
     inv_add(inv, scrawled_note1, 1);
+    ~objbox(scrawled_note1, "After some time you find a scrumpled up piece of paper. It looks like rubbish.", 250, 0, 0);
     return;
 }
 mes("You can't find anything else here.");

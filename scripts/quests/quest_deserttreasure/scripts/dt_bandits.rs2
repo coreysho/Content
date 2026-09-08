@@ -19,3 +19,43 @@ switch_int(~p_choice2("Let's see it, then.", 1, "Do you know anything about four
         ~chatplayer("<p,quiz>Do you know anything about four diamonds?");
         ~chatnpc("<p,worried>I know better than to talk about them. Ask the bartender, he's had enough of his own stock not to care.");
 }
+
+// ---------------------------------------------------------------- the bandits themselves
+//
+// Six npcs stand around this camp with op1=Talk-to declared in the cache and no handler behind any
+// of them, so every one of them answered "Nothing interesting happens": the two fightable bandits
+// (fourdiamonds_sword_bandit_1 at level 74 and _free at 57) and the four sitting ones, which are
+// vislevel=hide scenery with nothing but a Talk-to.
+//
+// Their Attack option was always fine - [opnpc2,_] in skill_combat/scripts/player/player_combat.rs2
+// handles combat generically. Pickpocket is still dead on the two fightable ones: thieving is wired
+// by category (_citizen, _guard) in skill_thieving and these carry neither. That is a Thieving gap
+// rather than a quest one, so it is left alone here.
+
+[opnpc1,fourdiamonds_sword_bandit_1] @dt_bandit_chat;
+[opnpc1,fourdiamonds_sword_bandit_free] @dt_bandit_chat;
+[opnpc1,fourdiamonds_sword_bandit_sitnorth] @dt_bandit_chat;
+[opnpc1,fourdiamonds_sword_bandit_sitsouth] @dt_bandit_chat;
+[opnpc1,fourdiamonds_sword_bandit_siteast] @dt_bandit_chat;
+[opnpc1,fourdiamonds_sword_bandit_sitwest] @dt_bandit_chat;
+
+[label,dt_bandit_chat]
+if (%deserttreasure >= ^deserttreasure_complete) {
+    ~chatnpc("<p,neutral>You're the one who went into the pyramid. Nobody's seen you since.");
+    ~chatplayer("<p,neutral>I came back out.");
+    ~chatnpc("<p,shifty>So you did. Keep it to yourself.");
+    return;
+}
+if (%deserttreasure >= ^dt_heard_of_diamonds) {
+    switch_int(random(3)) {
+        case 0 : ~chatnpc("<p,shifty>Talk to Eblis if it's the diamonds you're after. He's the one who won't shut up about them.");
+        case 1 : ~chatnpc("<p,neutral>We steal from everyone out here. Nothing personal.");
+        case default : ~chatnpc("<p,angry>Don't go wearing anything holy in here. We've buried people for less.");
+    }
+    return;
+}
+switch_int(random(3)) {
+    case 0 : ~chatnpc("<p,angry>What do you want?");
+    case 1 : ~chatnpc("<p,neutral>Buy something or move on.");
+    case default : ~chatnpc("<p,shifty>Keep your hands where I can see them.");
+}

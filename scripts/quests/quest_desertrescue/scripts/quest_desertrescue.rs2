@@ -288,18 +288,21 @@ if(last_useitem = thcelldoorkey) {
 mes("You search the captains desk while he's not looking...");
 def_boolean $found = false;
 if(inv_total(inv, thcelldoorkey) = 0) {
-    ~objbox(thcelldoorkey, "You find a cell door key.", 250, 0, 0);
+    // inv_add before the box: ~objbox ends in p_pausebutton, so dismissing it aborts the script.
     inv_add(inv, thcelldoorkey, 1);
+    ~objbox(thcelldoorkey, "You find a cell door key.", 250, 0, 0);
     $found = true;
 }
 if(inv_total(inv, metal_key) = 0) {
-    ~objbox(metal_key, "You find the key to the main gate.", 250, 0, 0);
+    // inv_add before the box: ~objbox ends in p_pausebutton, so dismissing it aborts the script.
     inv_add(inv, metal_key, 1);
+    ~objbox(metal_key, "You find the key to the main gate.", 250, 0, 0);
     $found = true;
 }
 if(%desertrescue >= ^desertrescue_escaped & inv_total(inv, thgoodminekey) = 0) {
-    ~objbox(thgoodminekey, "You find the key to the main gate.", 250, 0, 0);
+    // inv_add before the box: ~objbox ends in p_pausebutton, so dismissing it aborts the script.
     inv_add(inv, thgoodminekey, 1);
+    ~objbox(thgoodminekey, "You find the key to the main gate.", 250, 0, 0);
     $found = true;
 }
 if($found = false) mes("...but you find nothing of interest.");
@@ -340,9 +343,11 @@ if(~obj_gettotal(thcaptplans) > 0) {
     mes("The chest is empty.");
     return;
 }
-~objbox(thcaptplans, "While the Captain's distracted, you quickly unlock the chest. You use the Bedobin Copy Key to open the chest. You open the chest and take out the plans.", 250, 0, 0);
+// Stage and item BEFORE the box. ~objbox ends in p_pausebutton (interface_chat/scripts/chat.rs2),
+// so dismissing it aborts the script - which used to leave the quest advanced with nothing to show.
 if(%desertrescue = ^desertrescue_given_bedobin_key) %desertrescue = ^desertrescue_retrieved_plans;
 inv_add(inv, thcaptplans, 1);
+~objbox(thcaptplans, "While the Captain's distracted, you quickly unlock the chest. You use the Bedobin Copy Key to open the chest. You open the chest and take out the plans.", 250, 0, 0);
 
 [oploc1,capt_siad_bookcase]
 ~mesbox("The captain seems to collect lots of books!");
@@ -773,8 +778,9 @@ if($op = 2) {
     mes("You decide not to take the barrel.");
     return;
 }
-~objbox(thminebarrel_empty, "You take the barrel, it's not that heavy, just awkward.", 250, 0, ^objbox_height);
+// inv_add before the box: ~objbox ends in p_pausebutton, so dismissing it aborts the script.
 inv_add(inv, thminebarrel_empty, 1);
+~objbox(thminebarrel_empty, "You take the barrel, it's not that heavy, just awkward.", 250, 0, ^objbox_height);
 loc_del(100);
 
 [oploc1,ropepullthingy2]

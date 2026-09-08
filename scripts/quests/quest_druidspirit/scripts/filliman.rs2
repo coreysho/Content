@@ -340,9 +340,11 @@ if(last_useitem = mirror) {
 ~chatnpc("<p,sad>Well, the book says, that I need, and I quote:-|'Something with faith', 'something from nature' and |'something of the 'spirit-to-become' freely given'. Hmm, I|know how to get something from nature.");
 ~chatplayer("<p,neutral>Well, that does seem a bit vague.");
 ~chatnpc("<p,sad>Hmm, it does and I could understand if you didn't want to help. However, if you could perhaps at least get the item from nature, that would be a start. Perhaps we can figure out the rest as we go along.");
-~objbox(bloom_spell, "The druid produces a small sheet of papyrus with some writing on it.", 250, 0, 0);
+// Stage and item BEFORE the box. ~objbox ends in p_pausebutton (interface_chat/scripts/chat.rs2),
+// so dismissing it aborts the script - which used to leave the quest advanced with nothing to show.
 %druidspirit = ^druidspirit_received_spell;
 inv_add(inv, bloom_spell, 1);
+~objbox(bloom_spell, "The druid produces a small sheet of papyrus with some writing on it.", 250, 0, 0);
 ~chatnpc("<p,sad>This spell needs to be cast in the swamp after you have been blessed. I'm afraid you'll need to go to the temple to the North and ask a member of the clergy to bless you.");
 ~chatplayer("<p,neutral>Blessed, what does that do?");
 ~chatnpc("<p,sad>It is required if you're to cast this druid spell. Once you've cast the spell, you should find something from nature. Bring it back to me and then we'll try to figure out the other things we need.");

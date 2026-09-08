@@ -1,0 +1,52 @@
+// Jossik, the lighthouse keeper - moved out of _unpack/377/all.npc so his real cache op3=Trade can
+// be wired up. The cache gives him op1=Talk-to AND op3=Trade, and ships a fully stocked 40-slot
+// shop inventory for him ([lighthouseshop] in _unpack/727/all.inv - rope/hammer/chisel/knife/spade/
+// tinderbox/candles/poison/pestle/containers/Fremennik drinks, the real "Jossik's Wares" general
+// store), but nothing in the repo ever bound the two together: op3 was dead, and quest_horror.rs2's
+// post-quest ~openshop_activenpc call read npc_param(owned_shop) off an npc that had no such param,
+// so it opened an empty/broken shop window.
+//
+// category=shop_keeper + param=owned_shop is what shop/scripts/shop.rs2's generic [opnpc3,_shop_keeper]
+// binds against, so declaring both here fixes the Trade option and ~openshop_activenpc at once.
+// Multipliers/delta copied from the standard general-store values used elsewhere in this repo
+// (see quests/quest_deserttreasure/configs/quest_deserttreasure_bandits.npc).
+//
+// Everything above category= is a byte-for-byte copy of the original all.npc block.
+[horror_lighthousekeeeper_well]
+name=Jossik
+desc=Apparently he keeps a lighthouse.
+model1=idk_man_hair_wildspikes
+model2=obj_priest_gown_manwear
+model3=obj_viking_top_darkbrown_manwear
+model4=npc_chemisti3
+model5=idk_man_jaw_pointy
+model6=npc_chemisti4
+model7=obj_viking_top_darkbrown_manwear3
+model8=obj_cert_drill_top_manwear3
+model9=npc_zoo_keeper
+recol1s=6273
+recol1d=8323
+recol2s=2340
+recol2d=8388
+recol3s=14724
+recol3d=12451
+recol4s=7328
+recol4d=14565
+recol5s=10464
+recol5d=11394
+recol6s=5299
+recol6d=13475
+walkanim=human_walk_f,human_walk_b,human_walk_l,human_walk_r
+readyanim=human_ready
+op1=Talk-to
+op3=Trade
+vislevel=hide
+head1=idk_man_hair_wildspikes_head
+head2=idk_man_jaw_pointy_head
+head3=npc_zoo_keeper_head
+category=shop_keeper
+param=owned_shop,lighthouseshop
+param=shop_sell_multiplier,1300
+param=shop_buy_multiplier,40
+param=shop_delta,15
+param=shop_title,Jossik's Wares

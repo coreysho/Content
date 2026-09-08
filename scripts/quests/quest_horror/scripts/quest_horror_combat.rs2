@@ -17,25 +17,109 @@
 // salarin_the_twisted/chronozon/kurask/turoth - this file only drives the phase timer and identifies
 // which spell elements match which phase.
 //
-// Her own attacks are implemented as melee-only this pass (same wildcard defaults as the generic
-// Dagannoth, matching her wiki max hit of 9 melee) - deliberately NOT attempting her wiki-documented
-// ranged component (12x2, "Protect from Missiles advised") here, since correctly hybridizing
-// melee-when-adjacent/ranged-when-not against this framework's ai mode semantics (opplayer2 vs
-// applayer2) isn't something I could verify against an existing precedent in this codebase. Flagged
-// as a follow-up rather than guessed at. horror_dagannoth_rangeattack anim exists in the cache and is
-// ready to use once that's built.
+// She is a hybrid: wiki-confirmed "can hit up to 9s with Melee, and can hit double 12s with Ranged",
+// attack speed 4 ticks. Built below as ~dagmother_attack - see that proc for how the two are chosen
+// between, and configs/quest_horror_combat.npc for the ranged params and the attackrange field the
+// ap trigger needs.
 //
-// Emergence (horror_dagganoth_aira/airb/airc before her six real combat forms) and where she actually
-// spawns are both blocked on the same missing Waterbirth-area dungeon coordinates flagged elsewhere -
-// this file assumes she's already active as one of the six phase npc types by the time a player
-// engages her.
+// RESOLVED (2026-09-08): where she spawns, her emergence out of the water, and what killing her (or
+// the level-100 Dagannoth before her) actually does to the quest are all built now - see "The
+// encounters themselves" at the bottom of this file. Neither boss is placed in any map, which is
+// correct: they are scripted spawns triggered by climbing down into the dagannoth cavern.
 
-[ai_queue1,horror_dagganoth_air] gosub(dagmother_start_cycle); gosub(npc_default_retaliate);
-[ai_queue1,horror_dagganoth_water] gosub(dagmother_start_cycle); gosub(npc_default_retaliate);
-[ai_queue1,horror_dagganoth_melee] gosub(dagmother_start_cycle); gosub(npc_default_retaliate);
-[ai_queue1,horror_dagganoth_earth] gosub(dagmother_start_cycle); gosub(npc_default_retaliate);
-[ai_queue1,horror_dagganoth_fire] gosub(dagmother_start_cycle); gosub(npc_default_retaliate);
-[ai_queue1,horror_dagganoth_ranged] gosub(dagmother_start_cycle); gosub(npc_default_retaliate);
+// ~npc_default_retaliate_ap rather than the melee ~npc_default_retaliate: it puts her in applayer2
+// mode, which is the only mode whose trigger the engine gates on attackrange rather than on being
+// adjacent. She then picks melee or ranged herself, per tick, from the actual distance.
+[ai_queue1,horror_dagganoth_air] gosub(dagmother_start_cycle); gosub(npc_default_retaliate_ap);
+[ai_queue1,horror_dagganoth_water] gosub(dagmother_start_cycle); gosub(npc_default_retaliate_ap);
+[ai_queue1,horror_dagganoth_melee] gosub(dagmother_start_cycle); gosub(npc_default_retaliate_ap);
+[ai_queue1,horror_dagganoth_earth] gosub(dagmother_start_cycle); gosub(npc_default_retaliate_ap);
+[ai_queue1,horror_dagganoth_fire] gosub(dagmother_start_cycle); gosub(npc_default_retaliate_ap);
+[ai_queue1,horror_dagganoth_ranged] gosub(dagmother_start_cycle); gosub(npc_default_retaliate_ap);
+
+// Both modes route to the same proc. applayer2 is where she normally lives; opplayer2 is declared
+// too because anything that sets an op mode on her (a future huntmode, a script) would otherwise
+// find no trigger for the mode and leave her standing still - Npc.getTrigger resolves the script
+// from the CURRENT mode, so a missing one is silent.
+[ai_applayer2,horror_dagganoth_air] ~dagmother_attack;
+[ai_applayer2,horror_dagganoth_water] ~dagmother_attack;
+[ai_applayer2,horror_dagganoth_melee] ~dagmother_attack;
+[ai_applayer2,horror_dagganoth_earth] ~dagmother_attack;
+[ai_applayer2,horror_dagganoth_fire] ~dagmother_attack;
+[ai_applayer2,horror_dagganoth_ranged] ~dagmother_attack;
+[ai_opplayer2,horror_dagganoth_air] ~dagmother_attack;
+[ai_opplayer2,horror_dagganoth_water] ~dagmother_attack;
+[ai_opplayer2,horror_dagganoth_melee] ~dagmother_attack;
+[ai_opplayer2,horror_dagganoth_earth] ~dagmother_attack;
+[ai_opplayer2,horror_dagganoth_fire] ~dagmother_attack;
+[ai_opplayer2,horror_dagganoth_ranged] ~dagmother_attack;
+
+
+// Melee when the player is touching her, ranged otherwise. npc_range() is the size-aware distance -
+// CoordGrid.distanceTo between the two bounding boxes (NpcOps.ts:167) - which is what this needs,
+// because she is 3x3: a plain coord-to-coord distance from her south-west tile reads 3 for a player
+// standing against her north face and 1 for one standing against her south face, and would call the
+// same contact two different things. npc_range is 1 for every square of contact.
+//
+// She does not chase into melee of her own accord, and that is not a shortcut: aiMode stops moving
+// the moment tryInteract succeeds (Npc.ts:906-928), so ANY npc in applayer2 mode halts at its
+// attackrange. The player picks the distance, which is how she is actually fought - stand on her and
+// she claws you, back off and she shoots.
+[proc,dagmother_attack]
+if (%npc_action_delay > map_clock) {
+    npc_setmode(applayer2);
+    return;
+}
+if (~npc_check_notcombat = false) {
+    npc_setmode(null);
+    return;
+}
+if (~npc_check_notcombat_self = false) {
+    return;
+}
+if (npc_range(coord) <= 1) {
+    anim(%com_defendanim, 0);
+    npc_anim(npc_param(attack_anim), 0);
+    ~npc_meleeattack;
+    npc_setmode(applayer2);
+    return;
+}
+~dagmother_range_attack;
+npc_setmode(applayer2);
+
+// Two independent hits, not one doubled: the wiki gives her "double 12s", so each rolls its own
+// accuracy check against the same defence roll and its own damage. Both land on the tick the
+// projectile arrives, which is what draws as two hitsplats.
+//
+// Written against the raw ~npc_ranged_attack_roll / ~player_defence_roll_specific primitives instead
+// of calling ~npc_rangeattack, for the same reason ~dagannoth_prime_attack does: npc_param(damagetype)
+// is a single value used for BOTH the melee style and the defence roll, and hers has to be
+// ^stab_style for the melee half. A hybrid cannot express both through that one param, so the ranged
+// half names ^ranged_style explicitly. ~npc_ranged_attack_roll still returns 0 under Protect from
+// Missiles, so the prayer works.
+[proc,dagmother_range_attack]
+npc_anim(npc_param(rangeattack_anim), 0);
+%npc_action_delay = add(map_clock, npc_param(attackrate));
+def_int $duration = ~player_projectile(npc_coord, coord, uid, npc_param(proj_travel), 40, 36, 32, 15, 0, 11, 5);
+def_int $defence_roll = ~player_defence_roll_specific(^ranged_style);
+def_int $hit1 = 0;
+if (randominc(~npc_ranged_attack_roll) > randominc($defence_roll)) {
+    $hit1 = randominc(~dagmother_range_maxhit);
+}
+def_int $hit2 = 0;
+if (randominc(~npc_ranged_attack_roll) > randominc($defence_roll)) {
+    $hit2 = randominc(~dagmother_range_maxhit);
+}
+queue(combat_damage_player, calc($duration / 30), $hit1);
+queue(combat_damage_player, calc($duration / 30), $hit2);
+queue*(playerhit_n_retaliate, calc($duration / 30))(npc_uid);
+~npc_set_attack_vars;
+
+[proc,dagmother_range_maxhit]()(int)
+// https://oldschool.runescape.wiki/w/Dagannoth_Mother - "can hit double 12s with Ranged". Hardcoded
+// rather than derived from rangebonus for the same reason as ~dagannoth_prime_maxhit: the wiki gives
+// a flat max hit and an all-zero bonus table, so there is no bonus to work back from.
+return(12);
 
 // ai_queue5 is unused elsewhere in this codebase (queue1-3 are the skill_combat defaults, queue8 is
 // the freeze/stun check) - reserved here as Dagannoth Mother's own phase-advance timer slot. Defined
@@ -96,4 +180,108 @@ if (npc_type = horror_dagganoth_earth & ($spell = ^earth_strike | $spell = ^eart
 if (npc_type = horror_dagganoth_fire & ($spell = ^fire_strike | $spell = ^fire_bolt | $spell = ^fire_blast | $spell = ^fire_wave)) {
     return(true);
 }
+return(false);
+// ---------------------------------------------------------------- The encounters themselves
+//
+// Added 2026-09-08. Until now nothing in the repo ever set ^horror_dagannoth_defeated (it was handed
+// out by simply talking to the injured Jossik) or ^horror_mother_defeated (nothing set it at all),
+// so %horror stuck at stage 3 and Horror from the Deep could not be finished. Both stages are now
+// set by the kills, and the two bosses are spawned by the ladder into the cavern
+// (quest_horror.rs2's [oploc1,horror_ladder_base] -> ~horror_dag_cavern_arrive).
+//
+// Neither boss was placed anywhere in the map - horror_dagannoth_jr1-4 and horror_dagganoth_aira/
+// airb/airc/air/water/fire/earth/ranged/melee all have zero placements in the whole 660-region
+// sweep - which is correct for quest bosses: they are scripted spawns, like the level-100 Dagannoth
+// and Dagannoth Mother are in the real quest.
+//
+// Both are protected varp writes reached from an npc death hook, so they go through the
+// npc_findhero -> p_finduid idiom: NPC_FINDHERO grants active_player but NOT p_active_player
+// (ScriptOpcodePointers.ts:654), and only P_FINDUID sets the protected pointer. Same pattern as
+// san_tojalon.rs2 and the Desert Treasure ice trolls.
+
+[ai_queue3,horror_dagannoth_jr4]
+gosub(npc_death);
+def_coord $spot = npc_coord;
+if (npc_findhero = false) {
+    return;
+}
+obj_add($spot, big_bones, 1, ^lootdrop_duration);
+queue(horror_boss_slain, 0, ^horror_slain_dagannoth);
+
+[ai_queue3,horror_dagganoth_air] @horror_mother_death;
+[ai_queue3,horror_dagganoth_water] @horror_mother_death;
+[ai_queue3,horror_dagganoth_fire] @horror_mother_death;
+[ai_queue3,horror_dagganoth_earth] @horror_mother_death;
+[ai_queue3,horror_dagganoth_ranged] @horror_mother_death;
+[ai_queue3,horror_dagganoth_melee] @horror_mother_death;
+
+// Declared against all six phase forms because npc_changetype_keepall swaps her type every 30 ticks -
+// whichever colour she happens to be wearing when she dies is the type the death hook resolves on.
+[label,horror_mother_death]
+gosub(npc_death);
+def_coord $spot = npc_coord;
+if (npc_findhero = false) {
+    return;
+}
+obj_add($spot, big_bones, 1, ^lootdrop_duration);
+queue(horror_boss_slain, 0, ^horror_slain_mother);
+
+// Both kills hand off to a player queue rather than writing %horror straight from the death hook.
+// npc_findhero grants active_player but NOT p_active_player (ScriptOpcodePointers.ts:654), and
+// %horror is a protected varp (VarPlayerType.protect defaults true), so the write needs the
+// p_finduid upgrade - which is REFUSED while the player has a modal open. Dying bosses and open
+// interfaces overlap often enough that a straight p_finduid here would occasionally drop the stage
+// advance on the floor and silently strand the quest again. Player.processQueue runs queued scripts
+// with protected access and re-tries every tick until canAccess() is true
+// (engine/src/engine/entity/Player.ts:894-916), so the handoff cannot be lost.
+[queue,horror_boss_slain](int $which)
+if ($which = ^horror_slain_dagannoth) {
+    if (%horror ! ^horror_wall_opened) {
+        return;
+    }
+    %horror = ^horror_dagannoth_defeated;
+    ~send_quest_progress(questlist:horror, 3, ^horror_complete);
+    mes("The dagannoth collapses. At the far end of the cavern, the water begins to churn.");
+    ~horror_spawn_mother;
+    return;
+}
+if (%horror >= ^horror_mother_defeated) {
+    return;
+}
+%horror = ^horror_mother_defeated;
+~send_quest_progress(questlist:horror, 4, ^horror_complete);
+// The casket is flavour, not a gate - the injured Jossik dialogue reads %horror, never the item -
+// so losing it or leaving it on the floor can never dead-end the quest.
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, horror_casket, 1);
+    mes("Among the remains you find a small rusted casket, and pocket it.");
+    return;
+}
+obj_add(coord, horror_casket, 1, ^lootdrop_duration);
+mes("Among the remains lies a small rusted casket - you have no room to carry it.");
+
+// She emerges from the water rather than simply appearing: horror_dagganoth_aira/airb/airc are the
+// cache's own three emergence stages (walkanim/readyanim horror_dagannoth_emerge_a/b/c, all size 3
+// like her combat forms, no op2 and no combat params - they cannot be fought). ai_queue6 is free in
+// this codebase (queue1-3 are the skill_combat defaults, 5 is her phase timer, 8 is freeze/stun).
+[proc,horror_spawn_mother]
+npc_add(^horror_dag_cavern_mother_spawn, horror_dagganoth_aira, ^horror_boss_lifetime);
+npc_queue(6, 0, 2);
+
+[ai_queue6,horror_dagganoth_aira] npc_changetype_keepall(horror_dagganoth_airb, ^max_32bit_int); npc_queue(6, 0, 2);
+[ai_queue6,horror_dagganoth_airb] npc_changetype_keepall(horror_dagganoth_airc, ^max_32bit_int); npc_queue(6, 0, 2);
+[ai_queue6,horror_dagganoth_airc] npc_changetype_keepall(horror_dagganoth_air, ^max_32bit_int);
+
+// Checked against every form she can currently be wearing, including the three emergence stages, so
+// a player who climbs back down mid-emergence does not get a second Mother.
+[proc,horror_mother_present]()(boolean)
+if (npc_find(^horror_dag_cavern_mother_spawn, horror_dagganoth_aira, 40, ^vis_off) = true) { return(true); }
+if (npc_find(^horror_dag_cavern_mother_spawn, horror_dagganoth_airb, 40, ^vis_off) = true) { return(true); }
+if (npc_find(^horror_dag_cavern_mother_spawn, horror_dagganoth_airc, 40, ^vis_off) = true) { return(true); }
+if (npc_find(^horror_dag_cavern_mother_spawn, horror_dagganoth_air, 40, ^vis_off) = true) { return(true); }
+if (npc_find(^horror_dag_cavern_mother_spawn, horror_dagganoth_water, 40, ^vis_off) = true) { return(true); }
+if (npc_find(^horror_dag_cavern_mother_spawn, horror_dagganoth_fire, 40, ^vis_off) = true) { return(true); }
+if (npc_find(^horror_dag_cavern_mother_spawn, horror_dagganoth_earth, 40, ^vis_off) = true) { return(true); }
+if (npc_find(^horror_dag_cavern_mother_spawn, horror_dagganoth_ranged, 40, ^vis_off) = true) { return(true); }
+if (npc_find(^horror_dag_cavern_mother_spawn, horror_dagganoth_melee, 40, ^vis_off) = true) { return(true); }
 return(false);

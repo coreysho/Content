@@ -34,7 +34,14 @@ if ($exiting = false) {
     if (inv_total(worn, ball_gnomeball_game) > 0 | inv_total(inv, ball_gnomeball_game) > 0) {
         mes("The ref takes your ball for safe keeping. You will get it back when you leave.");
         inv_delslot(worn, ^wearpos_rhand);
-        inv_del(inv, ball_gnomeball_game, inv_total(inv, ball_gnomeball_game));
+        // The condition above is an OR, so walking in with the ball WIELDED and none in the pack
+        // reached this line with a count of 0 - and inv_del validates its count as 1..STACK_LIMIT
+        // (ObjStackValid, engine/script/ScriptValidators.ts:122), so it threw and disconnected the
+        // player. inv_delslot on the worn slot does not move anything into the inventory, so the
+        // worn case really does leave inv_total at 0.
+        if (inv_total(inv, ball_gnomeball_game) > 0) {
+            inv_del(inv, ball_gnomeball_game, inv_total(inv, ball_gnomeball_game));
+        }
         %gnomeball_owedball = ^true;
     }
     if_settab(gnomeball, 0);

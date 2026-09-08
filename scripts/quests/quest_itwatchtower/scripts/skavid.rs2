@@ -154,8 +154,9 @@ if(%itwatchtower >= ^itwatchtower_skavid_crystal) {
                 return;
             }
             ~chatnpc("<p,confused>Alright, take this one then...");
-            ~objbox(powering_crystal2, "The skavid gives you a crystal.", 250, 0, ^objbox_height);
+            // inv_add before the box: ~objbox ends in p_pausebutton, so dismissing it aborts the script.
             inv_add(inv, powering_crystal2, 1);
+            ~objbox(powering_crystal2, "The skavid gives you a crystal.", 250, 0, ^objbox_height);
         case 2 :
             ~chatplayer("<p,neutral>Oh, okay then.");
             ~chatnpc("<p,neutral>You be on your way, then.");
@@ -205,8 +206,9 @@ mes("The response was wrong.");
 [label,mad_skavid_correct]
 // https://web.archive.org/web/20041126094839im_/http://img14.imageshack.us/img14/1421/crystalpeicemad.jpg
 ~chatnpc("<p,happy>Heh-heh! So you speak a little skavid eh?|I'm impressed, here take this prize...");
-~objbox(powering_crystal2, "The skavid gives you a large crystal.", 250, 0, ^objbox_height);
+// inv_add before the box: ~objbox ends in p_pausebutton, so dismissing it aborts the script.
 inv_add(inv, powering_crystal2, 1);
+~objbox(powering_crystal2, "The skavid gives you a large crystal.", 250, 0, ^objbox_height);
 %itwatchtower = ^itwatchtower_skavid_crystal;
 
 [label,skavid_no_skavid_speech]

@@ -85,10 +85,12 @@ else if (%legendsquest >= ^legends_accepted_rescue_ungadulu & %legendsquest < ^l
     @multi4("I found the source of the spring and I got the water.", gujuo_foundsource, "I killed the demon again.", gujuo_demon, "How do I make the totem pole?", gujuo_totem, "Ok thanks for your help.", gujuo_thanks);
 } else if(%legendsquest = ^legends_replaced_totem) {
     ~chatnpc("<p,neutral>Greetings Bwana, we saw your fight with the Demon from some distance away. My people are so pleased with your heroic efforts. Your strength and ability as a warrior are Legendary.");
-    ~objbox(thtotempolegift, "Gujuo offers you an awe inspiring totem pole.", 250, 0, ^objbox_height);
-    ~chatnpc("<p,neutral>Please accept this as a token of our appreciation.");
+    // Item (and stage) hoisted above the dialogue: ~objbox and ~chatnpc both wait on a click, and
+    // closing the chat aborts the script - which used to mean the player never received this at all.
     inv_add(inv, thtotempolegift, 1); // no invspace check
     %legendsquest = ^legends_got_gilded_totem;
+    ~objbox(thtotempolegift, "Gujuo offers you an awe inspiring totem pole.", 250, 0, ^objbox_height);
+    ~chatnpc("<p,neutral>Please accept this as a token of our appreciation.");
     ~chatnpc("<p,neutral>Please, now consider yourself a friend of my people. And visit us anytime.");
     if(inv_total(inv, yommiseeds_germ) > 0 | inv_total(bank, yommiseeds_germ) > 0) { // removes from both
         inv_del(bank, yommiseeds_germ, ^max_32bit_int);
@@ -549,9 +551,10 @@ if (%legendsquest < ^legends_asked_gujuo_holy_water) {
 ~chatplayer("<p,neutral>What kind of a vessel?");
 ~chatnpc("<p,neutral>A vessel made of sun metal, but it can be of any shape. However, it must be blessed.");
 if (inv_total(inv, goldbowlpic) = 0) {
+    // Sketch handed over before the dialogue that describes it - dismissing either box aborts here.
+    inv_add(inv, goldbowlpic, 1);
     ~objbox(goldbowlpic, "Gujuo takes out a small scroll and some charcoal and draws a rough sketch. When he has finished, he gives the sketch to you.", 250, 0, 0);
     ~chatnpc("<p,neutral>Here, have this as an example... I pray that it will help you.");
-    inv_add(inv, goldbowlpic, 1);
 }
 else {
     ~chatnpc("<p,neutral>Similar to the picture I have already given you.");

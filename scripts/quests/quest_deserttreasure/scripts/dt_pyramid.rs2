@@ -233,7 +233,31 @@ stat_advance(magic, 2000000);
 
 // ================================================================================ the exit portal
 
-[oploc1,dt_portal]
+// ---------------------------------------------------------------- multiloc shells
+//
+// Declared on the SHELL as well as the child, for the same reason the npc handlers in this quest
+// are. It is not belt-and-braces, it is required.
+//
+// network/game/client/handler/OpLocHandler.ts:38-50 resolves a multiloc - but only far enough to
+// check the clicked option exists, so the right-click menu is correct. The interaction is then set
+// on the placed loc, and engine/entity/Player.ts:1003 (getOpTrigger) looks the script up with
+//
+//     type = LocType.get(this.target.type)
+//
+// with no multi resolution at all. The script is searched for under the SHELL's name, the handler
+// on the child is never found, and the click does nothing.
+//
+// Exactly the fault fixed for npcs earlier; I checked locs afterwards and found it applies there
+// too. The op text still has to live on the CHILD (the client resolves the multi before it draws
+// the menu), which is why quest_deserttreasure.loc adds op1=Light to the _unlit torches and this
+// adds the trigger to the shell - both halves are needed.
+//
+// dia_down is the placed shell, multivar=deserttreasure with multiloc=15 only - so the portal
+// simply does not exist until the quest is complete.
+[oploc1,dia_down] @dt_use_portal;
+[oploc1,dt_portal] @dt_use_portal;
+
+[label,dt_use_portal]
 mes("You step into the portal.");
 p_delay(1);
 p_telejump(^dt_temple_backdoor);

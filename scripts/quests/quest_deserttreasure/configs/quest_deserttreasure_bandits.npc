@@ -59,7 +59,7 @@ op3=Trade
 head1=obj_pickpocket_guide_farmer
 head2=npc_gem_trader_head
 category=shop_keeper
-param=owned_shop,fd_bandit_bar
+param=owned_shop,dt_bandit_shop
 param=shop_sell_multiplier,1300
 param=shop_buy_multiplier,40
 param=shop_delta,15
@@ -160,3 +160,46 @@ param=damagetype,^crush_style
 param=death_anim,human_death
 huntmode=dt_bandit_zamorak
 huntrange=5
+
+// ---------------------------------------------------------------- the bartender
+//
+// Correcting an earlier mistake of mine. There are TWO shop invs in _unpack/727/all.inv for this
+// camp and I bound the wrong one:
+//
+//   dt_bandit_shop  (2808) - water skins, jugs, bowls, buckets, desert boots/shirt/robe, a knife.
+//                            A desert general store. This is the SHOPKEEPER's.
+//   fd_bandit_bar   (2859) - stock1=bandit_brew and nothing else. A bar. This is the BARTENDER's.
+//
+// dt_bandit_shopkeeper now points at dt_bandit_shop above, and the bartender - who has carried
+// op3=Trade in the cache all along with nothing behind it - gets fd_bandit_bar here. He keeps his
+// op1 dialogue in quest_deserttreasure.rs2, which is where the single quest brew is bought; the
+// Trade option is for buying it afterwards like any other drink.
+[fourdiamonds_bartender]
+name=Bartender
+desc=Looks like a rough and ready type.
+model1=idk_man_hair_cropped
+model2=idk_man_jaw_short
+model3=npc_shilogeneralstore
+model4=npc_ardougnian_male1i2
+model5=obj_cert_drill_top_manwear3
+model6=obj_macro_mime_legs_manwear
+model7=idk_42
+recol1s=2340
+recol1d=13539
+recol2s=14724
+recol2d=4399
+recol3s=14801
+recol3d=24075
+vislevel=hide
+walkanim=human_walk_f,human_walk_b,human_walk_l,human_walk_r
+readyanim=human_ready
+op1=Talk-to
+op3=Trade
+head1=idk_man_hair_cropped_head
+head2=idk_man_jaw_short_head
+category=shop_keeper
+param=owned_shop,fd_bandit_bar
+param=shop_sell_multiplier,1300
+param=shop_buy_multiplier,40
+param=shop_delta,15
+param=shop_title,The Bandit Camp bar

@@ -301,9 +301,11 @@ if(inv_total(inv, yommiseeds) > 0) {
 }
 ~chatnpc("<p,confused>Oh, yes, Bwana... you will be doing a great favour to|our people by doing this. However, you must know that|it is a difficult task, the Yommi tree is difficult to grow.");
 ~chatnpc("<p,neutral>You must have a natural ability with such things to have|a chance...");
+// Item (and stage) hoisted above the dialogue: ~objbox and ~chatnpc both wait on a click, and
+// closing the chat aborts the script - which used to mean the player never received this at all.
+inv_add(inv, yommiseeds, 3);
 ~objbox(yommiseeds, "The Shaman holds out his gnarly old hand and reveals|three largish green seeds.", 250, 0, divide(^objbox_height, 2));
 ~chatnpc("<p,neutral>Here you are, accept these with my gratitude. You'll|need to soak them in sacred water before planting them.|I notice that you must already be familiar with sacred|water to have passed into the flaming octagram.");
-inv_add(inv, yommiseeds, 3);
 @multi3("How do I grow the Yommi tree?", ungadulu_grow,
         "What do you know about the pure water?", ungadulu_water,
         "Ok, thanks...", ungadulu_thanks);
@@ -422,8 +424,9 @@ if (last_useitem = book_of_binding) {
         ~chatnpc("<p,neutral>Use the Holy Force spell that I gave you earlier to defeat this spirit. Good luck. I'll take that dagger for safe keeping...");
         return;
     }
+    // inv_add before the box: ~objbox ends in p_pausebutton, so dismissing it aborts the script.
+    inv_add(inv, holyforce, 1); // add before the deletes below - that part was already right
     ~objbox(holyforce, "The Shaman takes the dagger and gives you a folded piece of paper.", 250, 0, 0);
-    inv_add(inv, holyforce, 1); // this order is correct 
     inv_del(inv, deathdagger, 1);
     ~chatnpc("<p,neutral>Use this spell on the Spirit. It will force the spirit to show its true self. And it will also be vulnerable to normal attacks.");
 } else if(last_useitem = deathdaggerdone) {

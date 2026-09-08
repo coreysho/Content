@@ -91,8 +91,9 @@ switch_int(%grandtree) {
         if(~obj_gettotal(grandtree_translationbook) = 0) { // this one checks bank
             ~chatplayer("<p,neutral>I've lost the translation book.");
             ~chatnpc("<p,neutral>Don't worry, I have more.");
-            ~objbox(grandtree_translationbook, "The king gives you another translation book.", 250, 0, divide(^objbox_height, 2));
+            // inv_add before the box: ~objbox ends in p_pausebutton, so dismissing it aborts the script.
             inv_add(inv, grandtree_translationbook, 1);
+            ~objbox(grandtree_translationbook, "The king gives you another translation book.", 250, 0, divide(^objbox_height, 2));
         }
     case ^grandtree_found_invasion_plans :
         ~chatplayer("<p,neutral>Hi, your highness, did you think about what I said?");
@@ -308,14 +309,16 @@ switch_int(~p_choice2("I'm sorry, I don't want to get involved.", 1, "I'd be hap
 if(inv_total(inv, grandtree_barksample) = 0) {
     ~chatplayer("<p,neutral>I've lost the bark sample.");
     ~chatnpc("<p,neutral>Here's another sample, hang on to it this time!");
-    ~objbox(grandtree_barksample, "The king gives you another bark sample.", 250, 0, 0);
+    // inv_add before the box: ~objbox ends in p_pausebutton, so dismissing it aborts the script.
     inv_add(inv, grandtree_barksample, 1);
+    ~objbox(grandtree_barksample, "The king gives you another bark sample.", 250, 0, 0);
 }
 if(inv_total(inv, grandtree_translationbook) = 0) {
     ~chatplayer("<p,neutral>I've lost the translation book.");
     ~chatnpc("<p,neutral>Don't worry, I have more.");
-    ~objbox(grandtree_translationbook, "The king gives you another translation book.", 250, 0, divide(^objbox_height, 2));
+    // inv_add before the box: ~objbox ends in p_pausebutton, so dismissing it aborts the script.
     inv_add(inv, grandtree_translationbook, 1);
+    ~objbox(grandtree_translationbook, "The king gives you another translation book.", 250, 0, divide(^objbox_height, 2));
 }
 
 [label,narnode_correct_b2]

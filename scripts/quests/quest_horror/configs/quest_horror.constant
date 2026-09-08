@@ -51,3 +51,42 @@
 ^horror_lighthouse_spiralstairs_base = 0_39_56_12_56
 ^horror_lighthouse_spiralstairs_middle = 1_39_56_10_56
 ^horror_lighthouse_spiralstairs_top = 2_39_56_9_57
+
+// --- The dagannoth cavern and the two boss encounters (2026-09-08) ---
+// The cave under the lighthouse exists twice in the cache with byte-identical loc layouts:
+// m39_72 (Jossik, no monsters) and m39_156 (22 placed dagannoths, no Jossik). m39_156 is the
+// void-pocket band, same as m38_158/m39_158 for Waterbirth, and the cache authors put the monsters
+// there - so it is the encounter chamber, and m39_72 is the quiet side you meet Jossik on.
+//
+// That makes every previously-unused loc and constant in this quest fall into place as one loop:
+//   Jossik's chamber (m39_72 p0)  --horror_ladder_base2 (19,23)-->  wall room (m39_72 p1 19,21)
+//   wall room  --six-icon wall at p1 z=19-->  the big p1 cavern
+//   p1 cavern  --horror_ladder_base (23,10)-->  dagannoth cavern (m39_156 p0)
+//   dagannoth cavern  --horror_ladder_base2 (19,23)-->  back up to the wall room
+//   wall room  --horror_ladder_top2 (19,22)-->  back down to Jossik (^horror_ladder_dag_dest)
+// horror_ladder_base was the one unpaired ladder left in the room and had no handler at all;
+// ^horror_ladder_door_room_dest and ^horror_ladder_dag_dest were both declared and never used.
+// Every coord below was checked walkable at level 0 against that region's own MAP section.
+^horror_dag_cavern_arrival = 0_39_156_19_24
+^horror_dag_cavern_jr4_spawn = 0_39_156_19_28
+^horror_dag_cavern_mother_spawn = 0_39_156_27_37
+// world z of m39_156 starts at 9984; m39_72 at 4608 - used to tell which side of the ladder you are
+// on without needing a separate loc.
+^horror_dag_cavern_z_min = 9000
+// npc_add lifetime for both bosses. They are re-spawned by the ladder handler whenever a player who
+// still needs them arrives, so a finite lifetime just cleans up after someone who logged out.
+^horror_boss_lifetime = 1000
+
+// The two hinged panels of the strange wall (m39_72 plane 1, z=19). The wall is opened by REMOVING
+// these two locs, not by loc_change to the _inactive types: those carry no blockwalk=no, and
+// LocType.blockwalk defaults to true (engine/src/cache/config/LocType.ts:79), so swapping to them
+// left the passage just as solid as before - only unclickable. See quest_horror.rs2.
+^horror_far_left_door_coord = 1_39_72_17_19
+^horror_far_right_door_coord = 1_39_72_20_19
+// Short, so the wall closes behind you and each player has to solve it themselves; a player who has
+// already solved it re-opens it any time by clicking Open.
+^horror_wall_reopen_delay = 100
+
+// Which boss the [queue,horror_boss_slain] handoff is reporting.
+^horror_slain_dagannoth = 1
+^horror_slain_mother = 2

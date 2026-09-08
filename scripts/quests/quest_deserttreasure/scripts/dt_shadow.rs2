@@ -116,7 +116,32 @@ inv_add(inv, fd_sword_cross, 1);
 // fd_ladder_present is the multivar on fd_shadowladder1. It is kept in step with the ring on every
 // interaction rather than on a timer, so taking the ring off makes the ladder vanish again.
 
-[oploc1,fd_shadow_ladder_there]
+// ---------------------------------------------------------------- multiloc shells
+//
+// Declared on the SHELL as well as the child, for the same reason the npc handlers in this quest
+// are. It is not belt-and-braces, it is required.
+//
+// network/game/client/handler/OpLocHandler.ts:38-50 resolves a multiloc - but only far enough to
+// check the clicked option exists, so the right-click menu is correct. The interaction is then set
+// on the placed loc, and engine/entity/Player.ts:1003 (getOpTrigger) looks the script up with
+//
+//     type = LocType.get(this.target.type)
+//
+// with no multi resolution at all. The script is searched for under the SHELL's name, the handler
+// on the child is never found, and the click does nothing.
+//
+// Exactly the fault fixed for npcs earlier; I checked locs afterwards and found it applies there
+// too. The op text still has to live on the CHILD (the client resolves the multi before it draws
+// the menu), which is why quest_deserttreasure.loc adds op1=Light to the _unlit torches and this
+// adds the trigger to the shell - both halves are needed.
+//
+// fd_shadowladder1 is the placed shell and reads fd_ladder_present - the cache's own implementation
+// of "the ladder is not there until Rasolo gives you the ring". It declares multiloc=1 only, so at 0
+// the tile resolves to nothing and cannot be clicked at all, which is the intended invisible state.
+[oploc1,fd_shadowladder1] @dt_shadow_ladder_down;
+[oploc1,fd_shadow_ladder_there] @dt_shadow_ladder_down;
+
+[label,dt_shadow_ladder_down]
 if (inv_total(worn, fd_ring_visibility) < 1) {
     mes("You cannot get a grip on the ladder. It is barely there at all.");
     return;

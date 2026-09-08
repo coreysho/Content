@@ -58,6 +58,32 @@ return(false);
 
 // ================================================================================ the torches
 
+// ---------------------------------------------------------------- multiloc shells
+//
+// Declared on the SHELL as well as the child, for the same reason the npc handlers in this quest
+// are. It is not belt-and-braces, it is required.
+//
+// network/game/client/handler/OpLocHandler.ts:38-50 resolves a multiloc - but only far enough to
+// check the clicked option exists, so the right-click menu is correct. The interaction is then set
+// on the placed loc, and engine/entity/Player.ts:1003 (getOpTrigger) looks the script up with
+//
+//     type = LocType.get(this.target.type)
+//
+// with no multi resolution at all. The script is searched for under the SHELL's name, the handler
+// on the child is never found, and the click does nothing.
+//
+// Exactly the fault fixed for npcs earlier; I checked locs afterwards and found it applies there
+// too. The op text still has to live on the CHILD (the client resolves the multi before it draws
+// the menu), which is why quest_deserttreasure.loc adds op1=Light to the _unlit torches and this
+// adds the trigger to the shell - both halves are needed.
+//
+// 4d_standing_torchN is the placed shell, reading fd_torch_countN: 0 shows _unlit, 1 shows _lit.
+// ~dt_light_torch already answers "This torch is already burning." for the lit state, so routing
+// the shell's op1 straight at it is correct in both.
+[oploc1,4d_standing_torch1] ~dt_light_torch(1);
+[oploc1,4d_standing_torch2] ~dt_light_torch(2);
+[oploc1,4d_standing_torch3] ~dt_light_torch(3);
+[oploc1,4d_standing_torch4] ~dt_light_torch(4);
 [oploc1,4d_standing_torch1_unlit] ~dt_light_torch(1);
 [oploc1,4d_standing_torch2_unlit] ~dt_light_torch(2);
 [oploc1,4d_standing_torch3_unlit] ~dt_light_torch(3);

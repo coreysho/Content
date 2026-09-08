@@ -57,13 +57,17 @@
 // Still open: the quest's own boss encounters. m39_156.jm2 - a different region, but with byte-
 // identical loc layout to m39_72 (same puzzle room shape, no locs of its own) - turned up placements
 // for horror_dagganoth_jr/_jr_darker/_jr_lighter and horror_dagannoth_medium/_darker/_lighter (npcs
-// 1338-1343), which is almost certainly the "level 100 Dagannoth" encounter chamber referenced in
-// Jossik's own dialogue below. None of these six have any combat stats in the raw cache yet (just
-// op2=Attack and a model) and no connector loc was found bridging m39_72 to m39_156 specifically -
-// horror_ladder_base (loc 4412, m39_72 plane 1, local(23,10), real op1=Climb) is the one isolated,
-// unpaired ladder left in the room and the likeliest candidate, but that's inference, not confirmed
-// placement data. Dagannoth Mother's own world placement is still unfound entirely. Flagged for
-// Corey/a future pass rather than guessed - see the project doc.
+// 1338-1343), which is the "level 100 Dagannoth" encounter chamber referenced in Jossik's own
+// dialogue below.
+//
+// RESOLVED (2026-09-08): horror_ladder_base (loc 4412, m39_72 plane 1 local(23,10), real op1=Climb)
+// is the connector, and it now has a handler. It was the one isolated, unpaired ladder left in the
+// room, and wiring it makes every other loose end in this cave fit together at once - the two
+// declared-but-unused constants ^horror_ladder_door_room_dest and ^horror_ladder_dag_dest both land
+// exactly where they need to, and the loop Jossik's chamber -> wall room -> p1 cavern -> dagannoth
+// cavern -> back closes with no orphans left over. See quest_horror.constant for the full topology.
+// Dagannoth Mother has no world placement because she is a scripted spawn, like the level-100
+// Dagannoth: both are added on arrival in the cavern (see ~horror_dag_cavern_arrive below).
 
 [opnpc1,horror_girlfriend_prequest]
 if (%horror = ^horror_not_started) {
@@ -143,60 +147,110 @@ if (coordz(coord()) <= 52) {
 
 
 // --- Bridges east of the Lighthouse ---
-// Wiki: "use a hammer and 60 steel nails with 2 planks to cross the broken bridge" - split across
-// the two spans as 30 nails + 1 plank each. Hammer is a tool (checked, not consumed).
+// One broken crossing, two "Broken bridge" locs (horror_broken_bridge_left_spot /
+// _right_spot) with the impassable gap tile between them - see the geometry note under the Cross
+// handlers below.
+//
+// FIXED: the two spans used to be repaired independently, left span -> bit 0 and right span -> bit
+// 1, which deadlocked the quest. The gap between them is impassable, so a player on the west shore
+// can only ever reach the west span and a player on the east shore only the east one: nobody could
+// ever set both bits, and the crossing needs both. Repair is now span-agnostic - either loc accepts
+// planks and fills the next empty bit - so the same two planks and 60 nails still repair the whole
+// bridge, from whichever side you happen to be standing on.
+// Wiki: "use a hammer and 60 steel nails with 2 planks to cross the broken bridge" - 30 nails and
+// 1 plank per application. Hammer is a tool (checked, not consumed).
 [oplocu,horror_broken_bridge_left_spot]
-if (last_useitem = woodplank) {
-    if (%horror < ^horror_started) {
-        mes("You should speak to Larrissa first.");
-        return;
-    }
-    if (testbit(%horror_bridges, 0) = 1) {
-        mes("This bridge has already been repaired.");
-        return;
-    }
-    if (inv_total(inv, hammer) = 0) {
-        mes("You'll need a hammer to secure the plank in place.");
-        return;
-    }
-    if (inv_total(inv, nails) < 30) {
-        mes("You don't have enough nails to secure the plank - you'll need at least 30.");
-        return;
-    }
-    inv_del(inv, woodplank, 1);
-    inv_del(inv, nails, 30);
-    mes("You nail the plank across the broken span, repairing it.");
-    %horror_bridges = setbit(%horror_bridges, 0);
-    return;
-}
-~displaymessage(^dm_default);
+@horror_repair_bridge;
 
 [oplocu,horror_broken_bridge_right_spot]
-if (last_useitem = woodplank) {
-    if (%horror < ^horror_started) {
-        mes("You should speak to Larrissa first.");
-        return;
-    }
-    if (testbit(%horror_bridges, 1) = 1) {
-        mes("This bridge has already been repaired.");
-        return;
-    }
-    if (inv_total(inv, hammer) = 0) {
-        mes("You'll need a hammer to secure the plank in place.");
-        return;
-    }
-    if (inv_total(inv, nails) < 30) {
-        mes("You don't have enough nails to secure the plank - you'll need at least 30.");
-        return;
-    }
-    inv_del(inv, woodplank, 1);
-    inv_del(inv, nails, 30);
-    mes("You nail the plank across the broken span, repairing it.");
-    %horror_bridges = setbit(%horror_bridges, 1);
+@horror_repair_bridge;
+
+[label,horror_repair_bridge]
+if (last_useitem ! woodplank) {
+    ~displaymessage(^dm_default);
     return;
 }
-~displaymessage(^dm_default);
+if (%horror < ^horror_started) {
+    mes("You should speak to Larrissa first.");
+    return;
+}
+if (getbit_range(%horror_bridges, 0, 1) = 3) {
+    mes("This bridge has already been repaired.");
+    return;
+}
+if (inv_total(inv, hammer) = 0) {
+    mes("You'll need a hammer to secure the plank in place.");
+    return;
+}
+if (inv_total(inv, nails) < 30) {
+    mes("You don't have enough nails to secure the plank - you'll need at least 30.");
+    return;
+}
+inv_del(inv, woodplank, 1);
+inv_del(inv, nails, 30);
+def_int $bit = 0;
+if (testbit(%horror_bridges, 0) = 1) {
+    $bit = 1;
+}
+%horror_bridges = setbit(%horror_bridges, $bit);
+if (getbit_range(%horror_bridges, 0, 1) = 3) {
+    mes("You nail the last plank into place. The bridge is whole again.");
+    return;
+}
+mes("You nail a plank across the broken span. It'll take another to finish the job.");
 
+
+// The two spans also carry a real op1=Cross that nothing was wired to, so once you'd repaired the
+// bridge there was still no way over it. Geometry read straight out of content/maps/m40_56.jm2
+// (plane 1, z=24): viking_pier3_hillskew x=35, horror_broken_bridge_left_spot x=36, the decorative
+// horror_broken_bridge x=37, horror_broken_bridge_right_spot x=38, viking_pier3_hillskew x=39.
+// The MAP section gives those tiles land flags f2/f3 - f2 is GameMap.LINK_BELOW ("bridge"), so the
+// engine registers this whole row at level 0 (GameMap.ts:229-230/263-264), which is why every coord
+// below is written 0_40_56_*. x=37 carries f3 = LINK_BELOW|blocked: that is the gap, and it is the
+// only reason the crossing needs a script at all - both spans are blockwalk=no, so the player walks
+// onto them freely and only the one tile between them is impassable.
+// World coords: west span (2596,3608), gap (2597,3608), east span (2598,3608).
+//
+// [oploc1] only, unlike the basalt rocks in horror_basalt.rs2, which needed [aploc1] because no
+// tile beside them is ever walkable. Both spans here ARE walkable (blockwalk=no, and the pier runs
+// right up to each of them), so the engine can path the player onto whichever span is on their own
+// side and fire the op normally. Clicking the far span across the gap correctly says "I can't reach
+// that" - adding an ap trigger would only make that click silently do nothing from 10 tiles away,
+// since ap fires and ends the interaction before the player ever walks into range.
+[oploc1,horror_broken_bridge_left_spot]  ~horror_cross_bridge;
+[oploc1,horror_broken_bridge_right_spot] ~horror_cross_bridge;
+
+[proc,horror_cross_bridge]
+if (%horror < ^horror_started) {
+    mes("You should speak to Larrissa first.");
+    return;
+}
+if (getbit_range(%horror_bridges, 0, 1) ! 3) {
+    mes("The bridge is still broken - both spans need new planks before anyone can cross.");
+    return;
+}
+def_coord $start = 0_40_56_36_24;
+def_coord $end = 0_40_56_38_24;
+def_int $dir = ^exact_east;
+if (coordx(coord) > 2597) {
+    $start = 0_40_56_38_24;
+    $end = 0_40_56_36_24;
+    $dir = ^exact_west;
+}
+def_int $dist = add(~abs_value(sub(coordx(coord), coordx($start))), ~abs_value(sub(coordz(coord), coordz($start))));
+if ($dist > 4) {
+    mes("You need to be closer to the bridge to cross it.");
+    return;
+}
+if ($dist > 0) {
+    p_walk($start);
+    p_delay($dist);
+}
+mes("You cross the repaired bridge.");
+sound_synth(jump_no_land, 1, 20);
+~agility_exactmove(human_steppingstonejump, 20, 2, $start, $end, 48, 60, $dir, false);
+p_teleport($end);
+p_delay(1);
 
 // --- Lighting the lighthouse (roof) ---
 // %horror_lighting bits: 0 = swamp tar used, 1 = tinderbox used, 2 = molten glass used
@@ -299,9 +353,8 @@ mes("You press the item into a hidden recess in the wall.");
 %horror_wall = setbit(%horror_wall, $bit);
 inv_del(inv, last_useitem, 1);
 if (getbit_range(%horror_wall, 0, 5) = 63) {
-    mes("With a grinding of stone, the wall splits open, revealing a doorway down into darkness!");
-    loc_change(horror_far_left_door_inactive, ^max_32bit_int);
-    loc_change(horror_far_right_door_inactive, ^max_32bit_int);
+    mes("With a grinding of stone, the two hinged panels swing back, opening the way south.");
+    ~horror_wall_open_doors;
     if (%horror < ^horror_wall_opened) {
         %horror = ^horror_wall_opened;
         ~send_quest_progress(questlist:horror, 2, ^horror_complete);
@@ -328,12 +381,54 @@ gosub(horror_wall_open_attempt);
 gosub(horror_wall_open_attempt);
 
 [proc,horror_wall_open_attempt]
-if (getbit_range(%horror_wall, 0, 5) = 63) {
-    mes("You've already opened this.");
-} else {
+if (getbit_range(%horror_wall, 0, 5) ! 63) {
     mes("The door won't budge - it looks like it's sealed shut somehow.");
+    return;
+}
+mes("You push the hinged panel aside.");
+~horror_wall_open_doors;
+
+// FIXED (2026-09-08): the wall never actually opened. The old code did
+//     loc_change(horror_far_left_door_inactive, ...); loc_change(horror_far_right_door_inactive, ...);
+// which has two separate bugs. First, loc_change acts on the ACTIVE loc, so both calls landed on the
+// one panel the player had just clicked - the second simply overwrote the first and the other panel
+// was never touched. Second, and fatally, neither _inactive type declares blockwalk=no, and
+// LocType.blockwalk defaults to true (engine/src/cache/config/LocType.ts:79) - so even the panel that
+// did change stayed exactly as solid as before, just no longer clickable. The six-icon puzzle could
+// be solved and the passage south still could not be walked through: a hard quest block.
+//
+// Both panels are now looked up by their own coordinates and deleted outright, which is the only
+// thing that reliably drops a wall loc's collision. ^horror_wall_reopen_delay is short so the wall
+// closes behind the player - a player who has already solved it re-opens it any time via Open above,
+// and one who hasn't still has to place all six items.
+[proc,horror_wall_open_doors]
+if (loc_find(^horror_far_left_door_coord, horror_far_left_door) = true) {
+    loc_del(^horror_wall_reopen_delay);
+}
+if (loc_find(^horror_far_right_door_coord, horror_far_right_door) = true) {
+    loc_del(^horror_wall_reopen_delay);
 }
 
+
+// --- Lighthouse bookcase (horror_bookcase, loc 4617, real op1=Search) ---
+// Placed at m39_56 plane 1 local(12,60) - the lighthouse's middle floor - and again in the m38_71
+// copy of that room. The Search option had no handler at all, so it did nothing. There's no item
+// reward attached to it in the cache, so it's wired as the puzzle's in-world hint instead: the
+// strange wall's six recesses are otherwise only described by studying the wall itself, which you
+// can't do until you're already past it.
+[oploc1,horror_bookcase]
+mes("You search the shelves.");
+p_delay(1);
+if (%horror < ^horror_started) {
+    ~mesbox("Shipping manifests, tide tables and a keeper's journal. The last few entries are about noises from under the lighthouse.");
+    return;
+}
+if (getbit_range(%horror_wall, 0, 5) = 63) {
+    ~mesbox("Shipping manifests and tide tables. Nothing else in here seems useful now.");
+    return;
+}
+~mesbox("Tucked among the tide tables is a keeper's journal. One page describes a sealed door beneath the lighthouse, and copies out a rhyme carved beside it:");
+~mesbox("'Fire and air, water and earth, a blade and a shaft - press each to its own mark, and the way shall open.'");
 
 // --- The lighthouse's basement ladder (m39_56 <-> m39_72) - RESOLVED (2026-09-03) ---
 // horror_ladder_top (loc 4383, real op1=Climb, m39_56) previously had no script since there was no
@@ -358,9 +453,47 @@ p_telejump(^horror_ladder_cave_dest);
 mes("You climb up the ladder.");
 p_telejump(^horror_ladder_wallroom_dest);
 
+// FIXED (2026-09-08): horror_ladder_top2 is the ladder object on the UPPER floor (m39_72 plane 1
+// local(19,22), right beside the decorative horror_ladder_join) and it was sending the player UP to
+// the wall room they are already standing in - a no-op click, and it left the trip back down to
+// Jossik with no route at all, which the old comment above flagged as an open gap. It goes down now,
+// to ^horror_ladder_dag_dest (0_39_72_19_24) - a constant that was declared for exactly this and
+// never used, one tile north of horror_ladder_base2's own tile in Jossik's chamber.
 [oploc1,horror_ladder_top2]
-mes("You climb up the ladder.");
-p_telejump(^horror_ladder_wallroom_dest);
+mes("You climb down the ladder.");
+p_telejump(^horror_ladder_dag_dest);
+
+
+// horror_ladder_base (loc 4412, m39_72 plane 1 local(23,10), real op1=Climb) - the unpaired ladder
+// in the big cavern south of the strange wall, which had no handler at all. It is the way into the
+// dagannoth cavern (m39_156), and the same loc in that region is the way back up to the door room.
+[oploc1,horror_ladder_base]
+if (coordz(coord) > ^horror_dag_cavern_z_min) {
+    mes("You climb back up the ladder.");
+    p_telejump(^horror_ladder_door_room_dest);
+    return;
+}
+mes("You climb down into a vast, echoing cavern.");
+p_telejump(^horror_dag_cavern_arrival);
+~horror_dag_cavern_arrive;
+
+// Both bosses are spawned on arrival rather than placed in the map, and only for a player who still
+// needs them - so they are never standing around for someone who has already finished, and a player
+// who logged out mid-fight gets them back simply by climbing down again. Guarded so a second player
+// arriving during a fight does not stack a duplicate.
+[proc,horror_dag_cavern_arrive]
+if (%horror = ^horror_wall_opened) {
+    if (npc_findexact(^horror_dag_cavern_jr4_spawn, horror_dagannoth_jr4) = false) {
+        npc_add(^horror_dag_cavern_jr4_spawn, horror_dagannoth_jr4, ^horror_boss_lifetime);
+        mes("Something enormous shifts in the dark ahead of you.");
+    }
+    return;
+}
+if (%horror = ^horror_dagannoth_defeated) {
+    if (~horror_mother_present = false) {
+        ~horror_spawn_mother;
+    }
+}
 
 
 // --- Fallen Jossik (found injured, underground) and horror_lighthousekeeeper_well (topside, the
@@ -373,27 +506,25 @@ p_telejump(^horror_ladder_wallroom_dest);
 // separate locations: injured underground for the whole time the player's down here with him, well
 // topside in the lighthouse (m39_56, plane 1, local(13,55)) once the player's made it back up with
 // the casket. Split along that boundary.
+// FIXED (2026-09-08): this used to DRIVE the stage machine instead of reacting to it - simply
+// meeting Jossik jumped %horror from ^horror_wall_opened straight to ^horror_dagannoth_defeated,
+// and nothing anywhere ever set ^horror_mother_defeated. The quest therefore stuck at stage 3
+// forever and could not be completed by anyone. Both stages are now set by the kills themselves,
+// in quest_horror_combat.rs2, and this handler only reads them.
 [opnpc1,horror_lighthousekeeeper_injured]
-if (%horror = ^horror_wall_opened) {
+if (%horror < ^horror_dagannoth_defeated) {
     ~chatplayer("<p,shock>Jossik! Are you alright?");
-    ~chatnpc("<p,sad>Adventurer! Thank Guthix... there are creatures down here, dagannoth of some kind. Please, be careful.");
-    %horror = ^horror_dagannoth_defeated;
-    // combat with the level 100 Dagannoth and Dagannoth Mother happens further into these chambers -
-    // see quest_horror_combat.rs2/.npc (Mother's phases are built; the plain Dagannoth encounters'
-    // stats and Mother's own world placement are still open - see the project doc).
-    // TODO: this currently jumps straight from wall_opened to dagannoth_defeated on first meeting
-    // Jossik rather than being set by the encounter scripts themselves once they exist - the combat
-    // stages (^horror_dagannoth_defeated / ^horror_mother_defeated) should eventually be set by
-    // those scripts on kill, with this dialogue only reacting to state rather than driving it.
-    ~send_quest_progress(questlist:horror, 3, ^horror_complete);
-} else if (%horror >= ^horror_dagannoth_defeated & %horror < ^horror_mother_defeated) {
-    ~chatnpc("<p,worried>There's something bigger down there... I can hear it moving.");
-} else if (%horror >= ^horror_mother_defeated & %horror < ^horror_casket_given) {
-    ~chatplayer("<p,happy>I found this rusty casket where that creature was nesting.");
+    ~chatnpc("<p,sad>Adventurer! Thank Guthix... there are creatures down here, dagannoth of some kind.");
+    ~chatnpc("<p,worried>There's a strange wall on the floor above us. Whatever has been making the noise, it came from behind it. Please, be careful.");
+} else if (%horror < ^horror_mother_defeated) {
+    ~chatplayer("<p,neutral>I killed the thing behind the wall.");
+    ~chatnpc("<p,worried>That wasn't it. There's something bigger down there... I can hear it moving.");
+} else if (%horror < ^horror_casket_given) {
+    ~chatplayer("<p,happy>It's dead. I found this rusty casket where it was nesting.");
     ~chatnpc("<p,neutral>A casket? Let's get out of here and I'll take a look upstairs.");
     %horror = ^horror_casket_given;
     ~send_quest_progress(questlist:horror, 5, ^horror_complete);
-} else if (%horror >= ^horror_casket_given) {
+} else {
     ~chatnpc("<p,relieved>Let's get back up top - I don't want to spend any longer down here than I have to.");
 }
 
@@ -404,9 +535,83 @@ if (%horror >= ^horror_casket_given & %horror < ^horror_complete) {
     ~chatnpc("<p,happy>Ah, I recognise this - it's one of ours. There should be a damaged prayer book inside. Which order would you like?");
     @multi4("A book of Saradomin.", horror_book_saradomin, "A book of Zamorak.", horror_book_zamorak, "A book of Guthix.", horror_book_guthix, "None for me, thanks.", horror_book_none);
 } else if (%horror >= ^horror_complete) {
-    ~chatnpc("<p,happy>I can sell you another damaged prayer book for 5,000 coins, if you'd like.");
-    ~openshop_activenpc;
+    // Two separate post-quest services, which the old single ~openshop_activenpc call conflated:
+    // the wiki's 5,000gp replacement for a LOST damaged prayer book is a dialogue transaction, and
+    // is not in [lighthouseshop]'s stock at all - that inv is the general store ("Jossik's Wares":
+    // rope, hammer, chisel, tinderbox, containers, Fremennik drinks), which is what op3=Trade and
+    // the "supplies" option below open. See configs/quest_horror_jossik.npc for the shop binding
+    // that makes ~openshop_activenpc work at all - before it, npc_param(owned_shop) was unset here.
+    ~chatnpc("<p,happy>Hello again. The light's burning bright, thanks to you.");
+    def_int $service = ~p_choice3("Could I see what you have for sale?", 1, "I've lost my prayer book.", 2, "Just passing through.", 3);
+    if ($service = 3) {
+        ~chatplayer("<p,neutral>Just passing through.");
+        return;
+    }
+    if ($service = 1) {
+        ~chatplayer("<p,neutral>Could I see what you have for sale?");
+        ~openshop_activenpc;
+        return;
+    }
+    ~chatplayer("<p,sad>I've lost my prayer book.");
+    if (~horror_carrying_prayer_book = true) {
+        ~chatnpc("<p,quiz>Have you now? You seem to have one on you already.");
+        return;
+    }
+    ~chatnpc("<p,neutral>Careless. I can salvage you another from the wreck, but it'll cost you 5,000 coins.");
+    if (~p_choice2("That's fine, here you go.", 1, "That's too much.", 2) = 2) {
+        ~chatplayer("<p,neutral>That's too much.");
+        return;
+    }
+    ~chatplayer("<p,neutral>That's fine, here you go.");
+    if (inv_total(inv, coins) < 5000) {
+        ~chatnpc("<p,neutral>You don't have that much on you.");
+        return;
+    }
+    if (inv_freespace(inv) < 1) {
+        ~chatnpc("<p,neutral>You'll need a free hand to carry it.");
+        return;
+    }
+    ~chatnpc("<p,quiz>Which order was yours again?");
+    @multi3("A book of Saradomin.", horror_rebuy_saradomin, "A book of Zamorak.", horror_rebuy_zamorak, "A book of Guthix.", horror_rebuy_guthix);
 }
+
+// True if the player already has any of the three prayer books, damaged or finished, carried or
+// worn - keeps the 5,000gp replacement from handing out a second copy of a book they still have.
+[proc,horror_carrying_prayer_book]()(boolean)
+if (inv_total(inv, unfinished_saradominbook) > 0 | inv_total(inv, unfinished_zamorakbook) > 0 | inv_total(inv, unfinished_guthixbook) > 0) {
+    return(true);
+}
+if (inv_total(inv, saradominbook_complete) > 0 | inv_total(inv, zamorakbook_complete) > 0 | inv_total(inv, guthixbook_complete) > 0) {
+    return(true);
+}
+if (inv_total(worn, saradominbook_complete) > 0 | inv_total(worn, zamorakbook_complete) > 0 | inv_total(worn, guthixbook_complete) > 0) {
+    return(true);
+}
+return(false);
+
+// The coins come off inside each label rather than before the @multi3 above: ~multi3, like every
+// other dialogue primitive, ends in p_pausebutton and is abortable, so charging before the choice
+// would take 5,000gp from anyone who closed the window.
+[label,horror_rebuy_saradomin]
+~chatplayer("<p,neutral>A book of Saradomin.");
+@horror_rebuy_give(unfinished_saradominbook);
+
+[label,horror_rebuy_zamorak]
+~chatplayer("<p,neutral>A book of Zamorak.");
+@horror_rebuy_give(unfinished_zamorakbook);
+
+[label,horror_rebuy_guthix]
+~chatplayer("<p,neutral>A book of Guthix.");
+@horror_rebuy_give(unfinished_guthixbook);
+
+[label,horror_rebuy_give](namedobj $book)
+if (inv_total(inv, coins) < 5000) {
+    ~chatnpc("<p,neutral>You don't have that much on you.");
+    return;
+}
+inv_del(inv, coins, 5000);
+inv_add(inv, $book, 1);
+~mesbox("You hand over 5,000 coins and Jossik fetches you another damaged prayer book.");
 
 [label,horror_book_saradomin]
 ~chatplayer("<p,happy>A book of Saradomin.");

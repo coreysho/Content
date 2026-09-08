@@ -50,7 +50,12 @@ if(inv_total(inv, barcrawl_card) = 0 & inv_total(bank, barcrawl_card) = 0) {
         %barcrawl = ^barcrawl_complete;
         // remove any dupe cards the player might have, this wont prevent drop tricking to keep one
         // (which will allow you to restart the minigame, this is consistent with OSRS)
-        inv_del(inv, barcrawl_card, inv_total(inv, barcrawl_card));
+        // Guarded like the bank line below it: this branch is also reachable with no card in the
+        // inventory at all (drop it after visiting every bar), and inv_del rejects a count of 0 with
+        // an error that disconnects the player rather than a silent no-op.
+        if(inv_total(inv, barcrawl_card) > 0) {
+            inv_del(inv, barcrawl_card, inv_total(inv, barcrawl_card));
+        }
         if(inv_total(bank, barcrawl_card) > 0) {
             inv_del(bank, barcrawl_card, inv_total(bank, barcrawl_card));
         }

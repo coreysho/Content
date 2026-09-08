@@ -235,10 +235,12 @@ if (inv_freespace(inv) = 0) {
     return;
 }
 ~chatnpc("<p,neutral>Ok, you'll need this starting map of the Kharazi Jungle.");
-~objbox(thkaramjamap, "Grand Vizier Erkle gives you some notes and a map.", 250, 0, 0);
+// Stage and item BEFORE the box. ~objbox ends in p_pausebutton (interface_chat/scripts/chat.rs2),
+// so dismissing it aborts the script - which used to leave the quest advanced with nothing to show.
 %legendsquest = ^legends_started;
 ~send_quest_progress(questlist:legends, %legendsquest, ^legends_complete);
 inv_add(inv, thkaramjamap, 1);
+~objbox(thkaramjamap, "Grand Vizier Erkle gives you some notes and a map.", 250, 0, 0);
 ~chatnpc("<p,neutral>Complete this map when you get to the Kharazi Jungle.|It's towards the southern most part of Karamja.");
 ~mesbox("Radimus shuffles around the back of his desk and gives you a stern|look.");
 ~chatnpc("<p,confused>It is likely to be very tough going. You'll need an axe|and machete to cut through the dense Kharazi Jungle,|collect a machete from the cupboard before you leave.|You'll need to find your own axe, preferably a good");
