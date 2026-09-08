@@ -42,6 +42,40 @@
 // selection code already picks five from whatever is offered.
 ^rd_rooms_needed = 5
 
+// --- Where each test drops you (rooms 1 and 6) ---
+^rd_room1_arrive = 0_38_77_57_44
+^rd_room6_arrive = 0_38_77_36_12
+
+// --- Sir Spishyus' bridge ---
+// The two ends of the bridge are locs at m38_77 (51,44) and (45,44), each with op1=Cross, so
+// crossing is a jump between the two banks rather than a walk. Landings are one tile clear of each.
+// The cache's naming is worth decoding once: "left" is the near bank you start on, in the east at
+// x53-55, and "right" is the far bank you are trying to reach, in the west at x41-43.
+^rd_bridge_east = 0_38_77_52_44
+^rd_bridge_west = 0_38_77_44_44
+// Anything east of the bridge's middle is on the near bank. m38_77 x48 is world 2480.
+^rd_bank_split = 2480
+^rd_animal_fox = 1
+^rd_animal_chicken = 2
+^rd_animal_grain = 3
+^rd_side_east = 0
+^rd_side_west = 1
+// Each animal is ONE logical value 0-3 written to BOTH its varbits - rd_foxleft and rd_foxright and
+// so on. Bit 0 is which bank it is on, bit 1 is whether it has been got at. The multiloc tables in
+// rd.loc are built for exactly this: the near-bank shell renders at values 0 and 2, the far-bank
+// shell at 1 and 3, so one value drives both shells and the animal can only ever be in one place.
+^rd_bit_side = 0
+^rd_bit_eaten = 1
+
+// --- Miss Cheevers' lab ---
+// rd_stone_door is a multi on rd_room6_stone_door: 0 shows rd_stone_door_basic (op1=Study),
+// 1 and 2 both show rd_stone_door_spade (op1=Pull-spade), 3 shows rd_stone_door_opened. Two states
+// rendering the same model is the tell that the spade goes in before the reaction is set off.
+^rd_door_shut = 0
+^rd_door_spade = 1
+^rd_door_jammed = 2
+^rd_door_open = 3
+
 // --- Where each test drops you ---
 // One tile off each room's entrance portal, all checked against the map. m38_77 base is (2432,4928).
 ^rd_room2_arrive = 0_38_77_27_51

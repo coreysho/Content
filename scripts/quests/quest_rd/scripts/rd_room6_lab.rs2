@@ -1,0 +1,386 @@
+// Recruitment Drive, room 6 - Miss Cheevers' chemistry lab. The largest of the seven tests.
+//
+// Two barriers, side by side at m38_77 (45,12) and (46,12): a stone door with a hole in it, and the
+// exit door, which is locked. The spade opens the first; a bronze key cast from the key chained to
+// the wall at (36,10) opens the second.
+//
+// Everything is in the cache and every obj name reads like a step of the recipe, which is what
+// settled the chain - the descriptions are the documentation:
+//
+//   rd_tin                     "I could probably pour something into this."
+//   rd_tin_of_crap_empty       "A tin layered with some stuff from a vial."
+//   rd_tinfull                 "full of a white lumpy mixture that seems to be hardening"
+//   rd_keymould                "There is an impression of a key embedded in it."
+//   rd_full_keymould_tin       "...filled with tin ore."
+//   rd_full_keymould_copper    "...filled with copper ore."
+//   rd_full_keymould_unheated  "...filled with tin and copper ore."
+//   rd_full_keymould_complete  "There is a bronze key surrounded by plaster in this tin."
+//   rd_puzzleroom_key          "I hope the mould was accurate enough..."
+//   rd_cupric_sulphate2        "A VERY HOT vial of something or other" - the exothermic reaction
+//   rd_plaster_vial / rd_spoilt_potion   the two ways to waste a vial
+//
+// Both ore powders have their own half-filled mould obj, so the two can go in either order.
+//
+// Deliberate softening, flagged: every shelf, crate and bookcase re-issues its item whenever you are
+// not already holding it, so a wasted vial or a mistimed pour can never strand anybody in a locked
+// room. The rd_got_* varbits the cache provides would have made each chemical one-shot; that is a
+// dead end waiting to happen and the trial is hard enough without it.
+
+[opnpc1,rd_observer_room_6]
+if (~rd_run_in_progress = false) {
+    ~chatnpc("<p,neutral>Please don't touch the shelves.");
+    return;
+}
+if (%rd_room6_complete = 1) {
+    ~chatnpc("<p,happy>Both doors. Very tidy. Do go through.");
+    return;
+}
+~chatplayer("<p,quiz>What's the test?");
+~chatnpc("<p,neutral>Two doors between you and the corridor. One has a hole in it and no handle. The other has a lock, and the only key is chained to my wall.");
+~chatplayer("<p,quiz>And the shelves?");
+~chatnpc("<p,happy>Are full of chemistry. Search everything, read the notes, and do try not to pour the vials into one another - that never ends in anything useful.");
+
+
+// --- Searching ---
+// Eight chemical shelves, one chemical each; four bookcases; crates and a chest for the tools.
+
+[oploc1,rd_shelves_chemicals_1] @rd_lab_take(rd_dihydrogen_monoxide, "A rack of vials. You take one labelled 'Dihydrogen Monoxide'.");
+[oploc1,rd_shelves_chemicals_2] @rd_lab_take(rd_gypsum, "A rack of vials. You take one labelled 'Gypsum'.");
+[oploc1,rd_shelves_chemicals_3] @rd_lab_take(rd_cupric_sulphate, "A rack of vials. You take one labelled 'Cupric Sulfate'.");
+[oploc1,rd_shelves_chemicals_4] @rd_lab_take(rd_tin_ore_powder, "A rack of vials. You take one labelled 'Powdered Tin Ore'.");
+[oploc1,rd_shelves_chemicals_5] @rd_lab_take(rd_copper_ore_powder, "A rack of vials. You take one labelled 'Powdered Cupric Ore'.");
+[oploc1,rd_shelves_chemicals_6] @rd_lab_take(rd_acetic_acid, "A rack of vials. You take one labelled 'Acetic Acid'.");
+[oploc1,rd_shelves_chemicals_7] @rd_lab_take(rd_sodium_chloride, "A rack of vials. You take one labelled 'Sodium Chloride'.");
+[oploc1,rd_shelves_chemicals_8] @rd_lab_take(rd_nitorus_oxide, "A rack of vials. You take one labelled 'Nitrous Oxide'.");
+
+[oploc1,rd_bookshelf_old_tall] @rd_lab_take(rd_chem_book, "Wedged between two ledgers is a set of handwritten alchemical notes. You take them.");
+[oploc1,rd_bookshelf_old_tall2] @rd_lab_shelf_empty;
+[oploc1,rd_bookshelf_old_tall3] @rd_lab_shelf_empty;
+[oploc1,rd_bookshelf_old_tall4] @rd_lab_shelf_empty;
+
+[oploc1,rd_large_crate] @rd_lab_take(rd_metal_spade, "There is a metal spade in the crate, wooden handle and all. You take it.");
+[oploc1,rd_large_crates] @rd_lab_take(rd_tin, "There is a shallow metal tin in the crate, the sort you would bake in. You take it.");
+[oploc1,rd_small_crates] @rd_lab_take(rd_knife, "There is a knife in the crate. You take it.");
+
+[oploc1,rd_chest_closed]
+p_arrivedelay;
+anim(human_openchest, 0);
+sound_synth(cupboard_open, 1, 0);
+loc_change(rd_chest_open, 200);
+mes("You open the chest.");
+
+[oploc2,rd_chest_open]
+p_arrivedelay;
+anim(human_closechest, 0);
+sound_synth(cupboard_close, 1, 0);
+loc_change(rd_chest_closed, 200);
+mes("You close the chest.");
+
+[oploc1,rd_chest_open] @rd_lab_take(rd_chisel, "A chisel, a length of bronze wire, a magnet and a pair of shears. You take the chisel.");
+
+[label,rd_lab_shelf_empty]
+p_arrivedelay;
+anim(human_openchest, 0);
+mes("Ledgers, and a great many of them.");
+
+// Re-issued rather than gated: see the header note. Nothing in this room is a one-shot.
+[label,rd_lab_take](namedobj $item, string $found)
+p_arrivedelay;
+anim(human_openchest, 0);
+p_delay(1);
+if (inv_total(inv, $item) > 0) {
+    mes("There is nothing else in there you need.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("You have nowhere to put it.");
+    return;
+}
+inv_add(inv, $item, 1);
+~mesbox($found);
+
+// The notes text is the one that was already written for this obj in
+// general_use/scripts/readables_generated.rs2, moved here rather than replaced: it names every
+// reaction this room turns on and is a better hint sheet than anything worth writing over it.
+[opheld1,rd_chem_book]
+~mesbox("Notes on reactions. Room temperature unless stated. | Cupric sulfate and dihydrogen monoxide: a blue compound, along with heat. Exothermic. | Gypsum and dihydrogen monoxide: a white, heat-resistant solid much like plaster. Exothermic. | Cupric ore powder and tin ore powder: they bond at a remarkably low temperature. Liquid bronze, formed quite easily. | Nitrous monoxide could not be tested, being a gas. | Most other pairings at room temperature: nothing of use.");
+~mesbox("A second hand has added, in pencil: | Plaster in a vial is a ruined vial. Mix it in something you can press against a thing.");
+
+
+// --- The stone door ---
+// The triggers go on rd_stone_door, the multi SHELL, not on its three children. OpLocHandler
+// resolves the multi far enough to check the option exists and then hands the engine the original
+// loc (OpLocHandler.ts:36-59), so Player.getOpTrigger reads the shell's type and a handler declared
+// on rd_stone_door_basic or _spade would never fire. The children still matter: their ops are what
+// the client offers and what the server validates, which is why Study, Pull-spade and Walk-through
+// each appear only in the state that has them.
+
+[oploc1,rd_stone_door]
+p_arrivedelay;
+if (%rd_room6_stone_door = ^rd_door_open) {
+    mes("The way is open.");
+    return;
+}
+if (%rd_room6_stone_door = ^rd_door_shut) {
+    ~mesbox("A slab of stone with no handle, no hinge and no lock. Set into the middle of it is a small square hole, about the width of a spade blade.");
+    return;
+}
+// Pull-spade. A spade that is only sitting in the hole comes straight back out.
+if (%rd_room6_stone_door ! ^rd_door_jammed) {
+    inv_add(inv, rd_metal_spade_no_handle, 1);
+    %rd_room6_stone_door = ^rd_door_shut;
+    %rd_react_on_spade = 0;
+    mes("The spade slides straight back out. It is not gripping anything.");
+    return;
+}
+anim(human_pickuptable, 0);
+%rd_room6_stone_door = ^rd_door_open;
+sound_synth(door_open, 1, 0);
+~mesbox("You haul on the spade. The stone grinds back along its groove, and the way to the corridor is open.");
+
+[oplocu,rd_stone_door]
+def_obj $used = last_useitem;
+p_arrivedelay;
+if (%rd_room6_stone_door = ^rd_door_shut) {
+    if ($used = rd_metal_spade) {
+        ~mesbox("The blade would go into the hole, but the handle will not - and the handle is in the way. Something would have to take it off.");
+        return;
+    }
+    if ($used ! rd_metal_spade_no_handle) {
+        ~displaymessage(^dm_default);
+        return;
+    }
+    inv_del(inv, rd_metal_spade_no_handle, 1);
+    %rd_room6_stone_door = ^rd_door_spade;
+    ~mesbox("You push the spade blade into the hole. It goes in easily, and sits there loosely, doing nothing whatsoever.");
+    return;
+}
+if (%rd_room6_stone_door = ^rd_door_open) {
+    ~displaymessage(^dm_default);
+    return;
+}
+switch_obj ($used) {
+    case rd_cupric_sulphate :
+        if (%rd_react_on_spade = 1) {
+            mes("There is cupric sulfate on the blade already.");
+            return;
+        }
+        inv_del(inv, rd_cupric_sulphate, 1);
+        %rd_react_on_spade = 1;
+        mes("You tip the cupric sulfate over the blade. Nothing happens at all.");
+    case rd_dihydrogen_monoxide :
+        if (%rd_react_on_spade = 0) {
+            inv_del(inv, rd_dihydrogen_monoxide, 1);
+            mes("The water runs off the blade and onto the floor.");
+            return;
+        }
+        inv_del(inv, rd_dihydrogen_monoxide, 1);
+        %rd_react_on_spade = 0;
+        %rd_room6_stone_door = ^rd_door_jammed;
+        sound_synth(gas_hiss, 1, 0);
+        ~mesbox("The water hits the cupric sulfate and the whole thing goes violently hot. The blade swells in the hole and jams solid - and a jammed spade is a handle.");
+    case default : ~displaymessage(^dm_default);
+}
+
+// The Bunsen burner does two jobs: it burns the handle off the spade, and it fires the mould.
+[oplocu,rd_wooden_table_bunsen_burner]
+def_obj $used = last_useitem;
+p_arrivedelay;
+switch_obj ($used) {
+    case rd_metal_spade : @rd_lab_burn(rd_metal_spade, rd_metal_spade_no_handle, "You hold the spade over the burner until the wooden handle chars through and drops off. What is left is a flat metal blade.");
+    case rd_full_keymould_unheated : @rd_lab_burn(rd_full_keymould_unheated, rd_full_keymould_complete, "The two powders run together in the plaster and cool into a single yellow-brown shape. Bronze.");
+    case rd_full_keymould_tin :
+        ~mesbox("Tin alone will not do. Bronze wants cupric ore in it as well.");
+    case rd_full_keymould_copper :
+        ~mesbox("Cupric ore alone will not do. Bronze wants tin in it as well.");
+    case rd_tinfull :
+        ~mesbox("The plaster is setting on its own. Heating it would only crack it.");
+    case default : ~displaymessage(^dm_default);
+}
+
+// The swap happens after the delay so an interrupted heating consumes nothing.
+[label,rd_lab_burn](obj $from, namedobj $to, string $line)
+anim(human_cooking, 0);
+sound_synth(fry, 1, 0);
+p_delay(2);
+if (inv_total(inv, $from) = 0) {
+    return;
+}
+inv_del(inv, $from, 1);
+inv_add(inv, $to, 1);
+~mesbox($line);
+
+
+// --- Casting the key ---
+// The tin is the vessel. Water first, then gypsum: the notes are explicit that the plaster is mixed
+// in a vessel and not in the vial, and pouring one vial into another is what rd_plaster_vial and
+// rd_spoilt_potion are for.
+
+[opheldu,rd_tin]
+def_obj $other = last_useitem;
+switch_obj ($other) {
+    case rd_dihydrogen_monoxide : @rd_lab_swap2(rd_tin, rd_dihydrogen_monoxide, rd_tin_of_crap_empty, "You pour the vial of liquid into the tin.");
+    case rd_gypsum :
+        ~mesbox("The gypsum sits in the bottom of the tin as a dry heap. It wants a liquid to take it up.");
+    case rd_tin_ore_powder, rd_copper_ore_powder :
+        @rd_lab_spoil($other, "The powder goes into the empty tin and sits there. Whatever this is meant to be, it is not it.");
+    case rd_acetic_acid, rd_sodium_chloride, rd_nitorus_oxide, rd_cupric_sulphate :
+        @rd_lab_spoil($other, "You pour it into the tin. It fizzes unpleasantly and does nothing else.");
+    case default : ~displaymessage(^dm_default);
+}
+
+[opheldu,rd_tin_of_crap_empty]
+def_obj $other = last_useitem;
+switch_obj ($other) {
+    case rd_gypsum : @rd_lab_swap2(rd_tin_of_crap_empty, rd_gypsum, rd_tinfull, "The gypsum takes up the liquid and turns to a white paste that is already beginning to stiffen. Quickly, now.");
+    case default : @rd_lab_wrong_step($other);
+}
+
+// Pressing the setting plaster against the key on the wall. The key itself is never taken - it is
+// chained, and blockwalk=no, so it is only ever a use-target.
+[oplocu,rd_key_chained]
+def_obj $used = last_useitem;
+p_arrivedelay;
+if ($used ! rd_tinfull) {
+    if ($used = rd_tin | $used = rd_tin_of_crap_empty) {
+        ~mesbox("There is nothing in the tin that would hold a shape.");
+        return;
+    }
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, rd_tinfull, 1);
+inv_add(inv, rd_keymould, 1);
+~mesbox("You press the tin against the key and hold it there while the plaster sets. When you take it away there is a clean impression of the key in the surface.");
+
+// No [oploc1] on the key: rd_key_chained carries active=yes and no op lines at all, so it is a
+// use-target only and a click handler on it could never fire. Its examine text says what it is.
+
+[opheldu,rd_keymould]
+def_obj $other = last_useitem;
+switch_obj ($other) {
+    case rd_tin_ore_powder : @rd_lab_swap2(rd_keymould, rd_tin_ore_powder, rd_full_keymould_tin, "You fill the impression with powdered tin ore.");
+    case rd_copper_ore_powder : @rd_lab_swap2(rd_keymould, rd_copper_ore_powder, rd_full_keymould_copper, "You fill the impression with powdered cupric ore.");
+    case default : @rd_lab_wrong_step($other);
+}
+
+[opheldu,rd_full_keymould_tin]
+def_obj $other = last_useitem;
+switch_obj ($other) {
+    case rd_copper_ore_powder : @rd_lab_swap2(rd_full_keymould_tin, rd_copper_ore_powder, rd_full_keymould_unheated, "You add the cupric ore on top of the tin. The impression is full.");
+    case default : @rd_lab_wrong_step($other);
+}
+
+[opheldu,rd_full_keymould_copper]
+def_obj $other = last_useitem;
+switch_obj ($other) {
+    case rd_tin_ore_powder : @rd_lab_swap2(rd_full_keymould_copper, rd_tin_ore_powder, rd_full_keymould_unheated, "You add the tin on top of the cupric ore. The impression is full.");
+    case default : @rd_lab_wrong_step($other);
+}
+
+// Getting the key out. Any of the three tools does it - the wiki is explicit that a knife, a chisel
+// or the bronze wire all work.
+[opheldu,rd_full_keymould_complete]
+def_obj $other = last_useitem;
+switch_obj ($other) {
+    case rd_knife, rd_chisel, rd_wire :
+        inv_del(inv, rd_full_keymould_complete, 1);
+        inv_add(inv, rd_puzzleroom_key, 1);
+        ~mesbox("You chip the plaster away from the casting. Underneath is a bronze key, a little rough at the edges but unmistakably the same shape as the one on the wall.");
+    case default :
+        ~mesbox("The key is set into the plaster. Something with an edge would get it out.");
+}
+
+[label,rd_lab_swap2](obj $vessel, obj $ingredient, namedobj $result, string $line)
+inv_del(inv, $vessel, 1);
+inv_del(inv, $ingredient, 1);
+inv_add(inv, $result, 1);
+~mesbox($line);
+
+[label,rd_lab_spoil](obj $ingredient, string $line)
+inv_del(inv, rd_tin, 1);
+inv_del(inv, $ingredient, 1);
+inv_add(inv, rd_tin_of_crap, 1);
+~mesbox($line);
+
+// A vial that does not belong at this step. Nothing is consumed - the tin keeps what is in it and
+// the vial stays in your hand, so a wrong guess costs a message and nothing else.
+[label,rd_lab_wrong_step](obj $ingredient)
+if (~rd_is_vial($ingredient) = false) {
+    ~displaymessage(^dm_default);
+    return;
+}
+~mesbox("That is not what this wants next. Whatever is in the tin stays as it was.");
+
+[proc,rd_is_vial](obj $item)(boolean)
+switch_obj ($item) {
+    case rd_dihydrogen_monoxide, rd_gypsum, rd_cupric_sulphate, rd_acetic_acid, rd_sodium_chloride, rd_nitorus_oxide, rd_tin_ore_powder, rd_copper_ore_powder : return(true);
+    case default : return(false);
+}
+
+// Mixing vials into each other, which the notes warn against and which the cache ships two objs for.
+[opheldu,rd_gypsum]
+def_obj $other = last_useitem;
+if ($other = rd_dihydrogen_monoxide) {
+    inv_del(inv, rd_gypsum, 1);
+    inv_del(inv, rd_dihydrogen_monoxide, 1);
+    inv_add(inv, rd_plaster_vial, 1);
+    ~mesbox("The plaster sets inside the vial, which is exactly what the notes said would happen. The vial is now a small lumpy paperweight.");
+    return;
+}
+if (~rd_is_vial($other) = true) {
+    @rd_lab_ruin_vials($other, rd_gypsum);
+}
+~displaymessage(^dm_default);
+
+[opheldu,rd_cupric_sulphate]
+def_obj $other = last_useitem;
+if ($other = rd_dihydrogen_monoxide) {
+    inv_del(inv, rd_cupric_sulphate, 1);
+    inv_del(inv, rd_dihydrogen_monoxide, 1);
+    inv_add(inv, rd_cupric_sulphate2, 1);
+    ~mesbox("The vial goes almost too hot to hold. Whatever cupric sulfate does when it meets water, it does it with feeling - and it has done it in here rather than anywhere useful.");
+    return;
+}
+if (~rd_is_vial($other) = true) {
+    @rd_lab_ruin_vials($other, rd_cupric_sulphate);
+}
+~displaymessage(^dm_default);
+
+[label,rd_lab_ruin_vials](obj $a, obj $b)
+inv_del(inv, $a, 1);
+inv_del(inv, $b, 1);
+inv_add(inv, rd_spoilt_potion, 1);
+~mesbox("The two mix into something brown and bad-smelling. You have wasted them both.");
+
+
+// --- The locked exit ---
+
+[oploc1,rd_room6_exitdoor]
+p_arrivedelay;
+if (%rd_room6_complete = 1) {
+    @rd_exit_door(6);
+}
+if (~rd_run_in_progress = false) {
+    mes("The door is locked.");
+    return;
+}
+~mesbox("The door is locked, and the lock is the one the key on the wall fits.");
+
+[oplocu,rd_room6_exitdoor]
+def_obj $used = last_useitem;
+p_arrivedelay;
+if ($used ! rd_puzzleroom_key) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (~rd_run_in_progress = false) {
+    mes("Nothing happens.");
+    return;
+}
+if (%rd_room6_complete = 1) {
+    @rd_exit_door(6);
+}
+inv_del(inv, rd_puzzleroom_key, 1);
+sound_synth(door_open, 1, 0);
+~rd_pass_room(6);

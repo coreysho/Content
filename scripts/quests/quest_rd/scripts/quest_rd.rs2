@@ -84,17 +84,32 @@ if (inv_freespace(inv) < inv_size(inv)) {
 ~chatnpc("<p,happy>Off you go then. Good luck - you will need some.");
 @rd_send_to_next_room;
 
-// Five tests are drawn from the pool. Only five of the seven are built, so every run currently uses
-// all five; the two unbuilt ones are marked done up front, which is also exactly what the selection
-// would do if it had picked around them. Widening the pool later needs no change here.
+// Five tests drawn at random from the seven, done by marking the two that were NOT drawn as already
+// finished. That keeps the whole run on the seven completion bits the cache already provides and
+// leaves nothing else to get out of step with them. It also means "passed" and "skipped" look the
+// same, which is why completion is "no room left" rather than a count - see ~rd_rooms_done.
 [proc,rd_begin_run]
 %recruitmentdrive = 0;
 %rd_main = ^rd_started;
 %rd_rooms_tempvar = 0;
 %rd_rooms_tempvar2 = 0;
-%rd_room1_complete = 1;
-%rd_room6_complete = 1;
+def_int $skip1 = calc(random(7) + 1);
+def_int $skip2 = calc(random(7) + 1);
+while ($skip2 = $skip1) {
+    $skip2 = calc(random(7) + 1);
+}
+~rd_skip_room($skip1);
+~rd_skip_room($skip2);
 %rd_room1_initiated = 1;
+
+[proc,rd_skip_room](int $room)
+if ($room = 1) { %rd_room1_complete = 1; }
+if ($room = 2) { %rd_room2_complete = 1; }
+if ($room = 3) { %rd_room3_complete = 1; }
+if ($room = 4) { %rd_room4_complete = 1; }
+if ($room = 5) { %rd_room5_complete = 1; }
+if ($room = 6) { %rd_room6_complete = 1; }
+if ($room = 7) { %rd_room7_complete = 1; }
 
 [proc,rd_run_in_progress]()(boolean)
 if (%rd_room1_initiated = 1) {
@@ -102,12 +117,16 @@ if (%rd_room1_initiated = 1) {
 }
 return(false);
 
-[proc,rd_rooms_passed]()(int)
+// Every bit that is set, whether the room was passed or never drawn. The two that were skipped are
+// what the journal subtracts to report a score the player would recognise.
+[proc,rd_rooms_done]()(int)
 def_int $n = 0;
+if (%rd_room1_complete = 1) { $n = calc($n + 1); }
 if (%rd_room2_complete = 1) { $n = calc($n + 1); }
 if (%rd_room3_complete = 1) { $n = calc($n + 1); }
 if (%rd_room4_complete = 1) { $n = calc($n + 1); }
 if (%rd_room5_complete = 1) { $n = calc($n + 1); }
+if (%rd_room6_complete = 1) { $n = calc($n + 1); }
 if (%rd_room7_complete = 1) { $n = calc($n + 1); }
 return($n);
 
@@ -115,6 +134,10 @@ return($n);
 // ordering state of its own to get out of step with the completion bits. %rd_room_order cannot be
 // borrowed for it either - Lady Table's twelve statue shells read that varbit directly.
 [label,rd_send_to_next_room]
+if (%rd_room1_complete = 0) {
+    ~rd_enter_room(^rd_room1_arrive);
+    return;
+}
 if (%rd_room2_complete = 0) {
     ~rd_enter_room(^rd_room2_arrive);
     return;
@@ -129,6 +152,10 @@ if (%rd_room4_complete = 0) {
 }
 if (%rd_room5_complete = 0) {
     ~rd_enter_room(^rd_room5_arrive);
+    return;
+}
+if (%rd_room6_complete = 0) {
+    ~rd_enter_room(^rd_room6_arrive);
     return;
 }
 if (%rd_room7_complete = 0) {
@@ -146,10 +173,12 @@ sound_synth(teleport_all, 1, 0);
 // Passing a test. The bit goes down first: every ~mesbox ends in p_pausebutton and aborts the script
 // if dismissed, and a test passed but not recorded would have to be sat again.
 [proc,rd_pass_room](int $room)
+if ($room = 1) { %rd_room1_complete = 1; }
 if ($room = 2) { %rd_room2_complete = 1; }
 if ($room = 3) { %rd_room3_complete = 1; }
 if ($room = 4) { %rd_room4_complete = 1; }
 if ($room = 5) { %rd_room5_complete = 1; }
+if ($room = 6) { %rd_room6_complete = 1; }
 if ($room = 7) { %rd_room7_complete = 1; }
 sound_synth(door_open, 1, 0);
 ~mesbox("Correct. The door at the far side of the room swings open.");
@@ -185,15 +214,18 @@ inv_add(inv, coins, ^rd_reward_coins);
 // it is what moves you to the next test - so a player who passes a room and then logs out simply
 // clicks the door again when they come back.
 
+[oploc1,rd_room1_exitdoor] @rd_exit_door(1);
 [oploc1,rd_room2_exitdoor] @rd_exit_door(2);
 [oploc1,rd_room3_exitdoor] @rd_exit_door(3);
 [oploc1,rd_room4_exitdoor] @rd_exit_door(4);
 [oploc1,rd_room5_exitdoor] @rd_exit_door(5);
 [oploc1,rd_room7_exitdoor] @rd_exit_door(7);
+[oploc1,rd_portal_room1_exit] @rd_exit_door(1);
 [oploc1,rd_portal_room2_exit] @rd_exit_door(2);
 [oploc1,rd_portal_room3_exit] @rd_exit_door(3);
 [oploc1,rd_portal_room4_exit] @rd_exit_door(4);
 [oploc1,rd_portal_room5_exit] @rd_exit_door(5);
+[oploc1,rd_portal_room6_exit] @rd_exit_door(6);
 [oploc1,rd_portal_room7_exit] @rd_exit_door(7);
 
 [label,rd_exit_door](int $room)
@@ -202,23 +234,24 @@ if (~rd_room_passed($room) = false) {
     mes("The door is locked. Whatever is being asked of you in here, it has not been answered yet.");
     return;
 }
-if (~rd_rooms_passed >= ^rd_rooms_needed) {
-    @rd_finish;
-}
 @rd_send_to_next_room;
 
 [proc,rd_room_passed](int $room)(boolean)
+if ($room = 1 & %rd_room1_complete = 1) { return(true); }
 if ($room = 2 & %rd_room2_complete = 1) { return(true); }
 if ($room = 3 & %rd_room3_complete = 1) { return(true); }
 if ($room = 4 & %rd_room4_complete = 1) { return(true); }
 if ($room = 5 & %rd_room5_complete = 1) { return(true); }
+if ($room = 6 & %rd_room6_complete = 1) { return(true); }
 if ($room = 7 & %rd_room7_complete = 1) { return(true); }
 return(false);
 
+[oploc1,rd_portal_room1_entrance] @rd_no_going_back;
 [oploc1,rd_portal_room2_entrance] @rd_no_going_back;
 [oploc1,rd_portal_room3_entrance] @rd_no_going_back;
 [oploc1,rd_portal_room4_entrance] @rd_no_going_back;
 [oploc1,rd_portal_room5_entrance] @rd_no_going_back;
+[oploc1,rd_portal_room6_entrance] @rd_no_going_back;
 [oploc1,rd_portal_room7_entrance] @rd_no_going_back;
 
 [label,rd_no_going_back]
@@ -255,7 +288,7 @@ if (~rd_run_in_progress = false) {
     ~quest_journal($n, $x);
     return;
 }
-$x = append($x, "|@str@I am part-way through the tests. I have passed <tostring(~rd_rooms_passed)>|");
+$x = append($x, "|@str@I am part-way through the tests. I have passed <tostring(calc(~rd_rooms_done - 2))>|");
 $x = append($x, "@str@of the five.|");
 $x = append($x, "|@dbl@If I fail one I start again from the beginning.");
 ~quest_journal($n, $x);

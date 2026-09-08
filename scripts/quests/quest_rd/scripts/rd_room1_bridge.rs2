@@ -1,0 +1,249 @@
+// Recruitment Drive, room 1 - Sir Spishyus' bridge.
+//
+// A fox, a chicken and a sack of grain, a bridge that takes five kilograms, and three things that
+// each weigh five. Leave the fox alone with the chicken and it eats it; leave the chicken alone with
+// the grain and it eats that. The only safe pair is fox and grain.
+//
+// The cache does the rendering. Six shells - a near-bank and a far-bank one for each of the three -
+// are multis on six varbits, and the multiloc tables in rd.loc are cut so that the near shell
+// renders at values 0 and 2 and the far shell at 1 and 3. So each animal is ONE logical value 0-3
+// written to both of its varbits: bit 0 says which bank, bit 1 says whether it has been got at. It
+// cannot be in two places, and the "fat fox" and "empty sack" models come for free.
+//
+// One cosmetic imperfection, flagged rather than papered over: while an animal is in your inventory
+// its loc still renders on the bank you are standing on, because no value in the multiloc tables
+// hides a shell from both banks at once. It looks like the fox is following you around the bank,
+// which is close enough to right that it is not worth deleting and re-adding map locs to fix. The
+// rules themselves are exact - the eating check ignores anything you are carrying.
+
+[opnpc1,rd_observer_room_1]
+if (~rd_run_in_progress = false) {
+    ~chatnpc("<p,neutral>Nothing to carry anywhere today.");
+    return;
+}
+if (%rd_room1_complete = 1) {
+    ~chatnpc("<p,happy>All three, and all still breathing. The door is open.");
+    return;
+}
+~chatplayer("<p,quiz>What's the test?");
+~chatnpc("<p,neutral>Fox, chicken, grain. All three on the far side of that bridge.");
+~chatnpc("<p,neutral>The bridge holds five kilograms. Each of them weighs five kilograms. I trust you can do the arithmetic.");
+~chatplayer("<p,quiz>And if I leave two of them together?");
+~chatnpc("<p,happy>Then you will find out what foxes eat, and after that what chickens eat. Neither answer will get you through the door.");
+
+
+// --- Picking things up ---
+// Both banks of each animal route to one label; which shell was clicked does not matter, because the
+// animal's own varbit already knows which bank it is on.
+
+[oploc1,rd_room2_fox_multi] @rd_bridge_take(^rd_animal_fox);
+[oploc1,rd_room2_fox_multi_right] @rd_bridge_take(^rd_animal_fox);
+[oploc1,rd_room2_chicken_multi] @rd_bridge_take(^rd_animal_chicken);
+[oploc1,rd_room2_chicken_multi_right] @rd_bridge_take(^rd_animal_chicken);
+[oploc1,rd_room2_grain_multi] @rd_bridge_take(^rd_animal_grain);
+[oploc1,rd_room2_grain_multi_right] @rd_bridge_take(^rd_animal_grain);
+
+[label,rd_bridge_take](int $animal)
+p_arrivedelay;
+if (~rd_run_in_progress = false) {
+    mes("It is not yours to pick up.");
+    return;
+}
+if (%rd_room1_complete = 1) {
+    mes("The test is over. Leave them be.");
+    return;
+}
+if (~rd_carrying_count > 0) {
+    ~mesbox("Your hands are full. The bridge only takes five kilograms anyway, so there is no sense carrying two.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("You have nowhere to put it.");
+    return;
+}
+anim(human_pickuptable, 0);
+~rd_give_animal($animal);
+mes("You pick it up.");
+
+// Putting one down again. The objs carry no drop-specific option, so the generic Drop handler covers
+// it - but a dropped animal must go back to being a loc rather than lying on the floor, which is
+// what this catches. The obj is destroyed and the animal simply stays on the bank it was already on.
+[opheld5,rd_fox] @rd_bridge_put(^rd_animal_fox);
+[opheld5,rd_chicken] @rd_bridge_put(^rd_animal_chicken);
+[opheld5,rd_sack] @rd_bridge_put(^rd_animal_grain);
+
+[label,rd_bridge_put](int $animal)
+inv_del(inv, ~rd_animal_obj($animal), 1);
+mes("You put it down.");
+
+
+// --- Crossing ---
+
+[oploc1,rd_bridge_left] @rd_bridge_cross;
+[oploc1,rd_bridge_right] @rd_bridge_cross;
+
+[label,rd_bridge_cross]
+p_arrivedelay;
+if (~rd_run_in_progress = false) {
+    ~mesbox("The bridge creaks unpleasantly. There is nothing on the other side worth the risk today.");
+    return;
+}
+if (%rd_room1_complete = 1) {
+    @rd_bridge_step;
+}
+if (~rd_carrying_count > 1) {
+    ~mesbox("The bridge takes five kilograms and you are carrying ten of them. One at a time.");
+    return;
+}
+// Everything past this point is ordered so the crossing is recorded before any abortable message: a
+// player who clicks away mid-message should still have crossed, and should still have to live with
+// what happened behind them.
+@rd_bridge_step;
+
+[label,rd_bridge_step]
+def_int $from = ~rd_bank_of(coord);
+if ($from = ^rd_side_east) {
+    p_telejump(^rd_bridge_west);
+} else {
+    p_telejump(^rd_bridge_east);
+}
+mes("You edge across the bridge.");
+if (%rd_room1_complete = 1) {
+    return;
+}
+~rd_bridge_land($from);
+
+// Landing on the far side: anything you carried comes out of your hands onto this bank, and then
+// whatever you left behind gets a few unsupervised minutes.
+[proc,rd_bridge_land](int $from)
+def_int $to = ^rd_side_west;
+if ($from = ^rd_side_west) {
+    $to = ^rd_side_east;
+}
+~rd_drop_carried($to);
+if (~rd_something_eaten($from) = true) {
+    return;
+}
+if (~rd_all_across = true) {
+    ~rd_pass_room(1);
+}
+
+[proc,rd_drop_carried](int $side)
+if (inv_total(inv, rd_fox) > 0) {
+    inv_del(inv, rd_fox, 1);
+    ~rd_set_animal(^rd_animal_fox, $side);
+}
+if (inv_total(inv, rd_chicken) > 0) {
+    inv_del(inv, rd_chicken, 1);
+    ~rd_set_animal(^rd_animal_chicken, $side);
+}
+if (inv_total(inv, rd_sack) > 0) {
+    inv_del(inv, rd_sack, 1);
+    ~rd_set_animal(^rd_animal_grain, $side);
+}
+
+// The bank you are no longer standing on. Fox first: a fox left with a chicken does not wait to see
+// whether there is grain as well.
+[proc,rd_something_eaten](int $bank)(boolean)
+if (~rd_animal_on(^rd_animal_fox, $bank) = true & ~rd_animal_on(^rd_animal_chicken, $bank) = true) {
+    ~rd_eat_animal(^rd_animal_fox);
+    ~rd_fail_room("You look back across the bridge. The fox is considerably rounder than it was, and the chicken is nowhere at all.");
+    return(true);
+}
+if (~rd_animal_on(^rd_animal_chicken, $bank) = true & ~rd_animal_on(^rd_animal_grain, $bank) = true) {
+    ~rd_eat_animal(^rd_animal_grain);
+    ~rd_fail_room("You look back across the bridge. The sack is flat and empty, and the chicken is standing on it looking pleased with itself.");
+    return(true);
+}
+return(false);
+
+[proc,rd_all_across]()(boolean)
+if (~rd_animal_on(^rd_animal_fox, ^rd_side_west) = false) { return(false); }
+if (~rd_animal_on(^rd_animal_chicken, ^rd_side_west) = false) { return(false); }
+if (~rd_animal_on(^rd_animal_grain, ^rd_side_west) = false) { return(false); }
+return(true);
+
+
+// --- The animals as numbers ---
+
+[proc,rd_bank_of](coord $c)(int)
+if (coordx($c) > ^rd_bank_split) {
+    return(^rd_side_east);
+}
+return(^rd_side_west);
+
+// Two accessors rather than one, because inv_add wants a namedobj and inv_total/inv_del want an obj,
+// and this dialect does not quietly convert between them.
+[proc,rd_animal_obj](int $animal)(obj)
+if ($animal = ^rd_animal_fox) { return(rd_fox); }
+if ($animal = ^rd_animal_chicken) { return(rd_chicken); }
+return(rd_sack);
+
+[proc,rd_give_animal](int $animal)
+if ($animal = ^rd_animal_fox) {
+    inv_add(inv, rd_fox, 1);
+    return;
+}
+if ($animal = ^rd_animal_chicken) {
+    inv_add(inv, rd_chicken, 1);
+    return;
+}
+inv_add(inv, rd_sack, 1);
+
+[proc,rd_carrying_count]()(int)
+def_int $n = 0;
+if (inv_total(inv, rd_fox) > 0) { $n = calc($n + 1); }
+if (inv_total(inv, rd_chicken) > 0) { $n = calc($n + 1); }
+if (inv_total(inv, rd_sack) > 0) { $n = calc($n + 1); }
+return($n);
+
+// Present on a bank means on that bank AND not in your hands - a carried animal is with you, not
+// with whatever it would otherwise be eating.
+[proc,rd_animal_on](int $animal, int $bank)(boolean)
+if (inv_total(inv, ~rd_animal_obj($animal)) > 0) {
+    return(false);
+}
+if (calc(~rd_animal_value($animal) % 2) = $bank) {
+    return(true);
+}
+return(false);
+
+[proc,rd_animal_value](int $animal)(int)
+if ($animal = ^rd_animal_fox) { return(%rd_foxleft); }
+if ($animal = ^rd_animal_chicken) { return(%rd_chickleft); }
+return(%rd_grainleft);
+
+// Both varbits of a pair always get the same value, which is what keeps the near and far shells from
+// ever rendering the same animal twice.
+[proc,rd_set_animal](int $animal, int $side)
+def_int $value = $side;
+if (~rd_animal_value($animal) >= 2) {
+    $value = calc($side + 2);
+}
+if ($animal = ^rd_animal_fox) {
+    %rd_foxleft = $value;
+    %rd_foxright = $value;
+    return;
+}
+if ($animal = ^rd_animal_chicken) {
+    %rd_chickleft = $value;
+    %rd_chickright = $value;
+    return;
+}
+%rd_grainleft = $value;
+%rd_grainright = $value;
+
+[proc,rd_eat_animal](int $animal)
+def_int $value = calc(~rd_animal_value($animal) % 2 + 2);
+if ($animal = ^rd_animal_fox) {
+    %rd_foxleft = $value;
+    %rd_foxright = $value;
+    return;
+}
+if ($animal = ^rd_animal_chicken) {
+    %rd_chickleft = $value;
+    %rd_chickright = $value;
+    return;
+}
+%rd_grainleft = $value;
+%rd_grainright = $value;

@@ -45,24 +45,29 @@ if ($option = 2) {
 ~mesbox("Lady Table waves a hand. The statues shuffle where they stand, and one of them is not there any more.");
 ~chatnpc("<p,neutral>There. Which is missing?");
 
-[oploc1,rd_1g] @rd_statue_touch;
-[oploc1,rd_1s] @rd_statue_touch;
-[oploc1,rd_1b] @rd_statue_touch;
-[oploc1,rd_2g] @rd_statue_touch;
-[oploc1,rd_2s] @rd_statue_touch;
-[oploc1,rd_2b] @rd_statue_touch;
-[oploc1,rd_3g] @rd_statue_touch;
-[oploc1,rd_3s] @rd_statue_touch;
-[oploc1,rd_3b] @rd_statue_touch;
-[oploc1,rd_4g] @rd_statue_touch;
-[oploc1,rd_4s] @rd_statue_touch;
-[oploc1,rd_4b] @rd_statue_touch;
+// The triggers go on the SHELLS, not on the twelve statue children. OpLocHandler resolves a multi
+// far enough to check the option exists (OpLocHandler.ts:36-50) and then hands the engine the
+// ORIGINAL loc, so Player.getOpTrigger does LocType.get(loc.type) on the shell and a handler
+// declared on a child never fires. That is also what makes this room tidy: the shell number is the
+// answer, so nothing has to be worked out from coordinates.
+//
+// It falls out correctly at the empty shell too. When an arrangement leaves a shell with no
+// multiloc entry the type stays the shell, the shell carries no ops, and the click is rejected
+// before it reaches a script - you cannot touch a statue that is not there.
+[oploc1,rd_statue_multi_1] @rd_statue_touch(1);
+[oploc1,rd_statue_multi_2] @rd_statue_touch(2);
+[oploc1,rd_statue_multi_3] @rd_statue_touch(3);
+[oploc1,rd_statue_multi_4] @rd_statue_touch(4);
+[oploc1,rd_statue_multi_5] @rd_statue_touch(5);
+[oploc1,rd_statue_multi_6] @rd_statue_touch(6);
+[oploc1,rd_statue_multi_7] @rd_statue_touch(7);
+[oploc1,rd_statue_multi_8] @rd_statue_touch(8);
+[oploc1,rd_statue_multi_9] @rd_statue_touch(9);
+[oploc1,rd_statue_multi_10] @rd_statue_touch(10);
+[oploc1,rd_statue_multi_11] @rd_statue_touch(11);
+[oploc1,rd_statue_multi_12] @rd_statue_touch(12);
 
-// Which shell was touched is read off its own coord rather than from the loc type, because the type
-// under a shell changes with the arrangement. The grid is x18,20,22,24 by z48,51,54 in m38_77, so
-// (2432+18, 4928+48) is shell 3 and the numbering runs up the columns.
-[label,rd_statue_touch]
-def_coord $here = loc_coord;
+[label,rd_statue_touch](int $shell)
 p_arrivedelay;
 if (~rd_run_in_progress = false) {
     mes("A statue of a White Knight. It is not looking at you.");
@@ -76,11 +81,6 @@ if (%rd_room_order = ^rd_statue_reset) {
     mes("Lady Table has not taken one away yet. You should speak to her first.");
     return;
 }
-def_int $shell = ~rd_statue_shell($here);
-if ($shell = 0) {
-    mes("You touch the statue. Nothing happens.");
-    return;
-}
 if ($shell = ~rd_statue_answer(%rd_room_order)) {
     %rd_room_order = ^rd_statue_reset;
     ~rd_pass_room(2);
@@ -88,20 +88,6 @@ if ($shell = ~rd_statue_answer(%rd_room_order)) {
 }
 %rd_room_order = ^rd_statue_reset;
 ~rd_fail_room("You touch the statue. Lady Table shakes her head - that one never left the room.");
-
-[proc,rd_statue_shell](coord $c)(int)
-def_int $col = 0;
-if (coordx($c) = 2450) { $col = 0; }
-else if (coordx($c) = 2452) { $col = 1; }
-else if (coordx($c) = 2454) { $col = 2; }
-else if (coordx($c) = 2456) { $col = 3; }
-else { return(0); }
-def_int $row = 0;
-if (coordz($c) = 4982) { $row = 1; }
-else if (coordz($c) = 4979) { $row = 2; }
-else if (coordz($c) = 4976) { $row = 3; }
-else { return(0); }
-return(calc($col * 3 + $row));
 
 // The mapping read straight out of rd.loc's twelve multiloc tables: for each arrangement, the one
 // shell with no multiloc entry.
