@@ -157,6 +157,15 @@ switch_int(%the_thing_sheared) {
 
 // OSRS wiki
 [label,fred_how_are_you_doing]
+// Pay up if the wool is already all in. Completion used to fire ONLY from inside a successful
+// hand-in, so a player who gave Fred the last ball and then clicked the chat away was left at
+// ^sheep_last_wool with the wool gone, the quest unfinished, and no way back - Fred just kept
+// asking for more, and @fred_give_wool crashed on the way (see below). This is the recovery path,
+// and it costs nothing in the normal flow because %sheep only reaches ^sheep_last_wool once every
+// ball has been handed over.
+if(%sheep >= ^sheep_last_wool) {
+    @fred_end_giving_wool;
+}
 ~chatnpc("<p,neutral>How are you doing getting those balls of wool?");
 if(inv_total(inv, ball_of_wool) > 0) {
     ~chatplayer("<p,happy>I have some.");
@@ -197,6 +206,13 @@ if(inv_total(inv, ball_of_wool) > 0) {
 if_close;
 def_int $balls_left = calc(21 - %sheep);
 def_int $balls = min(inv_total(inv, ball_of_wool), $balls_left);
+// inv_del rejects a count of 0 - "1 to 2147483647. Input was 0." - and that error kicks the player
+// out of the game. $balls is 0 exactly when $balls_left is 0, i.e. when %sheep has already reached
+// ^sheep_last_wool, so anyone in that state who talked to Fred while still carrying wool was
+// disconnected on the spot. Nothing left to hand in means it is time to be paid.
+if($balls < 1) {
+    @fred_end_giving_wool;
+}
 inv_del(inv, ball_of_wool, $balls);
 
 %sheep = calc(%sheep + $balls);
@@ -220,13 +236,17 @@ if(%sheep >= ^sheep_last_wool) {
 
 [label,fred_end_giving_wool]
 if(%sheep >= ^sheep_last_wool) {
-    // 225 dialog, 2025 OSRS still matches
-    ~chatplayer("<p,happy>That's the last of them.");
-    ~chatnpc("<p,sad>I guess I'd better pay you then.");
-    %sheep = ^sheep_last_wool;
+    // The queue is armed BEFORE the dialogue, not after it. ~chatplayer and ~chatnpc each yield on
+    // an open modal, and closing the chat aborts the script exactly where it stands - so with the
+    // queue at the bottom, a player who dismissed these two lines lost the completion and kept the
+    // consumed wool. A queue survives that: Player.canAccess holds it while the modal is up and it
+    // fires the moment the modal closes, read or dismissed.
     // The last ball of wool is no longer taken separately in this June 2008 source: https://youtu.be/SmomTYcvcS4?t=214
     // But is taken separately in Feburary 2008: https://youtu.be/Qg1HOZAN6XY?t=285
     queue(sheep_complete, 0, 0);
+    // 225 dialog, 2025 OSRS still matches
+    ~chatplayer("<p,happy>That's the last of them.");
+    ~chatnpc("<p,sad>I guess I'd better pay you then.");
     return;
 }
 
