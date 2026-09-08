@@ -477,14 +477,23 @@ if (npc_findexact(^mm_squad_spawn_3, mm_zooknock_final_battle) = false) {
     npc_add(^mm_squad_spawn_3, mm_zooknock_final_battle, 500);
 }
 
-// The demon's death. [ai_queue3] is the death trigger the drop tables use; npc_findhero sets the
-// active player so the quest state can be advanced on the person who actually killed it.
+// The demon's death. Handed off through a PLAYER QUEUE rather than written from the death hook
+// directly: npc_findhero grants active_player but not p_active_player, and %mm_main is protected.
+// Writing the quest state straight from [ai_queue3] fails to compile with
+// "Attempt to access uninitialized pointer [ 'p_active_player' ]". Same shape as the Draugen kill in
+// quest_viking - see claude/horror-dks-audit-sept8.md for why p_finduid is the wrong tool here.
+//
+// npc_coord is captured before npc_findhero because that command moves the active pointer.
 [ai_queue3,mm_demon]
 gosub(npc_death);
+def_coord $spot = npc_coord;
 if (npc_findhero = ^false) {
     return;
 }
-obj_add(npc_coord, ashes, 1, ^lootdrop_duration);
+obj_add($spot, ashes, 1, ^lootdrop_duration);
+queue(mm_demon_slain, 0, 0);
+
+[queue,mm_demon_slain]
 if (%mm_main ! ^mm_has_sigil) {
     return;
 }
