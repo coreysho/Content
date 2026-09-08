@@ -313,6 +313,12 @@ npc_del;
 
 [queue,fluffs_complete] //imgur.com/6ePHvef
 session_log(^log_adventure, "Quest complete: Gertrude's Cat");
-%qp = calc(%qp + ^fluffs_questpoints);
+// No manual %qp add: ~send_quest_complete's default branch calls ~update_questpoints, which
+// recounts from every quest varp - and gertrude.rs2:53 has already set %fluffs to ^fluffs_complete
+// by the time this queue runs, so the points are counted there. Adding them here as well doubled
+// them.
 stat_advance(cooking, 15250);
-~send_quest_complete(questlist:fluffs, null, 0, ^fluffs_questpoints, "You have completed Gertrude's Cat.", "1,525 Cooking XP|A Kitten|A Chocolate Cake|Some Stew");
+// kittenobject rather than null. The old null was what forced this quest into a special branch in
+// ~send_quest_complete (if_setobject rejects a null obj), and that branch opened the wrong
+// interface. The kitten is the reward the text below already lists.
+~send_quest_complete(questlist:fluffs, kittenobject, 250, ^fluffs_questpoints, "You have completed Gertrude's Cat.", "1,525 Cooking XP|A Kitten|A Chocolate Cake|Some Stew");

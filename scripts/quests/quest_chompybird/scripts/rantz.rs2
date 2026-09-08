@@ -754,7 +754,16 @@ if($hat18 = ^true) {
 // look for any chompy birds to shoot
 [ai_timer,rantz]
 if(random(20) ! 0 | npc_getmode = none) return;
-if (.npc_find(0_41_46_11_22, chompy_bird, 12, ^vis_lineofsight) = true) {
+// Search from where Rantz is standing, not from a fixed tile. This used to be
+// .npc_find(0_41_46_11_22, chompy_bird, 12, ...) - absolute (2635, 2966), which is fifteen tiles
+// south of Rantz's own spawn at m41_46 (6,37) = (2630, 2981). The chompy spawns wherever the player
+// dropped the bloated toad (~spawn_chompy_bird(npc_coord, ...) in bloated_toad.rs2), so whether
+// Rantz noticed it depended on the toad landing inside a 12-tile circle drawn around a spot he is
+// not standing on - which is exactly the "he does find one, but only in a certain range" symptom.
+// npc_coord with a wider radius covers his whole clearing; the line-of-sight check still means he
+// has to actually be able to shoot it, and the inzone() test below still restricts this to players
+// in his map square.
+if (.npc_find(npc_coord, chompy_bird, 20, ^vis_lineofsight) = true) {
     if(%rantz_attacking_chompy = .npc_uid) return;
     if (p_finduid(.%quest_chompybird_baiter) = true & inzone(0_41_46_0_0, 0_41_46_63_63, coord) = true) {
         // we only run this logic for players in the right quest state

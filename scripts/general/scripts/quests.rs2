@@ -26,8 +26,25 @@ if ($random < 32) {       // The least common music that plays when completing a
 switch_component ($component) {
     case questlist:itgronigen ://Obveratory: Updates QP before quest scroll is queued & uses custom quest scroll
         if_openmain(questscroll_itgronigen);
-    case questlist:fluffs ://Gertrude's Cat: Updates QP before quest scroll is queued & uses custom quest scroll
-        if_openmain(questscroll_fluffs);
+    // Gertrude's Cat used to open questscroll_fluffs here, with nothing written into it. That is
+    // interface 2302 - and 2302 is not the scroll the name suggests. Every well-formed interface in
+    // content/pack/interface.pack has contiguous children (questscroll is 297 with com_0..com_7 at
+    // 298-305); questscroll_fluffs claims 2302 with "children" scattered across 2303, 2305, 2308,
+    // 2309 and 3215, interleaved with music:com_10..13. Opening it renders whatever actually lives
+    // at that id, which is why the reward screen came up as a shape-puzzle random event.
+    //
+    // It was split out of the default branch for a real reason, though: Gertrude's Cat is one of
+    // only two quests that passed null as the reward obj, and if_setobject does
+    // check(obj, ObjTypeValid) (PlayerOps.ts:695), so a null would throw and disconnect the player
+    // on completion. Fixed at the source instead - quest_fluffs.rs2 now passes kittenobject, which
+    // is the reward its own text already advertises - so this case is no longer needed at all and
+    // Gertrude's Cat goes through the same inter_238 screen as every other quest.
+    //
+    // questlist:itgronigen above is the other null-obj quest and points at questscroll_itgronigen
+    // (1689, children at 1690/1692/1695/1696 - also non-contiguous). Same suspect, not reported yet,
+    // so left alone deliberately rather than changed on a hunch. If the Observatory reward screen
+    // ever comes up wrong too, the fix is the same shape: give it a real reward obj and delete
+    // its case.
     case questlist:seaslug, questlist:itwatchtower ://Seaslug & Watchtower: Updates QP before quest scroll is queued
         if_settext(questscroll:com_3, $questmessage);
         if_settext(questscroll:com_9, tostring($questpoints));
