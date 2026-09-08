@@ -139,9 +139,10 @@ if (last_useitem ! beer & last_useitem ! viking_tankard_full) {
     ~displaymessage(^dm_default);
     return;
 }
+def_obj $used = last_useitem;
 if (%viking < ^viking_started) {
+    inv_del(inv, $used, 1);
     ~chatnpc("<p,happy>Very kind of you!");
-    inv_del(inv, last_useitem, 1);
     return;
 }
 if (inv_total(inv, viking_firecracker) > 0 | inv_total(inv, viking_firecracker_lit) > 0 | testbit(%viking_bits, ^viking_bit_firecracker_planted) = 1) {
@@ -152,7 +153,7 @@ if (inv_freespace(inv) < 1) {
     ~chatnpc("<p,neutral>I'd give you something for that, but you've nowhere to put it.");
     return;
 }
-inv_del(inv, last_useitem, 1);
+inv_del(inv, $used, 1);
 inv_add(inv, viking_firecracker, 1);
 ~chatnpc("<p,happy>Now that is the finest thing I have seen all week.");
 ~mesbox("The workman drinks it in one and presses a small paper parcel into your hand. You have no idea what it is.");
