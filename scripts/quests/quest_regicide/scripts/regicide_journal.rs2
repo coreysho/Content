@@ -5,9 +5,8 @@
 // 2026-08-28 - King Lathas' dialogue and the Isafdar/Iorwerth/Tracker/Hining chain all worked, but the
 // quest list entry was a dead button). Pattern copied directly from quest_upass/scripts/upass_journal.rs2.
 //
-// Only covers states that actually exist right now (0-5, ^regicide_complete). States 6-14 (Big Book O'
-// Bangs onward) don't have constants yet - see quest_regicide.constant - so they fall into the generic
-// "quest in progress" case below until those steps are built.
+// Covers every state: 0-5 from the first pass, and 6-10 (the report back, the Big Book O' Bangs, the
+// catapult, the letter and Arianwyn) added when the second half was built.
 
 [if_button,questlist:regicide]
 def_string $n = "Regicide";
@@ -70,7 +69,51 @@ $x = append($x, "|@str@I reached Tyras Camp and spoke to General Hining, but he 
 $x = append($x, "@str@audience with King Tyras.|");
 
 if (%regicide_quest = ^regicide_at_tyras_camp) {
-    $x = append($x, "|@dbl@I'm not sure what to do next.");
+    $x = append($x, "|@dbl@I should go back and tell the @dre@Elf Tracker@dbl@ what Hining told me.");
+    ~quest_journal($n, $x);
+    return;
+}
+
+if (%regicide_quest = ^regicide_told_tracker) {
+    $x = append($x, "|@str@The tracker thinks Hining is hiding something behind that camp.|");
+    $x = append($x, "|@dbl@I should report back to @dre@Lord Iorwerth@dbl@ at his camp.");
+    ~quest_journal($n, $x);
+    return;
+}
+
+$x = append($x, "|@str@Lord Iorwerth wants King Tyras' tent brought down with the camp's own|");
+$x = append($x, "@str@catapult, and gave me the Big Book O' Bangs to tell me how.|");
+
+if (%regicide_quest = ^regicide_has_book) {
+    $x = append($x, "|@dbl@I need @dre@coal-tar@dbl@ and @dre@sulphur@dbl@ from the @dre@Poison Waste@dbl@, and|");
+    $x = append($x, "@dbl@quicklime from limestone. The @dre@still in Rimmington@dbl@ turns the tar|");
+    $x = append($x, "@dbl@into naphtha. Then the catapult - and something to distract its guard.");
+    ~quest_journal($n, $x);
+    return;
+}
+
+$x = append($x, "|@str@I fed the catapult's guard a cooked rabbit, loaded the barrel bomb, and|");
+$x = append($x, "@str@put it through the roof of King Tyras' tent.|");
+
+if (%regicide_quest = ^regicide_tyras_bombed) {
+    $x = append($x, "|@dbl@I should tell @dre@Lord Iorwerth@dbl@ that it is done.");
+    ~quest_journal($n, $x);
+    return;
+}
+
+$x = append($x, "|@str@Lord Iorwerth gave me a sealed letter to carry to King Lathas.|");
+
+if (%regicide_quest = ^regicide_has_letter) {
+    $x = append($x, "|@dbl@I should take the letter to @dre@King Lathas@dbl@ in @dre@East Ardougne@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+
+if (%regicide_quest = ^regicide_seal_broken) {
+    $x = append($x, "|@str@An elf named Arianwyn broke the seal and showed me what it said. It is|");
+    $x = append($x, "@str@Lathas who serves the Dark Lord, not Tyras. Arianwyn wants me to deliver|");
+    $x = append($x, "@str@it anyway, so that Lathas believes it worked.|");
+    $x = append($x, "|@dbl@I should take the letter to @dre@King Lathas@dbl@ in @dre@East Ardougne@dbl@.");
     ~quest_journal($n, $x);
     return;
 }

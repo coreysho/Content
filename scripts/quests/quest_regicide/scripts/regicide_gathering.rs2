@@ -1,0 +1,52 @@
+// Regicide - gathering the bomb's raw materials in the Poison Waste (walkthrough step 8).
+//
+// Both resources are already in the cache, already placed, and already carry the right op - they
+// simply had no handler, so clicking them did nothing:
+//
+//   regicide_tar_collection   m35_48 (22,55) (23,55) (24,55)   op1=Take   "Tar"
+//   regicide_sulphar1/2/3     ~80 rocks across m35_48           op1=Take   "Sulphur"
+//
+// The tar tile is the one the wiki describes as looking identical to the swamp around it. Taking it
+// needs an empty barrel and can fail, taking the barrel with it - which is exactly why the wiki
+// tells you to bring three, and why Lord Iorwerth hands over three with the book.
+
+[oploc1,regicide_tar_collection]
+p_arrivedelay;
+if (inv_total(inv, regicide_barrel_tar) > 0) {
+    mes("You already have a barrel of coal-tar.");
+    return;
+}
+if (inv_total(inv, regicide_barrel_empty) < 1) {
+    ~mesbox("There is coal-tar under the surface here, but nothing to put it in. You would need an empty barrel.");
+    return;
+}
+anim(human_pickupfloor, 0);
+sound_synth(gas_hiss, 1, 0);
+p_delay(2);
+if (inv_total(inv, regicide_barrel_empty) < 1) {
+    return;
+}
+inv_del(inv, regicide_barrel_empty, 1);
+if (random(^regicide_tar_fail_chance) = 0) {
+    ~mesbox("The barrel goes under before you can get the lid on it, and the swamp keeps it.");
+    return;
+}
+inv_add(inv, regicide_barrel_tar, 1);
+mes("You fill a barrel with coal-tar.");
+
+[oploc1,regicide_sulphar1] @regicide_take_sulphur;
+[oploc1,regicide_sulphar2] @regicide_take_sulphur;
+[oploc1,regicide_sulphar3] @regicide_take_sulphur;
+
+// The rocks are not consumed and do not respawn - there are around eighty of them along the waste
+// and the wiki treats them as a scenery resource rather than a mining node.
+[label,regicide_take_sulphur]
+p_arrivedelay;
+if (inv_freespace(inv) < 1) {
+    mes("You don't have room for any more sulphur.");
+    return;
+}
+anim(human_pickupfloor, 0);
+p_delay(1);
+inv_add(inv, regicide_sulphar, 1);
+mes("You break a piece of sulphur off the formation.");

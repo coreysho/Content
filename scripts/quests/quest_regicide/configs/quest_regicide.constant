@@ -5,7 +5,56 @@
 ^regicide_met_tracker = 4
 ^regicide_at_tyras_camp = 5
 
-// states 6-14 are reserved for the remaining quest steps (returning the pendant to Iorwerth,
-// the Big Book O' Bangs handoff, the Fractionalising Still minigame, bomb assembly, and the
-// catapult sabotage/cutscene) which are not yet implemented - see claude/regicide-quest.md
-// ^regicide_complete = 15 is declared once, globally, in scripts/general/configs/quest.constant
+// --- The second half, built 2026-09-08 ---
+// The wiki's remaining steps map onto five more states. ^regicide_complete = 15 is still declared
+// once, globally, in scripts/general/configs/quest.constant - do not redeclare it here.
+^regicide_told_tracker = 6
+^regicide_has_book = 7
+^regicide_tyras_bombed = 8
+^regicide_has_letter = 9
+^regicide_seal_broken = 10
+
+// %regicide_bits - the catapult sequence only, and only while it is being set up. Both are cleared
+// the moment the bomb goes off, so a second run of the sequence starts clean.
+^regicide_bit_guard_fed = 0
+^regicide_bit_bomb_loaded = 1
+
+// --- Tyras Camp and the cutscene copy of it ---
+// The cache ships TWO Tyras Camps. m34_49 is the real one on the world map; m36_71, out in the same
+// void band Waterbirth and Swensen's maze live in, is a near-identical copy of it - 3,985 of 4,096
+// map tiles and 1,586 of ~1,700 locs are byte-identical. The one systematic difference is the
+// King's tent: m34_49 carries regicide_tent_human, m36_71 carries regicide_tent_human_for_fire, and
+// regicide_tent_human_fire is placed nowhere at all. That is not a coincidence - the copy exists so
+// the explosion can be shown to one player without setting the real camp on fire for everyone, and
+// the burnt tent is applied to it by loc_change. The catapult sits at local (8-10,47) in both.
+^regicide_catapult_stand = 0_34_49_11_47
+^regicide_cutscene_stand = 0_36_71_11_47
+^regicide_cutscene_watch = 0_36_71_11_30
+^regicide_cutscene_tent = 0_36_71_10_6
+// The tent spans local x7-13, z4-8, which straddles four 8x8 zones - loc_findallzone works one zone
+// at a time, so the burn proc is called once per zone with a coord inside each.
+^regicide_tent_zone_sw = 0_36_71_7_4
+^regicide_tent_zone_se = 0_36_71_12_4
+^regicide_tent_zone_nw = 0_36_71_7_8
+^regicide_tent_zone_ne = 0_36_71_12_8
+// How long the burnt tent stays burnt in the cutscene copy before it reverts. Nothing here is
+// permanent - the copy is reused by the next player who fires the catapult.
+^regicide_burn_duration = 400
+
+// Where Arianwyn steps out of the trees on the way east from Iorwerth Camp. Checked walkable, and
+// two tiles clear of Lord Iorwerth himself at m34_50 (29,52).
+^regicide_arianwyn_spot = 0_34_50_31_52
+^regicide_arianwyn_lifetime = 3000
+
+// Taking coal-tar fails sometimes and the barrel is lost with it - which is why the wiki tells you
+// to bring three. Iorwerth hands over three along with the book.
+^regicide_tar_fail_chance = 4
+^regicide_barrels_given = 3
+
+// Rewards, from the wiki. Deliberately NOT included: the Zul-Andra and Iorwerth Camp teleport
+// scrolls, the BJS fairy ring code, the Port Tyras charter and the Gwenith trial - every one of
+// those is a much later addition to the quest and none of them exists in a 2006 build. The Arandar
+// overground route is also left out, for a harder reason: neither Arandar nor Zul-Andra appears
+// anywhere in this cache or in any map file, so there is nothing to open.
+^regicide_reward_coins = 15000
+^regicide_reward_agility_xp = 137500

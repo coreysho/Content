@@ -1,0 +1,153 @@
+// Regicide - the catapult sabotage and the explosion (walkthrough step 11).
+//
+// Every piece of this is in the cache, placed, and was waiting for a handler:
+//
+//   regicide_catapult / _left / _right   m34_49 (8-10,47)   use-targets, no ops of their own
+//   regicide_tyras_lazy_guard            m34_49 (5,48)      op1=Talk-to, four tiles from the catapult
+//   regicide_tent_human_for_fire         m36_71 (7-13,4-8)  the King's tent, in the cutscene copy
+//   regicide_tent_human_fire             placed nowhere at all - applied by loc_change
+//
+// THE CUTSCENE COPY IS THE INTERESTING PART. The cache ships two Tyras Camps: m34_49 on the world
+// map, and m36_71 out in the void band beside Waterbirth and Swensen's maze. They are the same camp
+// - 3,985 of 4,096 map tiles identical, the catapult at the same local (9,47) in both - and the one
+// systematic difference is that the copy's King's tent is regicide_tent_human_for_fire where the
+// real one is regicide_tent_human. A burnt version of that tent exists as a loc type and is placed
+// in no map anywhere. So the copy exists to show one player the explosion without setting the real
+// camp alight for everybody else, and the burnt tent is meant to be swapped in there by script.
+// That is what this file does.
+
+[opnpc1,regicide_tyras_lazy_guard]
+if (%regicide_quest ! ^regicide_has_book) {
+    ~chatnpc("<p,neutral>Nothing ever happens on this post. Nothing. Ever.");
+    return;
+}
+if (testbit(%regicide_bits, ^regicide_bit_guard_fed) = 1) {
+    ~chatnpc("<p,happy>Off to find somewhere to eat this in peace. Don't touch anything.");
+    return;
+}
+~chatplayer("<p,quiz>Long shift?");
+~chatnpc("<p,sad>Third one this week, and no rations since the morning. Hining has us watching a catapult nobody has fired in a year.");
+~chatnpc("<p,neutral>I'd give a week's pay for something hot.");
+
+// One trigger on the guard catches both click orders for free - opnpcu fires whichever way round
+// the player drags the meat.
+[opnpcu,regicide_tyras_lazy_guard]
+def_obj $used = last_useitem;
+if ($used ! cooked_rabbit) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%regicide_quest ! ^regicide_has_book) {
+    ~chatnpc("<p,neutral>Kind of you, but I'm not hungry enough to take food off a stranger.");
+    return;
+}
+if (testbit(%regicide_bits, ^regicide_bit_guard_fed) = 1) {
+    ~chatnpc("<p,happy>You've already fed me better than the army has all week.");
+    return;
+}
+inv_del(inv, cooked_rabbit, 1);
+%regicide_bits = setbit(%regicide_bits, ^regicide_bit_guard_fed);
+npc_setmode(none);
+npc_walk(movecoord(npc_coord, -5, 0, -3));
+mes("The guard takes the rabbit and wanders off to eat it.");
+~chatnpc("<p,happy>You are a better man than General Hining, and I'll say so to his face one day. Give me five minutes.");
+
+// The catapult itself. All three parts are use-targets rather than op-carrying locs, so a single
+// label behind three triggers covers whichever piece the player happens to click.
+[oplocu,regicide_catapult] @regicide_catapult_use;
+[oplocu,regicide_catapult_left] @regicide_catapult_use;
+[oplocu,regicide_catapult_right] @regicide_catapult_use;
+
+[label,regicide_catapult_use]
+def_obj $used = last_useitem;
+p_arrivedelay;
+switch_obj ($used) {
+    case regicide_barrel_lid_fused : @regicide_catapult_load;
+    case regicide_barrel_lid :
+        ~mesbox("The barrel goes into the sling well enough, but there is nothing on it to light. It needs a fuse.");
+    case tinderbox : @regicide_catapult_light;
+    case default : ~displaymessage(^dm_default);
+}
+
+[label,regicide_catapult_load]
+if (%regicide_quest ! ^regicide_has_book) {
+    ~mesbox("You have no reason to load a barrel of naphtha into King Tyras' own catapult.");
+    return;
+}
+if (testbit(%regicide_bits, ^regicide_bit_guard_fed) = 0) {
+    ~mesbox("The guard on the next rise has not taken his eyes off you since you walked in. You will need him looking the other way.");
+    return;
+}
+if (testbit(%regicide_bits, ^regicide_bit_bomb_loaded) = 1) {
+    mes("There is already a barrel in the sling.");
+    return;
+}
+inv_del(inv, regicide_barrel_lid_fused, 1);
+%regicide_bits = setbit(%regicide_bits, ^regicide_bit_bomb_loaded);
+anim(human_pickuptable, 0);
+mes("You winch the arm down and roll the barrel into the sling.");
+~mesbox("The fuse hangs over the side of the sling, close enough to reach. All it needs now is a light.");
+
+[label,regicide_catapult_light]
+if (testbit(%regicide_bits, ^regicide_bit_bomb_loaded) = 0) {
+    mes("There is nothing in the sling to light.");
+    return;
+}
+@regicide_catapult_fire;
+
+// Everything that must survive is done before the first delay, and the trip home is handed to a
+// player queue rather than left at the end of the script. Player.processQueue retries a queued
+// script every tick until the player can accept it, so even if the cutscene itself is interrupted -
+// the player clicks away, logs out, dies - the queue still fires and brings them back out of the
+// void region. Nothing can strand them in m36_71.
+[label,regicide_catapult_fire]
+%regicide_bits = clearbit(%regicide_bits, ^regicide_bit_guard_fed);
+%regicide_bits = clearbit(%regicide_bits, ^regicide_bit_bomb_loaded);
+%regicide_quest = ^regicide_tyras_bombed;
+~send_quest_progress(questlist:regicide, 8, ^regicide_complete);
+p_telejump(^regicide_cutscene_stand);
+queue(regicide_cutscene_end, 16, 0);
+mes("You touch the tinderbox to the fuse and let the lever go.");
+sound_synth(fire_lit, 1, 0);
+p_delay(2);
+cam_moveto(^regicide_cutscene_watch, 900, 100, 100);
+cam_lookat(^regicide_cutscene_tent, 300, 100, 100);
+p_delay(3);
+spotanim_map(firewave_travel, ^regicide_cutscene_tent, 500, 0);
+p_delay(2);
+spotanim_map(fireblast_impact, ^regicide_cutscene_tent, 0, 0);
+sound_synth(explosion, 1, 0);
+cam_shake(0, 6, 6, 2);
+~regicide_burn_tent;
+p_delay(4);
+
+[queue,regicide_cutscene_end]
+cam_reset;
+p_telejump(^regicide_catapult_stand);
+~mesbox("The camp is running. Nobody is looking at you at all.");
+~mesbox("Whatever was sitting in King Tyras' tent is under it now. Lord Iorwerth will want to hear that from you himself.");
+
+// Fifteen tiles, listed rather than swept. loc_findallzone would need four calls to cover a tent
+// that straddles four zones, and changing locs while its iterator is still walking the zone's own
+// list is not something worth relying on - loc_find takes an exact coord and cannot be surprised.
+[proc,regicide_burn_tent]
+~regicide_burn_tile(0_36_71_7_5);
+~regicide_burn_tile(0_36_71_7_6);
+~regicide_burn_tile(0_36_71_7_7);
+~regicide_burn_tile(0_36_71_8_4);
+~regicide_burn_tile(0_36_71_8_8);
+~regicide_burn_tile(0_36_71_9_4);
+~regicide_burn_tile(0_36_71_9_8);
+~regicide_burn_tile(0_36_71_10_4);
+~regicide_burn_tile(0_36_71_11_4);
+~regicide_burn_tile(0_36_71_11_8);
+~regicide_burn_tile(0_36_71_12_4);
+~regicide_burn_tile(0_36_71_12_8);
+~regicide_burn_tile(0_36_71_13_5);
+~regicide_burn_tile(0_36_71_13_6);
+~regicide_burn_tile(0_36_71_13_7);
+
+[proc,regicide_burn_tile](coord $c)
+if (loc_find($c, regicide_tent_human_for_fire) = true) {
+    loc_change(regicide_tent_human_fire, ^regicide_burn_duration);
+}

@@ -24,6 +24,69 @@ switch_int(%regicide_quest) {
         %regicide_quest = ^regicide_met_iorwerth;
     case ^regicide_met_iorwerth :
         ~chatnpc("<p,neutral>The tracker is south of the Poison Waste, human. Go on - you're wasting daylight.");
+    case ^regicide_met_tracker, ^regicide_at_tyras_camp :
+        ~chatnpc("<p,neutral>Tyras Camp is south, past the forest. Come back when you have something to tell me.");
+    case ^regicide_told_tracker : @regicide_iorwerth_book;
+    case ^regicide_has_book :
+        ~chatnpc("<p,neutral>The still is in Rimmington, human, on the far side of the sea. Read the book. It is all in the book.");
+    case ^regicide_tyras_bombed : @regicide_iorwerth_letter;
+    case ^regicide_has_letter, ^regicide_seal_broken :
+        ~chatnpc("<p,neutral>Take the letter to Lathas. Go east, over the pass - the way is open to you now.");
     case default :
         ~chatnpc("<p,neutral>Tread carefully out there, human.");
 }
+
+// The Big Book O' Bangs handover, plus the two things the player would otherwise have no way to get
+// hold of. Limestone has NO source anywhere on this server - the obj exists, but not one rock in any
+// of the 660 map regions yields it and there is no limestone mine in this cache - and the empty
+// barrels the coal-tar step needs are equally unobtainable (every barrel loc in Isafdar is scenery
+// with no Take option). Rather than build a limestone mine out of nothing, Iorwerth supplies both.
+// He is the one commissioning the bomb; an elf lord handing over the raw materials with the
+// instructions is the least invented way to close the gap. If a limestone mine ever lands, the
+// limestone line here is the thing to delete.
+[label,regicide_iorwerth_book]
+~chatplayer("<p,angry>Hining turned me away. Nobody gets near King Tyras - not me, not anyone, not for months.");
+~chatnpc("<p,neutral>Then it is as we feared, and the thing behind Tyras has closed the door behind it.");
+~chatnpc("<p,neutral>Listen to me. We cannot take that camp by force, and we cannot walk into it. But it has a catapult, and a catapult can be made to fire the wrong way.");
+~chatplayer("<p,quiz>You want me to shell your own enemy's camp?");
+~chatnpc("<p,angry>I want the thing wearing Tyras' court like a coat to be underneath it when the roof comes down. Yes.");
+// Five things change hands and only the pendant leaves, so the room has to be there first.
+if (inv_freespace(inv) < 5) {
+    ~chatnpc("<p,neutral>I have a book and a load to give you and you are carrying half of Isafdar already. Put something down first.");
+    return;
+}
+if (inv_total(inv, regicide_crystal_pendant) > 0) {
+    inv_del(inv, regicide_crystal_pendant, 1);
+    mes("You hand the crystal pendant back to Lord Iorwerth.");
+}
+inv_add(inv, regicide_alchemy, 1);
+inv_add(inv, regicide_barrel_empty, ^regicide_barrels_given);
+inv_add(inv, limestone, 1);
+%regicide_quest = ^regicide_has_book;
+~objbox(regicide_alchemy, "Lord Iorwerth gives you the Big Book O' Bangs, three empty barrels and a lump of limestone.", 250, 0, 0);
+~chatnpc("<p,neutral>Everything you need is written down. Coal-tar from the Poison Waste, sulphur from the rocks beside it, and a still in the human town of Rimmington to draw one out of the other.");
+~chatnpc("<p,neutral>Come back to me when the tent is burning.");
+
+// After the catapult. The sealed letter, and Arianwyn put on the path east - he is placed nowhere in
+// any map, so he is a scripted spawn, the same way the Draugen and Koschei are. Talking to Iorwerth
+// again at this state puts him back if he has despawned, so the ending cannot dead-end.
+[label,regicide_iorwerth_letter]
+~chatplayer("<p,neutral>It's done. The tent went up with the King in it.");
+~chatnpc("<p,happy>Then Tirannwn is rid of it. You have my thanks, human, and that is not a thing I say often.");
+~chatnpc("<p,neutral>There is one more thing. Lathas sent you, and Lathas will want to hear it from someone he trusts.");
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,neutral>And nowhere to put it. Make room and come back.");
+    return;
+}
+inv_add(inv, regicide_iorwerth_message, 1);
+%regicide_quest = ^regicide_has_letter;
+~regicide_place_arianwyn;
+~objbox(regicide_iorwerth_message, "Lord Iorwerth hands you a letter, folded and sealed.", 250, 0, 0);
+~chatnpc("<p,neutral>Sealed, and not by wax. Do not try to open it - it is not for your eyes and it will not let you.");
+~chatnpc("<p,neutral>The pass east through the mountains is open to you now. Go home, human.");
+
+[proc,regicide_place_arianwyn]
+if (npc_find(^regicide_arianwyn_spot, regicide_good_elf3, 8, ^vis_off) = true) {
+    return;
+}
+npc_add(^regicide_arianwyn_spot, regicide_good_elf3, ^regicide_arianwyn_lifetime);

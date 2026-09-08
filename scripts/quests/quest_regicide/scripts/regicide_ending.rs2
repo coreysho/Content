@@ -1,0 +1,51 @@
+// Regicide - the sealed letter, Arianwyn, and King Lathas (walkthrough steps 12 and 13).
+//
+// One scoping decision, forced by the map rather than chosen. The wiki has Iorwerth open the
+// Arandar overground pass and has Arianwyn intercept you on it. There is no Arandar. Neither
+// "arandar" nor "zul-andra" appears in this cache, in any config, or in any of the 660 map regions -
+// it is a genuine absence, not something left unmigrated. So the pass is spoken of but not opened,
+// and Arianwyn steps out two tiles from Lord Iorwerth instead of halfway home. He is placed nowhere
+// in any map, so he is a scripted spawn either way; talking to Iorwerth again at this stage puts him
+// back if he has despawned, so the ending cannot dead-end.
+//
+// Arianwyn is not a hard gate on the ending. If a player somehow gets past him and reaches Lathas
+// with the seal intact the quest still completes - it just completes without the player knowing what
+// they were carrying, which is a poorer ending than the real one but a better outcome than a quest
+// that cannot be finished.
+
+[opnpc1,regicide_good_elf3]
+if (%regicide_quest ! ^regicide_has_letter) {
+    ~chatnpc("<p,neutral>Keep walking, human. This is no place to stand about in.");
+    return;
+}
+if (inv_total(inv, regicide_iorwerth_message) < 1) {
+    ~chatnpc("<p,quiz>You were carrying a letter. Where has it gone?");
+    return;
+}
+~chatnpc("<p,neutral>Wait. You are the human who was in Iorwerth's tent.");
+~chatplayer("<p,quiz>And you are?");
+~chatnpc("<p,neutral>Arianwyn. Once of Lord Iorwerth's council, until I stopped agreeing with it.");
+~chatnpc("<p,quiz>He gave you something to carry east. A letter, sealed.");
+~chatplayer("<p,neutral>For King Lathas. Iorwerth said it wasn't for my eyes.");
+~chatnpc("<p,angry>No. It would not be.");
+// Before the dialogue that follows, because every ~chatnpc is abortable and a broken seal that did
+// not stick would put the twist permanently out of reach.
+%regicide_quest = ^regicide_seal_broken;
+mes("Arianwyn takes the letter, holds it flat between his palms, and the seal comes apart like frost off a window.");
+~chatnpc("<p,neutral>Read it.");
+~mesbox("King Lathas | Your man did well. We are a step closer to welcoming the Dark Lord into this realm. You will yet live to see Camelot crushed under foot. | Lord Iorwerth");
+~chatplayer("<p,shock>...Lathas. Lathas is the one working for the Dark Lord. He sent me to kill his own brother for him.");
+~chatnpc("<p,sad>Tyras was many things, human, but he was not the Dark Lord's. Iorwerth is, and now so are you, whether you meant to be or not.");
+~chatplayer("<p,angry>Then I'm not delivering this.");
+~chatnpc("<p,neutral>Deliver it. Let him think it worked. A Lathas who believes he is unwatched is worth more to us than a Lathas who knows he is not.");
+~chatnpc("<p,neutral>Go. And when you want to know what to do about it, come and find me.");
+
+// The letter itself. Moved here out of general_use/scripts/readables_generated.rs2, where it was
+// readable from the moment Iorwerth handed it over - which gave the whole quest away three steps
+// early. Same text, gated on the seal.
+[opheld1,regicide_iorwerth_message]
+if (%regicide_quest < ^regicide_seal_broken) {
+    ~mesbox("The letter is folded and sealed, and the seal is not wax. Your thumb slides off it. Whatever is holding it shut was not put there by hand.");
+    return;
+}
+~mesbox("King Lathas | Your man did well. We are a step closer to welcoming the Dark Lord into this realm. You will yet live to see Camelot crushed under foot. | Lord Iorwerth");

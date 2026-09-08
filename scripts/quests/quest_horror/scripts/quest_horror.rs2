@@ -636,11 +636,20 @@ inv_add(inv, unfinished_guthixbook, 1);
 ~chatnpc("<p,happy>Suit yourself - I'll keep hold of it in case you change your mind.");
 @finish_horror_quest;
 
+// Through the player queue, and through ~send_quest_complete rather than ~send_quest_progress.
+// The old ending called send_quest_progress, which only recolours the journal line - so finishing
+// this quest gave no completion scroll, no jingle, no reward panel, and no quest points at the time,
+// because ~update_questpoints is called from send_quest_complete's default branch and nowhere else
+// in a completion path. The points only appeared silently on the next login, whenever
+// ~update_questlist next ran. The queue is for the same reason Underground Pass uses one: the
+// rewards must not sit behind an abortable ~chatnpc.
 [label,finish_horror_quest]
+queue(horror_quest_complete, 0, 0);
 ~chatnpc("<p,happy>Thank you again for everything, adventurer. I don't know what would have happened to me down there without you.");
+
+[queue,horror_quest_complete]
+%horror = ^horror_complete;
 stat_advance(magic, 46625);
 stat_advance(strength, 46625);
 stat_advance(ranged, 46625);
-mes("Congratulations, you've completed Horror from the Deep!");
-%horror = ^horror_complete;
-~send_quest_progress(questlist:horror, 6, ^horror_complete);
+~send_quest_complete(questlist:horror, unfinished_saradominbook, 250, ^horror_questpoints, "You have completed the\\nHorror from the Deep Quest!", "4,662 Strength XP|4,662 Ranged XP|4,662 Magic XP|Access to the Lighthouse basement");

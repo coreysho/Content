@@ -25,6 +25,18 @@ switch_int(%regicide_quest) {
         ~chatnpc("<p,worried>Tyras Camp lies further south, but it's guarded. One of Tyras' men stands watch on the path - a tough fighter, so be careful.");
         ~chatnpc("<p,neutral>If you get past him, you'll find General Hining at the camp. Good luck.");
         %regicide_quest = ^regicide_met_tracker;
+    case ^regicide_at_tyras_camp :
+        // The return trip. Hining has just thrown the player out, and the tracker is who they were
+        // told to report back to - she is the one who sends them on to Iorwerth rather than letting
+        // them wander back on their own.
+        ~chatplayer("<p,angry>Hining won't let anyone near King Tyras. He wouldn't even hear me out.");
+        ~chatnpc("<p,neutral>No. He wouldn't. That camp has been closed to everyone since the spring, elf and human alike.");
+        ~chatplayer("<p,quiz>Doesn't that strike you as strange?");
+        ~chatnpc("<p,sad>It strikes me as a man with something behind him he doesn't want seen. Whatever is whispering in Tyras' ear, it does not want visitors.");
+        ~chatnpc("<p,neutral>Go back to Lord Iorwerth and tell him what you have told me. He has been waiting a long time for someone to say it out loud.");
+        %regicide_quest = ^regicide_told_tracker;
+    case ^regicide_told_tracker :
+        ~chatnpc("<p,neutral>Lord Iorwerth is north, at the camp. Tell him what Hining told you.");
     case default :
         ~chatnpc("<p,neutral>Keep that pendant safe, and watch yourself around Tyras' guards.");
 }
