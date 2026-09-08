@@ -18,15 +18,19 @@
 // npc_find SETS the active npc on a hit, which would leave the aunt talking in the child's place for
 // the rest of the conversation. The child's uid is captured first and restored afterwards, so the
 // caller's active npc is exactly what it was.
-[proc,mm_aunt_is_listening](coord $where, int $child_uid)(boolean)
+[proc,mm_aunt_is_listening](coord $where, npc_uid $child_uid)(boolean)
 def_boolean $heard = false;
 if (npc_find($where, mm_monkeys_aunt, ^mm_aunt_earshot, 0) = true) {
     $heard = true;
 }
-npc_finduid($child_uid);
+if (npc_finduid($child_uid) = false) {
+    // The child moved or despawned mid-conversation and the active npc is now the aunt or nothing.
+    // Returning true stops the caller talking to the wrong monkey, which is the safe failure.
+    return(true);
+}
 return($heard);
 
-[label,mm_child_talisman](coord $child_at, int $child_uid)
+[label,mm_child_talisman](coord $child_at, npc_uid $child_uid)
 if (%mm_main >= ^mm_has_talisman) {
     ~chatnpc("<p,happy>You've still got my talisman. That's fine. Uncle says you'll bring it back.");
     return;
@@ -45,12 +49,12 @@ if (%mm_monkey_child_waiting_for_talisman = ^false) {
         return;
     }
     ~chatplayer("<p,neutral>I'll trade you for it.");
-    ~chatnpc("<p,happy>Bananas. <^mm_bananas_wanted> of them. Auntie only lets me have one.");
+    ~chatnpc("<p,happy>Bananas. <tostring(^mm_bananas_wanted)> of them. Auntie only lets me have one.");
     %mm_monkey_child_waiting_for_talisman = ^true;
     return;
 }
 if (inv_total(inv, banana) < ^mm_bananas_wanted) {
-    ~chatnpc("<p,sad><^mm_bananas_wanted> bananas. You haven't got <^mm_bananas_wanted> bananas.");
+    ~chatnpc("<p,sad><tostring(^mm_bananas_wanted)> bananas. You haven't got <tostring(^mm_bananas_wanted)> bananas.");
     ~chatplayer("<p,neutral>I'm working on it.");
     return;
 }
