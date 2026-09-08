@@ -1,0 +1,718 @@
+// The Fremennik Trials - Peer the Seer's trial (viking_peer, m41_57 local(10,20)).
+// Wiki: https://oldschool.runescape.wiki/w/The_Fremennik_Trials
+//
+// "Enter the front door to my house, and then come out the other side." You go in carrying nothing
+// and wearing nothing, and everything the puzzle needs is already inside. See
+// configs/quest_viking.constant for the full loc inventory, the coords, and why the house skips
+// plane 1.
+//
+// Two deliberate departures from the modern quest, both forced by the engine rather than chosen:
+//
+//  1. The riddle is multiple choice. Peer's riddle wants a four-letter word typed in, and this
+//     engine has no string input at all - P_COUNTDIALOG (a number) is the only typed dialog opcode
+//     in ScriptOpcode.ts. So the four riddles below each offer five four-letter words and you pick
+//     one. The riddle text itself is the wiki's own form.
+//
+//  2. The two red disks are two different objs. The cache ships viking_red_wooden_coin and
+//     viking_dummy_coin with the same display name ("Red disk") and the same description, which is
+//     almost certainly what they were for: one is found in the house, one is made by goop-ing the
+//     wooden disk. Keeping them distinct is what lets the crate hand out another old disk without
+//     ever handing out a second made one, so the mural can want exactly one of each and no bit has
+//     to be spent remembering which you have.
+//
+// The trial holds ONE bit of state (^viking_bit_peer_riddle) and nothing else. Every item is
+// re-findable and every step re-runnable, so losing or banking a puzzle item cannot dead-end it.
+
+[opnpc1,viking_peer]
+// Peer owes Sigmund a favour too - that chain runs on its own and comes first.
+if (~viking_merchant(13, 18) = true) {
+    return;
+}
+if (%viking < ^viking_started) {
+    ~chatplayer("<p,happy>Hello.");
+    ~chatnpc("<p,neutral>I see a great deal, outerlander. Most of it is weather.");
+    return;
+}
+if (testbit(%viking_bits, ^viking_vote_peer) = 1) {
+    ~chatnpc("<p,happy>In one door and out the other. Not many manage it. You have my vote.");
+    return;
+}
+if (testbit(%viking_bits, ^viking_bit_peer_riddle) = 1) {
+    ~chatnpc("<p,neutral>The front door will open for you now. Go in, and come out the other side.");
+    ~chatnpc("<p,neutral>Nothing in your hands and nothing on your back. That is the whole of the rule.");
+    return;
+}
+~chatplayer("<p,quiz>Peer, I need your vote on the council.");
+~chatnpc("<p,neutral>Do you. Then walk in my front door and come out the other side, and you shall have it gladly.");
+~chatplayer("<p,quiz>That's all?");
+~chatnpc("<p,happy>That is all. You go in with nothing - nothing carried, nothing worn - and you come out with everything you went in for.");
+~chatnpc("<p,neutral>But the door only opens for someone who listens. So listen.");
+@viking_peer_riddle;
+
+// Four riddles, one picked at random each time you ask, so a wrong answer is not the end of it -
+// Peer simply sets another. Each line names a letter of the answer.
+[label,viking_peer_riddle]
+switch_int (random(4)) {
+    case 0 : @viking_riddle_time;
+    case 1 : @viking_riddle_fire;
+    case 2 : @viking_riddle_wind;
+    case default : @viking_riddle_tree;
+}
+
+[label,viking_riddle_time]
+~chatnpc("<p,quiz>My first is in water, and also in tea.|My second is in fish, but not in the sea.|My third is in summer, but never in snow.|My last is in ale, which helps the evening go.");
+if (~p_choice5("Tide", 1, "Time", 2, "Mite", 3, "Lime", 4, "Mind", 5) = 2) {
+    @viking_riddle_right;
+}
+@viking_riddle_wrong;
+
+[label,viking_riddle_fire]
+~chatnpc("<p,quiz>My first is in fjord, and also in foam.|My second is in ice, but not in the loam.|My third is in raven, but not in the wing.|My last is in ember, the last of a thing.");
+if (~p_choice5("Fine", 1, "Mire", 2, "Fire", 3, "Wire", 4, "Hire", 5) = 3) {
+    @viking_riddle_right;
+}
+@viking_riddle_wrong;
+
+[label,viking_riddle_wind]
+~chatnpc("<p,quiz>My first is in walrus, and also in wave.|My second is in island, but not in the cave.|My third is in longboat, but not in the sail.|My last is in dread, but never in air.");
+if (~p_choice5("Wine", 1, "Mind", 2, "Kind", 3, "Wind", 4, "Wild", 5) = 4) {
+    @viking_riddle_right;
+}
+@viking_riddle_wrong;
+
+[label,viking_riddle_tree]
+~chatnpc("<p,quiz>My first is in torch, and also in tar.|My second is in raven, but not in the moon.|My third is in ember, but not in the ash.|My last is in beech, and also in elm.");
+if (~p_choice5("Thee", 1, "Free", 2, "Teem", 3, "Tide", 4, "Tree", 5) = 5) {
+    @viking_riddle_right;
+}
+@viking_riddle_wrong;
+
+// The bit goes down before the dialogue, not after: every ~chatnpc ends in p_pausebutton and aborts
+// the script if the player dismisses it, and a right answer that did not stick would be miserable.
+[label,viking_riddle_right]
+%viking_bits = setbit(%viking_bits, ^viking_bit_peer_riddle);
+~chatnpc("<p,happy>Hah. You do listen.");
+~chatnpc("<p,neutral>The front door is open. Go in with nothing at all, and come out the other side.");
+
+[label,viking_riddle_wrong]
+~chatnpc("<p,neutral>No. Come back when you have thought about it and I will set you another.");
+
+
+// --- The house ---
+//
+// The ground floor is two separate rooms. A full wall runs up x=9/x=10 from z=11 to z=18
+// (viking_wall_braces_straight facing east, doubled by viking_longhall_wall_inside facing west), so
+// the front door at (7,19) opens into the WEST room and the far door at (12,19) leaves from the
+// EAST room, and there is no way between them on the ground at all. The only connection is up the
+// west ladder, across the puzzle floor, and back down the east trapdoor - which is what makes
+// "come out the other side" a literal instruction rather than a figure of speech. The mural hangs
+// on the east face of that dividing wall, in the east room, which is why the wiki has you go down
+// the east ladder to reach it.
+
+[oploc1,viking_seers_door1]
+if (coordz(coord) < ^viking_peer_door_z) {
+    @viking_peer_give_up;
+}
+if (%viking < ^viking_started) {
+    mes("The door is locked.");
+    return;
+}
+if (testbit(%viking_bits, ^viking_vote_peer) = 1) {
+    mes("Peer has locked up behind you.");
+    return;
+}
+if (testbit(%viking_bits, ^viking_bit_peer_riddle) = 0) {
+    mes("The door is locked. Peer said something about listening first.");
+    return;
+}
+if (~viking_wearing_anything = true) {
+    ~mesbox("The door will not shift. Peer was clear about it: nothing carried, and nothing worn.");
+    return;
+}
+if (inv_freespace(inv) < inv_size(inv)) {
+    ~mesbox("The door will not shift. Peer was clear about it: nothing carried, and nothing worn.");
+    return;
+}
+p_arrivedelay;
+sound_synth(door_open, 1, 0);
+p_telejump(^viking_peer_inside);
+~mesbox("The door swings shut behind you. There is a ladder, a wall with no door in it, and no way on but up.");
+
+// Letting yourself back out the way you came. Nothing in this house leaves it, which is also what
+// keeps the trial re-runnable: the next entry starts from a genuinely empty inventory.
+[label,viking_peer_give_up]
+~viking_peer_strip;
+p_arrivedelay;
+sound_synth(door_open, 1, 0);
+p_telejump(^viking_peer_giveup);
+~mesbox("You let yourself back out the front. Peer's house keeps what belongs to it - your hands are empty again.");
+
+[oploc1,viking_seers_door2]
+if (coordz(coord) >= ^viking_peer_door_z) {
+    mes("It's locked, and barred from the inside.");
+    return;
+}
+if (inv_total(inv, viking_key) = 0) {
+    ~mesbox("This door is locked. There is a keyhole in it, and nothing in your hand to put in the keyhole.");
+    return;
+}
+// Everything before the first dialogue: ~mesbox ends in p_pausebutton and aborts if dismissed, and
+// a player who clicks away halfway out of the house should not lose the vote they just earned.
+~viking_peer_strip;
+%viking_bits = setbit(%viking_bits, ^viking_vote_peer);
+p_arrivedelay;
+sound_synth(door_open, 1, 0);
+p_telejump(^viking_peer_outside);
+mes("Peer the Seer has given you his vote.");
+~mesbox("The key turns, and you step out of the far side of Peer's house into the daylight.");
+
+// --- Up and down ---
+// Both ladders and both trapdoors are single placements in the cache, but loc_change can put a
+// second copy of either trapdoor type on the map for a while, so which one was clicked is read off
+// its own x - the same trick Jarvald's ferry uses.
+
+[oploc1,viking_seer_up_ladder]
+p_arrivedelay;
+anim(human_pickuptable, 0);
+p_telejump(^viking_peer_upstairs_west);
+mes("You climb the ladder.");
+
+[oploc1,viking_seer_down_ladder]
+p_arrivedelay;
+anim(human_pickuptable, 0);
+p_telejump(^viking_peer_upstairs_east);
+mes("You climb the ladder.");
+
+[oploc1,viking_seer_trapdoor_open]
+def_coord $here = loc_coord;
+p_arrivedelay;
+anim(human_pickuptable, 0);
+if (coordx($here) < ^viking_peer_east_west_split) {
+    p_telejump(^viking_peer_ground_west);
+} else {
+    p_telejump(^viking_peer_ground_east);
+}
+mes("You climb down through the trapdoor.");
+
+[oploc2,viking_seer_trapdoor_open]
+p_arrivedelay;
+anim(human_closechest, 0);
+loc_change(viking_seer_trapdoor_closed, ^viking_peer_loc_revert);
+mes("You close the trapdoor.");
+
+[oploc1,viking_seer_trapdoor_closed]
+p_arrivedelay;
+anim(human_openchest, 0);
+loc_change(viking_seer_trapdoor_open, ^viking_peer_loc_revert);
+mes("You heave the trapdoor open.");
+
+
+// --- What is in the house ---
+// Five things to find, all upstairs. Every searchable hands its item out again whenever you are not
+// already holding it, so nothing here can be lost for good.
+
+[oploc1,viking_cupboardhigh]
+p_arrivedelay;
+anim(human_openchest, 0);
+sound_synth(cupboard_open, 1, 0);
+loc_change(viking_cupboardopen_high, ^viking_peer_loc_revert);
+mes("You open the cupboard.");
+
+[oploc1,viking_cupboardopen_high]
+p_arrivedelay;
+anim(human_closechest, 0);
+sound_synth(cupboard_close, 1, 0);
+loc_change(viking_cupboardhigh, ^viking_peer_loc_revert);
+mes("You close the cupboard.");
+
+[oploc2,viking_cupboardopen_high]
+~viking_peer_search(~viking_has_bucket, viking_bucket_empty, "There is a wooden bucket in the cupboard with a 5 painted on its side. You take it.", "Nothing in the cupboard but shelf.");
+
+[oploc1,viking_seerboxes_1]
+~viking_peer_search(~viking_has_jug, viking_jug_empty, "Packed in among the straw is a jug with a 3 painted on its side. You take it.", "Straw, and more straw.");
+
+[oploc1,viking_seer_bookcase]
+~viking_peer_search(~viking_has_disk_blank, viking_uncoloured_wooden_coin, "Slotted in behind the books is a plain wooden disk, about the size of a coin. You take it.", "Books on tides, books on weather, and one on the correct filleting of eels.");
+
+[oploc1,viking_seercrate]
+~viking_peer_search(~viking_has_herring, viking_red_herring, "There is a herring in the crate, and somebody has painted it bright red. You take it.", "The crate smells of fish and holds none.");
+
+[oploc1,viking_seercrate_2]
+~viking_peer_search(~viking_has_disk_red, viking_dummy_coin, "Down in the corner of the crate is a small red disk, made of wood and gone tacky with age. You take it.", "Nothing else down there.");
+
+[oploc1,viking_seerboxes_3]
+p_arrivedelay;
+anim(human_openchest, 0);
+mes("Sailcloth, and a great deal of it.");
+
+[oploc1,viking_seer_chest_closed]
+p_arrivedelay;
+anim(human_openchest, 0);
+sound_synth(cupboard_open, 1, 0);
+loc_change(viking_seer_chest_open, ^viking_peer_loc_revert);
+mes("You open the chest.");
+
+[oploc1,viking_seer_chest_open]
+p_arrivedelay;
+anim(human_closechest, 0);
+sound_synth(cupboard_close, 1, 0);
+loc_change(viking_seer_chest_closed, ^viking_peer_loc_revert);
+mes("You close the chest.");
+
+[oploc2,viking_seer_chest_open]
+p_arrivedelay;
+mes("Empty, apart from a great deal of dust.");
+
+// The two mounted heads are the clue to the mural: one hollow each, and the paint tells you what
+// goes in them.
+[oploc1,viking_unimountedhead]
+p_arrivedelay;
+~mesbox("Somebody has painted a small red disk onto the plaque below the unicorn. There is a second plaque across the room.");
+
+[oploc1,viking_bullmountedhead]
+p_arrivedelay;
+~mesbox("Somebody has painted a small red disk onto the plaque below the bull. There is a second plaque across the room.");
+
+[proc,viking_peer_search](boolean $already, namedobj $give, string $found, string $empty)
+p_arrivedelay;
+anim(human_openchest, 0);
+p_delay(1);
+if ($already = true) {
+    mes($empty);
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("You don't have room to pick anything else up.");
+    return;
+}
+inv_add(inv, $give, 1);
+~mesbox($found);
+
+
+// --- The mural ---
+// The disks are not consumed. They are pressed into the hollows and taken back out, which is the
+// one place this departs from the original for a reason worth stating: a consumed pair plus a lost
+// lid would mean re-cooking a herring you may no longer be able to find a crate for. Nothing in
+// this house is a one-way door.
+
+[oploc1,viking_seers_mural] @viking_mural_study;
+[oploc1,viking_seers_mural_done] @viking_mural_study;
+
+[label,viking_mural_study]
+p_arrivedelay;
+if (~viking_has_lid_or_later = true) {
+    ~mesbox("Two round hollows sit in the swirl of colour. You already have what came out of them.");
+    return;
+}
+if (inv_total(inv, viking_dummy_coin) = 0 | inv_total(inv, viking_red_wooden_coin) = 0) {
+    ~mesbox("It is a swirl of colour with no picture in it at all, and set into the swirl are two round hollows the size of a coin. The paint around both of them is red.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    ~mesbox("The hollows take the two disks and something behind the wall gives - but your hands are too full to catch what falls out.");
+    return;
+}
+loc_change(viking_seers_mural_done, ^viking_peer_loc_revert);
+inv_add(inv, viking_vase_lid, 1);
+~mesbox("You press the two red disks into the hollows. Something behind the wall turns over, and a small screw-on lid drops out at your feet. You take the disks back.");
+
+
+// --- Water ---
+// The bucket is marked 5, the jug 3, and the balance lock wants exactly 4: fill the bucket, pour it
+// into the jug (2 left), empty the jug, pour the 2 across, fill the bucket again, and top the jug
+// up from it - the jug takes 1 and leaves 4 behind.
+
+[oplocu,viking_seers_tap]
+def_obj $used = last_useitem;
+p_arrivedelay;
+def_int $kind = ~viking_container_kind($used);
+if ($kind = 0) {
+    ~displaymessage(^dm_default);
+    return;
+}
+def_int $cap = ~viking_container_cap($kind);
+if (~viking_container_level($used) = $cap) {
+    mes("It is already full.");
+    return;
+}
+inv_del(inv, $used, 1);
+~viking_give_container($kind, $cap);
+mes("You fill it to the brim.");
+
+[oplocu,viking_seers_drain]
+def_obj $used = last_useitem;
+p_arrivedelay;
+def_int $kind = ~viking_container_kind($used);
+if ($kind = 0) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (~viking_container_level($used) = 0) {
+    mes("It is already empty.");
+    return;
+}
+inv_del(inv, $used, 1);
+~viking_give_container($kind, 0);
+mes("You tip the water down the drain.");
+
+[opheldu,viking_bucket_empty] @viking_pour;
+[opheldu,viking_bucket_1] @viking_pour;
+[opheldu,viking_bucket_2] @viking_pour;
+[opheldu,viking_bucket_3] @viking_pour;
+[opheldu,viking_bucket_4] @viking_pour;
+[opheldu,viking_bucket_5] @viking_pour;
+[opheldu,viking_jug_empty] @viking_pour;
+[opheldu,viking_jug_1] @viking_pour;
+[opheldu,viking_jug_2] @viking_pour;
+[opheldu,viking_jug_3] @viking_pour;
+
+// Declared on the containers and on nothing else. OpHeldUHandler tries the TARGET item's [opheldu]
+// first and only then the used item's, swapping the pointers as it goes (OpHeldUHandler.ts:94-101),
+// so inside this label last_item is always the container the trigger fired on and last_useitem is
+// always whatever it met - which is why the vases and the lid need no trigger of their own for
+// pouring, and why one handler covers both click orders.
+[label,viking_pour]
+def_obj $mine = last_item;
+def_obj $other = last_useitem;
+if ($other = viking_airtight_vase | $other = viking_airtight_vase_water | $other = viking_airtight_vase_frozen) {
+    @viking_pour_into_vase($mine, $other);
+}
+if ($other = viking_airtight_vase_with_lid | $other = viking_airtight_vase_with_lid_water | $other = viking_airtight_vase_with_lid_frozen) {
+    mes("The lid is screwed down tight. Nothing is going in past it.");
+    return;
+}
+def_int $to_kind = ~viking_container_kind($other);
+if ($to_kind = 0) {
+    ~displaymessage(^dm_default);
+    return;
+}
+def_int $from_kind = ~viking_container_kind($mine);
+if ($from_kind = $to_kind) {
+    mes("Pouring one into its twin would tell you nothing you don't already know.");
+    return;
+}
+def_int $from = ~viking_container_level($mine);
+if ($from = 0) {
+    mes("There is nothing in it to pour.");
+    return;
+}
+def_int $to = ~viking_container_level($other);
+def_int $room = calc(~viking_container_cap($to_kind) - $to);
+if ($room = 0) {
+    mes("The other one is already full to the brim.");
+    return;
+}
+def_int $moved = $from;
+if ($moved > $room) {
+    $moved = $room;
+}
+inv_del(inv, $mine, 1);
+inv_del(inv, $other, 1);
+~viking_give_container($from_kind, calc($from - $moved));
+~viking_give_container($to_kind, calc($to + $moved));
+mes("You pour carefully from one into the other until one of them stops taking it.");
+
+[label,viking_pour_into_vase](obj $mine, obj $vase)
+if ($vase ! viking_airtight_vase) {
+    mes("There is water in the vase already.");
+    return;
+}
+def_int $level = ~viking_container_level($mine);
+if ($level = 0) {
+    mes("There is nothing in it to pour.");
+    return;
+}
+def_int $kind = ~viking_container_kind($mine);
+inv_del(inv, $mine, 1);
+inv_del(inv, viking_airtight_vase, 1);
+~viking_give_container($kind, 0);
+inv_add(inv, viking_airtight_vase_water, 1);
+mes("You pour the water into the vase.");
+
+
+// --- The frozen table and the range ---
+// Water expands when it freezes. That is the whole puzzle: seal the water in and the ice has
+// nowhere to go but through the vase. The cache ships a frozen form of the bucket, the jug and both
+// vases, so every wrong thing you can put on the table has an answer of its own and the right one
+// is findable by trying.
+
+[oplocu,viking_small_table_frozen]
+def_obj $used = last_useitem;
+p_arrivedelay;
+switch_obj ($used) {
+    case viking_airtight_vase_with_lid_water :
+        inv_del(inv, viking_airtight_vase_with_lid_water, 1);
+        inv_add(inv, viking_airtight_vase_with_lid_frozen, 1);
+        ~mesbox("You rest the sealed vase on the frozen table. The water in it turns to ice, the ice wants more room than the water did, and something inside gives with a crack.");
+    case viking_airtight_vase_with_lid :
+        mes("The vase is sealed, but there is nothing in it to freeze.");
+    case viking_airtight_vase_water :
+        inv_del(inv, viking_airtight_vase_water, 1);
+        inv_add(inv, viking_airtight_vase_frozen, 1);
+        ~mesbox("The water freezes solid - and simply climbs up out of the open neck of the vase. If it is to push against anything it will have to be shut in first.");
+    case viking_airtight_vase :
+        mes("There is nothing in the vase to freeze.");
+    case viking_bucket_1, viking_bucket_2, viking_bucket_3, viking_bucket_4, viking_bucket_5 :
+        inv_del(inv, $used, 1);
+        inv_add(inv, viking_bucket_frozen, 1);
+        mes("The water in the bucket freezes solid.");
+    case viking_jug_1, viking_jug_2, viking_jug_3 :
+        inv_del(inv, $used, 1);
+        inv_add(inv, viking_jug_frozen, 1);
+        mes("The water in the jug freezes solid.");
+    case viking_bucket_empty, viking_jug_empty :
+        mes("It is empty. Freezing it would achieve nothing.");
+    case default : ~displaymessage(^dm_default);
+}
+
+[oplocu,viking_seer_range]
+def_obj $used = last_useitem;
+p_arrivedelay;
+switch_obj ($used) {
+    case viking_red_herring : @viking_range_swap(viking_red_herring, viking_red_splat, "The herring cooks down to almost nothing, and what is left of the colouring comes away as a lump of sticky red goop.");
+    case viking_key_in_ice : @viking_range_swap(viking_key_in_ice, viking_key, "The ice melts off and leaves a small brass key sitting on the range.");
+    case viking_bucket_frozen : @viking_range_swap(viking_bucket_frozen, viking_bucket_5, "The ice melts back into water. The bucket is full again.");
+    case viking_jug_frozen : @viking_range_swap(viking_jug_frozen, viking_jug_3, "The ice melts back into water. The jug is full again.");
+    case viking_airtight_vase_frozen : @viking_range_swap(viking_airtight_vase_frozen, viking_airtight_vase_water, "The ice in the vase melts back to water.");
+    case viking_airtight_vase_with_lid_frozen :
+        mes("It is cracked already. Take the lid off before you melt what is holding it together.");
+    case default : ~displaymessage(^dm_default);
+}
+
+// The swap happens after the delay, not before it: if the cook is interrupted the script is
+// abandoned and nothing has been consumed.
+[label,viking_range_swap](obj $from, namedobj $to, string $line)
+anim(human_cooking, 0);
+sound_synth(fry, 1, 0);
+p_delay(2);
+if (inv_total(inv, $from) = 0) {
+    return;
+}
+inv_del(inv, $from, 1);
+inv_add(inv, $to, 1);
+~mesbox($line);
+
+
+// --- The vase ---
+// These six replace the placeholder stubs that used to sit in
+// general_use/scripts/item_ops_generated.rs2, which is why they had to come out of that file first.
+
+[opheld1,viking_airtight_vase] mes("You shake the vase. Something small rattles around inside, and stays inside.");
+[opheld1,viking_airtight_vase_water] mes("You shake the vase. The water sloshes about; whatever is in there does not come out with it.");
+[opheld1,viking_airtight_vase_frozen] mes("The contents are frozen solid. Nothing moves at all.");
+
+[opheld1,viking_airtight_vase_with_lid] @viking_unseal(viking_airtight_vase_with_lid, viking_airtight_vase);
+[opheld1,viking_airtight_vase_with_lid_water] @viking_unseal(viking_airtight_vase_with_lid_water, viking_airtight_vase_water);
+
+[label,viking_unseal](obj $sealed, namedobj $open)
+if (inv_freespace(inv) < 1) {
+    mes("You need a free hand to take the lid off.");
+    return;
+}
+inv_del(inv, $sealed, 1);
+inv_add(inv, $open, 1);
+inv_add(inv, viking_vase_lid, 1);
+mes("You unscrew the lid from the vase.");
+
+// The one that matters. The vase is destroyed along with the lid - the ice has already split it -
+// and another of each is available from the chest and the mural if it comes to that.
+[opheld1,viking_airtight_vase_with_lid_frozen]
+inv_del(inv, viking_airtight_vase_with_lid_frozen, 1);
+inv_add(inv, viking_key_in_ice, 1);
+~mesbox("The lid comes away and the vase falls apart in your hands - the ice inside has split it from top to bottom. Frozen into the middle of the ice is a key.");
+
+[opheldu,viking_vase_lid]
+switch_obj (last_useitem) {
+    case viking_airtight_vase :
+        inv_del(inv, viking_vase_lid, 1);
+        inv_del(inv, viking_airtight_vase, 1);
+        inv_add(inv, viking_airtight_vase_with_lid, 1);
+        mes("You screw the lid down onto the vase.");
+    case viking_airtight_vase_water :
+        inv_del(inv, viking_vase_lid, 1);
+        inv_del(inv, viking_airtight_vase_water, 1);
+        inv_add(inv, viking_airtight_vase_with_lid_water, 1);
+        mes("You screw the lid down onto the vase. It is airtight, and full of water.");
+    case viking_airtight_vase_frozen :
+        mes("The ice is standing proud of the neck. The lid will not go on over it.");
+    case default : ~displaymessage(^dm_default);
+}
+
+[opheldu,viking_red_splat]
+if (last_useitem ! viking_uncoloured_wooden_coin) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, viking_red_splat, 1);
+inv_del(inv, viking_uncoloured_wooden_coin, 1);
+inv_add(inv, viking_red_wooden_coin, 1);
+mes("You work the goop over the wooden disk until it is red all over.");
+
+
+// --- The balance lock ---
+// No loc_change here on purpose. The scales chest has no open form of its own in the cache, so
+// swapping it for the plain open chest would leave a shared-world loc that closes back into the
+// wrong thing. It stays shut and the vase simply comes out of it.
+
+[oploc1,viking_seer_chest_closed_scales]
+p_arrivedelay;
+~mesbox("The lid will not lift. Where a keyhole should be there is a shallow pan on a balance arm, and a mark scratched on the upright beside it, four fifths of the way up.");
+
+[oplocu,viking_seer_chest_closed_scales]
+def_obj $used = last_useitem;
+p_arrivedelay;
+if (~viking_container_kind($used) ! 1) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (~viking_container_level($used) ! ^viking_scales_target) {
+    mes("You rest the bucket on the pan. The arm swings, settles somewhere short of the mark, and the lid stays shut.");
+    return;
+}
+if (~viking_has_vase_chain = true) {
+    mes("The arm settles on the mark and the lid gives - but the chest is empty. You already have what was in it.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("The lid gives, but you have nowhere to put what is inside.");
+    return;
+}
+inv_add(inv, viking_airtight_vase, 1);
+~mesbox("The pan sinks, the arm comes level with the mark, and the lid springs up. Inside is a squat little vase, sealed, with something glinting in it.");
+
+
+// --- Helpers ---
+// Containers are handled as (kind, level) rather than as twenty named objs, so the pour arithmetic
+// is written once. Kind 1 is the bucket (capacity 5), kind 2 the jug (capacity 3), 0 is "not a
+// container". The frozen forms deliberately report kind 0: a block of ice does not pour.
+
+[proc,viking_container_kind](obj $o)(int)
+switch_obj ($o) {
+    case viking_bucket_empty, viking_bucket_1, viking_bucket_2, viking_bucket_3, viking_bucket_4, viking_bucket_5 : return(1);
+    case viking_jug_empty, viking_jug_1, viking_jug_2, viking_jug_3 : return(2);
+    case default : return(0);
+}
+
+[proc,viking_container_level](obj $o)(int)
+switch_obj ($o) {
+    case viking_bucket_empty, viking_jug_empty : return(0);
+    case viking_bucket_1, viking_jug_1 : return(1);
+    case viking_bucket_2, viking_jug_2 : return(2);
+    case viking_bucket_3, viking_jug_3 : return(3);
+    case viking_bucket_4 : return(4);
+    case viking_bucket_5 : return(5);
+    case default : return(0);
+}
+
+[proc,viking_container_cap](int $kind)(int)
+if ($kind = 1) {
+    return(^viking_bucket_cap);
+}
+return(^viking_jug_cap);
+
+[proc,viking_give_container](int $kind, int $level)
+if ($kind = 1) {
+    switch_int ($level) {
+        case 0 : inv_add(inv, viking_bucket_empty, 1);
+        case 1 : inv_add(inv, viking_bucket_1, 1);
+        case 2 : inv_add(inv, viking_bucket_2, 1);
+        case 3 : inv_add(inv, viking_bucket_3, 1);
+        case 4 : inv_add(inv, viking_bucket_4, 1);
+        case default : inv_add(inv, viking_bucket_5, 1);
+    }
+    return;
+}
+switch_int ($level) {
+    case 0 : inv_add(inv, viking_jug_empty, 1);
+    case 1 : inv_add(inv, viking_jug_1, 1);
+    case 2 : inv_add(inv, viking_jug_2, 1);
+    case default : inv_add(inv, viking_jug_3, 1);
+}
+
+[proc,viking_has_bucket]()(boolean)
+if (inv_total(inv, viking_bucket_empty) > 0) { return(true); }
+if (inv_total(inv, viking_bucket_1) > 0) { return(true); }
+if (inv_total(inv, viking_bucket_2) > 0) { return(true); }
+if (inv_total(inv, viking_bucket_3) > 0) { return(true); }
+if (inv_total(inv, viking_bucket_4) > 0) { return(true); }
+if (inv_total(inv, viking_bucket_5) > 0) { return(true); }
+if (inv_total(inv, viking_bucket_frozen) > 0) { return(true); }
+return(false);
+
+[proc,viking_has_jug]()(boolean)
+if (inv_total(inv, viking_jug_empty) > 0) { return(true); }
+if (inv_total(inv, viking_jug_1) > 0) { return(true); }
+if (inv_total(inv, viking_jug_2) > 0) { return(true); }
+if (inv_total(inv, viking_jug_3) > 0) { return(true); }
+if (inv_total(inv, viking_jug_frozen) > 0) { return(true); }
+return(false);
+
+// The wooden disk counts as "already have it" once it has been made red, or the crate would keep
+// handing out blanks after the goop has been used.
+[proc,viking_has_disk_blank]()(boolean)
+if (inv_total(inv, viking_uncoloured_wooden_coin) > 0) { return(true); }
+if (inv_total(inv, viking_red_wooden_coin) > 0) { return(true); }
+return(~viking_has_lid_or_later);
+
+[proc,viking_has_disk_red]()(boolean)
+if (inv_total(inv, viking_dummy_coin) > 0) { return(true); }
+return(~viking_has_lid_or_later);
+
+// The herring is spent the moment it becomes goop, and the goop the moment it becomes a red disk,
+// so both of those count as still holding it.
+[proc,viking_has_herring]()(boolean)
+if (inv_total(inv, viking_red_herring) > 0) { return(true); }
+if (inv_total(inv, viking_red_splat) > 0) { return(true); }
+if (inv_total(inv, viking_red_wooden_coin) > 0) { return(true); }
+return(~viking_has_lid_or_later);
+
+[proc,viking_has_lid_or_later]()(boolean)
+if (inv_total(inv, viking_vase_lid) > 0) { return(true); }
+if (inv_total(inv, viking_airtight_vase_with_lid) > 0) { return(true); }
+if (inv_total(inv, viking_airtight_vase_with_lid_water) > 0) { return(true); }
+if (inv_total(inv, viking_airtight_vase_with_lid_frozen) > 0) { return(true); }
+if (inv_total(inv, viking_key_in_ice) > 0) { return(true); }
+if (inv_total(inv, viking_key) > 0) { return(true); }
+return(false);
+
+[proc,viking_has_vase_chain]()(boolean)
+if (inv_total(inv, viking_airtight_vase) > 0) { return(true); }
+if (inv_total(inv, viking_airtight_vase_water) > 0) { return(true); }
+if (inv_total(inv, viking_airtight_vase_frozen) > 0) { return(true); }
+if (inv_total(inv, viking_airtight_vase_with_lid) > 0) { return(true); }
+if (inv_total(inv, viking_airtight_vase_with_lid_water) > 0) { return(true); }
+if (inv_total(inv, viking_airtight_vase_with_lid_frozen) > 0) { return(true); }
+if (inv_total(inv, viking_key_in_ice) > 0) { return(true); }
+if (inv_total(inv, viking_key) > 0) { return(true); }
+return(false);
+
+// Nothing belonging to the house leaves it, whichever door you go out of. This is what lets the
+// entry check demand a completely empty inventory without ever being able to strand anybody: the
+// next attempt always starts from the same clean slate the first one did.
+[proc,viking_peer_strip]
+inv_del(inv, viking_bucket_empty, 28);
+inv_del(inv, viking_bucket_1, 28);
+inv_del(inv, viking_bucket_2, 28);
+inv_del(inv, viking_bucket_3, 28);
+inv_del(inv, viking_bucket_4, 28);
+inv_del(inv, viking_bucket_5, 28);
+inv_del(inv, viking_bucket_frozen, 28);
+inv_del(inv, viking_jug_empty, 28);
+inv_del(inv, viking_jug_1, 28);
+inv_del(inv, viking_jug_2, 28);
+inv_del(inv, viking_jug_3, 28);
+inv_del(inv, viking_jug_frozen, 28);
+inv_del(inv, viking_airtight_vase, 28);
+inv_del(inv, viking_airtight_vase_water, 28);
+inv_del(inv, viking_airtight_vase_frozen, 28);
+inv_del(inv, viking_airtight_vase_with_lid, 28);
+inv_del(inv, viking_airtight_vase_with_lid_water, 28);
+inv_del(inv, viking_airtight_vase_with_lid_frozen, 28);
+inv_del(inv, viking_vase_lid, 28);
+inv_del(inv, viking_key_in_ice, 28);
+inv_del(inv, viking_key, 28);
+inv_del(inv, viking_red_herring, 28);
+inv_del(inv, viking_red_splat, 28);
+inv_del(inv, viking_uncoloured_wooden_coin, 28);
+inv_del(inv, viking_red_wooden_coin, 28);
+inv_del(inv, viking_dummy_coin, 28);

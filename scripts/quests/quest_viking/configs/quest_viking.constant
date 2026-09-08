@@ -158,3 +158,59 @@
 ^viking_merchant_noted = 14
 ^viking_merchant_done = 27
 ^viking_note_cost = 5000
+
+// Peer the Seer's trial. The whole house is in the cache and placed, and every loc it uses is
+// placed ONLY in m41_57, so none of the handlers needs a coord guard.
+//
+// The house skips plane 1 entirely: the ladders run from plane 0 straight to plane 2, and plane 1
+// carries nothing but viking_seershouse_edge along x=4 and x=15. That is how the cache ships it, so
+// the climb handlers jump two levels on purpose.
+//
+//   plane 0  viking_seers_door1        (7,19)   the front door
+//            viking_seers_door2        (12,19)  the far door - needs the seer's key
+//            viking_seer_up_ladder     (7,15)   west ladder, up
+//            viking_seer_down_ladder   (12,15)  east ladder, up
+//            viking_seers_mural        (10,15)  the two-disk puzzle
+//   plane 2  viking_seer_trapdoor_open   (7,15)   back down, west
+//            viking_seer_trapdoor_closed (12,15)  back down, east - starts shut
+//            viking_cupboardhigh         (5,12)   the bucket
+//            viking_seers_tap            (5,13)   fill
+//            viking_seers_drain          (5,14)   empty
+//            viking_seer_range           (5,15)   cook and thaw
+//            viking_seer_chest_closed_scales (8,17)  the balance lock
+//            viking_small_table_frozen   (14,17)  freeze
+//            viking_seer_bookcase        (10,17) (11,17)  the wooden disk
+//            viking_seerboxes_1          (9,12) (12,12)   the jug
+//            viking_seercrate            (14,12) (14,13)  the red herring
+//            viking_seercrate_2          (13,12)          the old red disk
+//
+// The trial holds exactly ONE bit of state and nothing else. Every item in the house is re-findable
+// and every step re-runnable, so losing, dropping or banking a puzzle item can never dead-end it -
+// the same rule Sigli's talisman follows. In particular the scales chest hands out another vase,
+// and the mural another lid, whenever you are holding nothing further along the chain.
+^viking_bit_peer_riddle = 24
+
+// All checked against the map: plane 0 interior floor is x5-14 z11-18, plane 2 is x5-14 z12-17, and
+// the ladder locs at (7,15) and (12,15) block their own tile, so every landing is one north of it.
+^viking_peer_inside = 0_41_57_7_18
+^viking_peer_giveup = 0_41_57_7_20
+^viking_peer_outside = 0_41_57_12_20
+^viking_peer_ground_west = 0_41_57_7_14
+^viking_peer_ground_east = 0_41_57_12_14
+^viking_peer_upstairs_west = 2_41_57_7_14
+^viking_peer_upstairs_east = 2_41_57_12_14
+// The two trapdoors and the two ladders share a loc type each, so which one was clicked is read off
+// its own x - the same trick Jarvald's ferry uses. West sits at 2631, east at 2636.
+^viking_peer_east_west_split = 2634
+// Inside the house is z 3659-3666; the doors are the wall on the south edge of z 3667.
+^viking_peer_door_z = 3667
+
+// The balance lock. The bucket is marked 5 and the jug 3, and the chest wants exactly 4 - the
+// classic 5/3 pour. Fill 5, pour into the jug (bucket 2), empty the jug, pour the 2 across, fill
+// the bucket again and top the jug up from it: the jug takes 1 and leaves 4 behind.
+^viking_bucket_cap = 5
+^viking_jug_cap = 3
+^viking_scales_target = 4
+// How long the opened chest, the shut trapdoor and the completed mural stay changed before they
+// revert. These are shared-world locs in a per-player puzzle, so nothing is changed permanently.
+^viking_peer_loc_revert = 100

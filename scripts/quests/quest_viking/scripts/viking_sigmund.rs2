@@ -76,13 +76,9 @@ if (~viking_merchant(10, 15) = true) {
 }
 ~chatnpc("<p,happy>Drink? You look like you need one.");
 
-// Peer's own trial is not built yet - this handler exists so the merchant chain can reach him, and
-// the trial will slot in underneath the same guard when it is written.
-[opnpc1,viking_peer]
-if (~viking_merchant(13, 18) = true) {
-    return;
-}
-~chatnpc("<p,neutral>I see a great deal, outerlander. Most of it is weather.");
+// Peer's handler lives in viking_peer.rs2 with the rest of his trial - a trigger can only be
+// declared once, and his merchant link is two lines of a much larger script. The guard call is the
+// first thing that file does.
 
 [opnpc1,viking_askelapen]
 if (%viking < ^viking_started) {
