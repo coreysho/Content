@@ -210,18 +210,18 @@ if ($option = 2) {
     return;
 }
 ~chatplayer("<p,neutral>I'm ready.");
-%rd_patience_running = 1;
+%rd_rooms_tempvar2 = setbit(%rd_rooms_tempvar2, ^rd_bit_patience);
 queue(rd_patience_result, ^rd_patience_check, 0);
 mes("You stand perfectly still.");
 p_delay(^rd_patience_ticks);
-%rd_patience_running = 0;
+%rd_rooms_tempvar2 = clearbit(%rd_rooms_tempvar2, ^rd_bit_patience);
 
 [queue,rd_patience_result]
 if (~rd_run_in_progress = false) {
     return;
 }
-if (%rd_patience_running = 1) {
-    %rd_patience_running = 0;
+if (testbit(%rd_rooms_tempvar2, ^rd_bit_patience) = 1) {
+    %rd_rooms_tempvar2 = clearbit(%rd_rooms_tempvar2, ^rd_bit_patience);
     ~rd_fail_room("You moved. Sir Tinley does not appear to be surprised, which is somehow worse.");
     return;
 }

@@ -70,6 +70,13 @@
 // Eight seconds. p_delay is the whole mechanic: any click aborts the script, which is exactly the
 // failure condition. A queue scheduled one tick past the delay reads a flag the delay clears on
 // success, so an interrupted test actively fails rather than silently doing nothing.
+// The "still going" flag is a raw bit on %rd_rooms_tempvar2 rather than a varbit of its own.
+// varbit.pack is a TRACKED, client-transmitted ledger and validateConfigPack only auto-registers
+// new names into it when BUILD_VERIFY is off (PackFile.ts:143) - so a new varbit needs either a
+// manual pack entry or an env change, neither of which is worth spending on one boolean. Bits
+// 27-31 of rd_rooms_tempvar2 are claimed by no varbit, so the base varp is written directly, the
+// same way %viking_bits is.
+^rd_bit_patience = 27
 ^rd_patience_ticks = 13
 ^rd_patience_check = 14
 
