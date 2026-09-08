@@ -33,6 +33,9 @@ if (inv_freespace(inv) >= 2) {
 ~chatnpc("<p,worried>And Traveller - do not tell my advisors.");
 
 [label,mm_narnode_progress]
+if (%mm_main = ^mm_demon_dead) {
+    @mm_narnode_finish;
+}
 ~chatplayer("<p,happy>Hello your highness!");
 switch_int (%mm_main) {
     case ^mm_started, ^mm_daero_briefed :
@@ -46,6 +49,14 @@ switch_int (%mm_main) {
             ~chatplayer("<p,sad>I've lost your seal.");
             ~chatnpc("<p,neutral>Then take another. I have a drawer of them and only one stronghold.");
             inv_add(inv, mm_gnome_royal_seal, 1);
+        }
+    case ^mm_has_sigil :
+        ~chatnpc("<p,worried>Garkor has given you his own sigil. Be careful what you do with it.");
+    case ^mm_complete :
+        if (%mm_daero < ^mm_daero_paid) {
+            ~chatnpc("<p,happy>Daero is waiting to make a soldier of you. Do not keep him.");
+        } else {
+            ~chatnpc("<p,happy>The gnomes and the monkeys, allies. Glough would be furious, and that is the best part.");
         }
     case default :
         ~chatnpc("<p,happy>Better than ever, thanks to you!");
@@ -64,6 +75,9 @@ if (%mm_main < ^mm_started) {
     ~chatplayer("<p,happy>Hello.");
     ~chatnpc("<p,neutral>I'm drinking. Whatever it is, ask someone with a desk.");
     return;
+}
+if (%mm_main = ^mm_complete) {
+    @mm_daero_reward;
 }
 if (%mm_main > ^mm_daero_briefed) {
     ~chatnpc("<p,neutral>You know the way down now. Go on.");
@@ -294,6 +308,9 @@ inv_add(inv, mm_monkey_dentures, 1);
 
 [label,mm_garkor_progress]
 ~chatplayer("<p,happy>Garkor.");
+if (%mm_main >= ^mm_alliance) {
+    @mm_garkor_stage3;
+}
 switch_int (%mm_main) {
     case ^mm_zooknock_briefed :
         ~chatnpc("<p,neutral>Zooknock is waiting on you. A gold bar, the mould and the dentures.");
@@ -314,7 +331,7 @@ if (%mm_main < ^mm_met_garkor) {
 }
 if (%mm_main >= ^mm_has_amulet) {
     ~chatnpc("<p,happy>It holds, then. Good. I have never made one for a human mouth before.");
-    return;
+    @mm_zooknock_greegree;
 }
 if (%mm_main = ^mm_met_garkor) {
     %mm_main = ^mm_zooknock_briefed;
@@ -383,10 +400,15 @@ return(false);
 if (~mm_can_speak_monkey = false) {
     @mm_monkey_gibberish;
 }
+// Captured BEFORE any dialogue. ~chatnpc pauses on p_pausebutton, and the aunt check in
+// @mm_child_talisman does an npc_find, so the child's own coordinate and uid have to be taken while
+// they are still unambiguously his and handed to the label explicitly.
+def_coord $child_at = npc_coord;
+def_int $child_uid = npc_uid;
 ~chatnpc("<p,quiz>You're the human. You're much taller close up.");
 ~chatplayer("<p,happy>You can understand me?");
 ~chatnpc("<p,happy>You're wearing the shouty necklace. Everyone can understand you. Uncle says you'll get eaten.");
-~chatnpc("<p,sad>I want my talisman back. The big ones took it.");
+@mm_child_talisman($child_at, $child_uid);
 
 [opnpc1,mm_monkeys_aunt]
 if (~mm_can_speak_monkey = false) {
@@ -474,5 +496,70 @@ if (%mm_main = ^mm_zooknock_briefed) {
 }
 $x = append($x, "|@str@Zooknock cast the amulet and I strung it. I can understand every|");
 $x = append($x, "@str@monkey on the island.|");
-$x = append($x, "|@dbl@This is as far as this quest goes on this server for now.");
+if (%mm_main = ^mm_has_amulet) {
+    $x = append($x, "|@dbl@Understanding them is not the same as passing for one. @dre@Zooknock@dbl@|");
+    $x = append($x, "@dbl@can fix that, with a real @dre@monkey talisman@dbl@ and a set of @dre@monkey|");
+    $x = append($x, "@dbl@bones@dbl@. A child in the @dre@banana garden@dbl@ has a talisman, and will|");
+    $x = append($x, "@dbl@not say so while his aunt is standing over him.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@A monkey child lent me his talisman for five bananas.|");
+if (%mm_main = ^mm_has_talisman) {
+    $x = append($x, "|@dbl@@dre@Zooknock@dbl@ needs the @dre@talisman@dbl@ and a set of @dre@monkey bones@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@Zooknock worked the talisman and the bones into a greegree. While|");
+$x = append($x, "@str@I hold it I am a monkey, and Marim does not look at me twice.|");
+if (%mm_main = ^mm_has_greegree) {
+    $x = append($x, "|@dbl@The @dre@elder guards@dbl@ at the palace sent me to @dre@Kruk@dbl@, on the hill|");
+    $x = append($x, "@dbl@west of Marim. He decides who gets to see the king.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@King Awowogei will ally with the gnomes for a price: one of his|");
+$x = append($x, "@str@own, caged in Ardougne Zoo.|");
+if (%mm_main = ^mm_met_awowogei) {
+    $x = append($x, "|@dbl@I need to reach the @dre@Ardougne Zoo@dbl@ as a monkey, talk the|");
+    $x = append($x, "@dbl@caged one into my pack, and @dre@walk him back@dbl@ - he will not|");
+    $x = append($x, "@dbl@survive a teleport.");
+    ~quest_journal($n, $x);
+    return;
+}
+if (%mm_main = ^mm_has_zoo_monkey) {
+    $x = append($x, "|@dbl@The monkey is in my pack. @dre@Awowogei@dbl@ is waiting, and I cannot|");
+    $x = append($x, "@dbl@@dre@teleport@dbl@ while I am carrying him.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@Awowogei has his monkey back, and the gnomes have their alliance.|");
+if (%mm_main = ^mm_alliance) {
+    $x = append($x, "|@dbl@I should tell @dre@Garkor@dbl@ - and tell him what the monkeys know|");
+    $x = append($x, "@dbl@about what Glough left under the @dre@Grand Tree@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@Garkor gave me the 10th Squad's sigil. Glough left something|");
+$x = append($x, "@str@under the Grand Tree, and the squad are going down to it.|");
+if (%mm_main = ^mm_has_sigil) {
+    $x = append($x, "|@dbl@@dre@Wearing the sigil@dbl@ will put me where they are. I should go|");
+    $x = append($x, "@dbl@armed, fed and prayed up - whatever is down there is a demon.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@The Jungle Demon is dead.|");
+if (%mm_main = ^mm_demon_dead) {
+    $x = append($x, "|@dbl@@dre@King Narnode@dbl@ needs to hear what his gardener kept in the|");
+    $x = append($x, "@dbl@cellar, and he needs to hear it from me.");
+    ~quest_journal($n, $x);
+    return;
+}
+if (%mm_daero < ^mm_daero_paid) {
+    $x = append($x, "|@str@I told King Narnode everything.|");
+    $x = append($x, "|@dbl@@dre@Daero@dbl@ still owes me the training the King promised.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@red@QUEST COMPLETE!");
 ~quest_journal($n, $x);

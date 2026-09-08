@@ -118,6 +118,11 @@ if (inv_getobj(worn, ^wearpos_rhand) = trollromance_toboggon_waxed) { // Troll R
 }
 
 [proc,pre_tele_checks](coord $coord)(boolean)
+// Monkey Madness: Awowogei's monkey does not survive a teleport, and the walk back to the Grand Tree
+// is the point of that leg of the quest. Same shape as the Ana-in-a-barrel check below it.
+if (~mm_carrying_monkey_teleport_check = false) {
+    return(false);
+}
 if(inv_total(inv, thanainabarrel) > 0) {
     ~chatnpc_specific("Ana (in a Barrel)", anabarrel, "<p,idle>@dbl@-- You can't teleport while holding the barrel, it's just @dbl@too difficult to concentrate. --");
     return(false);

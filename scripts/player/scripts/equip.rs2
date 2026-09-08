@@ -154,6 +154,12 @@ if (p_finduid(uid) = true) {
 if ($obj = castlewars_saradomin_banner | $obj = castlewars_zamorak_banner) {
     ~castlewars_flag_drop(inv, $obj);
 }
+// Monkey Madness: taking a greegree off turns the player back into a human. Hooked here rather than
+// on each of the eight greegree objs because this is the one proc every unequip path funnels
+// through - see quests/quest_mm/scripts/mm_stage3.rs2.
+if (oc_category($obj) = mm_greegree) {
+    ~mm_greegree_removed;
+}
 ~runecraft_unset_no_tally($obj);
 
 // used for duel arena, no weapon/no armour

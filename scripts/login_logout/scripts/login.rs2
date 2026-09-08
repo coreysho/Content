@@ -85,6 +85,10 @@ if (%tutorial < ^tutorial_complete & ~in_tutorial_island(coord) = true) {
 ~update_all(inv_getobj(worn, ^wearpos_rhand));
 cam_reset;
 queue(follower_login, 0, 0);
+// Monkey Madness: p_transmogrify is player state and is not saved, but the worn greegree is. Without
+// this a player who logged out as a monkey logs back in as a human still holding one, and every
+// guard on Ape Atoll reacts to that.
+~mm_greegree_login;
 if (map_live = true) {
     if_openfull(inter_353, inter_313);
     if_settext(inter_353:com_1,"Did you know, all the weapon stats are listed on our new");

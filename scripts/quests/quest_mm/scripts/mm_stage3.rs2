@@ -1,0 +1,566 @@
+// Monkey Madness, stage three: the greegree, Marim, King Awowogei and the Jungle Demon.
+//
+// Stage two ended with the M'speak amulet strung and an island full of monkeys you could suddenly
+// understand. This is the rest of the quest. See ../configs/quest_mm.constant for where every piece
+// of it is placed in the cache, which coordinates were derived and how, and what is still not built.
+
+// ===================================================================================================
+// The monkey child and the talisman
+// ===================================================================================================
+// The wiki has the aunt walk a patrol and the child talk only while she is away. There is no patrol
+// behaviour for her on this server, so the gate is distance instead: he will not hand the talisman
+// over while she is inside ^mm_aunt_earshot tiles of him. Same shape, same result, and it uses the
+// placement the cache ships rather than inventing a route.
+//
+// [opnpc1,mm_monkey_child] in quest_mm.rs2 handles the pre-talisman conversation and jumps here once
+// the amulet exists.
+
+// npc_find SETS the active npc on a hit, which would leave the aunt talking in the child's place for
+// the rest of the conversation. The child's uid is captured first and restored afterwards, so the
+// caller's active npc is exactly what it was.
+[proc,mm_aunt_is_listening](coord $where, int $child_uid)(boolean)
+def_boolean $heard = false;
+if (npc_find($where, mm_monkeys_aunt, ^mm_aunt_earshot, 0) = true) {
+    $heard = true;
+}
+npc_finduid($child_uid);
+return($heard);
+
+[label,mm_child_talisman](coord $child_at, int $child_uid)
+if (%mm_main >= ^mm_has_talisman) {
+    ~chatnpc("<p,happy>You've still got my talisman. That's fine. Uncle says you'll bring it back.");
+    return;
+}
+if (~mm_aunt_is_listening($child_at, $child_uid) = true) {
+    ~chatnpc("<p,worried>Shh. Auntie's right there.");
+    ~chatplayer("<p,quiz>What happens if she hears?");
+    ~chatnpc("<p,sad>She takes it off me again. Wait until she's gone up the path.");
+    return;
+}
+if (%mm_monkey_child_waiting_for_talisman = ^false) {
+    ~chatnpc("<p,quiz>You want my talisman? That's my best thing.");
+    def_int $offer = ~p_choice2("I'll trade you for it.", 1, "Never mind.", 2);
+    if ($offer = 2) {
+        ~chatplayer("<p,neutral>Never mind.");
+        return;
+    }
+    ~chatplayer("<p,neutral>I'll trade you for it.");
+    ~chatnpc("<p,happy>Bananas. <^mm_bananas_wanted> of them. Auntie only lets me have one.");
+    %mm_monkey_child_waiting_for_talisman = ^true;
+    return;
+}
+if (inv_total(inv, banana) < ^mm_bananas_wanted) {
+    ~chatnpc("<p,sad><^mm_bananas_wanted> bananas. You haven't got <^mm_bananas_wanted> bananas.");
+    ~chatplayer("<p,neutral>I'm working on it.");
+    return;
+}
+if (inv_freespace(inv) < 1 & inv_total(inv, banana) = ^mm_bananas_wanted) {
+    // The bananas leave before the talisman arrives, so this only bites on a full pack.
+    ~chatnpc("<p,quiz>Where would you even put it?");
+    return;
+}
+~chatplayer("<p,happy>Five bananas.");
+inv_del(inv, banana, ^mm_bananas_wanted);
+inv_add(inv, mm_monkey_talisman, 1);
+%mm_main = ^mm_has_talisman;
+%mm_monkey_child_waiting_for_talisman = ^false;
+~send_quest_progress(questlist:mm, 9, ^mm_complete);
+~objbox(mm_monkey_talisman, "The monkey child buries his face in the bananas and pushes a small carved talisman at you without looking up.", 250, 0, divide(^objbox_height, 2));
+~chatnpc("<p,happy>Don't lose it. It's my best thing.");
+
+// ===================================================================================================
+// Zooknock carves the greegree
+// ===================================================================================================
+// The second of the two chains the mm_zooknock_has_* varbits describe: talisman plus a monkey relic.
+// mm_zooknock_player_is_collecting_for_talisman is the flag that separates it from the amulet chain,
+// and mm_zooknock_monkey_relic is a 5-bit field recording which relic was used - here always the
+// normal monkey bones, because the normal-monkey greegree is the only one this quest gives.
+//
+// [opnpc1,mm_zooknock] in quest_mm.rs2 jumps here once the amulet is made.
+
+[label,mm_zooknock_greegree]
+if (%mm_main >= ^mm_has_greegree) {
+    ~chatnpc("<p,happy>Hold it and you are a monkey. Put it away and you are not. Try not to think about it too hard.");
+    return;
+}
+if (%mm_main < ^mm_has_talisman) {
+    if (%mm_zooknock_player_is_collecting_for_talisman = ^false) {
+        %mm_zooknock_player_is_collecting_for_talisman = ^true;
+        ~chatplayer("<p,quiz>The amulet lets me hear them. It doesn't stop them screaming when they see me.");
+        ~chatnpc("<p,neutral>No. For that you need to stop being a human, and for that I need a talisman and a relic.");
+        ~chatnpc("<p,neutral>A monkey talisman - a real one, carved by them. And the bones of whatever you want to look like.");
+        ~chatplayer("<p,worried>The bones.");
+        ~chatnpc("<p,neutral>The bones. It is not a pleasant magic. It is an effective one.");
+        return;
+    }
+    ~chatnpc("<p,neutral>A monkey talisman and a set of monkey bones. I cannot start without both.");
+    return;
+}
+if (inv_total(inv, mm_monkey_talisman) < 1) {
+    ~chatnpc("<p,neutral>You had a talisman. Where is the talisman?");
+    return;
+}
+if (inv_total(inv, mm_normal_monkey_bones) < 1) {
+    ~chatnpc("<p,neutral>The talisman, yes. Now the bones. Any monkey on this island that is no longer using them.");
+    return;
+}
+~chatplayer("<p,neutral>Talisman and bones.");
+~chatnpc("<p,neutral>Then hold still and do not watch the middle part.");
+// Everything is spent and granted in one block before the first pausing call, so a dismissed
+// message cannot cost the player the talisman without giving them the greegree.
+inv_del(inv, mm_monkey_talisman, 1);
+inv_del(inv, mm_normal_monkey_bones, 1);
+inv_add(inv, mm_monkey_greegree_for_normal_monkey, 1);
+%mm_zooknock_has_magical_talisman = ^true;
+%mm_zooknock_has_monkey_relic = ^true;
+%mm_zooknock_player_is_collecting_for_talisman = ^false;
+%mm_main = ^mm_has_greegree;
+~send_quest_progress(questlist:mm, 10, ^mm_complete);
+~objbox(mm_monkey_greegree_for_normal_monkey, "Zooknock works the talisman and the bones together into a single carved head. It is warm, and it is looking at you.", 250, 0, divide(^objbox_height, 2));
+~chatnpc("<p,neutral>Hold it and walk into Marim. They will not look at you twice.");
+~chatnpc("<p,worried>Wear the amulet as well, or you will be a monkey who cannot understand monkeys.");
+
+// ===================================================================================================
+// Being a monkey
+// ===================================================================================================
+// The greegrees are the cache's own objs with two lines added - see ../configs/quest_mm.obj. They
+// sit in the weapon slot, which is the whole balance of the thing: you cannot fight while you are a
+// monkey. category=mm_greegree beats the [opheld2,_] global wear, so this trigger does the equip
+// itself and then transmogrifies.
+//
+// p_transmogrify is an engine command that Castle Wars already uses. Unlike Castle Wars this does
+// NOT blank the interface tabs - you keep playing normally, you just happen to be a monkey.
+
+[proc,mm_greegree_form]()(npc)
+def_obj $held = inv_getobj(worn, ^wearpos_rhand);
+if ($held = null) {
+    return(null);
+}
+return(oc_param($held, mm_transmog_npc));
+
+[proc,mm_is_monkey]()(boolean)
+if (~mm_greegree_form ! null) {
+    return(true);
+}
+return(false);
+
+[proc,mm_become_monkey](npc $form)
+p_transmogrify($form);
+~bas_set(m_monkey_ready, m_monkey_walk, m_monkey_walk, m_monkey_walk, m_monkey_walk, m_monkey_walk, null);
+p_animprotect(^true);
+
+[proc,mm_become_human]
+p_transmogrify(null);
+~update_bas;
+p_animprotect(^false);
+
+// iop2=Hold is the cache's own option and is what the client shows, so opheld2 is the real trigger.
+// A category trigger beats the [opheld2,_] global wear, which is why this has to do the equip itself.
+[opheld2,_mm_greegree] @mm_greegree_hold;
+
+[label,mm_greegree_hold]
+if (%mm_main < ^mm_has_greegree) {
+    // Not obtainable before that point in the quest; this only guards a spawned or admin-given one.
+    mes("Nothing happens. Whatever this is, it is not for you yet.");
+    return;
+}
+~equip(last_slot);
+def_npc $form = ~mm_greegree_form;
+if ($form = null) {
+    return;
+}
+~mm_become_monkey($form);
+mes("You hold up the greegree.");
+~mesbox("Your arms shorten, the ground comes up to meet you, and the whole island stops being interested in you.");
+
+// Taking it off. ~on_unequip is the engine-side hook every unequip path in player/scripts/equip.rs2
+// funnels through, and it is patched to call this.
+[proc,mm_greegree_removed]
+~mm_become_human;
+mes("You lower the greegree.");
+
+// Logging in wearing one. p_transmogrify is player state and is not saved, but the worn greegree is,
+// so without this a player logs back in as a human holding a greegree and the island turns on them.
+[proc,mm_greegree_login]
+def_npc $form = ~mm_greegree_form;
+if ($form = null) {
+    return;
+}
+~mm_become_monkey($form);
+
+// ===================================================================================================
+// Marim: the elder guards and Kruk
+// ===================================================================================================
+// The elder guards are the gate. As a human you are stopped; as a monkey with the amulet they let
+// you past and point you at Kruk. This replaces the jail sequence, which is flagged as not built in
+// the constant file - the cache gives no cell coordinate, no guard dialogue and no escape route to
+// build one from, and inventing all three would be worse than saying so.
+
+[opnpc1,mm_elder_guard_1] @mm_elder_guard;
+[opnpc1,mm_elder_guard_2] @mm_elder_guard;
+
+[label,mm_elder_guard]
+if (~mm_is_monkey = false) {
+    ~chatnpc("<p,angry>Kkkkhh! Human! Human at the gate!");
+    ~mesbox("The guard's arm comes across your chest like a felled tree. You are not getting through this way while you look like this.");
+    return;
+}
+if (~mm_can_speak_monkey = false) {
+    @mm_monkey_gibberish;
+}
+if (%mm_main < ^mm_met_awowogei) {
+    ~chatnpc("<p,quiz>I don't know your face.");
+    ~chatplayer("<p,neutral>I'm new.");
+    ~chatnpc("<p,neutral>Nobody is new. Go and see Kruk on the west hill; he decides who is new.");
+    %mm_elder_guard = 1;
+    return;
+}
+~chatnpc("<p,neutral>The king's guest. Go through.");
+
+[opnpc1,mm_kruk]
+if (~mm_is_monkey = false) {
+    ~chatnpc("<p,angry>Kkkkhh!");
+    ~mesbox("Kruk draws both scimitars before you have finished opening your mouth. You back away.");
+    return;
+}
+if (~mm_can_speak_monkey = false) {
+    @mm_monkey_gibberish;
+}
+if (%mm_main < ^mm_has_greegree) {
+    ~chatnpc("<p,neutral>Go away.");
+    return;
+}
+if (%mm_main >= ^mm_alliance) {
+    ~chatnpc("<p,happy>The king's guest. I still don't like you.");
+    return;
+}
+if (%mm_main >= ^mm_met_awowogei) {
+    ~chatplayer("<p,quiz>Take me back up to him.");
+    ~chatnpc("<p,neutral>Again? Fine. Again.");
+    @mm_kruk_carry;
+}
+~chatnpc("<p,angry>You. Stand still while I look at you.");
+~chatplayer("<p,worried>I'm standing still.");
+~chatnpc("<p,quiz>You smell wrong. Not wrong enough to kill. Wrong enough that the king should see it.");
+def_int $go = ~p_choice2("Take me to the king, then.", 1, "I'd rather he didn't.", 2);
+if ($go = 2) {
+    ~chatplayer("<p,worried>I'd rather he didn't.");
+    ~chatnpc("<p,laugh>Nobody asked you.");
+    return;
+}
+~chatplayer("<p,neutral>Take me to the king, then.");
+@mm_kruk_carry;
+
+[label,mm_kruk_carry]
+if_close;
+mes("Kruk picks you up by the scruff of the neck.");
+p_delay(2);
+p_telejump(^mm_throne_room_arrive);
+facesquare(^mm_awowogei_throne);
+~mm_spawn_awowogei;
+~mesbox("Kruk carries you up the hill, through the gate and into the palace, and drops you on the floor in front of a very large monkey on a very small throne.");
+
+// ===================================================================================================
+// King Awowogei
+// ===================================================================================================
+// AWOWOGEI IS NOT PLACED ON ANY MAP SQUARE. The cache has mm_awowogei_cutscene and two 100_ variants
+// and spawns none of them; mm_throne sits at m43_43 (50,13) with nobody on it. Map files are
+// generated and must not be hand-edited, so he is added on demand - the same pattern
+// quest_grandtree uses to put Charlie in his cell.
+
+[proc,mm_spawn_awowogei]
+if (npc_findexact(^mm_awowogei_throne, mm_awowogei_cutscene) = true) {
+    return;
+}
+npc_add(^mm_awowogei_throne, mm_awowogei_cutscene, 500);
+
+[opnpc1,mm_awowogei_cutscene]
+if (~mm_is_monkey = false) {
+    ~mesbox("The king does not look at you. Two guards do, and they are already moving.");
+    return;
+}
+if (~mm_can_speak_monkey = false) {
+    @mm_monkey_gibberish;
+}
+if (%mm_main >= ^mm_alliance) {
+    ~chatnpc("<p,happy>My ally. My small, strangely shaped ally.");
+    return;
+}
+if (%mm_main = ^mm_has_zoo_monkey) {
+    @mm_awowogei_delivery;
+}
+if (%mm_main = ^mm_met_awowogei) {
+    ~chatnpc("<p,neutral>You are still here and you are still empty-handed.");
+    ~chatnpc("<p,neutral>Ardougne. The zoo. One of mine is in it. Bring him home.");
+    return;
+}
+// First audience.
+~chatnpc("<p,quiz>Kruk says you smell wrong. Kruk is not clever but his nose is.");
+~chatplayer("<p,neutral>I'm not from here.");
+~chatnpc("<p,laugh>No. You are the human. Sit down before somebody notices you are sitting down.");
+~chatplayer("<p,quiz>You knew.");
+~chatnpc("<p,neutral>I knew when you walked in. A monkey that walks like a soldier is a soldier.");
+~chatplayer("<p,neutral>King Narnode wants his squad back. I'd rather nobody else died for Glough's business.");
+~chatnpc("<p,angry>Glough. That name is why my archers are on every roof in Marim.");
+~chatnpc("<p,neutral>An alliance, then. Gnome and monkey, against the one who wanted us at each other.");
+~chatplayer("<p,quiz>What does it cost?");
+~chatnpc("<p,neutral>One of mine sits in a cage in Ardougne, in a place they call a zoo. Bring him home and you may have your alliance and your squad.");
+~chatplayer("<p,worried>Ardougne is a long way.");
+~chatnpc("<p,laugh>Yes. And you cannot magic him here - he will not survive it. You will walk him out and you will carry him.");
+%mm_main = ^mm_met_awowogei;
+%mm_awowogei = 1;
+~send_quest_progress(questlist:mm, 11, ^mm_complete);
+
+[label,mm_awowogei_delivery]
+~chatplayer("<p,happy>I have him.");
+~chatnpc("<p,happy>You do. You actually do.");
+inv_del(inv, mm_monkey_in_backpack, 1);
+%mm_main = ^mm_alliance;
+%mm_awowogei = 2;
+~send_quest_progress(questlist:mm, 13, ^mm_complete);
+~mesbox("The monkey climbs out of your pack, crosses the floor without hurrying, and sits down beside the throne as though he had never left it.");
+~chatnpc("<p,happy>Then it is done. Tell Garkor the monkeys are with him.");
+~chatnpc("<p,neutral>And tell him what is under the gnomes' own tree, because he will not believe it from me.");
+
+// ===================================================================================================
+// The Ardougne Zoo
+// ===================================================================================================
+// mm_monkey_minder x3 and mm_zoo_monkey x7 are placed at m40_51 and none of them had a script.
+
+[opnpc1,mm_monkey_minder]
+if (%mm_main < ^mm_met_awowogei | %mm_main >= ^mm_alliance) {
+    ~chatplayer("<p,quiz>Do you look after these monkeys?");
+    ~chatnpc("<p,happy>Somebody has to. They're a lot brighter than they let on.");
+    return;
+}
+if (~mm_is_monkey = false) {
+    ~chatplayer("<p,quiz>Can I get into the monkey cage?");
+    ~chatnpc("<p,laugh>Can you get into the... no. No, you cannot get into the monkey cage.");
+    ~chatnpc("<p,neutral>Monkeys only. That's rather the point of a cage.");
+    %mm_monkey_minder = 1;
+    return;
+}
+~chatnpc("<p,quiz>Now where did you come from?");
+~chatplayer("<p,neutral>Ook.");
+~chatnpc("<p,happy>...well, in you go then. Try not to bite anyone.");
+~mesbox("The minder lifts the gate for you.");
+
+[opnpc1,mm_zoo_monkey]
+if (~mm_is_monkey = false) {
+    ~chatnpc("<p,sad>Eeek.");
+    ~chatplayer("<p,neutral>It just looks at you.");
+    return;
+}
+if (~mm_can_speak_monkey = false) {
+    @mm_monkey_gibberish;
+}
+if (%mm_main ! ^mm_met_awowogei) {
+    ~chatnpc("<p,sad>You're not from the zoo either, are you.");
+    return;
+}
+if (inv_total(inv, mm_monkey_in_backpack) > 0) {
+    ~chatnpc("<p,neutral>You've already got one of us in there.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,quiz>Where would I go? Your pack is full.");
+    return;
+}
+~chatnpc("<p,quiz>You're not one of the zoo ones. You smell like the island.");
+~chatplayer("<p,neutral>Awowogei sent me. I'm taking you home.");
+~chatnpc("<p,happy>Home.");
+def_int $go = ~p_choice2("Climb in. I'll carry you.", 1, "Wait here a moment.", 2);
+if ($go = 2) {
+    ~chatplayer("<p,neutral>Wait here a moment.");
+    ~chatnpc("<p,neutral>I have waited four years. I can wait a moment.");
+    return;
+}
+~chatplayer("<p,neutral>Climb in. I'll carry you.");
+inv_add(inv, mm_monkey_in_backpack, 1);
+%mm_main = ^mm_has_zoo_monkey;
+~send_quest_progress(questlist:mm, 12, ^mm_complete);
+~objbox(mm_monkey_in_backpack, "The monkey climbs into your pack, arranges itself, and pokes you once to see whether you are real.", 250, 0, divide(^objbox_height, 2));
+~mesbox("Do not try to teleport with him. Awowogei was specific about that.");
+
+// The one rule the wiki gives for carrying him: no teleporting. This is the check every teleport in
+// the repo already funnels through, extended rather than duplicated - see the patch note in
+// skill_magic/scripts/spells/teleport.rs2.
+[proc,mm_carrying_monkey_teleport_check]()(boolean)
+if (inv_total(inv, mm_monkey_in_backpack) = 0) {
+    return(true);
+}
+~mesbox("The monkey in your pack grabs your arm and will not let go. Awowogei said he would not survive a teleport, and the monkey appears to agree.");
+return(false);
+
+// iop1=Poke is already answered by [opheld1,mm_monkey_in_backpack] in
+// general_use/scripts/item_ops_generated.rs2 ("The monkey pokes you back and grins."), which the
+// duplicate-trigger check caught. Left to that file rather than fought over for one line of flavour.
+
+// ===================================================================================================
+// Garkor, the sigil, and the way in
+// ===================================================================================================
+
+[label,mm_garkor_stage3]
+if (%mm_main = ^mm_alliance) {
+    ~chatplayer("<p,happy>Awowogei has agreed. The monkeys are with you.");
+    ~chatnpc("<p,shock>He agreed. He actually agreed.");
+    ~chatplayer("<p,neutral>There's more. Glough has something under the Grand Tree - the monkeys have known for months.");
+    ~chatnpc("<p,angry>Under our own tree. Of course it is.");
+    if (inv_freespace(inv) < 1) {
+        ~chatnpc("<p,neutral>I have something for you and nowhere to put it. Make room.");
+        return;
+    }
+    inv_add(inv, mm_sigil, 1);
+    %mm_main = ^mm_has_sigil;
+    ~send_quest_progress(questlist:mm, 14, ^mm_complete);
+    ~objbox(mm_sigil, "Garkor unpins the 10th Squad's sigil from his own shoulder and presses it into your hand.", 250, 0, divide(^objbox_height, 2));
+    ~chatnpc("<p,neutral>Wear that and it will put you where we are. Do not wear it until you are ready to fight.");
+    ~chatnpc("<p,worried>Bring food. Bring prayer. Whatever is down there was not made by anything from this island.");
+    return;
+}
+if (%mm_main = ^mm_has_sigil) {
+    ~chatnpc("<p,neutral>Wear the sigil when you are ready. We will already be there.");
+    return;
+}
+if (%mm_main = ^mm_demon_dead) {
+    ~chatnpc("<p,happy>Go home, human. Tell Narnode what his gardener kept in the cellar.");
+    return;
+}
+~chatnpc("<p,neutral>Keep out of the open.");
+
+// ===================================================================================================
+// The final battle
+// ===================================================================================================
+// The arena is the room behind mm_wallcrack_final_battle_room on m37_154, the only square that loc is
+// placed on. It is small and pillared; every coordinate is derived in the constant file.
+//
+// DEVIATION, FLAGGED: in the real quest the 10th Squad fight alongside you and can steal the kill,
+// which heals the demon. Here they are spawned as onlookers and do no damage. Squad combat AI is a
+// large piece of work on its own, and the kill-steal mechanic exists in the original mainly as a
+// failure mode - a fight you can lose to your own allies. Left out deliberately rather than faked.
+
+[opheld2,mm_sigil]
+if (%mm_main < ^mm_has_sigil) {
+    ~equip(last_slot);
+    return;
+}
+if (%mm_main > ^mm_has_sigil) {
+    ~equip(last_slot);
+    return;
+}
+if_close;
+~chatplayer("<p,worried>Right. Now or not at all.");
+mes("You pin the sigil to your chest.");
+p_delay(2);
+%mm_waiting_for_final_battle = ^true;
+p_telejump(^mm_demon_arena);
+~mm_spawn_final_battle;
+facesquare(^mm_demon_spawn);
+~mesbox("The world folds over once. You are standing in a cave that smells of burning, and the 10th Squad are standing with you, and something very large is unfolding itself out of the dark.");
+
+[proc,mm_spawn_final_battle]
+%mm_been_to_final_battle = ^true;
+if (npc_findexact(^mm_demon_spawn, mm_demon) = false) {
+    npc_add(^mm_demon_spawn, mm_demon, 500);
+}
+if (npc_findexact(^mm_squad_spawn_1, mm_garkor_final_battle) = false) {
+    npc_add(^mm_squad_spawn_1, mm_garkor_final_battle, 500);
+}
+if (npc_findexact(^mm_squad_spawn_2, mm_karam_final_battle) = false) {
+    npc_add(^mm_squad_spawn_2, mm_karam_final_battle, 500);
+}
+if (npc_findexact(^mm_squad_spawn_3, mm_zooknock_final_battle) = false) {
+    npc_add(^mm_squad_spawn_3, mm_zooknock_final_battle, 500);
+}
+
+// The demon's death. [ai_queue3] is the death trigger the drop tables use; npc_findhero sets the
+// active player so the quest state can be advanced on the person who actually killed it.
+[ai_queue3,mm_demon]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+obj_add(npc_coord, ashes, 1, ^lootdrop_duration);
+if (%mm_main ! ^mm_has_sigil) {
+    return;
+}
+%mm_main = ^mm_demon_dead;
+%mm_waiting_for_final_battle = ^false;
+~send_quest_progress(questlist:mm, 15, ^mm_complete);
+mes("The Jungle Demon comes apart.");
+
+// The squad's own lines, and the way out. Zooknock teleports you off the island, which is what the
+// wiki has him do; Garkor tells you where to go.
+[opnpc1,mm_garkor_final_battle]
+if (%mm_main < ^mm_demon_dead) {
+    ~chatnpc("<p,angry>Fight now. Talk after.");
+    return;
+}
+~chatnpc("<p,happy>That is what Glough was growing under the Grand Tree.");
+~chatplayer("<p,worried>Narnode needs to hear it from someone he'll believe.");
+~chatnpc("<p,neutral>Then go and be that someone. Zooknock will put you out.");
+
+[opnpc1,mm_karam_final_battle]
+if (%mm_main < ^mm_demon_dead) {
+    ~chatnpc("<p,neutral>Behind you!");
+    return;
+}
+~chatnpc("<p,happy>Four of us walked onto that island. Four of us are walking off it.");
+
+[opnpc1,mm_zooknock_final_battle]
+if (%mm_main < ^mm_demon_dead) {
+    ~chatnpc("<p,worried>I am holding the roof up. Do your part.");
+    return;
+}
+~chatplayer("<p,quiz>Can you get me back?");
+~chatnpc("<p,neutral>I can get you as far as the tree. Hold still.");
+if_close;
+p_delay(2);
+p_telejump(^mm_grand_tree_return);
+~mesbox("Zooknock's teleport is not a comfortable one. You arrive in the Blurberry bar with your ears ringing, and Daero does not look up.");
+
+// ===================================================================================================
+// King Narnode, and the end
+// ===================================================================================================
+// Jumped to from [label,mm_narnode_progress] in quest_mm.rs2.
+
+[label,mm_narnode_finish]
+~chatplayer("<p,neutral>Your squad are alive. Four of them.");
+~chatnpc("<p,happy>Four. Four is more than none.");
+~chatplayer("<p,neutral>There was a demon under this tree, Your Majesty. Glough put it there.");
+~chatnpc("<p,shock>...under the tree.");
+~chatplayer("<p,neutral>Under the tree.");
+~chatnpc("<p,sad>He sat at my table. He held the door for me.");
+~chatnpc("<p,neutral>Daero will see you paid, and better trained than you were. Go and speak to him.");
+%mm_main = ^mm_complete;
+inv_add(inv, coins, ^mm_reward_coins);
+inv_add(inv, diamond, ^mm_reward_diamonds);
+~send_quest_complete(questlist:mm, mm_monkey_greegree_for_normal_monkey, 250, ^mm_questpoints, "You have completed the\\nMonkey Madness Quest!", "3 Quest Points|10,000 Coins|3 Diamonds|Combat experience from Daero|The ability to wield the Dragon scimitar");
+
+// Daero's XP choice. The wiki's two options are 35,000 in two skills and 20,000 in the other two,
+// which is why there are two reward constants rather than one.
+// %mm_daero is the cache's own 4-bit dialogue counter for him (mm_gnomes bits 7-10) and nothing in
+// stage one or two writes it, so it is free to mean "has been paid". The alternative,
+// %mm_player_received_monkey_trail_clue, is a named varbit that means something else entirely.
+[label,mm_daero_reward]
+if (%mm_daero >= ^mm_daero_paid) {
+    ~chatnpc("<p,happy>I already paid you. Spend it.");
+    return;
+}
+~chatnpc("<p,neutral>Narnode says I am to train you. I am not much of a teacher, so pick what you want to be good at.");
+def_int $pick = ~p_choice2("Attack and Defence.", 1, "Strength and Hitpoints.", 2);
+%mm_daero = ^mm_daero_paid;
+if ($pick = 1) {
+    ~chatplayer("<p,neutral>Attack and Defence.");
+    stat_advance(attack, ^mm_reward_xp_high);
+    stat_advance(defence, ^mm_reward_xp_high);
+    stat_advance(strength, ^mm_reward_xp_low);
+    stat_advance(hitpoints, ^mm_reward_xp_low);
+} else {
+    ~chatplayer("<p,neutral>Strength and Hitpoints.");
+    stat_advance(strength, ^mm_reward_xp_high);
+    stat_advance(hitpoints, ^mm_reward_xp_high);
+    stat_advance(attack, ^mm_reward_xp_low);
+    stat_advance(defence, ^mm_reward_xp_low);
+}
+~mesbox("Daero spends an afternoon hitting you with a padded stick and telling you what you are doing wrong. It is the most useful afternoon you have had in months.");

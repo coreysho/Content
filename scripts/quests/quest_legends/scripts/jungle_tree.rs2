@@ -183,7 +183,10 @@ if($op = 2) {
 }
 if(inzone(0_45_45_50_57,0_45_45_61_61,coord) = true) p_teleport(0_45_45_57_63);
 else if(inzone(0_44_45_42_54,0_44_45_57_59,coord) = true) p_teleport(0_44_45_50_61);
-else if(inzone(0_43_45_37_55,0_43_45_50_61,coord) = true) p_teleport(0_43_45_43_62);
+// FIXED 2026-09-08 (landing-coord audit): was (43,62), the tile kharazi_jungle_plant2 stands on
+// (shape 10, blocking) - so scrabbling out of this one zone dumped the player inside a bush. One
+// tile north is the open jungle floor, matching the other three branches which all land on z>=61.
+else if(inzone(0_43_45_37_55,0_43_45_50_61,coord) = true) p_teleport(0_43_45_43_63);
 else p_teleport(0_44_45_4_61); // other 2 zones tele to same pos
 mes("You scrabble out of the jungle.");
 mes("You're scratched to pieces by the dense jungle trees,");
