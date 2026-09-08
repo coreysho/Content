@@ -236,6 +236,20 @@ if (%itexamlevel = ^itexam_complete) {
 if (%deserttreasure = ^deserttreasure_complete) {
     $questpoints = add($questpoints, ^deserttreasure_questpoints);
 }
+// FIXED 2026-09-08: horror and regicide were both added to the game without being registered here,
+// so completing either awarded ZERO quest points - ~count_questpoints is the only thing that ever
+// sets %qp for a default-branch quest. They were also missing from ~update_questlist below, so
+// their journal entries never coloured in on login either. Found by sweeping every
+// ^<quest>_questpoints constant in general/configs/quest.constant against the ones this proc reads.
+if (%horror = ^horror_complete) {
+    $questpoints = add($questpoints, ^horror_questpoints);
+}
+if (%regicide_quest = ^regicide_complete) {
+    $questpoints = add($questpoints, ^regicide_questpoints);
+}
+if (%viking = ^viking_complete) {
+    $questpoints = add($questpoints, ^viking_questpoints);
+}
 if (%desertrescue = ^desertrescue_complete) {
     $questpoints = add($questpoints, ^desertrescue_questpoints); 
 }
@@ -339,6 +353,9 @@ if (testbit(%ibanmulti, ^upass_started_bit) = ^true & %upass ! ^upass_complete) 
 ~send_quest_progress_colour(questlist:troll, %troll_quest, ^troll_complete);
 ~send_quest_progress_colour(questlist:troll_love, %troll_love, ^troll_love_complete);
 ~send_quest_progress_colour(questlist:golem, %golem_a, ^golem_complete);
+~send_quest_progress_colour(questlist:horror, %horror, ^horror_complete);
+~send_quest_progress_colour(questlist:regicide, %regicide_quest, ^regicide_complete);
+~send_quest_progress_colour(questlist:viking, %viking, ^viking_complete);
 ~send_quest_progress_colour(questlist:troll, %troll_quest, ^troll_complete);
 if_settab(questlist, ^tab_quest_journal);
 

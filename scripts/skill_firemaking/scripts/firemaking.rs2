@@ -11,6 +11,13 @@ if (last_useitem = tinderbox) {
 
 // opheldu for logs is handled in fletching
 [opheldu,tinderbox]
+// The Fremennik Trials' strange object is lit here rather than in the quest's own file on purpose.
+// OpHeldUHandler looks up the TARGET item's [opheldu] first and only then the used item's
+// (OpHeldUHandler.ts:94-101), so a trigger declared on the firecracker would only catch
+// tinderbox-on-firecracker; putting the branch here catches both directions with one handler.
+if (last_useitem = viking_firecracker) {
+    @viking_light_firecracker;
+}
 if (last_useitem = newbielogs) {
     @tut_light_logs_inv(last_useslot);
 } else if(oc_param(last_useitem, unlit_arrow) = ^true) { // might not work on every fire?

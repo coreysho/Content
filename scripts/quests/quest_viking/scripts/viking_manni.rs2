@@ -1,0 +1,232 @@
+// The Fremennik Trials - Manni the Reveller's trial (viking_reveller_3, m41_57 local(36,25), in
+// the longhall). Wiki: https://oldschool.runescape.wiki/w/The_Fremennik_Trials
+//
+// You challenge Manni to a drinking contest and lose, because nobody out-drinks a Fremennik. The
+// answer is to cheat: buy a low alcohol keg from the Poison Salesman in Seers' Village, get a
+// strange object from the council workman at the bridge south of Rellekka, light it with a
+// tinderbox and hide it in the pipe on the longhall's east wall. Take a keg off the table, start
+// the rematch, and when the thing in the pipe goes off every head in the hall turns and you swap
+// the kegs.
+//
+// NOTE for anyone following the wiki's quick guide: it files the strange object, the tinderbox and
+// the pipe under OLAF's trial. The quest article has it right - the explosion exists to cover the
+// keg switch, and the whole chain belongs to Manni. Olaf's trial is the lyre and the stage.
+//
+// Everything used here is in the cache and placed: viking_reveller_3 in the longhall,
+// viking_pipe_end_longhall at m41_57 (39,26) beside the bar, six viking_keg locs around the bar,
+// poison_salesman at m42_54 (Seers'), and vt_council_workmen at m41_56 (31,8) - right beside the
+// pier locs that make up the bridge, which is what the wiki means by "the council workman at the
+// bridge" despite the vt_ (Watchtower) prefix on its name. It has exactly one placement, here.
+
+[opnpc1,viking_reveller_3]
+// Manni's seat by the fire is what Thorvald wants, which is a different favour from his own trial.
+if (~viking_merchant(11, 16) = true) {
+    return;
+}
+if (%viking < ^viking_started) {
+    ~chatplayer("<p,happy>Hello.");
+    ~chatnpc("<p,happy>Drink with us, outerlander! Or don't. More for me.");
+    return;
+}
+if (testbit(%viking_bits, ^viking_vote_manni) = 1) {
+    ~chatnpc("<p,happy>There he is! The one who drank a whole keg and walked out straight. You have my vote and my respect, and I do not give either away.");
+    return;
+}
+if (testbit(%viking_bits, ^viking_bit_manni_beaten) = 0) {
+    @viking_manni_first_contest;
+}
+@viking_manni_rematch;
+
+[label,viking_manni_first_contest]
+~chatplayer("<p,quiz>Manni, I want your vote on the council.");
+~chatnpc("<p,happy>My vote! Ha! There is one way to earn that, outerlander, and it is at the bottom of a keg.");
+~chatnpc("<p,happy>Drink with me. Last one standing wins.");
+if (~p_choice2("You're on.", 1, "I'd rather keep my head.", 2) = 2) {
+    ~chatplayer("<p,neutral>I'd rather keep my head.");
+    ~chatnpc("<p,happy>Wise! And no vote for the wise.");
+    return;
+}
+~chatplayer("<p,happy>You're on.");
+mes("Manni drains a tankard in one and slams it down.");
+p_delay(2);
+mes("You match him. Then again. Then again.");
+p_delay(2);
+mes("The longhall tilts alarmingly.");
+p_delay(2);
+%viking_bits = setbit(%viking_bits, ^viking_bit_manni_beaten);
+~chatnpc("<p,happy>Ha! Down he goes. Nobody out-drinks a Fremennik, outerlander. Nobody.");
+~chatplayer("<p,confused>Nobody?");
+~chatnpc("<p,happy>Not honestly, anyway. Come back when you have thought of something.");
+
+[label,viking_manni_rematch]
+~chatplayer("<p,neutral>Another contest, Manni.");
+~chatnpc("<p,happy>Back for more! Fetch yourself a keg then.");
+if (inv_total(inv, viking_beerkeg) = 0) {
+    ~chatplayer("<p,neutral>I'll get one.");
+    mes("There are kegs stacked around the bar. You could take one.");
+    return;
+}
+if (inv_total(inv, viking_low_alcahol_beerkeg) = 0) {
+    mes("You have a keg, but nothing to swap it for. Drinking a real one honestly is how you lost the first time.");
+    ~chatnpc("<p,happy>Any time you like, outerlander!");
+    return;
+}
+if (testbit(%viking_bits, ^viking_bit_firecracker_planted) = 0) {
+    mes("Two kegs, and the whole longhall watching you. You would need every head in here turned the other way to swap them.");
+    ~chatnpc("<p,happy>Something the matter?");
+    return;
+}
+@viking_manni_win;
+
+[label,viking_manni_win]
+~chatplayer("<p,happy>Ready when you are.");
+~chatnpc("<p,happy>Then drink!");
+mes("You set your kegs on the table.");
+p_delay(2);
+sound_synth(explosion, 1, 0);
+mes("Something in the pipe on the east wall goes off with an enormous crack.");
+p_delay(1);
+mes("Every head in the longhall turns towards the noise.");
+p_delay(1);
+// Everything the trial hands out happens here, before the closing dialogue: ~chatnpc ends in
+// p_pausebutton and is abortable, so a player who clicks away would otherwise lose both kegs and
+// get no vote.
+inv_del(inv, viking_beerkeg, 1);
+inv_del(inv, viking_low_alcahol_beerkeg, 1);
+%viking_bits = clearbit(%viking_bits, ^viking_bit_firecracker_planted);
+%viking_bits = setbit(%viking_bits, ^viking_vote_manni);
+mes("You swap the kegs and drink deeply.");
+p_delay(2);
+~chatnpc("<p,shock>...you finished it. A whole keg. And you are still upright.");
+~chatplayer("<p,happy>Was there any doubt?");
+~chatnpc("<p,happy>Ha! You have my vote, outerlander. Whatever you did, you did it like a Fremennik.");
+mes("Manni the Reveller has given you his vote.");
+
+
+// --- The keg off the table ---
+// Placed in a handful of regions besides Rellekka, so this stays quiet unless the trial is actually
+// running rather than handing out quest items to anyone who clicks a barrel.
+[oploc1,viking_keg]
+if (%viking < ^viking_started | testbit(%viking_bits, ^viking_vote_manni) = 1) {
+    mes("The keg is empty.");
+    return;
+}
+if (inv_total(inv, viking_beerkeg) > 0) {
+    mes("You already have a keg of beer.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("You don't have room for a keg of beer.");
+    return;
+}
+inv_add(inv, viking_beerkeg, 1);
+mes("You take a keg of beer.");
+
+
+// --- The council workman at the bridge ---
+[opnpc1,vt_council_workmen]
+~chatplayer("<p,happy>Hello there.");
+~chatnpc("<p,neutral>Morning. Don't touch anything, it's all council property.");
+if (%viking < ^viking_started | testbit(%viking_bits, ^viking_vote_manni) = 1) {
+    return;
+}
+~chatplayer("<p,quiz>What are you working on?");
+~chatnpc("<p,neutral>Bridge maintenance. Thirsty work, mind. Thirsty, thirsty work.");
+~chatnpc("<p,neutral>A man could be persuaded to part with all sorts of things for a beer.");
+
+[opnpcu,vt_council_workmen]
+if (last_useitem ! beer & last_useitem ! viking_tankard_full) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%viking < ^viking_started) {
+    ~chatnpc("<p,happy>Very kind of you!");
+    inv_del(inv, last_useitem, 1);
+    return;
+}
+if (inv_total(inv, viking_firecracker) > 0 | inv_total(inv, viking_firecracker_lit) > 0 | testbit(%viking_bits, ^viking_bit_firecracker_planted) = 1) {
+    ~chatnpc("<p,happy>I've nothing else to trade you, friend. Keep the beer.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,neutral>I'd give you something for that, but you've nowhere to put it.");
+    return;
+}
+inv_del(inv, last_useitem, 1);
+inv_add(inv, viking_firecracker, 1);
+~chatnpc("<p,happy>Now that is the finest thing I have seen all week.");
+~mesbox("The workman drinks it in one and presses a small paper parcel into your hand. You have no idea what it is.");
+
+
+// --- Lighting the strange object ---
+// Reached from [opheldu,tinderbox] in skill_firemaking/scripts/firemaking.rs2 so that it works
+// whichever way round the two items are clicked - see the comment there.
+[label,viking_light_firecracker]
+if (inv_total(inv, viking_firecracker) = 0) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, viking_firecracker, 1);
+inv_add(inv, viking_firecracker_lit, 1);
+mes("You light the strange object. It begins to hiss.");
+~mesbox("Whatever this is, it does not look like it will wait long.");
+
+
+// --- Hiding it in the longhall pipe ---
+[oplocu,viking_pipe_end_longhall]
+if (last_useitem = viking_firecracker) {
+    mes("It would need lighting first.");
+    return;
+}
+if (last_useitem ! viking_firecracker_lit) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (testbit(%viking_bits, ^viking_bit_firecracker_planted) = 1) {
+    mes("There is already something hissing away up there.");
+    return;
+}
+inv_del(inv, viking_firecracker_lit, 1);
+%viking_bits = setbit(%viking_bits, ^viking_bit_firecracker_planted);
+mes("You drop the hissing parcel into the pipe.");
+~mesbox("Nobody saw. Whatever happens next will happen loudly, and soon - best be at Manni's table when it does.");
+
+
+// --- The Poison Salesman's other line of business ---
+// Called from [opnpc1,poison_salesman] in areas/area_seers/scripts/poison_salesman.rs2.
+[proc,viking_needs_low_keg]()(boolean)
+if (%viking < ^viking_started) {
+    return(false);
+}
+if (testbit(%viking_bits, ^viking_bit_manni_beaten) = 0) {
+    return(false);
+}
+if (testbit(%viking_bits, ^viking_vote_manni) = 1) {
+    return(false);
+}
+if (inv_total(inv, viking_low_alcahol_beerkeg) > 0) {
+    return(false);
+}
+return(true);
+
+[label,viking_buy_low_keg]
+~chatplayer("<p,quiz>Do you sell anything that isn't poison?");
+~chatnpc("<p,happy>Ah! You have the look of a man with a wager to win.");
+~chatnpc("<p,happy>Low alcohol keg. Tastes like beer, smells like beer, does nothing at all like beer. Two hundred and fifty coins and not a copper less.");
+if (~p_choice2("I'll take one.", 1, "No thanks.", 2) = 2) {
+    ~chatplayer("<p,neutral>No thanks.");
+    ~chatnpc("<p,neutral>Your funeral. Or your hangover, at any rate.");
+    return;
+}
+~chatplayer("<p,neutral>I'll take one.");
+if (inv_total(inv, coins) < ^viking_low_keg_cost) {
+    ~chatnpc("<p,neutral>Two hundred and fifty coins, friend. Come back when you have them.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,neutral>You have nowhere to put it. Make room.");
+    return;
+}
+inv_del(inv, coins, ^viking_low_keg_cost);
+inv_add(inv, viking_low_alcahol_beerkeg, 1);
+~mesbox("You hand over 250 coins and the salesman produces a keg from under the counter.");

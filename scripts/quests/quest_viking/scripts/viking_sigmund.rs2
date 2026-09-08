@@ -1,0 +1,278 @@
+// The Fremennik Trials - Sigmund the Merchant's trial.
+// Wiki: https://oldschool.runescape.wiki/w/The_Fremennik_Trials
+//
+// A One Small Favour-shaped chain. Sigmund wants an exotic flower; the Sailor has one but wants a
+// ballad; Olaf will write one but wants boots; and so on down thirteen council members until it
+// deadlocks on Thora refusing to serve Askeladden. Askeladden sells you a signed promissory note
+// for 5,000 coins telling her to let him in, and the whole chain unwinds back the other way.
+//
+// The order is the wiki's, both directions:
+//   asking     Sigmund, Sailor, Olaf, Yrsa, Brundt, Sigli, Skulgrimen, Fisherman, Swensen, Thora,
+//              Manni, Thorvald, Peer
+//   delivering Thora, Manni, Thorvald, Peer, Swensen, Fisherman, Skulgrimen, Sigli, Brundt, Yrsa,
+//              Olaf, Sailor, Sigmund
+//
+// WHO GIVES WHAT is not guesswork - the cache settles it. It ships eleven chain items and every one
+// of them matches a council member's trade exactly:
+//
+//   viking_legendary_cocktail     Thora the Barkeep
+//   viking_champion_token         Thorvald the Warrior
+//   viking_weather_forecast       Peer the Seer
+//   viking_another_map            Swensen the Navigator
+//   viking_unique_fish            the Fisherman
+//   viking_bowstring              Skulgrimen the weaponsmith
+//   viking_map_to_hunting_grounds Sigli the Huntsman
+//   viking_new_boots              Yrsa, who runs the clothing shop
+//   viking_song                   Olaf the Bard
+//   viking_rare_flower            the Sailor, who has been further than anyone
+//   viking_promissary_note        Askeladden
+//
+// Manni and Brundt hand over nothing - a longhall seat and a chieftain's permission are not items -
+// which is exactly why the cache has eleven items for thirteen steps.
+//
+// Every council member routes through ~viking_merchant first and only falls through to their own
+// dialogue if the chain has nothing to say. That keeps this trial in one file instead of smeared
+// across thirteen, and it is why the handlers for Sigli, Olaf, Manni, Thorvald, Brundt and Swensen
+// each begin with a single guard line rather than being rewritten.
+
+[opnpc1,viking_sigmund]
+if (~viking_merchant(1, 27) = true) {
+    return;
+}
+if (testbit(%viking_bits, ^viking_vote_sigmund) = 1) {
+    ~chatnpc("<p,happy>The flower is in water on my counter and half of Rellekka has come to look at it. You have my vote.");
+    return;
+}
+~chatnpc("<p,neutral>Trade goods, outerlander. Best prices on the coast.");
+
+[opnpc1,viking_sailor]
+if (~viking_merchant(2, 26) = true) {
+    return;
+}
+~chatplayer("<p,happy>Hello.");
+~chatnpc("<p,neutral>Aye. Been further south than you'd believe and I'm still cold.");
+
+[opnpc1,viking_clothing_shopkeeper]
+if (~viking_merchant(4, 24) = true) {
+    return;
+}
+~chatnpc("<p,happy>Furs, boots, cloaks. Everything to keep the wind out.");
+
+[opnpc1,viking_weapons_salesman]
+if (~viking_merchant(7, 21) = true) {
+    return;
+}
+~chatnpc("<p,neutral>Blades. Good ones. Don't touch the edges.");
+
+[opnpc1,viking_fisherman1]
+if (~viking_merchant(8, 20) = true) {
+    return;
+}
+~chatnpc("<p,neutral>Cold water, cold hands, good fish.");
+
+[opnpc1,viking_longhall_barkeep]
+if (~viking_merchant(10, 15) = true) {
+    return;
+}
+~chatnpc("<p,happy>Drink? You look like you need one.");
+
+// Peer's own trial is not built yet - this handler exists so the merchant chain can reach him, and
+// the trial will slot in underneath the same guard when it is written.
+[opnpc1,viking_peer]
+if (~viking_merchant(13, 18) = true) {
+    return;
+}
+~chatnpc("<p,neutral>I see a great deal, outerlander. Most of it is weather.");
+
+[opnpc1,viking_askelapen]
+if (%viking < ^viking_started) {
+    ~chatplayer("<p,happy>Hello.");
+    ~chatnpc("<p,happy>Hello! I'm Askeladden. I'm going to be a great hero one day. Everyone says so.");
+    return;
+}
+def_int $step = getbit_range(%viking_bits, ^viking_merchant_lo, ^viking_merchant_hi);
+if ($step < ^viking_merchant_asked_all) {
+    ~chatplayer("<p,happy>Hello Askeladden.");
+    ~chatnpc("<p,happy>Hello! Are you doing something heroic? Can I come?");
+    return;
+}
+if ($step > ^viking_merchant_noted) {
+    ~chatnpc("<p,happy>How's the errand going? I helped, you know. I helped a lot.");
+    return;
+}
+if ($step = ^viking_merchant_noted) {
+    ~chatnpc("<p,happy>Take it to Thora. She'll grumble, but she'll do it.");
+    return;
+}
+@viking_askeladden_note;
+
+[label,viking_askeladden_note]
+~chatplayer("<p,confused>Thora won't serve you, so Manni won't move, so nobody will help me.");
+~chatnpc("<p,happy>That's because I'm barred! It's very unfair. I'm barred for life.");
+~chatplayer("<p,quiz>Can anything be done about that?");
+~chatnpc("<p,happy>Well. My father signed a note saying she has to let me in. I've been saving it.");
+~chatnpc("<p,neutral>You can have it. For five thousand coins.");
+~chatplayer("<p,shock>Five thousand?");
+~chatnpc("<p,happy>Heroing is expensive!");
+if (~p_choice2("Fine. Here.", 1, "Absolutely not.", 2) = 2) {
+    ~chatplayer("<p,neutral>Absolutely not.");
+    ~chatnpc("<p,happy>Then I'll keep it! It's a very good note.");
+    return;
+}
+~chatplayer("<p,neutral>Fine. Here.");
+if (inv_total(inv, coins) < ^viking_note_cost) {
+    ~chatnpc("<p,neutral>You haven't got five thousand coins. I can count, you know.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,neutral>You've nowhere to put it.");
+    return;
+}
+inv_del(inv, coins, ^viking_note_cost);
+inv_add(inv, viking_promissary_note, 1);
+%viking_bits = setbit_range_toint(%viking_bits, ^viking_merchant_noted, ^viking_merchant_lo, ^viking_merchant_hi);
+~mesbox("Askeladden hands over a much-folded piece of paper and counts your coins twice.");
+~chatnpc("<p,happy>Take it to Thora. Tell her I said hello.");
+
+
+// --- The chain itself ---
+// Returns true when it has handled the conversation, so each council member's own dialogue only
+// runs when the chain has nothing to say to them.
+[proc,viking_merchant](int $ask_step, int $give_step)(boolean)
+if (%viking < ^viking_started) {
+    return(false);
+}
+if (testbit(%viking_bits, ^viking_vote_sigmund) = 1) {
+    return(false);
+}
+def_int $step = getbit_range(%viking_bits, ^viking_merchant_lo, ^viking_merchant_hi);
+if ($step = sub($ask_step, 1)) {
+    ~viking_merchant_ask($ask_step);
+    return(true);
+}
+if ($step = sub($give_step, 1)) {
+    ~viking_merchant_give($give_step);
+    return(true);
+}
+// Talked to out of order. The wiki's own advice, and worth saying out loud rather than falling
+// through to a shopkeeper line that makes it look like nothing is wrong.
+if ($step > 0 & $step < ^viking_merchant_done) {
+    ~chatnpc("<p,neutral>No, sorry. Can't help you with that yet.");
+    return(true);
+}
+return(false);
+
+[proc,viking_merchant_advance](int $step)
+%viking_bits = setbit_range_toint(%viking_bits, $step, ^viking_merchant_lo, ^viking_merchant_hi);
+
+[proc,viking_merchant_ask](int $step)
+switch_int ($step) {
+    case 1 :
+        ~chatplayer("<p,quiz>Sigmund, I need your vote on the council.");
+        ~chatnpc("<p,neutral>A vote. From a merchant. You understand that everything from me has a price?");
+        ~chatnpc("<p,neutral>There is a flower. It grows a very long way south and I have never held one. Bring me one and the vote is yours.");
+        ~chatplayer("<p,quiz>Where would I even start?");
+        ~chatnpc("<p,neutral>The sailor down at the docks has been further than anyone. Start there.");
+    case 2 :
+        ~chatplayer("<p,quiz>Sigmund says you've been south. He wants a flower.");
+        ~chatnpc("<p,happy>I've got one. Pressed flat in my sea chest these six years.");
+        ~chatnpc("<p,neutral>But I'll not part with it for nothing. Get Olaf to write me a ballad - a proper one, with my name in it.");
+    case 3 :
+        ~chatplayer("<p,quiz>Olaf, the sailor wants a ballad.");
+        ~chatnpc("<p,neutral>Everyone wants a ballad. Nobody wants to buy me boots.");
+        ~chatnpc("<p,neutral>Mine leak. Get Yrsa to make me a pair and the sailor can have his verse.");
+    case 4 :
+        ~chatplayer("<p,quiz>Yrsa, could you make Olaf a pair of boots?");
+        ~chatnpc("<p,neutral>I could. Fremennik boots are Fremennik business, and you are not Fremennik yet.");
+        ~chatnpc("<p,neutral>Get Brundt to say it is allowed and I will cut the leather today.");
+    case 5 :
+        ~chatplayer("<p,quiz>Brundt, will you let Yrsa make boots for an outerlander?");
+        ~chatnpc("<p,neutral>I will, when I have something to think about other than the winter stores.");
+        ~chatnpc("<p,neutral>Sigli was to bring me a map of the hunting grounds a month ago. Get me that and you can have your permission.");
+    case 6 :
+        ~chatplayer("<p,quiz>Sigli, Brundt is waiting on your map.");
+        ~chatnpc("<p,neutral>He is. It is not finished, because I have been restringing a bow with sinew like a savage.");
+        ~chatnpc("<p,neutral>Skulgrimen owes me a proper string. Get it and you will get your map.");
+    case 7 :
+        ~chatplayer("<p,quiz>Skulgrimen, Sigli wants a bowstring.");
+        ~chatnpc("<p,neutral>He can have one. After I have eaten.");
+        ~chatnpc("<p,neutral>There is a fish the fisherman keeps promising me and never delivers. Bring it.");
+    case 8 :
+        ~chatplayer("<p,quiz>Skulgrimen is still waiting on that fish.");
+        ~chatnpc("<p,neutral>So am I! It only bites off the deep bank and I have lost the chart for it.");
+        ~chatnpc("<p,neutral>Swensen draws the charts. Ask him.");
+    case 9 :
+        ~chatplayer("<p,quiz>Swensen, the fisherman needs a chart for the deep bank.");
+        ~chatnpc("<p,neutral>Then he shall have one, once I know which way the weather is turning. I will not send a man out blind.");
+        ~chatnpc("<p,neutral>Peer does the forecasts. But he will not talk to me at the moment, and that is a longer story.");
+    case 10 :
+        ~chatplayer("<p,quiz>Thora, this is going to sound strange.");
+        ~chatnpc("<p,neutral>Most things do in here.");
+        ~chatnpc("<p,neutral>Peer wants Thorvald's champion token, Thorvald wants Manni's seat by the fire, and Manni will not move until somebody buys him a drink he cannot get anywhere else.");
+        ~chatnpc("<p,neutral>I can make that drink. I am not making it for you.");
+    case 11 :
+        ~chatplayer("<p,quiz>Manni, would you give up your seat for a good enough drink?");
+        ~chatnpc("<p,happy>For a legendary one? I would give up my seat, my boots and possibly my mother.");
+    case 12 :
+        ~chatplayer("<p,quiz>Thorvald, what would you take for your champion token?");
+        ~chatnpc("<p,neutral>Manni's seat. Thirty years he has had the warm end of that bench.");
+    case 13 :
+        ~chatplayer("<p,quiz>Peer, what do you want for a weather forecast?");
+        ~chatnpc("<p,neutral>Thorvald's champion token. He has had it long enough and I want to see the look on his face.");
+        ~chatplayer("<p,confused>So it all comes back to a drink Thora won't make.");
+        ~chatnpc("<p,happy>It does. She will not serve Askeladden, and Askeladden is the only one who can ask her to.");
+        ~chatnpc("<p,neutral>Go and talk to the boy.");
+}
+~viking_merchant_advance($step);
+
+[proc,viking_merchant_give](int $step)
+switch_int ($step) {
+    case 15 : ~viking_merchant_swap($step, viking_promissary_note, viking_legendary_cocktail, "Thora reads the note twice, sighs, and starts mixing something that smells like a house fire.");
+    case 16 :
+        ~chatplayer("<p,happy>Manni. Legendary cocktail.");
+        inv_del(inv, viking_legendary_cocktail, 1);
+        ~viking_merchant_advance($step);
+        ~mesbox("Manni drinks it in one, stands up, and walks off towards the bar without a word. The seat by the fire is empty.");
+    case 17 : ~viking_merchant_swap($step, null, viking_champion_token, "Thorvald looks at the empty seat for a long moment, then hands you a small iron token.");
+    case 18 : ~viking_merchant_swap($step, viking_champion_token, viking_weather_forecast, "Peer turns the token over, laughs once, and writes out a forecast without looking up.");
+    case 19 : ~viking_merchant_swap($step, viking_weather_forecast, viking_another_map, "Swensen reads the forecast, grunts, and draws out a chart of the deep bank.");
+    case 20 : ~viking_merchant_swap($step, viking_another_map, viking_unique_fish, "The fisherman is gone twenty minutes and comes back with something that is mostly teeth.");
+    case 21 : ~viking_merchant_swap($step, viking_unique_fish, viking_bowstring, "Skulgrimen eats first and works second. The bowstring is very good.");
+    case 22 : ~viking_merchant_swap($step, viking_bowstring, viking_map_to_hunting_grounds, "Sigli strings the bow, tests it, and finishes the map in front of you.");
+    case 23 :
+        ~chatplayer("<p,happy>Brundt. Sigli's map of the hunting grounds.");
+        inv_del(inv, viking_map_to_hunting_grounds, 1);
+        ~viking_merchant_advance($step);
+        ~chatnpc("<p,neutral>At last. Tell Yrsa she may cut the leather.");
+    case 24 : ~viking_merchant_swap($step, null, viking_new_boots, "Yrsa cuts, stitches and hands over a pair of boots that would outlast the wearer.");
+    case 25 : ~viking_merchant_swap($step, viking_new_boots, viking_song, "Olaf puts the boots on, walks the length of the room twice, and writes the ballad standing up.");
+    case 26 : ~viking_merchant_swap($step, viking_song, viking_rare_flower, "The sailor reads it, goes rather quiet, and fetches a flat and faded flower from his sea chest.");
+    case 27 :
+        ~chatplayer("<p,happy>Sigmund. Your flower.");
+        inv_del(inv, viking_rare_flower, 1);
+        ~viking_merchant_advance($step);
+        %viking_bits = setbit(%viking_bits, ^viking_vote_sigmund);
+        ~chatnpc("<p,shock>You actually... how many people did you have to move to get this?");
+        ~chatplayer("<p,happy>Thirteen.");
+        ~chatnpc("<p,happy>Then you are a merchant, whatever else you are. You have my vote.");
+        mes("Sigmund the Merchant has given you his vote.");
+}
+
+// $take may be null for the two steps that trade a favour rather than an object - Thorvald getting
+// Manni's seat and Brundt's permission reaching Yrsa. The state advance and the inventory change
+// both happen before the closing ~mesbox, which ends in p_pausebutton and is abortable.
+[proc,viking_merchant_swap](int $step, obj $take, namedobj $give, string $line)
+if ($take ! null & inv_total(inv, $take) = 0) {
+    ~chatnpc("<p,neutral>You haven't got it. Come back when you have.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,neutral>You've no room to carry anything. Make some.");
+    return;
+}
+if ($take ! null) {
+    inv_del(inv, $take, 1);
+}
+inv_add(inv, $give, 1);
+~viking_merchant_advance($step);
+~mesbox($line);

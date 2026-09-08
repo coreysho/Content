@@ -1,4 +1,15 @@
 [opnpc1,poison_salesman]
+// The Fremennik Trials buys its low alcohol keg here (wiki: "purchase a Low alcohol keg from a
+// Poison Salesman near the bar for 250 coins"). Offered as a choice rather than as a branch that
+// takes over the handler, so a player who is midway through both quests can still reach the Murder
+// Mystery dialogue below.
+if (~viking_needs_low_keg = true) {
+    ~chatnpc("<p,happy>Peter Potter's Patented Multi Purpose Poison! Can I interest you?");
+    if (~p_choice2("Do you sell anything that isn't poison?", 1, "I wanted to ask about something else.", 2) = 1) {
+        @viking_buy_low_keg;
+    }
+    ~chatplayer("<p,neutral>I wanted to ask about something else.");
+}
 switch_int(%murderquest) {
     case ^murder_not_started :
         ~chatnpc("<p,sad>I'm afraid I'm all sold out of poison at the moment. People know a bargain when they see it!");

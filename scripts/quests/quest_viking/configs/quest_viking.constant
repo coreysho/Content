@@ -1,0 +1,160 @@
+// The Fremennik Trials. Wiki: https://oldschool.runescape.wiki/w/The_Fremennik_Trials
+//
+// Every npc, loc and obj this quest needs is already in the 377 cache and already placed on the
+// map - nothing had to be invented. The council is all there under viking_* names that do not
+// match their display names, so the mapping is worth writing down:
+//
+//   viking_brundt        Brundt the Chieftain    m41_57 (35,21)  starts and ends the quest
+//   viking_reveller_3    Manni the Reveller      m41_57 (36,25)  drinking contest
+//   viking_reveller      Bjorn                   m41_57 (31,25)
+//   viking_reveller_2    Eldgrim                 m41_57 (34,26)
+//   viking_sigli         Sigli the Huntsman      m41_57 (36,5)   the Draugen hunt
+//   viking_olaf          Olaf the Bard           m41_57 (49,35)  the lyre
+//   viking_sigmund       Sigmund The Merchant    m41_57 (17,32)  the merchant trial
+//   viking_thorvald      Thorvald the Warrior    m41_57 (42,45)  Koschei
+//   viking_peer          Peer the Seer           m41_57 (10,20)  the riddle house
+//   viking_hallifred     Swensen the Navigator   m41_57 (22,12)  the portal maze
+//   viking_askelapen     Askeladden              m41_57 (34,12)
+//   viking_lalli_troll   Lalli                   m43_56 (18,38)  golden fleece
+//   viking_lake_spirit   Fossegrimen             unplaced - scripted spawn at the lake shrine
+//   viking_man4          Lanzig                  m41_57 (52,17)  the alternative lyre drop
+//   viking_draugen       The Draugen             unplaced - scripted spawn
+//   viking_draugen_safe  Butterfly               unplaced - scripted spawn
+//   viking_enemy1-4      Koschei the deathless   unplaced - scripted spawns
+
+// --- Stages ---
+// The six trials are done in any order and each is a bit in %viking_bits, so %viking itself only
+// carries the three states that are genuinely linear.
+^viking_not_started = 0
+^viking_started = 1
+// ^viking_complete lives in general/configs/quest.constant with every other quest-completion
+// constant - declaring it here too is a duplicate and breaks the build.
+
+// --- %viking_bits: one vote per trial (0-5), then per-trial sub-steps ---
+^viking_vote_manni = 0
+^viking_vote_sigli = 1
+^viking_vote_olaf = 2
+^viking_vote_sigmund = 3
+^viking_vote_thorvald = 4
+^viking_vote_peer = 5
+^viking_votes_first = 0
+^viking_votes_last = 5
+^viking_all_votes = 63
+
+// Sigli's trial
+^viking_bit_talisman_given = 6
+^viking_bit_draugen_slain = 7
+
+// --- The Draugen hunt ---
+// The Draugen "moves around the Fremennik Province"; the butterfly is the visual tell that follows
+// it. Both are unplaced in every map, so both are scripted spawns - one butterfly per hunt, its uid
+// kept in %draugen_butterfly_uid (a varp the cache already ships for exactly this, left temp on
+// purpose: a butterfly should not survive a logout, and the hunt simply restarts).
+//
+// Eight candidate tiles across the moors south and east of Rellekka (m41_56 and m42_56, outside the
+// town walls), each verified walkable at level 0 with three clear tiles in every direction so the
+// spawn can never land inside a wall or a building.
+^viking_draugen_spot_1 = 0_41_56_14_38
+^viking_draugen_spot_2 = 0_41_56_23_28
+^viking_draugen_spot_3 = 0_41_56_26_45
+^viking_draugen_spot_4 = 0_41_56_39_44
+^viking_draugen_spot_5 = 0_42_56_12_21
+^viking_draugen_spot_6 = 0_42_56_13_40
+^viking_draugen_spot_7 = 0_42_56_28_28
+^viking_draugen_spot_8 = 0_42_56_43_25
+// How long a spawned butterfly or Draugen lives before it cleans itself up. Re-summoned by Locate.
+^viking_hunt_lifetime = 2000
+
+// Where the Draugen currently is, kept in %viking_bits rather than in a uid varp. Three bits hold
+// the index into the eight spots above and a fourth says a hunt is running, which means the hunt
+// survives a logout even though the butterfly npc does not - Locate simply puts a new butterfly
+// back on the same tile. Tracking the npc's uid instead would need npc_finduid, whose parameter is
+// typed npc_uid rather than int, and would lose the hunt the moment the npc despawned.
+^viking_bit_hunt_active = 11
+^viking_hunt_spot_lo = 8
+^viking_hunt_spot_hi = 10
+
+// Manni's trial. The wiki's quick guide files the strange object / tinderbox / longhall pipe under
+// Olaf's trial; the quest article has it right - the lit object in the pipe is what goes off and
+// distracts the hall, and that distraction is the only reason you can swap the low alcohol keg for
+// Manni's. It belongs to Manni.
+^viking_bit_manni_beaten = 12
+^viking_bit_firecracker_planted = 13
+^viking_low_keg_cost = 250
+
+// Olaf's trial. The stage is m41_57 x31-38, z34-37 on plane 0 (32 viking_theatre_floor tiles inside
+// a row of viking_stage_edge along z=34), and the backstage door is at (43,35), east of it. All of
+// those tiles were checked walkable at level 0.
+^viking_stage_sw = 0_41_57_31_34
+^viking_stage_ne = 0_41_57_38_37
+^viking_stage_arrive = 0_41_57_36_36
+^viking_backstage_door_exit = 0_41_57_44_35
+// The lake shrine (viking_lake_shrine_altar, m41_56 local(2,14)) - Fossegrimen has no placement
+// anywhere, so she is summoned by the offering and cleaned up after.
+^viking_fossegrimen_spot = 0_41_56_3_14
+^viking_fossegrimen_lifetime = 300
+^viking_bit_olaf_asked = 14
+^viking_lyre_woodcut_level = 40
+^viking_lyre_fletch_level = 25
+^viking_lyre_craft_level = 40
+
+// Thorvald's trial. The arena is m41_157 plane 2 - a void-pocket region like Waterbirth's - reached
+// by the ladder in Thorvald's hut at m41_57 (43,46). viking_warrior_ladder carries op2=Climb-down
+// and op3=Climb-up (no op1); viking_warrior_ladder_up sits at m41_157 p2 (48,51) and is the way
+// out. The cavern itself is a big open room roughly x19-45 by z17-48 with a rock pillar in the
+// middle; both coords below were checked walkable and clear.
+^viking_arena_arrive = 2_41_157_47_50
+^viking_arena_exit = 0_41_57_42_46
+^viking_koschei_spot = 2_41_157_40_44
+^viking_koschei_lifetime = 2000
+^viking_bit_thorvald_asked = 15
+// How many of Koschei's forms are down, 0-3. Two bits is enough because form 4 is never counted.
+^viking_koschei_lo = 16
+^viking_koschei_hi = 17
+^viking_koschei_forms = 3
+
+// Swensen the Navigator's portal maze. The whole thing is in the cache and placed, which is worth
+// stating plainly because it is the single most complete piece of unwired content this quest has:
+//
+//   vt_mazeladdertopentrance  m41_57 p0 (20,9)   the ladder in Swensen's house
+//   vt_mazeladderentrance     m41_156 p0 (7,21)  the way back out, in the first room
+//   vt_mazeportal_1..7        m41_156            ONE per room - the correct portal, already numbered
+//   vt_mazeportal_wrong       m41_156, 53 of them  every dead end
+//   vt_mazeladderescapeladder m41_156, 14 of them  the ropes out of the dead ends
+//   vt_mazeladderexit         m41_156 p0 (41,53) the far side
+//
+// The cache numbering does the puzzle's bookkeeping for us: room N's correct portal is
+// vt_mazeportal_N, so taking it simply lands you beside vt_mazeportal_N+1. The player still has to
+// pick the right one of four by direction - the wiki's S-W-E-N-S-E-N, which spells his name - but
+// nothing here has to reimplement that, because which portal is which is already baked into the map.
+//
+// Every landing tile below is adjacent to the portal or ladder it belongs to and was checked
+// walkable at level 0.
+^viking_maze_enter = 0_41_156_7_22
+^viking_maze_house = 0_41_57_20_10
+^viking_maze_room2 = 0_41_156_15_32
+^viking_maze_room3 = 0_41_156_32_21
+^viking_maze_room4 = 0_41_156_41_35
+^viking_maze_room5 = 0_41_156_6_40
+^viking_maze_room6 = 0_41_156_32_54
+^viking_maze_room7 = 0_41_156_42_46
+^viking_maze_end = 0_41_156_41_54
+// One dead end serves for every wrong portal: they are all the same room from the player's side -
+// dark, empty, and only leaving by the rope - so there is nothing to gain from routing 53 portals
+// to 14 different copies of it. This one is beside the escape rope at (6,42).
+^viking_maze_deadend = 0_41_156_6_43
+^viking_bit_maze_done = 18
+
+// Sigmund's merchant trial - a One Small Favour-shaped chain. Five bits hold the step, 0-27.
+//   0        not started
+//   1-13     the asking pass:  Sigmund, Sailor, Olaf, Yrsa, Brundt, Sigli, Skulgrimen, Fisherman,
+//            Swensen, Thora, Manni, Thorvald, Peer - each one names the next
+//   14       Askeladden paid 5,000gp, promissory note in hand
+//   15-27    the delivery pass: Thora, Manni, Thorvald, Peer, Swensen, Fisherman, Skulgrimen,
+//            Sigli, Brundt, Yrsa, Olaf, Sailor, Sigmund
+^viking_merchant_lo = 19
+^viking_merchant_hi = 23
+^viking_merchant_asked_all = 13
+^viking_merchant_noted = 14
+^viking_merchant_done = 27
+^viking_note_cost = 5000

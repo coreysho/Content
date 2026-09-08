@@ -1,0 +1,275 @@
+// The Fremennik Trials - Olaf the Bard's trial (viking_olaf, m41_57 local(49,35)).
+// Wiki: https://oldschool.runescape.wiki/w/The_Fremennik_Trials
+//
+// Olaf wants to hear something worth listening to. You need an enchanted lyre and you need to play
+// it on the longhall stage. Two routes to the lyre, both from the wiki:
+//
+//   the long way   Cut-branch from the swaying tree (Woodcutting 40) -> fletch it with a knife
+//                  (Fletching 25) -> unstrung lyre; shear a golden sheep for the fleece, spin the
+//                  fleece into golden wool, use the wool on the lyre (Crafting 40)
+//   the short way  kill Lanzig until he drops one (1/17, wired in drop_tables/scripts/lanzig.rs2)
+//
+// Either way the lyre is then enchanted by offering a raw shark, manta ray or sea turtle on the
+// strange altar at the lake shrine, and played on the stage.
+//
+// DELIBERATE SIMPLIFICATION, flagged rather than hidden: the modern quest routes the golden fleece
+// through Lalli, a pet rock from Askeladden and a pot of stew. There is no pet rock obj anywhere in
+// the 377 cache, and viking_troll_cauldron ("Lalli's Stew") has no ops and no active= line, so it
+// is not even clickable - that whole sub-chain postdates this cache. The fleece comes off the
+// golden sheep instead, which is where a golden fleece comes from, and which is why the cache
+// bothers to ship viking_golden_sheepunsheered AND viking_golden_sheepsheered as a pair at
+// m43_56 with nothing else referencing them. Lalli keeps a line of dialogue pointing at the sheep.
+
+[opnpc1,viking_olaf]
+// Olaf owes the sailor a ballad and wants boots for it - Sigmund's chain, not his own trial.
+if (~viking_merchant(3, 25) = true) {
+    return;
+}
+if (%viking < ^viking_started) {
+    ~chatplayer("<p,happy>Hello.");
+    ~chatnpc("<p,neutral>Hm? Oh. I'm working, outerlander.");
+    return;
+}
+if (testbit(%viking_bits, ^viking_vote_olaf) = 1) {
+    ~chatnpc("<p,happy>They still talk about that. You have my vote and my professional envy.");
+    return;
+}
+if (testbit(%viking_bits, ^viking_bit_olaf_asked) = 0) {
+    @viking_olaf_start;
+}
+@viking_olaf_reminder;
+
+[label,viking_olaf_start]
+~chatplayer("<p,quiz>Olaf, I need your vote on the council.");
+~chatnpc("<p,neutral>Everyone needs something. What I need is a night off.");
+~chatnpc("<p,neutral>Tell you what. You play the longhall in my place, and if the hall likes it, the vote is yours.");
+~chatplayer("<p,quiz>Play what, exactly?");
+~chatnpc("<p,neutral>A lyre, outerlander. And not a dead one - an enchanted one. The Fossegrimen at the lake shrine will see to that, if you bring her something worth eating.");
+~chatnpc("<p,neutral>Make one from the swaying tree east of the gates, if you have the hands for it. Lanzig has one too, if you have the stomach for that instead.");
+%viking_bits = setbit(%viking_bits, ^viking_bit_olaf_asked);
+~chatnpc("<p,neutral>The stage door is round the back of the longhall. Do not embarrass me.");
+
+[label,viking_olaf_reminder]
+~chatplayer("<p,quiz>About that performance.");
+if (inv_total(inv, viking_enchanted_strung_lyre) > 0) {
+    ~chatnpc("<p,happy>You have it! Then get on the stage and play, outerlander. The door is round the back.");
+    return;
+}
+if (inv_total(inv, viking_strung_lyre) > 0) {
+    ~chatnpc("<p,neutral>A lyre, but a dead one. Take it to the Fossegrimen at the lake shrine with something worth eating - a shark, if you have one.");
+    return;
+}
+~chatnpc("<p,neutral>Come back when you have a lyre. The swaying tree east of the gates, or Lanzig, whichever suits you.");
+
+
+// --- The swaying tree ---
+[oploc1,viking_musical_tree]
+if (stat(woodcutting) < ^viking_lyre_woodcut_level) {
+    mes("You need a Woodcutting level of <tostring(^viking_lyre_woodcut_level)> to cut a branch from this tree.");
+    return;
+}
+def_namedobj $axe = ~woodcutting_axe_checker(true);
+if ($axe = null) {
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("You don't have room for a branch.");
+    return;
+}
+mes("You swing your axe at the swaying tree.");
+anim(struct_param(oc_param($axe, woodcutting_struct), skill_anim), 0);
+p_delay(3);
+inv_add(inv, viking_musical_tree_branch, 1);
+mes("You cut a branch from the swaying tree. It hums faintly in your hand.");
+
+// The branch fletches with a knife. Declared on the BRANCH rather than the knife because
+// OpHeldUHandler tries the target item's trigger first and the used item's second
+// (OpHeldUHandler.ts:94-101), so one trigger here catches both directions - and [opheldu,knife] is
+// already taken by the gnome cooking fruit-cutting handler.
+[opheldu,viking_musical_tree_branch]
+if (last_useitem ! knife) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (stat(fletching) < ^viking_lyre_fletch_level) {
+    mes("You need a Fletching level of <tostring(^viking_lyre_fletch_level)> to shape this branch.");
+    return;
+}
+inv_del(inv, viking_musical_tree_branch, 1);
+inv_add(inv, viking_unstrung_lyre, 1);
+anim(human_fletching, 0);
+stat_advance(fletching, 250);
+mes("You carve the branch into the frame of a lyre. It needs a string.");
+
+
+// --- The golden fleece ---
+[opnpcu,viking_golden_sheepunsheered]
+if (last_useitem ! shears) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("You don't have room for a fleece.");
+    return;
+}
+anim(human_shearing, 0);
+sound_synth(shear_sheep, 1, 0);
+if (random(4) = 0) {
+    mes("The sheep skips out of reach.");
+    npc_setmode(playerescape);
+    return;
+}
+npc_setmode(playerfaceclose);
+p_delay(0);
+npc_setmode(null);
+p_delay(0);
+npc_changetype_keepall(viking_golden_sheepsheered, 100);
+inv_add(inv, viking_golden_fleece, 1);
+mes("You shear the golden sheep. The fleece is far heavier than it looks.");
+
+[opnpcu,viking_golden_sheepsheered]
+if (last_useitem ! shears) {
+    ~displaymessage(^dm_default);
+    return;
+}
+mes("This one has already been shorn.");
+
+[opnpc1,viking_lalli_troll]
+~chatplayer("<p,happy>Hello.");
+~chatnpc("<p,neutral>Lalli is watching sheep. Lalli is good at watching sheep.");
+if (%viking < ^viking_started) {
+    return;
+}
+~chatplayer("<p,quiz>Golden sheep?");
+~chatnpc("<p,happy>Golden wool! Very warm. You want some, you bring shears, Lalli does not mind.");
+
+// The Rellekka wheel had op2=Spin and no handler at all. Sending it to the same menu every other
+// wheel uses rather than writing a second one.
+[oploc2,viking_spinningwheel] ~spinning_menu;
+
+[oplocu,viking_spinningwheel]
+switch_obj (last_useitem) {
+    case viking_golden_fleece : ~viking_spin_fleece;
+    case wool : ~spinning_menu;
+    case flax : ~spinning_menu;
+    case magic_roots : ~spinning_menu;
+    case default : ~displaymessage(^dm_default);
+}
+
+// Called from here and from the generic [oplocu,spinningwheel] in
+// skill_crafting/scripts/spinning/spinning.rs2, so the fleece spins on any wheel in the game.
+[proc,viking_spin_fleece]
+if (inv_total(inv, viking_golden_fleece) = 0) {
+    ~displaymessage(^dm_default);
+    return;
+}
+anim(human_spinningwheel, 0);
+p_delay(2);
+inv_del(inv, viking_golden_fleece, 1);
+inv_add(inv, viking_golden_wool, 1);
+stat_advance(crafting, 250);
+mes("You spin the golden fleece into a length of golden wool.");
+
+[opheldu,viking_golden_wool]
+if (last_useitem ! viking_unstrung_lyre) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (stat(crafting) < ^viking_lyre_craft_level) {
+    mes("You need a Crafting level of <tostring(^viking_lyre_craft_level)> to string a lyre.");
+    return;
+}
+inv_del(inv, viking_golden_wool, 1);
+inv_del(inv, viking_unstrung_lyre, 1);
+inv_add(inv, viking_strung_lyre, 1);
+stat_advance(crafting, 500);
+mes("You string the lyre with golden wool.");
+
+
+// --- The Fossegrimen at the lake shrine ---
+// She has no placement anywhere in the cache, so she is summoned by the offering and left on a
+// short lifetime rather than standing at the shrine forever.
+[oplocu,viking_lake_shrine_altar]
+if (last_useitem ! raw_shark & last_useitem ! raw_mantaray & last_useitem ! raw_seaturtle) {
+    if (last_useitem = viking_strung_lyre | last_useitem = viking_unstrung_lyre) {
+        mes("The altar is cold. Whatever lives here wants feeding first.");
+        return;
+    }
+    ~displaymessage(^dm_default);
+    return;
+}
+def_obj $offering = last_useitem;
+inv_del(inv, $offering, 1);
+mes("You lay the <lowercase(oc_name($offering))> on the altar.");
+p_delay(2);
+if (npc_find(^viking_fossegrimen_spot, viking_lake_spirit, 8, ^vis_off) = false) {
+    npc_add(^viking_fossegrimen_spot, viking_lake_spirit, ^viking_fossegrimen_lifetime);
+}
+sound_synth(ghast_appear, 1, 0);
+~mesbox("The water stirs, and something rises out of it that is mostly not there.");
+if (inv_total(inv, viking_strung_lyre) = 0) {
+    ~chatnpc("<p,neutral>A gift, and nothing to put my voice into. Bring me a lyre, little thing.");
+    return;
+}
+inv_del(inv, viking_strung_lyre, 1);
+inv_add(inv, viking_enchanted_strung_lyre, 1);
+~chatnpc("<p,happy>A lyre. Yes. I will put a little of myself in it - enough to be worth hearing.");
+~mesbox("The lyre in your pack is warm to the touch.");
+
+[opnpc1,viking_lake_spirit]
+if (inv_total(inv, viking_strung_lyre) > 0) {
+    ~chatnpc("<p,neutral>Lay something worth eating on the altar, and I will sing into your lyre.");
+    return;
+}
+~chatnpc("<p,neutral>The lake is cold and I am old. Bring me fish, little thing.");
+
+
+// --- The stage ---
+[oploc1,viking_bard_backstage_door]
+if (~viking_on_stage = true) {
+    mes("You slip back off the stage.");
+    p_telejump(^viking_backstage_door_exit);
+    return;
+}
+mes("You slip through the door and out onto the stage.");
+p_telejump(^viking_stage_arrive);
+
+[opheld1,viking_strung_lyre]
+mes("You pluck at the strings. It makes a noise, but not a good one.");
+~mesbox("A lyre this plain is not going to impress anybody. The Fossegrimen at the lake shrine could put a voice into it.");
+
+[opheld1,viking_enchanted_strung_lyre]
+if (%viking < ^viking_started | testbit(%viking_bits, ^viking_vote_olaf) = 1) {
+    mes("You play the lyre. It sings back at you, sweet and strange.");
+    return;
+}
+if (~viking_on_stage = false) {
+    mes("You play the lyre. It sings back at you, sweet and strange.");
+    ~mesbox("Olaf wanted this played on the longhall stage, not out here.");
+    return;
+}
+@viking_olaf_performance;
+
+[proc,viking_on_stage]()(boolean)
+if (coordx(coord) < coordx(^viking_stage_sw) | coordx(coord) > coordx(^viking_stage_ne)) {
+    return(false);
+}
+if (coordz(coord) < coordz(^viking_stage_sw) | coordz(coord) > coordz(^viking_stage_ne)) {
+    return(false);
+}
+return(true);
+
+[label,viking_olaf_performance]
+mes("You raise the lyre. The longhall goes quiet.");
+p_delay(3);
+anim(viking_lyre_play_once, 0);
+mes("You play.");
+p_delay(4);
+mes("The hecklers stop heckling.");
+p_delay(3);
+// The vote is set before the closing dialogue: every ~chatnpc ends in p_pausebutton and is
+// abortable, so a player who clicks away mid-applause would otherwise have performed for nothing.
+%viking_bits = setbit(%viking_bits, ^viking_vote_olaf);
+mes("The longhall erupts.");
+p_delay(2);
+~mesbox("Olaf the Bard has given you his vote.");

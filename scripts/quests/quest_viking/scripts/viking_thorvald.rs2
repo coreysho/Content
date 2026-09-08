@@ -1,0 +1,160 @@
+// The Fremennik Trials - Thorvald the Warrior's trial (viking_thorvald, m41_57 local(42,45)).
+// Wiki: https://oldschool.runescape.wiki/w/The_Fremennik_Trials
+//
+// Beat the first three forms of Koschei the deathless with nothing equipped and no runes. The
+// fourth form turns up afterwards and is not meant to be killed - 255 hitpoints, 255 defence and a
+// max hit of 1 - so the vote is awarded on the third kill and form 4 is only flavour. See
+// configs/quest_viking.npc for the stats and why every bonus is zero.
+//
+// The arena is m41_157 plane 2, a void-pocket region in the same band as Waterbirth's dungeon, and
+// none of the four forms is placed anywhere - they are scripted spawns, one at a time. The ladder
+// in Thorvald's hut at m41_57 (43,46) carries op2=Climb-down and op3=Climb-up, with no op1 at all,
+// which is why the handlers below are oploc2/oploc3 rather than oploc1.
+
+[opnpc1,viking_thorvald]
+// Thorvald's champion token is what Peer wants, which is separate from the Koschei fight.
+if (~viking_merchant(12, 17) = true) {
+    return;
+}
+if (%viking < ^viking_started) {
+    ~chatplayer("<p,happy>Hello.");
+    ~chatnpc("<p,neutral>Outerlander.");
+    return;
+}
+if (testbit(%viking_bits, ^viking_vote_thorvald) = 1) {
+    ~chatnpc("<p,happy>Three times you put him down. I have seen Fremennik warriors manage less.");
+    return;
+}
+if (getbit_range(%viking_bits, ^viking_koschei_lo, ^viking_koschei_hi) >= ^viking_koschei_forms) {
+    @viking_thorvald_reward;
+}
+if (testbit(%viking_bits, ^viking_bit_thorvald_asked) = 0) {
+    @viking_thorvald_start;
+}
+@viking_thorvald_reminder;
+
+[label,viking_thorvald_start]
+~chatplayer("<p,quiz>Thorvald, I need your vote on the council.");
+~chatnpc("<p,neutral>Then you will have to be worth voting for.");
+~chatnpc("<p,neutral>There is a thing in the cave below my hut. It calls itself Koschei the deathless, and the name is not a boast.");
+~chatnpc("<p,neutral>Put him down three times and the vote is yours.");
+~chatplayer("<p,quiz>Three times?");
+~chatnpc("<p,neutral>He gets up. That is rather the point.");
+~chatnpc("<p,neutral>And you go down there with nothing. No blade, no mail, no runes. Just you.");
+%viking_bits = setbit(%viking_bits, ^viking_bit_thorvald_asked);
+~chatnpc("<p,neutral>The ladder is behind me. Leave your things somewhere safe first - I am not responsible for what a man drops on his way down.");
+
+[label,viking_thorvald_reminder]
+def_int $down = getbit_range(%viking_bits, ^viking_koschei_lo, ^viking_koschei_hi);
+if ($down = 0) {
+    ~chatnpc("<p,neutral>Down the ladder, outerlander. Nothing on your back and nothing in your pack that hums.");
+    return;
+}
+~chatnpc("<p,neutral>You have put him down <tostring($down)> times. He is still getting up.");
+
+[label,viking_thorvald_reward]
+~chatplayer("<p,happy>Your Koschei stayed down. Three times.");
+~chatnpc("<p,happy>So he did. And you did it with your hands.");
+%viking_bits = setbit(%viking_bits, ^viking_vote_thorvald);
+~chatnpc("<p,happy>You have my vote, outerlander. There is Fremennik in you somewhere.");
+mes("Thorvald the Warrior has given you his vote.");
+
+
+// --- Into the arena ---
+[oploc2,viking_warrior_ladder]
+if (testbit(%viking_bits, ^viking_bit_thorvald_asked) = 0) {
+    mes("You have no reason to go down there.");
+    return;
+}
+if (~viking_wearing_anything = true) {
+    ~mesbox("Thorvald was clear: nothing on your back. You will have to take it all off first.");
+    return;
+}
+if (inv_totalcat(inv, category_149) > 0) {
+    ~mesbox("Thorvald was clear: no runes. Leave them somewhere safe.");
+    return;
+}
+mes("You climb down into the dark.");
+p_telejump(^viking_arena_arrive);
+~viking_koschei_summon;
+
+[oploc3,viking_warrior_ladder] @viking_warrior_ladder_upstairs;
+[oploc1,viking_warrior_ladder_down]
+mes("You climb down the ladder.");
+p_telejump(^viking_arena_exit);
+
+[label,viking_warrior_ladder_upstairs]
+mes("You climb up the ladder.");
+p_telejump(0_41_57_43_45);
+
+[oploc1,viking_warrior_ladder_up]
+mes("You climb up out of the cave.");
+p_telejump(^viking_arena_exit);
+
+// Called on arrival and on each kill. Spawns whichever form is next, or form 4 once the trial is
+// already won - it is the cache's joke and it is harmless, since the vote is already awarded.
+[proc,viking_koschei_summon]
+def_int $down = getbit_range(%viking_bits, ^viking_koschei_lo, ^viking_koschei_hi);
+def_npc $form = viking_enemy1;
+if ($down = 1) {
+    $form = viking_enemy2;
+} else if ($down = 2) {
+    $form = viking_enemy3;
+} else if ($down >= ^viking_koschei_forms) {
+    $form = viking_enemy4;
+}
+if (npc_find(^viking_koschei_spot, $form, 24, ^vis_off) = true) {
+    return;
+}
+npc_add(^viking_koschei_spot, $form, ^viking_koschei_lifetime);
+if ($down >= ^viking_koschei_forms) {
+    ~mesbox("Something else pulls itself out of the dark, and it is much, much larger. Thorvald never mentioned a fourth. Leave.");
+    return;
+}
+~mesbox("A man rises out of the dark at the far end of the cavern, and does not look surprised to see you.");
+
+[proc,viking_wearing_anything]()(boolean)
+if (inv_getobj(worn, ^wearpos_hat) ! null) { return(true); }
+if (inv_getobj(worn, ^wearpos_back) ! null) { return(true); }
+if (inv_getobj(worn, ^wearpos_front) ! null) { return(true); }
+if (inv_getobj(worn, ^wearpos_rhand) ! null) { return(true); }
+if (inv_getobj(worn, ^wearpos_torso) ! null) { return(true); }
+if (inv_getobj(worn, ^wearpos_lhand) ! null) { return(true); }
+if (inv_getobj(worn, ^wearpos_legs) ! null) { return(true); }
+if (inv_getobj(worn, ^wearpos_hands) ! null) { return(true); }
+if (inv_getobj(worn, ^wearpos_feet) ! null) { return(true); }
+if (inv_getobj(worn, ^wearpos_ring) ! null) { return(true); }
+if (inv_getobj(worn, ^wearpos_quiver) ! null) { return(true); }
+return(false);
+
+// One death hook for the three real forms. Form 4 has none on purpose: it is not part of the trial
+// and killing it - if anyone ever manages 255 hitpoints behind 255 defence with their bare hands -
+// should not advance anything.
+[ai_queue3,viking_enemy1] @viking_koschei_death;
+[ai_queue3,viking_enemy2] @viking_koschei_death;
+[ai_queue3,viking_enemy3] @viking_koschei_death;
+
+[label,viking_koschei_death]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+queue(viking_koschei_felled, 0, 0);
+
+// Through a player queue rather than straight from the death hook: npc_findhero grants
+// active_player but not p_active_player, %viking_bits is a protected varp, and p_finduid is refused
+// while a modal is open. See claude/horror-dks-audit-sept8.md.
+[queue,viking_koschei_felled]
+def_int $down = getbit_range(%viking_bits, ^viking_koschei_lo, ^viking_koschei_hi);
+if ($down >= ^viking_koschei_forms) {
+    return;
+}
+$down = add($down, 1);
+%viking_bits = setbit_range_toint(%viking_bits, $down, ^viking_koschei_lo, ^viking_koschei_hi);
+if ($down < ^viking_koschei_forms) {
+    ~mesbox("He falls, and the dark folds over him. It does not last.");
+    ~viking_koschei_summon;
+    return;
+}
+~mesbox("Three times you have put him down, and three times is what Thorvald asked for. Go and tell him.");
+~viking_koschei_summon;

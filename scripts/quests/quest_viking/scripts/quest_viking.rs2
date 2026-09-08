@@ -1,0 +1,98 @@
+// The Fremennik Trials - Brundt the Chieftain (viking_brundt, m41_57 local(35,21), the longhall).
+// Starts the quest and, once all six council votes are in, ends it.
+//
+// Wiki: Brundt explains that to be made a Fremennik you must win over the council. The six trials
+// are done in ANY order, which is why each one is its own bit in %viking_bits rather than a step in
+// a linear %viking - see configs/quest_viking.constant.
+
+[opnpc1,viking_brundt]
+// Brundt is the fifth link in Sigmund's chain on the way down and the ninth on the way back.
+if (~viking_merchant(5, 23) = true) {
+    return;
+}
+if (%viking = ^viking_not_started) {
+    @viking_brundt_start;
+}
+if (%viking >= ^viking_complete) {
+    ~chatnpc("<p,happy>Welcome home, <~viking_fremennik_name>. You are one of us now.");
+    return;
+}
+if (getbit_range(%viking_bits, ^viking_votes_first, ^viking_votes_last) = ^viking_all_votes) {
+    @viking_brundt_finish;
+}
+~chatplayer("<p,quiz>How am I doing?");
+~chatnpc("<p,neutral>You have <tostring(~viking_votes_won)> of the six votes you need. Keep at it, outerlander.");
+~viking_brundt_remaining;
+
+[label,viking_brundt_start]
+~chatplayer("<p,happy>Hello.");
+~chatnpc("<p,neutral>Outerlander. You are a long way from your own people.");
+~chatplayer("<p,quiz>Could I become one of yours?");
+~chatnpc("<p,neutral>Ha! Every outerlander who wanders in here asks me that.");
+~chatnpc("<p,neutral>It is not mine to give. The council decides, and the council is six stubborn people who each want something different from you.");
+def_int $op = ~p_choice2("Then I'll win them over.", 1, "That sounds like a lot of work.", 2);
+if ($op = 2) {
+    ~chatplayer("<p,neutral>That sounds like a lot of work.");
+    ~chatnpc("<p,neutral>It is. Come back when you have the stomach for it.");
+    return;
+}
+~chatplayer("<p,neutral>Then I'll win them over.");
+~chatnpc("<p,happy>Good. Then go and speak to them - Manni, Sigli, Olaf, Sigmund, Thorvald and Peer. Earn all six votes and come back to me.");
+~chatnpc("<p,neutral>They are scattered about Rellekka. Ask around; nobody here is shy.");
+%viking = ^viking_started;
+~send_quest_progress(questlist:viking, %viking, ^viking_complete);
+
+[label,viking_brundt_finish]
+~chatplayer("<p,happy>I have all six votes.");
+~chatnpc("<p,happy>So the council tells me. Every one of them, and not one of them easily won.");
+~chatnpc("<p,neutral>Kneel then, outerlander, and take a Fremennik name.");
+mes("Brundt lays a hand on your head.");
+p_delay(2);
+~chatnpc("<p,happy>Rise, <~viking_fremennik_name>. Rellekka is your home now.");
+%viking = ^viking_complete;
+queue(viking_quest_complete, 0, 0);
+
+[queue,viking_quest_complete]
+session_log(^log_adventure, "Quest complete: The Fremennik Trials");
+~send_quest_complete(questlist:viking, viking_helmet, 250, ^viking_questpoints, "You have completed\\nThe Fremennik Trials!", "A Fremennik name|Rellekka's trust|Fremennik equipment");
+
+// A hand-picked list rather than a generated one: the real quest asks you to choose from a short
+// set of Fremennik names, and this keeps the flavour without an interface to pick from. Keyed off
+// the player's gender so it is at least consistent for a given character.
+[proc,viking_fremennik_name]()(string)
+if (gender() = 0) {
+    return("Sigurd");
+}
+return("Hild");
+
+[proc,viking_votes_won]()(int)
+def_int $n = 0;
+def_int $bit = ^viking_votes_first;
+while ($bit <= ^viking_votes_last) {
+    if (testbit(%viking_bits, $bit) = 1) {
+        $n = add($n, 1);
+    }
+    $bit = add($bit, 1);
+}
+return($n);
+
+// Names the council members still owed a favour, so the quest is followable without a wiki open.
+[proc,viking_brundt_remaining]
+if (testbit(%viking_bits, ^viking_vote_manni) = 0) {
+    mes("Manni the Reveller has not given you his vote.");
+}
+if (testbit(%viking_bits, ^viking_vote_sigli) = 0) {
+    mes("Sigli the Huntsman has not given you his vote.");
+}
+if (testbit(%viking_bits, ^viking_vote_olaf) = 0) {
+    mes("Olaf the Bard has not given you his vote.");
+}
+if (testbit(%viking_bits, ^viking_vote_sigmund) = 0) {
+    mes("Sigmund the Merchant has not given you his vote.");
+}
+if (testbit(%viking_bits, ^viking_vote_thorvald) = 0) {
+    mes("Thorvald the Warrior has not given you his vote.");
+}
+if (testbit(%viking_bits, ^viking_vote_peer) = 0) {
+    mes("Peer the Seer has not given you his vote.");
+}

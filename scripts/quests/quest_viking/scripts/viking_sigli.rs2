@@ -1,0 +1,199 @@
+// The Fremennik Trials - Sigli the Huntsman's trial (viking_sigli, m41_57 local(36,5)).
+//
+// Wiki: Sigli hands you a hunters' talisman. The Draugen roams the Fremennik Province; the talisman
+// is used repeatedly and each use says which way to go, with a butterfly hovering over the creature
+// as a visual tell. Using the talisman on the Draugen's exact tile starts the fight, and killing it
+// binds its essence into the talisman, which you take back to Sigli.
+//
+// All of it is in the cache and none of it is on the map: viking_draugen ("The Draugen", level 69)
+// and viking_draugen_safe ("Butterfly") have zero placements in the whole 660-region sweep, and
+// both talisman objs already carry iop1=Locate. So the hunt is entirely scripted, which is also
+// what lets it be per-player.
+//
+// Where the creature is lives in %viking_bits, not in the npc: see the note in
+// configs/quest_viking.constant. The npc is only ever the visible face of that stored spot, so a
+// despawned butterfly, a logout mid-hunt, or a second player hunting at the same time all resolve
+// themselves the next time you use the talisman. The trial cannot dead-end.
+
+[opnpc1,viking_sigli]
+// Sigli owes Brundt a map of the hunting grounds, which is what stalls Sigmund's chain here.
+if (~viking_merchant(6, 22) = true) {
+    return;
+}
+if (%viking < ^viking_started) {
+    ~chatplayer("<p,happy>Hello there.");
+    ~chatnpc("<p,neutral>Outerlander. I am hunting. You are standing in it.");
+    return;
+}
+if (testbit(%viking_bits, ^viking_vote_sigli) = 1) {
+    ~chatnpc("<p,happy>The Draugen is bound and my hunt is finished. You have my vote, outerlander.");
+    return;
+}
+if (testbit(%viking_bits, ^viking_bit_draugen_slain) = 1) {
+    @viking_sigli_reward;
+}
+if (testbit(%viking_bits, ^viking_bit_talisman_given) = 1) {
+    @viking_sigli_reminder;
+}
+@viking_sigli_start;
+
+[label,viking_sigli_start]
+~chatplayer("<p,quiz>Sigli, I need your vote on the council.");
+~chatnpc("<p,neutral>Do you. And what have you ever hunted, outerlander?");
+~chatplayer("<p,neutral>Try me.");
+~chatnpc("<p,neutral>There is a thing out on the moors. The Draugen - a spirit of the drowned. It wears whatever shape it likes and it does not stay still.");
+~chatnpc("<p,neutral>Bind it, and the vote is yours.");
+if (~p_choice2("I'll do it.", 1, "Maybe another time.", 2) = 2) {
+    ~chatplayer("<p,neutral>Maybe another time.");
+    ~chatnpc("<p,neutral>As you like. The moors will still be there.");
+    return;
+}
+~chatplayer("<p,neutral>I'll do it.");
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,neutral>You have no room to carry anything. Come back with a free hand.");
+    return;
+}
+inv_add(inv, viking_draugen_talisman_uncharged, 1);
+%viking_bits = setbit(%viking_bits, ^viking_bit_talisman_given);
+~chatnpc("<p,neutral>Take this. Use it and it will tell you which way to go. Look for the butterfly - it never strays far from the thing.");
+~mesbox("Sigli hands you a hunters' talisman.");
+
+[label,viking_sigli_reminder]
+~chatplayer("<p,quiz>How do I find this Draugen?");
+~chatnpc("<p,neutral>Use the talisman. It will point you. Look for the butterfly out on the moors, and use the talisman where it hovers.");
+if (inv_total(inv, viking_draugen_talisman_uncharged) > 0 | inv_total(inv, viking_draugen_talisman) > 0) {
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,neutral>And you have lost the talisman. Make room and I will carve you another.");
+    return;
+}
+inv_add(inv, viking_draugen_talisman_uncharged, 1);
+~chatnpc("<p,neutral>And you have lost the talisman. Here - try not to lose this one.");
+
+[label,viking_sigli_reward]
+~chatplayer("<p,happy>It's done. The Draugen is bound.");
+if (inv_total(inv, viking_draugen_talisman) = 0) {
+    ~chatnpc("<p,confused>Then where is the talisman? Bring it to me and I will believe you.");
+    return;
+}
+inv_del(inv, viking_draugen_talisman, 1);
+%viking_bits = setbit(%viking_bits, ^viking_vote_sigli);
+~chatnpc("<p,happy>So it is. I can feel it in the wood.");
+~chatnpc("<p,happy>You have my vote, outerlander. Whatever else you are, you can hunt.");
+mes("Sigli the Huntsman has given you his vote.");
+
+
+// --- The hunt ---
+// One op does everything, because the cache only gave the talisman one: Locate rolls a spot if
+// there is no hunt running, re-places the butterfly if it has despawned, points at it from a
+// distance, and starts the fight when you are standing on it.
+[opheld1,viking_draugen_talisman_uncharged] ~viking_talisman_locate;
+[opheld1,viking_draugen_talisman] ~viking_talisman_locate;
+
+[proc,viking_talisman_locate]
+if (inv_total(inv, viking_draugen_talisman) > 0) {
+    ~mesbox("The talisman is still. Whatever was in the Draugen is inside it now - Sigli will want to see this.");
+    return;
+}
+if (testbit(%viking_bits, ^viking_bit_talisman_given) = 0) {
+    ~mesbox("You have no idea what this is for.");
+    return;
+}
+if (testbit(%viking_bits, ^viking_bit_hunt_active) = 0) {
+    ~viking_hunt_begin;
+    return;
+}
+def_coord $spot = ~viking_hunt_spot_coord(getbit_range(%viking_bits, ^viking_hunt_spot_lo, ^viking_hunt_spot_hi));
+// Re-place the butterfly if its npc has gone - the hunt lives in the varp, not in the npc.
+if (npc_find($spot, viking_draugen_safe, 4, ^vis_off) = false) {
+    npc_add($spot, viking_draugen_safe, ^viking_hunt_lifetime);
+}
+if (distance(coord, $spot) <= 1) {
+    ~viking_draugen_reveal($spot);
+    return;
+}
+mes("The talisman twitches <~viking_compass(coord, $spot)>.");
+
+// A plain bearing rather than a hot/cold reading: the wiki describes the talisman as giving "a chat
+// message in the direction to go", and a direction is followable without a grid overlay. The 8-tile
+// deadband is what makes the last stretch resolve to a single compass point instead of flapping.
+[proc,viking_compass](coord $from, coord $to)(string)
+def_int $dx = sub(coordx($to), coordx($from));
+def_int $dz = sub(coordz($to), coordz($from));
+def_string $ns = "";
+if ($dz > 8) {
+    $ns = "north";
+} else if ($dz < -8) {
+    $ns = "south";
+}
+def_string $ew = "";
+if ($dx > 8) {
+    $ew = "east";
+} else if ($dx < -8) {
+    $ew = "west";
+}
+if ($ns = "" & $ew = "") {
+    return("faintly - you are almost on top of it");
+}
+return(append("towards the ", append($ns, $ew)));
+
+[proc,viking_hunt_begin]
+def_int $roll = random(8);
+%viking_bits = setbit_range_toint(%viking_bits, $roll, ^viking_hunt_spot_lo, ^viking_hunt_spot_hi);
+%viking_bits = setbit(%viking_bits, ^viking_bit_hunt_active);
+def_coord $spot = ~viking_hunt_spot_coord($roll);
+npc_add($spot, viking_draugen_safe, ^viking_hunt_lifetime);
+mes("The talisman pulls hard in your hand.");
+~mesbox("Somewhere out on the moors a butterfly settles. Use the talisman again and it will lead you to it.");
+
+[proc,viking_draugen_reveal](coord $spot)
+mes("You press the talisman against the butterfly.");
+if (npc_find($spot, viking_draugen_safe, 4, ^vis_off) = true) {
+    npc_del;
+}
+%viking_bits = clearbit(%viking_bits, ^viking_bit_hunt_active);
+p_delay(1);
+npc_add($spot, viking_draugen, ^viking_hunt_lifetime);
+sound_synth(ghast_appear, 1, 0);
+~mesbox("The butterfly comes apart like smoke, and the Draugen rises out of it.");
+
+// Eight spots rather than one wandering npc: the Draugen "moves around the Fremennik Province", and
+// re-rolling where it is each time a hunt starts gives that without an npc pathing loose across
+// three regions. All eight are open moor south and east of Rellekka, each verified walkable at
+// level 0 with three clear tiles in every direction - see quest_viking.constant.
+[proc,viking_hunt_spot_coord](int $index)(coord)
+switch_int ($index) {
+    case 0 : return(^viking_draugen_spot_1);
+    case 1 : return(^viking_draugen_spot_2);
+    case 2 : return(^viking_draugen_spot_3);
+    case 3 : return(^viking_draugen_spot_4);
+    case 4 : return(^viking_draugen_spot_5);
+    case 5 : return(^viking_draugen_spot_6);
+    case 6 : return(^viking_draugen_spot_7);
+}
+return(^viking_draugen_spot_8);
+
+// The kill charges the talisman. Handed off through a player queue rather than written from the
+// death hook directly: npc_findhero grants active_player but not p_active_player, and %viking_bits
+// is protected - see claude/horror-dks-audit-sept8.md for why p_finduid is the wrong tool here.
+[ai_queue3,viking_draugen]
+gosub(npc_death);
+def_coord $spot = npc_coord;
+if (npc_findhero = ^false) {
+    return;
+}
+obj_add($spot, bones, 1, ^lootdrop_duration);
+queue(viking_draugen_slain, 0, 0);
+
+[queue,viking_draugen_slain]
+if (testbit(%viking_bits, ^viking_bit_draugen_slain) = 1) {
+    return;
+}
+if (inv_total(inv, viking_draugen_talisman_uncharged) = 0) {
+    return;
+}
+%viking_bits = setbit(%viking_bits, ^viking_bit_draugen_slain);
+inv_del(inv, viking_draugen_talisman_uncharged, 1);
+inv_add(inv, viking_draugen_talisman, 1);
+~mesbox("The Draugen comes apart, and something cold settles into the talisman in your pack. Sigli will want to see this.");

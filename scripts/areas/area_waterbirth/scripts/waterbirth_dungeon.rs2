@@ -376,25 +376,17 @@ if (loc_find(^waterbirth_weakdoor_north_blocker, dagcave_invisibleblocking) = tr
 [opnpc3,viking_dagganoth_cave_ferryman_rellekka] @jarvald_sail;
 [opnpc3,viking_dagganoth_cave_ferryman_island] @jarvald_sail;
 
-// The Rellekka shell has no name and no head models of its own (everything visual lives on the two
-// children), so ~chatnpc - which reads npc_name/npc_type straight off the ACTIVE npc with no multi
-// resolution, exactly like getOpTrigger - would draw a blank chathead with an empty name. All of
-// Jarvald's lines go through ~chatnpc_specific with an explicit child type instead, which is safe
-// from the shell and from either real npc.
-[proc,jarvald_says](string $line)
-~chatnpc_specific("Jarvald", viking_dagganoth_cave_ferryman_1op, $line);
-
 [label,jarvald_mainland_talk]
 ~chatplayer("<p,quiz>Hello. What's out there across the water?");
-~jarvald_says("<p,neutral>Waterbirth Island. Nothing on it but rock, crabs and a hole in the ground - and whatever crawls out of the hole.");
+~chatnpc("<p,neutral>Waterbirth Island. Nothing on it but rock, crabs and a hole in the ground - and whatever crawls out of the hole.");
 def_int $op = ~p_choice2("Take me there.", 1, "I'll pass, thanks.", 2);
 if ($op = 2) {
     ~chatplayer("<p,neutral>I'll pass, thanks.");
-    ~jarvald_says("<p,neutral>Wise. Come back if you change your mind.");
+    ~chatnpc("<p,neutral>Wise. Come back if you change your mind.");
     return;
 }
 ~chatplayer("<p,neutral>Take me there.");
-~jarvald_says("<p,neutral>Get in the boat then. Don't touch anything.");
+~chatnpc("<p,neutral>Get in the boat then. Don't touch anything.");
 @jarvald_sail;
 
 [opnpc1,viking_dagganoth_cave_waterbirth_island] @jarvald_island_talk;
@@ -404,7 +396,7 @@ if ($op = 2) {
 ~chatplayer("<p,quiz>Can you take me back to Rellekka?");
 if (~p_choice2("Yes, take me back.", 1, "Not yet.", 2) = 2) {
     ~chatplayer("<p,neutral>Not yet.");
-    ~jarvald_says("<p,neutral>I'll be here. I'm not going anywhere without you.");
+    ~chatnpc("<p,neutral>I'll be here. I'm not going anywhere without you.");
     return;
 }
 ~chatplayer("<p,neutral>Yes, take me back.");

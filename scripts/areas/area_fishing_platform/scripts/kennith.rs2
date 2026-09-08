@@ -1,3 +1,14 @@
+// Kennith (npc 697, m43_51 plane 1 local(12,24)) carries a real op1=Talk-to in the cache, and it had
+// no handler at all - the ONLY way into this dialogue was [oploc1,kennithwall] in
+// quests/quest_seaslug/scripts/quest_seaslug.rs2, i.e. you had to click the WALL to talk to the boy.
+// Clicking Kennith himself fell through to "Nothing interesting happens".
+//
+// Both routes are right, and both are kept. Before the panel is opened he is sealed in and the engine
+// answers "I can't reach that" for a direct click, which is what the wall handler is for; once he is
+// reachable, talking to him directly now works and puts HIM in the chathead rather than reaching him
+// through a loc.
+[opnpc1,kennith] @kennith_chat;
+
 [label,kennith_chat]
 switch_int(%seaslugquest) {
     case ^seaslug_boat_repaired :

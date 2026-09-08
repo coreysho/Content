@@ -1,0 +1,263 @@
+// The Fremennik Trials - Sigli the Huntsman's trial.
+//
+// The Draugen, moved out of _unpack/377/all.npc so it can be given combat capability. The cache
+// ships it with a model, an animation set, op2=Attack and vislevel=69 and nothing else - no stats
+// and no params - so it was a level-69 monster that could not fight.
+//
+// Stats from https://oldschool.runescape.wiki/w/Draugen : level 69, 60 hitpoints, 60 attack /
+// strength / defence, max hit 7, crush, 4 ticks, aggressive. Deliberately NOT carrying the wiki's
+// current +500 magic and ranged defence bonuses: those are from the 2023-onwards monster rebalance
+// and the "50% weakness to wind spells" system that came with it, both long after this server's
+// January 2006 target. The 2006 shape of "weak to air spells" is simply low magic defence, which is
+// what the +0 below gives.
+//
+// Every bonus is 0 on purpose: ~combat_maxhit is (effective_strength * (bonus + 64) + 320) / 640
+// with effective_strength = level + 9, so strength 60 at bonus 0 gives (69*64+320)/640 = 7 - the
+// wiki max hit exactly. Any strength bonus at all pushes it to 8.
+//
+// attackrange is deliberately absent: it attacks in melee, from opplayer2, where the field is not
+// read. See claude/attackrange-field-vs-param.md for when it is needed.
+[viking_draugen]
+name=The Draugen
+desc=A fearful spirit of the drowned.
+model1=npc_1279
+recol1s=30584
+recol1d=25299
+walkanim=human_walk_f,human_walk_b,human_walk_l,human_walk_r
+readyanim=human_ready
+op2=Attack
+ambient=80
+vislevel=69
+respawnrate=50
+hitpoints=60
+attack=60
+strength=60
+defence=60
+magic=1
+ranged=1
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,0
+param=strengthbonus,0
+param=damagetype,^crush_style
+param=attackrate,4
+param=attack_anim,human_unarmedpunch
+param=defend_anim,human_unarmedblock
+param=death_anim,human_death
+param=retreat,0
+
+
+// --- Koschei the deathless, Thorvald the Warrior's trial ---
+// Moved out of _unpack/377/all.npc (2026-09-08) so the four forms can fight. The cache ships each
+// of them with a model, an animation set and op2=Attack and nothing else - four bosses with no
+// stats at all.
+//
+// Stats from https://oldschool.runescape.wiki/w/Koschei_the_deathless . Forms 1-3 are the trial;
+// form 4 is the joke - 255 hitpoints, 255 defence and a max hit of 1 - and is not meant to be
+// killed, which is why the vote is awarded on the third kill and form 4 only turns up afterwards.
+//
+// Every bonus is 0, which is not laziness: ~combat_maxhit is (effective_strength * (bonus + 64) +
+// 320) / 640 with effective_strength = level + 9, and at bonus 0 that lands each form exactly on
+// its wiki max hit - 29 -> 3, 49 -> 5, 69 -> 7, and form 4's strength of 5 -> 1. Any bonus at all
+// would push forms 2 and 3 a point too high.
+//
+// attackrange is deliberately absent: they fight in melee, from opplayer2, where the field is not
+// read. See claude/attackrange-field-vs-param.md.
+[viking_enemy1]
+name=Koschei the deathless
+desc=Your challenge awaits!
+model1=idk_man_hair_spikes
+model2=idk_man_jaw_split
+model3=obj_barrows_verac_body_manwear
+model4=npc_fisher_kingi2
+model5=obj_rune_platebody_zamorak_manwear3
+model6=npc_chemisti3
+model7=npc_chemisti4
+model8=obj_viking_sword_manwear
+recol1s=9473
+recol1d=15855
+recol2s=2340
+recol2d=5250
+recol3s=7328
+recol3d=21000
+recol4s=6273
+recol4d=22945
+recol5s=24075
+recol5d=21004
+recol6s=19489
+recol6d=9216
+vislevel=hide
+hitpoints=30
+attack=20
+strength=20
+defence=20
+magic=1
+ranged=1
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,0
+param=strengthbonus,0
+param=damagetype,^slash_style
+param=attackrate,4
+param=attack_anim,human_unarmedpunch
+param=defend_anim,human_unarmedblock
+param=death_anim,human_death
+param=retreat,0
+walkanim=human_walk_f,human_walk_b,human_walk_l,human_walk_r
+readyanim=human_staffready
+op2=Attack
+head1=idk_man_hair_wildspikes_head
+head2=idk_man_jaw_split_head
+
+[viking_enemy2]
+name=Koschei the deathless
+desc=Your challenge awaits!
+model1=idk_man_hair_spikes
+model2=idk_man_jaw_split
+model3=obj_barrows_verac_body_manwear
+model4=npc_fisher_kingi2
+model5=obj_rune_platebody_zamorak_manwear3
+model6=npc_chemisti3
+model7=npc_chemisti4
+model8=obj_viking_sword_manwear
+recol1s=9473
+recol1d=15855
+recol2s=2340
+recol2d=5250
+recol3s=7328
+recol3d=21000
+recol4s=6273
+recol4d=22945
+recol5s=24075
+recol5d=21004
+recol6s=19489
+recol6d=12288
+vislevel=hide
+hitpoints=50
+attack=40
+strength=40
+defence=40
+magic=1
+ranged=1
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,0
+param=strengthbonus,0
+param=damagetype,^slash_style
+param=attackrate,4
+param=attack_anim,human_unarmedpunch
+param=defend_anim,human_unarmedblock
+param=death_anim,human_death
+param=retreat,0
+walkanim=human_walk_f,human_walk_b,human_walk_l,human_walk_r
+readyanim=human_staffready
+op2=Attack
+head1=idk_man_hair_wildspikes_head
+head2=idk_man_jaw_split_head
+
+[viking_enemy3]
+name=Koschei the deathless
+desc=Your challenge awaits!
+model1=idk_man_hair_spikes
+model2=idk_man_jaw_split
+model3=obj_barrows_verac_body_manwear
+model4=npc_fisher_kingi2
+model5=obj_rune_platebody_zamorak_manwear3
+model6=npc_chemisti3
+model7=npc_chemisti4
+model8=obj_viking_sword_manwear
+recol1s=9473
+recol1d=15855
+recol2s=2340
+recol2d=5250
+recol3s=7328
+recol3d=21000
+recol4s=6273
+recol4d=22945
+recol5s=24075
+recol5d=21004
+recol6s=19489
+recol6d=16417
+vislevel=hide
+hitpoints=70
+attack=60
+strength=60
+defence=60
+magic=1
+ranged=1
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,0
+param=strengthbonus,0
+param=damagetype,^slash_style
+param=attackrate,4
+param=attack_anim,human_unarmedpunch
+param=defend_anim,human_unarmedblock
+param=death_anim,human_death
+param=retreat,0
+walkanim=human_walk_f,human_walk_b,human_walk_l,human_walk_r
+readyanim=human_staffready
+op2=Attack
+head1=idk_man_hair_wildspikes_head
+head2=idk_man_jaw_split_head
+
+[viking_enemy4]
+name=Koschei the deathless
+desc=Your challenge awaits!
+model1=idk_man_hair_spikes
+model2=idk_man_jaw_split
+model3=obj_barrows_verac_body_manwear
+model4=npc_fisher_kingi2
+model5=obj_rune_platebody_zamorak_manwear3
+model6=npc_chemisti3
+model7=npc_chemisti4
+model8=obj_viking_sword_manwear
+recol1s=9473
+recol1d=15855
+recol2s=2340
+recol2d=5250
+recol3s=7328
+recol3d=21000
+recol4s=6273
+recol4d=22945
+recol5s=24075
+recol5d=21004
+recol6s=19489
+recol6d=9216
+vislevel=hide
+hitpoints=255
+attack=255
+strength=5
+defence=255
+magic=1
+ranged=1
+param=stabdefence,0
+param=slashdefence,0
+param=crushdefence,0
+param=magicdefence,0
+param=rangedefence,0
+param=attackbonus,0
+param=strengthbonus,0
+param=damagetype,^slash_style
+param=attackrate,4
+param=attack_anim,human_unarmedpunch
+param=defend_anim,human_unarmedblock
+param=death_anim,human_death
+param=retreat,0
+walkanim=human_walk_f,human_walk_b,human_walk_l,human_walk_r
+readyanim=human_staffready
+op2=Attack
+head1=idk_man_hair_wildspikes_head
+head2=idk_man_jaw_split_head

@@ -1,0 +1,85 @@
+// The Fremennik Trials - Swensen the Navigator's portal maze (viking_hallifred, m41_57 local(22,12);
+// the cache name does not match his display name). Wiki:
+// https://oldschool.runescape.wiki/w/The_Fremennik_Trials
+//
+// Down the ladder in his house and through seven rooms of four portals each. One portal per room
+// leads on; the other three drop you in a dark dead end you can only leave by the rope, which puts
+// you back at the start. The route spells his name - South, West, East, North, South, East, North -
+// but none of that has to be reimplemented here: the cache already numbered the correct portal in
+// each room vt_mazeportal_1..7 and made every other one vt_mazeportal_wrong, so the map itself
+// carries the answer. See configs/quest_viking.constant for the full inventory.
+//
+// Swensen's own contribution to Sigmund's merchant trial is this maze, so completing it sets a bit
+// rather than a vote - Swensen is not one of the six council members who vote.
+
+[opnpc1,viking_hallifred]
+// Swensen draws the chart the fisherman needs. His maze is a separate gate - see below.
+if (~viking_merchant(9, 19) = true) {
+    return;
+}
+if (%viking < ^viking_started) {
+    ~chatplayer("<p,happy>Hello.");
+    ~chatnpc("<p,neutral>Mm. Charts. Busy.");
+    return;
+}
+if (testbit(%viking_bits, ^viking_bit_maze_done) = 1) {
+    ~chatnpc("<p,happy>You found your way through. Not many do it without a rope burn or two.");
+    return;
+}
+~chatplayer("<p,quiz>Swensen, I'm running errands for the council.");
+~chatnpc("<p,neutral>Are you. Then you will want something from me, and I want to know you can find your way out of a room first.");
+~chatnpc("<p,neutral>There is a maze under this house. Seven rooms, four ways out of each, and only one of them is the way on.");
+~chatplayer("<p,quiz>How am I meant to know which?");
+~chatnpc("<p,happy>You have my name, outerlander. That is the whole of the hint and it is more than I was given.");
+
+[oploc1,vt_mazeladdertopentrance]
+if (%viking < ^viking_started) {
+    mes("You have no reason to go down there.");
+    return;
+}
+mes("You climb down into the maze.");
+p_telejump(^viking_maze_enter);
+~mesbox("Four portals, and no way to tell them apart but the direction they face. Swensen said you already had the hint.");
+
+[oploc1,vt_mazeladderentrance]
+mes("You climb out of the maze.");
+p_telejump(^viking_maze_house);
+
+// The rope out of a dead end. Puts you back at the first room rather than at the surface, which is
+// what makes a wrong turn cost you the run rather than the trip.
+[oploc1,vt_mazeladderescapeladder]
+mes("You haul yourself up the rope.");
+p_telejump(^viking_maze_enter);
+~mesbox("You come out where you started. Whatever you picked, it was not the way on.");
+
+[oploc1,vt_mazeportal_1] ~viking_maze_step(^viking_maze_room2);
+[oploc1,vt_mazeportal_2] ~viking_maze_step(^viking_maze_room3);
+[oploc1,vt_mazeportal_3] ~viking_maze_step(^viking_maze_room4);
+[oploc1,vt_mazeportal_4] ~viking_maze_step(^viking_maze_room5);
+[oploc1,vt_mazeportal_5] ~viking_maze_step(^viking_maze_room6);
+[oploc1,vt_mazeportal_6] ~viking_maze_step(^viking_maze_room7);
+[oploc1,vt_mazeportal_7] ~viking_maze_step(^viking_maze_end);
+
+[proc,viking_maze_step](coord $dest)
+mes("You step through the portal.");
+p_delay(1);
+p_telejump($dest);
+sound_synth(teleport_all, 1, 0);
+
+[oploc1,vt_mazeportal_wrong]
+mes("You step through the portal.");
+p_delay(1);
+p_telejump(^viking_maze_deadend);
+sound_synth(teleport_all, 1, 0);
+~mesbox("The room on the other side is dark and empty, and there is nothing in it but a rope and a great many bones.");
+
+[oploc1,vt_mazeladderexit]
+if (testbit(%viking_bits, ^viking_bit_maze_done) = 0) {
+    %viking_bits = setbit(%viking_bits, ^viking_bit_maze_done);
+    mes("You climb out into daylight.");
+    ~mesbox("You have found your way through Swensen's maze. He will want to hear about it.");
+    p_telejump(^viking_maze_house);
+    return;
+}
+mes("You climb out into daylight.");
+p_telejump(^viking_maze_house);
