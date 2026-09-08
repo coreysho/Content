@@ -132,11 +132,21 @@ def_locshape $loc_shape = loc_shape;
 def_int $loc_angle = loc_angle;
 def_coord $loc_coord = loc_coord;
 def_boolean $entering = ~check_axis(coord, loc_coord, loc_angle);
-if($entering = true & inv_total(inv, mournerkeytw) = 0 & $used_key = false) { // cant enter with oploc1
+// Mourning's End Part I: a full Mourner's uniform, mask included, gets you past the gate without
+// Biohazard's key. Checked as worn equipment rather than as a quest stage, which is how the gate
+// behaves in game and also means the uniform keeps working after the quest.
+def_boolean $disguised = ~mourning_wearing_disguise;
+if($entering = true & inv_total(inv, mournerkeytw) = 0 & $used_key = false & $disguised = false) { // cant enter with oploc1
     mes("The gate is locked.");
     p_delay(3);
     mes("You need a key.");
     return;
+}
+if($entering = true & $disguised = true & %mourning_quest = ^mourning_has_disguise) {
+    %mourning_quest = ^mourning_entered_hq;
+    ~send_quest_progress(questlist:mourning, 4, ^mourning_complete);
+    // mes rather than ~mesbox: a modal here would pause the script before the gate itself opens.
+    mes("The Mourner on the gate glances at you, sees the mask, and goes back to looking at nothing.");
 }
 if($used_key = true) {
     mes("The key fits the gate.");

@@ -6,9 +6,13 @@
 [ai_queue3,mourner_hideout_guard] @mourner2_drop_table;
 [ai_queue3,mournerstew1] @mourner2_drop_table;
 [ai_queue3,mournerstew3] @mourner2_drop_table;
-[ai_queue3,mourning_overpass_mourner1] @mourner2_drop_table;
-[ai_queue3,mourning_overpass_mourner2] @mourner2_drop_table;
-[ai_queue3,mourning_overpass_mourner3] @mourner2_drop_table;
+// The three overpass mourners of Mourning's End Part I go to their own table: they drop the BLOODY
+// top and the RIPPED trousers rather than the clean pair, because the soap-and-seamstress chain of
+// that quest's first half hangs off them. Everything else about the drop is identical, so the two
+// tables share their random half.
+[ai_queue3,mourning_overpass_mourner1] @mourning_overpass_drop_table;
+[ai_queue3,mourning_overpass_mourner2] @mourning_overpass_drop_table;
+[ai_queue3,mourning_overpass_mourner3] @mourning_overpass_drop_table;
 
 [label,mourner2_drop_table]
 gosub(npc_death);
@@ -16,17 +20,38 @@ if (npc_findhero = ^false) {
     return;
 }
 
-// Bones / ashes, set on the npc config.
+// Bones / ashes, set on the npc config. FIXED 2026-09-08: this was immediately followed by a
+// second, unconditional obj_add of bones, so every mourner in the game dropped two sets. None of
+// the npcs on this table overrides death_drop, and its default is bones, so the explicit line was
+// pure duplication.
 obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
 
-obj_add(npc_coord, bones, 1, ^lootdrop_duration);
 obj_add(npc_coord, mourning_mourner_top, 1, ^lootdrop_duration);
 obj_add(npc_coord, mourning_mourner_legs, 1, ^lootdrop_duration);
 obj_add(npc_coord, mourning_mourner_cloak, 1, ^lootdrop_duration);
 obj_add(npc_coord, mourning_mourner_boots, 1, ^lootdrop_duration);
 obj_add(npc_coord, mourning_mourner_gloves, 1, ^lootdrop_duration);
 obj_add(npc_coord, gasmask, 1, ^lootdrop_duration);
+@mourner_common_drops;
 
+// As above, but with the damaged uniform. Both tables end by jumping into the shared half below.
+[label,mourning_overpass_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+obj_add(npc_coord, mourning_bloody_mourner_top, 1, ^lootdrop_duration);
+obj_add(npc_coord, mourning_ripped_mourner_legs, 1, ^lootdrop_duration);
+obj_add(npc_coord, mourning_mourner_cloak, 1, ^lootdrop_duration);
+obj_add(npc_coord, mourning_mourner_boots, 1, ^lootdrop_duration);
+obj_add(npc_coord, mourning_mourner_gloves, 1, ^lootdrop_duration);
+obj_add(npc_coord, gasmask, 1, ^lootdrop_duration);
+@mourner_common_drops;
+
+// The half both tables share. npc_findhero has already been called and has already returned true
+// in either caller, so active_player is set by the time control reaches here.
+[label,mourner_common_drops]
 ~trail_hardcluedrop(^trail_hard_droprate, npc_coord);
 
 def_int $dropint = random(128);

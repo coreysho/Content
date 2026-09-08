@@ -3,6 +3,12 @@ if(map_members = ^false) { // rs3
     ~chatnpc("<p,neutral>It's very nice that you've come all the way down here, but I really don't have time to talk at the moment. Maybe if you come back later on a members' world I'll be able to help.");
     return;
 }
+// Regicide branch first: it requires Biohazard finished, and the switch below has no case for the
+// finished state, so nothing here is shadowed. The dialogue itself lives with the rest of that
+// quest, in quests/quest_regicide/scripts/regicide_camp.rs2.
+if (%regicide_quest >= ^regicide_has_book & %regicide_quest < ^regicide_complete) {
+    @chemist_regicide;
+}
 switch_int(%biohazard) {
     case ^biohazard_spoken_chemist, ^biohazard_found_secret :
         ~chatplayer("<p,happy>Hello again.");

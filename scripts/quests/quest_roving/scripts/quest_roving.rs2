@@ -1,0 +1,299 @@
+// Roving Elves - Islwyn, Eluned, the consecration seed and the crystal tree.
+// See configs/quest_roving.constant for what was already standing before this was written.
+
+[opnpc1,roving_islwyn]
+// Mourning's End Part I starts here: Islwyn is the only elf who will speak to a human at all, and
+// finishing Roving Elves is what makes him do it. The handler lives in quest_mourning.rs2.
+if (%roving_elves_quest = ^roving_elves_complete) {
+    @mourning_islwyn;
+}
+if (%roving_elves_quest = ^roving_planted) {
+    @roving_reward;
+}
+if (%roving_elves_quest > ^roving_not_started) {
+    @roving_islwyn_progress;
+}
+// Two hard prerequisites, and the second is the point of the whole conversation: Islwyn will not
+// speak to a human at all until he learns this one already laid his grandmother to rest.
+if (%regicide_quest < ^regicide_complete) {
+    ~chatplayer("<p,happy>Hello there.");
+    ~chatnpc("<p,angry>Another human wandering our woods. Keep walking.");
+    return;
+}
+~chatplayer("<p,happy>Hello there.");
+~chatnpc("<p,angry>A human. In Isafdar. Walking about as though the trees belonged to it.");
+~chatplayer("<p,quiz>I've done your people no harm.");
+~chatnpc("<p,angry>Your people burned my people out of Arandar and called it a border. Do not tell me about harm.");
+if (%waterfall_quest ! ^waterfall_complete) {
+    ~chatnpc("<p,neutral>Go away, human.");
+    return;
+}
+~chatplayer("<p,neutral>I found Glarial's tomb. I put her ashes in the chalice myself.");
+~chatnpc("<p,shock>...you what?");
+~chatplayer("<p,neutral>Glarial. The urn, the tomb behind the waterfall. I did it properly.");
+~chatnpc("<p,sad>Glarial was my grandmother. She has lain in a hole under a human waterfall for four hundred years and not one of us could reach her.");
+~chatnpc("<p,neutral>And a human did it. Without being asked.");
+%roving_elves_quest = ^roving_started;
+~send_quest_progress(questlist:roving_elves, 1, ^roving_elves_complete);
+~chatnpc("<p,neutral>Then I will ask you for one thing more. Her spirit is at rest but her grave is not consecrated, and until it is she cannot go on.");
+~chatnpc("<p,neutral>Speak to Eluned. She knows the rite; I only know the grief.");
+
+[label,roving_islwyn_progress]
+switch_int (%roving_elves_quest) {
+    case ^roving_started :
+        ~chatnpc("<p,neutral>Eluned is here beside me, human. Speak to her about the rite.");
+    case ^roving_asked_eluned, ^roving_has_seed :
+        ~chatnpc("<p,neutral>The seed is in my grandmother's first grave, and something large is sitting on it. Eluned told you where.");
+    case ^roving_seed_enchanted :
+        ~chatnpc("<p,neutral>Plant it beside the chalice, where she lies now. Then come back and tell me it is done.");
+    case default :
+        ~chatnpc("<p,neutral>Tread carefully, human.");
+}
+
+// Eluned. She is placed two tiles from Islwyn, so the handover reads as one conversation.
+[opnpc1,roving_female_woodelf]
+// Once Mourning's End Part I is under way she is the crossing to Lletya rather than the rite.
+if (%mourning_quest >= ^mourning_started) {
+    @mourning_eluned;
+}
+if (%roving_elves_quest = ^roving_elves_complete) {
+    ~chatnpc("<p,happy>The tree is beautiful. Thank you.");
+    return;
+}
+if (%roving_elves_quest < ^roving_started) {
+    ~chatnpc("<p,neutral>Islwyn does the talking to humans. Or the not talking, mostly.");
+    return;
+}
+if (inv_total(inv, roving_old_consecration_seed) > 0) {
+    @roving_enchant_seed;
+}
+if (%roving_elves_quest >= ^roving_seed_enchanted) {
+    if (~roving_holds_seed = false) {
+        @roving_replace_seed;
+    }
+    ~chatnpc("<p,neutral>Plant it beside her, and the rite will finish itself.");
+    return;
+}
+if (%roving_elves_quest = ^roving_asked_eluned) {
+    ~chatnpc("<p,neutral>A consecration seed, in her first grave. Under the waterfall, past whatever has moved in since.");
+    return;
+}
+~chatplayer("<p,quiz>Islwyn said you know the rite.");
+~chatnpc("<p,neutral>I do. It needs a consecration seed, and there has not been one grown in Tirannwn since before your people had a word for us.");
+~chatnpc("<p,neutral>But Glarial was buried with one, long ago, in the tomb she lay in before the waterfall. It will still be there. It will be grey and it will look dead, and it is neither.");
+~chatplayer("<p,quiz>And then?");
+~chatnpc("<p,neutral>Bring it to me. I will wake it. Then plant it beside her, and she can go.");
+%roving_elves_quest = ^roving_asked_eluned;
+~send_quest_progress(questlist:roving_elves, 2, ^roving_elves_complete);
+~chatnpc("<p,worried>One thing. Something has taken up residence in that tomb. It is not going to move for a human asking politely.");
+
+// The seed goes in before the dialogue: every ~chatnpc aborts the script if dismissed, and losing an
+// enchantment you have already handed the seed over for would be miserable.
+[label,roving_enchant_seed]
+~chatplayer("<p,happy>I found it.");
+inv_del(inv, roving_old_consecration_seed, 1);
+inv_add(inv, roving_new_consecration_seed, 1);
+%roving_elves_quest = ^roving_seed_enchanted;
+~send_quest_progress(questlist:roving_elves, 4, ^roving_elves_complete);
+~chatnpc("<p,shock>You did. You actually did.");
+mes("Eluned holds the seed in both hands and says nothing at all for a while. When she gives it back it is warm.");
+~chatnpc("<p,neutral>Now. She lies beside the chalice, at the bottom of the waterfall. Plant it there.");
+
+// The seed cannot be lost for good - the wiki has her replace an enchanted one, and there is no
+// second seed in the tomb once the first has been taken.
+[label,roving_replace_seed]
+~chatplayer("<p,sad>I've lost the seed.");
+inv_add(inv, roving_new_consecration_seed, 1);
+~chatnpc("<p,neutral>Then it is fortunate that waking a seed is easier the second time. Here.");
+~chatnpc("<p,neutral>Beside the chalice. Do not lose this one.");
+
+[proc,roving_holds_seed]()(boolean)
+if (inv_total(inv, roving_new_consecration_seed) > 0) {
+    return(true);
+}
+return(false);
+
+
+// --- The seed in Glarial's tomb ---
+// Added as a branch of the Waterfall Quest's own chest handler rather than a new trigger: the chest
+// already has one, and a trigger can only be declared once. See quest_waterfall.rs2.
+
+[proc,roving_search_tomb_chest]
+if (%roving_elves_quest ! ^roving_asked_eluned) {
+    return;
+}
+if (inv_total(inv, roving_old_consecration_seed) > 0) {
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("There is something else in the chest, but your hands are full.");
+    return;
+}
+inv_add(inv, roving_old_consecration_seed, 1);
+%roving_elves_quest = ^roving_has_seed;
+~send_quest_progress(questlist:roving_elves, 3, ^roving_elves_complete);
+~mesbox("Pushed into the corner of the chest, under four centuries of dust, is a seed the colour of ash. Eluned said it would look dead.");
+
+
+// --- Planting it ---
+// The obj's own iop1=Plant, which had a placeholder in general_use/scripts/item_ops_generated.rs2
+// pointing at the wrong place ("You must plant this at Glarial's tomb") - the rite happens where she
+// lies NOW, beside the Chalice of Eternity at the bottom of the waterfall, not in the tomb she was
+// moved out of.
+//
+// Whether the player is beside the chalice is answered by asking the map rather than by hard-coding
+// a coord: baxtorian_chalice_waterfall_quest is placed three times across m39_154 and m40_154 on
+// three different levels, and loc_findallzone works per 8x8 zone and per level. Sweeping the
+// player's own zone plus its four neighbours covers everything within 8 tiles of them, on their
+// level only, with no coordinate constants to get wrong.
+
+[opheld1,roving_new_consecration_seed]
+if (%roving_elves_quest >= ^roving_planted) {
+    ~mesbox("The rite is already done.");
+    return;
+}
+if (~roving_beside_chalice = false) {
+    ~mesbox("Nothing happens. Eluned was specific: the seed goes into the ground beside the chalice, where Glarial lies now.");
+    return;
+}
+if (inv_total(inv, spade) < 1) {
+    ~mesbox("The ground here is packed hard. You would need a spade.");
+    return;
+}
+inv_del(inv, roving_new_consecration_seed, 1);
+%roving_elves_quest = ^roving_planted;
+~send_quest_progress(questlist:roving_elves, 5, ^roving_elves_complete);
+// The tree goes up before the delay, not after it. p_delay aborts the script if the player clicks
+// away, and by that point the seed is spent and the state is committed - so a tree added afterwards
+// would simply never appear for that player, with no way to plant a second seed.
+anim(human_dig, 0);
+loc_add(coord, roving_crystal_growth, 0, centrepiece_straight, ^roving_tree_lifetime);
+sound_synth(prayer_recharge, 1, 0);
+p_delay(2);
+~mesbox("The seed goes into the ground and does not stay there. Something clear and sharp comes up through the stone, and keeps coming, until there is a tree of crystal standing over the chalice.");
+~mesbox("The light off it is the same light Eluned had in her hands. Glarial's grave is consecrated. Islwyn will want to hear it from you.");
+
+[proc,roving_beside_chalice]()(boolean)
+if (~roving_chalice_in_zone(coord) = true) { return(true); }
+if (~roving_chalice_in_zone(movecoord(coord, 8, 0, 0)) = true) { return(true); }
+if (~roving_chalice_in_zone(movecoord(coord, -8, 0, 0)) = true) { return(true); }
+if (~roving_chalice_in_zone(movecoord(coord, 0, 0, 8)) = true) { return(true); }
+if (~roving_chalice_in_zone(movecoord(coord, 0, 0, -8)) = true) { return(true); }
+return(false);
+
+[proc,roving_chalice_in_zone](coord $c)(boolean)
+loc_findallzone($c);
+while (loc_findnext = true) {
+    if (loc_type = baxtorian_chalice_waterfall_quest) {
+        return(true);
+    }
+}
+return(false);
+
+
+// --- The reward ---
+
+[label,roving_reward]
+~chatplayer("<p,happy>It's done. There's a crystal tree growing over her.");
+~chatnpc("<p,happy>I know. Eluned felt it from here and has not stopped crying, which for an elf is quite a lot of crying.");
+~chatnpc("<p,neutral>We have nothing a human would call payment. We have one thing, though, and I would rather it went to you than sat in a tree.");
+def_int $choice = ~p_choice2("A crystal bow, please.", 1, "A crystal shield, please.", 2);
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,neutral>You have nowhere to put it. Come back with a hand free.");
+    return;
+}
+// Two queue labels rather than one carrying the choice as an argument. queue() does take an int arg,
+// but nothing in this codebase reads one back and it was not worth being the first thing to try it
+// on the last line of a quest.
+if ($choice = 2) {
+    queue(roving_complete_shield, 0, 0);
+    return;
+}
+queue(roving_complete_bow, 0, 0);
+
+[queue,roving_complete_bow]
+~roving_award(roving_crystal_bow_new);
+~send_quest_complete(questlist:roving_elves, roving_crystal_bow_new, 250, ^roving_elves_questpoints, "You have completed the\\nRoving Elves Quest!", "10,000 Strength XP|A crystal bow|Islwyn will re-enchant a spent seed");
+
+[queue,roving_complete_shield]
+~roving_award(roving_crystal_shield_new);
+~send_quest_complete(questlist:roving_elves, roving_crystal_shield_new, 250, ^roving_elves_questpoints, "You have completed the\\nRoving Elves Quest!", "10,000 Strength XP|A crystal shield|Islwyn will re-enchant a spent seed");
+
+[proc,roving_award](namedobj $item)
+%roving_elves_quest = ^roving_elves_complete;
+stat_advance(strength, ^roving_reward_xp);
+inv_add(inv, $item, 1);
+
+
+// --- Golrie ---
+// The Waterfall Quest's Golrie is a different npc, golrie_waterfall_quest, locked in his cage; this
+// one is roving_golrie, "No longer locked in his own cage", placed in the same dungeon. He is the
+// replacement source for Glarial's pebble, which is what gets you back into the tomb.
+
+[opnpc1,roving_golrie]
+if (inv_total(inv, glarials_pebble_waterfall_quest) > 0) {
+    ~chatplayer("<p,happy>Hello Golrie.");
+    ~chatnpc("<p,happy>Hello again! Still got that old pebble, I see.");
+    return;
+}
+~chatplayer("<p,quiz>Golrie, I've lost that pebble of your grandfather's.");
+~chatnpc("<p,happy>Have you? There's more of his junk down here than I'll ever get through.");
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,neutral>You'd need a free hand to carry it, mind.");
+    return;
+}
+inv_add(inv, glarials_pebble_waterfall_quest, 1);
+mes("Golrie rummages through the junk and hands you another pebble.");
+~chatnpc("<p,happy>There. Try not to lose that one down a waterfall.");
+
+
+// --- Quest journal ---
+
+[if_button,questlist:roving_elves]
+def_string $n = "Roving Elves";
+def_string $x;
+if (%roving_elves_quest = ^roving_elves_complete) {
+    $x = append($x, "@str@I planted a consecration seed beside the Chalice of Eternity|");
+    $x = append($x, "@str@and a crystal tree grew over Glarial's resting place.|");
+    $x = append($x, "|@dre@QUEST COMPLETE!");
+    ~quest_journal($n, $x);
+    return;
+}
+if (%roving_elves_quest < ^roving_started) {
+    $x = append($x, "@dbl@I can start this quest by speaking to @dre@Islwyn@dbl@, an elf in the|");
+    $x = append($x, "@dbl@woods of @dre@Isafdar@dbl@. He will not speak to a human who has not|");
+    $x = append($x, "@dbl@already done something for his family.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "@str@Islwyn is Glarial's grandson. Because I laid her to rest at the|");
+$x = append($x, "@str@waterfall, he asked me to consecrate her grave.|");
+if (%roving_elves_quest = ^roving_started) {
+    $x = append($x, "|@dbl@I should speak to @dre@Eluned@dbl@, who knows the rite.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@Eluned needs a consecration seed. Glarial was buried with one in|");
+$x = append($x, "@str@her first tomb, and something large has moved into it since.|");
+if (%roving_elves_quest = ^roving_asked_eluned) {
+    $x = append($x, "|@dbl@I need @dre@Glarial's pebble@dbl@ to get into the tomb. @dre@Golrie@dbl@ has|");
+    $x = append($x, "@dbl@another if I have lost mine. The seed is in the @dre@chest@dbl@ inside.");
+    ~quest_journal($n, $x);
+    return;
+}
+if (%roving_elves_quest = ^roving_has_seed) {
+    $x = append($x, "|@str@I have the seed. It looks grey and dead.|");
+    $x = append($x, "|@dbl@I should take it back to @dre@Eluned@dbl@ to be woken.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@Eluned woke the seed. It is warm.|");
+if (%roving_elves_quest = ^roving_seed_enchanted) {
+    $x = append($x, "|@dbl@I should plant it beside the @dre@Chalice of Eternity@dbl@ at the bottom|");
+    $x = append($x, "@dbl@of the @dre@Waterfall@dbl@, where Glarial lies now. I will need a @dre@spade@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@A crystal tree is growing over her grave.|");
+$x = append($x, "|@dbl@I should tell @dre@Islwyn@dbl@ it is done.");
+~quest_journal($n, $x);

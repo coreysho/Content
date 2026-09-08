@@ -1,0 +1,348 @@
+// Mourning's End Part I - first half: Islwyn, Lletya, Arianwyn, and the mourner's uniform.
+// See configs/quest_mourning.constant for what the cache already shipped, for the two deviations
+// this file makes, and for the list of what is deliberately NOT built and why.
+//
+// The quest hooks into Roving Elves rather than starting on its own: Islwyn is the only elf who will
+// speak to a human at all, and Roving Elves is what makes him do it. Both his and Eluned's handlers
+// live in quest_roving/scripts/quest_roving.rs2 and are jumped into from there.
+
+// --- Islwyn: starting the quest ---
+// Jumped to from [opnpc1,roving_islwyn] once Roving Elves is complete.
+
+[label,mourning_islwyn]
+if (%mourning_quest >= ^mourning_started) {
+    @mourning_islwyn_progress;
+}
+if (stat_base(ranged) < ^mourning_req_ranged | stat_base(thieving) < ^mourning_req_thieving) {
+    ~chatplayer("<p,happy>Hello again, Islwyn.");
+    ~chatnpc("<p,neutral>Human. My grandmother sleeps under a crystal tree because of you. Ask me for anything I have.");
+    ~chatplayer("<p,quiz>Is there anything I can do for your people?");
+    ~chatnpc("<p,neutral>There is, and you are not ready for it. It needs a steady bow arm and hands that can work a lock.");
+    ~mesbox("You need 60 Ranged and 50 Thieving to start Mourning's End Part I.");
+    return;
+}
+~chatplayer("<p,happy>Hello again, Islwyn.");
+~chatnpc("<p,neutral>Human. My grandmother sleeps under a crystal tree because of you. Ask me for anything I have.");
+~chatplayer("<p,quiz>Is there anything I can do for your people?");
+~chatnpc("<p,sad>There is one thing, and I have been arguing with myself about whether to ask you.");
+~chatnpc("<p,neutral>West of here, past the pass, the humans of West Ardougne live under the Mourners. Plague clothes, gas masks, quarantine. You have seen them.");
+~chatplayer("<p,neutral>I've seen them. They took Elena.");
+~chatnpc("<p,angry>There is no plague. There has not been a plague in West Ardougne for forty years. The Mourners are elves - our own, Lord Iorwerth's people - wearing human clothes and digging for something under that city.");
+~chatplayer("<p,shock>Digging for what?");
+~chatnpc("<p,neutral>That is the question, and I cannot answer it from here. Arianwyn can. He leads what is left of us, and he is in Lletya, which no human has ever seen.");
+~chatnpc("<p,neutral>Eluned will take you there. Whether she should is between her and her conscience.");
+%mourning_quest = ^mourning_started;
+// Set now rather than on arrival: roving_female_woodelf_temp is a multi-npc whose only child is
+// Eluned, keyed off this varbit. Until it is 1 the shell has no name, no model and no ops, so an
+// Eluned who is only revealed after you land in Lletya would be invisible on the tile you arrive on.
+%mourning_can_see_eluned = 1;
+~send_quest_progress(questlist:mourning, 1, ^mourning_complete);
+~chatnpc("<p,neutral>Ask her. Not me.");
+
+[label,mourning_islwyn_progress]
+~chatplayer("<p,happy>Hello again, Islwyn.");
+switch_int (%mourning_quest) {
+    case ^mourning_started :
+        ~chatnpc("<p,neutral>Eluned is beside me. She is the one who can take you to Lletya, and she is the one who has to decide to.");
+    case ^mourning_told_arianwyn :
+        ~chatnpc("<p,neutral>A Mourner's uniform, Arianwyn said. There is only one place to get one of those, and it will not be given to you.");
+    case default :
+        ~chatnpc("<p,neutral>You are further into this than I am now. Talk to Arianwyn.");
+}
+
+// --- Eluned: the crossing to Lletya ---
+// Jumped to from [opnpc1,roving_female_woodelf] in quest_roving.rs2.
+
+[label,mourning_eluned]
+if (%mourning_quest > ^mourning_started) {
+    ~chatnpc("<p,neutral>You know the way now. The crystal will carry you.");
+    @mourning_eluned_send;
+}
+~chatplayer("<p,quiz>Islwyn says you can take me to Lletya.");
+~chatnpc("<p,shock>Islwyn says a great many things when he is angry, and this is the first time he has said one I would have to do.");
+~chatnpc("<p,neutral>No human has stood in Lletya. Not one, in four hundred years. Do you understand what he is asking me to spend on you?");
+~chatplayer("<p,neutral>I understand it. I'd still like to go.");
+~chatnpc("<p,neutral>...yes. He is right, and I hate that he is right. Hold still.");
+@mourning_eluned_send;
+
+[label,mourning_eluned_send]
+if (~pre_tele_checks(coord) = false) {
+    return;
+}
+~player_teleport_normal(^mourning_lletya_arrive);
+
+// --- Arianwyn ---
+
+[opnpc1,mourning_arianwyn]
+if (%mourning_quest < ^mourning_started) {
+    // Not reachable in normal play - there is no way into Lletya without starting the quest - but a
+    // teleport crystal kept from a previous character, or an admin teleport, would land here.
+    ~chatnpc("<p,angry>A human. In Lletya. Who brought you here?");
+    ~chatplayer("<p,quiz>I found my own way.");
+    ~chatnpc("<p,angry>Then find your own way out.");
+    return;
+}
+if (%mourning_quest > ^mourning_told_arianwyn) {
+    @mourning_arianwyn_progress;
+}
+if (%mourning_quest = ^mourning_told_arianwyn) {
+    ~chatplayer("<p,quiz>I'm still working on that uniform.");
+    ~chatnpc("<p,neutral>They patrol the high pass between here and Ardougne. That is where you will find one, and there is only one way to take it off him.");
+    @mourning_arianwyn_crystal_offer;
+}
+~chatnpc("<p,shock>Eluned. You brought a human into Lletya.");
+~chatplayer("<p,neutral>She did. Islwyn asked her to.");
+~chatnpc("<p,neutral>...then I will hear you out, because Islwyn does not ask for things.");
+~chatnpc("<p,neutral>You have seen the Mourners. What did you take them for?");
+~chatplayer("<p,quiz>Plague doctors. Ardougne's, or the King's.");
+~chatnpc("<p,neutral>They are Iorwerth's. Elves in gas masks, quarantining a city that has nothing wrong with it, so that nobody asks what they are digging for underneath it.");
+~chatplayer("<p,quiz>And you don't know what that is.");
+~chatnpc("<p,neutral>No. And I have no one who can walk into their headquarters and find out, because every one of my people would be recognised the moment they took the mask off.");
+~chatnpc("<p,neutral>You would not be. You are exactly the wrong shape to be an elf, which for once is useful.");
+~chatplayer("<p,happy>What do you need?");
+~chatnpc("<p,neutral>Get inside their headquarters in West Ardougne. To do that you need a Mourner's uniform - all of it, mask included, or the first one you pass will know.");
+~chatnpc("<p,neutral>They patrol the high pass between here and Ardougne. Take one off a Mourner. I will not pretend that means anything other than what it means.");
+%mourning_quest = ^mourning_told_arianwyn;
+~send_quest_progress(questlist:mourning, 2, ^mourning_complete);
+@mourning_arianwyn_crystal_offer;
+
+[label,mourning_arianwyn_progress]
+~chatplayer("<p,happy>Hello, Arianwyn.");
+~chatnpc("<p,neutral>You have a uniform. Walk in through their gates as though you belong there, and do not run.");
+@mourning_arianwyn_crystal_offer;
+
+// The crystal is handed over here rather than at the moment the quest starts, so that a player who
+// loses or drops it is never stranded outside Lletya with no way back in.
+[label,mourning_arianwyn_crystal_offer]
+if (~mourning_holds_crystal = true) {
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,neutral>I would give you a crystal to find your way back. You have nowhere to put it.");
+    return;
+}
+inv_add(inv, mourning_teleport_crystal_4, 1);
+~chatnpc("<p,neutral>Take this. Four uses, and then it is dust. It will put you back in Lletya from wherever you are standing.");
+
+[proc,mourning_holds_crystal]()(boolean)
+if (~obj_gettotal(mourning_teleport_crystal_4) > 0) { return(true); }
+if (~obj_gettotal(mourning_teleport_crystal_3) > 0) { return(true); }
+if (~obj_gettotal(mourning_teleport_crystal_2) > 0) { return(true); }
+if (~obj_gettotal(mourning_teleport_crystal_1) > 0) { return(true); }
+return(false);
+
+// --- The teleport crystal ---
+// The four [opheld1,...] stubs these replace used to sit in general_use/scripts/item_ops_generated.rs2
+// and printed "The crystal glows and Lletya appears around you." without moving anybody. A trigger can
+// only be declared once, so they were deleted there rather than duplicated here.
+
+[opheld1,mourning_teleport_crystal_4] @mourning_crystal_use(mourning_teleport_crystal_4, mourning_teleport_crystal_3);
+[opheld1,mourning_teleport_crystal_3] @mourning_crystal_use(mourning_teleport_crystal_3, mourning_teleport_crystal_2);
+[opheld1,mourning_teleport_crystal_2] @mourning_crystal_use(mourning_teleport_crystal_2, mourning_teleport_crystal_1);
+
+[opheld1,mourning_teleport_crystal_1]
+if (~pre_tele_checks(coord) = false) {
+    return;
+}
+// Spent before the teleport, not after: ~player_teleport_normal pauses, and a script that is aborted
+// during that pause would leave the player holding a crystal they had already used.
+inv_del(inv, mourning_teleport_crystal_1, 1);
+mes("The crystal glows, and crumbles to dust in your hand.");
+~player_teleport_normal(^mourning_lletya_arrive);
+
+[label,mourning_crystal_use](obj $spent, namedobj $next)
+if (~pre_tele_checks(coord) = false) {
+    return;
+}
+inv_del(inv, $spent, 1);
+inv_add(inv, $next, 1);
+mes("The crystal glows.");
+~player_teleport_normal(^mourning_lletya_arrive);
+
+// --- Eluned in Lletya ---
+// roving_female_woodelf_temp is a multi-npc: multivar=mourning_can_see_eluned, and its only child
+// (state 1) is Eluned. OpNpcHandler resolves the multi far enough to check the op exists and then
+// calls setInteraction with the ORIGINAL npc, and Player.getOpTrigger does NpcType.get on that - so
+// the trigger has to be declared on the shell. Declared on roving_female_woodelf_temp_1 it would
+// never fire, exactly as the Recruitment Drive statue handlers did not.
+
+[opnpc1,roving_female_woodelf_temp]
+if (%mourning_quest < ^mourning_started) {
+    return;
+}
+~chatplayer("<p,quiz>Can you send me back?");
+~chatnpc("<p,neutral>To the woods, yes. Not anywhere a human would call home - you can walk the rest.");
+def_int $choice = ~p_choice2("Yes, take me back to Isafdar.", 1, "No, I'll stay a while.", 2);
+if ($choice = 2) {
+    ~chatnpc("<p,neutral>Then stay. Touch nothing.");
+    return;
+}
+if (~pre_tele_checks(coord) = false) {
+    return;
+}
+~player_teleport_normal(^mourning_isafdar_return);
+
+// --- Tegid's soap ---
+// There is no Tegid npc anywhere in this cache. eadgar_laundry_basket - "It's full of dirty robes",
+// op1=Search - is placed in Taverley at m45_53 (32,26), where he stands in later revisions, and had
+// no handler at all. The soap comes out of the basket instead of out of him. See the constant file.
+
+[oploc1,eadgar_laundry_basket]
+mes("You rummage through the basket of dirty robes.");
+p_delay(2);
+if (%mourning_quest < ^mourning_told_arianwyn) {
+    mes("There is nothing in here but somebody else's washing.");
+    return;
+}
+if (~obj_gettotal(mourning_soap) > 0) {
+    mes("You already took the bar of soap that was in here.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("There is a bar of soap in the bottom of the basket, but your hands are full.");
+    return;
+}
+inv_add(inv, mourning_soap, 1);
+mes("You find a bar of soap in the bottom of the basket, and take it.");
+
+// --- Washing the top ---
+// [opheldu,X] fires for both click orders: OpHeldUHandler tries the target item's trigger first and
+// then the used item's, swapping the pointers as it goes, so inside this trigger last_item is always
+// the bloody top and last_useitem is always the other item.
+
+[opheldu,mourning_bloody_mourner_top]
+def_obj $used = last_useitem;
+if ($used ! mourning_soap & $used ! bucket_water) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (inv_total(inv, mourning_soap) < 1) {
+    mes("You would need soap to get this out.");
+    return;
+}
+if (inv_total(inv, bucket_water) < 1) {
+    mes("You would need a bucket of water to wash this in.");
+    return;
+}
+// Everything is spent and granted before the first pausing call, so that a player who clicks away
+// mid-message cannot end up having lost the top without gaining a clean one.
+inv_del(inv, mourning_bloody_mourner_top, 1);
+inv_del(inv, mourning_soap, 1);
+inv_del(inv, bucket_water, 1);
+inv_add(inv, mourning_mourner_top, 1);
+inv_add(inv, bucket_empty, 1);
+~mesbox("You scrub the top in the bucket until the water goes the colour you would expect. What comes out is a plain, heavy leather Mourner's top.");
+~mourning_check_disguise;
+
+// --- Oronwen and the trousers ---
+
+[opnpcu,mourning_seamstress]
+def_obj $used = last_useitem;
+if ($used ! mourning_ripped_mourner_legs) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@mourning_oronwen_repair;
+
+[opnpc1,mourning_seamstress]
+if (inv_total(inv, mourning_ripped_mourner_legs) > 0) {
+    @mourning_oronwen_repair;
+}
+~chatplayer("<p,happy>Hello.");
+if (%mourning_quest < ^mourning_started) {
+    ~chatnpc("<p,neutral>You are a long way from anywhere that sells cloth, human.");
+    return;
+}
+~chatnpc("<p,happy>Arianwyn said there would be a human. He did not say you would be this tall.");
+~chatplayer("<p,quiz>Do you do repairs?");
+~chatnpc("<p,neutral>I do. Bring me the thing and I will look at it.");
+
+[label,mourning_oronwen_repair]
+~chatplayer("<p,quiz>Could you mend these?");
+~chatnpc("<p,shock>Those are Mourner's trousers, and they have been cut open. I am not going to ask.");
+~chatplayer("<p,neutral>Best that you don't.");
+~chatnpc("<p,neutral>Sit down. This will take a moment.");
+inv_del(inv, mourning_ripped_mourner_legs, 1);
+inv_add(inv, mourning_mourner_legs, 1);
+mes("Oronwen turns the trousers inside out and works along the tear. When she hands them back you cannot find where it was.");
+~chatnpc("<p,happy>There. Do not tell Arianwyn what I mended, or he will want to know what happened to the last person wearing them.");
+~mourning_check_disguise;
+
+// --- The disguise ---
+
+[proc,mourning_wearing_disguise]()(boolean)
+if (inv_total(worn, mourning_mourner_top) < 1) { return(false); }
+if (inv_total(worn, mourning_mourner_legs) < 1) { return(false); }
+if (inv_total(worn, mourning_mourner_cloak) < 1) { return(false); }
+if (inv_total(worn, mourning_mourner_gloves) < 1) { return(false); }
+if (inv_total(worn, mourning_mourner_boots) < 1) { return(false); }
+if (inv_total(worn, gasmask) < 1) { return(false); }
+return(true);
+
+[proc,mourning_holds_disguise]()(boolean)
+if (~obj_gettotal(mourning_mourner_top) < 1) { return(false); }
+if (~obj_gettotal(mourning_mourner_legs) < 1) { return(false); }
+if (~obj_gettotal(mourning_mourner_cloak) < 1) { return(false); }
+if (~obj_gettotal(mourning_mourner_gloves) < 1) { return(false); }
+if (~obj_gettotal(mourning_mourner_boots) < 1) { return(false); }
+if (~obj_gettotal(gasmask) < 1) { return(false); }
+return(true);
+
+// Called from the two places a piece can become complete: Oronwen's repair and the washing of the
+// top. Kept as a proc rather than a login check so the journal updates the moment the set is whole.
+[proc,mourning_check_disguise]
+if (%mourning_quest ! ^mourning_told_arianwyn) {
+    return;
+}
+if (~mourning_holds_disguise = false) {
+    return;
+}
+%mourning_quest = ^mourning_has_disguise;
+%mourning_mourner_disguise = 1;
+~send_quest_progress(questlist:mourning, 3, ^mourning_complete);
+~mesbox("That is the whole uniform. Wearing all of it, mask included, you would pass for a Mourner at a distance - and their headquarters in West Ardougne is where Arianwyn wants you.");
+
+// --- Quest journal ---
+
+[if_button,questlist:mourning]
+def_string $n = "Mourning's End Part I";
+def_string $x;
+if (%mourning_quest < ^mourning_started) {
+    $x = append($x, "@dbl@I can start this quest by speaking to @dre@Islwyn@dbl@, an elf in the|");
+    $x = append($x, "@dbl@woods of @dre@Isafdar@dbl@, once I have finished @dre@Roving Elves@dbl@.|");
+    $x = append($x, "|@dbl@I will also need @dre@60 Ranged@dbl@ and @dre@50 Thieving@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "@str@Islwyn told me the Mourners in West Ardougne are not plague|");
+$x = append($x, "@str@doctors at all. They are Lord Iorwerth's elves, and they are|");
+$x = append($x, "@str@digging for something under the city.|");
+if (%mourning_quest = ^mourning_started) {
+    $x = append($x, "|@dbl@I should ask @dre@Eluned@dbl@ to take me to @dre@Lletya@dbl@, where I can|");
+    $x = append($x, "@dbl@speak to @dre@Arianwyn@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@Arianwyn wants me inside the Mourner headquarters in West|");
+$x = append($x, "@str@Ardougne. For that I need a full Mourner's uniform - top,|");
+$x = append($x, "@str@trousers, cloak, gloves, boots and a gas mask.|");
+if (%mourning_quest = ^mourning_told_arianwyn) {
+    $x = append($x, "|@dbl@The @dre@Mourners@dbl@ on the high pass have one. What I take off one|");
+    $x = append($x, "@dbl@will be bloodied and torn.|");
+    $x = append($x, "|@dbl@@dre@Soap@dbl@ and a @dre@bucket of water@dbl@ will clean the top - there is soap|");
+    $x = append($x, "@dbl@in the @dre@laundry basket@dbl@ in @dre@Taverley@dbl@. @dre@Oronwen@dbl@ in Lletya can|");
+    $x = append($x, "@dbl@mend the trousers.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@I have the whole uniform.|");
+if (%mourning_quest = ^mourning_has_disguise) {
+    $x = append($x, "|@dbl@I should put all of it on and walk in through the @dre@Mourner|");
+    $x = append($x, "@dre@headquarters@dbl@ gates in @dre@West Ardougne@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@I walked into the Mourner headquarters wearing it and nobody|");
+$x = append($x, "@str@looked twice.|");
+$x = append($x, "|@dbl@This is as far as this quest goes on this server for now.");
+~quest_journal($n, $x);

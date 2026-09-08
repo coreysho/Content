@@ -1,0 +1,41 @@
+// Roving Elves. Wiki: https://oldschool.runescape.wiki/w/Roving_Elves
+// Released August 2005, so era-appropriate for a 377 build.
+//
+// The elf chain's second link, and the first one that was genuinely blocked until Regicide could be
+// finished. Prerequisites: Regicide and Waterfall Quest, both implemented.
+//
+// Unusually little had to be built from nothing here - more of this quest was already standing than
+// for any other in this project:
+//
+//   questlist:roving_elves        already a real component in pack/interface.pack
+//   [roving_elves_quest]          already declared in all.varp, and already scope=perm
+//   roving_islwyn    m35_49 (51,11)   Islwyn, placed, beside his campfire at (50,10)
+//   roving_female_woodelf (49,9)      Eluned, placed, next to him
+//   roving_update_female_woodelf      Ilfeen, placed at m35_50 (20,13) - the later recharger
+//   roving_mossgiant                  three of them in Glarial's tomb, WITH full combat stats
+//                                     (120hp, 60/60/60, crush) and a drop table already wired
+//   roving_crystal_bow_new/_1000..    the full 500-charge ladder, both bow and shield
+//   crystal_recharge.rs2              Islwyn's re-enchant dialogue, already written
+//
+// The moss giants sit at m39_153 (32,51), (45,53) and (46,27); Glarial's chest is at (34,52), two
+// tiles from the first of them. The cache placed the guardian on top of the thing it guards, so no
+// script is needed to make it guard anything.
+
+^roving_not_started = 0
+^roving_started = 1
+^roving_asked_eluned = 2
+^roving_has_seed = 3
+^roving_seed_enchanted = 4
+^roving_planted = 5
+// ^roving_elves_complete = 10 is declared once, globally, in general/configs/quest.constant.
+
+// --- Rewards ---
+// 1 quest point, 10,000 Strength XP, and your choice of the crystal bow or the crystal shield.
+// stat_advance takes tenths. Deliberately excluded as much later additions: the Nightmare Zone
+// unlock, the Quest Hall painting and the Western Provinces diary.
+^roving_reward_xp = 100000
+
+// How long the crystal tree stands before the world tidies it away. It is added by loc_add rather
+// than being placed, because roving_crystal_growth appears in no map file at all - the cache ships
+// the loc and expects the quest to grow it.
+^roving_tree_lifetime = 2000

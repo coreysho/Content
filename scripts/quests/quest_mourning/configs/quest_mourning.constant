@@ -1,0 +1,109 @@
+// Mourning's End Part I. Wiki: https://oldschool.runescape.wiki/w/Mourning%27s_End_Part_I
+// Released October 2005, so era-appropriate for a 377 build.
+//
+// THIS FILE COVERS THE FIRST HALF ONLY. See the "NOT BUILT" section at the bottom for exactly what
+// is missing and why - the second half is blocked on map data this cache does not ship, and the
+// blockers are recorded here rather than being quietly worked around.
+//
+// --- What the cache already ships ---
+// Far more than for Regicide. Every npc, loc and obj this half needs is already defined and placed:
+//
+//   questlist:mourning            component 13974 in pack/interface.pack
+//   [mourning_quest]              varp, declared in all.varp - but WITH NO SCOPE LINE (fixed)
+//   [mourning_quest_bits]         varp, transmit=yes, also with no scope line (fixed)
+//   mourning_can_see_eluned       varbit, mourning_quest_bits bit 0
+//   mourning_mourner_disguise     varbit, mourning_quest_bits bit 7  <- used by this half
+//   mourning_gnome / _sheep_* / _gun_ammo / _elena / _food_poison* / _eluned_chant
+//                                 varbits for the SECOND half, bits 8-28, all already laid out
+//
+//   mourning_arianwyn      npc 2358, placed  m36_49 (48,36)   Lletya, by the fountain
+//   roving_female_woodelf_temp    2375, placed  m36_49 (48,35)   the Lletya copy of Eluned
+//   mourning_seamstress    npc 2353, placed  m36_49 (20,43)   Oronwen, op1=Talk-to op3=Trade
+//   mourning_stores_man    npc 2352, placed  m36_49 (30,46)
+//   mourning_overpass_mourner1  npc 2349, placed  m35_52 (57,2)
+//   mourning_overpass_mourner2  npc 2350, placed  m36_51 (27,58)
+//   mourning_overpass_mourner3  npc 2351, placed  m36_51 (55,55)
+//   eadgar_laundry_basket  loc 4039, placed  m45_53 (32,26)   Taverley, op1=Search
+//
+//   mourning_bloody_mourner_top  -> mourning_mourner_top   (wearpos=torso, wearpos2=arms)
+//   mourning_ripped_mourner_legs -> mourning_mourner_legs  (wearpos=legs)
+//   mourning_mourner_gloves / _boots / _cloak, and gasmask
+//   mourning_soap                "Tegid's soap", desc "A bar of soap taken from Tegid."
+//   mourning_teleport_crystal_4..1, iop1=Activate, "return the user to Lletya"
+//
+// The mourner drop table in drop_tables/scripts/mourner.rs2 was already wired to all three overpass
+// mourners and already dropped the whole outfit. Two things were wrong with it for this quest and
+// are fixed there: the three overpass mourners dropped the CLEAN top and trousers, which skipped the
+// entire soap-and-seamstress chain, and none of the three had any combat stats at all (vislevel=11
+// with no hitpoints/attack/strength/defence line), so they were unkillable in the same way Sir Leye
+// and the Tyras guard were before those were fixed.
+//
+// --- Deviations, flagged rather than hidden ---
+// * Tegid does not exist in this cache. There is no npc anywhere in all.npc that gives soap, but
+//   eadgar_laundry_basket ("It's full of dirty robes", op1=Search) is placed in Taverley beside
+//   where Tegid stands in later revisions. The soap is taken from the basket instead of from him.
+//   The obj name and description still say "Tegid's soap", which reads correctly either way.
+// * Oronwen repairs the trousers for free. Some accounts have her charge silk for the work; nothing
+//   in the cache settles it, and a step that can strand a player who has spent their silk is worse
+//   than a step that is too generous.
+// * The disguise is checked as worn equipment at the Mourner HQ gate rather than by a quest stage,
+//   which is how the gate behaves in game and also means the disguise keeps working afterwards.
+
+^mourning_not_started = 0
+^mourning_started = 1           // Islwyn agreed to send you to Lletya
+^mourning_told_arianwyn = 2     // Arianwyn briefed you; go and get a mourner's uniform
+^mourning_has_disguise = 3      // clean top, repaired trousers, and the rest of the set
+^mourning_entered_hq = 4        // walked through the West Ardougne gates wearing it
+// 5..19 are reserved for the second half so that nothing built now has to be renumbered later.
+// ^mourning_complete = 20 is declared once, globally, in general/configs/quest.constant.
+
+// --- Requirements ---
+// Roving Elves (which itself requires Regicide and Waterfall Quest), 60 Ranged and 50 Thieving.
+^mourning_req_ranged = 60
+^mourning_req_thieving = 50
+
+// --- Coordinates ---
+// A clear tile beside Arianwyn. Everything on (48,34)-(48,37) and (49,36) is shape-22 ground
+// decoration, and (49,33)-(49,35) and (49,37)-(49,38) have no loc on them at all - the blocking
+// elf_village_* furniture starts at x=50. Verified against the LOC section of maps/m36_49.jm2.
+^mourning_lletya_arrive = 0_36_49_49_34
+
+// Where Eluned puts you back down. Islwyn stands at m35_49 (51,11) beside his campfire at
+// (50,10); (52,11) is the nearest tile with no loc on it at all in that map square.
+^mourning_isafdar_return = 0_35_49_52_11
+
+// Documentation only - these are where the cache put things, and nothing below reads them.
+// mourner A  0_35_52_57_2      mourner B  0_36_51_27_58      mourner C  0_36_51_55_55
+// laundry basket  0_45_53_32_26      Mourner HQ gates  1_39_51_55_61 and (55,62)
+
+// --- Teleport crystal ---
+// Four charges, counting down through the four objs the cache ships, then crumbling. The generic
+// [opheld1,...] stubs for all four used to live in general_use/scripts/item_ops_generated.rs2 and
+// printed a message without teleporting anyone; they were moved here, since a trigger can only be
+// declared once and the real behaviour belongs with the quest.
+^mourning_crystal_delay = 3
+
+// --- Rewards, for when the second half lands ---
+// 2 quest points and 25,000 Ranged XP. stat_advance takes tenths.
+^mourning_reward_xp = 250000
+
+// ===================================================================================================
+// NOT BUILT - the second half, and why
+// ===================================================================================================
+// * THE HQ IS A DEAD END. The Mourner HQ interior in West Ardougne (m39_51 p1) has no trapdoor,
+//   ladder or stairs connecting it to the mourner hideout at m31_72, and no such loc appears in any
+//   map file. The disguise gets you through the gates and no further. Everything past that point -
+//   the head mourner Essyllt, the gnome, the four hideout guards, the ladder at (60,42) - is placed
+//   and reachable by nothing.
+// * ELENA CANNOT PLAY HER PART. The sieve step needs Elena in West Ardougne. elenap is placed only
+//   at m39_151 (45,8), the Plague City rescue cave, and there is no post-Plague-City placement of
+//   her anywhere in this cache. This is the same gap that stopped Regicide's Elena step.
+// * THERE IS NO PAINT GUN INTERFACE. mourning_paint_gun and mourning_paint_gun_broken exist as objs,
+//   but nothing in pack/interface.pack is a crosshair or aiming interface. A faithful sheep-dyeing
+//   minigame would need a wholly new custom interface, which means manual interface.pack and
+//   interface.order entries and probably BUILD_VERIFY=false. The intended mitigation, when that half
+//   is built, is to make it an [opnpcu] on the sheep with the loaded bellows instead - which works,
+//   but is not the real minigame and should be labelled as such.
+// * mourning_plaguesheep_1..4 are defined but placed nowhere; they are meant to be scripted spawns.
+// * The stat-drain-to-20 mechanic the mourners use on the overpass in later revisions is not built.
+//   They are ordinary level-11 npcs here.

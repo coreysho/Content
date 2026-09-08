@@ -1,0 +1,56 @@
+// Regicide - Tyras Camp odds and ends, and the Chemist in Rimmington.
+
+// The quartermaster. His Trade option and shop are wired in _unpack/377/all.npc; this is only the
+// Talk-to. No quest gate on the shop itself - the camp is on the far side of the Tyras Guard, which
+// is gate enough, and the walkthrough treats the bread as optional flavour.
+[opnpc1,regicidegeneralshopkeeper]
+if (%regicide_quest < ^regicide_met_tracker) {
+    ~chatnpc("<p,angry>Camp stores are for camp soldiers. On your way.");
+    return;
+}
+if (%regicide_quest >= ^regicide_tyras_bombed) {
+    ~chatplayer("<p,quiz>How's the camp?");
+    ~chatnpc("<p,sad>Short of a tent and shorter of a King. I am still counting the bread, because counting the bread is what I do.");
+    return;
+}
+~chatplayer("<p,happy>What have you got?");
+~chatnpc("<p,neutral>Bread, mostly. Meat when the hunting is good, which it is not. Beer when the General is not looking.");
+~chatnpc("<p,neutral>Say the word and I will open the stores. Coin only - I do not do favours and I do not do credit.");
+
+
+// The Chemist, Rimmington. The Fractionalising Still stands in his room and he is the only person
+// who can say what it is for, so walkthrough step 9's framing lives here.
+//
+// The wiki has Elena send you to him. She cannot: elenap is placed at m39_151 (45,8) and nowhere
+// else - that is the Plague City rescue cave, in the void band - so there is no Elena standing
+// anywhere in the world after Plague City ends. Rather than invent a placement for her, the
+// direction is folded into the Chemist himself, who is where the player will end up anyway. Noted in
+// claude/regicide-quest.md.
+//
+// This is a branch of the existing [opnpc1,chemist] in quest_biohazard/scripts/chemist.rs2 - a
+// trigger can only be declared once - and it is jumped to from the top of that handler, before its
+// switch on %biohazard, because Regicide requires Biohazard finished and that switch has no case
+// for the finished state.
+[label,chemist_regicide]
+if (%regicide_quest >= ^regicide_tyras_bombed) {
+    ~chatplayer("<p,happy>Thanks for the loan of the still.");
+    ~chatnpc("<p,confused>I did not loan you anything. I was out. I am always out. Do remember that if anyone asks.");
+    return;
+}
+if (inv_total(inv, regicide_barrel_naphtha) > 0) {
+    ~chatnpc("<p,shock>Is that naphtha? In my still? In my LABORATORY?");
+    ~chatplayer("<p,happy>It is.");
+    ~chatnpc("<p,neutral>Take it outside. Take it a long way outside. And do not tell me what it is for.");
+    return;
+}
+if (inv_total(inv, regicide_barrel_tar) > 0) {
+    ~chatplayer("<p,quiz>I need to get naphtha out of a barrel of coal-tar.");
+    ~chatnpc("<p,neutral>Then you want the fractionalising still, and you are standing next to it.");
+    ~chatnpc("<p,neutral>Tar valve open until the pressure comes up, release valve to hold it there, and coal on the burner a lump at a time. Rush the heat and you will be starting again.");
+    ~chatplayer("<p,quiz>You're not going to ask what it's for?");
+    ~chatnpc("<p,happy>I am a chemist, not a magistrate. Mind the glassware.");
+    return;
+}
+~chatplayer("<p,quiz>I'm told you have a still.");
+~chatnpc("<p,neutral>I have several. The fractionalising one is behind you and it separates things that do not want separating.");
+~chatnpc("<p,neutral>Bring me a barrel of coal-tar and some coal and I will show you what it does. Without the tar there is nothing to show.");
