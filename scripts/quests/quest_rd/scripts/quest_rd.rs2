@@ -1,0 +1,261 @@
+// Recruitment Drive - Sir Amik Varze, Sir Tiffy Cashien, and the framework the seven tests hang off.
+// Wiki: https://oldschool.runescape.wiki/w/Recruitment_Drive
+// See configs/quest_rd.constant for the cache's own varbit layout and the room inventory.
+
+[label,rd_amik_recruitment]
+// Reached from area_falador/scripts/sir_amik_varze.rs2's postquest branch - Black Knights' Fortress
+// is a hard prerequisite and his handler already switches on it, so this hangs off the end of it.
+if (%rd_main = ^recruitmentdrive_complete) {
+    ~chatplayer("<p,happy>Hello Sir Amik.");
+    ~chatnpc("<p,happy>Initiate! Sir Tiffy speaks well of you. The Order is lucky to have you.");
+    return;
+}
+if (%rd_main = ^rd_started) {
+    ~chatplayer("<p,happy>Hello Sir Amik.");
+    ~chatnpc("<p,neutral>Sir Tiffy is in the park, on the bench. He is expecting you.");
+    return;
+}
+~chatplayer("<p,happy>Hello Sir Amik.");
+~chatnpc("<p,happy>Hello, friend! As it happens, I have something else you might be suited to.");
+def_int $option = ~p_choice2("Go on.", 1, "Not right now.", 2);
+if ($option = 2) {
+    ~chatplayer("<p,neutral>Not right now.");
+    ~chatnpc("<p,neutral>As you like. The offer stands.");
+    return;
+}
+~chatplayer("<p,quiz>Go on.");
+~chatnpc("<p,neutral>There is an order within our order. The Temple Knights. Quieter than us, and rather more useful.");
+~chatnpc("<p,neutral>They are recruiting, and they take very few. If you want to be tested, speak to Sir Tiffy Cashien in Falador Park.");
+~chatplayer("<p,quiz>Tested how?");
+~chatnpc("<p,happy>He will explain it far better than I would. And do not take anything with you - he will only make you put it down again.");
+%rd_main = ^rd_started;
+~send_quest_progress(questlist:rd, 1, ^recruitmentdrive_complete);
+
+
+// --- Sir Tiffy Cashien, Falador Park ---
+
+[opnpc1,rd_teleporter_guy]
+if (%rd_main = ^recruitmentdrive_complete) {
+    ~chatplayer("<p,happy>Hello Sir Tiffy.");
+    ~chatnpc("<p,happy>Ah, our newest initiate! Do sit down. Mind the pigeons.");
+    return;
+}
+if (%rd_main < ^rd_started) {
+    ~chatplayer("<p,happy>Hello.");
+    ~chatnpc("<p,happy>Good day to you. Lovely park, this. I do like a bench.");
+    return;
+}
+if (~rd_run_in_progress = true) {
+    @rd_tiffy_resume;
+}
+~chatplayer("<p,quiz>Sir Amik said you were recruiting.");
+~chatnpc("<p,happy>He did, did he. Well. The Temple Knights want brains rather more than they want biceps, so we test for brains.");
+~chatnpc("<p,neutral>Five tests, drawn at random from the ones we keep. Fail one and you come straight back out here and start again from the beginning.");
+~chatnpc("<p,neutral>You go in with nothing at all - nothing carried and nothing worn. Come back to me when you are ready.");
+@rd_tiffy_offer;
+
+[label,rd_tiffy_resume]
+~chatnpc("<p,neutral>You are mid-test. Say the word and I will put you back where you were.");
+def_int $option = ~p_choice2("Take me back in.", 1, "Not just now.", 2);
+if ($option = 2) {
+    ~chatplayer("<p,neutral>Not just now.");
+    return;
+}
+~chatplayer("<p,neutral>Take me back in.");
+@rd_send_to_next_room;
+
+[label,rd_tiffy_offer]
+def_int $option = ~p_choice2("I'm ready. Test me.", 1, "I'll come back.", 2);
+if ($option = 2) {
+    ~chatplayer("<p,neutral>I'll come back.");
+    ~chatnpc("<p,happy>The bench will still be here.");
+    return;
+}
+~chatplayer("<p,happy>I'm ready. Test me.");
+if (~viking_wearing_anything = true) {
+    ~chatnpc("<p,neutral>Not wearing all that you aren't. Bank it and come back.");
+    return;
+}
+if (inv_freespace(inv) < inv_size(inv)) {
+    ~chatnpc("<p,neutral>Empty hands, I said. Bank whatever you are carrying and come back.");
+    return;
+}
+~rd_begin_run;
+~chatnpc("<p,happy>Off you go then. Good luck - you will need some.");
+@rd_send_to_next_room;
+
+// Five tests are drawn from the pool. Only five of the seven are built, so every run currently uses
+// all five; the two unbuilt ones are marked done up front, which is also exactly what the selection
+// would do if it had picked around them. Widening the pool later needs no change here.
+[proc,rd_begin_run]
+%recruitmentdrive = 0;
+%rd_main = ^rd_started;
+%rd_rooms_tempvar = 0;
+%rd_rooms_tempvar2 = 0;
+%rd_room1_complete = 1;
+%rd_room6_complete = 1;
+%rd_room1_initiated = 1;
+
+[proc,rd_run_in_progress]()(boolean)
+if (%rd_room1_initiated = 1) {
+    return(true);
+}
+return(false);
+
+[proc,rd_rooms_passed]()(int)
+def_int $n = 0;
+if (%rd_room2_complete = 1) { $n = calc($n + 1); }
+if (%rd_room3_complete = 1) { $n = calc($n + 1); }
+if (%rd_room4_complete = 1) { $n = calc($n + 1); }
+if (%rd_room5_complete = 1) { $n = calc($n + 1); }
+if (%rd_room7_complete = 1) { $n = calc($n + 1); }
+return($n);
+
+// The next room is simply the lowest-numbered one not yet passed, which means the run has no
+// ordering state of its own to get out of step with the completion bits. %rd_room_order cannot be
+// borrowed for it either - Lady Table's twelve statue shells read that varbit directly.
+[label,rd_send_to_next_room]
+if (%rd_room2_complete = 0) {
+    ~rd_enter_room(^rd_room2_arrive);
+    return;
+}
+if (%rd_room3_complete = 0) {
+    ~rd_enter_room(^rd_room3_arrive);
+    return;
+}
+if (%rd_room4_complete = 0) {
+    ~rd_enter_room(^rd_room4_arrive);
+    return;
+}
+if (%rd_room5_complete = 0) {
+    ~rd_enter_room(^rd_room5_arrive);
+    return;
+}
+if (%rd_room7_complete = 0) {
+    ~rd_enter_room(^rd_room7_arrive);
+    return;
+}
+@rd_finish;
+
+[proc,rd_enter_room](coord $where)
+%rd_rooms_tempvar = 0;
+%rd_rooms_tempvar2 = 0;
+p_telejump($where);
+sound_synth(teleport_all, 1, 0);
+
+// Passing a test. The bit goes down first: every ~mesbox ends in p_pausebutton and aborts the script
+// if dismissed, and a test passed but not recorded would have to be sat again.
+[proc,rd_pass_room](int $room)
+if ($room = 2) { %rd_room2_complete = 1; }
+if ($room = 3) { %rd_room3_complete = 1; }
+if ($room = 4) { %rd_room4_complete = 1; }
+if ($room = 5) { %rd_room5_complete = 1; }
+if ($room = 7) { %rd_room7_complete = 1; }
+sound_synth(door_open, 1, 0);
+~mesbox("Correct. The door at the far side of the room swings open.");
+
+// Failing. Straight back to the bench and the whole run is thrown away, which is what the wiki
+// describes - five CONSECUTIVE tests, no partial credit.
+[proc,rd_fail_room](string $why)
+%recruitmentdrive = 0;
+%rd_main = ^rd_started;
+%rd_rooms_tempvar = 0;
+%rd_rooms_tempvar2 = 0;
+p_telejump(^rd_park);
+sound_synth(teleport_all, 1, 0);
+~mesbox($why);
+~mesbox("Sir Tiffy is waiting on his bench, looking sympathetic and entirely unsurprised. You will have to start again from the first test.");
+
+[label,rd_finish]
+queue(rd_quest_complete, 0, 0);
+
+[queue,rd_quest_complete]
+%recruitmentdrive = 0;
+%rd_main = ^recruitmentdrive_complete;
+p_telejump(^rd_park);
+stat_advance(prayer, ^rd_reward_xp);
+stat_advance(herblore, ^rd_reward_xp);
+stat_advance(agility, ^rd_reward_xp);
+inv_add(inv, coins, ^rd_reward_coins);
+~send_quest_complete(questlist:rd, coins, 250, ^recruitmentdrive_questpoints, "You have completed the\\nRecruitment Drive Quest!", "1,000 Prayer XP|1,000 Herblore XP|1,000 Agility XP|3,000 Coins|Membership of the Temple Knights");
+
+
+// --- Doors and portals ---
+// The exit door of each room is the way on. It only opens once that room's bit is set, and clicking
+// it is what moves you to the next test - so a player who passes a room and then logs out simply
+// clicks the door again when they come back.
+
+[oploc1,rd_room2_exitdoor] @rd_exit_door(2);
+[oploc1,rd_room3_exitdoor] @rd_exit_door(3);
+[oploc1,rd_room4_exitdoor] @rd_exit_door(4);
+[oploc1,rd_room5_exitdoor] @rd_exit_door(5);
+[oploc1,rd_room7_exitdoor] @rd_exit_door(7);
+[oploc1,rd_portal_room2_exit] @rd_exit_door(2);
+[oploc1,rd_portal_room3_exit] @rd_exit_door(3);
+[oploc1,rd_portal_room4_exit] @rd_exit_door(4);
+[oploc1,rd_portal_room5_exit] @rd_exit_door(5);
+[oploc1,rd_portal_room7_exit] @rd_exit_door(7);
+
+[label,rd_exit_door](int $room)
+p_arrivedelay;
+if (~rd_room_passed($room) = false) {
+    mes("The door is locked. Whatever is being asked of you in here, it has not been answered yet.");
+    return;
+}
+if (~rd_rooms_passed >= ^rd_rooms_needed) {
+    @rd_finish;
+}
+@rd_send_to_next_room;
+
+[proc,rd_room_passed](int $room)(boolean)
+if ($room = 2 & %rd_room2_complete = 1) { return(true); }
+if ($room = 3 & %rd_room3_complete = 1) { return(true); }
+if ($room = 4 & %rd_room4_complete = 1) { return(true); }
+if ($room = 5 & %rd_room5_complete = 1) { return(true); }
+if ($room = 7 & %rd_room7_complete = 1) { return(true); }
+return(false);
+
+[oploc1,rd_portal_room2_entrance] @rd_no_going_back;
+[oploc1,rd_portal_room3_entrance] @rd_no_going_back;
+[oploc1,rd_portal_room4_entrance] @rd_no_going_back;
+[oploc1,rd_portal_room5_entrance] @rd_no_going_back;
+[oploc1,rd_portal_room7_entrance] @rd_no_going_back;
+
+[label,rd_no_going_back]
+p_arrivedelay;
+~mesbox("The portal you came in by has gone dull. Sir Tiffy did mention that the only way out of a test is through it.");
+
+
+// --- Quest journal ---
+// Every quest needs one of these or its quest-list entry is a dead button - the gap that was found
+// in Regicide by clicking it in-game. Modelled on quest_upass/scripts/upass_journal.rs2.
+
+[if_button,questlist:rd]
+def_string $n = "Recruitment Drive";
+def_string $x;
+if (%rd_main = ^recruitmentdrive_complete) {
+    $x = append($x, "@str@I passed Sir Tiffy Cashien's aptitude tests and was accepted into|");
+    $x = append($x, "@str@the Temple Knights as an initiate.|");
+    $x = append($x, "|@dre@QUEST COMPLETE!");
+    ~quest_journal($n, $x);
+    return;
+}
+if (%rd_main < ^rd_started) {
+    $x = append($x, "@dbl@I can start this quest by speaking to @dre@Sir Amik Varze@dbl@ on the|");
+    $x = append($x, "@dbl@top floor of the western tower of @dre@White Knights' Castle@dbl@ in|");
+    $x = append($x, "@dbl@@dre@Falador@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "@str@Sir Amik Varze told me the Temple Knights are recruiting, and sent|");
+$x = append($x, "@str@me to Sir Tiffy Cashien in Falador Park.|");
+if (~rd_run_in_progress = false) {
+    $x = append($x, "|@dbl@I should speak to @dre@Sir Tiffy Cashien@dbl@ in @dre@Falador Park@dbl@. He|");
+    $x = append($x, "@dbl@will not test me while I am carrying or wearing anything.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@I am part-way through the tests. I have passed <tostring(~rd_rooms_passed)>|");
+$x = append($x, "@str@of the five.|");
+$x = append($x, "|@dbl@If I fail one I start again from the beginning.");
+~quest_journal($n, $x);

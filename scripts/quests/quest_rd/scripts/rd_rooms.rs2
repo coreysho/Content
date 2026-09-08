@@ -1,0 +1,348 @@
+// Recruitment Drive - the five tests that need no item chain behind them.
+// Sir Spishyus' bridge puzzle (room 1) and Miss Cheevers' chemistry lab (room 6) are the two that
+// do, and they are not built yet - see the pool note in configs/quest_rd.constant.
+
+
+// ============ Room 2: Lady Table, the twelve statues ============
+//
+// The cache does the entire puzzle. Twelve shells in a 4x3 grid, each a multi driven by
+// %rd_room_order, and twelve children - four weapon types in gold, silver and bronze. Arrangement 0
+// shows all twelve in canonical order, shell N holding statue N. Arrangements 1-12 shuffle them and
+// leave exactly one shell empty, so eleven are visible and one combination is missing.
+//
+// Working through all twelve arrangements gives the fact this room is built on: **the shell left
+// empty at arrangement R is, at arrangement 0, the statue you must touch.** Arrangement 1 hides
+// shell 6 and its missing combination is rd_2b, which sits at shell 6 in arrangement 0; arrangement
+// 6 hides shell 1 and is missing rd_1g, which sits at shell 1. So the answer needs no table of
+// colours and weapons at all - it is the arrangement's own empty shell, and ~rd_statue_answer is
+// that mapping and nothing more.
+
+[opnpc1,rd_observer_room_2]
+if (~rd_run_in_progress = false) {
+    ~chatnpc("<p,neutral>You are not being tested, so there is nothing here for you.");
+    return;
+}
+if (%rd_room2_complete = 1) {
+    ~chatnpc("<p,happy>Well spotted. The door is open - do go on.");
+    return;
+}
+if (%rd_room_order > 0) {
+    ~chatnpc("<p,neutral>They are all back. Which one of them went away?");
+    return;
+}
+~chatplayer("<p,quiz>What's the test?");
+~chatnpc("<p,happy>Twelve statues. Four weapons, three metals, one of each pairing. Look at them properly.");
+~chatnpc("<p,neutral>When you are ready, tell me and I shall take one away. Then I shall put it back, and you shall tell me which it was - by touching it.");
+def_int $option = ~p_choice2("I've looked. Go ahead.", 1, "Give me a moment.", 2);
+if ($option = 2) {
+    ~chatplayer("<p,neutral>Give me a moment.");
+    return;
+}
+~chatplayer("<p,neutral>I've looked. Go ahead.");
+// The arrangement is set before the dialogue that describes it, because ~mesbox is abortable and a
+// player who clicks away would otherwise be left looking at twelve statues and no puzzle.
+%rd_room_order = calc(random(^rd_statue_arrangements) + 1);
+~mesbox("Lady Table waves a hand. The statues shuffle where they stand, and one of them is not there any more.");
+~chatnpc("<p,neutral>There. Which is missing?");
+
+[oploc1,rd_1g] @rd_statue_touch;
+[oploc1,rd_1s] @rd_statue_touch;
+[oploc1,rd_1b] @rd_statue_touch;
+[oploc1,rd_2g] @rd_statue_touch;
+[oploc1,rd_2s] @rd_statue_touch;
+[oploc1,rd_2b] @rd_statue_touch;
+[oploc1,rd_3g] @rd_statue_touch;
+[oploc1,rd_3s] @rd_statue_touch;
+[oploc1,rd_3b] @rd_statue_touch;
+[oploc1,rd_4g] @rd_statue_touch;
+[oploc1,rd_4s] @rd_statue_touch;
+[oploc1,rd_4b] @rd_statue_touch;
+
+// Which shell was touched is read off its own coord rather than from the loc type, because the type
+// under a shell changes with the arrangement. The grid is x18,20,22,24 by z48,51,54 in m38_77, so
+// (2432+18, 4928+48) is shell 3 and the numbering runs up the columns.
+[label,rd_statue_touch]
+def_coord $here = loc_coord;
+p_arrivedelay;
+if (~rd_run_in_progress = false) {
+    mes("A statue of a White Knight. It is not looking at you.");
+    return;
+}
+if (%rd_room2_complete = 1) {
+    mes("The test is over. The door is open.");
+    return;
+}
+if (%rd_room_order = ^rd_statue_reset) {
+    mes("Lady Table has not taken one away yet. You should speak to her first.");
+    return;
+}
+def_int $shell = ~rd_statue_shell($here);
+if ($shell = 0) {
+    mes("You touch the statue. Nothing happens.");
+    return;
+}
+if ($shell = ~rd_statue_answer(%rd_room_order)) {
+    %rd_room_order = ^rd_statue_reset;
+    ~rd_pass_room(2);
+    return;
+}
+%rd_room_order = ^rd_statue_reset;
+~rd_fail_room("You touch the statue. Lady Table shakes her head - that one never left the room.");
+
+[proc,rd_statue_shell](coord $c)(int)
+def_int $col = 0;
+if (coordx($c) = 2450) { $col = 0; }
+else if (coordx($c) = 2452) { $col = 1; }
+else if (coordx($c) = 2454) { $col = 2; }
+else if (coordx($c) = 2456) { $col = 3; }
+else { return(0); }
+def_int $row = 0;
+if (coordz($c) = 4982) { $row = 1; }
+else if (coordz($c) = 4979) { $row = 2; }
+else if (coordz($c) = 4976) { $row = 3; }
+else { return(0); }
+return(calc($col * 3 + $row));
+
+// The mapping read straight out of rd.loc's twelve multiloc tables: for each arrangement, the one
+// shell with no multiloc entry.
+[proc,rd_statue_answer](int $arrangement)(int)
+switch_int ($arrangement) {
+    case 1 : return(6);
+    case 2 : return(5);
+    case 3 : return(4);
+    case 4 : return(3);
+    case 5 : return(2);
+    case 6 : return(1);
+    case 7 : return(10);
+    case 8 : return(11);
+    case 9 : return(12);
+    case 10 : return(9);
+    case 11 : return(8);
+    case 12 : return(7);
+    case default : return(0);
+}
+
+
+// ============ Room 3: Sir Kuam Ferentse, and Sir Leye ============
+//
+// Sir Leye is blessed against blades, so the killing blow cannot come from one. Rather than gate the
+// fight up front, the check happens where the wiki puts it - at the moment he goes down. His death
+// hook hands off to a player queue, because [ai_queue3] has no player pointer of its own and cannot
+// read the worn inventory; npc_findhero grants active_player but not p_active_player, and only a
+// queued script runs with the protected access this needs.
+
+[opnpc1,rd_observer_room_3]
+if (~rd_run_in_progress = false) {
+    ~chatnpc("<p,neutral>Nothing to prove here today.");
+    return;
+}
+if (%rd_room3_complete = 1) {
+    ~chatnpc("<p,happy>He is still getting up. Go on through.");
+    return;
+}
+~chatplayer("<p,quiz>What's the test?");
+~chatnpc("<p,neutral>Sir Leye, over there. Put him on the floor.");
+~chatplayer("<p,worried>You want me to kill a White Knight?");
+~chatnpc("<p,happy>I want you to put him on the floor. He has been blessed by Saradomin and no blade will finish him - so if you insist on using one you will be at it all day.");
+~chatnpc("<p,neutral>A blunt weapon. Or your hands. Either will do.");
+
+[opnpc1,rd_combat_npc_room_3]
+~chatnpc("<p,happy>Don't hold back on my account. And do leave the sword where it is.");
+
+[ai_queue3,rd_combat_npc_room_3]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+queue(rd_leye_felled, 0, 0);
+
+[queue,rd_leye_felled]
+if (~rd_run_in_progress = false) {
+    return;
+}
+if (%rd_room3_complete = 1) {
+    return;
+}
+if (~rd_blade_used = true) {
+    ~mesbox("Sir Leye goes down, and then gets straight back up again with a light around him. Sir Kuam did say a blade would not finish him.");
+    return;
+}
+~rd_pass_room(3);
+
+// What counts as a blade is the attack STYLE, not the weapon - no obj in this cache carries a
+// damagetype param, and %damagetype is where the engine keeps the style the player last attacked
+// with (player_combat.rs2 reads it the same way). Stab and slash are blades; crush and bare hands
+// are not, which lands exactly on the wiki's "use the warhammer or fight unarmed".
+[proc,rd_blade_used]()(boolean)
+if (%damagetype = ^stab_style) {
+    return(true);
+}
+if (%damagetype = ^slash_style) {
+    return(true);
+}
+return(false);
+
+
+// ============ Room 4: Sir Tinley, patience ============
+//
+// Eight seconds of standing still. p_delay IS the mechanic - any click at all aborts the script,
+// which is precisely the failure the wiki describes. The queue scheduled one tick past the delay is
+// what turns an abort into an actual failure rather than a silent no-op: the delay clears the flag
+// on success, so a queue that still finds it set knows the player moved.
+
+[opnpc1,rd_observer_room_4]
+if (~rd_run_in_progress = false) {
+    ~chatnpc("<p,neutral>Then there is nothing for you to wait for.");
+    return;
+}
+if (%rd_room4_complete = 1) {
+    ~chatnpc("<p,happy>Patience. It is rarer than courage and considerably more useful. Go on through.");
+    return;
+}
+~chatplayer("<p,quiz>What's the test?");
+~chatnpc("<p,neutral>Do nothing.");
+~chatplayer("<p,confused>...Nothing?");
+~chatnpc("<p,neutral>Nothing. Not a step, not a click, not a word. I shall tell you when to stop.");
+def_int $option = ~p_choice2("I'm ready.", 1, "That's the stupidest test I've ever heard of.", 2);
+if ($option = 2) {
+    ~chatplayer("<p,angry>That's the stupidest test I've ever heard of.");
+    ~chatnpc("<p,happy>Most people say that. Most people also fail it. Tell me when you are ready.");
+    return;
+}
+~chatplayer("<p,neutral>I'm ready.");
+%rd_patience_running = 1;
+queue(rd_patience_result, ^rd_patience_check, 0);
+mes("You stand perfectly still.");
+p_delay(^rd_patience_ticks);
+%rd_patience_running = 0;
+
+[queue,rd_patience_result]
+if (~rd_run_in_progress = false) {
+    return;
+}
+if (%rd_patience_running = 1) {
+    %rd_patience_running = 0;
+    ~rd_fail_room("You moved. Sir Tinley does not appear to be surprised, which is somehow worse.");
+    return;
+}
+~rd_pass_room(4);
+
+
+// ============ Room 5: Sir Ren Itchood, the acrostic riddle ============
+//
+// The riddle's answer is a four-letter word spelled by the first letter of each line, and the real
+// quest has you type it into a combination lock. There is no string input in this engine at all -
+// P_COUNTDIALOG is the only typed dialog opcode - so, as with Peer the Seer, the answer is one of
+// five four-letter words offered as a choice. The riddles themselves are the wiki's own answers:
+// BITE, FISH, LAST, MEAT, RAIN and TIME.
+
+[opnpc1,rd_observer_room_5]
+if (~rd_run_in_progress = false) {
+    ~chatnpc("<p,neutral>No riddles today.");
+    return;
+}
+if (%rd_room5_complete = 1) {
+    ~chatnpc("<p,happy>The lock is open. Off you go.");
+    return;
+}
+~chatplayer("<p,quiz>What's the test?");
+~chatnpc("<p,neutral>The door behind me has a lock with four letters on it. I shall tell you the word.");
+~chatnpc("<p,neutral>Listen to how each line begins. That is the whole of it.");
+@rd_riddle_ask;
+
+[label,rd_riddle_ask]
+switch_int (random(4)) {
+    case 0 : @rd_riddle_bite;
+    case 1 : @rd_riddle_fish;
+    case 2 : @rd_riddle_rain;
+    case default : @rd_riddle_time;
+}
+
+[label,rd_riddle_bite]
+~chatnpc("<p,quiz>Blunt teeth still break the skin.|In the dark it is the only warning.|The dog gives one and is sorry after.|Even the smallest of them stings.");
+if (~p_choice5("BITE", 1, "BONE", 2, "LAST", 3, "MEAT", 4, "TIME", 5) = 1) {
+    @rd_riddle_right;
+}
+@rd_riddle_wrong;
+
+[label,rd_riddle_fish]
+~chatnpc("<p,quiz>Far from the shore they run deepest.|In a net they are worth more than in the sea.|Silver, and gone before you have looked at it.|Hungry men have crossed oceans for less.");
+if (~p_choice5("FIRE", 1, "FISH", 2, "RAIN", 3, "LAST", 4, "MEAT", 5) = 2) {
+    @rd_riddle_right;
+}
+@rd_riddle_wrong;
+
+[label,rd_riddle_rain]
+~chatnpc("<p,quiz>Roofs were invented because of it.|And still the farmers ask for more.|In Falador it needs no invitation.|Nobody thanks it until the summer.");
+if (~p_choice5("ROOF", 1, "TIME", 2, "RAIN", 3, "FISH", 4, "BITE", 5) = 3) {
+    @rd_riddle_right;
+}
+@rd_riddle_wrong;
+
+[label,rd_riddle_time]
+~chatnpc("<p,quiz>Take all you like, there is no more of it.|It runs whether you watch it or not.|Men have died waiting for a little.|Everyone is given the same amount each day.");
+if (~p_choice5("LAST", 1, "MEAT", 2, "FISH", 3, "TIME", 4, "RAIN", 5) = 4) {
+    @rd_riddle_right;
+}
+@rd_riddle_wrong;
+
+[label,rd_riddle_right]
+~rd_pass_room(5);
+~chatnpc("<p,happy>That is the word. Not many listen to the beginnings of things.");
+
+[label,rd_riddle_wrong]
+~rd_fail_room("The lock does not move. Sir Ren Itchood was listening to the beginnings of his own lines, and so should you have been.");
+
+
+// ============ Room 7: Ms. Hynn Terprett, logic ============
+//
+// Three riddles, one picked at random, each answered from three options. The wiki's own examples:
+// the starving wolves, the ages, and the frozen well.
+
+[opnpc1,rd_observer_room_7]
+if (~rd_run_in_progress = false) {
+    ~chatnpc("<p,neutral>I have nothing to ask you today.");
+    return;
+}
+if (%rd_room7_complete = 1) {
+    ~chatnpc("<p,happy>Quite right. Do go through.");
+    return;
+}
+~chatplayer("<p,quiz>What's the test?");
+~chatnpc("<p,neutral>A question. Think about it before you answer, because I shall only ask it once.");
+switch_int (random(3)) {
+    case 0 : @rd_logic_wolves;
+    case 1 : @rd_logic_ages;
+    case default : @rd_logic_well;
+}
+
+[label,rd_logic_wolves]
+~chatnpc("<p,quiz>A shepherd has a flock on a hillside. Below him is a valley of wolves that have not eaten in a fortnight.|The wolves do not come up the hill. Why not?");
+def_int $a = ~p_choice3("Because the wolves are afraid of the shepherd.", 1, "Because a starving wolf is still a wolf, and wolves hunt at night.", 2, "Because there are no wolves - a valley of wolves that never eat has no wolves left in it.", 3);
+if ($a = 3) {
+    @rd_logic_right;
+}
+@rd_logic_wrong;
+
+[label,rd_logic_ages]
+~chatnpc("<p,quiz>A knight is twice as old as his squire was when the knight was as old as the squire is now.|Together they are sixty-three. How old is the squire?");
+def_int $a = ~p_choice3("Twenty-one.", 1, "Twenty-seven.", 2, "Thirty-one and a half.", 3);
+if ($a = 2) {
+    @rd_logic_right;
+}
+@rd_logic_wrong;
+
+[label,rd_logic_well]
+~chatnpc("<p,quiz>A stone is dropped into a well in Falador in January and never reaches the bottom.|The well is not bottomless and the stone is not caught. What happened?");
+def_int $a = ~p_choice3("The well was dry and the stone is still falling.", 1, "The water in the well was frozen and the stone stopped on the ice.", 2, "Somebody had already filled the well in.", 3);
+if ($a = 2) {
+    @rd_logic_right;
+}
+@rd_logic_wrong;
+
+[label,rd_logic_right]
+~rd_pass_room(7);
+~chatnpc("<p,happy>Yes. Most people answer before they have finished hearing the question.");
+
+[label,rd_logic_wrong]
+~rd_fail_room("Ms. Hynn Terprett writes something down and does not show you what it is.");

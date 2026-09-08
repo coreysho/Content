@@ -1,0 +1,83 @@
+// Recruitment Drive. Wiki: https://oldschool.runescape.wiki/w/Recruitment_Drive
+//
+// Sir Amik Varze sends you to Sir Tiffy Cashien in Falador Park, who runs you through five of seven
+// Temple Knight aptitude tests. Everything the quest needs is already in the 377 cache, already
+// placed, and - unusually - the STATE DESIGN is in the cache too. all.varbit ships a complete
+// varbit layout for this quest and nothing else uses it:
+//
+//   rd_main             recruitmentdrive bits 0-2    quest stage (^recruitmentdrive_complete = 2)
+//   rd_room_order       recruitmentdrive bits 3-14   the statue arrangement - see Lady Table below
+//   rd_room1..7_complete recruitmentdrive bits 15-21 one per test
+//   rd_room1_initiated  recruitmentdrive bit 24      a run is in progress
+//   rd_got_* / rd_spare_water / rd_room6_stone_door  Miss Cheevers' chemistry scratch state
+//   rd_foxleft/right, rd_chickleft/right, rd_grainleft/right   Sir Spishyus' bridge puzzle
+//   rd_templock_1/2, rd_react_on_spade, rd_gypsum_in_tin, rd_water_in_tin, rd_room6_hint1
+//   rd_room1_intro_chat, rd_spoke_to_tiffy, rd_male_at_start
+//
+// The two base varps behind those: %recruitmentdrive is the persistent one, %rd_rooms_tempvar and
+// %rd_rooms_tempvar2 are deliberately transient - per-attempt scratch that should not survive a
+// logout. %recruitmentdrive shipped with no scope line at all (i.e. temp), which would have
+// forgotten the quest on every logout; it is given scope=perm in _unpack/377/all.varp, the same fix
+// Regicide and The Fremennik Trials both needed.
+//
+// All seven rooms live in ONE region, m38_77, out in the same void band as Waterbirth and Swensen's
+// maze. The observers name themselves in all.npc, which settles which test is where:
+//
+//   room 1  (56,45)  Sir Spishyus       the fox / chicken / grain bridge
+//   room 2  (26,53)  Lady Table         twelve statues, one missing
+//   room 3  (25,38)  Sir Kuam Ferentse  Sir Leye, who is blessed against blades
+//   room 4  (44,30)  Sir Tinley         stand still
+//   room 5  (11,28)  Sir Ren Itchood    an acrostic riddle
+//   room 6  (37,13)  Miss Cheevers      the chemistry lab
+//   room 7  (19,11)  Ms. Hynn Terprett  logic riddles
+
+^rd_not_started = 0
+^rd_started = 1
+// ^recruitmentdrive_complete = 2 is declared once, globally, in general/configs/quest.constant.
+
+// --- Which tests this build offers ---
+// Five of the seven are built. Rooms 1 and 6 - the bridge puzzle and the chemistry lab - are the two
+// with real item chains behind them and are not built yet, so the pool is the other five and every
+// run uses all of them. When those two land, the only change needed is to widen the pool here: the
+// selection code already picks five from whatever is offered.
+^rd_rooms_needed = 5
+
+// --- Where each test drops you ---
+// One tile off each room's entrance portal, all checked against the map. m38_77 base is (2432,4928).
+^rd_room2_arrive = 0_38_77_27_51
+^rd_room3_arrive = 0_38_77_24_36
+^rd_room4_arrive = 0_38_77_40_28
+^rd_room5_arrive = 0_38_77_8_28
+^rd_room7_arrive = 0_38_77_19_8
+// Falador Park, one tile west of Sir Tiffy at m46_52 (53,45).
+^rd_park = 0_46_52_52_45
+
+// --- Lady Table's statues ---
+// The cache does the whole puzzle. Twelve shells (rd_statue_multi_1..12) in a 4x3 grid at
+// x18,20,22,24 by z48,51,54, each a multi driven by %rd_room_order, and twelve children:
+// rd_1g/1s/1b through rd_4g/4s/4b - four weapon types in gold, silver and bronze.
+//
+// At %rd_room_order = 0 all twelve show in canonical order, shell N holding the Nth statue. At any
+// value 1-12 the twelve are SHUFFLED and exactly one shell is left empty, so eleven are visible and
+// one colour/weapon combination is absent. Working through the table gives a result worth writing
+// down, because it is what makes this room three lines of code instead of a lookup table of
+// combinations: **the shell left empty at arrangement R is, at arrangement 0, the statue you must
+// touch.** Verified against all twelve arrangements.
+^rd_statue_reset = 0
+^rd_statue_arrangements = 12
+
+// --- Sir Tinley ---
+// Eight seconds. p_delay is the whole mechanic: any click aborts the script, which is exactly the
+// failure condition. A queue scheduled one tick past the delay reads a flag the delay clears on
+// success, so an interrupted test actively fails rather than silently doing nothing.
+^rd_patience_ticks = 13
+^rd_patience_check = 14
+
+// --- Rewards ---
+// From the wiki, minus everything that postdates a 2006 build or has no asset here. Initiate armour
+// does not exist anywhere in this cache - not one obj matches - so the sallet and the armour shop
+// are out, and with them the Gaze of Saradomin respawn option. levelrequire.rs2 ALREADY carries
+// [label,levelrequire_recruitmentdrive_defence] gated on %rd_main, so if initiate armour is ever
+// added it will gate itself with no further work.
+^rd_reward_coins = 3000
+^rd_reward_xp = 10005
