@@ -1,5 +1,25 @@
 [opnpc3,_shop_keeper] ~openshop_activenpc;
 
+// ADDED 2026-09-08 (dead-op audit): 29 npcs carried category=shop_keeper and op1=Talk-to with no
+// [opnpc1,<name>] behind it, so Talk-to did nothing at all - the farming and seed merchants, the
+// TzHaar traders, the wilderness cape sellers, the Rogues' Den trader, the Smithing Guild pair, the
+// Lletya traders, and others. getByTrigger resolves type before category, so every shopkeeper that
+// already has its own [opnpc1,<name>] keeps its own dialogue and this never runs for them; it only
+// fills the gap, and it fills it for any shopkeeper added later too.
+//
+// The exchange is the standard 2006 shopkeeper one.
+[opnpc1,_shop_keeper]
+~chatnpc("<p,happy>Can I help you at all?");
+def_int $choice = ~p_choice2("Yes please. What are you selling?", 1, "No thanks.", 2);
+if ($choice = 2) {
+    ~chatplayer("<p,neutral>No thanks.");
+    ~chatnpc("<p,neutral>Well, come back if you change your mind.");
+    return;
+}
+~chatplayer("<p,quiz>Yes please. What are you selling?");
+~chatnpc("<p,happy>Take a look at my wares.");
+~openshop_activenpc;
+
 [proc,openshop](inv $shop, int $shop_buy, int $shop_sell, int $shop_haggle, string $title)
 %shop = $shop;
 %shop_buy = $shop_buy;
