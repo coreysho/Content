@@ -98,17 +98,24 @@ return("not yet");
 // ---------------------------------------------------------------------------------------------
 // The three battle mages had no [ai_queue3] of their own, so they were falling through to
 // [ai_queue3,_] gosub(npc_default_death) in skill_combat/scripts/npc/npc_combat.rs2. These
-// triggers keep that behaviour and record the kill first.
+// triggers keep that behaviour and hand the kill to the player queue.
 
 [ai_queue3,saradomin_mage] @ma2_champion_death(^ma2_champion_saradomin);
 [ai_queue3,guthix_mage] @ma2_champion_death(^ma2_champion_guthix);
 [ai_queue3,zamorak_mage] @ma2_champion_death(^ma2_champion_zamorak);
 
 [label,ma2_champion_death](int $bit)
-if (npc_findhero = ^true) {
-    ~ma2_record_champion($bit);
-}
 gosub(npc_default_death);
+// npc_findhero grants active_player but NOT p_active_player, and %magearena2* are protected
+// varps, so the write cannot happen here - it has to be handed to the player's own queue, which
+// Player.processQueue runs with protected access and retries every tick until canAccess().
+// See claude/rs2-compile-traps.md #4.
+if (npc_findhero = ^true) {
+    queue(ma2_champion_slain, 0, $bit);
+}
+
+[queue,ma2_champion_slain](int $bit)
+~ma2_record_champion($bit);
 
 [proc,ma2_record_champion](int $bit)
 if (%magearena2 ! ^ma2_started) {
