@@ -1,0 +1,99 @@
+// Recipe for Disaster, sub-quest 8 of 10: Freeing Sir Amik Varze.
+//
+// The shortest of the ten, and the dish is named in the data - it just does not say "Varze" in it:
+//
+//     [hundred_fruit_blast]
+//     name=Dirty blast
+//     desc=A cool refreshing fruit mix. With ash in for some reason.
+//
+// A Fruit Blast with ashes in it. Both halves are ordinary objs the repo already produces - the
+// gnome cocktail system makes fruit_blast, and ashes come off any fire - so nothing here is
+// invented. See the sub-quest section of configs/quest_100.constant for why it carries no stage
+// varbit.
+
+// --- The plinth ---
+
+[oploc1,hundred_varze_base]
+~hundred_inspect(^hundred_bit_varze, "Sir Amik Varze", "He is in full white armour and was, by the look of it, being served rather than eating. There is a tall glass in his hand with something fruit-coloured in it.", 1, "A cocktail, then. He is the leader of the White Knights and he is holding a fruit cocktail, and you are going to have to ask him about it with a straight face.");
+
+[oplocu,hundred_varze_base]
+switch_obj (last_useitem) {
+    case fruit_blast :
+        ~chatplayer("<p,neutral>Close. There was something else in his.");
+    case hundred_fruit_blast :
+        @hundred_amik_serve;
+    case default :
+        ~displaymessage(^dm_default);
+}
+
+[label,hundred_amik_serve]
+if (~hundred_has_subquest(^hundred_bit_varze) = true) {
+    ~chatplayer("<p,neutral>He has one.");
+    return;
+}
+mes("You put the glass back into his hand and fold his fingers round it.");
+p_delay(3);
+inv_del(inv, hundred_fruit_blast, 1);
+%100amikvisible = 1;
+~mesbox("He takes a drink before he takes anything else in, which tells you a good deal about the week he was having.");
+~chatnpc_specific("Sir Amik Varze", hundred_varze, "<p,neutral>...I was going to explain the ash. I am no longer going to explain the ash.");
+~hundred_award_subquest(^hundred_bit_varze);
+
+// --- Sir Amik in Falador ---
+// The ordinary sir_amik_varze at 2_46_52_16_8 already owns [opnpc1,...] in
+// areas/area_falador/scripts/sir_amik_varze.rs2, so the quest branch is hooked in there and jumps
+// here. He is the only person who can say what was in the glass.
+
+[proc,hundred_amik_chat]()(boolean)
+if (%hundred_main_quest_var < ^hundred_met_aris) {
+    return(false);
+}
+if (~hundred_has_subquest(^hundred_bit_varze) = true) {
+    return(false);
+}
+~chatplayer("<p,quiz>This is going to sound strange. What do you drink?");
+~chatnpc("<p,angry>I beg your pardon?");
+~chatplayer("<p,neutral>There is a version of you frozen solid in Lumbridge Castle holding a cocktail, and I need to make another one.");
+~chatnpc("<p,shock>...");
+~chatnpc("<p,sad>A fruit blast. From the gnome place. With a spoonful of ash stirred through it.");
+~chatplayer("<p,quiz>Ash.");
+~chatnpc("<p,neutral>Ash. It was a wager, it was a long time ago, and I have drunk them that way ever since because a Varze does not go back on a wager.");
+~chatnpc("<p,angry>You will not repeat that to the Order.");
+~chatplayer("<p,happy>Not a word.");
+return(true);
+
+// --- Making it ---
+// Neither fruit_blast nor ashes owned an [opheldu] before this, so both halves are declared here.
+
+[opheldu,fruit_blast]
+if (last_useitem ! ashes) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@hundred_make_dirty_blast;
+
+[opheldu,ashes]
+if (last_useitem ! fruit_blast) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@hundred_make_dirty_blast;
+
+[label,hundred_make_dirty_blast]
+if (%hundred_main_quest_var < ^hundred_met_aris) {
+    ~chatplayer("<p,neutral>Putting ash in a drink would ruin a perfectly good drink.");
+    return;
+}
+inv_del(inv, fruit_blast, 1);
+inv_del(inv, ashes, 1);
+inv_add(inv, hundred_fruit_blast, 1);
+~objbox(hundred_fruit_blast, "You stir a spoonful of ash through the fruit blast. It goes grey at the edges and settles into something nobody would order twice.", 250, 0, 0);
+
+// --- Journal ---
+
+[proc,hundred_amik_journal]()(string)
+def_string $x;
+$x = append($x, "@dbl@Sir Amik Varze was drinking a @dre@fruit blast@dbl@ with @dre@ashes@dbl@|");
+$x = append($x, "@dbl@stirred into it. He is in @dre@Falador Castle@dbl@ and he would rather|");
+$x = append($x, "@dbl@I did not spread it about.");
+return($x);

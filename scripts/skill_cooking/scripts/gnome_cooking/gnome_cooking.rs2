@@ -65,7 +65,14 @@ switch_obj(last_useitem) {
 }
 
 [opheldu,lemon_slices] @finish_cocktail(last_useitem, last_item);
-[opheldu,orange_slices] @finish_cocktail(last_useitem, last_item);
+// Recipe for Disaster, Freeing the Goblin generals: the one thing both generals agree on is dyed
+// orange slices. @hundred_goblin_dyed_oranges is in quest_100/scripts/hundred_goblins.rs2; the dyes
+// are checked before falling through to the cocktail system, which does not use them.
+[opheldu,orange_slices]
+switch_obj (last_useitem) {
+    case reddye, bluedye, yellowdye, greendye : @hundred_goblin_dyed_oranges(last_useitem);
+    case default : @finish_cocktail(last_useitem, last_item);
+}
 [opheldu,lime_slices] @finish_cocktail(last_useitem, last_item);
 [opheldu,lemon_chunks]
 switch_int(oc_param(last_useitem, gnome_cooking_type)) {

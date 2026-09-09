@@ -1,0 +1,84 @@
+// Black mask and Slayer helmet.
+//
+// Neither item exists in the 377 cache, so both are new objs built on existing cache models
+// with recolours rather than new .ob2 art:
+//
+//   black_mask    -> obj_highwayman_mask  (a black cloth face mask; the closest shape in 377,
+//                                          and it already ships near-black)
+//   slayer_helmet -> obj_iron_full_helm   (full-face helm, same model black_full_helm uses)
+//
+// Recolour SOURCE values were read out of the model files themselves. A model stores its face
+// colours as HSL16; a .obj config writes RGB15 and the packer converts (ObjConfig.ts calls
+// ColorConversion.rgb15toHsl16 for any value >= 100). So you cannot read a source value straight
+// out of the model bytes - it has to be reverse-mapped. The values below were derived that way
+// and cross-checked against the vanilla configs that recolour the same models (iron_full_helm
+// uses 15855/15360; highwaymanmask leaves 2115 alone).
+//
+// Change the recolNd (destination) values freely to retint. Do NOT change the recolNs (source)
+// values - if they stop matching the model's own colours the recolour silently does nothing.
+
+[black_mask]
+name=Black mask
+desc=A mask that helps you hunt your prey.
+model=obj_highwayman_mask
+recol1s=2115
+recol1d=1057
+2dxof=3
+2dzoom=290
+2dyan=224
+2dxan=488
+iop2=Wear
+wearpos=hat
+manwear=obj_highwaymanmask_manwear,0
+womanwear=obj_highwaymanmask_womanwear,0
+manhead=obj_highwaymanmask_manhead
+womanhead=obj_highwaymanmask_womanhead
+members=yes
+cost=15000
+weight=10kg
+category=armour_helmet
+param=magicattack,-3
+param=rangeattack,-1
+param=stabdefence,9
+param=slashdefence,10
+param=crushdefence,8
+param=magicdefence,-1
+param=rangedefence,9
+
+[cert_black_mask]
+certlink=black_mask
+certtemplate=template_for_cert
+
+[slayer_helmet]
+name=Slayer helmet
+desc=I'd better wear this when I'm slaying.
+model=obj_iron_full_helm
+recol1s=15855
+recol1d=3171
+recol2s=15360
+recol2d=6210
+2dxof=-1
+2dyof=6
+2dzoom=800
+2dyan=152
+2dxan=160
+iop2=Wear
+wearpos=hat
+wearpos2=head
+wearpos3=jaw
+manwear=obj_iron_full_helm_manwear,0
+womanwear=obj_iron_full_helm_womanwear,0
+manhead=obj_iron_full_helm_manhead
+womanhead=obj_iron_full_helm_womanhead
+members=yes
+tradeable=no
+cost=40000
+weight=2267g
+category=armour_helmet
+param=magicattack,-6
+param=rangeattack,-2
+param=stabdefence,30
+param=slashdefence,32
+param=crushdefence,27
+param=magicdefence,-1
+param=rangedefence,30

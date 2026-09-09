@@ -1,0 +1,213 @@
+// Recipe for Disaster, sub-quest 3 of 10: Freeing the Goblin generals.
+//
+// See the sub-quest section of configs/quest_100.constant - including the correction that this
+// quest's dish IS named in the cache, under the prefix 100goblin_ rather than 100_ or hundred_.
+//
+// Both generals already own [opnpc1] in areas/area_falador/scripts/goblin_village/, so the quest
+// branches are hooked in there and jump here.
+
+// --- The plinth ---
+
+[oploc1,hundred_goblin1_base]
+~hundred_inspect(^hundred_bit_goblins, "General Wartface", "He is mid-argument with the goblin next to him. Both of them have a hand on the same empty bowl and neither is letting go.", 1, "Whatever was in that bowl, it took two goblins who agree on nothing to agree on it.");
+@hundred_goblin_plinth_stage;
+
+[oploc1,hundred_goblin2_base]
+~hundred_inspect(^hundred_bit_goblins, "General Bentnoze", "He is mid-argument with the goblin next to him. Both of them have a hand on the same empty bowl and neither is letting go.", 1, "Whatever was in that bowl, it took two goblins who agree on nothing to agree on it.");
+@hundred_goblin_plinth_stage;
+
+[label,hundred_goblin_plinth_stage]
+if (%hundred_main_quest_var >= ^hundred_met_aris & %100goblin = ^hundred_goblin_not_started) {
+    %100goblin = ^hundred_goblin_told;
+}
+
+[oplocu,hundred_goblin1_base] @hundred_goblin_offer;
+[oplocu,hundred_goblin2_base] @hundred_goblin_offer;
+
+[label,hundred_goblin_offer]
+if (last_useitem ! 100goblin_compromise_mush) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (~hundred_has_subquest(^hundred_bit_goblins) = true) {
+    ~chatplayer("<p,neutral>They have theirs.");
+    return;
+}
+mes("You put the bowl back between them.");
+p_delay(3);
+inv_del(inv, 100goblin_compromise_mush, 1);
+%100goblin = ^hundred_goblin_done;
+%100goblinsvisible = 1;
+~mesbox("Two hands close on the bowl at once. The argument picks up from exactly where it stopped, at the same volume, on the same word.");
+~chatnpc_specific("General Wartface", 100_general_wartface, "<p,angry>- and I still say it wants MORE maggots!");
+~hundred_award_subquest(^hundred_bit_goblins);
+
+// --- The generals in Goblin Village ---
+// Called from their existing [opnpc1] handlers. Returns true if it did the talking.
+
+[proc,hundred_goblin_chat](int $which)(boolean)
+if (%100goblin < ^hundred_goblin_told) {
+    return(false);
+}
+if (~hundred_has_subquest(^hundred_bit_goblins) = true) {
+    return(false);
+}
+if (%100goblin >= ^hundred_goblin_asked) {
+    ~hundred_goblin_reminder($which);
+    return(true);
+}
+if ($which = 1) {
+    ~chatplayer("<p,quiz>There is a version of you frozen in Lumbridge Castle holding a bowl. What was in it?");
+    ~chatnpc("<p,happy>Slop! Best slop. Soggy bread slop.");
+    ~chatnpc("<p,angry>Bentnoze says maggots. Bentnoze is wrong. Bread goes soggy, soggy is good.");
+} else {
+    ~chatplayer("<p,quiz>There is a version of you frozen in Lumbridge Castle holding a bowl. What was in it?");
+    ~chatnpc("<p,happy>Maggots! Spicy ones. Spice makes maggots taste better.");
+    ~chatnpc("<p,angry>Wartface says bread. Wartface has no tongue for it.");
+}
+~chatnpc("<p,neutral>And orange bits. Coloured ones. We both agree on coloured orange bits. Is only thing we agree.");
+~chatplayer("<p,neutral>So all three, then.");
+~chatnpc("<p,shock>...all three?");
+~chatnpc("<p,happy>ALL THREE! Put in big pot in kitchen under village. Big pot make it slop.");
+%100goblin = ^hundred_goblin_asked;
+return(true);
+
+// A proc, not a label: hundred_goblin_chat is itself a proc, and "Unable to jump to labels from
+// within a proc". See trap 5b in claude/rs2-compile-traps.md.
+[proc,hundred_goblin_reminder](int $which)
+if ($which = 1) {
+    ~chatnpc("<p,angry>Soggy bread. Spicy maggots. Coloured orange bits. Big pot. Is not hard.");
+} else {
+    ~chatnpc("<p,angry>Maggots FIRST. Then other things. Order matters. Probably.");
+}
+return;
+
+// --- The three ingredients ---
+// bucket_water, spicespot and orange_slices all already own an [opheldu], so those three gained a
+// case in their existing handlers and only the other half of each pair is declared here.
+
+[opheldu,bread]
+if (last_useitem ! bucket_water) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@hundred_goblin_soggy_bread;
+
+[label,hundred_goblin_soggy_bread]
+if (%100goblin < ^hundred_goblin_asked) {
+    ~chatplayer("<p,neutral>Pouring water on good bread would only ruin it.");
+    return;
+}
+inv_del(inv, bread, 1);
+inv_del(inv, bucket_water, 1);
+inv_add(inv, 100goblin_soggy_bread, 1);
+inv_add(inv, bucket_empty, 1);
+~objbox(100goblin_soggy_bread, "You pour the whole bucket over the loaf. It gives up immediately.", 250, 0, 0);
+
+[opheldu,fishing_bait]
+if (last_useitem ! spicespot) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@hundred_goblin_spicy_maggots;
+
+[label,hundred_goblin_spicy_maggots]
+if (%100goblin < ^hundred_goblin_asked) {
+    ~chatplayer("<p,neutral>Seasoning bait would be a waste of good spice.");
+    return;
+}
+inv_del(inv, fishing_bait, 1);
+inv_add(inv, 100goblin_spicey_maggots, 1);
+~objbox(100goblin_spicey_maggots, "You shake spice over the maggots. They seem to like it, which is the worst part.", 250, 0, 0);
+
+[label,hundred_goblin_dyed_oranges](obj $dye)
+if (%100goblin < ^hundred_goblin_asked) {
+    ~chatplayer("<p,neutral>Dyeing fruit is not something I need to be doing.");
+    return;
+}
+inv_del(inv, orange_slices, 1);
+inv_del(inv, $dye, 1);
+inv_add(inv, 100goblin_dyed_oranges, 1);
+~objbox(100goblin_dyed_oranges, "The slices take the dye immediately and completely. They now look less like fruit than anything you have ever eaten.", 250, 0, 0);
+
+// --- Down to the kitchen ---
+// The cache built the kitchen twice: intact at m46_154 p0 z50-62, and blasted at z15-22 with its own
+// charred ladder. Which one the ladder leads to is the explosion varbit.
+
+[oploc1,100_goblin_ladder_down]
+mes("You climb down into the goblins' kitchen.");
+p_delay(2);
+if (%100goblin_explosion = ^hundred_goblin_kitchen_intact) {
+    ~climb_ladder(^hundred_goblin_kitchen, false);
+    return;
+}
+~climb_ladder(^hundred_goblin_kitchen_charred, false);
+
+[oploc1,100_goblin_ladder_up] ~climb_ladder(^hundred_goblin_village, true);
+[oploc1,100_goblin_ladder_up_charred] ~climb_ladder(^hundred_goblin_village, true);
+
+// --- The cauldron ---
+
+[oplocu,100_goblin_cauldren_still]
+switch_obj (last_useitem) {
+    case 100goblin_soggy_bread, 100goblin_spicey_maggots, 100goblin_dyed_oranges :
+        @hundred_goblin_cook;
+    case default :
+        ~displaymessage(^dm_default);
+}
+
+[label,hundred_goblin_cook]
+if (inv_total(inv, 100goblin_soggy_bread) < 1) {
+    ~chatplayer("<p,neutral>Wartface would notice if the bread was missing.");
+    return;
+}
+if (inv_total(inv, 100goblin_spicey_maggots) < 1) {
+    ~chatplayer("<p,neutral>Bentnoze would notice if the maggots were missing.");
+    return;
+}
+if (inv_total(inv, 100goblin_dyed_oranges) < 1) {
+    ~chatplayer("<p,neutral>They would both notice if the orange bits were missing.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("You will want a free hand before you start this.");
+    return;
+}
+mes("You tip all three into the cauldron.");
+p_delay(2);
+inv_del(inv, 100goblin_soggy_bread, 1);
+inv_del(inv, 100goblin_spicey_maggots, 1);
+inv_del(inv, 100goblin_dyed_oranges, 1);
+loc_change(100_goblin_cauldren_shake, 6);
+mes("The cauldron begins, very slowly, to move.");
+p_delay(4);
+if_close;
+loc_change(100_goblin_cauldren_blast, 8);
+%100goblin_explosion = ^hundred_goblin_kitchen_blast;
+sound_synth(gas_explosion, 1, 0);
+p_delay(4);
+%100goblin_explosion = ^hundred_goblin_kitchen_after;
+inv_add(inv, 100goblin_compromise_mush, 1);
+%100goblin = ^hundred_goblin_cooked;
+~mesbox("The roof of the hut above you is no longer the roof of the hut above you. In the bottom of the cauldron, entirely unharmed, is about a bowl's worth of something that has clearly won an argument.");
+
+// --- Journal ---
+
+[proc,hundred_goblin_journal]()(string)
+def_string $x;
+switch_int (%100goblin) {
+    case ^hundred_goblin_not_started :
+        $x = append($x, "@dbl@I should @dre@inspect the goblin generals@dbl@ and see what they were|");
+        $x = append($x, "@dbl@both holding.");
+    case ^hundred_goblin_told :
+        $x = append($x, "@dbl@Both generals had hold of the same bowl. The living pair are in|");
+        $x = append($x, "@dbl@@dre@Goblin Village@dbl@ and will not agree about anything, which is|");
+        $x = append($x, "@dbl@probably the point.");
+    case ^hundred_goblin_asked :
+        $x = append($x, "@dbl@@dre@Soggy bread@dbl@ (bread and a bucket of water), @dre@spicy maggots|");
+        $x = append($x, "@dbl@(fishing bait and spice) and @dre@dyed orange slices@dbl@. All three|");
+        $x = append($x, "@dbl@into the @dre@cauldron in the kitchen under the village@dbl@.");
+    case default :
+        $x = append($x, "@dbl@I should give the @dre@slop of compromise@dbl@ to the generals.");
+}
+return($x);

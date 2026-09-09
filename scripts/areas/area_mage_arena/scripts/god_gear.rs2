@@ -2,13 +2,20 @@
 [opheld2,zamorak_cape] if (~check_conflicting_god_staff(saradomin_staff, guthix_staff) = true) ~equip(last_slot);
 [opheld2,guthix_cape] if (~check_conflicting_god_staff(saradomin_staff, zamorak_staff) = true) ~equip(last_slot);
 
-[opheld2,saradomin_staff] if (~check_conflicting_god_cape(zamorak_cape, guthix_cape) = true) ~equip(last_slot);
-[opheld2,zamorak_staff] if (~check_conflicting_god_cape(saradomin_cape, guthix_cape) = true) ~equip(last_slot);
-[opheld2,guthix_staff] if (~check_conflicting_god_cape(saradomin_cape, zamorak_cape) = true) ~equip(last_slot);
+// Mage Arena II capes obey the same rule as the plain ones.
+[opheld2,saradomin_cape_i] if (~check_conflicting_god_staff(zamorak_staff, guthix_staff) = true) ~equip(last_slot);
+[opheld2,zamorak_cape_i] if (~check_conflicting_god_staff(saradomin_staff, guthix_staff) = true) ~equip(last_slot);
+[opheld2,guthix_cape_i] if (~check_conflicting_god_staff(saradomin_staff, zamorak_staff) = true) ~equip(last_slot);
+
+// ~check_conflicting_god_cape takes four capes rather than two so that an imbued cape of another
+// god blocks a staff exactly as its plain counterpart does.
+[opheld2,saradomin_staff] if (~check_conflicting_god_cape(zamorak_cape, zamorak_cape_i, guthix_cape, guthix_cape_i) = true) ~equip(last_slot);
+[opheld2,zamorak_staff] if (~check_conflicting_god_cape(saradomin_cape, saradomin_cape_i, guthix_cape, guthix_cape_i) = true) ~equip(last_slot);
+[opheld2,guthix_staff] if (~check_conflicting_god_cape(saradomin_cape, saradomin_cape_i, zamorak_cape, zamorak_cape_i) = true) ~equip(last_slot);
 
 
-[proc,check_conflicting_god_cape](namedobj $item1, namedobj $item2)(boolean)
-if (inv_total(worn, $item1) > 0 | inv_total(worn, $item2) > 0) {
+[proc,check_conflicting_god_cape](namedobj $item1, namedobj $item2, namedobj $item3, namedobj $item4)(boolean)
+if (inv_total(worn, $item1) > 0 | inv_total(worn, $item2) > 0 | inv_total(worn, $item3) > 0 | inv_total(worn, $item4) > 0) {
     mes("You may not wield this staff whilst wearing the cape of another god.");
     mes("The conflicting powers of staff and cape drive them apart.");
     return(false);
@@ -26,6 +33,9 @@ return(true);
 [opheld5,saradomin_cape] @drop_god_cape;
 [opheld5,zamorak_cape] @drop_god_cape;
 [opheld5,guthix_cape] @drop_god_cape;
+[opheld5,saradomin_cape_i] @drop_god_cape;
+[opheld5,zamorak_cape_i] @drop_god_cape;
+[opheld5,guthix_cape_i] @drop_god_cape;
 
 [label,drop_god_cape]
 inv_delslot(inv, last_slot);

@@ -28,7 +28,7 @@ sound_synth(slayerdoors_close, 1, 0);
 def_int $duration = ~player_projectile(npc_coord, coord, uid, specter_goo_travel, 61, 40, 32, 5, 0, 4, 10);
 def_int $maxhit = 8;
 def_int $damage = randominc($maxhit);
-if(inv_total(worn, slayer_nosepeg) = 0) {
+if(~slayer_nosepeg_worn = false) {
     $damage = 14; // un-protectable
     // reduction is 20% (current) for att/str/range/mage, 10% on def and prayer
     // stat reduction isnt queued
@@ -40,7 +40,7 @@ if(inv_total(worn, slayer_nosepeg) = 0) {
     stat_drain(defence, 0, 40);
     stat_drain(prayer, 0, 40);
 }
-if (~npc_player_hit_roll(^magic_style) = true | inv_total(worn, slayer_nosepeg) = 0) {
+if (~npc_player_hit_roll(^magic_style) = true | ~slayer_nosepeg_worn = false) {
     queue(combat_damage_player, calc($duration / 30), $damage);
 } else {
     queue(combat_damage_player, calc($duration / 30), 0);

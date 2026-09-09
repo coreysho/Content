@@ -221,3 +221,72 @@
 // it is the palm at (10,9), and everything from z4 to z16 is open.
 ^hundred_jubbly_island_sw = 0_43_48_0_2
 ^hundred_jubbly_island_ne = 0_43_48_16_18
+
+// ---------------------------------------------------------------------------------------------
+// Sub-quest 8: Freeing Sir Amik Varze - %100amikvisible + a stage of its own
+// ---------------------------------------------------------------------------------------------
+// The dish IS named, it just does not say "Varze" in it. hundred_fruit_blast is
+//
+//     name=Dirty blast
+//     desc=A cool refreshing fruit mix. With ash in for some reason.
+//
+// A Fruit Blast, which the gnome cocktail system already makes (Blurberry's, and the premade), with
+// ashes in it. Both halves are ordinary objs the repo already produces, so nothing here is invented:
+// the only question the data left open is who tells you, and the answer is the man himself - the
+// ordinary sir_amik_varze stands at 2_46_52_16_8 in Falador castle with a handler already, which
+// this hooks into rather than redeclaring.
+//
+// The frozen victim in the dining room is the loc hundred_varze_base ("Sir Amik Varze - He's been
+// frozen in time"). There is ALSO an npc hundred_varze_frozen (multivar=100amikvisible, 1 -> the
+// frozen base, 2 -> hundred_varze, op1=Talk-to) which the world places nowhere - the same "npc and
+// loc versions of the same victim" duplication the other eight plinths have. The loc is what is
+// placed, so the loc is what this uses.
+//
+// THIS SUB-QUEST HAS NO STAGE VARBIT, and does not need one. Every other one has its own in the
+// cache; this one has only 100amikvisible, a single bit. Rather than carve a stage out of 100intro's
+// three spare bits (8-10) for the sake of symmetry, the whole thing reads off what the player is
+// holding: the recipe is gated on the main quest reaching ^hundred_met_aris, and the journal reads
+// the tally bit. Nothing is lost - there is no step here that can be half-done.
+
+// ---------------------------------------------------------------------------------------------
+// Sub-quest 3: Freeing the Goblin generals - %100goblin (varp 100council, bits 9-14)
+// ---------------------------------------------------------------------------------------------
+// CORRECTION to what this file and claude/recipe-for-disaster.md said for two days: the goblin dish
+// IS named. The prefix is 100goblin_ with no underscore after the 100, which is why it did not turn
+// up under 100_ or hundred_:
+//
+//     100goblin_compromise_mush   "Slop of compromise - Two out of two goblin generals prefer it!"
+//     100goblin_soggy_bread       "Previously a nice crispy loaf of bread. Now just kind of icky."
+//     100goblin_spicey_maggots    "They clearly taste so much better this way!"
+//     100goblin_dyed_oranges      "Orange slices which have been dyed, but it looks more like they died."
+//
+// Three things neither general will give up, mashed into one bowl. Every input is an ordinary obj the
+// repo already produces - bread, a bucket of water, fishing bait, spice (which hundred_foodchest1
+// stocks), orange slices from the gnome cocktail set, and any of Aggie's dyes.
+//
+// The kitchen is under Goblin Village and the cache built it twice, the way it built the dining room
+// twice. 100_goblin_ladder_down at 0_46_54_16_51 goes down; the intact kitchen is m46_154 p0 z50-62
+// with 100_goblin_cauldren_still at (36,54) and the way back up at (37,60); the blasted copy is the
+// same layout at z15-22 with 100_goblin_ladder_up_charred at (37,20). Every fitting in the room has a
+// _blasted or _charred twin.
+//
+// The cauldron says what happens without being told: "The bottom of this cauldron is suprisingly
+// blackened, even for a cauldron" -> 100_goblin_cauldren_shake "I don't think Cauldrons are supposed
+// to bounce around like that" -> 100_goblin_cauldren_blast "Explosion - This could be considered to
+// be a bad thing!". 100goblin_explosion then blows the roof off the hut above, in the village:
+// 100_goblin_roof_multi at 1_46_54_15_48 and 100_goblin_large_table_multi at 0_46_54_15_48.
+^hundred_goblin_not_started = 0
+^hundred_goblin_told = 1         // the plinth showed me the bowl they were both reaching for
+^hundred_goblin_asked = 2        // both generals have named their half of the argument
+^hundred_goblin_cooked = 3       // the cauldron went up and the slop survived
+^hundred_goblin_done = 4
+
+// %100goblin_explosion, straight off the two multilocs.
+^hundred_goblin_kitchen_intact = 0
+^hundred_goblin_kitchen_blast = 1
+^hundred_goblin_kitchen_after = 2
+
+// Landing tiles, read out of the .jm2 LOC sections.
+^hundred_goblin_kitchen = 0_46_154_37_59
+^hundred_goblin_kitchen_charred = 0_46_154_37_19
+^hundred_goblin_village = 0_46_54_16_50
