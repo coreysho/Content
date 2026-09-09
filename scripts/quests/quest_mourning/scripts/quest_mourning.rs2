@@ -108,8 +108,53 @@ if (%mourning_quest = ^mourning_told_arianwyn) {
 
 [label,mourning_arianwyn_progress]
 ~chatplayer("<p,happy>Hello, Arianwyn.");
-~chatnpc("<p,neutral>You have a uniform. Walk in through their gates as though you belong there, and do not run.");
+switch_int (%mourning_quest) {
+    case ^mourning_has_disguise :
+        ~chatnpc("<p,neutral>You have a uniform. Walk in through their gates as though you belong there, and do not run.");
+    case ^mourning_entered_hq :
+        ~chatnpc("<p,quiz>You walked in and you walked out again. What is in there?");
+        ~chatplayer("<p,neutral>A yard, a kitchen, and a trapdoor nobody wants me standing near.");
+        ~chatnpc("<p,neutral>Then that is where the digging is. Go down it.");
+    case ^mourning_met_gnome, ^mourning_has_sieve, ^mourning_has_toxin, ^mourning_poisoned_food, ^mourning_has_keys :
+        ~chatnpc("<p,shock>A gnome. On a rack, under a human city, because he drew a map of it.");
+        ~chatnpc("<p,angry>Get him off it. Whatever else comes of this, get him off it.");
+    case ^mourning_freed_gnome, ^mourning_has_gun :
+        ~chatnpc("<p,neutral>You have your gnome and he has his toy. I would like this to end with Ardougne knowing what its Mourners are, not with you and a gnome knowing it.");
+    case ^mourning_dyed_sheep :
+        ~chatnpc("<p,quiz>Four flocks of bright green sheep is a fine joke and it is not evidence. Find someone this city will believe standing next to them.");
+    case ^mourning_told_elena :
+        @mourning_finish;
+    case ^mourning_complete :
+        ~chatnpc("<p,neutral>The city is arguing with itself and the Mourners have stopped parading anything. That is worth more to us than a hundred crystal arrows.");
+        ~chatnpc("<p,neutral>Keep the key. There is a door at the bottom of that dig and one day I am going to ask you to open it.");
+    case default :
+        ~chatnpc("<p,neutral>Whatever you are doing, keep doing it.");
+}
 @mourning_arianwyn_crystal_offer;
+
+// --- Completion ---
+// Through the player queue and through ~send_quest_complete rather than ~send_quest_progress, for
+// the reason recorded in quest_horror: ~update_questpoints is only ever called from
+// send_quest_complete's default branch, so finishing through send_quest_progress awards no points.
+
+[label,mourning_finish]
+~chatplayer("<p,happy>Elena has seen the sheep. So has half of Ardougne.");
+~chatnpc("<p,quiz>Elena. The physician they took.");
+~chatplayer("<p,neutral>She examined the flocks in the open and told everyone who would stand still that there is nothing wrong with them. It's dye. She signed it.");
+~chatnpc("<p,neutral>Then the plague is finished. Not today, and not without a great deal of shouting, but it is finished - a lie only works while nobody is allowed to check it.");
+~chatplayer("<p,quiz>And the digging?");
+~chatnpc("<p,sad>Goes on. That is the part that frightens me. They have given up a city's worth of cover and they have not stopped digging for a single day.");
+~chatnpc("<p,neutral>You brought a key out of that office. Newly cut, you said.");
+~chatplayer("<p,neutral>The head mourner had a spare.");
+~chatnpc("<p,neutral>Keep it somewhere you will not lose it. There is a door at the bottom of that excavation with something behind it that Iorwerth has spent forty years and a whole city to reach.");
+~chatnpc("<p,neutral>I am not sending you through it today. Today you have earned an afternoon.");
+queue(mourning_quest_complete, 0, 0);
+
+[queue,mourning_quest_complete]
+%mourning_quest = ^mourning_complete;
+stat_advance(ranged, ^mourning_reward_xp);
+session_log(^log_adventure, "Quest complete: Mourning's End Part I");
+~send_quest_complete(questlist:mourning, mourning_excavation_key, 250, ^mourning_questpoints, "You have completed\\nMourning's End Part I!", "25,000 Ranged XP|The key to the Mourner excavation|The truth about the plague");
 
 // The crystal is handed over here rather than at the moment the quest starts, so that a player who
 // loses or drops it is never stranded outside Lletya with no way back in.
@@ -344,5 +389,83 @@ if (%mourning_quest = ^mourning_has_disguise) {
 }
 $x = append($x, "|@str@I walked into the Mourner headquarters wearing it and nobody|");
 $x = append($x, "@str@looked twice.|");
-$x = append($x, "|@dbl@This is as far as this quest goes on this server for now.");
+if (%mourning_quest = ^mourning_entered_hq) {
+    $x = append($x, "|@dbl@There is a @dre@trapdoor@dbl@ in the walled yard behind the quarters.|");
+    $x = append($x, "@dbl@Whatever they are digging for is under it.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@Under the quarters is a mine, and a gnome surveyor on a rack.|");
+$x = append($x, "@str@The head mourner keeps the padlock key in his desk and never|");
+$x = append($x, "@str@leaves it.|");
+if (%mourning_quest = ^mourning_met_gnome) {
+    $x = append($x, "|@dbl@The gnome says a poison made from @dre@rotten apples@dbl@, @dre@naphtha@dbl@ and|");
+    $x = append($x, "@dbl@a fine @dre@sieve@dbl@ will empty the quarters. @dre@Elena@dbl@ in @dre@East Ardougne|");
+    $x = append($x, "@dbl@would have a sieve.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@Elena gave me her sieve.|");
+if (%mourning_quest = ^mourning_has_sieve) {
+    $x = append($x, "|@dbl@Fill a barrel from the @dre@rotten apple pile@dbl@ in the orchard, crush|");
+    $x = append($x, "@dbl@it in the @dre@press@dbl@ beside it, mix in a @dre@barrel of naphtha@dbl@ from|");
+    $x = append($x, "@dbl@the @dre@still in Tirannwn@dbl@, run it back through the press, then|");
+    $x = append($x, "@dbl@strain it with the sieve.");
+    ~quest_journal($n, $x);
+    return;
+}
+if (%mourning_quest = ^mourning_has_toxin) {
+    $x = append($x, "|@str@I have three doses of toxic powder.|");
+    $x = append($x, "|@dbl@The quarters keep their food in three places - the @dre@stew|");
+    $x = append($x, "@dre@cauldron@dbl@, the @dre@cooking shelves@dbl@ and the @dre@ration crate@dbl@. All|");
+    $x = append($x, "@dbl@three need a dose.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@I poisoned all three of the Mourners' food stores. Nobody in|");
+$x = append($x, "@str@that place can stand up straight.|");
+if (%mourning_quest = ^mourning_poisoned_food) {
+    $x = append($x, "|@dbl@Now I can @dre@search the head mourner's desk@dbl@ while he is too|");
+    $x = append($x, "@dbl@ill to stop me.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@I took a worn key out of his desk.|");
+if (%mourning_quest = ^mourning_has_keys) {
+    $x = append($x, "|@dbl@The worn key opens the @dre@chest in his office@dbl@. The gnome says|");
+    $x = append($x, "@dbl@his device is in it.");
+    ~quest_journal($n, $x);
+    return;
+}
+if (%mourning_quest = ^mourning_freed_gnome) {
+    $x = append($x, "|@str@I let the gnome off the rack.|");
+    $x = append($x, "|@dbl@He wants his @dre@broken device@dbl@ back. It was in the chest.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@I let the gnome off the rack and he mended his device. It|");
+$x = append($x, "@str@fires dye.|");
+if (%mourning_quest = ^mourning_has_gun) {
+    $x = append($x, "|@dbl@Fill @dre@ogre bellows@dbl@ from a @dre@dye pot@dbl@, blow the dye into a|");
+    $x = append($x, "@dbl@@dre@bloated toad@dbl@, load the toad into the device and shoot the|");
+    $x = append($x, "@dbl@@dre@plague sheep@dbl@. Each of the four flocks takes one colour|");
+    $x = append($x, "@dbl@only - the device says which when I get it wrong.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@All four flocks of plague sheep are dyed.|");
+if (%mourning_quest = ^mourning_dyed_sheep) {
+    $x = append($x, "|@dbl@@dre@Elena@dbl@ is the only physician in Ardougne who has been over|");
+    $x = append($x, "@dbl@the wall. She should be the one standing next to them.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@Elena examined them in the open and told half of Ardougne|");
+$x = append($x, "@str@there is no plague in those animals.|");
+if (%mourning_quest = ^mourning_told_elena) {
+    $x = append($x, "|@dbl@I should go back to @dre@Arianwyn@dbl@ in @dre@Lletya@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@dbl@@dre@QUEST COMPLETE!");
 ~quest_journal($n, $x);

@@ -19,6 +19,14 @@
 [opnpc1,elena2_vis] ~elena_home_chat;
 
 [proc,elena_home_chat]
+// Mourning's End Part I takes priority over the Biohazard small talk while it is live: she is the
+// only physician in Ardougne who has been over the wall, so she is both the source of the sieve and
+// the only witness whose word about the plague sheep will carry. See the deviation note in
+// quests/quest_mourning/configs/quest_mourning.constant - the cache has no West Ardougne Elena.
+if (%mourning_quest >= ^mourning_met_gnome & %mourning_quest < ^mourning_complete) {
+    ~mourning_elena_chat;
+    return;
+}
 switch_int(%biohazard) { // ^biohazard_used_birdfeed intentionally has no dialogue!
     case ^biohazard_complete :
         ~chatplayer("<p,happy>Hello Elena.");

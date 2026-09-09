@@ -1,0 +1,61 @@
+// Mourning's End Part I - Elena's two steps.
+//
+// Called from [proc,elena_home_chat] in areas/area_ardougne_east/scripts/elena.rs2, which both
+// [opnpc1,elena2] and [opnpc1,elena2_vis] route through. The trigger is not declared here because
+// it is already declared there and a trigger may only be declared once.
+//
+// She is in her house in East Ardougne (0_40_52_32_8) because that is the only post-Plague-City
+// placement of her this cache has; the four plague sheep pens are on the same map square, a short
+// walk away. See the deviation note in configs/quest_mourning.constant.
+
+[proc,mourning_elena_chat]
+switch_int (%mourning_quest) {
+    case ^mourning_met_gnome :
+        @mourning_elena_sieve;
+    case ^mourning_dyed_sheep :
+        @mourning_elena_sheep;
+    case ^mourning_told_elena :
+        ~chatnpc("<p,neutral>I have written it all down and I have signed it. Go and tell your elf that Ardougne has a physician's word there is no plague in those animals.");
+    case ^mourning_has_sieve, ^mourning_has_toxin, ^mourning_poisoned_food, ^mourning_has_keys, ^mourning_freed_gnome, ^mourning_has_gun :
+        ~chatplayer("<p,happy>Hello Elena.");
+        ~chatnpc("<p,quiz>Still alive under that mask, then. Bring me something I can put my name to and I will put my name to it.");
+    case default :
+        ~chatplayer("<p,happy>Hello Elena.");
+        ~chatnpc("<p,happy>Hello. Try not to bring me anything else in a barrel.");
+}
+
+[label,mourning_elena_sieve]
+~chatplayer("<p,quiz>This is going to sound strange. Do you have a sieve?");
+~chatnpc("<p,quiz>I have four. Which is the strange part - the sieve, or that you came to Ardougne for one?");
+~chatplayer("<p,neutral>I need to strain something very fine, and I need it to come out clean.");
+~chatnpc("<p,neutral>Then you want the assay sieve, and you want to tell me what you are straining.");
+~chatplayer("<p,neutral>Naphtha out of pressed rotten apples. It won't kill anyone. It will put a building full of Mourners on their backs for an afternoon.");
+~chatnpc("<p,shock>...");
+~chatnpc("<p,angry>Do you know what those men did to me? Take the sieve.");
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,neutral>Come back when you can carry it.");
+    return;
+}
+inv_add(inv, mourning_sieve, 1);
+%mourning_quest = ^mourning_has_sieve;
+~send_quest_progress(questlist:mourning, 6, ^mourning_complete);
+~chatnpc("<p,neutral>Rotten apples grow in the orchard outside the west wall, and there is a press standing in it. Bring the sieve back when you are done. I do use it.");
+
+[label,mourning_elena_sheep]
+~chatplayer("<p,happy>Elena. Come and look at the sheep.");
+~chatnpc("<p,quiz>Which sheep?");
+~chatplayer("<p,neutral>The plague sheep. The ones they cull in front of a crowd whenever this city gets loud.");
+~chatnpc("<p,neutral>I have looked at them. Twice. The Mourners would not let me touch one.");
+~chatplayer("<p,happy>They're bright green. And red, and blue, and yellow.");
+~chatnpc("<p,shock>They are what?");
+mes("Elena puts her coat on without finishing the sentence.");
+p_delay(3);
+~mesbox("She is out at the field for the best part of an hour. She goes over one animal at a time, and she does it slowly enough that a small crowd forms behind her, which you suspect is on purpose.");
+p_delay(1);
+~chatnpc("<p,angry>There is nothing wrong with those animals. There has never been anything wrong with those animals. That is dye and it is barely a day old.");
+~chatplayer("<p,quiz>Will you say so?");
+~chatnpc("<p,neutral>I have said so. To forty people, at the top of my voice, and I will say it again to anyone who asks.");
+~chatnpc("<p,neutral>Whoever sent you - tell them Ardougne heard it from a physician, and tell them to move quickly, because the Mourners heard it too.");
+%mourning_quest = ^mourning_told_elena;
+%mourning_elena_plot_update = 1;
+~send_quest_progress(questlist:mourning, 13, ^mourning_complete);

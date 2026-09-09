@@ -1,9 +1,9 @@
 // Mourning's End Part I. Wiki: https://oldschool.runescape.wiki/w/Mourning%27s_End_Part_I
 // Released October 2005, so era-appropriate for a 377 build.
 //
-// THIS FILE COVERS THE FIRST HALF ONLY. See the "NOT BUILT" section at the bottom for exactly what
-// is missing and why - the second half is blocked on map data this cache does not ship, and the
-// blockers are recorded here rather than being quietly worked around.
+// The first half is documented immediately below; the second half (stages 5-20, written 2026-09-09)
+// is documented in the SECOND HALF section at the bottom, together with the two blockers this file
+// used to record that turned out on re-checking to be wrong.
 //
 // --- What the cache already ships ---
 // Far more than for Regicide. Every npc, loc and obj this half needs is already defined and placed:
@@ -54,7 +54,7 @@
 ^mourning_told_arianwyn = 2     // Arianwyn briefed you; go and get a mourner's uniform
 ^mourning_has_disguise = 3      // clean top, repaired trousers, and the rest of the set
 ^mourning_entered_hq = 4        // walked through the West Ardougne gates wearing it
-// 5..19 are reserved for the second half so that nothing built now has to be renumbered later.
+// 5..19 are the second half; they are listed in the SECOND HALF section at the bottom of this file.
 // ^mourning_complete = 20 is declared once, globally, in general/configs/quest.constant.
 
 // --- Requirements ---
@@ -83,27 +83,90 @@
 // declared once and the real behaviour belongs with the quest.
 ^mourning_crystal_delay = 3
 
-// --- Rewards, for when the second half lands ---
+// --- Rewards ---
 // 2 quest points and 25,000 Ranged XP. stat_advance takes tenths.
 ^mourning_reward_xp = 250000
 
 // ===================================================================================================
-// NOT BUILT - the second half, and why
+// SECOND HALF - stages 5 to 20
 // ===================================================================================================
-// * THE HQ IS A DEAD END. The Mourner HQ interior in West Ardougne (m39_51 p1) has no trapdoor,
-//   ladder or stairs connecting it to the mourner hideout at m31_72, and no such loc appears in any
-//   map file. The disguise gets you through the gates and no further. Everything past that point -
-//   the head mourner Essyllt, the gnome, the four hideout guards, the ladder at (60,42) - is placed
-//   and reachable by nothing.
-// * ELENA CANNOT PLAY HER PART. The sieve step needs Elena in West Ardougne. elenap is placed only
-//   at m39_151 (45,8), the Plague City rescue cave, and there is no post-Plague-City placement of
-//   her anywhere in this cache. This is the same gap that stopped Regicide's Elena step.
-// * THERE IS NO PAINT GUN INTERFACE. mourning_paint_gun and mourning_paint_gun_broken exist as objs,
-//   but nothing in pack/interface.pack is a crosshair or aiming interface. A faithful sheep-dyeing
-//   minigame would need a wholly new custom interface, which means manual interface.pack and
-//   interface.order entries and probably BUILD_VERIFY=false. The intended mitigation, when that half
-//   is built, is to make it an [opnpcu] on the sheep with the loaded bellows instead - which works,
-//   but is not the real minigame and should be labelled as such.
-// * mourning_plaguesheep_1..4 are defined but placed nowhere; they are meant to be scripted spawns.
-// * The stat-drain-to-20 mechanic the mourners use on the overpass in later revisions is not built.
-//   They are ordinary level-11 npcs here.
+// Written 2026-09-09. The three "NOT BUILT" blockers this file used to carry were re-checked against
+// the map and config data and two of the three were wrong. What follows is what is actually there.
+//
+// CORRECTED: THE HQ IS NOT A DEAD END. The earlier pass looked at m39_51 *p1*, the upper floor. The
+//   trapdoor is on p0: mourning_hideout_trap_door [8783] "Trapdoor", op1=Open, at 0_39_51_46_63, in
+//   the walled yard behind the door at (50,61), which is reached from the quarters by the p1<->p0
+//   staircase pair at 1_39_51_47_61 / 0_39_51_46_60 - both of which ladders+stairs/scripts/stairs.rs2
+//   already handles (lines 201 and 303). The return leg is mourner_hideout_ladder1 [8785]
+//   op1=Climb-up at 0_31_72_60_42. Neither loc had a handler in any .rs2; both do now.
+//
+// CORRECTED: THE PLAGUE SHEEP ARE NOT UNPLACED. plaguesheep_1..4 are placed three to a pen in four
+//   pens on m40_52, and each one is a multi-npc keyed on its own sheep varbit whose state-1 child is
+//   the corresponding mourning_plaguesheep_*. Dyeing a flock is one varbit write. The four dyed
+//   variants did ship with no ops at all, which would have made Sheep Herder unfinishable for anyone
+//   who dyed a flock first; op1=Prod was added to them in scripts/_unpack/377/all.npc.
+//   (The bit ORDER in mourning_quest_bits is blue/red/yellow/green while the pens run red/green/
+//   blue/yellow. That is only the bit numbering; every pen is paired with its own varbit and its own
+//   dyed child correctly, so nothing needed changing.)
+//
+// STILL TRUE: THERE IS NO CROSSHAIR INTERFACE. Nothing in pack/interface.pack is an aiming interface,
+//   so the sheep-dyeing is not the real minigame. It is implemented as the documented mitigation:
+//   use the loaded device on a sheep. The device is still wieldable (iop2=Wield) because the cache
+//   gives it wear models, but wielding it is cosmetic.
+//
+// --- Deviations in this half, flagged rather than hidden ---
+// * ELENA IS IN EAST ARDOUGNE, NOT WEST. There is no post-Plague-City West Ardougne placement of her
+//   anywhere in this cache; elena2 stands in her house at 0_40_52_32_8. That house is a two minute
+//   walk from the plague sheep field on the same map square, so the sieve step and the "come and look
+//   at the sheep" step both happen there. She is not npc_add-ed anywhere. (mourner_elena_guard, at
+//   0_39_51_38_9 and 0_39_51_43_9, is the pair of mourners outside the Plague City house - not this
+//   quest's, despite the name.)
+// * THE HEAD MOURNER STAYS AT HIS DESK. He is a plain npc with no multivar, so there is no way to
+//   remove him for a while without npc_del on a map spawn. Rather than fake it, the poisoned food is
+//   what incapacitates him: he is still standing there, and the desk search says why he is not
+//   stopping you. His dialogue changes to match while he is ill.
+// * THE NAPHTHA COMES FROM THE REGICIDE STILL, which is already built and stays available after
+//   Regicide. Mourning's End requires Roving Elves, which requires Regicide, so this is never a
+//   dead end - but it is a longer trip than the wiki route.
+// * TEGID'S SOAP still comes from the Taverley laundry basket (see the first-half notes above).
+//
+// --- Stages ---
+// 0..4 are the first half and are documented above.
+^mourning_met_gnome = 5         // found the gnome on the rack under the quarters
+^mourning_has_sieve = 6         // Elena handed over her sieve
+^mourning_has_toxin = 7         // three doses of toxic powder made
+^mourning_poisoned_food = 8     // all three food stores in the quarters poisoned
+^mourning_has_keys = 9          // searched the head mourner's desk
+^mourning_freed_gnome = 10      // unlocked the rack with the tarnished key
+^mourning_has_gun = 11          // the gnome repaired his device
+^mourning_dyed_sheep = 12       // all four flocks dyed
+^mourning_told_elena = 13       // Elena has seen the flocks and will testify
+// 14..19 are spare.
+// ^mourning_complete = 20 is declared once, globally, in general/configs/quest.constant.
+
+// --- mourning_gnome ---
+// The varbit is 4 bits wide and drives two things at once: mourning_gnome_rack's multiloc (0-6
+// occupied, 7-13 empty) and mourner_hideout_gnome's multinpc (7-17 resolve to the talking gnome).
+// So one write both empties the rack and puts the gnome on his feet. 0 is "still racked".
+^mourning_gnome_freed = 7
+
+// --- Paint device ammunition ---
+// %mourning_gun_ammo is 3 bits. The order matches plaguesheep_1..4.
+^mourning_ammo_empty = 0
+^mourning_ammo_red = 1
+^mourning_ammo_green = 2
+^mourning_ammo_blue = 3
+^mourning_ammo_yellow = 4
+
+// --- Coordinates ---
+// Down the trapdoor: the ladder room under the quarters is walled at x=58 and x=62, z=39..43, with
+// the ladder itself on (60,42). (60,41) carries only poorrug1side, a shape-22 ground decoration.
+^mourning_hideout_bottom = 0_31_72_60_41
+// Back up: (46,62) is the only tile in the walled yard between the trapdoor at (46,63) and the
+// staircase footprint at (46,60)-(47,61) that has no loc on it at all.
+^mourning_hideout_top = 0_39_51_46_62
+
+// The Mourner quarters, for the one food-store handler that hangs off a common decorative loc
+// (cookingshelves, placed all over Gielinor). Covers both map squares the quarters straddle.
+^mourning_quarters_sw = 0_39_51_44_55
+^mourning_quarters_ne = 0_39_52_63_10

@@ -1,0 +1,271 @@
+// Mourning's End Part I - second half, part 1 of 3: the hideout under West Ardougne.
+//
+// Everything below is placed in the cache already; see the asset notes in
+// configs/quest_mourning.constant. Nothing here adds a loc, an npc or a map tile.
+//
+//   mourning_hideout_trap_door   loc 8783  0_39_51_46_63   op1=Open   (shape 22, ground decor)
+//   mourner_hideout_ladder1      loc 8785  0_31_72_60_42   op1=Climb-up
+//   mourning_gnome_rack          loc 8794  0_31_72_51_21   multivar=mourning_gnome
+//                                          states 0-6 -> _occupied (op1=Talk-to, op2=Release)
+//                                          states 7-13 -> _empty    (no ops)
+//   mourner_hideout_gnome        npc 2370  0_31_72_52_22   multivar=mourning_gnome
+//                                          states 7-17 -> mourner_hideout_gnome_head (op1=Talk-to)
+//   mourner_hideout_head_mourner npc 2372  0_31_72_60_20   op1=Talk-to
+//   loc_8799 "Desk"              loc 8799  0_31_72_59_21   op1=Search
+//   mourning_office_chest_closed loc 8797  0_31_72_55_25   op1=Open, forceapproach=north
+//   mourning_office_chest_open   loc 8798                  op1=Search, op2=Shut
+//
+// One varbit does double duty and that is deliberate on the cache's part: mourning_gnome drives
+// both the rack multiloc and the gnome multinpc, so a single write empties the rack and puts the
+// gnome on his feet in the same tick. 0-6 is "still on the rack", 7 is "freed".
+
+// --- The trapdoor, and the ladder back up ---
+// The route in is: through the Mourner HQ gates wearing the uniform (handled in quest_biohazard.rs2,
+// which is where those gates live), across the quarters, and down the trapdoor in the walled yard.
+
+[oploc1,mourning_hideout_trap_door]
+if (%mourning_quest < ^mourning_entered_hq) {
+    // Reachable without the quest if Biohazard let you in: don't hard-block it, just don't explain it.
+    mes("It is bolted from underneath.");
+    return;
+}
+mes("You lift the trapdoor.");
+loc_change(mourning_hideout_trap_door_open, 5);
+p_delay(1);
+sound_synth(door_open, 1, 0);
+~climb_ladder(^mourning_hideout_bottom, false);
+if (%mourning_quest = ^mourning_entered_hq) {
+    ~mesbox("The shaft goes down a long way, and it was not dug by anyone in a hurry. This is not a cellar. It is the top of a mine.");
+}
+
+[oploc1,mourner_hideout_ladder1]
+~climb_ladder(^mourning_hideout_top, true);
+
+// --- The gnome on the rack ---
+
+[oploc1,mourning_gnome_rack]
+if (%mourning_gnome >= ^mourning_gnome_freed) {
+    // The multiloc has already swapped to the empty rack, so this is unreachable from the client.
+    // Kept so that a stale client packet does nothing worse than nothing.
+    return;
+}
+if (%mourning_quest < ^mourning_entered_hq) {
+    ~chatnpc_specific("Gnome", mourner_hideout_gnome_head, "<p,sad>Don't. Whatever you have been sent to ask me, I have already told them.");
+    return;
+}
+if (%mourning_quest = ^mourning_entered_hq) {
+    ~chatplayer("<p,shock>What have they done to you?");
+    ~chatnpc_specific("Gnome", mourner_hideout_gnome_head, "<p,sad>Stretched me. It is a rack. That is what racks are for.");
+    ~chatnpc_specific("Gnome", mourner_hideout_gnome_head, "<p,neutral>...you are not one of them. A Mourner wearing that mask would not have asked.");
+    ~chatplayer("<p,neutral>I'm not. Who are you?");
+    ~chatnpc_specific("Gnome", mourner_hideout_gnome_head, "<p,neutral>An engineer. I was surveying the caves under this city, which it turns out is not a thing the people digging in them wanted surveyed.");
+    ~chatplayer("<p,quiz>Digging for what?");
+    ~chatnpc_specific("Gnome", mourner_hideout_gnome_head, "<p,neutral>Something with a door on it. That is as far as I got before this.");
+    ~chatplayer("<p,neutral>Let me get you off that thing.");
+    ~chatnpc_specific("Gnome", mourner_hideout_gnome_head, "<p,neutral>The rack is padlocked and the head mourner keeps the key in his desk, six paces that way, and he does not leave his desk.");
+    ~chatnpc_specific("Gnome", mourner_hideout_gnome_head, "<p,neutral>Get him off it and I will make it worth the walk. I am better with my hands than they think.");
+    %mourning_quest = ^mourning_met_gnome;
+    ~send_quest_progress(questlist:mourning, 5, ^mourning_complete);
+    return;
+}
+@mourning_racked_gnome_hint;
+
+[label,mourning_racked_gnome_hint]
+switch_int (%mourning_quest) {
+    case ^mourning_met_gnome :
+        ~chatnpc_specific("Gnome", mourner_hideout_gnome_head, "<p,neutral>Every mourner in this hole eats out of the same three places. Poison all three and none of them will be standing.");
+        ~chatnpc_specific("Gnome", mourner_hideout_gnome_head, "<p,neutral>Rotten apples, pressed, cut with naphtha and strained fine. You will need a sieve you can trust. A physician would have one.");
+    case ^mourning_has_sieve :
+        ~chatnpc_specific("Gnome", mourner_hideout_gnome_head, "<p,neutral>Apples from the orchard, the press in the orchard, a barrel of naphtha, then the sieve. In that order.");
+    case ^mourning_has_toxin :
+        ~chatnpc_specific("Gnome", mourner_hideout_gnome_head, "<p,neutral>Three doses, three food stores. The stew, the shelves, the ration crate. Miss one and they will all still be on their feet.");
+    case ^mourning_poisoned_food :
+        ~chatnpc_specific("Gnome", mourner_hideout_gnome_head, "<p,happy>Listen to them. Now go and turn out his desk while he is busy being unwell.");
+    case default :
+        ~chatnpc_specific("Gnome", mourner_hideout_gnome_head, "<p,neutral>The key is in his desk. Nothing has changed in the last minute.");
+}
+
+[oploc2,mourning_gnome_rack]
+// Release. inv_total rather than ~obj_gettotal: the key is spent here, so a copy sitting in the
+// bank must not satisfy the check and then fail the inv_del.
+if (inv_total(inv, mourning_gnome_key) < 1) {
+    mes("The rack is held shut by a padlock. You have nothing that fits it.");
+    return;
+}
+mes("You put the tarnished key into the padlock.");
+p_delay(2);
+sound_synth(unlock, 1, 0);
+inv_del(inv, mourning_gnome_key, 1);
+%mourning_gnome = ^mourning_gnome_freed;
+%mourning_quest = ^mourning_freed_gnome;
+~send_quest_progress(questlist:mourning, 10, ^mourning_complete);
+~mesbox("The frame comes apart and the gnome slides off it in a heap. He gets up slowly, and then all at once, and he is a good deal angrier standing than he was lying down.");
+
+// --- The freed gnome ---
+
+[opnpc1,mourner_hideout_gnome]
+if (%mourning_gnome < ^mourning_gnome_freed) {
+    return;
+}
+if (%mourning_quest = ^mourning_freed_gnome) {
+    ~chatnpc("<p,happy>You actually did it. I had a speech ready about human reliability and now I cannot use it.");
+    ~chatplayer("<p,quiz>You said you'd make it worth the walk.");
+    ~chatnpc("<p,neutral>I did. They took a device off me when they took me. Squat thing, brass, looks like a crossbow that lost an argument. It will be in that chest in his office.");
+    ~chatnpc("<p,neutral>Bring it to me and I will tell you what it is for. You will like it. It is spiteful.");
+    return;
+}
+if (%mourning_quest = ^mourning_has_gun) {
+    @mourning_gnome_gun_brief;
+}
+if (%mourning_quest >= ^mourning_dyed_sheep) {
+    ~chatnpc("<p,happy>Four flocks, four colours, in broad daylight. I would have paid to watch.");
+    ~chatnpc("<p,neutral>Get the physician out there before they scrub them. A dyed sheep is only evidence while it is still dyed.");
+    return;
+}
+~chatnpc("<p,neutral>The chest in his office. The one he keeps locked, which is a fair clue as to where a person keeps things.");
+
+[label,mourning_gnome_gun_brief]
+~chatnpc("<p,neutral>It fires dye. I built it to mark trees on a survey line and the Mourners took it off me as a weapon, which tells you what they think a survey is.");
+~chatnpc("<p,neutral>Out east of the wall they keep four flocks they call plague sheep. They cull one in front of a crowd whenever the city gets restless.");
+~chatplayer("<p,quiz>And if the flocks turn up bright green?");
+~chatnpc("<p,happy>Then the next time they hold one up as proof, half of Ardougne is looking at paint.");
+~chatnpc("<p,neutral>Fill the bellows from a dye pot, blow the dye into a bloated toad, drop the toad in the device and shoot. Each flock only takes one colour - the device will tell you which when you get it wrong.");
+
+// --- The head mourner ---
+
+[opnpc1,mourner_hideout_head_mourner]
+if (%mourning_quest >= ^mourning_poisoned_food & %mourning_quest < ^mourning_told_elena) {
+    ~chatnpc("<p,sad>Not now. Not now.");
+    sound_synth(mourning_sneeze, 1, 0);
+    return;
+}
+if (~mourning_wearing_disguise = false) {
+    ~chatnpc("<p,angry>You are not one of mine and you are a very long way underground.");
+    return;
+}
+~chatnpc("<p,neutral>Back to your section. The dig runs whether you are stood in it or not.");
+
+// --- The desk ---
+
+[oploc1,loc_8799]
+if (%mourning_quest < ^mourning_poisoned_food) {
+    if (%mourning_quest >= ^mourning_met_gnome) {
+        mes("The head mourner is sitting at the desk with both hands flat on it. You are not searching anything while he is.");
+        return;
+    }
+    mes("You have no reason to go through a stranger's desk.");
+    return;
+}
+if (~obj_gettotal(mourning_head_mourner_key) > 0) {
+    mes("You have already taken everything in this desk that was worth taking.");
+    return;
+}
+if (inv_freespace(inv) < 2) {
+    mes("There is something in the drawer, but you have no room to carry it.");
+    return;
+}
+mes("The head mourner is bent over a bucket in the corner and is not going to look up for a while.");
+p_delay(2);
+mes("You go through the desk.");
+p_delay(2);
+inv_add(inv, mourning_head_mourner_key, 1);
+inv_add(inv, mourning_mourner_message, 1);
+%mourning_quest = ^mourning_has_keys;
+~send_quest_progress(questlist:mourning, 9, ^mourning_complete);
+~objbox(mourning_head_mourner_key, "A worn key, and a letter. The letter certifies that its bearer has passed all entry requirements for something called the <col=7f0000>Death Guard<col=000000>, which is not a thing plague doctors have.", 250, 0, 0);
+
+// --- The office chest ---
+
+[oploc1,mourning_office_chest_closed]
+if (inv_total(inv, mourning_head_mourner_key) < 1) {
+    mes("The chest is locked.");
+    return;
+}
+mes("You unlock the chest with the worn key.");
+sound_synth(unlock, 1, 0);
+~open_chest(mourning_office_chest_open);
+
+[oploc2,mourning_office_chest_open]
+// Shut
+~close_chest(mourning_office_chest_closed);
+
+[oploc1,mourning_office_chest_open]
+// Search
+if (%mourning_quest < ^mourning_has_keys) {
+    mes("You search the chest. There is nothing in it you have any use for.");
+    return;
+}
+def_int $left = 0;
+if (~mourning_needs_gun = true) {
+    $left = calc($left + 1);
+}
+if (~mourning_needs_gnome_key = true) {
+    $left = calc($left + 1);
+}
+if (~obj_gettotal(mourning_excavation_key) < 1) {
+    $left = calc($left + 1);
+}
+if ($left = 0) {
+    mes("The chest is empty now.");
+    return;
+}
+if (inv_freespace(inv) < $left) {
+    mes("The chest is not empty, but your inventory is.");
+    return;
+}
+mes("You search the chest.");
+p_delay(2);
+if (~mourning_needs_gun = true) {
+    inv_add(inv, mourning_paint_gun_broken, 1);
+}
+if (~mourning_needs_gnome_key = true) {
+    inv_add(inv, mourning_gnome_key, 1);
+}
+if (~obj_gettotal(mourning_excavation_key) < 1) {
+    inv_add(inv, mourning_excavation_key, 1);
+}
+~objbox(mourning_paint_gun_broken, "A broken brass device, a small tarnished key, and a newly cut key on a ring of its own.", 250, 0, 0);
+
+// The device is only ever in the chest once; once it is out, in either state, the chest has no more
+// of it. Same for the rack key, which is spent the moment the rack is opened.
+[proc,mourning_needs_gun]()(boolean)
+if (~obj_gettotal(mourning_paint_gun_broken) > 0) {
+    return(false);
+}
+if (~obj_gettotal(mourning_paint_gun) > 0) {
+    return(false);
+}
+return(true);
+
+[proc,mourning_needs_gnome_key]()(boolean)
+if (%mourning_gnome >= ^mourning_gnome_freed) {
+    return(false);
+}
+if (~obj_gettotal(mourning_gnome_key) > 0) {
+    return(false);
+}
+return(true);
+
+// --- Repairing the device ---
+
+[opnpcu,mourner_hideout_gnome]
+if (%mourning_gnome < ^mourning_gnome_freed) {
+    return;
+}
+if (last_useitem ! mourning_paint_gun_broken) {
+    ~displaymessage(^dm_default);
+    return;
+}
+~chatplayer("<p,happy>Is this it?");
+~chatnpc("<p,happy>That is it. Give it here.");
+mes("The gnome turns the device over twice, hits it once, and hands it back.");
+inv_del(inv, mourning_paint_gun_broken, 1);
+inv_add(inv, mourning_paint_gun, 1);
+%mourning_quest = ^mourning_has_gun;
+~send_quest_progress(questlist:mourning, 11, ^mourning_complete);
+@mourning_gnome_gun_brief;
+
+// The letter's Read option is already declared in general_use/scripts/readables_generated.rs2, with
+// the cache's own Death Guard text, and a trigger may only be declared once - so it is taken out of
+// the desk as-is rather than re-handled here. It reads as a letter of recommendation to a military
+// order, which is exactly what makes it worth taking off a plague doctor's desk.

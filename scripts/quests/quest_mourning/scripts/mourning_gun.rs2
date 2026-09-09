@@ -1,0 +1,215 @@
+// Mourning's End Part I - second half, part 3 of 3: the dye device and the plague sheep.
+//
+// This is the one part of the second half the cache designed in full and nothing had ever used. The
+// four flocks east of the West Ardougne wall are already wired as multi-npcs keyed on the four sheep
+// varbits, so dyeing a flock is a single varbit write and the client repaints all three sheep in it:
+//
+//   plaguesheep_1  0_40_52_49_16/50_15/50_17   multivar=mourning_sheep_red    -> mourning_plaguesheep_1
+//   plaguesheep_2  0_40_52_61_39/62_38/63_39   multivar=mourning_sheep_green  -> mourning_plaguesheep_2
+//   plaguesheep_3  0_40_52_0_61/1_60/1_62      multivar=mourning_sheep_blue   -> mourning_plaguesheep_3
+//   plaguesheep_4  0_40_52_50_63/51_62/52_63   multivar=mourning_sheep_yellow -> mourning_plaguesheep_4
+//
+// A flock can therefore only ever take its own colour - there is one dyed variant per pen and no
+// other. Rather than make that a guessing game with no clue in the world, firing the wrong colour
+// costs nothing and the device names the right one.
+//
+// The sheep are also the Sheep Herder quest's sheep. Their [opnpc1] and [opnpcu] triggers already
+// exist in quests/quest_sheepherder/scripts/npcs/diseased_sheep.rs2 and a trigger may only be
+// declared once, so the paint gun is wired in there as an extra case rather than duplicated here.
+// The four mourning_plaguesheep_* dyed variants shipped with no ops at all, which would have made
+// Sheep Herder unfinishable for anyone who dyed a flock first; op1=Prod was added to them in
+// scripts/_unpack/377/all.npc for exactly that reason.
+//
+// Consumables, all obtainable already:
+//   empty_ogre_bellows  Big Chompy Bird Hunting - quest_chompybird/scripts/ogre_chest.rs2.
+//                       Filling it with dye does NOT give it category=ogre_bellows, so the ogre
+//                       chest will still hand out a replacement if the player loses one.
+//   bloated_toad        Big Chompy Bird Hunting - bellows of swamp gas used on a swamp toad.
+//   reddye/greendye/bluedye/yellowdye   Aggie in Draynor - areas/area_draynor/scripts/aggie.rs2.
+//
+// %mourning_gun_ammo: 0 empty, 1 red, 2 green, 3 blue, 4 yellow. Same order as plaguesheep_1..4.
+
+// --- Dye into the bellows ---
+// The four dyes already own an [opheldu] in dye_cape.rs2, so the bellows-first click order is
+// handled there with a case that jumps to @mourning_fill_bellows.
+
+[opheldu,empty_ogre_bellows]
+switch_obj (last_useitem) {
+    case reddye    : @mourning_fill_bellows(reddye, mourning_ogre_bellows_red);
+    case greendye  : @mourning_fill_bellows(greendye, mourning_ogre_bellows_green);
+    case bluedye   : @mourning_fill_bellows(bluedye, mourning_ogre_bellows_blue);
+    case yellowdye : @mourning_fill_bellows(yellowdye, mourning_ogre_bellows_yellow);
+    case default   : ~displaymessage(^dm_default);
+}
+
+[label,mourning_fill_bellows](obj $dye, namedobj $bellows)
+if (%mourning_quest < ^mourning_has_gun) {
+    ~chatplayer("<p,neutral>Filling a pair of bellows with dye would be a strange thing to do for no reason.");
+    return;
+}
+mes("You draw the dye up into the bellows.");
+sound_synth(mourning_bellowsfill, 1, 0);
+p_delay(2);
+inv_del(inv, empty_ogre_bellows, 1);
+inv_del(inv, $dye, 1);
+inv_add(inv, $bellows, 1);
+mes("The bellows are full of <lowercase(oc_name($dye))>.");
+
+// --- Bellows into a toad ---
+
+[opheldu,bloated_toad]
+switch_obj (last_useitem) {
+    case mourning_ogre_bellows_red    : @mourning_fill_toad(mourning_ogre_bellows_red, mourning_bloated_toad_red);
+    case mourning_ogre_bellows_green  : @mourning_fill_toad(mourning_ogre_bellows_green, mourning_bloated_toad_green);
+    case mourning_ogre_bellows_blue   : @mourning_fill_toad(mourning_ogre_bellows_blue, mourning_bloated_toad_blue);
+    case mourning_ogre_bellows_yellow : @mourning_fill_toad(mourning_ogre_bellows_yellow, mourning_bloated_toad_yellow);
+    case default : ~displaymessage(^dm_default);
+}
+
+[opheldu,mourning_ogre_bellows_red]    @mourning_toad_check(mourning_ogre_bellows_red, mourning_bloated_toad_red);
+[opheldu,mourning_ogre_bellows_green]  @mourning_toad_check(mourning_ogre_bellows_green, mourning_bloated_toad_green);
+[opheldu,mourning_ogre_bellows_blue]   @mourning_toad_check(mourning_ogre_bellows_blue, mourning_bloated_toad_blue);
+[opheldu,mourning_ogre_bellows_yellow] @mourning_toad_check(mourning_ogre_bellows_yellow, mourning_bloated_toad_yellow);
+
+[label,mourning_toad_check](obj $bellows, namedobj $toad)
+if (last_useitem ! bloated_toad) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@mourning_fill_toad($bellows, $toad);
+
+[label,mourning_fill_toad](obj $bellows, namedobj $toad)
+mes("You put the nozzle to the toad and squeeze.");
+sound_synth(mourning_toadfill, 1, 0);
+p_delay(2);
+inv_del(inv, $bellows, 1);
+inv_del(inv, bloated_toad, 1);
+inv_add(inv, $toad, 1);
+inv_add(inv, empty_ogre_bellows, 1);
+~objbox($toad, "The toad takes it all and looks, if anything, pleased about it.", 250, 0, 0);
+
+// --- Loading and unloading the device ---
+
+[opheldu,mourning_paint_gun]
+switch_obj (last_useitem) {
+    case mourning_bloated_toad_red    : @mourning_load_gun(mourning_bloated_toad_red, ^mourning_ammo_red);
+    case mourning_bloated_toad_green  : @mourning_load_gun(mourning_bloated_toad_green, ^mourning_ammo_green);
+    case mourning_bloated_toad_blue   : @mourning_load_gun(mourning_bloated_toad_blue, ^mourning_ammo_blue);
+    case mourning_bloated_toad_yellow : @mourning_load_gun(mourning_bloated_toad_yellow, ^mourning_ammo_yellow);
+    case default : ~displaymessage(^dm_default);
+}
+
+[opheldu,mourning_bloated_toad_red]    @mourning_gun_check(mourning_bloated_toad_red, ^mourning_ammo_red);
+[opheldu,mourning_bloated_toad_green]  @mourning_gun_check(mourning_bloated_toad_green, ^mourning_ammo_green);
+[opheldu,mourning_bloated_toad_blue]   @mourning_gun_check(mourning_bloated_toad_blue, ^mourning_ammo_blue);
+[opheldu,mourning_bloated_toad_yellow] @mourning_gun_check(mourning_bloated_toad_yellow, ^mourning_ammo_yellow);
+
+[label,mourning_gun_check](obj $toad, int $ammo)
+if (last_useitem ! mourning_paint_gun) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@mourning_load_gun($toad, $ammo);
+
+[label,mourning_load_gun](obj $toad, int $ammo)
+if (%mourning_gun_ammo ! ^mourning_ammo_empty) {
+    mes("There is already a toad in the device. Empty it first.");
+    return;
+}
+inv_del(inv, $toad, 1);
+%mourning_gun_ammo = $ammo;
+sound_synth(mourning_toadload, 1, 0);
+mes("The toad goes into the hopper, protesting.");
+
+[opheld1,mourning_paint_gun]
+// Empty
+if (%mourning_gun_ammo = ^mourning_ammo_empty) {
+    mes("The device is already empty.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("You have no room for the toad.");
+    return;
+}
+sound_synth(mourning_toadunload, 1, 0);
+switch_int (%mourning_gun_ammo) {
+    case ^mourning_ammo_red    : inv_add(inv, mourning_bloated_toad_red, 1);
+    case ^mourning_ammo_green  : inv_add(inv, mourning_bloated_toad_green, 1);
+    case ^mourning_ammo_blue   : inv_add(inv, mourning_bloated_toad_blue, 1);
+    case ^mourning_ammo_yellow : inv_add(inv, mourning_bloated_toad_yellow, 1);
+}
+%mourning_gun_ammo = ^mourning_ammo_empty;
+mes("You shake the toad back out of the hopper.");
+
+// --- Firing at a flock ---
+// Jumped to from [opnpcu,plaguesheep_1..4] in quest_sheepherder/scripts/npcs/diseased_sheep.rs2.
+// $wants is the one ammo value this flock can take - see ~mourning_flock_done for why there is only
+// ever one: the flock's multivar is the varbit of that colour and nothing else can repaint it.
+
+[label,mourning_fire_gun](int $wants)
+if (%mourning_quest < ^mourning_has_gun) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (~mourning_flock_done($wants) = true) {
+    ~chatplayer("<p,neutral>This lot are already <~mourning_colour_name($wants)>.");
+    return;
+}
+if (%mourning_gun_ammo = ^mourning_ammo_empty) {
+    ~chatplayer("<p,neutral>There is nothing in it to fire.");
+    return;
+}
+if (%mourning_gun_ammo ! $wants) {
+    // The dye does not take, and nothing is spent. The device names the colour that will work so
+    // that the four flocks are not a guessing game with no clue anywhere in the world.
+    sound_synth(mourning_firegun, 1, 0);
+    sound_synth(mourning_impact, 1, 30);
+    p_delay(1);
+    ~mesbox("The dye splashes across the fleece and runs straight off it. Whatever the Mourners have been dipping these sheep in, this flock will only hold <col=7f0000><~mourning_colour_name($wants)><col=000000>.");
+    return;
+}
+sound_synth(mourning_firegun, 1, 0);
+sound_synth(mourning_impact_sheep, 1, 30);
+mes("The device coughs, and the toad goes off across the field.");
+p_delay(2);
+%mourning_gun_ammo = ^mourning_ammo_empty;
+switch_int ($wants) {
+    case ^mourning_ammo_red    : %mourning_sheep_red = 1;
+    case ^mourning_ammo_green  : %mourning_sheep_green = 1;
+    case ^mourning_ammo_blue   : %mourning_sheep_blue = 1;
+    case ^mourning_ammo_yellow : %mourning_sheep_yellow = 1;
+}
+mes("Every sheep in the pen is now <~mourning_colour_name($wants)>.");
+p_delay(2);
+if (%mourning_sheep_red = 0 | %mourning_sheep_green = 0 | %mourning_sheep_blue = 0 | %mourning_sheep_yellow = 0) {
+    return;
+}
+if (%mourning_quest >= ^mourning_dyed_sheep) {
+    return;
+}
+%mourning_quest = ^mourning_dyed_sheep;
+~send_quest_progress(questlist:mourning, 12, ^mourning_complete);
+~mesbox("Four flocks, four colours, in the open field the Mourners parade their proof out of. Now somebody Ardougne will listen to has to be standing here to see it - and there is only one physician in this city who has been over the wall.");
+
+[proc,mourning_flock_done](int $ammo)(boolean)
+def_int $set = 0;
+switch_int ($ammo) {
+    case ^mourning_ammo_red    : $set = %mourning_sheep_red;
+    case ^mourning_ammo_green  : $set = %mourning_sheep_green;
+    case ^mourning_ammo_blue   : $set = %mourning_sheep_blue;
+    case ^mourning_ammo_yellow : $set = %mourning_sheep_yellow;
+}
+if ($set = 1) {
+    return(true);
+}
+return(false);
+
+[proc,mourning_colour_name](int $ammo)(string)
+def_string $colour = "nothing at all";
+switch_int ($ammo) {
+    case ^mourning_ammo_red    : $colour = "red";
+    case ^mourning_ammo_green  : $colour = "green";
+    case ^mourning_ammo_blue   : $colour = "blue";
+    case ^mourning_ammo_yellow : $colour = "yellow";
+}
+return($colour);

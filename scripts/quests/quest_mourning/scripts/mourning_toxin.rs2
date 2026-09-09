@@ -1,0 +1,213 @@
+// Mourning's End Part I - second half, part 2 of 3: the apple toxin.
+//
+// The whole chain runs on objs the cache already ships and had no handler for:
+//
+//   mourning_orchard_applepile          loc 8809  0_38_52_55_46 and 0_38_52_57_45  op1=Take-from
+//   mourning_orchard_applebarrel_empty  loc 8807  0_38_52_52_46  (the press - no ops, oplocu only)
+//   applebarrel_full                    obj  "Rotten apples"      A barrel full of rotten apples.
+//   mourning_applebarrel_mush           obj  "Apple barrel"       A barrel full of mushed apples.
+//   mourning_applebarrel_naphtha_mush   obj  "Naphtha apple mix"  Rotten apples and naphtha.
+//   mourning_toxic_naphtha              obj  "Toxic naphtha"      A barrel full of toxic naphtha.
+//   mourning_apple_toxin                obj  "Toxic powder"       A pile of toxic powder.
+//   mourning_sieve                      obj  "Sieve"              It's a sieve.
+//
+// The naphtha is a real, already-implemented item: quest_regicide/scripts/regicide_still.rs2 hands
+// out regicide_barrel_naphtha every time the still minigame is run to 100, and the still stays
+// available after Regicide. Mourning's End requires Roving Elves, which requires Regicide, so any
+// player who can start this quest can already work the still.
+//
+// The sieve comes from Elena in East Ardougne - see areas/area_ardougne_east/scripts/elena.rs2.
+// See the constant file for why she is in East Ardougne and not West.
+//
+// opheldu fires on the SECOND item clicked (OpHeldUHandler tries lastItem's trigger, then
+// lastUseItem's, swapping the pointers), so every pair below is declared on both halves unless the
+// other half already owns an opheldu somewhere else - in which case a case was added there instead:
+//   reddye/bluedye/yellowdye/greendye  -> skill_crafting/scripts/dye_cape/dye_cape.rs2
+//   regicide_barrel_naphtha            -> quests/quest_regicide/scripts/regicide_bomb.rs2
+
+// --- Rotten apples ---
+// This loc had no handler at all, which also left Biohazard without a source of rotten apples for
+// its own poisoned-stew step; that is fixed here too, so the op works outside this quest.
+
+[oploc1,mourning_orchard_applepile]
+if (inv_freespace(inv) < 1) {
+    mes("You have no room to carry anything else.");
+    return;
+}
+if (%mourning_quest >= ^mourning_has_sieve & %mourning_quest < ^mourning_poisoned_food) {
+    if (~mourning_holds_apple_stage = false) {
+        mes("You right one of the empty barrels stacked by the pile and shovel the rotten apples into it.");
+        p_delay(2);
+        inv_add(inv, applebarrel_full, 1);
+        ~objbox(applebarrel_full, "A full barrel of apples, every one of them rotten through.", 250, 0, 0);
+        return;
+    }
+}
+mes("You take a rotten apple from the pile.");
+inv_add(inv, rottenapples, 1);
+
+// True while the player is holding any stage of the barrel, so that clicking the pile again does not
+// hand out a second one and strand the first.
+[proc,mourning_holds_apple_stage]()(boolean)
+if (~obj_gettotal(applebarrel_full) > 0) { return(true); }
+if (~obj_gettotal(mourning_applebarrel_mush) > 0) { return(true); }
+if (~obj_gettotal(mourning_applebarrel_naphtha_mush) > 0) { return(true); }
+if (~obj_gettotal(mourning_toxic_naphtha) > 0) { return(true); }
+if (~obj_gettotal(mourning_apple_toxin) > 0) { return(true); }
+return(false);
+
+// --- The press ---
+// One loc, two jobs: it crushes a full barrel of apples, and it drains the naphtha mix off through
+// the tap at 0_38_52_53_46. Both are oplocu, which does not require the loc to declare an op.
+
+[oplocu,mourning_orchard_applebarrel_empty]
+def_obj $used = last_useitem;
+if ($used = applebarrel_full) {
+    mes("You tip the barrel into the press and lean on the arm.");
+    sound_synth(squish_apples, 1, 0);
+    p_delay(3);
+    inv_del(inv, applebarrel_full, 1);
+    inv_add(inv, mourning_applebarrel_mush, 1);
+    ~objbox(mourning_applebarrel_mush, "The apples come out the far side as a thin brown mush. It smells like a cider press that has been left over a winter.", 250, 0, 0);
+    return;
+}
+if ($used = mourning_applebarrel_naphtha_mush) {
+    mes("You run the mixture back through the press and out through the tap.");
+    sound_synth(squish_apples, 1, 0);
+    p_delay(3);
+    inv_del(inv, mourning_applebarrel_naphtha_mush, 1);
+    inv_add(inv, mourning_toxic_naphtha, 1);
+    ~objbox(mourning_toxic_naphtha, "What comes out of the tap is clear, oily, and no longer smells of apples at all.", 250, 0, 0);
+    return;
+}
+~displaymessage(^dm_default);
+
+// --- Apple mush and naphtha ---
+
+[opheldu,mourning_applebarrel_mush]
+if (last_useitem ! regicide_barrel_naphtha) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@mourning_mix_naphtha;
+
+[label,mourning_mix_naphtha]
+mes("You pour the naphtha into the barrel of mush and stir it with the first thing that comes to hand.");
+p_delay(2);
+inv_del(inv, mourning_applebarrel_mush, 1);
+inv_del(inv, regicide_barrel_naphtha, 1);
+inv_add(inv, mourning_applebarrel_naphtha_mush, 1);
+~objbox(mourning_applebarrel_naphtha_mush, "The mixture goes an unpleasant grey and stops behaving like a liquid.", 250, 0, 0);
+
+// --- Straining the naphtha ---
+
+[opheldu,mourning_toxic_naphtha]
+if (last_useitem ! mourning_sieve) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@mourning_strain_naphtha;
+
+[opheldu,mourning_sieve]
+if (last_useitem ! mourning_toxic_naphtha) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@mourning_strain_naphtha;
+
+[label,mourning_strain_naphtha]
+if (inv_freespace(inv) < 2) {
+    mes("You need more room in your inventory to do this.");
+    return;
+}
+mes("You strain the barrel through Elena's sieve, a little at a time.");
+p_delay(3);
+inv_del(inv, mourning_toxic_naphtha, 1);
+inv_add(inv, mourning_apple_toxin, 3);
+mes("The naphtha runs away and leaves the sieve grey with dust.");
+p_delay(2);
+%mourning_quest = ^mourning_has_toxin;
+~send_quest_progress(questlist:mourning, 7, ^mourning_complete);
+~objbox(mourning_apple_toxin, "Three doses of toxic powder. It will not kill anybody. It will make them wish it had.", 250, 0, 0);
+
+// --- Poisoning the three food stores ---
+//
+// The Mourner quarters keep their food in three places and all three are in the cache:
+//
+//   loc_2043 "Cauldron"   0_39_52_47_4    the stew - shared with Biohazard, which puts a rotten
+//                                         apple in the same pot; the extra case lives in
+//                                         quests/quest_biohazard/scripts/quest_biohazard.rs2
+//   cookingshelves        0_39_51_51_57 and 0_39_51_54_57   the food shelves
+//   mournercrateup        1_39_51_58_63   the ration crate - Biohazard already owns its oploc1
+//                                         (Elena's distillator), so only the oplocu is new
+//
+// cookingshelves is a common decorative loc, so its handler is zone-gated to the quarters and falls
+// through to the default use message everywhere else.
+
+[oplocu,cookingshelves]
+if (inzone(^mourning_quarters_sw, ^mourning_quarters_ne, coord) = false) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (last_useitem ! mourning_apple_toxin) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@mourning_poison_food(2);
+
+[oplocu,mournercrateup]
+if (last_useitem ! mourning_apple_toxin) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@mourning_poison_food(3);
+
+// $which is 1 for the stew, 2 for the shelves, 3 for the ration crate.
+[label,mourning_poison_food](int $which)
+if (%mourning_quest < ^mourning_has_toxin) {
+    mes("There is no reason to ruin somebody's dinner.");
+    return;
+}
+if (%mourning_quest >= ^mourning_poisoned_food) {
+    mes("Every mourner in the quarters is already as ill as you need them to be.");
+    return;
+}
+if (~mourning_food_done($which) = true) {
+    mes("You have already done this one.");
+    return;
+}
+mes("You wait until nobody is looking at you.");
+p_delay(2);
+inv_del(inv, mourning_apple_toxin, 1);
+switch_int ($which) {
+    case 1 :
+        %mourning_food_poison1 = 1;
+        mes("The powder goes into the stew and is gone before it reaches the bottom.");
+    case 2 :
+        %mourning_food_poison2 = 1;
+        mes("The powder goes into the flour barrel on the shelf and you stir it in with your hand.");
+    case 3 :
+        %mourning_food_poison3 = 1;
+        mes("The powder goes into the ration crate, over everything in it.");
+}
+p_delay(2);
+if (%mourning_food_poison1 = 0 | %mourning_food_poison2 = 0 | %mourning_food_poison3 = 0) {
+    mes("That is one of the three. The rest of the quarters will eat somewhere else.");
+    return;
+}
+%mourning_quest = ^mourning_poisoned_food;
+~send_quest_progress(questlist:mourning, 8, ^mourning_complete);
+sound_synth(mourning_sneeze, 1, 0);
+~mesbox("It takes about an hour. By the end of it there is not a mourner above or below this yard who can stand up straight, and the one at the desk in the tunnels is in no state to notice a thief.");
+
+[proc,mourning_food_done](int $which)(boolean)
+def_int $set = 0;
+switch_int ($which) {
+    case 1 : $set = %mourning_food_poison1;
+    case 2 : $set = %mourning_food_poison2;
+    case 3 : $set = %mourning_food_poison3;
+}
+if ($set = 1) {
+    return(true);
+}
+return(false);

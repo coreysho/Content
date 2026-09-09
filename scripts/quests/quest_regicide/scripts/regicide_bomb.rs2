@@ -111,6 +111,12 @@ switch_obj (last_useitem) {
         inv_del(inv, regicide_barrel_naphtha, 1);
         inv_add(inv, regicide_barrel_naphtha_quicklime_mix, 1);
         mes("You mix the pot of quicklime into the barrel of naphtha.");
+    // Mourning's End Part I cuts a barrel of pressed rotten apples with naphtha to make the toxin.
+    // opheldu only fires one trigger - whichever item was clicked second owns it - so the barrel of
+    // naphtha has to know about the mush as well as the mush knowing about the naphtha. The other
+    // half of the pair is [opheldu,mourning_applebarrel_mush] in quest_mourning/scripts/mourning_toxin.rs2.
+    case mourning_applebarrel_mush :
+        @mourning_mix_naphtha;
     case default :
         ~displaymessage(^dm_default);
 };
