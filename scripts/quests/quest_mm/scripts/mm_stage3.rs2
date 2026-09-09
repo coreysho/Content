@@ -150,7 +150,11 @@ return(false);
 
 [proc,mm_become_monkey](npc $form)
 p_transmogrify($form);
-~bas_set(m_monkey_ready, m_monkey_walk, m_monkey_walk, m_monkey_walk, m_monkey_walk, m_monkey_walk, null);
+// The greegree turns you into mm_transmogrification_normal_monkey, whose own config uses the
+// SMALL monkey set (walkanim=monkey_walk, readyanim=monkey_ready). This used to set the m_monkey_*
+// set instead - that is the big Marim monkey, what Awowogei and Bonzara use - so the player wore a
+// small monkey model animated as a large one. Run was also null, which fell back to the human run.
+~bas_set(monkey_ready, monkey_walk, monkey_walk, monkey_walk, monkey_walk, monkey_walk, monkey_walk);
 p_animprotect(^true);
 
 [proc,mm_become_human]
