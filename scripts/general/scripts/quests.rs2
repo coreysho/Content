@@ -292,6 +292,9 @@ if (%mourning_quest = ^mourning_complete) {
 if (%mm_main = ^mm_complete) {
     $questpoints = add($questpoints, ^mm_questpoints);
 }
+// Recipe for Disaster is ten sub-quests worth one point each, tracked as ten bits in
+// %hundred_subquest_tally, so it counts bits rather than comparing a stage to a completion value.
+$questpoints = add($questpoints, ~hundred_subquests_done);
 return ($questpoints);
 
 [proc,update_questlist]
@@ -372,6 +375,7 @@ if (testbit(%ibanmulti, ^upass_started_bit) = ^true & %upass ! ^upass_complete) 
 ~send_quest_progress_colour(questlist:roving_elves, %roving_elves_quest, ^roving_elves_complete);
 ~send_quest_progress_colour(questlist:mourning, %mourning_quest, ^mourning_complete);
 ~send_quest_progress_colour(questlist:mm, %mm_main, ^mm_complete);
+~send_quest_progress_colour(questlist:hundred_main, %hundred_main_quest_var, ^hundred_complete);
 ~send_quest_progress_colour(questlist:troll, %troll_quest, ^troll_complete);
 if_settab(questlist, ^tab_quest_journal);
 

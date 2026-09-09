@@ -1,0 +1,65 @@
+// Recipe for Disaster - the Culinaromancer's chest, 0_50_150_19_23 in the Lumbridge cellar.
+//
+// hundred_goodchest is a multiloc on %hundred_main_quest_var resolving to hundred_goodchest_base
+// (op1=Bank, op2=Buy-food, op3=Buy-items, forceapproach=north) at states 3, 4 and 5 - so it appears
+// the moment Aris explains and never goes away. All three triggers go on the shell, because
+// Player.getOpTrigger reads the world loc's own type.
+//
+// Both shops are the cache's, not invented: hundred_foodchest1..10 and hundred_rewardchest1..10 are
+// in _unpack/727/all.inv and all twenty are registered in pack/inv.pack. Tier N is N completed
+// sub-quests, which is what hundred_subquest_tally counts - rewardchestN stocks gauntlet levels
+// 1..N and the first N of the ten cooking weapons, so the reward tiers unlock themselves with no
+// extra bookkeeping at all.
+
+[oploc1,hundred_goodchest]
+// Bank
+if (%hundred_main_quest_var < ^hundred_met_aris) {
+    return;
+}
+@openbank;
+
+[oploc2,hundred_goodchest]
+// Buy-food
+if (%hundred_main_quest_var < ^hundred_met_aris) {
+    return;
+}
+def_int $done = ~hundred_subquests_done;
+switch_int ($done) {
+    case 0 : @hundred_chest_locked;
+    case 1 : ~openshop(hundred_foodchest1, 800, 1000, 20, "Culinaromancer's Chest");
+    case 2 : ~openshop(hundred_foodchest2, 800, 1000, 20, "Culinaromancer's Chest");
+    case 3 : ~openshop(hundred_foodchest3, 800, 1000, 20, "Culinaromancer's Chest");
+    case 4 : ~openshop(hundred_foodchest4, 800, 1000, 20, "Culinaromancer's Chest");
+    case 5 : ~openshop(hundred_foodchest5, 800, 1000, 20, "Culinaromancer's Chest");
+    case 6 : ~openshop(hundred_foodchest6, 800, 1000, 20, "Culinaromancer's Chest");
+    case 7 : ~openshop(hundred_foodchest7, 800, 1000, 20, "Culinaromancer's Chest");
+    case 8 : ~openshop(hundred_foodchest8, 800, 1000, 20, "Culinaromancer's Chest");
+    case 9 : ~openshop(hundred_foodchest9, 800, 1000, 20, "Culinaromancer's Chest");
+    case default : ~openshop(hundred_foodchest10, 800, 1000, 20, "Culinaromancer's Chest");
+}
+
+[oploc3,hundred_goodchest]
+// Buy-items
+if (%hundred_main_quest_var < ^hundred_met_aris) {
+    return;
+}
+def_int $done = ~hundred_subquests_done;
+switch_int ($done) {
+    case 0 : @hundred_chest_locked;
+    case 1 : ~openshop(hundred_rewardchest1, 800, 1000, 20, "Culinaromancer's Chest");
+    case 2 : ~openshop(hundred_rewardchest2, 800, 1000, 20, "Culinaromancer's Chest");
+    case 3 : ~openshop(hundred_rewardchest3, 800, 1000, 20, "Culinaromancer's Chest");
+    case 4 : ~openshop(hundred_rewardchest4, 800, 1000, 20, "Culinaromancer's Chest");
+    case 5 : ~openshop(hundred_rewardchest5, 800, 1000, 20, "Culinaromancer's Chest");
+    case 6 : ~openshop(hundred_rewardchest6, 800, 1000, 20, "Culinaromancer's Chest");
+    case 7 : ~openshop(hundred_rewardchest7, 800, 1000, 20, "Culinaromancer's Chest");
+    case 8 : ~openshop(hundred_rewardchest8, 800, 1000, 20, "Culinaromancer's Chest");
+    case 9 : ~openshop(hundred_rewardchest9, 800, 1000, 20, "Culinaromancer's Chest");
+    case default : ~openshop(hundred_rewardchest10, 800, 1000, 20, "Culinaromancer's Chest");
+}
+
+// Ten shops per side and no way to index an inv by an int, so the tier is a switch. The zero case
+// cannot be reached in normal play - Aris's own dialogue awards the first sub-quest bit before the
+// chest appears - but a chest that silently does nothing would be worse than one that says why.
+[label,hundred_chest_locked]
+mes("The chest will not open for you yet.");

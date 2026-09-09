@@ -4,6 +4,15 @@ if(map_members = ^true &inv_total(inv, trail_clue_medium_anagram002) > 0) {
     @trail_cook;
 }
 
+// Recipe for Disaster hooks in ahead of the Cook's Assistant small talk once that quest is done:
+// he is the one who raises the alarm about the dining hall, and everything he says about it is in
+// quests/quest_100/scripts/quest_100.rs2. A trigger may only be declared once, which is why it is
+// wired in here rather than declared there.
+if(%cookquest = ^cook_complete & %hundred_main_quest_var < ^hundred_complete) {
+    ~hundred_cook_chat;
+    return;
+}
+
 if(%cookquest = 0) {
     ~chatnpc("<p,sad>What am I to do?");
     @cooks_assistant_start;

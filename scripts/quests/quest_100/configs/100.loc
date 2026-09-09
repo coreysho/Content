@@ -971,6 +971,11 @@ model2=froze_monk
 model3=froze_monki2
 op1=Inspect
 
+// FIXED 2026-09-09: this is the Lumbridge Castle kitchen door (0_50_50_7_17) and the frozen room's
+// north door (0_29_83_5_4). It shipped with op1=Open, no category and no next_loc_stage, so nothing
+// in doors/scripts/ could open it and it has been a decorative wall for every player since the map
+// was imported - nothing to do with this quest. category + next_loc_stage is all it needed; the
+// generic [oploc1,_door_closed] / [oploc1,_door_opened] pair does the rest.
 [hundred_lumbridge_door]
 name=Door
 desc=An ornate-fashioned door.
@@ -982,13 +987,39 @@ recol2d=11458
 active=yes
 op1=Open
 raiseobject=no
+category=door_closed
+param=next_loc_stage,hundred_lumbridge_dooropen
 
+[hundred_lumbridge_dooropen]
+name=Door
+desc=An ornate-fashioned door.
+model=door1
+retex1s=wall
+retex1d=elfdoor
+recol2s=6342
+recol2d=11458
+active=yes
+op1=Close
+raiseobject=no
+category=door_opened
+param=next_loc_stage,hundred_lumbridge_door
+
+// FIXED 2026-09-09, same defect as the kitchen door above: the Lumbridge Castle dining-hall double
+// doors at 0_50_50_13_21 / (13,22) had op1=Open and no category, so they never opened either.
 [hundred_lumbridge_doubledoorl]
 name=Large door
 desc=A large double door.
 model=lefayeunopenabledoorl
 op1=Open
 raiseobject=no
+category=double_door_open_and_close_left
+param=next_loc_stage,hundred_lumbridge_doubledoorlopen
+
+// The open halves carry the model and nothing else, exactly like mournerquaters_gatelopen: the
+// _double_door_open_and_close_* handler toggles between the two and reads next_loc_stage off the
+// closed one only.
+[hundred_lumbridge_doubledoorlopen]
+model=lefayeunopenabledoorl
 
 [hundred_lumbridge_doubledoorr]
 name=Large door
@@ -997,6 +1028,12 @@ model=lefayeunopenabledoorl
 op1=Open
 mirror=yes
 raiseobject=no
+category=double_door_open_and_close_right
+param=next_loc_stage,hundred_lumbridge_doubledoorropen
+
+[hundred_lumbridge_doubledoorropen]
+model=lefayeunopenabledoorl
+mirror=yes
 
 [hundred_portal_door1]
 name=Barrier
@@ -1028,11 +1065,20 @@ anim=bubble
 resizey=300
 shadow=no
 
+// The cache listed state 4 only, which would have made the portal appear when Aris finishes
+// explaining and vanish again the instant the quest completed. The three hundred_portal_door*
+// barriers are all placed inside the frozen room and only lead out, so state 4 alone left no way in
+// during the intro and no way back once the quest was done. States 1, 2, 3 and 5 point at the same
+// child. (2026-09-09, Recipe for Disaster pass 1.)
 [hundred_portal_multi]
 active=yes
 anim=ringstart
 multivar=hundred_main_quest_var
+multiloc=1,hundred_portal_active
+multiloc=2,hundred_portal_active
+multiloc=3,hundred_portal_active
 multiloc=4,hundred_portal_active
+multiloc=5,hundred_portal_active
 
 [hundred_portal_active]
 name=Portal

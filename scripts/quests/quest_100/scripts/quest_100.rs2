@@ -1,0 +1,174 @@
+// Recipe for Disaster - the frame. See configs/quest_100.constant for the stage and bit layout and
+// for what the cache ships.
+//
+// The Cook's own trigger lives in areas/area_lumbridge/scripts/cook.rs2 and a trigger may only be
+// declared once, so the quest branch is hooked in there and jumps to ~hundred_cook_chat.
+
+// --- The Cook ---
+
+[proc,hundred_cook_chat]
+switch_int (%hundred_main_quest_var) {
+    case ^hundred_not_started :
+        ~hundred_cook_start;
+    case ^hundred_told_by_cook :
+        ~chatnpc("<p,shock>Go and look! Through the kitchen door - there's a thing standing in the middle of the hall like a hole in the air. I can't, I've tried. It won't have me.");
+    case ^hundred_seen_dining_room :
+        ~chatnpc("<p,sad>You saw them, didn't you. Nine of them, sat there like waxworks. Talk to the gypsy - she's the only one in there who's still moving.");
+    case ^hundred_met_aris, ^hundred_in_progress :
+        ~hundred_cook_progress;
+    case ^hundred_complete :
+        ~chatplayer("<p,happy>Hello again.");
+        ~chatnpc("<p,happy>The castle's the castle again and I have nine guests who all want feeding at once. I've never been happier.");
+        ~chatnpc("<p,neutral>The chest downstairs is yours to use. Least I can do.");
+}
+
+[proc,hundred_cook_start]
+~chatnpc("<p,shock>Help! Please, help!");
+~chatplayer("<p,quiz>What's happened?");
+~chatnpc("<p,shock>The dining hall! I went in to lay the table and it's - I can't describe it. Go and look. Please just go and look.");
+~chatplayer("<p,quiz>Is somebody hurt?");
+~chatnpc("<p,sad>I don't know. That's the trouble. Nobody in there is anything - they're not hurt and they're not well, they're just stopped.");
+~chatnpc("<p,neutral>The Duke's in there. Half the castle's in there. And there's a wall across the room like the inside of a soap bubble.");
+def_int $choice = ~p_choice2("I'll take a look.", 1, "That sounds like somebody else's problem.", 2);
+if ($choice = 2) {
+    ~chatplayer("<p,neutral>That sounds like somebody else's problem.");
+    ~chatnpc("<p,sad>...yes. Yes, I expect it does.");
+    return;
+}
+~chatplayer("<p,happy>I'll take a look.");
+~chatnpc("<p,happy>Bless you. Through the kitchen door, and then you'll see it. You can't miss it.");
+%hundred_main_quest_var = ^hundred_told_by_cook;
+~send_quest_progress(questlist:hundred_main, 1, ^hundred_complete);
+
+[proc,hundred_cook_progress]
+~chatplayer("<p,happy>Hello again.");
+def_int $done = ~hundred_subquests_done;
+if ($done >= ^hundred_subquest_count) {
+    ~chatnpc("<p,happy>You've got them all out. All of them. Go and finish it.");
+    return;
+}
+if ($done = 0) {
+    ~chatnpc("<p,neutral>Nine of them, and every one wants something different before they'll lift a finger. Start with whichever you like the look of.");
+    return;
+}
+~chatnpc("<p,happy>That's <tostring($done)> of them awake and talking. Keep going.");
+
+// --- Aris ---
+// The gypsy at 0_29_83_10_15, inside the frozen room. She is the only thing in there still moving,
+// which is the point: she was outside the bubble when it closed.
+
+[opnpc1,hundred_aris]
+if (%hundred_main_quest_var >= ^hundred_met_aris) {
+    @hundred_aris_progress;
+}
+~chatnpc("<p,quiz>Don't touch anything. Especially not them.");
+~chatplayer("<p,quiz>What happened here?");
+~chatnpc("<p,neutral>Time happened. Or rather it stopped happening, in this room, about an hour ago, and I was stood in the doorway so it went round me.");
+~chatplayer("<p,quiz>Who did it?");
+~chatnpc("<p,angry>The Culinaromancer. A very small, very angry man who was thrown out of this castle's kitchens a very long time ago and has been thinking about it ever since.");
+~chatnpc("<p,neutral>He has frozen the nine people in this room and he will come back for the rest of Lumbridge when he is ready.");
+~chatplayer("<p,quiz>Can they be woken up?");
+~chatnpc("<p,neutral>One at a time, and not by me. Each of them was taken mid-mouthful, and each of them will only come back for the dish they were reaching for.");
+~chatnpc("<p,neutral>Find out what each one was eating. Make it. Bring it here. Nine dishes, nine people, and then you and I will have a word about the tenth problem.");
+~chatnpc("<p,neutral>Inspect them. They will not mind.");
+%hundred_main_quest_var = ^hundred_met_aris;
+~send_quest_progress(questlist:hundred_main, 3, ^hundred_complete);
+~hundred_award_subquest(^hundred_bit_cook);
+~mesbox("A chest has appeared in the castle cellar. Aris says it was always there; you are fairly sure it was not.");
+
+[label,hundred_aris_progress]
+def_int $done = ~hundred_subquests_done;
+if ($done >= ^hundred_subquest_count) {
+    ~chatnpc("<p,happy>All nine. And him.");
+    ~chatnpc("<p,neutral>Then it is finished, and I am going somewhere with fewer clocks in it.");
+    return;
+}
+~chatnpc("<p,neutral>Nine of them. <tostring($done)> awake. Inspect the ones who are not and they will tell you what they were reaching for.");
+
+// --- Sub-quest bookkeeping ---
+// One bit per sub-quest in %hundred_subquest_tally, one quest point each, and the chest tier is the
+// count. Every sub-quest pass calls ~hundred_award_subquest with its own bit and nothing else.
+
+[proc,hundred_subquests_done]()(int)
+def_int $done = 0;
+def_int $i = 0;
+while ($i < ^hundred_subquest_count) {
+    if (testbit(%hundred_subquest_tally, $i) = ^true) {
+        $done = calc($done + 1);
+    }
+    $i = calc($i + 1);
+}
+return($done);
+
+[proc,hundred_has_subquest](int $bit)(boolean)
+if (testbit(%hundred_subquest_tally, $bit) = ^true) {
+    return(true);
+}
+return(false);
+
+[proc,hundred_award_subquest](int $bit)
+if (~hundred_has_subquest($bit) = true) {
+    return;
+}
+%hundred_subquest_tally = setbit(%hundred_subquest_tally, $bit);
+if (%hundred_main_quest_var < ^hundred_in_progress) {
+    %hundred_main_quest_var = ^hundred_in_progress;
+}
+~send_quest_progress(questlist:hundred_main, ~hundred_subquests_done, ^hundred_subquest_count);
+~update_questpoints;
+
+// --- Quest journal ---
+
+[if_button,questlist:hundred_main]
+def_string $n = "Recipe for Disaster";
+def_string $x;
+if (%hundred_main_quest_var = ^hundred_not_started) {
+    $x = append($x, "@dbl@I can start this quest by speaking to the @dre@Cook@dbl@ in the kitchen|");
+    $x = append($x, "@dbl@of @dre@Lumbridge Castle@dbl@, once I have finished @dre@Cook's Assistant@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "@str@The Cook says something has happened in the Lumbridge Castle|");
+$x = append($x, "@str@dining hall.|");
+if (%hundred_main_quest_var = ^hundred_told_by_cook) {
+    $x = append($x, "|@dbl@I should go through the @dre@kitchen door@dbl@ and look.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@Nine people are frozen in time around the table, and a gypsy|");
+$x = append($x, "@str@called Aris is standing among them.|");
+if (%hundred_main_quest_var = ^hundred_seen_dining_room) {
+    $x = append($x, "|@dbl@I should speak to @dre@Aris@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@str@The Culinaromancer froze them. Each one will only wake for the|");
+$x = append($x, "@str@dish they were reaching for when time stopped.|");
+$x = append($x, "|");
+$x = append($x, ~hundred_journal_entry(^hundred_bit_dwarf, "The Mountain Dwarf"));
+$x = append($x, ~hundred_journal_entry(^hundred_bit_goblins, "The Goblin generals"));
+$x = append($x, ~hundred_journal_entry(^hundred_bit_pirate, "Pirate Pete"));
+$x = append($x, ~hundred_journal_entry(^hundred_bit_guide, "The Lumbridge Guide"));
+$x = append($x, ~hundred_journal_entry(^hundred_bit_dave, "Evil Dave"));
+$x = append($x, ~hundred_journal_entry(^hundred_bit_ogre, "Skrach Uglogwee"));
+$x = append($x, ~hundred_journal_entry(^hundred_bit_varze, "Sir Amik Varze"));
+$x = append($x, ~hundred_journal_entry(^hundred_bit_monkey, "King Awowogei"));
+if (%hundred_main_quest_var = ^hundred_complete) {
+    $x = append($x, "|@dbl@@dre@QUEST COMPLETE!");
+    ~quest_journal($n, $x);
+    return;
+}
+if (~hundred_subquests_done >= ^hundred_subquest_count) {
+    $x = append($x, "|@dbl@All nine are awake. I should deal with the @dre@Culinaromancer@dbl@.");
+    ~quest_journal($n, $x);
+    return;
+}
+$x = append($x, "|@dbl@None of the nine are written yet on this server.");
+~quest_journal($n, $x);
+
+// One line per victim. @str@ once they are awake, @dbl@ while they are not.
+[proc,hundred_journal_entry](int $bit, string $who)(string)
+if (~hundred_has_subquest($bit) = true) {
+    return(append(append("@str@", $who), " is awake.|"));
+}
+return(append(append("@dbl@", $who), " is still frozen.|"));

@@ -1,0 +1,96 @@
+// Recipe for Disaster - the frozen dining room at m29_83, and the way in and out.
+//
+// The room is Lumbridge Castle's dining hall copied into its own map square, twice: copy A at z4-19
+// is the frozen version with the nine plinths and Aris, copy B at z28-43 is the same room with the
+// nine freed heroes already placed as npcs. Interior is x5..x10; x=4 carries the 100_bubble3 time
+// barrier and x=3 / x=11-12 are castlewall.
+//
+// Getting in has two routes, and both are the cache's own:
+//   * hundred_lumbridge_door at 0_50_50_7_17 - the Lumbridge kitchen door. This is the way in during
+//     the intro, before the portal exists.
+//   * hundred_portal_multi at 0_50_50_9_18 - a multiloc that becomes hundred_portal_active at
+//     %hundred_main_quest_var = 4, i.e. once Aris has explained. That is the way in for the rest of
+//     the quest.
+// Getting out is hundred_exit_portal, four of which the map places on m29_83 p2.
+//
+// NOTE ON THE DOORS. hundred_lumbridge_door and hundred_lumbridge_doubledoorl/r are the Lumbridge
+// Castle kitchen door and the dining-hall double doors. They shipped with op1=Open, no category and
+// no next_loc_stage, so nothing in doors/ could open them and they have been decorative walls for
+// every player since the map was imported - nothing to do with this quest. That is fixed in
+// configs/100.loc by giving them the categories the rest of the game's doors use.
+
+// --- The barriers: the way out ---
+// All three hundred_portal_door* are placed INSIDE the frozen room, on its two exits (the north
+// door at 5,4 and the east double door at 11,11 / 11,12). They only ever lead out.
+
+[oploc1,hundred_portal_door1] @hundred_leave_room;
+[oploc1,hundred_portal_door2] @hundred_leave_room;
+[oploc1,hundred_portal_door3] @hundred_leave_room;
+
+[label,hundred_leave_room]
+mes("You push through the barrier. It closes behind you with no sound at all.");
+p_delay(2);
+p_teleport(^hundred_lumbridge_return);
+
+// --- The portal: the way in ---
+// hundred_portal_multi at 0_50_50_9_18 is a multiloc on %hundred_main_quest_var. The cache listed
+// only state 4, which would have made the portal appear when Aris finishes explaining and vanish
+// again the moment the quest completed - and since the three barriers inside the room only lead
+// out, that left no way in at all for the intro and no way back afterwards. configs/100.loc adds
+// states 1, 2, 3 and 5 to the same child, so the portal exists from the moment the Cook asks for
+// help until forever. That is the one place this quest departs from the shipped config.
+//
+// The trigger goes on the SHELL, not on hundred_portal_active: Player.getOpTrigger does
+// LocType.get on the world loc, which is always the multi.
+
+[oploc1,hundred_portal_multi]
+mes("You step into the portal.");
+p_delay(2);
+if (%hundred_main_quest_var = ^hundred_complete) {
+    p_teleport(^hundred_dining_room_after);
+    return;
+}
+p_teleport(^hundred_dining_room);
+if (%hundred_main_quest_var = ^hundred_told_by_cook) {
+    %hundred_main_quest_var = ^hundred_seen_dining_room;
+    ~send_quest_progress(questlist:hundred_main, 2, ^hundred_complete);
+    ~mesbox("Nine people are sitting around the table and not one of them is moving. They are not statues. One of them is halfway through reaching for a bowl.");
+}
+
+// The four exit portals the map places on m29_83 p2 - the Culinaromancer's own arena, which the
+// finale pass will use. They lead back to Lumbridge like everything else in here.
+[oploc1,hundred_exit_portal]
+mes("You step into the portal.");
+p_delay(2);
+p_teleport(^hundred_lumbridge_return);
+
+// --- The nine frozen victims ---
+// Each plinth is a loc with op1=Inspect, placed directly rather than through its *_multi shell, so
+// the frozen figure stays put whether or not the person has been freed. The Inspect text is what
+// tells the player which dish that victim needs - it is the whole of the quest's signposting, and
+// each sub-quest pass replaces its own line here with the real recipe.
+
+[oploc1,hundred_dwarf_ambassador_base] @hundred_inspect(^hundred_bit_dwarf, "the dwarven ambassador", "He is holding a rock cake in one hand and looking at it with an expression you would call fondness in anybody else.");
+[oploc1,hundred_goblin1_base]          @hundred_inspect(^hundred_bit_goblins, "General Wartface", "He is mid-argument with the goblin next to him. Both of them are pointing at the same empty bowl.");
+[oploc1,hundred_goblin2_base]          @hundred_inspect(^hundred_bit_goblins, "General Bentnoze", "He is mid-argument with the goblin next to him. Both of them are pointing at the same empty bowl.");
+[oploc1,hundred_pirate_base]           @hundred_inspect(^hundred_bit_pirate, "Pirate Pete", "He is soaking wet, which nobody else in the room is, and there is a fishcake halfway to his mouth.");
+[oploc1,hundred_guide_base]            @hundred_inspect(^hundred_bit_guide, "the Lumbridge Guide", "He has a plate of something in front of him and a book open beside it, and he was clearly reading rather than eating.");
+[oploc1,hundred_dave_base]             @hundred_inspect(^hundred_bit_dave, "Evil Dave", "He is dressed entirely in black and is holding a spoon over a bowl of stew that is still, somehow, steaming.");
+[oploc1,hundred_ogre_base]             @hundred_inspect(^hundred_bit_ogre, "Skrach Uglogwee", "He has taken up two chairs and most of the table, and there is a very large bone in front of him.");
+[oploc1,hundred_varze_base]            @hundred_inspect(^hundred_bit_varze, "Sir Amik Varze", "He is in full white armour and was, by the look of it, being served rather than eating.");
+[oploc1,hundred_monkey_base]           @hundred_inspect(^hundred_bit_monkey, "King Awowogei", "A monkey in a crown. He is reaching for something on a platter that you cannot identify and are not sure you want to.");
+
+[label,hundred_inspect](int $bit, string $who, string $frozen)
+if (%hundred_main_quest_var < ^hundred_seen_dining_room) {
+    mes("You should not be in here.");
+    return;
+}
+if (~hundred_has_subquest($bit) = true) {
+    ~mesbox(append(append("This is ", $who), ", awake and talking, and no longer any of your business."));
+    return;
+}
+~mesbox($frozen);
+if (%hundred_main_quest_var < ^hundred_met_aris) {
+    return;
+}
+~mesbox(append(append("Aris said each of them wakes for the dish they were reaching for. Freeing ", $who), " is not written yet on this server."));
