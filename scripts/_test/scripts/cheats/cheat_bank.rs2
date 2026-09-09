@@ -1,0 +1,21 @@
+// Entry point for the engine's ::bank admin cheat (ClientCheatHandler, staffModLevel >= 3).
+//
+// The cheat cannot invoke [label,openbank] directly. A script started by the engine with
+// ScriptRunner.init(script, player) has an ACTIVE player but not a PROTECTED one, and openbank
+// falls through to ~bankpin_start_entry, whose first statement writes %bankpin_flow - a protected
+// varp. That failed with:
+//     script error: pop_varp %bankpin_flow requires protected access
+//       1: [proc,bankpin_start_entry] - bank_pin.rs2:173
+//       2: [label,openbank] - bank.rs2:35
+// and dropped the connection.
+//
+// p_finduid(uid) is how every debugproc acquires the protected pointer from a script that was
+// handed none, so the cheat comes through here first. This is a LABEL, not a proc, because
+// openbank is a label and "Unable to jump to labels from within a proc".
+//
+// It still goes through openbank rather than ~bankpin_open_bank_real, so a set bank PIN is
+// enforced instead of being sidestepped by the cheat.
+[label,cheat_openbank]
+if (p_finduid(uid) = true) {
+    @openbank;
+}
