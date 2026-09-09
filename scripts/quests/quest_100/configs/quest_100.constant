@@ -163,3 +163,61 @@
 ^hundred_nutcave_in = 0_47_85_16_17
 // (52,47) is the tile a player stands on to use the cave mouth at 0_43_143_53_47.
 ^hundred_nutcave_out = 0_43_143_52_47
+
+// ---------------------------------------------------------------------------------------------
+// Sub-quest 7: Freeing Skrach Uglogwee - %100_ogre_prog (varp 100_ogre, bits 3-10)
+// ---------------------------------------------------------------------------------------------
+// The cache put a SECOND Rantz on the Feldip shore for this one: 100_rantz_multi_npc at
+// 0_41_46_27_18, multivar=100_ogre_rantz_visible, state 1 -> 100_rantz. Big Chompy's Rantz is a
+// different npc entirely, at 0_41_46_6_37, and keeps its own handler. The shore Rantz appears when
+// this sub-quest starts, which is what his multivar exists for.
+//
+// The whole boat is spelled out by one six-state multiloc. 100_jubbly_multi_push_tree at
+// 0_41_46_29_19 (width 4) resolves to:
+//     0  "Old tree - A large old tree."
+//     1  "Old tree" + anim=100_jubbly_tree_fall            (transient)
+//     2  "Old tree, pushed over by Rantz."
+//     3  "Old tree that's been felled, with the roots cut off."
+//     4  "Crude boat - A very crude boat, made from an old tree."
+//     5  "Roots - The roots of a large old tree."
+// None of the six declares an op, so every interaction with it is [oplocu] (which needs none) or
+// comes from Rantz. The seq 100_jubbly_root_chopping is what state 2 -> 3 is animated with.
+//
+// Once the boat is launched, 100_ogre_jubbly_boat_visible reveals BOTH boat npcs at once -
+// 100_jubbly_multi_boat_feldip at 0_41_46_31_20 and 100_jubbly_multi_boat_karamja at 0_43_48_1_9,
+// each op1=Board. One varbit, a ferry in both directions.
+//
+// 100_jubbly_multi_arrow_tree at 0_43_48_10_9 is scenery: state 0 "A small palm tree", state 1 "A
+// small palm tree with an ogre arrow in it", and NEITHER declares an op. It is set when the first
+// shot is fired and never clicked.
+//
+// NOT USED: 100_jubbly_spitroast / _cooked / _ruined and 100_jubbly_rock_and_string_brown / _white
+// are defined but placed nowhere and declare no ops, so using them would mean loc_add-ing scenery
+// for its own sake. The meat cooks on any open fire instead, through a cooking_generic dbrow, and
+// the bait is shown by the balloon-toad npc the cache already has.
+^hundred_ogre_not_started = 0
+^hundred_ogre_told = 1           // the plinth showed me what was on the spit
+^hundred_ogre_met_rantz = 2      // Rantz will take me, but he has no boat
+^hundred_ogre_tree_pushed = 3    // Rantz put the tree over
+^hundred_ogre_roots_cut = 4      // roots off
+^hundred_ogre_boat_made = 5      // hollowed out; Rantz drags it to the water
+^hundred_ogre_hunting = 6        // the boat runs, and I have bait
+^hundred_ogre_has_meat = 7
+^hundred_ogre_done = 8
+
+// %100_ogre_jubbly_push_tree, straight off the multiloc above.
+^hundred_tree_standing = 0
+^hundred_tree_falling = 1
+^hundred_tree_over = 2
+^hundred_tree_trimmed = 3
+^hundred_tree_boat = 4
+^hundred_tree_roots = 5
+
+// Landing tiles. The Feldip shore around the tree and boat is open ground; (30,18) carries no loc.
+// The Karamja island is empty apart from the palm at (10,9), so (3,9) is clear.
+^hundred_jubbly_island = 0_43_48_3_9
+^hundred_jubbly_shore = 0_41_46_30_18
+// The island itself, for the bait check. It is a sandbar: the boat lands at (1,9), the only loc on
+// it is the palm at (10,9), and everything from z4 to z16 is open.
+^hundred_jubbly_island_sw = 0_43_48_0_2
+^hundred_jubbly_island_ne = 0_43_48_16_18

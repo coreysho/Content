@@ -1,0 +1,244 @@
+// Recipe for Disaster, sub-quest 7 of 10: Freeing Skrach Uglogwee.
+//
+// See the sub-quest section of configs/quest_100.constant for the asset list, the six tree states
+// and the three shipped things this deliberately leaves alone. Needs Big Chompy Bird Hunting for
+// the ogre bow and arrows, which is implemented.
+
+// --- The plinth ---
+
+[oploc1,hundred_ogre_base]
+~hundred_inspect(^hundred_bit_ogre, "Skrach Uglogwee", "He has taken up two chairs and most of the table. There is a bird on the platter in front of him, and it is a great deal larger than any bird has business being.", 1, "It is a jubbly bird, roasted. Ogres hunt them, and there is only one ogre you know who hunts anything.");
+if (%hundred_main_quest_var >= ^hundred_met_aris & %100_ogre_prog = ^hundred_ogre_not_started) {
+    %100_ogre_prog = ^hundred_ogre_told;
+    // The shore Rantz appears now. He is a second npc from the Chompy one, placed for this.
+    %100_ogre_rantz_visible = 1;
+}
+
+[oplocu,hundred_ogre_base]
+switch_obj (last_useitem) {
+    case 100_jubbly_meat_raw :
+        mes("Raw. Even an ogre would notice.");
+    case 100_jubbly_meat_burned :
+        mes("You are not putting that in front of anybody.");
+    case 100_jubbly_meat_cooked :
+        @hundred_ogre_serve;
+    case default :
+        ~displaymessage(^dm_default);
+}
+
+[label,hundred_ogre_serve]
+if (~hundred_has_subquest(^hundred_bit_ogre) = true) {
+    ~chatplayer("<p,neutral>He has had his.");
+    return;
+}
+mes("You put the jubbly down on the platter, which it does not entirely fit on.");
+p_delay(3);
+inv_del(inv, 100_jubbly_meat_cooked, 1);
+%100_ogre_prog = ^hundred_ogre_done;
+%100ogrevisible = 1;
+~mesbox("Both chairs creak. Skrach comes round mid-chew, notices that the bird in front of him is a different bird from the one he started, and decides on balance not to mind.");
+~chatnpc_specific("Skrach Uglogwee", hundred_ogre, "<p,happy>Lovely jubbly.");
+~hundred_award_subquest(^hundred_bit_ogre);
+
+// --- Rantz on the shore ---
+
+[opnpc1,100_rantz_multi_npc]
+if (%100_ogre_prog < ^hundred_ogre_told) {
+    return;
+}
+switch_int (%100_ogre_prog) {
+    case ^hundred_ogre_told :
+        @hundred_rantz_intro;
+    case ^hundred_ogre_met_rantz :
+        @hundred_rantz_push;
+    case ^hundred_ogre_tree_pushed :
+        ~chatnpc("<p,neutral>Roots on. Boat no float with roots on. You got axe?");
+    case ^hundred_ogre_roots_cut :
+        ~chatnpc("<p,neutral>Now dig middle out. Same axe. Rantz not doing it, Rantz already pushed tree.");
+    case ^hundred_ogre_boat_made :
+        @hundred_rantz_launch;
+    case default :
+        ~chatnpc("<p,happy>Boat go. Kids row. You hunt.");
+}
+
+[label,hundred_rantz_intro]
+~chatplayer("<p,quiz>Do you know anything about jubbly birds?");
+~chatnpc("<p,happy>Jubbly! Best bird. Better than chompy. Rantz not had jubbly in long time.");
+~chatplayer("<p,quiz>Why not?");
+~chatnpc("<p,sad>Jubbly all on island. Island over water. Rantz not swim - Rantz sink, Rantz too heavy.");
+~chatplayer("<p,quiz>Is there a boat?");
+~chatnpc("<p,neutral>No boat. Was boat. Boat rot.");
+~chatnpc("<p,happy>But big old tree there. Rantz push tree over, you make boat, kids row. Kids good at rowing. Kids not good at much else.");
+%100_ogre_prog = ^hundred_ogre_met_rantz;
+@hundred_rantz_push;
+
+[label,hundred_rantz_push]
+~chatplayer("<p,quiz>Push the tree over, then.");
+~chatnpc("<p,happy>Rantz push tree. Stand back. Rantz not looking where tree go.");
+if_close;
+mes("Rantz puts one shoulder into the trunk and leans.");
+%100_ogre_jubbly_push_tree = ^hundred_tree_falling;
+p_delay(4);
+%100_ogre_jubbly_push_tree = ^hundred_tree_over;
+%100_ogre_prog = ^hundred_ogre_tree_pushed;
+~mesbox("The tree comes down across the shore with a noise you feel through your feet. Rantz looks extremely pleased with himself.");
+~chatnpc("<p,neutral>Now cut roots off. Then dig middle out. Rantz done pushing.");
+
+[label,hundred_rantz_launch]
+~chatplayer("<p,happy>The boat's finished.");
+~chatnpc("<p,happy>Rantz drag. You not drag, you too small.");
+if_close;
+mes("Rantz takes the whole boat under one arm and walks it into the water.");
+p_delay(4);
+%100_ogre_jubbly_push_tree = ^hundred_tree_roots;
+%100_ogre_jubbly_boat_visible = 1;
+%100_ogre_prog = ^hundred_ogre_hunting;
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,neutral>Rantz give toad. You got no room. Come back.");
+    return;
+}
+inv_add(inv, 100_jubbly_balloon_toad_brown, 5);
+~objbox(100_jubbly_balloon_toad_brown, "Rantz hands you a fistful of toads, each one inflated and tied to a rock.", 250, 0, 0);
+~chatnpc("<p,neutral>Put toad down on island. Jubbly come look. Then you shoot jubbly. Ogre bow. Not little bow.");
+
+// --- The tree ---
+// None of the six tree states declares an op, so an axe is used ON the loc. The shell is what
+// carries the trigger, as always for a multiloc.
+
+[oplocu,100_jubbly_multi_push_tree]
+switch_obj (last_useitem) {
+    case bronze_axe, iron_axe, steel_axe, black_axe, mithril_axe, adamant_axe, rune_axe, dragon_axe :
+        @hundred_chop_tree;
+    case default :
+        ~displaymessage(^dm_default);
+}
+
+[label,hundred_chop_tree]
+if (%100_ogre_jubbly_push_tree = ^hundred_tree_over) {
+    mes("You start cutting the roots away.");
+    anim(100_jubbly_root_chopping, 0);
+    p_delay(4);
+    %100_ogre_jubbly_push_tree = ^hundred_tree_trimmed;
+    %100_ogre_prog = ^hundred_ogre_roots_cut;
+    mes("The roots come off in pieces. What is left is a very long, very heavy log.");
+    return;
+}
+if (%100_ogre_jubbly_push_tree = ^hundred_tree_trimmed) {
+    mes("You start hollowing the log out.");
+    anim(100_jubbly_root_chopping, 0);
+    p_delay(4);
+    anim(100_jubbly_root_chopping, 0);
+    p_delay(4);
+    %100_ogre_jubbly_push_tree = ^hundred_tree_boat;
+    %100_ogre_prog = ^hundred_ogre_boat_made;
+    ~mesbox("It is not a good boat. It is barely a boat at all. But it is hollow, it is pointed at one end, and it will float, which between them are the only qualifications the job has.");
+    return;
+}
+~chatplayer("<p,neutral>There is nothing left to cut.");
+
+// --- The boat ---
+// One varbit reveals both ends at once, so this is a two-way ferry off two triggers.
+
+[opnpc1,100_jubbly_multi_boat_feldip]
+mes("Fycie and Bugs row you out to the island.");
+p_delay(3);
+p_teleport(^hundred_jubbly_island);
+if (%100_ogre_prog = ^hundred_ogre_hunting) {
+    ~mesbox("The island is a sandbar with one palm tree on it. Somewhere in the scrub, something large is making a noise you would not want to meet in the dark.");
+}
+
+[opnpc1,100_jubbly_multi_boat_karamja]
+mes("Fycie and Bugs row you back to the mainland.");
+p_delay(3);
+p_teleport(^hundred_jubbly_shore);
+
+// --- The bait ---
+// [opheld1] for both toads already existed in general_use/scripts/item_ops_generated.rs2 as dead
+// flavour ("You can't set a trap here.") and now jumps here instead.
+
+[label,hundred_place_toad](obj $toad)
+if (%100_ogre_prog ! ^hundred_ogre_hunting) {
+    ~mesbox("You can't set a trap here.");
+    return;
+}
+if (inzone(^hundred_jubbly_island_sw, ^hundred_jubbly_island_ne, coord) = false) {
+    ~mesbox("You can't set a trap here. The jubbly birds are on the island.");
+    return;
+}
+if (npc_findexact(coord, 100_jubbly_balloon_toad_brown) = true) {
+    ~mesbox("There is already a toad tied down here.");
+    return;
+}
+mes("You tie the toad's rock down and let it float.");
+anim(human_pickupfloor, 0);
+inv_del(inv, $toad, 1);
+p_delay(2);
+npc_add(coord, 100_jubbly_balloon_toad_brown, 200);
+npc_anim(100_jubbly_toad_balloon_ready, 0);
+queue(hundred_jubbly_arrive, 5, 0);
+mes("It bobs about on its string, looking exactly as ridiculous as it is.");
+
+[queue,hundred_jubbly_arrive]
+if (inzone(^hundred_jubbly_island_sw, ^hundred_jubbly_island_ne, coord) = false) {
+    return;
+}
+def_coord $spot = map_findsquare(coord, 4, 4, 1);
+npc_add($spot, 100_jubbly_bird, 300);
+npc_say("Jub jub!");
+mes("Something enormous comes out of the scrub at a run.");
+
+// --- The bird ---
+
+[ai_queue3,100_jubbly_bird]
+if (npc_findhero = ^true) {
+    queue(hundred_jubbly_killed, 0, 0);
+}
+gosub(npc_death);
+npc_add(npc_coord, 100_jubbly_bird_dead, 200);
+
+[queue,hundred_jubbly_killed]
+// The arrow tree is scenery with no ops in either state; this is the only thing that ever sets it.
+%100_ogre_jubbly_arrow_tree = 1;
+
+[opnpc4,100_jubbly_bird_dead]
+// Pluck
+mes("You start plucking the jubbly bird.");
+anim(human_pickupfloor, 0);
+p_delay(3);
+obj_add(npc_coord, 100_jubbly_meat_raw, 1, ^lootdrop_duration);
+obj_add(npc_coord, bones, 1, ^lootdrop_duration);
+inv_add(inv, feather, calc(random(30) + 20));
+if (%100_ogre_prog = ^hundred_ogre_hunting) {
+    %100_ogre_prog = ^hundred_ogre_has_meat;
+}
+npc_del;
+mes("There is a great deal more of it than you expected.");
+
+// --- Journal ---
+
+[proc,hundred_ogre_journal]()(string)
+def_string $x;
+switch_int (%100_ogre_prog) {
+    case ^hundred_ogre_not_started :
+        $x = append($x, "@dbl@I should @dre@inspect Skrach Uglogwee@dbl@ and see what was on his|");
+        $x = append($x, "@dbl@platter.");
+    case ^hundred_ogre_told :
+        $x = append($x, "@dbl@Skrach was eating a @dre@jubbly bird@dbl@. @dre@Rantz@dbl@ is on the shore in|");
+        $x = append($x, "@dbl@the @dre@Feldip Hills@dbl@ and knows where they live.");
+    case ^hundred_ogre_met_rantz, ^hundred_ogre_tree_pushed :
+        $x = append($x, "@dbl@The jubblies are on an island and there is no boat. Rantz will|");
+        $x = append($x, "@dbl@push the @dre@old tree@dbl@ over; after that it needs an @dre@axe@dbl@ - roots|");
+        $x = append($x, "@dbl@off first, then hollow it out.");
+    case ^hundred_ogre_roots_cut :
+        $x = append($x, "@dbl@The roots are off. Now @dre@hollow the log out@dbl@ with the axe.");
+    case ^hundred_ogre_boat_made :
+        $x = append($x, "@dbl@The boat is finished. @dre@Rantz@dbl@ can drag it to the water.");
+    case ^hundred_ogre_hunting :
+        $x = append($x, "@dbl@Take the boat to the island, @dre@put a balloon toad down@dbl@ as bait,|");
+        $x = append($x, "@dbl@and shoot whatever comes for it with an @dre@ogre bow@dbl@. Then|");
+        $x = append($x, "@dbl@@dre@pluck@dbl@ it.");
+    case default :
+        $x = append($x, "@dbl@I should @dre@cook the jubbly on an open fire@dbl@ and give it to|");
+        $x = append($x, "@dbl@Skrach.");
+}
+return($x);
