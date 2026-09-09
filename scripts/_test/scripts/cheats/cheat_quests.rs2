@@ -1,0 +1,134 @@
+// Quest stage cheats. ::<quest> <stage> jumps a quest straight to a stage and hands over the
+// items that stage assumes you are already carrying, so a quest can be tested from the middle
+// instead of played from the start every time.
+//
+// Written because a large amount of quest content had accumulated without ever being run:
+// Fremennik Trials, Recruitment Drive, Regicide's second half, Roving Elves, Mourning's End
+// Part 1 and all three Monkey Madness stages were all written and never executed. Playing each
+// one from the beginning to reach the step under test is the bottleneck, not the fixing.
+//
+// POINTERS: a [debugproc,...] is handed NO pointers - not even an active player - so every one
+// of these acquires with p_finduid(uid) and does its work INSIDE the success branch. The
+// compiler's static analysis only follows the positive branch, so the early-return shape used
+// by the older iku/ikd debugprocs is not relied on here.
+//
+// These are gated by the engine at staffModLevel >= 4 along with every other debugproc.
+
+// ---------------------------------------------------------------------------------------------
+// Monkey Madness - the fullest one, since it is the newest and largest untested quest.
+// Stages are in quests/quest_mm/configs/quest_mm.constant.
+//   1 started  6 met Garkor  8 amulet  9 talisman  10 greegree  11 met Awowogei
+//   12 zoo monkey  13 alliance  14 sigil  15 demon dead  20 complete
+// ---------------------------------------------------------------------------------------------
+[debugproc,mm](int $stage)
+if (p_finduid(uid) = true) {
+    ~debug_quest_mm($stage);
+}
+
+[proc,debug_quest_mm](int $stage)
+%mm_main = $stage;
+~send_quest_progress(questlist:mm, $stage, ^mm_complete);
+if ($stage >= ^mm_started) {
+    ~debug_give(mm_gnome_royal_seal);
+    ~debug_give(mm_narnode_orders);
+}
+if ($stage >= ^mm_met_garkor) {
+    ~debug_give(mm_monkey_amulet_mould);
+    ~debug_give(mm_monkey_dentures);
+}
+if ($stage >= ^mm_has_amulet) {
+    ~debug_give(mm_amulet_of_monkey_speak);
+}
+if ($stage >= ^mm_has_talisman) {
+    ~debug_give(mm_monkey_talisman);
+}
+if ($stage >= ^mm_has_greegree) {
+    ~debug_give(mm_monkey_greegree_for_normal_monkey);
+}
+if ($stage >= ^mm_has_zoo_monkey) {
+    ~debug_give(mm_monkey_in_backpack);
+}
+if ($stage >= ^mm_has_sigil) {
+    ~debug_give(mm_sigil);
+}
+mes("Monkey Madness set to stage <tostring($stage)>.");
+
+// ::mmtp <n> - the six coordinates the quest actually lands you on, all verified against the
+// loc-aware walkability model in claude/landing-coord-audit.md.
+//   1 hangar   2 Crash Island   3 Ape Atoll shore   4 throne room   5 demon arena   6 Grand Tree
+[debugproc,mmtp](int $where)
+if (p_finduid(uid) = true) {
+    ~debug_quest_mm_tp($where);
+}
+
+[proc,debug_quest_mm_tp](int $where)
+switch_int ($where) {
+    case 1 : p_teleport(^mm_hangar_arrive);
+    case 2 : p_teleport(^mm_crash_island_arrive);
+    case 3 : p_teleport(^mm_ape_atoll_arrive);
+    case 4 : p_teleport(^mm_throne_room_arrive);
+    case 5 : p_teleport(^mm_demon_arena);
+    case 6 : p_teleport(^mm_grand_tree_return);
+    case default : mes("::mmtp 1 hangar, 2 crash island, 3 ape atoll, 4 throne, 5 arena, 6 grand tree");
+}
+
+// ---------------------------------------------------------------------------------------------
+// The rest of the untested set. Stage only - each quest's item chain would need its own audit,
+// and the stage is what unblocks walking to the next npc.
+// ---------------------------------------------------------------------------------------------
+[debugproc,viking](int $stage)
+if (p_finduid(uid) = true) {
+    %viking = $stage;
+    ~debug_quest_set(questlist:viking, $stage, ^viking_complete, "Fremennik Trials");
+}
+
+[debugproc,rd](int $stage)
+if (p_finduid(uid) = true) {
+    %recruitmentdrive = $stage;
+    ~debug_quest_set(questlist:rd, $stage, ^recruitmentdrive_complete, "Recruitment Drive");
+}
+
+[debugproc,regicide](int $stage)
+if (p_finduid(uid) = true) {
+    %regicide_quest = $stage;
+    ~debug_quest_set(questlist:regicide, $stage, ^regicide_complete, "Regicide");
+}
+
+[debugproc,roving](int $stage)
+if (p_finduid(uid) = true) {
+    %roving_elves_quest = $stage;
+    ~debug_quest_set(questlist:roving_elves, $stage, ^roving_elves_complete, "Roving Elves");
+}
+
+[debugproc,mourning](int $stage)
+if (p_finduid(uid) = true) {
+    %mourning_quest = $stage;
+    ~debug_quest_set(questlist:mourning, $stage, ^mourning_complete, "Mourning's End Part 1");
+}
+
+[debugproc,dt](int $stage)
+if (p_finduid(uid) = true) {
+    %deserttreasuremain = $stage;
+    ~debug_quest_set(questlist:deserttreasure, $stage, ^deserttreasure_complete, "Desert Treasure");
+}
+
+// ---------------------------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------------------------
+
+// The varp assignment cannot live in here - RS2 has no way to write a varp named by a variable -
+// so each debugproc sets its own and this handles the journal and the message.
+[proc,debug_quest_set](component $journal, int $stage, int $complete, string $name)
+~send_quest_progress($journal, $stage, $complete);
+mes("<$name> set to stage <tostring($stage)>.");
+
+// Adds one of an obj only if it is not already carried, so repeated calls do not stack duplicates.
+[proc,debug_give](namedobj $obj)
+if (inv_total(inv, $obj) > 0) {
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("No inventory space for <oc_name($obj)>.");
+    return;
+}
+inv_add(inv, $obj, 1);
