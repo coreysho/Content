@@ -16,21 +16,38 @@
 p_arrivedelay;
 ~climb_ladder(movecoord(coord(), 0, 1, 0), true);
 
+// FIXED 2026-09-09: "reverse" means the two ends are approached from OPPOSITE sides -
+// the bottom is forceapproach=east, the top west - so the landing tile is two tiles ACROSS
+// the ladder, not the same tile. Straight up put the player in open air off the walkway.
 [oploc1,mm_bamboo_ladder_reverse]
 p_arrivedelay;
-~climb_ladder(movecoord(coord(), 0, 1, 0), true);
+switch_int (loc_angle) {
+    case 0 : ~climb_ladder(movecoord(coord(), -2, 1, 0), true);
+    case 1 : ~climb_ladder(movecoord(coord(), 0, 1, 2), true);
+    case 2 : ~climb_ladder(movecoord(coord(), 2, 1, 0), true);
+    case 3 : ~climb_ladder(movecoord(coord(), 0, 1, -2), true);
+}
 
+// FIXED 2026-09-09: BOTH watchtowers have a SOLID p1 - mm_watchtower_middle fills every
+// tile around the ladder there - so the tower runs p0 <-> p2 directly. The +/-1 version
+// dropped the player inside the middle section, and because the west tower is the only
+// way onto the p2 plank walk that leads to the east tower, it also made KRUK unreachable:
+// his 87-tile pocket at m42_43 x38-45 connects to nothing else on the island.
 [oploc1,mm_bamboo_ladder_watchtower_east]
 p_arrivedelay;
-~climb_ladder(movecoord(coord(), 0, 1, 0), true);
+~climb_ladder(movecoord(coord(), 0, 2, 0), true);
 
 [oploc1,mm_bamboo_ladder_watchtower_west]
 p_arrivedelay;
-~climb_ladder(movecoord(coord(), 0, 1, 0), true);
+~climb_ladder(movecoord(coord(), 0, 2, 0), true);
 
+// FIXED 2026-09-09: one placement, m43_42 (51,46). The deck is bamboo_bridge1 on p2, not
+// p1 - p1 there is only bridge understructure - and the two ends are approached from
+// opposite sides, so this is wrong on both counts. Fixed destinations, since there is
+// exactly one pair.
 [oploc1,mm_bridge_ladder]
 p_arrivedelay;
-~climb_ladder(movecoord(coord(), 0, 1, 0), true);
+~climb_ladder(2_43_42_51_45, true);
 
 [oploc1,mm_bamboo_ladder_top]
 p_arrivedelay;
@@ -38,19 +55,24 @@ p_arrivedelay;
 
 [oploc1,mm_bamboo_ladder_top_reverse]
 p_arrivedelay;
-~climb_ladder(movecoord(coord(), 0, -1, 0), false);
+switch_int (loc_angle) {
+    case 0 : ~climb_ladder(movecoord(coord(), 2, -1, 0), false);
+    case 1 : ~climb_ladder(movecoord(coord(), 0, -1, -2), false);
+    case 2 : ~climb_ladder(movecoord(coord(), -2, -1, 0), false);
+    case 3 : ~climb_ladder(movecoord(coord(), 0, -1, 2), false);
+}
 
 [oploc1,mm_bamboo_ladder_top_watchtower_east]
 p_arrivedelay;
-~climb_ladder(movecoord(coord(), 0, -1, 0), false);
+~climb_ladder(movecoord(coord(), 0, -2, 0), false);
 
 [oploc1,mm_bamboo_ladder_top_watchtower_west]
 p_arrivedelay;
-~climb_ladder(movecoord(coord(), 0, -1, 0), false);
+~climb_ladder(movecoord(coord(), 0, -2, 0), false);
 
 [oploc1,mm_bridge_ladder_top]
 p_arrivedelay;
-~climb_ladder(movecoord(coord(), 0, -1, 0), false);
+~climb_ladder(0_43_42_51_47, false);
 
 // The dungeon. Its entrance on the surface at m43_42 (11,15) and its exit at m43_142 (11,15) are the
 // same tile a hundred map squares apart, which is the 6400-tile underground offset every trapdoor in

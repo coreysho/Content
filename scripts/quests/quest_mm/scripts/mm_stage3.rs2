@@ -463,11 +463,18 @@ p_delay(2);
 %mm_waiting_for_final_battle = ^true;
 p_telejump(^mm_demon_arena);
 ~mm_spawn_final_battle;
-facesquare(^mm_demon_spawn);
+facesquare(0_37_154_47_55);
 ~mesbox("The world folds over once. You are standing in a cave that smells of burning, and the 10th Squad are standing with you, and something very large is unfolding itself out of the dark.");
 
 [proc,mm_spawn_final_battle]
 %mm_been_to_final_battle = ^true;
+// mm_bonzara is a static map spawn at (47,54), the dead centre of the room, and mm_demon is size=3
+// anchored at its SW corner - so EVERY legal 3x3 in a room this narrow covers his tile. The demon
+// would render on top of him and be unable to path off its spawn. Nothing in the repo references
+// mm_bonzara (he is scenery with an unhandled op1), so he steps aside for the fight.
+if (npc_findexact(0_37_154_47_54, mm_bonzara) = true) {
+    npc_del;
+}
 if (npc_findexact(^mm_demon_spawn, mm_demon) = false) {
     npc_add(^mm_demon_spawn, mm_demon, 500);
 }
