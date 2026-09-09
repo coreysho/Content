@@ -86,7 +86,13 @@ return;
 // bucket_water, spicespot and orange_slices all already own an [opheldu], so those three gained a
 // case in their existing handlers and only the other half of each pair is declared here.
 
+// Freeing Pirate Pete grinds a loaf into breadcrumbs with the same bread, so this cannot stay a
+// single-item check: [opheldu] runs the FIRST half that carries a trigger, so bread-then-pestle would
+// have landed here and been refused. ~hundred_pirate_grind is in hundred_pirate.rs2.
 [opheldu,bread]
+if (~hundred_pirate_grind_from(last_useitem, bread) = true) {
+    return;
+}
 if (last_useitem ! bucket_water) {
     ~displaymessage(^dm_default);
     return;

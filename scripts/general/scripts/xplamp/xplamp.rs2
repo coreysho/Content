@@ -110,7 +110,7 @@ if (map_members = ^false & ~stat_members($stat) = ^true) {
 }
 
 if_close;
-inv_del(inv, macro_genilamp, 1);
+~xplamp_consume;
 %xplamp = ^xplamp_none;
 
 def_int $base_level = stat_base($stat);
@@ -118,3 +118,15 @@ stat_advance($stat, multiply($base_level, 100)); // stat level * 10
 sound_synth(found_gem, 1, 0);
 
 ~mesbox("Your wish has been granted!|You have been awarded <tostring(multiply($base_level, 10))> <enum(stat, string, stat_names, $stat)> experience!");
+
+// This interface used to hardcode inv_del(inv, macro_genilamp, 1), which is why Recipe for Disaster's
+// hundred_rewardlamp could not use it. Only one lamp can be in flight at a time - the interface is
+// modal - so removing whichever one the player is actually carrying is enough. A player holding both
+// and rubbing the RFD one loses the genie lamp instead; the two grant identical experience, so the
+// only visible difference is which icon leaves the inventory.
+[proc,xplamp_consume]
+if (inv_total(inv, hundred_rewardlamp) > 0) {
+    inv_del(inv, hundred_rewardlamp, 1);
+    return;
+}
+inv_del(inv, macro_genilamp, 1);

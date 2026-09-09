@@ -1,0 +1,25 @@
+// Black mask - the on-task combat bonus.
+//
+// 7/6 (16.67%) to both the melee accuracy roll and max hit against monsters on the player's
+// current slayer task. Melee only: the mask does nothing for ranged or magic, which is correct
+// for the item in every revision.
+//
+// "On task" is npc_param(slayer_category) = %slayer_target with %slayer_count still above zero -
+// deliberately the SAME pair of values npc_death.rs2 passes to ~check_progress_task, so the set of
+// monsters the mask boosts can never drift from the set that counts towards the task.
+//
+// %slayer_target is 0 with no task assigned and slayer categories start at 1, so the > 0 guard
+// also covers npcs whose slayer_category param is unset.
+
+[proc,black_mask_on_task]()(boolean)
+if (%slayer_target <= 0 | %slayer_count <= 0) {
+    return(false);
+}
+if (npc_param(slayer_category) ! %slayer_target) {
+    return(false);
+}
+def_obj $hat = inv_getobj(worn, ^wearpos_hat);
+if ($hat = black_mask) {
+    return(true);
+}
+return(false);

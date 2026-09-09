@@ -151,6 +151,15 @@ if (p_finduid(uid) = true) {
 // Called whenever an obj is removed from the 'worn' inv, intented to be used as a central hook point for
 // handling unequipping effects
 [proc,on_unequip](obj $obj)
+// null is a NORMAL input here, not an error: ~try_equip passes whatever was previously in the
+// target slot, and that is null whenever the slot was empty. ~runecraft_unset_no_tally guards for
+// it locally; the greegree oc_category check below did not, so any equip into an empty slot threw
+//   script error: oc_category An input for a Obj type was not valid to use. Input was -1.
+// and dropped the client (seen 2026-09-09 wearing a black mask with no hat on).
+// Guarding here rather than at the call site so future hooks inherit the fix.
+if ($obj = null) {
+    return;
+}
 if ($obj = castlewars_saradomin_banner | $obj = castlewars_zamorak_banner) {
     ~castlewars_flag_drop(inv, $obj);
 }

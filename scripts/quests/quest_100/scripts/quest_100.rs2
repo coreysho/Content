@@ -48,7 +48,7 @@ if (~hundred_guide_cook_flour = true) {
     return;
 }
 def_int $done = ~hundred_subquests_done;
-if ($done >= ^hundred_subquest_count) {
+if ($done >= ^hundred_victims_count) {
     ~chatnpc("<p,happy>You've got them all out. All of them. Go and finish it.");
     return;
 }
@@ -82,12 +82,12 @@ if (%hundred_main_quest_var >= ^hundred_met_aris) {
 ~mesbox("A chest has appeared in the castle cellar. Aris says it was always there; you are fairly sure it was not.");
 
 [label,hundred_aris_progress]
-def_int $done = ~hundred_subquests_done;
-if ($done >= ^hundred_subquest_count) {
-    ~chatnpc("<p,happy>All nine. And him.");
-    ~chatnpc("<p,neutral>Then it is finished, and I am going somewhere with fewer clocks in it.");
+// Once all nine are awake Aris is the way into the Culinaromancer's arena.
+// ~hundred_finale_offer is in hundred_culinaromancer.rs2 and returns true if it did the talking.
+if (~hundred_finale_offer = true) {
     return;
 }
+def_int $done = ~hundred_subquests_done;
 ~chatnpc("<p,neutral>Nine of them. <tostring($done)> awake. Inspect the ones who are not and they will tell you what they were reaching for.");
 
 // --- Sub-quest bookkeeping ---
@@ -163,7 +163,7 @@ if (%hundred_main_quest_var = ^hundred_complete) {
     ~quest_journal($n, $x);
     return;
 }
-if (~hundred_subquests_done >= ^hundred_subquest_count) {
+if (~hundred_subquests_done >= ^hundred_victims_count) {
     $x = append($x, "|@dbl@All nine are awake. I should deal with the @dre@Culinaromancer@dbl@.");
     ~quest_journal($n, $x);
     return;
@@ -192,7 +192,14 @@ if (~hundred_has_subquest(^hundred_bit_goblins) = false) {
     $x = append($x, "|");
     $x = append($x, ~hundred_goblin_journal);
 }
-$x = append($x, "|@dbl@The other two are not written yet on this server.");
+if (~hundred_has_subquest(^hundred_bit_dave) = false) {
+    $x = append($x, "|");
+    $x = append($x, ~hundred_dave_journal);
+}
+if (~hundred_has_subquest(^hundred_bit_pirate) = false) {
+    $x = append($x, "|");
+    $x = append($x, ~hundred_pirate_journal);
+}
 ~quest_journal($n, $x);
 
 // One line per victim. @str@ once they are awake, @dbl@ while they are not.

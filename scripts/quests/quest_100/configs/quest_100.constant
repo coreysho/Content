@@ -57,6 +57,11 @@
 ^hundred_bit_monkey = 8          // Freeing King Awowogei
 ^hundred_bit_culinaromancer = 9  // Defeating the Culinaromancer
 ^hundred_subquest_count = 10
+// The first NINE bits are the nine frozen victims; bit 9 is the Culinaromancer, who is not a victim
+// and cannot be freed before them. Anything asking "are all the victims out?" compares against this,
+// not against the full count - which three places in quest_100.rs2 were doing, so the Cook, Aris and
+// the journal would all have waited for the finale before admitting the finale was available.
+^hundred_victims_count = 9
 
 // ---------------------------------------------------------------------------------------------
 // Coordinates
@@ -290,3 +295,214 @@
 ^hundred_goblin_kitchen = 0_46_154_37_59
 ^hundred_goblin_kitchen_charred = 0_46_154_37_19
 ^hundred_goblin_village = 0_46_54_16_50
+
+// ---------------------------------------------------------------------------------------------
+// Sub-quest 6: Freeing Evil Dave - %hundred_dave_main (varp hundred_dave, bits 0-2)
+// ---------------------------------------------------------------------------------------------
+// This is the sub-quest the cache is most complete about, and the one whose completeness is easiest
+// to miss, because none of it sits under a single prefix. What ships:
+//
+//   hundred_dave_mum       Doris, at 0_48_54_7_36 - Edgeville, op1=Talk-to, no handler anywhere
+//   100_dave_celler_trapdoor  at 0_48_54_5_37, a multiloc on hundred_dave_trapdoor:
+//                          0 -> "Trapdoor" op1=Open, 1 -> "Open trapdoor" op1=Go-down op2=Close
+//   100_dave_celler_stairs at 0_48_154_4_37 - the way back up. Its [oploc1] is in
+//                          ladders+stairs/scripts/stairs.rs2 with nothing but a default case
+//   hundred_evil_dave      the living Dave at 0_48_154_8_34, op1=Talk-to, no handler anywhere
+//   hundred_dave_hellrat   eighteen of them around him at m48_154
+//   hundred_dave_stew      "Spicy stew" - iop1=Eat AND iop2=Smell. The Smell option is the whole
+//                          feedback loop of this sub-quest and nothing implemented it
+//   hundred_dave_spice_<colour>_<4..1>  four shakers, four doses each, plus one shared
+//                          hundred_dave_spice_empty
+//   hundred_dave_red/_yellow/_brown/_orange          two bits each - the doses in the stew
+//   hundred_dave_<colour>_target                     two bits each - the doses he wants
+//   hundred_dave_hellrats_caught                     three bits - the run-up to a behemoth
+//   hundred_dave_original_cat_colour                 five bits - what your cat was before
+//   kittenpet_hell / growncat_hell / overgrowncat_hell and their three objs
+//
+// Between them those last two lines say exactly what the mechanic is: your cat turns into a hell-cat
+// down there, the game remembers what colour it used to be so it can turn it back, it hunts the
+// hell-rats, and a counter runs up to something. Nothing else in the cache reads or writes any of it.
+//
+// THE ONE MISSING PIECE is what the counter runs up TO. In the original it is a Hell-Rat Behemoth and
+// the behemoth is what carries the spice; the cache has no such npc. It is added in configs/quest_100.npc
+// rather than inventing a different source of spice - see the note in that file.
+//
+// TWO THINGS THIS PASS FIXED THAT ARE NOT THIS QUEST'S FAULT:
+//   * op5=Chase-vermin was missing from all eighteen pet cats, so [opnpc5,_petcat] in
+//     quests/quest_fluffs/scripts/pet.rs2 had never been reachable by anybody.
+//   * The three hell-cat npcs and objs had no category and no params, so the pet system could not
+//     see them at all.
+//
+// DELIBERATE DEVIATION, and the only one: in the original you learn the recipe by trial and error
+// with no hints. Here the living Dave tastes a stew and says, per colour, whether it wants more or
+// less. The target is still rolled per player and still hidden - he is a taster, not an oracle - but
+// three unknowns in the range 0..3 with no feedback at all is a brute-force search, and the cache
+// gave the stew a Smell option precisely so the player can see where they are. This makes Smell mean
+// something.
+^hundred_dave_not_started = 0
+^hundred_dave_told = 1           // the plinth showed me the bowl he was holding
+^hundred_dave_met_doris = 2      // his mother pointed at the trapdoor
+^hundred_dave_asked = 3          // the living Dave named the dish; his three doses are rolled
+^hundred_dave_approved = 4       // he has tasted the right one and handed it back
+^hundred_dave_done = 5
+
+// Spice colours. Only used to pick which pair of dose varbits a line is talking about.
+^hundred_spice_red = 0
+^hundred_spice_orange = 1
+^hundred_spice_yellow = 2
+^hundred_spice_brown = 3
+
+// Three doses spread over the four colours, so a colour can want anything from 0 to 3 - which is
+// exactly the range its two bits hold.
+^hundred_dave_doses = 3
+// How many hell-rats the cat catches before one of them turns out to have been eating the others.
+^hundred_dave_rats_per_behemoth = 4
+
+// Landing tiles, read out of the .jm2 LOC sections. The cellar is the house's map square plus 100
+// regions of z, so the two trapdoor ends are one tile apart in local coordinates.
+^hundred_dave_cellar = 0_48_154_5_37
+^hundred_dave_house = 0_48_54_6_37
+^hundred_dave_stairs = 0_48_154_4_37
+
+// ---------------------------------------------------------------------------------------------
+// Sub-quest 4: Freeing Pirate Pete - %100_pirate_quest_var (varp 100_pirate_quest, bits 0-11)
+// ---------------------------------------------------------------------------------------------
+// CORRECTION. This file and claude/recipe-for-disaster.md called this one "genuinely blocked" and
+// listed four missing pieces. All four were wrong, and each for the same reason - the search was by
+// prefix or by a word that returns hundreds of unrelated hits:
+//
+//   "nothing in the repo references m46_148"  -> the entrance is MURPHY, at 0_41_49_44_26 in Port
+//       Khazard, who already has a full [opnpc1] in minigames/game_trawler/scripts/murphy.rs2. He is
+//       the Fishing Trawler man and the diving man, exactly as in the original. Four Murphys ship:
+//       murphy (Khazard) and murphy_normal / _halfsunk / _sunk, which are the trawler's three sink
+//       states and nothing to do with this quest.
+//   "there is no fishbowl obj"                -> fishbowl_empty, _water, _water_weed, three fish
+//       variants and fishbowl_net all ship. And it does not matter, because
+//       hundred_pirate_diving_helmet ("Fishbowl helmet - You'll look daft, but at least you won't
+//       drown!") is a complete wearable obj with manwear / womanwear / manhead / womanhead and
+//       wearpos hat+head+jaw. So is hundred_pirate_diving_backpack ("Diving apparatus - I'll need a
+//       helmet to make this work"), wearpos back. The "hell" search that missed the hell-cat objs in
+//       pass 8 missed these the same way.
+//   "the crabs and mudskippers carry death_drop,null so nothing drops"  -> true, and irrelevant:
+//       drop_tables/scripts/crab.rs2 and mudskipper.rs2 already exist and already drop the fresh
+//       claw, the fresh shell and the hide. Only the crab MEAT was missing from the table.
+//   "hundred_pirate is placed nowhere"        -> true, and normal. Every one of the nine victims has
+//       an unplaced living npc and a placed frozen loc; see the note under Sir Amik Varze.
+//
+// ---------------------------------------------------------------------------------------------
+// The seabed
+// ---------------------------------------------------------------------------------------------
+// m46_148 is four planes of it and every fitting has an op already:
+//   p0  "seabed"  - the coral garden. 100_coral_* in six shapes, kelp, starfish, starfishbig.
+//   p1  "seabed2" - the working floor. This is where the quest happens.
+//   p2  "seabed3" - upper water, with anchor_middle2 ("Ze anchor chain") and the cave-mouth tops.
+//   p3            - more seabed3 wall, and the second half of the anchor.
+//
+// On p1:
+//   anchor_middle          1_46_148_19_5, op1=Climb - "It looks slippy but I think you can climb
+//                          this." The way back up. The same loc is drawn again on p3 because the
+//                          chain is two planes tall.
+//   kelp_pickingpoint      51 of them, op1=Pick, blockwalk=no
+//   hundred_pirate_rock    13 ground objs scattered over the floor
+//   the mudskipper cave    seabed2_cavewall_mudskipper_caveentrancel/r at (5,44) and (6,44),
+//                          op1=Enter; the matching caveexitl/r at (5,47) and (6,47), op1=Exit. A
+//                          four-tile tunnel through the wall into the mudskipper end, x4-10 z50-58.
+//   the crab pen           a walled enclosure x26-42 z42-51 with pen_wall_doorl/r at (30,42) and
+//                          (31,42), op1=Open, and pen_wall_doorl_open / _doorr_open already
+//                          shipped carrying the model and nothing else. Every giant crab in the
+//                          world is inside it. Three pen_wall_broken sections mark old escapes.
+//   the Mogre Guards       100_pirate_mogre_guard x4 and 100_pirate_mogre_nung, all outside the pen
+//
+// THE MOGRES CANNOT STOP ANYONE, and that is a reading, not an omission: they declare op1=Talk-to,
+// no op2=Attack, no hitpoints, no attack, no strength, no defence, no damagetype and no anims. They
+// are a conversation, so the pen door is not gated on them. %hundred_pirate_spoken_to_guards is a
+// single bit and it records exactly what it says - that you have been told what the pen is for.
+//
+// The crab disguise is real and is built from what a crab drops: hundred_pirate_crab_shell_claw
+// ("Fresh crab claw") and _crab_shell_head ("Fresh crab shell") are shaped against one of the rocks
+// on the floor into _crab_shell_gauntlet and _crab_shell_helm, both wearable. crab_claw_broken
+// ("Darn, it's useless now") and crab_shell_broken exist, which is the cache saying the shaping can
+// fail. Wearing both is what gets Nung talking.
+//
+// ---------------------------------------------------------------------------------------------
+// The dish
+// ---------------------------------------------------------------------------------------------
+// Four things ground or crumbed and pressed together, and every intermediate ships:
+//     hundred_pirate_kelp             -> ground kelp           (pestle and mortar)
+//     hundred_pirate_giant_crab_meat  -> ground crab meat      (pestle and mortar)
+//     raw_cod                         -> ground cod            (pestle and mortar)
+//     bread                           -> breadcrumbs           (pestle and mortar)
+//     all four                        -> hundred_pirate_raw_fishcake -> cook -> _fishcake / _burned
+// The four *_intro varbits are one bit each and are named after the four ingredients, so they are
+// first-time hint messages and are used as such.
+^hundred_pirate_not_started = 0
+^hundred_pirate_told = 1         // the plinth showed me the fishcake
+^hundred_pirate_met_murphy = 2   // Murphy has kitted me out
+^hundred_pirate_dived = 3        // been down at least once
+^hundred_pirate_done = 4
+
+// NOT USED, and why. %hundred_pirate_rocks (4 bits) and %hundred_pirate_underwater_onfloor (1 bit)
+// together describe a buoyancy mechanic - thirteen rocks lying on the seabed floor and a flag for
+// whether you are on it - and nothing in the cache says how much weight sinks you, what floating
+// looks like, or what happens while you float. There is no interface for it and no param on the
+// diving gear that would drive one. The rocks are used for what the two broken-shell objs prove
+// they are used for instead. %hundred_pirate_number_of_hides (4 bits) counts mudskipper hides,
+// which mudskipper.rs2 already drops; nothing in the cache says what a number of them buys.
+
+// Landing tiles, read out of the .jm2 LOC sections.
+// (19,6) is the tile north of the anchor at (19,5); x15-25 z1-14 on p1 carries no loc at all.
+^hundred_pirate_seabed = 1_46_148_19_6
+// Murphy stands on a woodensupport1 at (44,26); (45,27) beside him is clear.
+^hundred_pirate_khazard = 0_41_49_45_27
+// The tunnel: in at (5,44)/(6,44) from the south, out into the mudskipper end at (6,50); back out
+// at (5,47)/(6,47) to (6,41). Neither destination carries a loc.
+^hundred_pirate_cave_in = 1_46_148_6_50
+^hundred_pirate_cave_out = 1_46_148_6_41
+
+// ---------------------------------------------------------------------------------------------
+// Sub-quest 10: Defeating the Culinaromancer - %hundred_minionskilled_tally (100intro, bits 23-28)
+// ---------------------------------------------------------------------------------------------
+// The finale, and the only sub-quest with no dish. What ships:
+//
+//   m29_83 p2          a 22x22 arena, x33-54 z33-54, floored with exactly 484 100_tile and nothing
+//                      else, plus four hundred_exit_portal at the midpoints of the four edges -
+//                      (33,43), (43,54), (44,33), (54,44). Every tile of it is walkable.
+//   culinaromancer_froze  npc 3387 at 0_29_83_7_5, standing IN the frozen dining room with
+//                      walkanim and readyanim both 100_cul_froze and no ops at all. He has been in
+//                      the room the whole quest, mid-spell, and cannot be clicked. Left as he is.
+//   hundred_culinaromancer_book5 .. book1   five shells of the wizard, vislevel=hide, no ops,
+//                      readyanim=book_chuck_ready, each with a different model9 - the stack of books
+//                      in his hands, one fewer per minion summoned. book5 carries no model9 at all.
+//   hundred_culinaromancer_final           op2=Attack, vislevel=75, and holding
+//                      obj_hundred_cleaver_manwear - a CLEAVER, which is why he is built as a melee
+//                      fighter rather than a caster.
+//   hundred_culinaromancer_dead            walkanim and readyanim both 'inflate'
+//   hundred_culinaromancer_end             the after-the-fight shell
+//   hundred_minion1..4 and hundred_minion5 in six elemental forms
+//
+// ALL ELEVEN COMBAT NPCS SHIPPED WITH op2=Attack, A VISLEVEL AND NOTHING ELSE - no hitpoints, no
+// attack, strength or defence, no damagetype, no anims. See the note above [hundred_minion1] in
+// _unpack/377/all.npc. The anims were never the problem: agrith_nana_*, rock_*, dessourt_* and
+// horror_dagannoth_* all ship complete attack / block / death sets.
+//
+// The gauntlet is sequential and the shells say so: five books, five minions. The wizard stands at
+// the north end summoning them one at a time, loses a book each time one dies, and after the fifth
+// picks up the cleaver himself.
+//
+// %hundred_minionskilled_tally is six bits and is used as a COUNT 0..6 - five minions and the
+// wizard - rather than as a bitmask like %hundred_subquest_tally, because the gauntlet is strictly
+// in order and "how far through this attempt am I" is the only question it has to answer. It resets
+// to 0 on every entry, so leaving or dying costs the whole run, which is the original's behaviour.
+//
+// THE ARENA IS NOT INSTANCED, and neither is the Horror from the Deep cavern - two players fighting
+// at once will see each other's bosses. That is the repo's existing behaviour for scripted quest
+// bosses on a shared map, not a new compromise.
+^hundred_gauntlet_length = 6
+
+// Landing tiles. All of p2 is floor, so these only have to avoid the four portals.
+^hundred_arena_enter = 2_29_83_44_36
+^hundred_arena_wizard = 2_29_83_44_51
+^hundred_arena_minion = 2_29_83_44_44
+// Long enough that a spawn cannot expire mid-fight; short enough that a player who leaves does not
+// strand six bosses on the map. Horror from the Deep uses 1000 for the same job.
+^hundred_boss_lifetime = 1500

@@ -139,7 +139,13 @@
 [opheld1,handsand_orb_storage] ~mesbox("Nothing interesting happens!");
 [opheld1,bird_nest_cheapseeds] mes("You find some seeds in the bird's nest.");
 [opheld1,chickenquest_dragon_coin] ~mesbox("The dragon's token doesn't seem to work here. Try it in Lumbridge town or Zanaris.");
-[opheld1,hundred_rewardlamp] ~mesbox("Nothing interesting happens.");
+// FIXED 2026-09-09 (Recipe for Disaster pass 10): hundred_rewardlamp is the quest's own reward and
+// carries iop1=Rub, but the generated stub said "Nothing interesting happens." The genie lamp's
+// interface in general/scripts/xplamp/xplamp.rs2 does exactly the right thing and only needed to
+// stop assuming which lamp it was consuming.
+[opheld1,hundred_rewardlamp]
+%xplamp = ^xplamp_none;
+if_openmain(xplamp);
 // Recipe for Disaster, Freeing Skrach Uglogwee. These two were generated dead flavour - the toads
 // are the bait for the jubbly hunt and had nowhere to be placed. @hundred_place_toad is in
 // quest_100/scripts/hundred_ogre.rs2 and keeps this message for everywhere that is not the island.

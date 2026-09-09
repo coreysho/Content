@@ -1,0 +1,473 @@
+// Recipe for Disaster, sub-quest 6 of 10: Freeing Evil Dave.
+//
+// See the sub-quest section of configs/quest_100.constant for what the cache ships, for the one npc
+// it does not, and for the single deliberate deviation (Dave gives per-colour feedback).
+//
+// The shape of it:
+//   Doris in Edgeville -> the trapdoor in her floor -> the cellar -> the living Evil Dave, who wants
+//   a spicy stew and will not say which spices. Take a cat down; it becomes a hell-cat; Chase-vermin
+//   on the Hell-Rats; every fourth catch brings out a Hell-Rat Behemoth, which drops a spice shaker.
+//   Shake spice into a stew, let Dave taste it, adjust, then take the right one to the plinth.
+
+// --- The plinth ---
+
+[oploc1,hundred_dave_base]
+~hundred_inspect(^hundred_bit_dave, "Evil Dave", "He is dressed entirely in black and is holding a spoon over a bowl of stew that is still, somehow, steaming.", 1, "The stew in front of him is not one of the Cook's. Somebody made that on purpose.");
+if (%hundred_main_quest_var >= ^hundred_met_aris & %hundred_dave_main = ^hundred_dave_not_started) {
+    %hundred_dave_main = ^hundred_dave_told;
+}
+
+[oplocu,hundred_dave_base]
+if (last_useitem ! hundred_dave_stew) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (~hundred_has_subquest(^hundred_bit_dave) = true) {
+    ~chatplayer("<p,neutral>He has his.");
+    return;
+}
+if (%hundred_dave_main < ^hundred_dave_asked) {
+    mes("The spoon does not move. Whatever this is, it is not what he was reaching for.");
+    return;
+}
+if (~hundred_dave_matches = false) {
+    ~mesbox("The spoon does not move. This is a spicy stew and it is not his spicy stew.");
+    return;
+}
+mes("You set the bowl down under the spoon.");
+p_delay(3);
+inv_del(inv, hundred_dave_stew, 1);
+~hundred_dave_clear_doses;
+%hundred_dave_main = ^hundred_dave_done;
+// NOT setting %100davevisible. hundred_dave_multi resolves 0 -> empty_chair and 1 -> the FROZEN
+// Dave, so raising it on release would be backwards - and it is moot either way, because the map
+// places hundred_dave_base directly and hundred_dave_multi is placed nowhere. The goblin pass sets
+// its equivalent; that is worth another look before either is relied on.
+~mesbox("The spoon finishes the journey it started an hour ago. Evil Dave swallows, opens his eyes, and looks extremely put out about being interrupted.");
+~chatnpc_specific("Evil Dave", hundred_evil_dave, "<p,angry>Do you have ANY idea how long I have been holding this spoon.");
+~hundred_award_subquest(^hundred_bit_dave);
+
+// --- Doris ---
+// Dave's mother, at 0_48_54_7_36 in Edgeville, standing on top of the trapdoor to his cellar. She
+// has op1=Talk-to and, before this pass, no handler in the repo at all.
+
+[opnpc1,hundred_dave_mum]
+if (~hundred_has_subquest(^hundred_bit_dave) = true) {
+    ~chatnpc("<p,happy>He came up for a cup of tea yesterday. First time in four years.");
+    return;
+}
+if (%hundred_dave_main = ^hundred_dave_not_started) {
+    ~chatplayer("<p,quiz>Hello.");
+    ~chatnpc("<p,happy>Hello, dear. Mind the trapdoor, my son's down there being evil.");
+    ~chatplayer("<p,quiz>...being evil?");
+    ~chatnpc("<p,neutral>He says it's a career. I say it's a cellar.");
+    return;
+}
+if (%hundred_dave_main = ^hundred_dave_told) {
+    ~chatplayer("<p,quiz>Is your son called Dave, by any chance?");
+    ~chatnpc("<p,happy>Evil Dave, he'd want me to say. He's in the cellar. He's always in the cellar.");
+    ~chatplayer("<p,quiz>There's a version of him frozen in Lumbridge Castle holding a bowl of stew.");
+    ~chatnpc("<p,shock>Oh, that'll be the stew. He won't eat anything else. I stopped asking.");
+    ~chatnpc("<p,neutral>Go down and ask him yourself, dear. Trapdoor's under my feet. Mind the rats.");
+    %hundred_dave_main = ^hundred_dave_met_doris;
+    return;
+}
+if (%hundred_dave_main = ^hundred_dave_done) {
+    ~chatnpc("<p,happy>Two of him, awake and complaining. I don't know what I did to deserve it.");
+    return;
+}
+~chatnpc("<p,neutral>Still down there. Take a cat if you're going - the rats have got out of hand.");
+
+// --- The trapdoor and the cellar ---
+// 100_dave_celler_trapdoor at 0_48_54_5_37 is a multiloc on %hundred_dave_trapdoor: 0 is the closed
+// door with op1=Open and 1 is the open one with op1=Go-down and op2=Close. The triggers go on the
+// SHELL, because Player.getOpTrigger does LocType.get on the world loc, which is always the multi.
+
+[oploc1,100_dave_celler_trapdoor]
+if (%hundred_dave_trapdoor = 0) {
+    mes("The trapdoor opens. Something below it smells of burnt hair.");
+    sound_synth(door_open, 1, 0);
+    %hundred_dave_trapdoor = 1;
+    return;
+}
+mes("You climb down through the trapdoor...");
+anim(human_pickupfloor, 0);
+p_delay(0);
+p_telejump(^hundred_dave_cellar);
+~hundred_dave_hellify;
+
+[oploc2,100_dave_celler_trapdoor]
+mes("You close the trapdoor.");
+sound_synth(door_close, 1, 0);
+%hundred_dave_trapdoor = 0;
+
+// Called from the 100_dave_celler_stairs case in ladders+stairs/scripts/stairs.rs2, which is where
+// that loc's only [oploc1] lives.
+[proc,hundred_dave_leave_cellar]
+mes("You climb the steps back into daylight...");
+anim(human_pickupfloor, 0);
+p_delay(0);
+p_telejump(^hundred_dave_house);
+~hundred_dave_unhellify;
+
+// --- Cats ---
+// A cat that goes down there becomes a hell-cat and comes back up as whatever it was. The stage can
+// change while it is down there - a hell-kitten grows into a hellcat on the ordinary petcat_growth
+// timer - so only the COLOUR is stored, and the stage is read back off whichever hell form it is
+// wearing when it leaves.
+
+[proc,hundred_dave_hellify]
+if (npc_finduid(%follower_uid) = false) {
+    return;
+}
+def_int $colour = ~hundred_dave_cat_colour(npc_type);
+if ($colour = 0) {
+    return;
+}
+def_npc $hell;
+switch_npc (npc_type) {
+    case kittenpet1, kittenpet_light, kittenpet_brown, kittenpet_black, kittenpet_browngrey, kittenpet_bluegrey :
+        $hell = kittenpet_hell;
+    case growncat, growncat_light, growncat_brown, growncat_black, growncat_browngrey, growncat_bluegrey :
+        $hell = growncat_hell;
+    case overgrowncat, overgrowncat_light, overgrowncat_brown, overgrowncat_black, overgrowncat_browngrey, overgrowncat_bluegrey :
+        $hell = overgrowncat_hell;
+    case default : return;
+}
+%hundred_dave_original_cat_colour = $colour;
+npc_changetype_keepall($hell, ^max_32bit_int);
+%follower_uid = npc_uid;
+%follower_obj = nc_param(npc_type, pet_item_id);
+npc_say("Mrrreeeoooww!");
+~mesbox("Your cat has gone red. It does not seem bothered by this and neither, apparently, does anything else down here.");
+
+[proc,hundred_dave_unhellify]
+def_int $colour = %hundred_dave_original_cat_colour;
+if ($colour = 0) {
+    return;
+}
+%hundred_dave_original_cat_colour = 0;
+if (npc_finduid(%follower_uid) = false) {
+    return;
+}
+// The stage can have changed while it was down there - a hell-kitten grows into a hellcat on the
+// ordinary petcat_growth timer - so the stage is read off what it is wearing now and only the
+// colour comes out of the varbit.
+def_int $stage = 0;
+switch_npc (npc_type) {
+    case kittenpet_hell : $stage = 0;
+    case growncat_hell : $stage = 1;
+    case overgrowncat_hell : $stage = 2;
+    case default : return;
+}
+def_npc $normal;
+switch_int (calc($stage * 6 + $colour)) {
+    case 1 : $normal = kittenpet1;
+    case 2 : $normal = kittenpet_light;
+    case 3 : $normal = kittenpet_brown;
+    case 4 : $normal = kittenpet_black;
+    case 5 : $normal = kittenpet_browngrey;
+    case 6 : $normal = kittenpet_bluegrey;
+    case 7 : $normal = growncat;
+    case 8 : $normal = growncat_light;
+    case 9 : $normal = growncat_brown;
+    case 10 : $normal = growncat_black;
+    case 11 : $normal = growncat_browngrey;
+    case 12 : $normal = growncat_bluegrey;
+    case 13 : $normal = overgrowncat;
+    case 14 : $normal = overgrowncat_light;
+    case 15 : $normal = overgrowncat_brown;
+    case 16 : $normal = overgrowncat_black;
+    case 17 : $normal = overgrowncat_browngrey;
+    case 18 : $normal = overgrowncat_bluegrey;
+    case default : return;
+}
+npc_changetype_keepall($normal, ^max_32bit_int);
+%follower_uid = npc_uid;
+%follower_obj = nc_param(npc_type, pet_item_id);
+npc_say("Meow?");
+mes("Your cat is your cat again.");
+
+// 1..6, matching the six colours the pet cats come in. 0 means this is not an ordinary pet cat -
+// a hell-cat that never went back up, or something that is not a cat at all.
+[proc,hundred_dave_cat_colour](npc $type)(int)
+switch_npc ($type) {
+    case kittenpet1, growncat, overgrowncat : return(1);
+    case kittenpet_light, growncat_light, overgrowncat_light : return(2);
+    case kittenpet_brown, growncat_brown, overgrowncat_brown : return(3);
+    case kittenpet_black, growncat_black, overgrowncat_black : return(4);
+    case kittenpet_browngrey, growncat_browngrey, overgrowncat_browngrey : return(5);
+    case kittenpet_bluegrey, growncat_bluegrey, overgrowncat_bluegrey : return(6);
+}
+return(0);
+
+// --- Hunting ---
+// Called from [opnpc5,_petcat] in quests/quest_fluffs/scripts/pet.rs2 once a Hell-Rat has actually
+// been caught. The cat is the active npc on the way in and the behemoth is on the way out, so
+// nothing may follow the npc_add.
+
+[proc,hundred_dave_hellrat_caught]
+if (%hundred_dave_main < ^hundred_dave_asked) {
+    return;
+}
+def_int $caught = calc(%hundred_dave_hellrats_caught + 1);
+if ($caught < ^hundred_dave_rats_per_behemoth) {
+    %hundred_dave_hellrats_caught = $caught;
+    return;
+}
+%hundred_dave_hellrats_caught = 0;
+mes("Something much bigger moves at the edge of the torchlight. It has been eating the others.");
+sound_synth(rat_death, 1, 0);
+npc_add(coord, hundred_dave_hellrat_behemoth, 500);
+npc_setmode(opplayer2);
+
+[ai_queue3,hundred_dave_hellrat_behemoth]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+def_namedobj $spice;
+switch_int (random(4)) {
+    case ^hundred_spice_red : $spice = hundred_dave_spice_red_4;
+    case ^hundred_spice_orange : $spice = hundred_dave_spice_orange_4;
+    case ^hundred_spice_yellow : $spice = hundred_dave_spice_yellow_4;
+    case ^hundred_spice_brown : $spice = hundred_dave_spice_brown_4;
+}
+obj_add(npc_coord, $spice, 1, ^lootdrop_duration);
+
+// --- The living Dave ---
+
+[opnpc1,hundred_evil_dave]
+if (~hundred_has_subquest(^hundred_bit_dave) = true) {
+    ~chatnpc("<p,angry>There's another me walking around Lumbridge Castle in my clothes. I haven't decided how I feel about it.");
+    return;
+}
+if (%hundred_dave_main < ^hundred_dave_met_doris) {
+    ~chatplayer("<p,quiz>Hello.");
+    ~chatnpc("<p,angry>You are standing in my LAIR.");
+    ~chatplayer("<p,quiz>It's your mum's cellar.");
+    ~chatnpc("<p,sad>...it's my mum's lair.");
+    return;
+}
+if (%hundred_dave_main = ^hundred_dave_met_doris) {
+    ~hundred_dave_ask;
+    return;
+}
+~hundred_dave_reminder;
+
+[proc,hundred_dave_ask]
+~chatplayer("<p,quiz>There's a version of you frozen in Lumbridge Castle holding a bowl of stew.");
+~chatnpc("<p,shock>Frozen? Me? That's the most evil thing I've ever heard.");
+~chatnpc("<p,happy>Wait. Was it MY stew? Was it the spicy one?");
+~chatplayer("<p,quiz>I don't know. What's the spicy one?");
+~chatnpc("<p,neutral>Ordinary stew. Three doses of spice in it. Evil spice, obviously - it comes out of the rats.");
+~chatplayer("<p,quiz>Which three?");
+~chatnpc("<p,angry>If I told you, it wouldn't be evil, would it.");
+~chatnpc("<p,neutral>Bring me one and I'll taste it. I'll tell you if it's wrong. I won't tell you why.");
+~chatplayer("<p,quiz>How do I get spice out of a rat?");
+~chatnpc("<p,happy>You don't. A cat does. Bring one down here and it'll stop being a cat, and then set it on them.");
+~chatnpc("<p,neutral>Sooner or later one of the rats turns out to have been eating the other rats. That one's got the spice in it.");
+~hundred_dave_roll_targets;
+%hundred_dave_main = ^hundred_dave_asked;
+
+[proc,hundred_dave_reminder]
+if (%hundred_dave_main = ^hundred_dave_approved) {
+    ~chatnpc("<p,happy>That's the one. Go and give it to me. The other me. You know what I mean.");
+    return;
+}
+~chatnpc("<p,neutral>A stew. Three doses of spice. Cat, rats, big rat, spice. It isn't complicated, it's just evil.");
+
+// Dave tastes. He compares, he complains, he hands it back - he never takes it, because a colour
+// that is already over target can only be fixed by starting again and there is no reason to make
+// the player find that out by losing the bowl.
+[opnpcu,hundred_evil_dave]
+if (last_useitem ! hundred_dave_stew) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (~hundred_has_subquest(^hundred_bit_dave) = true) {
+    ~chatnpc("<p,neutral>I've had mine. Twice, arguably.");
+    return;
+}
+if (%hundred_dave_main < ^hundred_dave_asked) {
+    ~chatnpc("<p,angry>Why are you showing me soup.");
+    return;
+}
+~chatplayer("<p,neutral>Try this.");
+if (~hundred_dave_matches = true) {
+    ~chatnpc("<p,happy>...that's it. That is EXACTLY it. Don't change a single thing.");
+    ~chatnpc("<p,neutral>Now go and give it to the other me before he starves in front of everybody.");
+    %hundred_dave_main = ^hundred_dave_approved;
+    return;
+}
+def_string $x = "";
+$x = append($x, ~hundred_dave_hint("red", %hundred_dave_red, %hundred_dave_red_target));
+$x = append($x, ~hundred_dave_hint("orange", %hundred_dave_orange, %hundred_dave_orange_target));
+$x = append($x, ~hundred_dave_hint("yellow", %hundred_dave_yellow, %hundred_dave_yellow_target));
+$x = append($x, ~hundred_dave_hint("brown", %hundred_dave_brown, %hundred_dave_brown_target));
+~chatnpc("<p,angry>No. That's a stew a GUARD would eat.");
+~mesbox($x);
+if (%hundred_dave_main = ^hundred_dave_approved) {
+    %hundred_dave_main = ^hundred_dave_asked;
+}
+
+[proc,hundred_dave_hint](string $colour, int $have, int $want)(string)
+if ($have < $want) {
+    return(append(append("More ", $colour), ".|"));
+}
+if ($have > $want) {
+    return(append(append("Less ", $colour), ".|"));
+}
+return(append(append("The ", $colour), " is right.|"));
+
+// --- The stew ---
+// Three doses spread over four colours, rolled once, per player, and never shown.
+
+[proc,hundred_dave_roll_targets]
+%hundred_dave_red_target = 0;
+%hundred_dave_orange_target = 0;
+%hundred_dave_yellow_target = 0;
+%hundred_dave_brown_target = 0;
+def_int $i = 0;
+while ($i < ^hundred_dave_doses) {
+    switch_int (random(4)) {
+        case ^hundred_spice_red : %hundred_dave_red_target = calc(%hundred_dave_red_target + 1);
+        case ^hundred_spice_orange : %hundred_dave_orange_target = calc(%hundred_dave_orange_target + 1);
+        case ^hundred_spice_yellow : %hundred_dave_yellow_target = calc(%hundred_dave_yellow_target + 1);
+        case ^hundred_spice_brown : %hundred_dave_brown_target = calc(%hundred_dave_brown_target + 1);
+    }
+    $i = calc($i + 1);
+}
+
+[proc,hundred_dave_matches]()(boolean)
+if (%hundred_dave_red ! %hundred_dave_red_target) {
+    return(false);
+}
+if (%hundred_dave_orange ! %hundred_dave_orange_target) {
+    return(false);
+}
+if (%hundred_dave_yellow ! %hundred_dave_yellow_target) {
+    return(false);
+}
+if (%hundred_dave_brown ! %hundred_dave_brown_target) {
+    return(false);
+}
+return(true);
+
+[proc,hundred_dave_clear_doses]
+%hundred_dave_red = 0;
+%hundred_dave_orange = 0;
+%hundred_dave_yellow = 0;
+%hundred_dave_brown = 0;
+
+// The four dose varbits describe the ONE spicy stew the player is carrying, so there is never more
+// than one of those in existence at a time. Everything else falls out of that.
+[opheldu,stew]
+switch_obj (last_useitem) {
+    case hundred_dave_spice_red_4, hundred_dave_spice_red_3, hundred_dave_spice_red_2, hundred_dave_spice_red_1 :
+        @hundred_dave_spice(^hundred_spice_red, last_slot, last_useslot, 1);
+    case hundred_dave_spice_orange_4, hundred_dave_spice_orange_3, hundred_dave_spice_orange_2, hundred_dave_spice_orange_1 :
+        @hundred_dave_spice(^hundred_spice_orange, last_slot, last_useslot, 1);
+    case hundred_dave_spice_yellow_4, hundred_dave_spice_yellow_3, hundred_dave_spice_yellow_2, hundred_dave_spice_yellow_1 :
+        @hundred_dave_spice(^hundred_spice_yellow, last_slot, last_useslot, 1);
+    case hundred_dave_spice_brown_4, hundred_dave_spice_brown_3, hundred_dave_spice_brown_2, hundred_dave_spice_brown_1 :
+        @hundred_dave_spice(^hundred_spice_brown, last_slot, last_useslot, 1);
+    case hundred_dave_spice_empty :
+        mes("The shaker is empty.");
+    case default : ~displaymessage(^dm_default);
+}
+
+[opheldu,hundred_dave_stew]
+switch_obj (last_useitem) {
+    case hundred_dave_spice_red_4, hundred_dave_spice_red_3, hundred_dave_spice_red_2, hundred_dave_spice_red_1 :
+        @hundred_dave_spice(^hundred_spice_red, last_slot, last_useslot, 0);
+    case hundred_dave_spice_orange_4, hundred_dave_spice_orange_3, hundred_dave_spice_orange_2, hundred_dave_spice_orange_1 :
+        @hundred_dave_spice(^hundred_spice_orange, last_slot, last_useslot, 0);
+    case hundred_dave_spice_yellow_4, hundred_dave_spice_yellow_3, hundred_dave_spice_yellow_2, hundred_dave_spice_yellow_1 :
+        @hundred_dave_spice(^hundred_spice_yellow, last_slot, last_useslot, 0);
+    case hundred_dave_spice_brown_4, hundred_dave_spice_brown_3, hundred_dave_spice_brown_2, hundred_dave_spice_brown_1 :
+        @hundred_dave_spice(^hundred_spice_brown, last_slot, last_useslot, 0);
+    case hundred_dave_spice_empty :
+        mes("The shaker is empty.");
+    case default : ~displaymessage(^dm_default);
+}
+
+// $plain is 1 when the bowl being spiced is an ordinary stew, which is the step that creates the
+// spicy one and zeroes the doses.
+[label,hundred_dave_spice](int $colour, int $bowlslot, int $shakerslot, int $plain)
+def_obj $shaker = inv_getobj(inv, $shakerslot);
+def_namedobj $next = oc_param($shaker, next_obj_stage);
+if ($next = null) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if ($plain = 1) {
+    if (~obj_gettotal(hundred_dave_stew) > 0) {
+        ~mesbox("You are already carrying a spicy stew, and one is as much as anybody should carry.");
+        return;
+    }
+    inv_delslot(inv, $bowlslot);
+    inv_add(inv, hundred_dave_stew, 1);
+    ~hundred_dave_clear_doses;
+    mes("The stew is a spicy stew now. There is no going back from this.");
+} else {
+    if (~hundred_dave_dose($colour) >= ^hundred_dave_doses) {
+        mes("That is as much of that spice as the bowl will hold.");
+        return;
+    }
+}
+~hundred_dave_add_dose($colour);
+inv_setslot(inv, $shakerslot, $next, 1);
+sound_synth(put_down, 1, 0);
+mes("You shake a dose of spice into the stew.");
+
+[proc,hundred_dave_dose](int $colour)(int)
+switch_int ($colour) {
+    case ^hundred_spice_red : return(%hundred_dave_red);
+    case ^hundred_spice_orange : return(%hundred_dave_orange);
+    case ^hundred_spice_yellow : return(%hundred_dave_yellow);
+    case ^hundred_spice_brown : return(%hundred_dave_brown);
+}
+return(0);
+
+[proc,hundred_dave_add_dose](int $colour)
+switch_int ($colour) {
+    case ^hundred_spice_red : %hundred_dave_red = calc(%hundred_dave_red + 1);
+    case ^hundred_spice_orange : %hundred_dave_orange = calc(%hundred_dave_orange + 1);
+    case ^hundred_spice_yellow : %hundred_dave_yellow = calc(%hundred_dave_yellow + 1);
+    case ^hundred_spice_brown : %hundred_dave_brown = calc(%hundred_dave_brown + 1);
+}
+
+// iop2=Smell shipped on hundred_dave_stew and nothing read it. It is how the player sees where they
+// are, which is what makes Dave's per-colour complaints usable.
+[opheld2,hundred_dave_stew]
+def_string $x = "";
+$x = append($x, append(append("Red: ", tostring(%hundred_dave_red)), "|"));
+$x = append($x, append(append("Orange: ", tostring(%hundred_dave_orange)), "|"));
+$x = append($x, append(append("Yellow: ", tostring(%hundred_dave_yellow)), "|"));
+$x = append($x, append(append("Brown: ", tostring(%hundred_dave_brown)), ""));
+~mesbox("You put your nose over the bowl and your eyes water.");
+~mesbox($x);
+
+// --- Journal ---
+
+[proc,hundred_dave_journal]()(string)
+def_string $x;
+switch_int (%hundred_dave_main) {
+    case ^hundred_dave_not_started :
+        $x = append($x, "@dbl@I should @dre@inspect Evil Dave@dbl@ and see what he was eating.");
+    case ^hundred_dave_told :
+        $x = append($x, "@dbl@He was halfway through a bowl of stew. There is a living Evil|");
+        $x = append($x, "@dbl@Dave somewhere - I should ask around @dre@Edgeville@dbl@.");
+    case ^hundred_dave_met_doris :
+        $x = append($x, "@dbl@His mother Doris has a @dre@trapdoor@dbl@ in her floor in @dre@Edgeville@dbl@.|");
+        $x = append($x, "@dbl@He is down it.");
+    case ^hundred_dave_approved :
+        $x = append($x, "@dbl@Dave says this stew is the right one. I should give it to the|");
+        $x = append($x, "@dbl@@dre@frozen Evil Dave@dbl@ before I spill it.");
+    case default :
+        $x = append($x, "@dbl@A @dre@stew@dbl@ with @dre@three doses of spice@dbl@ in it. The spice comes off|");
+        $x = append($x, "@dbl@a @dre@Hell-Rat Behemoth@dbl@ - take a @dre@cat@dbl@ into Dave's cellar and set|");
+        $x = append($x, "@dbl@it on the Hell-Rats. Dave will taste a stew and complain about it.");
+}
+return($x);

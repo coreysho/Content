@@ -1,0 +1,200 @@
+// Recipe for Disaster, sub-quest 10 of 10: Defeating the Culinaromancer.
+//
+// See the sub-quest section of configs/quest_100.constant for the arena, the eleven npcs that
+// shipped unkillable, and why the tally is a count rather than a bitmask.
+//
+// The shape of it:
+//   Free all nine, then tell Aris. She puts you in the arena on m29_83 p2. The Culinaromancer is at
+//   the north end holding five books; he opens one per minion. Kill Agrith-Na-Na, Flambeed, Karamel,
+//   Dessourt and the Gelatinnoth Mother, and when the books run out he comes at you himself with the
+//   cleaver he has been holding since the room froze.
+
+// --- Aris sends you in ---
+// Called from [label,hundred_aris_progress] in quest_100.rs2. Returns true if it did the talking.
+
+[proc,hundred_finale_offer]()(boolean)
+if (~hundred_subquests_done < ^hundred_victims_count) {
+    return(false);
+}
+if (~hundred_has_subquest(^hundred_bit_culinaromancer) = true) {
+    ~chatnpc("<p,happy>All nine, and him. Then it is finished, and I am going somewhere with fewer clocks in it.");
+    return(true);
+}
+~chatnpc("<p,neutral>Nine of them awake, and one of him still standing in the corner of this room with his hand up.");
+~chatplayer("<p,quiz>He has been here the whole time?");
+~chatnpc("<p,neutral>He never left. He is inside the same hour you have been walking in and out of all week.");
+~chatnpc("<p,angry>He will not be talked to. He has five books and something under his coat, and I can put you in the same room as him if you want it.");
+if (%hundred_finale_warning_spam = 0) {
+    %hundred_finale_warning_spam = 1;
+    ~mesbox("Aris means it. There is no bank in there, nothing to pick up, and no second try - walk out or die and the whole gauntlet starts again from the first minion.");
+}
+def_int $choice = ~p_choice2("Put me in the room.", 1, "Not yet.", 2);
+if ($choice = 2) {
+    ~chatplayer("<p,neutral>Not yet.");
+    ~chatnpc("<p,neutral>He is not going anywhere. That is rather the trouble.");
+    return(true);
+}
+~chatplayer("<p,happy>Put me in the room.");
+~chatnpc("<p,neutral>Then hold still and do not breathe out.");
+~hundred_finale_enter;
+return(true);
+
+[proc,hundred_finale_enter]
+if_close;
+%hundred_minionskilled_tally = 0;
+mes("The room folds itself inside out.");
+p_delay(3);
+p_teleport(^hundred_arena_enter);
+~mesbox("You are standing on a floor of pale tiles with no walls and no sky. At the far end a small, tidy, extremely angry man is holding five books.");
+npc_add(^hundred_arena_wizard, hundred_culinaromancer_book5, ^hundred_boss_lifetime);
+npc_say("You are the ninth interruption this hour.");
+~hundred_finale_spawn_minion(1);
+
+// --- The gauntlet ---
+
+// Nothing calls npc_setmode here. Every boss carries huntmode=aggressive_melee and a huntrange that
+// covers the arena, which is how Horror from the Deep's scripted bosses find the player too - and
+// setting an op mode from a player queue would leave the npc in a mode with no target resolved.
+[proc,hundred_finale_spawn_minion](int $n)
+def_npc $minion;
+switch_int ($n) {
+    case 1 : $minion = hundred_minion1;
+    case 2 : $minion = hundred_minion2;
+    case 3 : $minion = hundred_minion3;
+    case 4 : $minion = hundred_minion4;
+    case 5 : $minion = hundred_minion5_air;
+    case default : return;
+}
+npc_add(^hundred_arena_minion, $minion, ^hundred_boss_lifetime);
+if ($n = 5) {
+    // Her form cycle. Started here rather than off [ai_queue1] so that nothing has to be added to
+    // the shared combat entry point; the first change lands 30 ticks after she appears.
+    npc_queue(6, 0, 30);
+}
+
+// The wizard shell for a given number of minions already killed. He is scenery - vislevel=hide, no
+// ops, no stats - so he is deleted and re-added rather than changed, which keeps the swap honest
+// whatever state the old one was in.
+[proc,hundred_finale_set_wizard](int $killed)
+~hundred_finale_clear_wizard;
+def_npc $form;
+switch_int ($killed) {
+    case 0 : $form = hundred_culinaromancer_book5;
+    case 1 : $form = hundred_culinaromancer_book4;
+    case 2 : $form = hundred_culinaromancer_book3;
+    case 3 : $form = hundred_culinaromancer_book2;
+    case 4 : $form = hundred_culinaromancer_book1;
+    case default : return;
+}
+npc_add(^hundred_arena_wizard, $form, ^hundred_boss_lifetime);
+
+[proc,hundred_finale_clear_wizard]
+if (npc_findexact(^hundred_arena_wizard, hundred_culinaromancer_book5) = true) {
+    npc_del;
+    return;
+}
+if (npc_findexact(^hundred_arena_wizard, hundred_culinaromancer_book4) = true) {
+    npc_del;
+    return;
+}
+if (npc_findexact(^hundred_arena_wizard, hundred_culinaromancer_book3) = true) {
+    npc_del;
+    return;
+}
+if (npc_findexact(^hundred_arena_wizard, hundred_culinaromancer_book2) = true) {
+    npc_del;
+    return;
+}
+if (npc_findexact(^hundred_arena_wizard, hundred_culinaromancer_book1) = true) {
+    npc_del;
+    return;
+}
+
+// --- Deaths ---
+// Every one of these is an npc AI trigger, which has active_player but NOT p_active_player, and
+// %hundred_minionskilled_tally is a protected varp. So the work is handed to the player's own queue
+// exactly the way Horror from the Deep does it. See trap 4 in claude/rs2-compile-traps.md.
+
+[ai_queue3,hundred_minion1] @hundred_minion_death(1);
+[ai_queue3,hundred_minion2] @hundred_minion_death(2);
+[ai_queue3,hundred_minion3] @hundred_minion_death(3);
+[ai_queue3,hundred_minion4] @hundred_minion_death(4);
+// All six forms, because npc_changetype_keepall swaps her type every 30 ticks and whichever one she
+// is wearing when she dies is the type the death hook resolves on.
+[ai_queue3,hundred_minion5_air] @hundred_minion_death(5);
+[ai_queue3,hundred_minion5_water] @hundred_minion_death(5);
+[ai_queue3,hundred_minion5_fire] @hundred_minion_death(5);
+[ai_queue3,hundred_minion5_earth] @hundred_minion_death(5);
+[ai_queue3,hundred_minion5_melee] @hundred_minion_death(5);
+[ai_queue3,hundred_minion5_ranged] @hundred_minion_death(5);
+[ai_queue3,hundred_culinaromancer_final] @hundred_minion_death(6);
+
+[label,hundred_minion_death](int $n)
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+queue(hundred_finale_next, 0, $n);
+
+[queue,hundred_finale_next](int $which)
+if (~hundred_has_subquest(^hundred_bit_culinaromancer) = true) {
+    return;
+}
+// Strictly in order. A stale queue from an abandoned run cannot skip anybody.
+if (%hundred_minionskilled_tally ! calc($which - 1)) {
+    return;
+}
+%hundred_minionskilled_tally = $which;
+if ($which < 5) {
+    // Order matters: ~hundred_finale_set_wizard leaves the wizard as the active npc and
+    // ~hundred_finale_spawn_minion replaces it with the minion, so the line has to go between them
+    // or the wrong thing says it.
+    ~hundred_finale_set_wizard($which);
+    npc_say("Fine. FINE.");
+    ~hundred_finale_spawn_minion(calc($which + 1));
+    return;
+}
+if ($which = 5) {
+    ~hundred_finale_clear_wizard;
+    npc_add(^hundred_arena_wizard, hundred_culinaromancer_final, ^hundred_boss_lifetime);
+    ~mesbox("The Culinaromancer looks at the five empty spaces where his books were, sighs like a man asked to do his own washing up, and takes out a cleaver.");
+    return;
+}
+~hundred_finale_finish;
+
+// --- The Gelatinnoth Mother ---
+// Six forms on a 30-tick ring. Each form's defences make its own name the only thing that hurts it;
+// see the note above [hundred_minion1] in _unpack/377/all.npc for why that is done in the config
+// rather than in the combat scripts.
+
+[ai_queue6,hundred_minion5_air] @hundred_gela_next(hundred_minion5_water);
+[ai_queue6,hundred_minion5_water] @hundred_gela_next(hundred_minion5_fire);
+[ai_queue6,hundred_minion5_fire] @hundred_gela_next(hundred_minion5_earth);
+[ai_queue6,hundred_minion5_earth] @hundred_gela_next(hundred_minion5_melee);
+[ai_queue6,hundred_minion5_melee] @hundred_gela_next(hundred_minion5_ranged);
+[ai_queue6,hundred_minion5_ranged] @hundred_gela_next(hundred_minion5_air);
+
+[label,hundred_gela_next](npc $form)
+if (npc_stat(hitpoints) = 0) {
+    return;
+}
+npc_changetype_keepall($form, ^max_32bit_int);
+npc_queue(6, 0, 30);
+
+// --- The end of the quest ---
+
+[proc,hundred_finale_finish]
+~hundred_finale_clear_wizard;
+npc_add(^hundred_arena_wizard, hundred_culinaromancer_dead, 12);
+~mesbox("The Culinaromancer swells, goes a colour no cook should ever go, and stops being anywhere at all. The tiles under your feet start to fade.");
+~hundred_award_subquest(^hundred_bit_culinaromancer);
+%hundred_main_quest_var = ^hundred_complete;
+p_delay(3);
+p_teleport(^hundred_dining_room_after);
+~mesbox("The dining hall is a dining hall again. Nine people are talking at once and the Duke is asking, loudly, what happened to his lunch.");
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, hundred_rewardlamp, 1);
+} else {
+    obj_add(coord, hundred_rewardlamp, 1, ^lootdrop_duration);
+}
+~send_quest_complete(questlist:hundred_main, hundred_rewardlamp, 250, ^hundred_questpoints, "You have completed the\\nRecipe for Disaster!", "10 Quest Points|An antique lamp|The Culinaromancer's Chest|All ten pairs of gloves");

@@ -22,9 +22,18 @@ if (~dt_melee_attack_allowed = false) {
     return;
 }
 
+// Black mask: 16.67% to accuracy and max hit against monsters on the player's current slayer
+// task, melee only. ~black_mask_on_task is in skill_slayer/scripts/black_mask.rs2.
+def_int $mask_num = 1;
+def_int $mask_div = 1;
+if (~black_mask_on_task = true) {
+    $mask_num = 7;
+    $mask_div = 6;
+}
+
 // check hit, give combat xp
 def_int $damage = 0;
-if (~player_npc_hit_roll(%damagetype) = true) {
+if (~player_npc_hit_roll_boosted(%damagetype, $mask_num, $mask_div) = true) {
     def_int $maxhit = %com_maxhit;
     if (npc_type = count_draynor & inv_total(inv, garlic) > 0) {
         $maxhit = add($maxhit, 1);
@@ -32,6 +41,9 @@ if (~player_npc_hit_roll(%damagetype) = true) {
     if (npc_param(demonbane_vulnerable) = true & inv_total(worn, silverlight) > 0) {
         $maxhit = scale(160, 100, %com_maxhit);
     }
+    // After silverlight, which assigns from %com_maxhit and would otherwise discard this, and
+    // before the blocks below that zero $maxhit outright.
+    $maxhit = scale($mask_num, $mask_div, $maxhit);
     if((npc_param(slayer_category) = ^slayer_kurask | npc_param(slayer_category) = ^slayer_turoth) & inv_total(worn, slayer_leafbladed_spear) = 0) {
         $maxhit = 0;
     }

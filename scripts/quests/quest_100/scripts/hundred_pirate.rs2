@@ -1,0 +1,350 @@
+// Recipe for Disaster, sub-quest 4 of 10: Freeing Pirate Pete.
+//
+// See the sub-quest section of configs/quest_100.constant - including the correction to two days of
+// this doc calling this one blocked. It is not. The entrance is Murphy, who already has a handler.
+//
+// The shape of it:
+//   Inspect the plinth -> Murphy in Port Khazard kits you out with the fishbowl helmet and the
+//   diving apparatus and lowers you to the seabed -> pick kelp, open the crab pen and kill crabs for
+//   meat, and take a raw cod and a loaf down with you -> grind all four -> press them into a raw
+//   fishcake -> cook it -> give it to the frozen Pete.
+
+// --- The plinth ---
+
+[oploc1,hundred_pirate_base]
+~hundred_inspect(^hundred_bit_pirate, "Pirate Pete", "He is soaking wet, which nobody else in the room is, and there is a fishcake halfway to his mouth.", 1, "A fishcake, and he was wet through before the room stopped. Whatever he had been doing, he had been doing it underwater.");
+if (%hundred_main_quest_var >= ^hundred_met_aris & %100_pirate_quest_var = ^hundred_pirate_not_started) {
+    %100_pirate_quest_var = ^hundred_pirate_told;
+}
+
+[oplocu,hundred_pirate_base]
+if (last_useitem ! hundred_pirate_fishcake) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (~hundred_has_subquest(^hundred_bit_pirate) = true) {
+    ~chatplayer("<p,neutral>He has his.");
+    return;
+}
+mes("You put the fishcake into his hand.");
+p_delay(3);
+inv_del(inv, hundred_pirate_fishcake, 1);
+%100_pirate_quest_var = ^hundred_pirate_done;
+~mesbox("The hand closes. Pirate Pete finishes his mouthful, looks around the room, and drips onto the flagstones.");
+~chatnpc_specific("Pirate Pete", hundred_pirate, "<p,happy>Arr! That's the stuff. Bit of sand in it. That's how you know it's real.");
+~hundred_award_subquest(^hundred_bit_pirate);
+
+// --- Murphy ---
+// The Fishing Trawler man at 0_41_49_44_26 in Port Khazard, and the only person in the game who goes
+// under the water on purpose. His [opnpc1] is in minigames/game_trawler/scripts/murphy.rs2 and a
+// trigger may only be declared once, so the quest branch is hooked in there and calls this.
+// Returns true if it did the talking.
+
+[proc,hundred_pirate_murphy_chat]()(boolean)
+if (%100_pirate_quest_var < ^hundred_pirate_told) {
+    return(false);
+}
+if (~hundred_has_subquest(^hundred_bit_pirate) = true) {
+    return(false);
+}
+if (%100_pirate_quest_var = ^hundred_pirate_told) {
+    ~hundred_pirate_murphy_intro;
+    return(true);
+}
+~hundred_pirate_murphy_return;
+return(true);
+
+[proc,hundred_pirate_murphy_intro]
+~chatplayer("<p,quiz>Do you know anything about the seabed out here?");
+~chatnpc("<p,happy>Do I! I've been down there more times than I've been up a mast, m'hearty.");
+~chatplayer("<p,quiz>Down there? How?");
+~chatnpc("<p,happy>Fishbowl on your head and a set of bellows on your back. Laugh all you like, it works.");
+~chatplayer("<p,quiz>Could I go down?");
+~chatnpc("<p,neutral>Aye. I'll lower you on the anchor and haul you up when you climb back to it.");
+~chatnpc("<p,neutral>Take the helmet and the apparatus. Wear both, mind - one without the other is just a daft hat.");
+~hundred_pirate_give_gear;
+%100_pirate_quest_var = ^hundred_pirate_met_murphy;
+~mesbox("Murphy hands you a fishbowl with a hole cut in it and something that used to be a set of bellows.");
+
+[proc,hundred_pirate_murphy_return]
+if (~hundred_pirate_geared = false) {
+    ~chatnpc("<p,neutral>You've lost your kit, haven't you. Land lovers.");
+    ~hundred_pirate_give_gear;
+    ~mesbox("Murphy digs out another helmet and another set of bellows.");
+    return;
+}
+~chatnpc("<p,happy>Ready to go under again?");
+def_int $choice = ~p_choice2("Yes, lower me down.", 1, "Not just now.", 2);
+if ($choice = 2) {
+    ~chatplayer("<p,neutral>Not just now.");
+    return;
+}
+~chatplayer("<p,happy>Yes, lower me down.");
+~hundred_pirate_dive;
+
+[proc,hundred_pirate_give_gear]
+if (~obj_gettotal(hundred_pirate_diving_helmet) = 0) {
+    inv_add(inv, hundred_pirate_diving_helmet, 1);
+}
+if (~obj_gettotal(hundred_pirate_diving_backpack) = 0) {
+    inv_add(inv, hundred_pirate_diving_backpack, 1);
+}
+
+// Both halves, worn. The helmet takes hat + head + jaw and the apparatus takes back, so nothing else
+// in the game competes for those four slots at once.
+[proc,hundred_pirate_geared]()(boolean)
+if (~obj_gettotal(hundred_pirate_diving_helmet) = 0) {
+    return(false);
+}
+if (~obj_gettotal(hundred_pirate_diving_backpack) = 0) {
+    return(false);
+}
+return(true);
+
+[proc,hundred_pirate_wearing]()(boolean)
+if (inv_total(worn, hundred_pirate_diving_helmet) = 0) {
+    return(false);
+}
+if (inv_total(worn, hundred_pirate_diving_backpack) = 0) {
+    return(false);
+}
+return(true);
+
+[proc,hundred_pirate_dive]
+if (~hundred_pirate_wearing = false) {
+    ~chatnpc("<p,angry>Not dressed like that you're not. Helmet on, apparatus on, then we'll talk.");
+    return;
+}
+if_close;
+mes("Murphy pays out the anchor chain.");
+p_delay(3);
+p_teleport(^hundred_pirate_seabed);
+sound_synth(watersplash, 1, 0);
+if (%hundred_pirate_first_dive = 0) {
+    %hundred_pirate_first_dive = 1;
+    ~mesbox("Everything is green and very slow. The chain runs up out of sight behind you, and something the size of a rowing boat is walking sideways in the distance.");
+}
+if (%100_pirate_quest_var < ^hundred_pirate_dived) {
+    %100_pirate_quest_var = ^hundred_pirate_dived;
+}
+
+// --- The way back up ---
+// anchor_middle, op1=Climb, at 1_46_148_19_5. The same loc is drawn again on p3 because the chain is
+// two planes tall, but only the p1 half is standing on anything.
+
+[oploc1,anchor_middle]
+mes("You climb the chain.");
+anim(human_pickupfloor, 0);
+p_delay(3);
+p_teleport(^hundred_pirate_khazard);
+~chatnpc_specific("Murphy", murphy, "<p,happy>Told you I'd haul you up.");
+
+// --- The mudskipper tunnel ---
+
+[oploc1,seabed2_cavewall_mudskipper_caveentrancel] @hundred_pirate_cave_enter;
+[oploc1,seabed2_cavewall_mudskipper_caveentrancer] @hundred_pirate_cave_enter;
+[oploc1,seabed2_cavewall_mudskipper_caveexitl] @hundred_pirate_cave_leave;
+[oploc1,seabed2_cavewall_mudskipper_caveexitr] @hundred_pirate_cave_leave;
+
+[label,hundred_pirate_cave_enter]
+mes("You squeeze through the gap in the rock.");
+p_delay(2);
+p_teleport(^hundred_pirate_cave_in);
+
+[label,hundred_pirate_cave_leave]
+mes("You squeeze back through the gap in the rock.");
+p_delay(2);
+p_teleport(^hundred_pirate_cave_out);
+
+// --- Kelp ---
+// 51 kelp_pickingpoint on p1, op1=Pick, blockwalk=no. The plants themselves (loc kelp, with
+// anim=kelp_ripple) are the p0 scenery and carry no op, which is the cache saying which of the two
+// is the one you touch.
+
+[oploc1,kelp_pickingpoint]
+if (inv_freespace(inv) = 0) {
+    ~mesbox("Your inventory is too full to pick any kelp.");
+    return;
+}
+anim(human_pickupfloor, 0);
+p_delay(1);
+inv_add(inv, hundred_pirate_kelp, 1);
+mes("You pull a handful of kelp off the rock.");
+if (%hundred_pirate_kelp_intro = 0) {
+    %hundred_pirate_kelp_intro = 1;
+    ~mesbox("Slippery, salty and about as appetising as a wet rope. Ground up, it might be another matter.");
+}
+
+// --- The Mogre Guards ---
+// Four 100_pirate_mogre_guard and one 100_pirate_mogre_nung, all outside the crab pen, all
+// op1=Talk-to and nothing else - no attack op, no combat stats, no anims. They are the signpost for
+// the pen and the reason the crab disguise exists; they are not a gate, because the cache gave them
+// no way to be one.
+
+[opnpc1,100_pirate_mogre_guard]
+if (~hundred_pirate_crabbed = true) {
+    ~chatnpc("<p,happy>Ug. Big crab. Go in pen with other crabs.");
+    ~chatplayer("<p,neutral>...right.");
+    ~hundred_pirate_guard_told;
+    return;
+}
+~chatnpc("<p,angry>You not crab.");
+~chatplayer("<p,quiz>No. What's in the pen?");
+~chatnpc("<p,neutral>Crabs in pen. Mogre eat crab. You not crab, you not business.");
+~hundred_pirate_guard_told;
+
+[opnpc1,100_pirate_mogre_nung]
+if (~hundred_has_subquest(^hundred_bit_pirate) = true) {
+    ~chatnpc("<p,happy>Nung remember you. You crab that talk.");
+    return;
+}
+if (~hundred_pirate_crabbed = false) {
+    ~chatnpc("<p,angry>Nung not talk to land thing. Nung talk to crab.");
+    ~hundred_pirate_guard_told;
+    return;
+}
+~chatnpc("<p,happy>Nung never see crab so tall.");
+~chatplayer("<p,neutral>I've been eating well.");
+~chatnpc("<p,happy>Good. Nung eat you later. Take what you want from pen first, is polite.");
+~chatplayer("<p,neutral>Thank you, Nung.");
+~hundred_pirate_guard_told;
+
+[proc,hundred_pirate_guard_told]
+if (%hundred_pirate_spoken_to_guards = 0) {
+    %hundred_pirate_spoken_to_guards = 1;
+}
+
+[proc,hundred_pirate_crabbed]()(boolean)
+if (inv_total(worn, hundred_pirate_crab_shell_helm) = 0) {
+    return(false);
+}
+if (inv_total(worn, hundred_pirate_crab_shell_gauntlet) = 0) {
+    return(false);
+}
+return(true);
+
+// --- Shaping the disguise ---
+// A fresh claw or a fresh shell, worked against one of the rocks lying on the floor. crab_claw_broken
+// and crab_shell_broken ship for the times it does not come off.
+
+[opheldu,hundred_pirate_rock]
+switch_obj (last_useitem) {
+    case hundred_pirate_crab_shell_claw :
+        @hundred_pirate_shape(hundred_pirate_crab_shell_claw, hundred_pirate_crab_shell_gauntlet, crab_claw_broken, "claw");
+    case hundred_pirate_crab_shell_head :
+        @hundred_pirate_shape(hundred_pirate_crab_shell_head, hundred_pirate_crab_shell_helm, crab_shell_broken, "shell");
+    case default : ~displaymessage(^dm_default);
+}
+
+[label,hundred_pirate_shape](namedobj $from, namedobj $into, namedobj $broken, string $what)
+anim(human_pickupfloor, 0);
+p_delay(2);
+inv_del(inv, $from, 1);
+if (random(3) = 0) {
+    inv_add(inv, $broken, 1);
+    mes(append(append("The ", $what), " cracks straight across."));
+    return;
+}
+inv_add(inv, $into, 1);
+mes(append(append("You work the ", $what), " against the rock until it fits."));
+
+// --- The pen ---
+// pen_wall_doorl / _doorr at (30,42) and (31,42) are an ordinary double door and the cache shipped
+// the open halves already; configs/100.loc gives all four the categories the rest of the game's
+// doors use, so doors/scripts/doors.rs2 handles them and nothing is needed here.
+
+// --- Grinding ---
+// Called from [opheldu,pestle_and_mortar] in quests/quest_deserttreasure/scripts/dt_blood.rs2, which
+// is where that trigger lives. Returns true if it ground something.
+
+// Bread already owns an [opheldu] in hundred_goblins.rs2, and [opheldu] runs the first half that
+// carries a trigger rather than trying both - so the grind has to be reachable from that side too.
+// This is the shared entry: it checks the tool, then hands over.
+[proc,hundred_pirate_grind_from](obj $tool, obj $item)(boolean)
+if ($tool ! pestle_and_mortar) {
+    return(false);
+}
+if (~hundred_pirate_grind($item) = true) {
+    return(true);
+}
+return(false);
+
+[proc,hundred_pirate_grind](obj $item)(boolean)
+switch_obj ($item) {
+    case hundred_pirate_kelp :
+        ~hundred_pirate_grind_one(hundred_pirate_kelp, hundred_pirate_ground_kelp, "kelp");
+        return(true);
+    case hundred_pirate_giant_crab_meat :
+        ~hundred_pirate_grind_one(hundred_pirate_giant_crab_meat, hundred_pirate_ground_giant_crab_meat, "crab meat");
+        if (%hundred_pirate_meat_intro = 0) {
+            %hundred_pirate_meat_intro = 1;
+            ~mesbox("It comes apart into a grey paste that smells like the bottom of a boat. Pete would probably call that a good sign.");
+        }
+        return(true);
+    case raw_cod :
+        ~hundred_pirate_grind_one(raw_cod, hundred_pirate_ground_cod, "cod");
+        if (%hundred_pirate_cod_intro = 0) {
+            %hundred_pirate_cod_intro = 1;
+            ~mesbox("Bones and all. Nobody said this was going to be a delicate dish.");
+        }
+        return(true);
+    case bread :
+        ~hundred_pirate_grind_one(bread, hundred_pirate_breadcrumbs, "bread");
+        if (%hundred_pirate_crumb_intro = 0) {
+            %hundred_pirate_crumb_intro = 1;
+            ~mesbox("Breadcrumbs. Something has to hold the rest of it together.");
+        }
+        return(true);
+}
+return(false);
+
+[proc,hundred_pirate_grind_one](obj $from, namedobj $into, string $what)
+inv_del(inv, $from, 1);
+inv_add(inv, $into, 1);
+mes(append(append("You grind the ", $what), " into the mortar."));
+
+// --- The fishcake ---
+// Four parts, and rather than four triggers all doing the same check the handler goes on the
+// breadcrumbs and looks for the other three. [opheldu] resolves whichever half carries a trigger, so
+// this fires no matter which way round the player clicks.
+
+[opheldu,hundred_pirate_breadcrumbs]
+switch_obj (last_useitem) {
+    case hundred_pirate_ground_kelp, hundred_pirate_ground_giant_crab_meat, hundred_pirate_ground_cod :
+        @hundred_pirate_press;
+    case default : ~displaymessage(^dm_default);
+}
+
+[label,hundred_pirate_press]
+if (inv_total(inv, hundred_pirate_ground_kelp) = 0 | inv_total(inv, hundred_pirate_ground_giant_crab_meat) = 0 | inv_total(inv, hundred_pirate_ground_cod) = 0) {
+    ~mesbox("A fishcake wants ground kelp, ground crab meat, ground cod and breadcrumbs, and it wants all four at once.");
+    return;
+}
+inv_del(inv, hundred_pirate_ground_kelp, 1);
+inv_del(inv, hundred_pirate_ground_giant_crab_meat, 1);
+inv_del(inv, hundred_pirate_ground_cod, 1);
+inv_del(inv, hundred_pirate_breadcrumbs, 1);
+inv_add(inv, hundred_pirate_raw_fishcake, 1);
+anim(human_pickupfloor, 0);
+p_delay(2);
+mes("You press the four of them together into a cake.");
+
+// --- Journal ---
+
+[proc,hundred_pirate_journal]()(string)
+def_string $x;
+switch_int (%100_pirate_quest_var) {
+    case ^hundred_pirate_not_started :
+        $x = append($x, "@dbl@I should @dre@inspect Pirate Pete@dbl@ and see what he was eating.");
+    case ^hundred_pirate_told :
+        $x = append($x, "@dbl@A @dre@fishcake@dbl@, and he was soaking wet. Somebody in @dre@Port Khazard|");
+        $x = append($x, "@dbl@must know how to get under the water.");
+    case ^hundred_pirate_met_murphy :
+        $x = append($x, "@dbl@@dre@Murphy@dbl@ will lower me to the seabed if I @dre@wear the fishbowl|");
+        $x = append($x, "@dbl@helmet and the diving apparatus@dbl@ at the same time.");
+    case default :
+        $x = append($x, "@dbl@@dre@Ground kelp@dbl@, @dre@ground crab meat@dbl@, @dre@ground cod@dbl@ and @dre@breadcrumbs@dbl@,|");
+        $x = append($x, "@dbl@all four pressed together and cooked. The kelp and the crabs are|");
+        $x = append($x, "@dbl@on the @dre@seabed@dbl@; the cod and the loaf I take down with me.");
+}
+return($x);

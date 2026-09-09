@@ -19675,6 +19675,10 @@ resizeh=30
 resizev=40
 param=death_anim,cat_death
 
+// FIXED 2026-09-09 (Recipe for Disaster pass 8): op5=Chase-vermin was missing from all eighteen pet
+// cats. [opnpc5,_petcat] in quests/quest_fluffs/scripts/pet.rs2 has always been there and has always
+// been unreachable - no cat in the game declared a fifth option, so the whole vermin-hunting half of
+// the pet system was dead. Freeing Evil Dave is built on it, so it is turned on here for every cat.
 [kittenpet1]
 name=Kitten
 desc=A friendly little pet.
@@ -19694,6 +19698,7 @@ param=death_anim,cat_death
 category=petcat
 param=pet_item_id,kittenobject
 param=cat_next_id,growncat
+op5=Chase-vermin
 
 [kittenpet_light]
 name=Kitten
@@ -19720,6 +19725,7 @@ param=death_anim,cat_death
 category=petcat
 param=pet_item_id,kittenobject_light
 param=cat_next_id,growncat_light
+op5=Chase-vermin
 
 [kittenpet_brown]
 name=Kitten
@@ -19746,6 +19752,7 @@ param=death_anim,cat_death
 category=petcat
 param=pet_item_id,kittenobject_brown
 param=cat_next_id,growncat_brown
+op5=Chase-vermin
 
 [kittenpet_black]
 name=Kitten
@@ -19772,6 +19779,7 @@ param=death_anim,cat_death
 category=petcat
 param=pet_item_id,kittenobject_black
 param=cat_next_id,growncat_black
+op5=Chase-vermin
 
 [kittenpet_browngrey]
 name=Kitten
@@ -19796,6 +19804,7 @@ param=death_anim,cat_death
 category=petcat
 param=pet_item_id,kittenobject_browngrey
 param=cat_next_id,growncat_browngrey
+op5=Chase-vermin
 
 [kittenpet_bluegrey]
 name=Kitten
@@ -19820,6 +19829,7 @@ param=death_anim,cat_death
 category=petcat
 param=pet_item_id,kittenobject_bluegrey
 param=cat_next_id,growncat_bluegrey
+op5=Chase-vermin
 
 [kittens_mew]
 name=Crate
@@ -19849,6 +19859,7 @@ param=death_anim,cat_death
 category=petcat
 param=pet_item_id,growncatobject
 param=cat_next_id,overgrowncat
+op5=Chase-vermin
 
 [growncat_light]
 name=Cat
@@ -19874,6 +19885,7 @@ param=death_anim,cat_death
 category=petcat
 param=pet_item_id,growncatobject_light
 param=cat_next_id,overgrowncat_light
+op5=Chase-vermin
 
 [growncat_brown]
 name=Cat
@@ -19899,6 +19911,7 @@ param=death_anim,cat_death
 category=petcat
 param=pet_item_id,growncatobject_brown
 param=cat_next_id,overgrowncat_brown
+op5=Chase-vermin
 
 [growncat_black]
 name=Cat
@@ -19924,6 +19937,7 @@ param=death_anim,cat_death
 category=petcat
 param=pet_item_id,growncatobject_black
 param=cat_next_id,overgrowncat_black
+op5=Chase-vermin
 
 [growncat_browngrey]
 name=Cat
@@ -19947,6 +19961,7 @@ param=death_anim,cat_death
 category=petcat
 param=pet_item_id,growncatobject_browngrey
 param=cat_next_id,overgrowncat_browngrey
+op5=Chase-vermin
 
 [growncat_bluegrey]
 name=Cat
@@ -19970,6 +19985,7 @@ param=death_anim,cat_death
 category=petcat
 param=pet_item_id,growncatobject_bluegrey
 param=cat_next_id,overgrowncat_bluegrey
+op5=Chase-vermin
 
 [overgrowncat]
 name=Overgrown cat
@@ -19988,6 +20004,7 @@ head1=npc_overgrowncat_head
 param=death_anim,cat_death
 category=petcat
 param=pet_item_id,overgrowncatobject
+op5=Chase-vermin
 
 [overgrowncat_light]
 name=Overgrown cat
@@ -20012,6 +20029,7 @@ head1=npc_overgrowncat_head
 param=death_anim,cat_death
 category=petcat
 param=pet_item_id,overgrowncatobject_light
+op5=Chase-vermin
 
 [overgrowncat_brown]
 name=Overgrown cat
@@ -20036,6 +20054,7 @@ head1=npc_overgrowncat_head
 param=death_anim,cat_death
 category=petcat
 param=pet_item_id,overgrowncatobject_brown
+op5=Chase-vermin
 
 [overgrowncat_black]
 name=Overgrown cat
@@ -20060,6 +20079,7 @@ head1=npc_overgrowncat_head
 param=death_anim,cat_death
 category=petcat
 param=pet_item_id,overgrowncatobject_black
+op5=Chase-vermin
 
 [overgrowncat_browngrey]
 name=Overgrown cat
@@ -20082,6 +20102,7 @@ head1=npc_overgrowncat_head
 param=death_anim,cat_death
 category=petcat
 param=pet_item_id,overgrowncatobject_browngrey
+op5=Chase-vermin
 
 [overgrowncat_bluegrey]
 name=Overgrown cat
@@ -20104,6 +20125,7 @@ head1=npc_overgrowncat_head
 param=death_anim,cat_death
 category=petcat
 param=pet_item_id,overgrowncatobject_bluegrey
+op5=Chase-vermin
 
 [gertrude]
 name=Gertrude
@@ -73775,6 +73797,12 @@ readyanim=mouse_ready
 walkanim=mouse_walk
 minimap=no
 vislevel=hide
+// FIXED 2026-09-09 (Recipe for Disaster pass 8): no wanderrange, no maxrange and no respawnrate, so
+// the eighteen hell-rats in Evil Dave's cellar stood still and, once a cat had caught them, never
+// came back. The spice only comes from hunting them, so an empty cellar ends the sub-quest.
+wanderrange=5
+maxrange=8
+respawnrate=25
 
 // FIXED 2026-09-09 (Recipe for Disaster pass 1): the cache listed states 3 and 4 only. State 3 is
 // set BY talking to her, so at state 2 - standing in the frozen room with nine statues and nobody
@@ -75878,6 +75906,28 @@ head1=obj_chefs_hat_manhead
 head2=obj_pickpocket_guide_man
 head3=npc_master_fisher_head
 head4=npc_1901_headi2
+hitpoints=120
+attack=70
+strength=70
+defence=70
+magic=1
+ranged=1
+maxrange=24
+huntrange=14
+huntmode=aggressive_melee
+param=attackrate,5
+param=attackbonus,65
+param=strengthbonus,65
+param=stabdefence,20
+param=slashdefence,20
+param=crushdefence,20
+param=magicdefence,20
+param=rangedefence,20
+param=damagetype,^slash_style
+param=attack_anim,human_dhsword_chop
+param=defend_anim,human_dhsword_def
+param=death_anim,human_death
+param=attack_sound,2H_slash
 
 [hundred_culinaromancer_dead]
 name=Culinaromancer
@@ -75912,6 +75962,19 @@ head2=obj_pickpocket_guide_man
 head3=npc_master_fisher_head
 head4=npc_1901_headi2
 
+// FIXED 2026-09-09 (Recipe for Disaster pass 10): all six of the Culinaromancer's bosses - the five
+// minions in ten npc blocks and hundred_culinaromancer_final - shipped with op2=Attack, a vislevel
+// and NOTHING ELSE. No hitpoints, no attack, no strength, no defence, no damagetype, no anims. Every
+// one of them was unkillable, which is the same defect 100_jubbly_bird had in pass 5, eleven times
+// over. Anims were not the problem: agrith_nana_*, rock_*, dessourt_* and horror_dagannoth_* all ship
+// complete attack / block / death sets.
+//
+// The Gelatinnoth Mother's six forms are the one place the numbers carry a mechanic. The cache names
+// them air / water / fire / earth / melee / ranged, which is the original saying "hit it with the
+// matching thing" - so each form is given a defence of 5 against its own style and 1000 against
+// everything else. black_knight_titan already uses 1000 that way, so this is the repo's own idiom
+// rather than an invention. SIMPLIFICATION, recorded honestly: the engine's defence params separate
+// melee, ranged and magic and nothing finer, so the four elemental forms are all "hit it with magic".
 [hundred_minion1]
 name=Agrith-Na-Na
 desc=Big, scary, angry and a good source of energy.
@@ -75921,6 +75984,27 @@ walkanim=agrith_nana_walk
 readyanim=agrith_nana_ready
 op2=Attack
 vislevel=146
+hitpoints=130
+attack=100
+strength=110
+defence=95
+magic=1
+ranged=1
+maxrange=24
+huntrange=14
+huntmode=aggressive_melee
+param=attackrate,5
+param=attackbonus,90
+param=strengthbonus,95
+param=stabdefence,30
+param=slashdefence,30
+param=crushdefence,30
+param=magicdefence,20
+param=rangedefence,20
+param=damagetype,^crush_style
+param=attack_anim,agrith_nana_attack
+param=defend_anim,agrith_nana_block
+param=death_anim,agrith_nana_death
 
 [hundred_minion2]
 name=Flambeed
@@ -75935,6 +76019,27 @@ walkanim=rock_walk
 readyanim=rock_ready
 op2=Attack
 vislevel=149
+hitpoints=140
+attack=105
+strength=115
+defence=100
+magic=1
+ranged=1
+maxrange=24
+huntrange=14
+huntmode=aggressive_melee
+param=attackrate,6
+param=attackbonus,95
+param=strengthbonus,100
+param=stabdefence,35
+param=slashdefence,35
+param=crushdefence,35
+param=magicdefence,60
+param=rangedefence,25
+param=damagetype,^crush_style
+param=attack_anim,rock_attack
+param=defend_anim,rock_parry
+param=death_anim,rock_death
 
 [hundred_minion3]
 name=Karamel
@@ -75947,6 +76052,25 @@ ambient=50
 contrast=50
 alwaysontop=yes
 vislevel=136
+hitpoints=120
+attack=95
+strength=95
+defence=105
+magic=1
+ranged=1
+maxrange=24
+huntrange=14
+huntmode=aggressive_melee
+param=attackrate,5
+param=attackbonus,85
+param=strengthbonus,85
+param=stabdefence,40
+param=slashdefence,40
+param=crushdefence,25
+param=magicdefence,25
+param=rangedefence,40
+param=damagetype,^crush_style
+param=death_anim,human_death
 
 [hundred_minion4]
 name=Dessourt
@@ -75956,6 +76080,27 @@ walkanim=dessourt_walk
 readyanim=dessourt_ready
 op2=Attack
 vislevel=121
+hitpoints=105
+attack=85
+strength=85
+defence=85
+magic=1
+ranged=1
+maxrange=24
+huntrange=14
+huntmode=aggressive_melee
+param=attackrate,5
+param=attackbonus,75
+param=strengthbonus,75
+param=stabdefence,25
+param=slashdefence,25
+param=crushdefence,25
+param=magicdefence,25
+param=rangedefence,25
+param=damagetype,^crush_style
+param=attack_anim,dessourt_melee_attack
+param=defend_anim,dessourt_block
+param=death_anim,dessourt_death
 
 [hundred_minion5_air]
 name=Gelatinnoth Mother
@@ -75968,6 +76113,27 @@ walkanim=horror_dagannoth_walk
 readyanim=horror_dagannoth_ready
 op2=Attack
 vislevel=130
+hitpoints=190
+attack=90
+strength=90
+defence=80
+magic=1
+ranged=1
+maxrange=24
+huntrange=14
+huntmode=aggressive_melee
+param=attackrate,5
+param=attackbonus,80
+param=strengthbonus,80
+param=damagetype,^crush_style
+param=attack_anim,horror_dagannoth_attack
+param=defend_anim,horror_dagannoth_defend
+param=death_anim,horror_dagannoth_death
+param=stabdefence,1000
+param=slashdefence,1000
+param=crushdefence,1000
+param=magicdefence,5
+param=rangedefence,1000
 
 [hundred_minion5_melee]
 name=Gelatinnoth Mother
@@ -75980,6 +76146,27 @@ walkanim=horror_dagannoth_walk
 readyanim=horror_dagannoth_ready
 op2=Attack
 vislevel=130
+hitpoints=190
+attack=90
+strength=90
+defence=80
+magic=1
+ranged=1
+maxrange=24
+huntrange=14
+huntmode=aggressive_melee
+param=attackrate,5
+param=attackbonus,80
+param=strengthbonus,80
+param=damagetype,^crush_style
+param=attack_anim,horror_dagannoth_attack
+param=defend_anim,horror_dagannoth_defend
+param=death_anim,horror_dagannoth_death
+param=stabdefence,5
+param=slashdefence,5
+param=crushdefence,5
+param=magicdefence,1000
+param=rangedefence,1000
 
 [hundred_minion5_water]
 name=Gelatinnoth Mother
@@ -75992,6 +76179,27 @@ walkanim=horror_dagannoth_walk
 readyanim=horror_dagannoth_ready
 op2=Attack
 vislevel=130
+hitpoints=190
+attack=90
+strength=90
+defence=80
+magic=1
+ranged=1
+maxrange=24
+huntrange=14
+huntmode=aggressive_melee
+param=attackrate,5
+param=attackbonus,80
+param=strengthbonus,80
+param=damagetype,^crush_style
+param=attack_anim,horror_dagannoth_attack
+param=defend_anim,horror_dagannoth_defend
+param=death_anim,horror_dagannoth_death
+param=stabdefence,1000
+param=slashdefence,1000
+param=crushdefence,1000
+param=magicdefence,5
+param=rangedefence,1000
 
 [hundred_minion5_fire]
 name=Gelatinnoth Mother
@@ -76002,6 +76210,27 @@ walkanim=horror_dagannoth_walk
 readyanim=horror_dagannoth_ready
 op2=Attack
 vislevel=130
+hitpoints=190
+attack=90
+strength=90
+defence=80
+magic=1
+ranged=1
+maxrange=24
+huntrange=14
+huntmode=aggressive_melee
+param=attackrate,5
+param=attackbonus,80
+param=strengthbonus,80
+param=damagetype,^crush_style
+param=attack_anim,horror_dagannoth_attack
+param=defend_anim,horror_dagannoth_defend
+param=death_anim,horror_dagannoth_death
+param=stabdefence,1000
+param=slashdefence,1000
+param=crushdefence,1000
+param=magicdefence,5
+param=rangedefence,1000
 
 [hundred_minion5_ranged]
 name=Gelatinnoth Mother
@@ -76014,6 +76243,27 @@ walkanim=horror_dagannoth_walk
 readyanim=horror_dagannoth_ready
 op2=Attack
 vislevel=130
+hitpoints=190
+attack=90
+strength=90
+defence=80
+magic=1
+ranged=1
+maxrange=24
+huntrange=14
+huntmode=aggressive_melee
+param=attackrate,5
+param=attackbonus,80
+param=strengthbonus,80
+param=damagetype,^crush_style
+param=attack_anim,horror_dagannoth_attack
+param=defend_anim,horror_dagannoth_defend
+param=death_anim,horror_dagannoth_death
+param=stabdefence,1000
+param=slashdefence,1000
+param=crushdefence,1000
+param=magicdefence,1000
+param=rangedefence,5
 
 [hundred_minion5_earth]
 name=Gelatinnoth Mother
@@ -76026,7 +76276,32 @@ walkanim=horror_dagannoth_walk
 readyanim=horror_dagannoth_ready
 op2=Attack
 vislevel=130
+hitpoints=190
+attack=90
+strength=90
+defence=80
+magic=1
+ranged=1
+maxrange=24
+huntrange=14
+huntmode=aggressive_melee
+param=attackrate,5
+param=attackbonus,80
+param=strengthbonus,80
+param=damagetype,^crush_style
+param=attack_anim,horror_dagannoth_attack
+param=defend_anim,horror_dagannoth_defend
+param=death_anim,horror_dagannoth_death
+param=stabdefence,1000
+param=slashdefence,1000
+param=crushdefence,1000
+param=magicdefence,5
+param=rangedefence,1000
 
+// FIXED 2026-09-09 (Recipe for Disaster pass 8): the three hell-cat npcs and their three objs shipped
+// as models and nothing else - no category, no pet_item_id, no cat_next_id, no follower_id - so the
+// pet system could not see them and a cat could not become one. They are the form an ordinary cat
+// takes in Evil Dave's cellar; without these lines the sub-quest has no way to get spice.
 [overgrowncat_hell]
 name=Overgrown hellcat
 desc=A hellish not-so little pet.
@@ -76044,6 +76319,10 @@ resizeh=80
 resizev=65
 ambient=40
 head1=npc_3503_head
+op5=Chase-vermin
+param=death_anim,cat_death
+category=petcat
+param=pet_item_id,overgrowncatobject_hell
 
 [growncat_hell]
 name=Hellcat
@@ -76062,6 +76341,11 @@ resizeh=60
 resizev=60
 ambient=40
 head1=npc_3503_head
+op5=Chase-vermin
+param=death_anim,cat_death
+category=petcat
+param=pet_item_id,growncatobject_hell
+param=cat_next_id,overgrowncat_hell
 
 [kittenpet_hell]
 name=Kitten
@@ -76082,6 +76366,11 @@ op2=Hidden
 op3=Talk-to
 op4=Interact-with
 head1=npc_3505_head
+op5=Chase-vermin
+param=death_anim,cat_death
+category=petcat
+param=pet_item_id,kittenobject_hell
+param=cat_next_id,growncat_hell
 
 [lazycat_hell]
 name=Lazy HellCat

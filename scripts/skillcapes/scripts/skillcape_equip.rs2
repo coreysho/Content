@@ -1,0 +1,69 @@
+// Skill cape equip gates.
+//
+// The level check passes the ALREADY-EVALUATED stat as an int rather than taking a 'stat'
+// parameter. 'stat' is a real type in engine.rs2 command signatures, but no script in this repo
+// passes one as a proc/label argument, so it is unproven here - whereas stat_base(attack) as an
+// int argument is ordinary and cannot surprise the compiler.
+//
+// Hoods are cosmetic and ungated, matching the live game.
+
+[label,skillcape_require](int $level, string $skill, int $slot)
+if ($level < 99) {
+    mes("You need level 99 <$skill> to wear this cape.");
+    return;
+}
+~equip($slot);
+
+// Construction, Hunter and quest points do not exist on this server yet, so their capes are
+// imported but cannot be worn. Replace these with a real skillcape_require call when the
+// underlying skill or counter lands.
+[label,skillcape_unavailable](string $what)
+mes("<$what> is not available on this server yet, so this cape cannot be worn.");
+
+[opheld2,attack_cape] @skillcape_require(stat_base(attack), "Attack", last_slot);
+[opheld2,attack_cape_t] @skillcape_require(stat_base(attack), "Attack", last_slot);
+[opheld2,strength_cape] @skillcape_require(stat_base(strength), "Strength", last_slot);
+[opheld2,strength_cape_t] @skillcape_require(stat_base(strength), "Strength", last_slot);
+[opheld2,defence_cape] @skillcape_require(stat_base(defence), "Defence", last_slot);
+[opheld2,defence_cape_t] @skillcape_require(stat_base(defence), "Defence", last_slot);
+[opheld2,ranging_cape] @skillcape_require(stat_base(ranged), "Ranged", last_slot);
+[opheld2,ranging_cape_t] @skillcape_require(stat_base(ranged), "Ranged", last_slot);
+[opheld2,prayer_cape] @skillcape_require(stat_base(prayer), "Prayer", last_slot);
+[opheld2,prayer_cape_t] @skillcape_require(stat_base(prayer), "Prayer", last_slot);
+[opheld2,magic_cape] @skillcape_require(stat_base(magic), "Magic", last_slot);
+[opheld2,magic_cape_t] @skillcape_require(stat_base(magic), "Magic", last_slot);
+[opheld2,runecraft_cape] @skillcape_require(stat_base(runecraft), "Runecraft", last_slot);
+[opheld2,runecraft_cape_t] @skillcape_require(stat_base(runecraft), "Runecraft", last_slot);
+[opheld2,hitpoints_cape] @skillcape_require(stat_base(hitpoints), "Hitpoints", last_slot);
+[opheld2,hitpoints_cape_t] @skillcape_require(stat_base(hitpoints), "Hitpoints", last_slot);
+[opheld2,agility_cape] @skillcape_require(stat_base(agility), "Agility", last_slot);
+[opheld2,agility_cape_t] @skillcape_require(stat_base(agility), "Agility", last_slot);
+[opheld2,herblore_cape] @skillcape_require(stat_base(herblore), "Herblore", last_slot);
+[opheld2,herblore_cape_t] @skillcape_require(stat_base(herblore), "Herblore", last_slot);
+[opheld2,thieving_cape] @skillcape_require(stat_base(thieving), "Thieving", last_slot);
+[opheld2,thieving_cape_t] @skillcape_require(stat_base(thieving), "Thieving", last_slot);
+[opheld2,crafting_cape] @skillcape_require(stat_base(crafting), "Crafting", last_slot);
+[opheld2,crafting_cape_t] @skillcape_require(stat_base(crafting), "Crafting", last_slot);
+[opheld2,fletching_cape] @skillcape_require(stat_base(fletching), "Fletching", last_slot);
+[opheld2,fletching_cape_t] @skillcape_require(stat_base(fletching), "Fletching", last_slot);
+[opheld2,slayer_cape] @skillcape_require(stat_base(slayer), "Slayer", last_slot);
+[opheld2,slayer_cape_t] @skillcape_require(stat_base(slayer), "Slayer", last_slot);
+[opheld2,construction_cape] @skillcape_unavailable("Construction");
+[opheld2,construction_cape_t] @skillcape_unavailable("Construction");
+[opheld2,mining_cape] @skillcape_require(stat_base(mining), "Mining", last_slot);
+[opheld2,mining_cape_t] @skillcape_require(stat_base(mining), "Mining", last_slot);
+[opheld2,smithing_cape] @skillcape_require(stat_base(smithing), "Smithing", last_slot);
+[opheld2,smithing_cape_t] @skillcape_require(stat_base(smithing), "Smithing", last_slot);
+[opheld2,fishing_cape] @skillcape_require(stat_base(fishing), "Fishing", last_slot);
+[opheld2,fishing_cape_t] @skillcape_require(stat_base(fishing), "Fishing", last_slot);
+[opheld2,cooking_cape] @skillcape_require(stat_base(cooking), "Cooking", last_slot);
+[opheld2,cooking_cape_t] @skillcape_require(stat_base(cooking), "Cooking", last_slot);
+[opheld2,firemaking_cape] @skillcape_require(stat_base(firemaking), "Firemaking", last_slot);
+[opheld2,firemaking_cape_t] @skillcape_require(stat_base(firemaking), "Firemaking", last_slot);
+[opheld2,woodcutting_cape] @skillcape_require(stat_base(woodcutting), "Woodcutting", last_slot);
+[opheld2,woodcutting_cape_t] @skillcape_require(stat_base(woodcutting), "Woodcutting", last_slot);
+[opheld2,farming_cape] @skillcape_require(stat_base(farming), "Farming", last_slot);
+[opheld2,farming_cape_t] @skillcape_require(stat_base(farming), "Farming", last_slot);
+[opheld2,hunter_cape] @skillcape_unavailable("Hunter");
+[opheld2,hunter_cape_t] @skillcape_unavailable("Hunter");
+[opheld2,quest_point_cape] @skillcape_unavailable("A quest point total");
