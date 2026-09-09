@@ -75,7 +75,12 @@ if ($n = 5) {
 // The wizard shell for a given number of minions already killed. He is scenery - vislevel=hide, no
 // ops, no stats - so he is deleted and re-added rather than changed, which keeps the swap honest
 // whatever state the old one was in.
-[proc,hundred_finale_set_wizard](int $killed)
+// Takes the line to say rather than leaving the caller to say it. npc_add sets active_npc, but
+// that pointer effect does NOT survive the return to the caller, and the case default path below
+// never calls npc_add at all - so a caller doing ~hundred_finale_set_wizard() then npc_say() fails
+// to compile with "Attempt to access uninitialized pointer [ 'active_npc' ]". Saying it here, after
+// npc_add, is the only place the pointer is provably held.
+[proc,hundred_finale_set_wizard](int $killed, string $say)
 ~hundred_finale_clear_wizard;
 def_npc $form;
 switch_int ($killed) {
@@ -87,6 +92,7 @@ switch_int ($killed) {
     case default : return;
 }
 npc_add(^hundred_arena_wizard, $form, ^hundred_boss_lifetime);
+npc_say($say);
 
 [proc,hundred_finale_clear_wizard]
 if (npc_findexact(^hundred_arena_wizard, hundred_culinaromancer_book5) = true) {
@@ -146,11 +152,9 @@ if (%hundred_minionskilled_tally ! calc($which - 1)) {
 }
 %hundred_minionskilled_tally = $which;
 if ($which < 5) {
-    // Order matters: ~hundred_finale_set_wizard leaves the wizard as the active npc and
-    // ~hundred_finale_spawn_minion replaces it with the minion, so the line has to go between them
-    // or the wrong thing says it.
-    ~hundred_finale_set_wizard($which);
-    npc_say("Fine. FINE.");
+    // Order matters: the line has to be said by the wizard before ~hundred_finale_spawn_minion
+    // replaces the active npc with the minion, so it is passed into set_wizard rather than said here.
+    ~hundred_finale_set_wizard($which, "Fine. FINE.");
     ~hundred_finale_spawn_minion(calc($which + 1));
     return;
 }

@@ -176,19 +176,22 @@ if (last_useitem ! pestle_and_mortar) {
 @dt_grind_garlic;
 
 [opheldu,pestle_and_mortar]
+// ~hundred_pirate_grind_one does inv_del/inv_add, which CORRUPTS last_useitem - the compiler
+// rejects any read of it after the grind call. Capture it first and compare the local.
+def_obj $used = last_useitem;
 // Recipe for Disaster, Freeing King Awowogei, grinds Tchiki nuts with the same pestle.
 // @hundred_grind_nuts is in quest_100/scripts/hundred_monkey.rs2; wired in here because this
 // trigger may only be declared once.
-if (last_useitem = hundred_ilm_tchiki_monkey_nuts) {
+if ($used = hundred_ilm_tchiki_monkey_nuts) {
     @hundred_grind_nuts;
 }
 // Recipe for Disaster, Freeing Pirate Pete, grinds four things with the same pestle - kelp, crab
 // meat, cod and bread. ~hundred_pirate_grind is in quest_100/scripts/hundred_pirate.rs2 and returns
 // true if it recognised the item.
-if (~hundred_pirate_grind(last_useitem) = true) {
+if (~hundred_pirate_grind($used) = true) {
     return;
 }
-if (last_useitem ! garlic) {
+if ($used ! garlic) {
     ~displaymessage(^dm_default);
     return;
 }

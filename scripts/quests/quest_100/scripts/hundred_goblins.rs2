@@ -90,10 +90,13 @@ return;
 // single-item check: [opheldu] runs the FIRST half that carries a trigger, so bread-then-pestle would
 // have landed here and been refused. ~hundred_pirate_grind is in hundred_pirate.rs2.
 [opheldu,bread]
-if (~hundred_pirate_grind_from(last_useitem, bread) = true) {
+// ~hundred_pirate_grind_one does inv_del/inv_add, which CORRUPTS last_useitem - the compiler
+// rejects any read of it after the grind call. Capture it first and compare the local.
+def_obj $used = last_useitem;
+if (~hundred_pirate_grind_from($used, bread) = true) {
     return;
 }
-if (last_useitem ! bucket_water) {
+if ($used ! bucket_water) {
     ~displaymessage(^dm_default);
     return;
 }
