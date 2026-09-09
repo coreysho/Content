@@ -11,9 +11,9 @@
 [proc,mourning_elena_chat]
 switch_int (%mourning_quest) {
     case ^mourning_met_gnome :
-        @mourning_elena_sieve;
+        ~mourning_elena_sieve;
     case ^mourning_dyed_sheep :
-        @mourning_elena_sheep;
+        ~mourning_elena_sheep;
     case ^mourning_told_elena :
         ~chatnpc("<p,neutral>I have written it all down and I have signed it. Go and tell your elf that Ardougne has a physician's word there is no plague in those animals.");
     case ^mourning_has_sieve, ^mourning_has_toxin, ^mourning_poisoned_food, ^mourning_has_keys, ^mourning_freed_gnome, ^mourning_has_gun :
@@ -24,7 +24,9 @@ switch_int (%mourning_quest) {
         ~chatnpc("<p,happy>Hello. Try not to bring me anything else in a barrel.");
 }
 
-[label,mourning_elena_sieve]
+// Procs, not labels: mourning_elena_chat is itself a proc, and "Unable to jump to labels from
+// within a proc" - @ is only legal from a trigger.
+[proc,mourning_elena_sieve]
 ~chatplayer("<p,quiz>This is going to sound strange. Do you have a sieve?");
 ~chatnpc("<p,quiz>I have four. Which is the strange part - the sieve, or that you came to Ardougne for one?");
 ~chatplayer("<p,neutral>I need to strain something very fine, and I need it to come out clean.");
@@ -41,7 +43,7 @@ inv_add(inv, mourning_sieve, 1);
 ~send_quest_progress(questlist:mourning, 6, ^mourning_complete);
 ~chatnpc("<p,neutral>Rotten apples grow in the orchard outside the west wall, and there is a press standing in it. Bring the sieve back when you are done. I do use it.");
 
-[label,mourning_elena_sheep]
+[proc,mourning_elena_sheep]
 ~chatplayer("<p,happy>Elena. Come and look at the sheep.");
 ~chatnpc("<p,quiz>Which sheep?");
 ~chatplayer("<p,neutral>The plague sheep. The ones they cull in front of a crowd whenever this city gets loud.");
