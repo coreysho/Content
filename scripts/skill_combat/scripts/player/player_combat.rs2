@@ -36,18 +36,6 @@ if (randominc($attack_roll) > randominc($defence_roll)) {
 }
 return(false);
 
-// As ~player_npc_hit_roll, but scales the player's attack roll by $numerator/$divisor first.
-// Pass 1, 1 for no change. Added for the black mask / slayer helmet on-task bonus (7/6); any
-// other conditional accuracy modifier can reuse it rather than duplicating the roll.
-[proc,player_npc_hit_roll_boosted](int $damagetype, int $numerator, int $divisor)(boolean)
-def_int $attack_roll = ~player_attack_roll_specific($damagetype);
-$attack_roll = scale($numerator, $divisor, $attack_roll);
-def_int $defence_roll = ~npc_defence_roll_specific($damagetype);
-if (randominc($attack_roll) > randominc($defence_roll)) {
-    return(true);
-}
-return(false);
-
 // returns the correct combat calculated attack damage for weapon
 [proc,player_attack_roll_specific](int $damagetype)(int)
 def_obj $weapon = inv_getobj(worn, ^wearpos_rhand);
