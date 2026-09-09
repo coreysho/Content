@@ -1,0 +1,261 @@
+// Recipe for Disaster, sub-quest 9 of 10: Freeing King Awowogei.
+//
+// See the sub-quest section of configs/quest_100.constant for the asset list, the coordinates and
+// the one obj this deliberately never makes. Every step is on or under Ape Atoll, so this needs
+// Monkey Madness for access - nothing here checks for it, because Ape Atoll's own gates already do.
+
+// --- The plinth ---
+
+[oploc1,hundred_monkey_base]
+~hundred_inspect(^hundred_bit_monkey, "King Awowogei", "A monkey in a crown. There is a platter in front of him with something long and coiled on it, and whatever it is has clearly been stuffed with something else.", 1, "It was a snake, stuffed and roasted. A monkey would know how; you are going to have to ask one.");
+if (%hundred_main_quest_var >= ^hundred_met_aris & %hundred_ilm_quest = ^hundred_monkey_not_started) {
+    %hundred_ilm_quest = ^hundred_monkey_told;
+}
+
+[oplocu,hundred_monkey_base]
+switch_obj (last_useitem) {
+    case hundred_ilm_correctly_stuffed_snake :
+        mes("Raw snake is not going to wake anybody up. It needs cooking first.");
+    case 100_ilm_snake_burnt :
+        mes("You are not putting that in front of a king.");
+    case hundred_ilm_cooked_stuffed_snake :
+        @hundred_monkey_serve;
+    case default :
+        ~displaymessage(^dm_default);
+}
+
+[label,hundred_monkey_serve]
+if (~hundred_has_subquest(^hundred_bit_monkey) = true) {
+    ~chatplayer("<p,neutral>He has been served.");
+    return;
+}
+mes("You set the stuffed snake down on the platter.");
+p_delay(3);
+inv_del(inv, hundred_ilm_cooked_stuffed_snake, 1);
+%hundred_ilm_quest = ^hundred_monkey_done;
+%100monkeyvisible = 1;
+~mesbox("The crown tips forward as the King leans over the platter, and then the whole of him comes back to life at once, mid-sentence, as though nothing had happened at all.");
+~chatnpc_specific("Awowogei", 100_mm_awowogei_cutscene, "<p,happy>- and THAT is how you stuff a snake. Where was I? Who are you?");
+~hundred_award_subquest(^hundred_bit_monkey);
+
+// --- The three wise monkeys ---
+// Mizaru sees no evil, Kikazaru hears no evil, Iwazaru speaks no evil, and between them they know
+// the recipe. Each holds one third of it and each is useless in his own particular way, which is
+// what the cache named them for.
+
+[opnpc1,hundred_ilm_mizaru]
+if (%hundred_ilm_quest < ^hundred_monkey_told) {
+    ~chatnpc("<p,neutral>I did not see you arrive. I do not see much.");
+    return;
+}
+~chatplayer("<p,quiz>I need to know how to stuff a snake.");
+~chatnpc("<p,neutral>The snake is the easy part. There is a pit out in the jungle, east of here, full of them, and they are big enough that you will not have to look hard.");
+~chatnpc("<p,neutral>Kill one, take the body. Ask my brothers about the rest - I have never actually seen it done.");
+~hundred_monkey_heard(1);
+@hundred_monkey_recipe_check;
+
+[opnpc1,hundred_ilm_kikazaru]
+if (%hundred_ilm_quest < ^hundred_monkey_told) {
+    ~chatnpc("<p,neutral>Speak up. Or do not. It makes no difference to me.");
+    return;
+}
+~chatplayer("<p,quiz>What goes inside a stuffed snake?");
+~chatnpc("<p,neutral>Tchiki nuts, ground to a paste. Not whole - whole nuts rattle about and it is a disgrace.");
+~chatnpc("<p,neutral>They grow on one bush, in a cave under the island, and the way in is off the tunnels the humans dug. I am told it glows. I would not know.");
+~hundred_monkey_heard(2);
+@hundred_monkey_recipe_check;
+
+[opnpc1,hundred_ilm_iwazaru]
+if (%hundred_ilm_quest < ^hundred_monkey_told) {
+    ~chatnpc("<p,neutral>...");
+    return;
+}
+~chatplayer("<p,quiz>Is there anything else in it?");
+~chatnpc("<p,neutral>A red banana, sliced.");
+~chatplayer("<p,quiz>Bananas here are yellow.");
+~chatnpc("<p,neutral>The yellow ones are the ones you can reach. The red ones are at the crown, where the sun gets at them, and the crown is thirty feet up.");
+~chatnpc("<p,neutral>So you do not climb. You take hold of the tree and you pull the top of it down to you.");
+~hundred_monkey_heard(3);
+@hundred_monkey_recipe_check;
+
+[label,hundred_monkey_recipe_check]
+if (%hundred_ilm_quest ! ^hundred_monkey_told) {
+    return;
+}
+if (%hundred_ilm_banana = 0 | %hundred_ilm_nuts = 0 | %hundred_ilm_snake = 0) {
+    return;
+}
+%hundred_ilm_quest = ^hundred_monkey_recipe;
+
+// Each brother sets his own flag the first time he explains his part, so the recipe is only
+// "known" once all three have been asked - in any order.
+[proc,hundred_monkey_heard](int $which)
+switch_int ($which) {
+    case 1 : %hundred_ilm_snake = 1;
+    case 2 : %hundred_ilm_nuts = 1;
+    case 3 : %hundred_ilm_banana = 1;
+}
+
+// --- The banana tree ---
+// 0_42_43_8_33. The multiloc's own state 2 carries anim=100_ilm_banana_tree_pull_down and no ops,
+// which is the whole mechanic: haul the crown down, then pick what was out of reach.
+
+[oploc1,loc_12610]
+if (%hundred_ilm_red_banana_tree = ^hundred_banana_tree_down) {
+    @hundred_pick_red_banana;
+}
+if (%hundred_ilm_quest < ^hundred_monkey_told) {
+    @hundred_pick_plain_banana;
+}
+if (%hundred_ilm_banana = 0) {
+    @hundred_pick_plain_banana;
+}
+mes("You take hold of the trunk and lean back on it with your whole weight.");
+anim(human_pickuptable, 0);
+%hundred_ilm_red_banana_tree = ^hundred_banana_tree_pulling;
+p_delay(3);
+%hundred_ilm_red_banana_tree = ^hundred_banana_tree_down;
+mes("The crown comes down far enough to reach. There are three or four red ones up there.");
+
+[label,hundred_pick_plain_banana]
+if (inv_freespace(inv) < 1) {
+    mes("You have no room to carry anything else.");
+    return;
+}
+mes("You pick a banana.");
+inv_add(inv, banana, 1);
+if (%hundred_ilm_quest >= ^hundred_monkey_told) {
+    p_delay(2);
+    mes("There are redder ones near the crown, thirty feet up and well out of reach.");
+}
+
+[label,hundred_pick_red_banana]
+if (inv_freespace(inv) < 1) {
+    mes("You have no room to carry anything else.");
+    return;
+}
+mes("You pick one of the red bananas.");
+inv_add(inv, hundred_ilm_red_banana, 1);
+p_delay(2);
+%hundred_ilm_red_banana_tree = ^hundred_banana_tree_normal;
+mes("The tree springs back upright and takes the rest of them with it.");
+
+// --- The nut bush ---
+
+[oploc1,loc_12615]
+if (inv_freespace(inv) < 1) {
+    mes("You have no room to carry anything else.");
+    return;
+}
+mes("You pick a handful of nuts off the bush.");
+p_delay(2);
+inv_add(inv, hundred_ilm_tchiki_monkey_nuts, 1);
+
+// --- Getting about ---
+
+[oploc1,loc_12602]
+// Pit, Enter
+mes("You climb down into the pit.");
+p_delay(2);
+p_teleport(^hundred_snakepit_bottom);
+if (%hundred_ilm_quest >= ^hundred_monkey_told) {
+    ~mesbox("It is not a pit so much as a room, and there is a great deal more snake in it than the word 'pit' had prepared you for.");
+}
+
+[oploc1,loc_12601]
+// Rope, Climb
+~climb_ladder(^hundred_snakepit_top, true);
+
+[oploc1,loc_12617]
+// Exit into the nut cave
+mes("You squeeze through the crack in the cave wall.");
+p_delay(2);
+p_teleport(^hundred_nutcave_in);
+
+[oploc1,loc_12616]
+// Exit, Climb-up
+~climb_ladder(^hundred_nutcave_out, true);
+
+// --- Slicing the banana ---
+// [opheldu,knife] already exists in skill_cooking/scripts/gnome_cooking/cutting_fruit.rs2 and gained
+// a case there; this is the other click order.
+
+[opheldu,hundred_ilm_red_banana]
+if (last_useitem ! knife) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@hundred_slice_banana;
+
+[label,hundred_slice_banana]
+inv_del(inv, hundred_ilm_red_banana, 1);
+inv_add(inv, hundred_ilm_sliced_red_banana, 1);
+~objbox(hundred_ilm_sliced_red_banana, "You slice the red banana lengthways. The inside is the same colour as the outside, which is not reassuring.", 250, 0, 0);
+
+// --- Grinding the nuts ---
+// [opheldu,pestle_and_mortar] already exists in quest_deserttreasure/scripts/dt_blood.rs2 and gained
+// a case there.
+
+[opheldu,hundred_ilm_tchiki_monkey_nuts]
+if (last_useitem ! pestle_and_mortar) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@hundred_grind_nuts;
+
+[label,hundred_grind_nuts]
+inv_del(inv, hundred_ilm_tchiki_monkey_nuts, 1);
+inv_add(inv, hundred_ilm_tchiki_monkey_nut_paste, 1);
+~objbox(hundred_ilm_tchiki_monkey_nut_paste, "You grind the nuts down to a thick grey paste.", 250, 0, 0);
+
+// --- Stuffing the snake ---
+// Both halves have to go in, so this refuses until the player is holding both rather than making
+// hundred_ilm_incorrectly_stuffed_snake - see the constant file for why that obj is never created.
+
+[opheldu,hundred_ilm_snake_corpse]
+switch_obj (last_useitem) {
+    case hundred_ilm_sliced_red_banana, hundred_ilm_tchiki_monkey_nut_paste :
+        @hundred_stuff_snake;
+    case hundred_ilm_red_banana :
+        ~chatplayer("<p,neutral>It would have to be sliced first.");
+    case hundred_ilm_tchiki_monkey_nuts :
+        ~chatplayer("<p,neutral>Whole nuts would just rattle about in there.");
+    case default :
+        ~displaymessage(^dm_default);
+}
+
+[label,hundred_stuff_snake]
+if (inv_total(inv, hundred_ilm_sliced_red_banana) < 1) {
+    ~chatplayer("<p,neutral>I still need a sliced red banana to go in with it.");
+    return;
+}
+if (inv_total(inv, hundred_ilm_tchiki_monkey_nut_paste) < 1) {
+    ~chatplayer("<p,neutral>I still need the nut paste to go in with it.");
+    return;
+}
+mes("You work the paste and the sliced banana down into the snake.");
+p_delay(3);
+inv_del(inv, hundred_ilm_snake_corpse, 1);
+inv_del(inv, hundred_ilm_sliced_red_banana, 1);
+inv_del(inv, hundred_ilm_tchiki_monkey_nut_paste, 1);
+inv_add(inv, hundred_ilm_correctly_stuffed_snake, 1);
+~objbox(hundred_ilm_correctly_stuffed_snake, "The snake is stuffed right up. All it needs now is a fire.", 250, 0, 0);
+
+// --- Journal ---
+
+[proc,hundred_monkey_journal]()(string)
+def_string $x;
+switch_int (%hundred_ilm_quest) {
+    case ^hundred_monkey_not_started :
+        $x = append($x, "@dbl@I should @dre@inspect King Awowogei@dbl@ and see what was on his|");
+        $x = append($x, "@dbl@platter.");
+    case ^hundred_monkey_told :
+        $x = append($x, "@dbl@Awowogei was eating a @dre@stuffed snake@dbl@. The @dre@three wise monkeys|");
+        $x = append($x, "@dbl@on @dre@Ape Atoll@dbl@ know how it is made - I should ask all three.");
+    case default :
+        $x = append($x, "@dbl@A @dre@snake corpse@dbl@ from the pit in the jungle, a @dre@red banana|");
+        $x = append($x, "@dbl@sliced@dbl@ from the crown of the banana tree, and @dre@Tchiki nuts|");
+        $x = append($x, "@dbl@ground to a paste@dbl@ from the cave under the island. Stuff the|");
+        $x = append($x, "@dbl@snake with both, then @dre@cook it@dbl@.");
+}
+return($x);

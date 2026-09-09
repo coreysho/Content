@@ -117,3 +117,49 @@
 ^hundred_guide_not_started = 0
 ^hundred_guide_told = 1          // the plinth showed me what he was reaching for
 ^hundred_guide_done = 2
+
+// ---------------------------------------------------------------------------------------------
+// Sub-quest 9: Freeing King Awowogei - %hundred_ilm_quest (varp hundred_ilm_var_1, bits 0-6)
+// ---------------------------------------------------------------------------------------------
+// "ilm" is the cache's own prefix for this one - the three wise monkeys Mizaru, Kikazaru and
+// Iwazaru (see, hear and speak no evil) stand side by side at 0_43_43_35_43, 36_43 and 37_43 on
+// Ape Atoll. Every step is on or under Ape Atoll, so this sub-quest needs Monkey Madness.
+//
+// The dish is named by the objs and needs no guessing: snake corpse + sliced red banana + Tchiki nut
+// paste -> "Raw stuffed snake" -> cook -> "Stuffed snake / Fit for a Monkey King".
+//
+//   loc_12610   the banana tree at 0_42_43_8_33. A multiloc on hundred_ilm_red_banana_tree:
+//               0 and 1 -> "Banana tree" (op1=Pick), 2 -> "Red Banana Tree" with
+//               anim=100_ilm_banana_tree_pull_down and NO ops, 3 -> "Red Banana Tree" (op1=Pick).
+//               State 2 having the pull-down animation and no ops is what says what the mechanic is:
+//               the red ones grow at the crown, out of reach, and you haul the crown down to get at
+//               them. Nothing in the cache reddens an ordinary banana, and nothing needed to.
+//   loc_12602   "Pit", op1=Enter, 0_45_42_41_33 - in the south-east jungle, among the mm_jungle_snakes
+//   loc_12601   "Rope", op1=Climb, 0_47_85_15_48 - the way back out of the snake pit
+//   loc_12617   "Exit", op1=Enter, 0_43_143_53_47 - off the Monkey Madness dungeon
+//   loc_12616   "Exit", op1=Climb-up, 0_47_85_17_17 - the way back out of the nut cave
+//   loc_12615   "Bush", op1=Pick, 0_47_85_12_17 - "A Bush with monkey nuts growing on it"
+//   hundred_ilm_snake  npc "Big Snake" lvl 84, three of them at 0_47_85_13_48 / 15_46 / 17_49
+//
+// NOT USED: hundred_ilm_incorrectly_stuffed_snake ("Odd stuffed snake / Is this really what you
+// wanted to do?"). Making one would hand the player an obj with no iops at all - not even Drop - and
+// no way to undo it. The wrong-ingredient cases refuse instead.
+^hundred_monkey_not_started = 0
+^hundred_monkey_told = 1         // the plinth showed me what was on his platter
+^hundred_monkey_recipe = 2       // the three monkeys have given me the recipe
+^hundred_monkey_done = 3
+
+// %hundred_ilm_red_banana_tree, straight off the multiloc above.
+^hundred_banana_tree_normal = 0
+^hundred_banana_tree_pulling = 2
+^hundred_banana_tree_down = 3
+
+// Landing tiles, all read out of the .jm2 LOC sections.
+// (15,49) is inside the snake pit next to the rope at (15,48); the pit interior is x12-18, z45-51.
+^hundred_snakepit_bottom = 0_47_85_15_49
+// (40,33) is clear ground west of the 2x2 Pit at (41,33)-(42,34).
+^hundred_snakepit_top = 0_45_42_40_33
+// (16,17) is between the nut bush at (12,17) and the exit at (17,17).
+^hundred_nutcave_in = 0_47_85_16_17
+// (52,47) is the tile a player stands on to use the cave mouth at 0_43_143_53_47.
+^hundred_nutcave_out = 0_43_143_52_47
