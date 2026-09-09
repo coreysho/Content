@@ -70,17 +70,20 @@ p_teleport(^hundred_lumbridge_return);
 // tells the player which dish that victim needs - it is the whole of the quest's signposting, and
 // each sub-quest pass replaces its own line here with the real recipe.
 
-[oploc1,hundred_dwarf_ambassador_base] @hundred_inspect(^hundred_bit_dwarf, "the dwarven ambassador", "He is holding a rock cake in one hand and looking at it with an expression you would call fondness in anybody else.");
-[oploc1,hundred_goblin1_base]          @hundred_inspect(^hundred_bit_goblins, "General Wartface", "He is mid-argument with the goblin next to him. Both of them are pointing at the same empty bowl.");
-[oploc1,hundred_goblin2_base]          @hundred_inspect(^hundred_bit_goblins, "General Bentnoze", "He is mid-argument with the goblin next to him. Both of them are pointing at the same empty bowl.");
-[oploc1,hundred_pirate_base]           @hundred_inspect(^hundred_bit_pirate, "Pirate Pete", "He is soaking wet, which nobody else in the room is, and there is a fishcake halfway to his mouth.");
-[oploc1,hundred_guide_base]            @hundred_inspect(^hundred_bit_guide, "the Lumbridge Guide", "He has a plate of something in front of him and a book open beside it, and he was clearly reading rather than eating.");
-[oploc1,hundred_dave_base]             @hundred_inspect(^hundred_bit_dave, "Evil Dave", "He is dressed entirely in black and is holding a spoon over a bowl of stew that is still, somehow, steaming.");
-[oploc1,hundred_ogre_base]             @hundred_inspect(^hundred_bit_ogre, "Skrach Uglogwee", "He has taken up two chairs and most of the table, and there is a very large bone in front of him.");
-[oploc1,hundred_varze_base]            @hundred_inspect(^hundred_bit_varze, "Sir Amik Varze", "He is in full white armour and was, by the look of it, being served rather than eating.");
-[oploc1,hundred_monkey_base]           @hundred_inspect(^hundred_bit_monkey, "King Awowogei", "A monkey in a crown. He is reaching for something on a platter that you cannot identify and are not sure you want to.");
+// The Mountain Dwarf's own [oploc1] is in hundred_dwarf.rs2, because it has a stage to set as well
+// as a line to print. Every sub-quest pass moves its plinth line out of here the same way.
+[oploc1,hundred_goblin1_base]          ~hundred_inspect(^hundred_bit_goblins, "General Wartface", "He is mid-argument with the goblin next to him. Both of them are pointing at the same empty bowl.", 0, "");
+[oploc1,hundred_goblin2_base]          ~hundred_inspect(^hundred_bit_goblins, "General Bentnoze", "He is mid-argument with the goblin next to him. Both of them are pointing at the same empty bowl.", 0, "");
+[oploc1,hundred_pirate_base]           ~hundred_inspect(^hundred_bit_pirate, "Pirate Pete", "He is soaking wet, which nobody else in the room is, and there is a fishcake halfway to his mouth.", 0, "");
+// The Lumbridge Guide's own [oploc1] is in hundred_guide.rs2, for the same reason as the dwarf's.
+[oploc1,hundred_dave_base]             ~hundred_inspect(^hundred_bit_dave, "Evil Dave", "He is dressed entirely in black and is holding a spoon over a bowl of stew that is still, somehow, steaming.", 0, "");
+[oploc1,hundred_ogre_base]             ~hundred_inspect(^hundred_bit_ogre, "Skrach Uglogwee", "He has taken up two chairs and most of the table, and there is a very large bone in front of him.", 0, "");
+[oploc1,hundred_varze_base]            ~hundred_inspect(^hundred_bit_varze, "Sir Amik Varze", "He is in full white armour and was, by the look of it, being served rather than eating.", 0, "");
+[oploc1,hundred_monkey_base]           ~hundred_inspect(^hundred_bit_monkey, "King Awowogei", "A monkey in a crown. He is reaching for something on a platter that you cannot identify and are not sure you want to.", 0, "");
 
-[label,hundred_inspect](int $bit, string $who, string $frozen)
+// $written is 1 once that victim's sub-quest exists, in which case $howto is shown instead of the
+// placeholder. Each sub-quest pass flips its own line above.
+[proc,hundred_inspect](int $bit, string $who, string $frozen, int $written, string $howto)
 if (%hundred_main_quest_var < ^hundred_seen_dining_room) {
     mes("You should not be in here.");
     return;
@@ -91,6 +94,10 @@ if (~hundred_has_subquest($bit) = true) {
 }
 ~mesbox($frozen);
 if (%hundred_main_quest_var < ^hundred_met_aris) {
+    return;
+}
+if ($written = 1) {
+    ~mesbox($howto);
     return;
 }
 ~mesbox(append(append("Aris said each of them wakes for the dish they were reaching for. Freeing ", $who), " is not written yet on this server."));

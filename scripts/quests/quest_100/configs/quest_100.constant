@@ -1,74 +1,119 @@
-// Recipe for Disaster. Wiki: https://oldschool.runescape.wiki/w/Recipe_for_Disaster
-// Released March 2006, so era-appropriate for a 377 build.
-//
-// PASS 1 (2026-09-09) BUILDS THE FRAME ONLY - the Cook, Aris, the way into the frozen dining room,
-// the nine frozen victims, the Culinaromancer's chest and the quest journal. The ten sub-quests are
-// each their own pass; see the SUB-QUESTS section at the bottom for what the cache already ships
-// for each one and where it lives.
-//
-// ---------------------------------------------------------------------------------------------
-// What the cache already ships - which is very nearly everything
-// ---------------------------------------------------------------------------------------------
-// * The whole dining room, twice, at m29_83 p0. Copy A (z4-19) is the frozen room: the nine victim
-//   plinths, Aris, the time-bubble wall along x=4. Copy B (z28-43) is the same room with the nine
-//   FREED heroes already placed as npcs - it is the after picture, and the quest ends by sending
-//   the player there. Room interior is x5..x10; the walls are castlewall at x=3 and x=11-12.
-// * The Lumbridge side: hundred_lumbridge_door at 0_50_50_7_17 (the kitchen door),
-//   hundred_lumbridge_doubledoorl/r at (13,21)/(13,22), and hundred_portal_multi at 0_50_50_9_18 -
-//   a multiloc on hundred_main_quest_var that becomes hundred_portal_active at state 4.
-// * The Culinaromancer's chest: hundred_goodchest at 0_50_150_19_23 in the Lumbridge cellar, a
-//   multiloc on hundred_main_quest_var (states 3, 4, 5) resolving to hundred_goodchest_base with
-//   op1=Bank, op2=Buy-food, op3=Buy-items.
-// * BOTH SHOPS, ten tiers each: hundred_foodchest1..10 and hundred_rewardchest1..10 in
-//   _unpack/727/all.inv, all twenty already in pack/inv.pack. Tier N is unlocked by N completed
-//   sub-quests, which is exactly what hundred_subquest_tally counts. rewardchestN stocks gauntlet
-//   levels 1..N and the first N of the ten cooking weapons.
-// * The ten gauntlet levels, the ten cooking weapons (spoon, whisk, spork, spatula, frying pan,
-//   skewer, rolling pin, knife, hammer, cleaver), hundred_rewardlamp, and the ten
-//   100_journal_head_* icons.
-// * Every sub-quest's npcs, objs, locs and varbits. Nothing in this quest is blocked on missing
-//   data - it is blocked only on the amount of scripting.
-//
-// ---------------------------------------------------------------------------------------------
-// Stages - %hundred_main_quest_var (100intro bits 0-6)
-// ---------------------------------------------------------------------------------------------
-// The two multilocs above pin three of these values, so the numbering is not free: the chest must
-// be 3, 4 or 5 and the portal must be 4. Everything else is arranged around that.
-^hundred_not_started = 0
-^hundred_told_by_cook = 1        // the Cook has explained; the castle is inside a time bubble
-^hundred_seen_dining_room = 2    // been through the barrier and seen the nine victims
-^hundred_met_aris = 3            // Aris has explained; the chest appears in the cellar
-^hundred_in_progress = 4         // the portal stands in the dining hall; the ten sub-quests run
-^hundred_complete = 5
+// Recipe for Disaster. Wiki: https://oldschool.runescape.wiki/w/Recipe_for_Disaster
+// Released March 2006, so era-appropriate for a 377 build.
+//
+// PASS 1 (2026-09-09) BUILDS THE FRAME ONLY - the Cook, Aris, the way into the frozen dining room,
+// the nine frozen victims, the Culinaromancer's chest and the quest journal. The ten sub-quests are
+// each their own pass; see the SUB-QUESTS section at the bottom for what the cache already ships
+// for each one and where it lives.
+//
+// ---------------------------------------------------------------------------------------------
+// What the cache already ships - which is very nearly everything
+// ---------------------------------------------------------------------------------------------
+// * The whole dining room, twice, at m29_83 p0. Copy A (z4-19) is the frozen room: the nine victim
+//   plinths, Aris, the time-bubble wall along x=4. Copy B (z28-43) is the same room with the nine
+//   FREED heroes already placed as npcs - it is the after picture, and the quest ends by sending
+//   the player there. Room interior is x5..x10; the walls are castlewall at x=3 and x=11-12.
+// * The Lumbridge side: hundred_lumbridge_door at 0_50_50_7_17 (the kitchen door),
+//   hundred_lumbridge_doubledoorl/r at (13,21)/(13,22), and hundred_portal_multi at 0_50_50_9_18 -
+//   a multiloc on hundred_main_quest_var that becomes hundred_portal_active at state 4.
+// * The Culinaromancer's chest: hundred_goodchest at 0_50_150_19_23 in the Lumbridge cellar, a
+//   multiloc on hundred_main_quest_var (states 3, 4, 5) resolving to hundred_goodchest_base with
+//   op1=Bank, op2=Buy-food, op3=Buy-items.
+// * BOTH SHOPS, ten tiers each: hundred_foodchest1..10 and hundred_rewardchest1..10 in
+//   _unpack/727/all.inv, all twenty already in pack/inv.pack. Tier N is unlocked by N completed
+//   sub-quests, which is exactly what hundred_subquest_tally counts. rewardchestN stocks gauntlet
+//   levels 1..N and the first N of the ten cooking weapons.
+// * The ten gauntlet levels, the ten cooking weapons (spoon, whisk, spork, spatula, frying pan,
+//   skewer, rolling pin, knife, hammer, cleaver), hundred_rewardlamp, and the ten
+//   100_journal_head_* icons.
+// * Every sub-quest's npcs, objs, locs and varbits. Nothing in this quest is blocked on missing
+//   data - it is blocked only on the amount of scripting.
+//
+// ---------------------------------------------------------------------------------------------
+// Stages - %hundred_main_quest_var (100intro bits 0-6)
+// ---------------------------------------------------------------------------------------------
+// The two multilocs above pin three of these values, so the numbering is not free: the chest must
+// be 3, 4 or 5 and the portal must be 4. Everything else is arranged around that.
+^hundred_not_started = 0
+^hundred_told_by_cook = 1        // the Cook has explained; the castle is inside a time bubble
+^hundred_seen_dining_room = 2    // been through the barrier and seen the nine victims
+^hundred_met_aris = 3            // Aris has explained; the chest appears in the cellar
+^hundred_in_progress = 4         // the portal stands in the dining hall; the ten sub-quests run
+^hundred_complete = 5
+
+// ---------------------------------------------------------------------------------------------
+// Sub-quest bits - %hundred_subquest_tally (100intro bits 11-20, ten bits, one per sub-quest)
+// ---------------------------------------------------------------------------------------------
+// Ten bits for ten sub-quests, which is also exactly the number of chest tiers, gauntlet levels and
+// cooking weapons the cache ships. One quest point each.
+^hundred_bit_cook = 0            // Another Cook's Quest - the start
+^hundred_bit_dwarf = 1           // Freeing the Mountain Dwarf
+^hundred_bit_goblins = 2         // Freeing the Goblin generals
+^hundred_bit_pirate = 3          // Freeing Pirate Pete
+^hundred_bit_guide = 4           // Freeing the Lumbridge Guide
+^hundred_bit_dave = 5            // Freeing Evil Dave
+^hundred_bit_ogre = 6            // Freeing Skrach Uglogwee
+^hundred_bit_varze = 7           // Freeing Sir Amik Varze
+^hundred_bit_monkey = 8          // Freeing King Awowogei
+^hundred_bit_culinaromancer = 9  // Defeating the Culinaromancer
+^hundred_subquest_count = 10
+
+// ---------------------------------------------------------------------------------------------
+// Coordinates
+// ---------------------------------------------------------------------------------------------
+// Into the frozen room: (5,5) is the tile immediately inside hundred_lumbridge_door at (5,4), and
+// the only loc on it is nothing at all. (4,z) carries the 100_bubble3 time-barrier wall, so do not
+// land anyone on x=4.
+^hundred_dining_room = 0_29_83_5_5
+// The finished room is the same layout 24 tiles north.
+^hundred_dining_room_after = 0_29_83_5_29
+// Back out: 0_50_50_8_18 is beside the portal at (9,18) in the Lumbridge dining hall and carries no
+// loc. (9,19) is a throne and (9,17) is the kitchen wall row.
+^hundred_lumbridge_return = 0_50_50_8_18
+
+// Requirement: Cook's Assistant, which is what puts the Cook on speaking terms with you at all.
+
+// ---------------------------------------------------------------------------------------------
+// Sub-quest 2: Freeing the Mountain Dwarf - %hundred_dwarf_quest (varp hundred_dwarf, bits 0-10)
+// ---------------------------------------------------------------------------------------------
+// Rohak is at 0_44_154_49_20, in the dwarf camp at the east end of the tunnel under White Wolf
+// Mountain - the same tunnel the Fishing Contest quest opens, whose east exit lands at
+// 0_44_154_60_22, eleven tiles away. He is two npcs, not one: hundred_dwarf_dad_multi
+// (multivar=hundred_dwarf_multi_dad, 0 -> "An old Dwarf", 1 -> Rohak) at (49,20) and
+// hundred_dwarf_drunk_multi (state 2 -> drunk Rohak, with the dwarf_drunk* anims) at (49,21). At
+// state 2 the first shell resolves to no child and vanishes, so the swap is clean.
+^hundred_dwarf_not_started = 0
+^hundred_dwarf_told = 1          // the plinth showed me what he was holding
+^hundred_dwarf_met_rohak = 2     // found the old dwarf and learned his name
+^hundred_dwarf_needs_ale = 3     // he wants an ale with a coin in the bottom
+^hundred_dwarf_drunk_rohak = 4   // he has drunk it
+^hundred_dwarf_has_hot = 5       // holding the red-hot cake
+^hundred_dwarf_has_cool = 6      // cooled it in water
+^hundred_dwarf_done = 7
+
+// %hundred_dwarf_multi_dad drives both of Rohak's shells.
+^hundred_rohak_stranger = 0
+^hundred_rohak_named = 1
+^hundred_rohak_drunk = 2
 
 // ---------------------------------------------------------------------------------------------
-// Sub-quest bits - %hundred_subquest_tally (100intro bits 11-20, ten bits, one per sub-quest)
+// Sub-quest 5: Freeing the Lumbridge Guide - %100guide_prog (varp 100_pirate_quest, bits 12-15)
 // ---------------------------------------------------------------------------------------------
-// Ten bits for ten sub-quests, which is also exactly the number of chest tiers, gauntlet levels and
-// cooking weapons the cache ships. One quest point each.
-^hundred_bit_cook = 0            // Another Cook's Quest - the start
-^hundred_bit_dwarf = 1           // Freeing the Mountain Dwarf
-^hundred_bit_goblins = 2         // Freeing the Goblin generals
-^hundred_bit_pirate = 3          // Freeing Pirate Pete
-^hundred_bit_guide = 4           // Freeing the Lumbridge Guide
-^hundred_bit_dave = 5            // Freeing Evil Dave
-^hundred_bit_ogre = 6            // Freeing Skrach Uglogwee
-^hundred_bit_varze = 7           // Freeing Sir Amik Varze
-^hundred_bit_monkey = 8          // Freeing King Awowogei
-^hundred_bit_culinaromancer = 9  // Defeating the Culinaromancer
-^hundred_subquest_count = 10
-
-// ---------------------------------------------------------------------------------------------
-// Coordinates
-// ---------------------------------------------------------------------------------------------
-// Into the frozen room: (5,5) is the tile immediately inside hundred_lumbridge_door at (5,4), and
-// the only loc on it is nothing at all. (4,z) carries the 100_bubble3 time-barrier wall, so do not
-// land anyone on x=4.
-^hundred_dining_room = 0_29_83_5_5
-// The finished room is the same layout 24 tiles north.
-^hundred_dining_room_after = 0_29_83_5_29
-// Back out: 0_50_50_8_18 is beside the portal at (9,18) in the Lumbridge dining hall and carries no
-// loc. (9,19) is a throne and (9,17) is the kitchen wall row.
-^hundred_lumbridge_return = 0_50_50_8_18
-
-// Requirement: Cook's Assistant, which is what puts the Cook on speaking terms with you at all.
+// The dish is a cake, and the cache says so without ambiguity: 100guide_flourdone, 100guide_milkdone
+// and 100guide_eggdone are the three ingredients of one, and the repo's cooking skill already builds
+// cake_tin + pot_flour + bucket_milk + egg -> uncooked_cake -> range -> cake.
+//
+// The three ingredients come from the three people in Lumbridge who would have them: the Cook, and
+// the two local farmers Gee (lumbridge_guide2_man) and Donie (lumbridge_guide2_woman). Both farmers
+// are placed twice each around Lumbridge - 0_50_50_19_30 and (45,61) for Gee, (16,54) and (35,25)
+// for Donie - with op1=Talk-to and, before this pass, no handler anywhere in the repo. Their whole
+// dialogue is new.
+//
+// NOT USED, and why: 100guide_q1 (5 bits), 100guide_q2 (4), 100guide_tot (4) and 100guide_lastgame
+// (3) describe some kind of repeated number game with a running total. What the rules were is not
+// recoverable from the data - the ranges do not add up as a sum, there is no interface for it, and
+// no npc in the cache carries a param that would drive one - so rather than invent a minigame and
+// call it faithful, they are left at zero and recorded here.
+^hundred_guide_not_started = 0
+^hundred_guide_told = 1          // the plinth showed me what he was reaching for
+^hundred_guide_done = 2

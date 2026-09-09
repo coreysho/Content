@@ -1,0 +1,229 @@
+// Recipe for Disaster, sub-quest 2 of 10: Freeing the Mountain Dwarf.
+//
+// Everything here is placed and shipped; see the sub-quest section of configs/quest_100.constant.
+//
+//   hundred_dwarf_ambassador_base   loc, "Dwarf", 0_29_83_6_9, op1=Inspect - the plinth
+//   hundred_dwarf_dad_multi         npc 0_44_154_49_20, multivar=hundred_dwarf_multi_dad
+//                                       0 -> hundred_dwarf_dad "An old Dwarf"  (op1=Talk-to)
+//                                       1 -> hundred_dwarf_dad_rohak "Rohak"   (op1=Talk-to)
+//   hundred_dwarf_drunk_multi       npc 0_44_154_49_21, same varbit, 2 -> drunk Rohak
+//   hundred_dwarf_asgarnian_ale     obj "Asgarnian ale (g)" - "There appears to be a coin in the
+//                                       bottom. Liked by dwarves." The description is the puzzle.
+//   hundred_dwarf_hot_rockcake      obj "Red hot and glowing, ouch!"
+//   hundred_dwarf_cool_rockcake     obj "Cool and heavy as a brick."
+//
+// All four npc triggers go on the SHELLS. Player.getOpTrigger does NpcType.get on the world npc,
+// which is always the multi - a trigger on hundred_dwarf_dad_rohak would never fire.
+
+// --- The plinth ---
+// The Inspect line lives here rather than with the other eight in hundred_dining_room.rs2 because it
+// has a stage to set as well as a line to print.
+
+[oploc1,hundred_dwarf_ambassador_base]
+~hundred_inspect(^hundred_bit_dwarf, "the Mountain Dwarf", "He is holding a rock cake in one hand and looking at it with an expression you would call fondness in anybody else.", 1, "Another rock cake would wake him, and it would have to be as badly baked as that one. Somebody's father baked it, and badly is the point.");
+if (%hundred_main_quest_var >= ^hundred_met_aris & %hundred_dwarf_quest = ^hundred_dwarf_not_started) {
+    %hundred_dwarf_quest = ^hundred_dwarf_told;
+}
+
+// --- Handing it over ---
+// The dining-room victims are locs with op1=Inspect and nothing else, so the dish is handed over
+// with [oplocu], which needs no op at all.
+
+[oplocu,hundred_dwarf_ambassador_base]
+if (last_useitem = hundred_dwarf_hot_rockcake) {
+    mes("You are not putting that in a frozen man's hand. It is still glowing.");
+    return;
+}
+if (last_useitem ! hundred_dwarf_cool_rockcake) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (~hundred_has_subquest(^hundred_bit_dwarf) = true) {
+    ~chatplayer("<p,neutral>He has one already.");
+    return;
+}
+mes("You put the rock cake into the dwarf's hand, where the other one was.");
+p_delay(3);
+inv_del(inv, hundred_dwarf_cool_rockcake, 1);
+%hundred_dwarf_quest = ^hundred_dwarf_done;
+%100dwarfvisible = 1;
+~mesbox("His fingers close on it. Then he blinks, looks at the cake, looks at you, and takes a bite out of it with a noise like a pickaxe hitting slate.");
+~chatnpc_specific("Mountain Dwarf", 100_dwarf_mountain, "<p,happy>That's me father's, that is. Nobody else bakes 'em wrong enough.");
+~hundred_award_subquest(^hundred_bit_dwarf);
+
+// --- Rohak ---
+
+[opnpc1,hundred_dwarf_dad_multi]
+if (%hundred_main_quest_var < ^hundred_met_aris) {
+    ~chatnpc("<p,neutral>Aye?");
+    ~chatplayer("<p,neutral>Nothing. Sorry.");
+    return;
+}
+switch_int (%hundred_dwarf_quest) {
+    case ^hundred_dwarf_not_started, ^hundred_dwarf_told :
+        @hundred_rohak_intro;
+    case ^hundred_dwarf_met_rohak :
+        @hundred_rohak_asks_for_ale;
+    case ^hundred_dwarf_needs_ale :
+        ~chatnpc("<p,neutral>An ale with a coin in the bottom. That's the whole of it. I'll not drink one without.");
+    case default :
+        ~chatnpc("<p,neutral>Go on with you.");
+}
+
+[label,hundred_rohak_intro]
+~chatplayer("<p,quiz>Excuse me. Do you have a son?");
+~chatnpc("<p,angry>What's it to you?");
+~chatplayer("<p,neutral>He's sitting in Lumbridge Castle frozen solid with a rock cake in his hand, and I need another one exactly like it.");
+~chatnpc("<p,shock>...frozen.");
+~chatplayer("<p,neutral>He isn't hurt. He just isn't moving. The cake is what wakes him.");
+~chatnpc("<p,sad>Rohak. That's my name, since you'll be needing it. And aye, I baked that cake, and I've been ashamed of it ever since.");
+~chatplayer("<p,quiz>Ashamed?");
+~chatnpc("<p,sad>It came out wrong. Too hard, too hot, no give in it at all. A dwarf could break a tooth. He ate the whole thing and said it was the best I'd done.");
+~chatnpc("<p,neutral>I could not bake one that badly again if I tried. Not sober.");
+%hundred_dwarf_quest = ^hundred_dwarf_met_rohak;
+%hundred_dwarf_multi_dad = ^hundred_rohak_named;
+@hundred_rohak_asks_for_ale;
+
+[label,hundred_rohak_asks_for_ale]
+~chatplayer("<p,quiz>Then don't be sober.");
+~chatnpc("<p,happy>Ha! There's a human with sense in him.");
+~chatnpc("<p,neutral>Asgarnian ale. And before you hand it over - a dwarf doesn't drink an ale a stranger's carried unless there's a coin sat in the bottom of it.");
+~chatplayer("<p,quiz>Why a coin?");
+~chatnpc("<p,neutral>Because you can see it through the glass, and you can't see it through anything somebody's stirred into it. Put a coin in the ale, then give it me.");
+%hundred_dwarf_quest = ^hundred_dwarf_needs_ale;
+
+// --- The coin in the ale ---
+// opheldu fires on whichever item was clicked second, so both halves need a handler. Neither
+// asgarnian_ale nor coins owned one before this.
+
+[opheldu,asgarnian_ale]
+if (last_useitem ! coins) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@hundred_coin_in_ale;
+
+// Declaring [opheldu,coins] means every "use coins on something" where coins was the SECOND click
+// now lands here instead of falling through to the other item's own handler. Checked repo-wide
+// before adding it: nothing else handles coins as a use-item (the only "case coins" in the tree is
+// inside ~is_alchable, a proc, not a trigger), and every handler it could have fallen through to
+// ends in the same ~displaymessage(^dm_default) this one does. No behaviour changes.
+[opheldu,coins]
+if (last_useitem ! asgarnian_ale) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@hundred_coin_in_ale;
+
+[label,hundred_coin_in_ale]
+if (%hundred_dwarf_quest < ^hundred_dwarf_needs_ale) {
+    ~chatplayer("<p,neutral>Dropping money into a drink would be a waste of a coin and a drink.");
+    return;
+}
+if (%hundred_dwarf_quest > ^hundred_dwarf_needs_ale) {
+    ~chatplayer("<p,neutral>Rohak has had quite enough.");
+    return;
+}
+inv_del(inv, asgarnian_ale, 1);
+inv_del(inv, coins, 1);
+inv_add(inv, hundred_dwarf_asgarnian_ale, 1);
+~objbox(hundred_dwarf_asgarnian_ale, "You drop a coin into the ale. It settles at the bottom and sits there looking, you have to admit, quite trustworthy.", 250, 0, 0);
+
+// --- Giving Rohak the ale ---
+
+[opnpcu,hundred_dwarf_dad_multi]
+if (last_useitem = asgarnian_ale) {
+    ~chatnpc("<p,angry>No coin in it. I'll not touch it.");
+    return;
+}
+if (last_useitem ! hundred_dwarf_asgarnian_ale) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%hundred_dwarf_quest ! ^hundred_dwarf_needs_ale) {
+    ~displaymessage(^dm_default);
+    return;
+}
+~chatplayer("<p,happy>One ale, one coin.");
+~chatnpc("<p,happy>Now that is a drink.");
+inv_del(inv, hundred_dwarf_asgarnian_ale, 1);
+%hundred_dwarf_beer = 1;
+mes("Rohak drinks the ale in one go and puts the empty glass down on a rock with a great deal more care than it needs.");
+p_delay(3);
+%hundred_dwarf_quest = ^hundred_dwarf_drunk_rohak;
+%hundred_dwarf_multi_dad = ^hundred_rohak_drunk;
+%hundred_dwarf_drunk = 1;
+~mesbox("It takes about four seconds. Whatever dwarves put in their ale, it does not wait around.");
+
+// --- Drunk Rohak bakes the cake ---
+
+[opnpc1,hundred_dwarf_drunk_multi]
+switch_int (%hundred_dwarf_quest) {
+    case ^hundred_dwarf_drunk_rohak :
+        @hundred_rohak_bakes;
+    case ^hundred_dwarf_has_hot :
+        ~chatnpc("<p,happy>Mind it's hot! Ha! 'Course it's hot. Cool it in water, y'daft creature.");
+    case default :
+        ~chatnpc("<p,happy>Tell my boy his father baked it. Tell him it came out wrong again.");
+}
+
+[label,hundred_rohak_bakes]
+~chatplayer("<p,quiz>The rock cake.");
+~chatnpc("<p,happy>The rock cake! Aye! Stand back.");
+mes("Rohak throws things into a pan in an order that cannot possibly be right and holds it over the forge for far too long.");
+p_delay(4);
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,happy>Where d'you want it, then? You've no hands free.");
+    return;
+}
+inv_add(inv, hundred_dwarf_hot_rockcake, 1);
+%hundred_dwarf_quest = ^hundred_dwarf_has_hot;
+~objbox(hundred_dwarf_hot_rockcake, "What comes out is red hot, entirely solid, and gives off a faint smell of burnt iron. It is perfect.", 250, 0, 0);
+~chatnpc("<p,happy>Cool it in water first, mind. It'll take the skin off him otherwise, and he's had enough of a week.");
+
+// --- Cooling it ---
+// Jumped to from [oplocu,_watersource] in general_use/scripts/water_sources.rs2, which already owns
+// that trigger for buckets and watering cans.
+
+[label,hundred_cool_rockcake]
+if (inv_total(inv, hundred_dwarf_hot_rockcake) < 1) {
+    ~displaymessage(^dm_default);
+    return;
+}
+anim(human_pickuptable, 0);
+sound_synth(tap_fill, 1, 0);
+mes(append(append("You dip the rock cake in the ", lowercase(loc_name)), "."));
+p_delay(2);
+inv_del(inv, hundred_dwarf_hot_rockcake, 1);
+inv_add(inv, hundred_dwarf_cool_rockcake, 1);
+if (%hundred_dwarf_quest = ^hundred_dwarf_has_hot) {
+    %hundred_dwarf_quest = ^hundred_dwarf_has_cool;
+}
+~objbox(hundred_dwarf_cool_rockcake, "The water goes instantly, noisily and completely. What is left is grey, cold, and heavy as a brick.", 250, 0, 0);
+
+// --- Journal ---
+// Returned into the main journal by [if_button,questlist:hundred_main] in quest_100.rs2, which is
+// where the whole string is assembled.
+
+[proc,hundred_dwarf_journal]()(string)
+def_string $x;
+switch_int (%hundred_dwarf_quest) {
+    case ^hundred_dwarf_not_started :
+        $x = append($x, "@dbl@I should @dre@inspect the Mountain Dwarf@dbl@ and see what he was|");
+        $x = append($x, "@dbl@holding.");
+    case ^hundred_dwarf_told :
+        $x = append($x, "@dbl@The Mountain Dwarf wants a @dre@rock cake@dbl@, badly baked. His|");
+        $x = append($x, "@dbl@father is a dwarf called @dre@Rohak@dbl@, in the camp at the east|");
+        $x = append($x, "@dbl@end of the tunnel under @dre@White Wolf Mountain@dbl@.");
+    case ^hundred_dwarf_met_rohak, ^hundred_dwarf_needs_ale :
+        $x = append($x, "@dbl@Rohak will only bake one that badly if he is drunk. He wants|");
+        $x = append($x, "@dbl@an @dre@Asgarnian ale@dbl@ with a @dre@coin@dbl@ in the bottom of it.");
+    case ^hundred_dwarf_drunk_rohak :
+        $x = append($x, "@dbl@Rohak is drunk. I should @dre@ask him for the rock cake@dbl@.");
+    case ^hundred_dwarf_has_hot :
+        $x = append($x, "@dbl@The rock cake is red hot. I should @dre@dip it in water@dbl@ before|");
+        $x = append($x, "@dbl@I give it to anybody.");
+    case default :
+        $x = append($x, "@dbl@I should @dre@give the rock cake to the Mountain Dwarf@dbl@.");
+}
+return($x);

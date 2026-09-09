@@ -42,6 +42,11 @@ if ($choice = 2) {
 
 [proc,hundred_cook_progress]
 ~chatplayer("<p,happy>Hello again.");
+// Sub-quests that need something from the Cook get first refusal on the conversation. Each returns
+// true if it did the talking.
+if (~hundred_guide_cook_flour = true) {
+    return;
+}
 def_int $done = ~hundred_subquests_done;
 if ($done >= ^hundred_subquest_count) {
     ~chatnpc("<p,happy>You've got them all out. All of them. Go and finish it.");
@@ -163,7 +168,15 @@ if (~hundred_subquests_done >= ^hundred_subquest_count) {
     ~quest_journal($n, $x);
     return;
 }
-$x = append($x, "|@dbl@None of the nine are written yet on this server.");
+if (~hundred_has_subquest(^hundred_bit_dwarf) = false) {
+    $x = append($x, "|");
+    $x = append($x, ~hundred_dwarf_journal);
+}
+if (~hundred_has_subquest(^hundred_bit_guide) = false) {
+    $x = append($x, "|");
+    $x = append($x, ~hundred_guide_journal);
+}
+$x = append($x, "|@dbl@The other six are not written yet on this server.");
 ~quest_journal($n, $x);
 
 // One line per victim. @str@ once they are awake, @dbl@ while they are not.

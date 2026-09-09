@@ -1,0 +1,147 @@
+// Recipe for Disaster, sub-quest 5 of 10: Freeing the Lumbridge Guide.
+//
+// See the sub-quest section of configs/quest_100.constant for the varbit layout, for why the dish
+// is a cake, and for the four shipped varbits this deliberately leaves unused.
+//
+// The three ingredient gifts are one-time, which is what 100guide_flourdone / _milkdone / _eggdone
+// are for - a player who drops a bucket of milk buys another like everybody else.
+
+// --- The plinth ---
+
+[oploc1,hundred_guide_base]
+~hundred_inspect(^hundred_bit_guide, "the Lumbridge Guide", "He has a plate in front of him with one slice gone out of it, a book open beside it, and a fork in the hand that is not holding the book.", 1, "It was a cake. A plain one, of the sort anybody in Lumbridge could put together if they had the makings.");
+if (%hundred_main_quest_var >= ^hundred_met_aris & %100guide_prog = ^hundred_guide_not_started) {
+    %100guide_prog = ^hundred_guide_told;
+}
+
+[oplocu,hundred_guide_base]
+if (last_useitem = uncooked_cake) {
+    mes("Handing a frozen man a bowl of batter would not be a kindness.");
+    return;
+}
+if (last_useitem ! cake) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (~hundred_has_subquest(^hundred_bit_guide) = true) {
+    ~chatplayer("<p,neutral>He has had quite enough cake.");
+    return;
+}
+mes("You set the cake down on the plate in front of him, next to the slice that is already gone.");
+p_delay(3);
+inv_del(inv, cake, 1);
+%100guide_prog = ^hundred_guide_done;
+%100guidevisible = 1;
+~mesbox("The fork moves. He takes a mouthful, turns a page, and only then notices that the room has changed and that there is somebody standing over him.");
+~chatnpc_specific("Lumbridge Guide", 100_lumbridge_guide, "<p,quiz>...how long was I reading for?");
+~hundred_award_subquest(^hundred_bit_guide);
+
+// --- Gee: the egg ---
+// Gee and Donie are placed twice each around Lumbridge and had op1=Talk-to with no handler in any
+// script - another dead op, like Oronwen's Trade and the castle doors. The non-quest branch is
+// deliberately ordinary chatter, because that is what a farmer standing in a field is for.
+
+[opnpc1,lumbridge_guide2_man]
+~chatplayer("<p,happy>Hello.");
+if (%100guide_prog ! ^hundred_guide_told) {
+    @hundred_gee_smalltalk;
+}
+if (%100guide_eggdone = 1) {
+    ~chatnpc("<p,neutral>I gave you the egg. If you've lost it, the chickens are over there and they're not fussy about who takes what.");
+    return;
+}
+~chatnpc("<p,happy>Morning. You look like a man with a list.");
+~chatplayer("<p,quiz>I need an egg. It's for a cake, and the cake is for someone in the castle who can't get up.");
+~chatnpc("<p,confused>Can't get up.");
+~chatplayer("<p,neutral>It's a long story and you would not enjoy the middle of it.");
+~chatnpc("<p,happy>Then don't tell me it. Here - and mind how you carry it, that's this morning's.");
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,neutral>Come back when you've a hand free for it.");
+    return;
+}
+inv_add(inv, egg, 1);
+%100guide_eggdone = 1;
+~objbox(egg, "Gee hands you an egg.", 250, 0, 0);
+
+[label,hundred_gee_smalltalk]
+switch_int (random(3)) {
+    case 0 :
+        ~chatnpc("<p,happy>Morning. Mind the cabbages.");
+    case 1 :
+        ~chatnpc("<p,neutral>If you're after the town, it's north. If you're after the swamp, it's south, and I'd think again.");
+    case default :
+        ~chatnpc("<p,happy>Nothing much happens here. That's rather the appeal of it.");
+}
+
+// --- Donie: the milk ---
+
+[opnpc1,lumbridge_guide2_woman]
+~chatplayer("<p,happy>Hello.");
+if (%100guide_prog ! ^hundred_guide_told) {
+    @hundred_donie_smalltalk;
+}
+if (%100guide_milkdone = 1) {
+    ~chatnpc("<p,neutral>I've given you milk once. There's a dairy cow in the field and an empty bucket in the pen if you want more.");
+    return;
+}
+~chatnpc("<p,quiz>You've the look of somebody about to ask me for something.");
+~chatplayer("<p,happy>A bucket of milk, if you can spare one.");
+~chatnpc("<p,neutral>For what?");
+~chatplayer("<p,neutral>A cake. For the Lumbridge Guide.");
+~chatnpc("<p,happy>Him! He gave me directions to my own farm once and I've never let him forget it.");
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,neutral>You'll want a free hand first.");
+    return;
+}
+inv_add(inv, bucket_milk, 1);
+%100guide_milkdone = 1;
+~objbox(bucket_milk, "Donie hands you a bucket of milk.", 250, 0, 0);
+~chatnpc("<p,happy>Tell him it's from Donie. He'll not know who that is.");
+
+[label,hundred_donie_smalltalk]
+switch_int (random(3)) {
+    case 0 :
+        ~chatnpc("<p,happy>Lovely day for it.");
+    case 1 :
+        ~chatnpc("<p,neutral>The cows are milked, the wheat's in, and I've a chair with my name on it.");
+    case default :
+        ~chatnpc("<p,happy>You want the castle, most likely. Everybody does.");
+}
+
+// --- The Cook: the flour ---
+// Called from ~hundred_cook_progress in quest_100.rs2. Returns true if it did the talking.
+
+[proc,hundred_guide_cook_flour]()(boolean)
+if (%100guide_prog ! ^hundred_guide_told) {
+    return(false);
+}
+if (%100guide_flourdone = 1) {
+    return(false);
+}
+~chatnpc("<p,quiz>Any luck?");
+~chatplayer("<p,neutral>Slowly. Right now I need a pot of flour - the Guide was eating a cake when it happened.");
+~chatnpc("<p,happy>Flour I have. Flour is the one thing in this castle I have never once run short of.");
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,neutral>You've nowhere to put it, though.");
+    return(true);
+}
+inv_add(inv, pot_flour, 1);
+%100guide_flourdone = 1;
+~objbox(pot_flour, "The Cook hands you a pot of flour.", 250, 0, 0);
+~chatnpc("<p,neutral>You'll want a cake tin. There's one in the chest downstairs, if the gypsy's chest is up yet.");
+return(true);
+
+// --- Journal ---
+
+[proc,hundred_guide_journal]()(string)
+def_string $x;
+switch_int (%100guide_prog) {
+    case ^hundred_guide_not_started :
+        $x = append($x, "@dbl@I should @dre@inspect the Lumbridge Guide@dbl@ and see what he was|");
+        $x = append($x, "@dbl@eating.");
+    case default :
+        $x = append($x, "@dbl@The Lumbridge Guide was eating a plain @dre@cake@dbl@. The @dre@Cook@dbl@ has|");
+        $x = append($x, "@dbl@flour, @dre@Gee@dbl@ has eggs and @dre@Donie@dbl@ has milk - all three are in|");
+        $x = append($x, "@dbl@@dre@Lumbridge@dbl@. A @dre@cake tin@dbl@ and a @dre@range@dbl@ will do the rest.");
+}
+return($x);
