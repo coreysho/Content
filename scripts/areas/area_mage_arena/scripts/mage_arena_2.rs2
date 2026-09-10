@@ -1,0 +1,199 @@
+// Mage Arena II - the arena-rematch version (Corey's choice over building the deep-wilderness MA2).
+//
+// Requirements, as OSRS: Mage Arena I done (a god cape chosen), 75 Magic, and all three god spells
+// castable outside the arena. Kolodion sends you back into his arena, where the champions of
+// Saradomin, Guthix and Zamorak come at you one after another. Beat all three and he imbues a god
+// cape: the first imbue is free, later ones cost 250,000 coins (OSRS's Lost Property price).
+//
+// Progress lives in %magearena2 (mage_arena_2.constant). Leaving or dying mid-way is fine - talk to
+// Kolodion again and you resume at the champion you had reached.
+
+[proc,ma2_ready]()(boolean)
+if (%magearena < ^mage_arena_prayed_at_statue) {
+    return(false);
+}
+return(true);
+
+[proc,ma2_requirements_met]()(boolean)
+if (stat_base(magic) < 75) {
+    ~chatnpc("<p,neutral>You are strong, but not strong enough. Come back|when you have mastered level 75 Magic.");
+    return(false);
+}
+if (%saramage < ^mage_arena_spell_finished | %guthmage < ^mage_arena_spell_finished | %zamomage < ^mage_arena_spell_finished) {
+    ~chatnpc("<p,neutral>First master all three god spells well enough to|cast them outside my arena. The champions will not|wait for you to learn.");
+    return(false);
+}
+return(true);
+
+// Called from Kolodion's default menu (kolodion.rs2).
+[label,ma2_greater_challenge]
+~chatplayer("<p,quiz>I want a greater challenge.");
+if (%magearena2 >= ^ma2_complete) {
+    ~chatnpc("<p,happy>You have already beaten all three champions. Bring|me a god cape and I will imbue it.");
+    return;
+}
+if (~ma2_requirements_met = false) {
+    return;
+}
+if (%magearena2 >= ^ma2_saradomin) {
+    ~chatnpc("<p,shifty>Back for more? Your next opponent is waiting.");
+} else {
+    ~chatnpc("<p,shifty>A greater challenge... Very well. Each of the three gods|has sent me a champion - their finest battle mage.");
+    ~chatnpc("<p,neutral>Face them in my arena, one after another. Defeat all|three and I will imbue your god cape with their power.");
+    if (~p_choice2("I'm ready.", 1, "Not right now.", 2) = 2) {
+        ~chatplayer("<p,neutral>Not right now.");
+        return;
+    }
+    ~chatplayer("<p,happy>I'm ready.");
+}
+if (~can_enter_mage_arena = false) {
+    ~mesbox("You cannot enter the arena while carrying weapons or armour.");
+    return;
+}
+if (%magearena2 < ^ma2_saradomin) {
+    %magearena2 = ^ma2_saradomin;
+}
+@ma2_teleport;
+
+[label,ma2_teleport]
+if_close;
+anim(human_castteleport, 60);
+spotanim_pl(teleport_casting, 92, 60);
+sound_synth(teleport_all, 1, 0);
+p_delay(3);
+p_teleport(^mage_arena_start_coord);
+anim(null, 0);
+// clear out a champion left over from an earlier attempt
+npc_huntall(^mage_arena_start_coord, 20, 0);
+while (npc_findnext = true) {
+    if (npc_category = ma2_champion & add(%npc_lastcombat, 8) <= map_clock) {
+        npc_del;
+    }
+}
+p_delay(2);
+def_coord $spawn_coord = movecoord(^mage_arena_start_coord, 3, 0, 3);
+spotanim_map(smokepuff_large, $spawn_coord, 124, 0);
+sound_synth(smokepuff, 1, 0);
+p_delay(0);
+~spawn_mage_arena_boss($spawn_coord, ~ma2_champion_for_stage(%magearena2), 5);
+p_delay(1);
+npc_say("Face me, if you dare!");
+npc_setmode(applayer2);
+
+[proc,ma2_champion_for_stage](int $stage)(npc)
+if ($stage = ^ma2_guthix) return(ma2_champion_guthix);
+if ($stage = ^ma2_zamorak) return(ma2_champion_zamorak);
+return(ma2_champion_saradomin);
+
+// ---------------------------------------------------------------- the champions
+// Their own god's spell, harder than the plain battle mages (max 25 rather than 20).
+[ai_applayer2,ma2_champion_saradomin] ~npc_cast_spell_with_forced_max_hit(^saradomin_strike, 5, 25);
+[ai_opplayer2,ma2_champion_saradomin] ~npc_cast_spell_with_forced_max_hit(^saradomin_strike, 5, 25);
+[ai_applayer2,ma2_champion_guthix] ~npc_cast_spell_with_forced_max_hit(^claws_of_guthix, 5, 25);
+[ai_opplayer2,ma2_champion_guthix] ~npc_cast_spell_with_forced_max_hit(^claws_of_guthix, 5, 25);
+[ai_applayer2,ma2_champion_zamorak] ~npc_cast_spell_with_forced_max_hit(^flames_of_zamorak, 5, 25);
+[ai_opplayer2,ma2_champion_zamorak] ~npc_cast_spell_with_forced_max_hit(^flames_of_zamorak, 5, 25);
+
+[ai_queue1,ma2_champion_saradomin] ~npc_default_retaliate_ap;
+[ai_queue1,ma2_champion_guthix] ~npc_default_retaliate_ap;
+[ai_queue1,ma2_champion_zamorak] ~npc_default_retaliate_ap;
+
+// Same shape as Kolodion's forms (kolodion_fight.rs2): no kill credit, no progress.
+[ai_queue3,ma2_champion_saradomin]
+if (npc_findhero = ^false) {
+    gosub(npc_death);
+    return;
+}
+%magearena2 = ^ma2_guthix;
+npc_say("Saradomin... forgive me.");
+@ma2_next_champion(ma2_champion_guthix, "Guthix demands balance. I will restore it!");
+
+[ai_queue3,ma2_champion_guthix]
+if (npc_findhero = ^false) {
+    gosub(npc_death);
+    return;
+}
+%magearena2 = ^ma2_zamorak;
+npc_say("The balance... shifts...");
+@ma2_next_champion(ma2_champion_zamorak, "Zamorak will have your soul!");
+
+[label,ma2_next_champion](npc $next, string $taunt)
+npc_setmode(none);
+npc_walk(npc_coord);
+npc_anim(npc_param(death_anim), 0);
+npc_delay(2);
+def_coord $coord = npc_coord;
+npc_del;
+npc_add($coord, $next, 1000);
+spotanim_npc(smokepuff_large, 124, 34);
+sound_synth(smokepuff, 1, 0);
+npc_setmode(applayer2);
+npc_delay(1);
+npc_say($taunt);
+
+[ai_queue3,ma2_champion_zamorak]
+if (npc_findhero = ^false) {
+    gosub(npc_death);
+    return;
+}
+%magearena2 = ^ma2_complete;
+queue(ma2_finish, 0, 0);
+gosub(npc_death);
+
+[queue,ma2_finish]
+p_delay(3);
+mes("You have defeated the champions of all three gods!");
+anim(human_castteleport, 60);
+spotanim_pl(teleport_casting, 92, 60);
+sound_synth(teleport_all, 1, 0);
+p_delay(2);
+p_teleport(map_findsquare(^mage_arena_finish_coord, 0, 2, ^map_findsquare_lineofwalk));
+anim(null, 0);
+if (npc_find(coord, arenamage1, 5, 0) = true) {
+    ~chatnpc("<p,happy>Remarkable! Three champions, three gods... and you|still stand. Give me your god cape and I will imbue it.");
+}
+
+// ---------------------------------------------------------------- imbuing
+// Called from Kolodion's default menu (kolodion.rs2).
+[label,ma2_imbue_cape]
+~chatplayer("<p,quiz>Can you imbue my god cape?");
+if (%magearena2 < ^ma2_complete) {
+    ~chatnpc("<p,angry>Imbue it? You have not earned that. Ask me for a|greater challenge first.");
+    return;
+}
+if (stat_base(magic) < 75) {
+    ~chatnpc("<p,neutral>You need level 75 Magic to hold that much power.");
+    return;
+}
+def_namedobj $cape = null;
+def_namedobj $imbued = null;
+if (inv_total(inv, saradomin_cape) > 0) {
+    $cape = saradomin_cape;
+    $imbued = imbued_saradomin_cape;
+} else if (inv_total(inv, guthix_cape) > 0) {
+    $cape = guthix_cape;
+    $imbued = imbued_guthix_cape;
+} else if (inv_total(inv, zamorak_cape) > 0) {
+    $cape = zamorak_cape;
+    $imbued = imbued_zamorak_cape;
+}
+if ($cape = null) {
+    ~chatnpc("<p,neutral>Bring me a god cape - in your pack, not on your|back - and I will imbue it.");
+    return;
+}
+if (%magearena2 >= ^ma2_imbued) {
+    ~chatnpc("<p,shifty>Again? That will cost you 250,000 coins.");
+    if (~p_choice2("Here you go.", 1, "No thanks.", 2) = 2) {
+        ~chatplayer("<p,neutral>No thanks.");
+        return;
+    }
+    if (inv_total(inv, coins) < ^ma2_reimbue_cost) {
+        ~chatplayer("<p,sad>I don't have that much with me.");
+        return;
+    }
+    inv_del(inv, coins, ^ma2_reimbue_cost);
+}
+inv_del(inv, $cape, 1);
+inv_add(inv, $imbued, 1);
+%magearena2 = ^ma2_imbued;
+~objbox($imbued, "Kolodion takes your cape, mutters a few words over it and hands it back, humming with power.", 250, 0, divide(^objbox_height, 2));

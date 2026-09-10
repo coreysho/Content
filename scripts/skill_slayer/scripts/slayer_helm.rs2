@@ -1,0 +1,76 @@
+// Slayer helmet - assembly, disassembly, Check, and what it inherits from its parts.
+//
+// OSRS: 55 Crafting and all five parts in the inventory; use any part on another. (OSRS also
+// needs the 400-point "Malevolent masquerade" unlock - this build has no slayer points, so the
+// Crafting level is the only gate.) Disassembling hands all five back.
+//
+// What it inherits, wired where each part is checked:
+//   black mask   - on-task 7/6 melee accuracy and damage   skill_slayer/scripts/black_mask.rs2
+//   earmuffs     - banshee screech                          skill_slayer/scripts/npcs/banshee.rs2
+//   nose peg     - aberrant spectre stench                  skill_slayer/scripts/npcs/aberrant_specter.rs2
+//   facemask     - Desert Treasure smoke dungeon            quests/quest_deserttreasure/scripts/dt_smoke.rs2
+//   spiny helmet - wall beasts, which do not exist in this build, so nothing to wire.
+
+[opheldu,black_mask] @slayer_helm_combine;
+[opheldu,slayer_earmuffs] @slayer_helm_combine;
+[opheldu,slayer_facemask] @slayer_helm_combine;
+[opheldu,slayer_nosepeg] @slayer_helm_combine;
+[opheldu,wallbeast_spike_helmet] @slayer_helm_combine;
+
+[label,slayer_helm_combine]
+if (~slayer_helm_part(last_item) = false | ~slayer_helm_part(last_useitem) = false) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (stat(crafting) < 55) {
+    mes("You need a Crafting level of 55 to assemble a slayer helmet.");
+    return;
+}
+if (inv_total(inv, black_mask) < 1 | inv_total(inv, slayer_earmuffs) < 1 | inv_total(inv, slayer_facemask) < 1
+    | inv_total(inv, slayer_nosepeg) < 1 | inv_total(inv, wallbeast_spike_helmet) < 1) {
+    mes("You need a black mask, earmuffs, a facemask, a nose peg and a spiny helmet");
+    mes("in your inventory to assemble a slayer helmet.");
+    return;
+}
+inv_del(inv, black_mask, 1);
+inv_del(inv, slayer_earmuffs, 1);
+inv_del(inv, slayer_facemask, 1);
+inv_del(inv, slayer_nosepeg, 1);
+inv_del(inv, wallbeast_spike_helmet, 1);
+inv_add(inv, slayer_helm, 1);
+~objbox(slayer_helm, "You combine the items into a slayer helmet.", 250, 0, divide(^objbox_height, 2));
+
+[proc,slayer_helm_part](obj $obj)(boolean)
+if ($obj = black_mask | $obj = slayer_earmuffs | $obj = slayer_facemask | $obj = slayer_nosepeg | $obj = wallbeast_spike_helmet) {
+    return(true);
+}
+return(false);
+
+// iop3 - Check
+[opheld3,slayer_helm]
+if (%slayer_count <= 0) {
+    mes("You need something new to hunt.");
+    return;
+}
+mes("You're assigned to kill <lowercase(~slayer_taskname)>; only <tostring(%slayer_count)> more to go.");
+
+// iop4 - Disassemble
+[opheld4,slayer_helm]
+if (inv_freespace(inv) < 4) {
+    mes("You need four free inventory spaces to disassemble your slayer helmet.");
+    return;
+}
+inv_delslot(inv, last_slot);
+inv_add(inv, black_mask, 1);
+inv_add(inv, slayer_earmuffs, 1);
+inv_add(inv, slayer_facemask, 1);
+inv_add(inv, slayer_nosepeg, 1);
+inv_add(inv, wallbeast_spike_helmet, 1);
+mes("You disassemble your slayer helmet.");
+
+// The earmuffs / nose peg / facemask checks all go through this, so a slayer helmet counts as each.
+[proc,slayer_helm_worn]()(boolean)
+if (inv_total(worn, slayer_helm) > 0) {
+    return(true);
+}
+return(false);

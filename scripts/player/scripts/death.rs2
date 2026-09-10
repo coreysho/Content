@@ -102,6 +102,7 @@ while ($i < $size) {
 
 inv_dropall(inv, coord, ^lootdrop_duration);
 inv_dropall(worn, coord, ^lootdrop_duration);
+inv_dropall(looting_bag_store, coord, ^lootdrop_duration); // looting bag contents are always lost - storage_items.rs2
 obj_addall(coord, bones, 1, ^lootdrop_duration);
 ~moveallinv(deathkeep, inv);
 inv_clear(deathkeep);
@@ -149,6 +150,15 @@ while ($i < $size) {
         } else {
             both_dropslot(worn, coord, $i, ^lootdrop_duration);
         }
+    }
+    $i = calc($i + 1);
+}
+// looting bag contents always go to the killer, as in OSRS - storage_items/scripts/storage_items.rs2
+$i = 0;
+$size = inv_size(looting_bag_store);
+while ($i < $size) {
+    if (inv_getnum(looting_bag_store, $i) > 0) {
+        both_dropslot(looting_bag_store, coord, $i, ^lootdrop_duration);
     }
     $i = calc($i + 1);
 }

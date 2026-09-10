@@ -8,6 +8,14 @@ if (distance(coord, obj_coord) = 0) {
 }
 
 [label,pickup_obj_floor]
+// Open herb sack / seed box / looting bag take matching items first - storage_items/scripts/storage_items.rs2
+def_inv $store = ~storage_autocollect_store;
+if ($store ! null) {
+    anim(null, 0);
+    obj_takeitem($store);
+    sound_synth(pick2, 1, 0);
+    return;
+}
 if (~pickup_obj_check_for_space(obj_type, obj_count) = false) {
     return;
 }
@@ -16,6 +24,14 @@ obj_takeitem(inv);
 sound_synth(pick2, 1, 0);
 
 [label,pickup_obj_table]
+// Open herb sack / seed box / looting bag take matching items first - storage_items/scripts/storage_items.rs2
+def_inv $store = ~storage_autocollect_store;
+if ($store ! null) {
+    anim(null, 0);
+    obj_takeitem($store);
+    sound_synth(pick2, 1, 0);
+    return;
+}
 if (~pickup_obj_check_for_space(obj_type, obj_count) = false) {
     return;
 }

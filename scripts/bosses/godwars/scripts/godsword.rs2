@@ -1,0 +1,115 @@
+// Godsword assembly - OSRS rules.
+//
+//   shard + shard        -> "Godsword shards N & M"   anvil + hammer, 80 Smithing, 100 xp
+//   pair + last shard    -> Godsword blade            anvil + hammer, 80 Smithing, 100 xp
+//   blade + hilt         -> the godsword              anywhere, no requirement
+//   godsword "Dismantle" -> blade + hilt              needs one free slot
+//
+// Joining shards happens on the anvil: [oplocu,anvil] in skill_smithing/scripts/smithing/smithing.rs2
+// sends anything with category=godsword_shard here. Using two pieces on each other only explains.
+// The godsword special attacks are not implemented yet (rest of GWD).
+
+[label,godsword_join_at_anvil]
+if (stat(smithing) < 80) {
+    ~mesbox("You need a Smithing level of at least 80 to join the godsword shards.");
+    return;
+}
+if (inv_total(inv, hammer) < 1) {
+    ~mesbox("You need a hammer to join the godsword shards.");
+    return;
+}
+def_obj $item = last_useitem;
+if ($item = godsword_shard_1) {
+    if (inv_total(inv, godsword_shards_2_3) > 0) @godsword_join($item, godsword_shards_2_3, godsword_blade);
+    if (inv_total(inv, godsword_shard_2) > 0) @godsword_join($item, godsword_shard_2, godsword_shards_1_2);
+    if (inv_total(inv, godsword_shard_3) > 0) @godsword_join($item, godsword_shard_3, godsword_shards_1_3);
+} else if ($item = godsword_shard_2) {
+    if (inv_total(inv, godsword_shards_1_3) > 0) @godsword_join($item, godsword_shards_1_3, godsword_blade);
+    if (inv_total(inv, godsword_shard_1) > 0) @godsword_join($item, godsword_shard_1, godsword_shards_1_2);
+    if (inv_total(inv, godsword_shard_3) > 0) @godsword_join($item, godsword_shard_3, godsword_shards_2_3);
+} else if ($item = godsword_shard_3) {
+    if (inv_total(inv, godsword_shards_1_2) > 0) @godsword_join($item, godsword_shards_1_2, godsword_blade);
+    if (inv_total(inv, godsword_shard_1) > 0) @godsword_join($item, godsword_shard_1, godsword_shards_1_3);
+    if (inv_total(inv, godsword_shard_2) > 0) @godsword_join($item, godsword_shard_2, godsword_shards_2_3);
+} else if ($item = godsword_shards_1_2) {
+    if (inv_total(inv, godsword_shard_3) > 0) @godsword_join($item, godsword_shard_3, godsword_blade);
+} else if ($item = godsword_shards_1_3) {
+    if (inv_total(inv, godsword_shard_2) > 0) @godsword_join($item, godsword_shard_2, godsword_blade);
+} else if ($item = godsword_shards_2_3) {
+    if (inv_total(inv, godsword_shard_1) > 0) @godsword_join($item, godsword_shard_1, godsword_blade);
+}
+~mesbox("You need another godsword shard to join to this one.");
+
+[label,godsword_join](obj $first, obj $second, namedobj $result)
+if_close;
+anim(human_smithing, 0);
+sound_synth(anvil_4, 1, 0);
+p_delay(6);
+if (inv_total(inv, $first) < 1 | inv_total(inv, $second) < 1) {
+    return;
+}
+inv_del(inv, $first, 1);
+inv_del(inv, $second, 1);
+inv_add(inv, $result, 1);
+~smithing_xp(1000);
+if ($result = godsword_blade) {
+    ~objbox(godsword_blade, "You join the shards together and forge a godsword blade.", 250, 0, divide(^objbox_height, 2));
+} else {
+    ~objbox($result, "You join the two shards together.", 250, 0, divide(^objbox_height, 2));
+}
+
+// ---------------------------------------------------------------- using pieces on each other
+[opheldu,godsword_shard_1] @godsword_use_pieces;
+[opheldu,godsword_shard_2] @godsword_use_pieces;
+[opheldu,godsword_shard_3] @godsword_use_pieces;
+[opheldu,godsword_shards_1_2] @godsword_use_pieces;
+[opheldu,godsword_shards_1_3] @godsword_use_pieces;
+[opheldu,godsword_shards_2_3] @godsword_use_pieces;
+[opheldu,godsword_blade] @godsword_use_pieces;
+[opheldu,armadyl_hilt] @godsword_use_pieces;
+[opheldu,bandos_hilt] @godsword_use_pieces;
+[opheldu,saradomin_hilt] @godsword_use_pieces;
+[opheldu,zamorak_hilt] @godsword_use_pieces;
+
+[label,godsword_use_pieces]
+// last_item is the item used ON, last_useitem the one being used; either order reaches here.
+def_obj $a = last_item;
+def_obj $b = last_useitem;
+if ($a = godsword_blade & ~godsword_for_hilt($b) ! null) @godsword_attach($b);
+if ($b = godsword_blade & ~godsword_for_hilt($a) ! null) @godsword_attach($a);
+if (oc_category($a) = godsword_shard & oc_category($b) = godsword_shard) {
+    mes("You need an anvil and a hammer to join the godsword shards.");
+    return;
+}
+~displaymessage(^dm_default);
+
+[proc,godsword_for_hilt](obj $hilt)(namedobj)
+if ($hilt = armadyl_hilt) return(armadyl_godsword);
+if ($hilt = bandos_hilt) return(bandos_godsword);
+if ($hilt = saradomin_hilt) return(saradomin_godsword);
+if ($hilt = zamorak_hilt) return(zamorak_godsword);
+return(null);
+
+[label,godsword_attach](obj $hilt)
+def_namedobj $godsword = ~godsword_for_hilt($hilt);
+inv_del(inv, godsword_blade, 1);
+inv_del(inv, $hilt, 1);
+inv_add(inv, $godsword, 1);
+sound_synth(anvil_4, 1, 0);
+~objbox($godsword, "You attach the hilt to the blade and make <~add_article(oc_name($godsword))>.", 250, 0, divide(^objbox_height, 2));
+
+// ---------------------------------------------------------------- dismantling
+[opheld3,armadyl_godsword] @godsword_dismantle(armadyl_hilt);
+[opheld3,bandos_godsword] @godsword_dismantle(bandos_hilt);
+[opheld3,saradomin_godsword] @godsword_dismantle(saradomin_hilt);
+[opheld3,zamorak_godsword] @godsword_dismantle(zamorak_hilt);
+
+[label,godsword_dismantle](namedobj $hilt)
+if (inv_freespace(inv) < 1) {
+    mes("You need a free inventory space to dismantle the godsword.");
+    return;
+}
+inv_delslot(inv, last_slot);
+inv_add(inv, godsword_blade, 1);
+inv_add(inv, $hilt, 1);
+mes("You detach the hilt from the blade.");

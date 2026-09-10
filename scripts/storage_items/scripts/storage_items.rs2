@@ -1,0 +1,251 @@
+// Herb sack, seed box and looting bag - OSRS behaviour, minus the OSRS interfaces.
+//
+// Contents live in three perm invs (configs/storage_items.inv), so they survive logout.
+// "Open" sets a bit in %storage_open: while open, matching items you pick up go straight in
+// (player/scripts/pickup.rs2 asks ~storage_autocollect first). Check lists the contents in chat.
+//
+//   Herb sack   Fill / Open / Check / Empty (to inventory) / Destroy. 14 grimy herbs, 30 of each.
+//   Seed box    Fill / Empty / Check / Open / Destroy. 6 kinds of seed, any number of each.
+//   Looting bag Open / Check / Deposit / Settings / Destroy. 28 slots. Items only go in while you
+//               are in the Wilderness, and only tradeable ones. It can only be emptied at a bank:
+//               use the bag on a bank booth. Its contents are dropped when you die, like OSRS.
+//
+// All three can also be emptied into the bank by using them on a bank booth.
+
+// ================================================================ herb sack
+[proc,herb_sack_accepts](obj $obj)(boolean)
+def_int $i = 0;
+while ($i < 14) {
+    def_obj $herb = enum(int, namedobj, herb_sack_herbs, $i);
+    if ($herb = $obj) {
+        return(true);
+    }
+    $i = calc($i + 1);
+}
+return(false);
+
+[opheld1,herb_sack]
+def_int $moved = 0;
+def_int $i = 0;
+while ($i < 14) {
+    def_namedobj $herb = enum(int, namedobj, herb_sack_herbs, $i);
+    def_int $space = calc(^herb_sack_max_per_herb - inv_total(herb_sack_store, $herb));
+    def_int $n = min(inv_total(inv, $herb), $space);
+    if ($n > 0) {
+        inv_moveitem(inv, herb_sack_store, $herb, $n);
+        $moved = calc($moved + $n);
+    }
+    $i = calc($i + 1);
+}
+if ($moved > 0) {
+    mes("You fill the herb sack.");
+} else if (~storage_has_any_herb = true) {
+    mes("The herb sack cannot hold any more of those herbs.");
+} else {
+    mes("You don't have any grimy herbs that can go in the herb sack.");
+}
+
+[proc,storage_has_any_herb]()(boolean)
+def_int $i = 0;
+while ($i < 14) {
+    if (inv_total(inv, enum(int, namedobj, herb_sack_herbs, $i)) > 0) {
+        return(true);
+    }
+    $i = calc($i + 1);
+}
+return(false);
+
+[opheld2,herb_sack] ~storage_toggle_open(^storage_open_herb_sack, "herb sack", "Grimy herbs you pick up will go straight into it.");
+[opheld3,herb_sack] ~storage_check(herb_sack_store, "herb sack");
+[opheld4,herb_sack] ~storage_empty_to_inv(herb_sack_store, "herb sack");
+[opheld5,herb_sack] @storage_destroy(herb_sack, herb_sack_store, ^storage_open_herb_sack, "herb sack");
+
+// ================================================================ seed box
+[opheld1,seed_box]
+def_int $moved = 0;
+def_int $slot = 0;
+while ($slot < inv_size(inv)) {
+    def_obj $obj = inv_getobj(inv, $slot);
+    if ($obj ! null) {
+        if (~farming_seed_crop($obj) > 0 & (inv_total(seed_box_store, $obj) > 0 | inv_freespace(seed_box_store) > 0)) {
+            def_int $n = inv_total(inv, $obj);
+            inv_moveitem(inv, seed_box_store, $obj, $n);
+            $moved = calc($moved + $n);
+        }
+    }
+    $slot = calc($slot + 1);
+}
+if ($moved > 0) {
+    mes("You put the seeds in the seed box.");
+} else if (inv_freespace(seed_box_store) = 0) {
+    mes("The seed box can only hold six kinds of seed.");
+} else {
+    mes("You don't have any seeds to put in the seed box.");
+}
+
+[opheld2,seed_box] ~storage_empty_to_inv(seed_box_store, "seed box");
+[opheld3,seed_box] ~storage_check(seed_box_store, "seed box");
+[opheld4,seed_box] ~storage_toggle_open(^storage_open_seed_box, "seed box", "Seeds you pick up will go straight into it.");
+[opheld5,seed_box] @storage_destroy(seed_box, seed_box_store, ^storage_open_seed_box, "seed box");
+
+// ================================================================ looting bag
+[opheld1,looting_bag] ~storage_toggle_open(^storage_open_looting_bag, "looting bag", "Items you pick up in the Wilderness will go straight into it.");
+[opheld2,looting_bag] ~storage_check(looting_bag_store, "looting bag");
+[opheld3,looting_bag] mes("Use an item on the looting bag to put it in. It only works in the Wilderness.");
+[opheld4,looting_bag] mes("The looting bag has no settings here - use an item on it to deposit that item.");
+[opheld5,looting_bag] @storage_destroy(looting_bag, looting_bag_store, ^storage_open_looting_bag, "looting bag");
+
+[opheldu,looting_bag]
+def_obj $obj = last_useitem;
+if ($obj = looting_bag) {
+    return;
+}
+if (~wilderness_level(coord) < 1) {
+    mes("You can't put items in the looting bag unless you're in the Wilderness.");
+    return;
+}
+if (oc_tradeable($obj) = false) {
+    mes("Only tradeable items can be put in the looting bag.");
+    return;
+}
+def_int $n = inv_total(inv, $obj);
+if (inv_itemspace(looting_bag_store, $obj, $n, inv_size(looting_bag_store)) = false) {
+    mes("The looting bag is too full to hold that.");
+    return;
+}
+inv_moveitem(inv, looting_bag_store, $obj, $n);
+mes("You put the <oc_name($obj)> in the looting bag.");
+
+// ================================================================ shared
+[proc,storage_toggle_open](int $bit, string $name, string $what)
+if (testbit(%storage_open, $bit) = ^true) {
+    %storage_open = clearbit(%storage_open, $bit);
+    mes("You close the <$name>.");
+} else {
+    %storage_open = setbit(%storage_open, $bit);
+    mes("You open the <$name>. <$what>");
+}
+
+[proc,storage_check](inv $store, string $name)
+if (inv_freespace($store) = inv_size($store)) {
+    mes("The <$name> is empty.");
+    return;
+}
+mes("The <$name> contains:");
+def_int $slot = 0;
+while ($slot < inv_size($store)) {
+    def_obj $obj = inv_getobj($store, $slot);
+    if ($obj ! null) {
+        mes("  <tostring(inv_getnum($store, $slot))> x <oc_name($obj)>");
+    }
+    $slot = calc($slot + 1);
+}
+
+[proc,storage_empty_to_inv](inv $store, string $name)
+if (inv_freespace($store) = inv_size($store)) {
+    mes("The <$name> is empty.");
+    return;
+}
+def_boolean $left = false;
+def_int $slot = 0;
+while ($slot < inv_size($store)) {
+    def_obj $obj = inv_getobj($store, $slot);
+    if ($obj ! null) {
+        def_int $count = inv_getnum($store, $slot);
+        def_int $n = $count;
+        if (oc_stackable($obj) = false) {
+            $n = min($count, inv_freespace(inv));
+        } else if (inv_itemspace(inv, $obj, $count, inv_size(inv)) = false) {
+            $n = 0;
+        }
+        if ($n > 0) {
+            inv_moveitem($store, inv, $obj, $n);
+        }
+        if ($n < $count) {
+            $left = true;
+        }
+    }
+    $slot = calc($slot + 1);
+}
+if ($left = true) {
+    mes("You empty what you can from the <$name> into your inventory.");
+} else {
+    mes("You empty the <$name>.");
+}
+
+// Using any of the three on a bank booth deposits the contents into the bank.
+[oplocu,bankbooth] @storage_bank_deposit;
+[oplocu,loc_11758] @storage_bank_deposit;
+
+[label,storage_bank_deposit]
+def_inv $store;
+def_string $name;
+if (last_useitem = herb_sack) {
+    $store = herb_sack_store;
+    $name = "herb sack";
+} else if (last_useitem = seed_box) {
+    $store = seed_box_store;
+    $name = "seed box";
+} else if (last_useitem = looting_bag) {
+    $store = looting_bag_store;
+    $name = "looting bag";
+} else {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (inv_freespace($store) = inv_size($store)) {
+    mes("The <$name> is empty.");
+    return;
+}
+def_int $slot = 0;
+while ($slot < inv_size($store)) {
+    def_obj $obj = inv_getobj($store, $slot);
+    if ($obj ! null) {
+        if (~bank_find_obj_unbankable($obj) = false) {
+            ~bank_deposit_request($store, $obj, inv_getnum($store, $slot), $slot);
+        }
+    }
+    $slot = calc($slot + 1);
+}
+mes("You empty the <$name> into your bank.");
+
+[label,storage_destroy](namedobj $item, inv $store, int $bit, string $name)
+if (inv_freespace($store) < inv_size($store)) {
+    ~mesbox("If you destroy the <$name>, everything inside it will be lost.");
+}
+if (~p_choice2("Destroy the <$name>.", 1, "Keep it.", 2) ! 1) {
+    return;
+}
+if (inv_total(inv, $item) < 1) {
+    return;
+}
+inv_clear($store);
+%storage_open = clearbit(%storage_open, $bit);
+inv_del(inv, $item, 1);
+mes("You destroy the <$name>.");
+
+// ================================================================ pickup hook
+// Called first thing by player/scripts/pickup.rs2: returns the container an obj being picked up
+// should go into, or null to pick it up normally.
+[proc,storage_autocollect_store]()(inv)
+if (%storage_open = 0) {
+    return(null);
+}
+def_obj $obj = obj_type;
+def_int $count = obj_count;
+if (testbit(%storage_open, ^storage_open_herb_sack) = ^true & inv_total(inv, herb_sack) > 0) {
+    if (~herb_sack_accepts($obj) = true & calc(inv_total(herb_sack_store, $obj) + $count) <= ^herb_sack_max_per_herb) {
+        return(herb_sack_store);
+    }
+}
+if (testbit(%storage_open, ^storage_open_seed_box) = ^true & inv_total(inv, seed_box) > 0) {
+    if (~farming_seed_crop($obj) > 0 & (inv_total(seed_box_store, $obj) > 0 | inv_freespace(seed_box_store) > 0)) {
+        return(seed_box_store);
+    }
+}
+if (testbit(%storage_open, ^storage_open_looting_bag) = ^true & inv_total(inv, looting_bag) > 0) {
+    if (~wilderness_level(coord) > 0 & oc_tradeable($obj) = true & inv_itemspace(looting_bag_store, $obj, $count, inv_size(looting_bag_store)) = true) {
+        return(looting_bag_store);
+    }
+}
+return(null);

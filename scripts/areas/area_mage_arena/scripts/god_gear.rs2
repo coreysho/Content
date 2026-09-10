@@ -1,10 +1,14 @@
 [opheld2,saradomin_cape] if (~check_conflicting_god_staff(zamorak_staff, guthix_staff) = true) ~equip(last_slot);
 [opheld2,zamorak_cape] if (~check_conflicting_god_staff(saradomin_staff, guthix_staff) = true) ~equip(last_slot);
 [opheld2,guthix_cape] if (~check_conflicting_god_staff(saradomin_staff, zamorak_staff) = true) ~equip(last_slot);
+// Mage Arena II imbued capes follow the same rule as the plain ones.
+[opheld2,imbued_saradomin_cape] if (~check_conflicting_god_staff(zamorak_staff, guthix_staff) = true) ~equip(last_slot);
+[opheld2,imbued_zamorak_cape] if (~check_conflicting_god_staff(saradomin_staff, guthix_staff) = true) ~equip(last_slot);
+[opheld2,imbued_guthix_cape] if (~check_conflicting_god_staff(saradomin_staff, zamorak_staff) = true) ~equip(last_slot);
 
-[opheld2,saradomin_staff] if (~check_conflicting_god_cape(zamorak_cape, guthix_cape) = true) ~equip(last_slot);
-[opheld2,zamorak_staff] if (~check_conflicting_god_cape(saradomin_cape, guthix_cape) = true) ~equip(last_slot);
-[opheld2,guthix_staff] if (~check_conflicting_god_cape(saradomin_cape, zamorak_cape) = true) ~equip(last_slot);
+[opheld2,saradomin_staff] if (~check_conflicting_god_cape(zamorak_cape, guthix_cape) = true & ~check_conflicting_god_cape(imbued_zamorak_cape, imbued_guthix_cape) = true) ~equip(last_slot);
+[opheld2,zamorak_staff] if (~check_conflicting_god_cape(saradomin_cape, guthix_cape) = true & ~check_conflicting_god_cape(imbued_saradomin_cape, imbued_guthix_cape) = true) ~equip(last_slot);
+[opheld2,guthix_staff] if (~check_conflicting_god_cape(saradomin_cape, zamorak_cape) = true & ~check_conflicting_god_cape(imbued_saradomin_cape, imbued_zamorak_cape) = true) ~equip(last_slot);
 
 
 [proc,check_conflicting_god_cape](namedobj $item1, namedobj $item2)(boolean)
