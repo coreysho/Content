@@ -1,6 +1,22 @@
 [proc,ring_of_life_check]
 if (p_finduid(uid) = true) {
-    if (inv_getobj(worn, ^wearpos_ring) ! ring_of_life | map_members = ^false | ~wilderness_level(coord) > 30 | stat(hitpoints) > scale(10, 100, stat_base(hitpoints))) {
+    // the Defence cape (unless toggled off) does the ring's job and is not used up, so it goes first
+    def_boolean $cape = ~skillcape_ring_of_life;
+    if ($cape = false & inv_getobj(worn, ^wearpos_ring) ! ring_of_life) {
+        return;
+    }
+    if (map_members = ^false | ~wilderness_level(coord) > 30 | stat(hitpoints) > scale(10, 100, stat_base(hitpoints))) {
+        return;
+    }
+    if ($cape = true) {
+        if (~in_castlewars_waitingroom(coord) = true | ~in_castlewars_game(coord) = true) {
+            return;
+        }
+        if (~pre_tele_checks(coord) = false) {
+            return;
+        }
+        mes("Your Defence cape saves you.");
+        ~player_teleport_normal(map_findsquare(0_50_50_21_18, 0, 2, ^map_findsquare_lineofwalk));
         return;
     }
     if (~in_castlewars_waitingroom(coord) = true | ~in_castlewars_game(coord) = true) {

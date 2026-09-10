@@ -150,6 +150,9 @@ if($ammo = holy_water) {
     ~ranged_dropammo_holywater(npc_coord, $delay);
     return;
 }
+if (~skillcape_ammo_saved = true) { // Ranging cape = Ava's accumulator: the ammo stays in the quiver
+    return;
+}
 if (random(^dropammo_chance) ! 0) {
     if (map_blocked(npc_coord) = false) {
         inv_dropitem_delayed(worn, npc_coord, $ammo, 1, ^lootdrop_duration, $delay);

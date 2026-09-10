@@ -91,7 +91,7 @@ if ($bar = iron_bar) {
 // No mentioned updates to Family Crest or the gauntlets in that period. 
 // Was likely changed when ported to rs2.
 def_int $xp = struct_param($struct, productexp);
-if ($bar = gold_bar & inv_total(worn, gauntlets_of_goldsmithing) > 0) {
+if ($bar = gold_bar & (inv_total(worn, gauntlets_of_goldsmithing) > 0 | ~skillcape_worn(smithing) = true)) { // Smithing cape counts as the gauntlets
     $xp = scale(5, 2, $xp); // 2.5x
 }
 

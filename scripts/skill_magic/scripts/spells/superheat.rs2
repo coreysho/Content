@@ -51,7 +51,7 @@ anim(human_castsuperheatitem, 0);
 ~delete_spell_runes($spell_data);
 ~give_spell_xp($spell_data);
 def_int $smith_xp = struct_param($bar_struct, productexp);
-if ($bar = gold_bar & inv_total(worn, gauntlets_of_goldsmithing) > 0) {
+if ($bar = gold_bar & (inv_total(worn, gauntlets_of_goldsmithing) > 0 | ~skillcape_worn(smithing) = true)) { // Smithing cape counts as the gauntlets
     $smith_xp = scale(5, 2, $smith_xp); // 2.5x
 }
 ~smithing_xp($smith_xp);

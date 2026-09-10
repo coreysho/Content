@@ -93,6 +93,9 @@ if($ammo = holy_water) {
     ~ranged_dropammo_holywater(.coord, $delay);
     return;
 }
+if (~skillcape_ammo_saved = true) { // Ranging cape = Ava's accumulator: the ammo stays in the quiver
+    return;
+}
 if (random(^dropammo_chance) ! 0) {
     if (~in_duel_arena(coord) = true) {
         inv_moveitem(worn, duelarrows, $ammo, 1);
@@ -116,6 +119,9 @@ if (oc_param($ammo, ammo_no_drop) = true) {
 }
 if($ammo = holy_water) {
     ~ranged_dropammo_holywater($coord, $delay);
+    return;
+}
+if (~skillcape_ammo_saved = true) { // Ranging cape = Ava's accumulator: the ammo stays in the quiver
     return;
 }
 if (random(^dropammo_chance) ! 0) {

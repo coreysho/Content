@@ -145,6 +145,9 @@ def_int $cts = add(add(divide(multiply($low, sub(99, $level)), 98), divide(multi
 if (~farming_has_magic_secateurs = true) {
     $cts = divide(multiply($cts, ^farming_magic_secateurs_num), ^farming_magic_secateurs_div);
 }
+if (~skillcape_worn(farming) = true) { // skill cape perk (skillcapes/scripts/skillcape_perks.rs2): +5%, stacks with the secateurs
+    $cts = scale(21, 20, $cts);
+}
 return($cts);
 
 // Allotments are dug up with a spade; everything else is picked by hand. human_farming is the
@@ -337,7 +340,7 @@ if (stat_random(woodcutting, $low, $high) = true) {
     mes("You get some <lowercase(oc_name($logs))>.");
     inv_add(inv, $logs, 1);
     ~woodcutting_xp($xp);
-    if (map_members = ^true & random(256) = 0) {
+    if (map_members = ^true & ~bird_nest_roll = true) { // 10% more with the Woodcutting cape
         ~drop_bird_nest;
     }
     // The tree comes down on roughly one log in eight, same as a wild tree depleting.

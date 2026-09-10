@@ -9,6 +9,17 @@ if(last_useitem = jangerberries) {
 if(last_useitem = ground_bat_bones) {
   @ogrepotion_add_bat_bones(vial_water);
 }
+// Herblore cape: a grimy herb is cleaned (with its xp) on the way into the vial
+if (~skillcape_worn(herblore) = true) {
+    def_namedobj $clean = enum(obj, namedobj, skillcape_grimy_herb, last_useitem);
+    if ($clean ! null) {
+        if (~get_brew_struct(vial_water, $clean) ! null & stat(herblore) >= oc_param($clean, identified_herb_level) & map_members = ^true) {
+            if (~herblore_requires_druidic_ritual = true) {
+                ~identify_herb($clean, last_useslot);
+            }
+        }
+    }
+}
 ~attempt_brew_potion(last_useslot, last_slot);
 
 [opheldu,guamvial]

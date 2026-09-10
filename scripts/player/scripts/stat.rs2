@@ -63,6 +63,12 @@ if (stat(hitpoints) > stat_base(hitpoints)) {
     stat_sub(hitpoints, 1, 0);
     return;
 }
+// Hitpoints cape: twice the natural regeneration, but not on top of Rapid Heal (%prayer7), which
+// already halves this timer's interval.
+if (%prayer7 = ^false & ~skillcape_worn(hitpoints) = true) {
+    stat_heal(hitpoints, 2, 0);
+    return;
+}
 stat_heal(hitpoints, 1, 0);
 
 [proc,stat_reset](stat $stat)

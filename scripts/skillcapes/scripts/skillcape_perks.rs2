@@ -1,0 +1,203 @@
+// Skill cape perks, following the OSRS ones (oldschool.runescape.wiki/w/Cape_of_Accomplishment)
+// wherever this 2006 build has the thing the perk works on. Trimmed and untrimmed capes are equal.
+//
+// Inventory options (the 377 equipment tab can only offer one option list for every slot, so a
+// per-cape "Teleport" there would show on every worn item - these live on the inventory item):
+//   Strength  Teleport - Warriors' Guild          Crafting  Teleport - Crafting Guild
+//   Fishing   Teleport - Fishing Guild            Quest point Teleport - Legends' Guild gate
+//   Defence   Toggle   - its ring of life effect  Agility   Boost - full run energy, once a day
+//   Magic     Spellbook - swap normal/Ancient (after Desert Treasure), five times a day
+//
+// Passive while worn (hooked where each skill does the work - grep "skillcape_worn(" to find them):
+//   Attack      no tokens for the cyclopes (already in wguild.rs2)
+//   Defence     works as a ring of life, and is not used up     (enchanted_jewellry/ring_of_life.rs2)
+//   Ranged      Ava's accumulator: 72% of ammo comes back       (player_ranged.rs2, pvp_ranged.rs2)
+//   Hitpoints   natural hitpoint regeneration doubled, not with Rapid Heal   (player/scripts/stat.rs2)
+//   Runecraft   every mysterious ruins opens without a talisman or tiara     (~runecraft_sync_no_tally)
+//   Herblore    a grimy herb on a vial of water is cleaned then mixed        (brew_potion.rs2)
+//   Thieving    pickpocketing 10% more likely to succeed                     (thieving.rs2)
+//   Crafting    counts as a brown apron at the Crafting Guild door
+//   Mining      5% chance of an extra ore, up to adamantite                  (mining.rs2)
+//   Smithing    counts as goldsmith gauntlets                                (smelting.rs2, superheat.rs2)
+//   Cooking     never burns food; counts as a chef's hat at the Cooking Guild door
+//   Firemaking  counts as a lit light source                                 (~has_light_source)
+//   Woodcutting 10% more bird nests                                          (~bird_nest_roll)
+//   Farming     5% better chance to save herb, allotment and hops lives      (farming_actions.rs2)
+// Not done: Prayer (no holy wrench in 2006), Fletching (no mithril grapple), Slayer (needs the
+// previous task remembered), Construction/Hunter (no skills).
+
+[proc,skillcape_worn](stat $stat)(boolean)
+def_obj $back = inv_getobj(worn, ^wearpos_back);
+if ($back = null) {
+    return(false);
+}
+if ($back = enum(stat, namedobj, skillcape_cape, $stat) | $back = enum(stat, namedobj, skillcape_cape_t, $stat)) {
+    return(true);
+}
+return(false);
+
+// ---- teleports ----
+
+[opheld3,strength_cape] @skillcape_teleport(0_44_55_54_25);
+[opheld3,strength_cape_t] @skillcape_teleport(0_44_55_54_25);
+[opheld3,crafting_cape] @skillcape_teleport(0_45_51_53_20);
+[opheld3,crafting_cape_t] @skillcape_teleport(0_45_51_53_20);
+[opheld3,fishing_cape] @skillcape_teleport(0_40_53_50_3);
+[opheld3,fishing_cape_t] @skillcape_teleport(0_40_53_50_3);
+[opheld3,quest_point_cape] @skillcape_teleport(0_42_52_40_20);
+
+// Unlimited, like the OSRS capes; blocked above level 20 Wilderness like every non-jewellery
+// teleport, and by the usual ~pre_tele_checks (duels, Castle Wars, random events...).
+[label,skillcape_teleport](coord $dest)
+if (~wilderness_level(coord) > 20) {
+    mes("A mysterious force blocks your teleport.");
+    mes("You can't use this teleport after level 20 wilderness.");
+    return;
+}
+if (~pre_tele_checks(coord) = false) {
+    return;
+}
+~player_teleport_normal($dest);
+
+// ---- Defence: ring of life toggle ----
+
+[opheld3,defence_cape] @skillcape_toggle_rol;
+[opheld3,defence_cape_t] @skillcape_toggle_rol;
+
+[label,skillcape_toggle_rol]
+if (%skillcape_rol_off = 0) {
+    %skillcape_rol_off = 1;
+    mes("Your Defence cape will no longer act as a ring of life.");
+    return;
+}
+%skillcape_rol_off = 0;
+mes("Your Defence cape will now act as a ring of life.");
+
+// ring_of_life.rs2 asks this before looking at the ring slot
+[proc,skillcape_ring_of_life]()(boolean)
+if (%skillcape_rol_off = 0 & ~skillcape_worn(defence) = true) {
+    return(true);
+}
+return(false);
+
+// ---- Agility: once a day, full run energy ----
+
+[opheld3,agility_cape] @skillcape_agility_boost;
+[opheld3,agility_cape_t] @skillcape_agility_boost;
+
+[label,skillcape_agility_boost]
+def_int $today = divide(world_minute, 1440);
+if (%skillcape_agility_day = $today) {
+    mes("You have already used your Agility cape's boost today.");
+    return;
+}
+%skillcape_agility_day = $today;
+healenergy(10000);
+mes("You feel refreshed and ready to run.");
+
+// ---- Magic: spellbook swap, five times a day ----
+
+[opheld3,magic_cape] @skillcape_spellbook;
+[opheld3,magic_cape_t] @skillcape_spellbook;
+
+[label,skillcape_spellbook]
+if (%spellbook = 0 & %deserttreasure < ^deserttreasure_complete) {
+    mes("You don't know any other spellbook to switch to.");
+    return;
+}
+def_int $today = divide(world_minute, 1440);
+if (%skillcape_magic_day ! $today) {
+    %skillcape_magic_day = $today;
+    %skillcape_magic_uses = 0;
+}
+if (%skillcape_magic_uses >= 5) {
+    mes("You have already changed your spellbook five times today.");
+    return;
+}
+def_int $choice = -1;
+if (%spellbook = 1) {
+    $choice = ~p_choice2("Switch to the normal spellbook.", 1, "Cancel.", 2);
+} else {
+    $choice = ~p_choice2("Switch to Ancient Magicks.", 1, "Cancel.", 2);
+}
+if ($choice ! 1) {
+    return;
+}
+%skillcape_magic_uses = add(%skillcape_magic_uses, 1);
+anim(human_castteleport, 0);
+sound_synth(magical_barrier, 1, 0);
+if (%spellbook = 1) {
+    %spellbook = 0;
+    if_settab(magic, ^tab_magic);
+    mes("You switch to the normal spellbook. (<tostring(sub(5, %skillcape_magic_uses))> changes left today.)");
+    return;
+}
+%spellbook = 1;
+if_settab(ancient_magic, ^tab_magic);
+mes("You switch to Ancient Magicks. (<tostring(sub(5, %skillcape_magic_uses))> changes left today.)");
+
+// ---- small helpers the skill scripts call ----
+
+// Ranged cape as Ava's accumulator: true = the shot's ammo comes back to the quiver (72%).
+[proc,skillcape_ammo_saved]()(boolean)
+if (~skillcape_worn(ranged) = true & random(100) < 72) {
+    return(true);
+}
+return(false);
+
+// Woodcutting cape: bird nests 10% more often than the usual 1 in 256.
+[proc,bird_nest_roll]()(boolean)
+if (~skillcape_worn(woodcutting) = true) {
+    if (random(2560) < 11) {
+        return(true);
+    }
+    return(false);
+}
+if (random(256) = 0) {
+    return(true);
+}
+return(false);
+
+// A lit light source carried, or the Firemaking cape worn.
+[proc,has_light_source]()(boolean)
+if (inv_totalcat(inv, light_source_lit) > 0) {
+    return(true);
+}
+return(~skillcape_worn(firemaking));
+
+// Mining cape: 5% chance of one more of the ore just mined, for ores up to adamantite.
+[proc,skillcape_mining_extra](namedobj $ore)
+if (~skillcape_worn(mining) = false | random(100) >= 5 | inv_freespace(inv) < 1) {
+    return;
+}
+switch_obj ($ore) {
+    case clay, copper_ore, tin_ore, blurite_ore, iron_ore, silver_ore, coal, gold_ore, perfect_gold_ore, mithril_ore, adamantite_ore :
+        inv_add(inv, $ore, 1);
+        mes("Your cape lets you mine an additional ore.");
+}
+
+// Runecraft: the ruins' "Enter" variant is on while its tiara - or the Runecraft cape - is worn.
+// Called from ~update_all, which every equip, unequip, death and login goes through, so the flags
+// are rebuilt from what is actually worn (previously a tiara lost on death left its ruins open).
+[proc,runecraft_sync_no_tally]
+def_obj $hat = inv_getobj(worn, ^wearpos_hat);
+def_boolean $cape = ~skillcape_worn(runecraft);
+%rc_no_tally_required_air = ~runecraft_tally_flag($cape, $hat, tiara_air);
+%rc_no_tally_required_mind = ~runecraft_tally_flag($cape, $hat, tiara_mind);
+%rc_no_tally_required_water = ~runecraft_tally_flag($cape, $hat, tiara_water);
+%rc_no_tally_required_earth = ~runecraft_tally_flag($cape, $hat, tiara_earth);
+%rc_no_tally_required_fire = ~runecraft_tally_flag($cape, $hat, tiara_fire);
+%rc_no_tally_required_body = ~runecraft_tally_flag($cape, $hat, tiara_body);
+%rc_no_tally_required_cosmic = ~runecraft_tally_flag($cape, $hat, tiara_cosmic);
+%rc_no_tally_required_chaos = ~runecraft_tally_flag($cape, $hat, tiara_chaos);
+%rc_no_tally_required_nature = ~runecraft_tally_flag($cape, $hat, tiara_nature);
+%rc_no_tally_required_law = ~runecraft_tally_flag($cape, $hat, tiara_law);
+%rc_no_tally_required_death = ~runecraft_tally_flag($cape, $hat, tiara_death);
+%rc_no_tally_required_soul = ~runecraft_tally_flag($cape, $hat, tiara_soul);
+%rc_no_tally_required_blood = ~runecraft_tally_flag($cape, $hat, tiara_blood);
+
+[proc,runecraft_tally_flag](boolean $cape, obj $hat, namedobj $tiara)(int)
+if ($cape = true | $hat = $tiara) {
+    return(1);
+}
+return(0);
