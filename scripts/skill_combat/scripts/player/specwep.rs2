@@ -75,6 +75,17 @@ if($weapon = dragon_battleaxe) {
     }
     return;
 }
+if ($weapon = dragon_axe) {
+    // Lumber Up (OSRS): +3 Woodcutting, never past 99
+    if (p_finduid(uid) = true) {
+        ~set_sa_vars(oc_param($weapon, sa_energy));
+        say("Chop chop!");
+        anim(dragon_smallaxe_anim, 0);
+        spotanim_pl(dragon_smallaxe_swoosh_spotanim, 96, 0);
+        ~skilling_spec_boost(woodcutting);
+    }
+    return;
+}
 @toggle_sa;
 
 [if_button,combat_crossbow:specbar] @toggle_sa;
@@ -106,7 +117,28 @@ if($weapon = excalibur) {
 [if_button,combat_thrown:specbar] @toggle_sa;
 [if_button,combat_spear:specbar] @toggle_sa;
 [if_button,combat_heavysword:specbar] @toggle_sa;
-[if_button,combat_pickaxe:specbar] @toggle_sa;
+[if_button,combat_pickaxe:specbar]
+if (~sa_enough_energy = false) {
+    return;
+}
+def_obj $weapon = inv_getobj(worn, ^wearpos_rhand);
+if ($weapon = dragon_pickaxe) {
+    // Rock Knocker (OSRS): +3 Mining, never past 99
+    if (p_finduid(uid) = true) {
+        ~set_sa_vars(oc_param($weapon, sa_energy));
+        say("Smashing!");
+        anim(dragon_pickaxe_anim, 0);
+        ~skilling_spec_boost(mining);
+    }
+    return;
+}
+@toggle_sa;
+
+[proc,skilling_spec_boost](stat $stat)
+def_int $boost = min(3, sub(99, stat_base($stat)));
+if ($boost > 0) {
+    stat_boost($stat, $boost, 0);
+}
 [if_button,combat_whip:specbar] @toggle_sa;
 [if_button,combat_claw:specbar] @toggle_sa;
 [if_button,combat_unarmed:specbar] @toggle_sa;

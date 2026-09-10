@@ -6,6 +6,10 @@ if (~npc_is_attackable() = false) {
 if (~sa_enough_energy = false) {
     return;
 }
+// Quick Smash ignores the attack delay and adds none (pvm_specs_osrs.rs2)
+if (inv_getobj(worn, ^wearpos_rhand) = granite_maul) {
+    @pvm_granite_maul_sa;
+}
 if (%action_delay > map_clock) {
     p_opnpc(2);
     return;
@@ -26,6 +30,11 @@ p_opnpc(2);
     case rune_thrownaxe : @pvm_rune_thrownaxe_sa;
     case dragon_spear, dragon_spear_p, dragon_spear_p+, dragon_spear_p++, tbwt_dragon_spear_kp : @pvm_dragon_spear_sa;
     case abyssal_whip : @pvm_abyssal_whip_sa;
+    case rune_claws : @pvm_rune_claws_sa;
+    case dragon_scimitar : @pvm_dragon_scimitar_sa;
+    case zamorakian_spear : @pvm_zamorakian_spear_sa;
+    case dragon_halberd : @pvm_dragon_halberd_sa;
+    case dragon_2h_sword : @pvm_dragon_2h_sword_sa;
     case armadyl_godsword : @pvm_armadyl_godsword_sa;
     case bandos_godsword : @pvm_bandos_godsword_sa;
     case saradomin_godsword : @pvm_saradomin_godsword_sa;

@@ -51,6 +51,9 @@ if ($pickaxe = null) {
     return;
 }
 def_int $mining_rate = oc_param($pickaxe, mining_rate);
+if ($pickaxe = dragon_pickaxe & random(9) = 0) { // OSRS: dragon pickaxe sometimes swings a tick early
+    $mining_rate = sub($mining_rate, 1);
+}
 if (%action_delay < map_clock) {
     %action_delay = calc(map_clock + $mining_rate);
     p_oploc(1);
@@ -88,6 +91,9 @@ if ($pickaxe = null) {
     return;
 }
 def_int $mining_rate = oc_param($pickaxe, mining_rate);
+if ($pickaxe = dragon_pickaxe & random(9) = 0) { // OSRS: dragon pickaxe sometimes swings a tick early
+    $mining_rate = sub($mining_rate, 1);
+}
 
 // sounds and skill anim is based off https://youtu.be/ix4_VVi9Xm4
 sound_synth(mine_quick, 1, 0);

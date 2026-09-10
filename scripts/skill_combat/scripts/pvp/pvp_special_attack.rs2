@@ -6,7 +6,7 @@ if (.%death = ^true) {
 if (stat(hitpoints) = 0) {
     return;
 }
-if (%action_delay > map_clock) {
+if (inv_getobj(worn, ^wearpos_rhand) ! granite_maul & %action_delay > map_clock) {
     p_opplayer(2);
     return;
 }
@@ -30,20 +30,29 @@ if (%damagetype = ^ranged_style) {
     }
 }
 def_obj $weapon = inv_getobj(worn, ^wearpos_rhand);
+// Quick Smash ignores the attack delay and adds none (pvp_specs_osrs.rs2)
+if ($weapon = granite_maul) {
+    @pvp_granite_maul_sa;
+}
 // weps like shortbow are always their default attackrate (regardless of style)
 // - https://youtu.be/hAsKD72uJEE?si=BU4yzV9lxb_7uQKg&t=188
 %action_delay = add(map_clock, oc_param($weapon, attackrate));
 p_opplayer(2);
 
 switch_obj($weapon) {
-    case dragon_dagger, dragon_dagger_p : @pvp_dragon_dagger_sa;
+    case dragon_dagger, dragon_dagger_p, dragon_dagger_p+, dragon_dagger_p++ : @pvp_dragon_dagger_sa;
     case dragon_longsword : @pvp_dragon_longsword_sa;
     case dragon_mace : @pvp_dragon_mace_sa;
     case magic_shortbow : @pvp_magic_shortbow_sa;
     case magic_longbow : @pvp_magic_longbow_sa;
     case rune_thrownaxe : @pvp_rune_thrownaxe_sa;
-    case dragon_spear, dragon_spear_p : @pvp_dragon_spear_sa;
+    case dragon_spear, dragon_spear_p, dragon_spear_p+, dragon_spear_p++, tbwt_dragon_spear_kp : @pvp_dragon_spear_sa;
     case rune_claws : @pvp_rune_claws_sa;
+    case abyssal_whip : @pvp_abyssal_whip_sa;
+    case dragon_scimitar : @pvp_dragon_scimitar_sa;
+    case zamorakian_spear : @pvp_zamorakian_spear_sa;
+    case dragon_halberd : @pvp_dragon_halberd_sa;
+    case dragon_2h_sword : @pvp_dragon_2h_sword_sa;
     case armadyl_godsword : @pvp_armadyl_godsword_sa;
     case bandos_godsword : @pvp_bandos_godsword_sa;
     case saradomin_godsword : @pvp_saradomin_godsword_sa;

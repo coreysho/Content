@@ -1,0 +1,124 @@
+// PvP versions of the specials in player/specs/scripts/pvm_specs_osrs.rs2, plus the abyssal whip.
+// Protect from Melee cuts melee damage by 40% as usual. The halberd and 2h sword hit only the player
+// you attacked here (OSRS lets them hit up to 3 players in multi-combat).
+//
+//   Abyssal whip     Energy Drain  50%  +25% accuracy vs slash; takes 10% of the target's run energy
+//   Dragon scimitar  Sever         55%  +25% accuracy vs slash; on a hit, turns off the target's
+//                                        protection prayers and blocks them for 8 ticks
+
+[proc,pvp_spec_roll](int $accuracy_pct, int $damage_pct, int $defence_style)(boolean, int)
+def_int $maxhit = scale($damage_pct, 100, %com_maxhit);
+def_int $attack_roll = scale($accuracy_pct, 100, ~player_attack_roll_specific(%damagetype));
+def_int $defence_roll = ~.player_defence_roll_specific($defence_style);
+if (randominc($attack_roll) <= randominc($defence_roll)) {
+    return(false, 0);
+}
+if (~.check_protect_prayer(^melee_style) = true) {
+    $maxhit = scale(6, 10, $maxhit); // reduction of 40%
+}
+def_int $damage = min(randominc($maxhit), .stat(hitpoints)); // tick eating existed
+~give_combat_experience_pvp(%damagestyle, $damage, ~pvp_xp_multiplier(~.player_combat_level));
+both_heropoints($damage);
+return(true, $damage);
+
+[proc,pvp_spec_land](int $damage, synth $sound)
+sound_synth($sound, 1, 0);
+.anim(.%com_defendanim, 20);
+.sound_synth($sound, 1, 0);
+.queue*(pvp_retaliate, 0)(uid);
+~.pvp_damage(0, $damage);
+
+// ------------------------------------------------------------------ Abyssal whip
+[label,pvp_abyssal_whip_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+~set_pk_vars;
+def_boolean $hit = false;
+def_int $damage = 0;
+$hit, $damage = ~pvp_spec_roll(125, 100, ^slash_style);
+anim(osrs_whip_attack, 0);
+.spotanim_pl(sp_attack_abyssal_whip, 96, 0);
+.queue*(whip_energy_drain, 0)(uid);
+~pvp_spec_land($damage, energydrain);
+
+[queue,whip_energy_drain](player_uid $from)
+def_int $take = divide(runenergy, 10);
+if ($take > 0) {
+    healenergy(sub(0, $take));
+    if (.finduid($from) = true) {
+        .healenergy($take);
+    }
+}
+mes("You feel drained!");
+
+// ------------------------------------------------------------------ Dragon scimitar
+[label,pvp_dragon_scimitar_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+~set_pk_vars;
+def_boolean $hit = false;
+def_int $damage = 0;
+$hit, $damage = ~pvp_spec_roll(125, 100, ^slash_style);
+anim(sp_attack_dragon_scimitar, 0);
+spotanim_pl(sp_attack_dragon_scimitar_trail_spotanim, 96, 0);
+if ($hit = true) {
+    .queue(dscim_sever, 0, 0);
+}
+~pvp_spec_land($damage, oc_param(inv_getobj(worn, ^wearpos_rhand), slash_sound));
+
+// Runs on the target. The three protect-prayer buttons refuse while %sever_block is running
+// (skill_prayer/scripts/prayers/protectfrom*.rs2).
+[queue,dscim_sever]
+%sever_block = calc(map_clock + 8);
+if (%prayer12 = ^true | %prayer13 = ^true | %prayer14 = ^true) {
+    ~prayer_deactivate_specific(^prayer_protectfrommagic);
+    ~prayer_deactivate_specific(^prayer_protectfrommissiles);
+    ~prayer_deactivate_specific(^prayer_protectfrommelee);
+    sound_synth(cancel_prayer, 1, 0);
+}
+mes("You have been injured and can't use protection prayers!");
+
+[proc,sever_blocks_protection]()(boolean)
+if (%sever_block > map_clock) {
+    sound_synth(prayer_off, 1, 0);
+    mes("You have been injured and can't use protection prayers!");
+    return(true);
+}
+return(false);
+
+// ------------------------------------------------------------------ Zamorakian spear
+// A player is never bigger than 1x1, so it is exactly the dragon spear's shove.
+[label,pvp_zamorakian_spear_sa] @pvp_dragon_spear_sa;
+
+// ------------------------------------------------------------------ Granite maul
+// Called before the attack-delay check in pvp_special_attack; adds no cooldown.
+[label,pvp_granite_maul_sa]
+p_opplayer(2);
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+~set_pk_vars;
+def_boolean $hit = false;
+def_int $damage = 0;
+$hit, $damage = ~pvp_spec_roll(100, 100, %damagetype);
+anim(slayer_granite_maul_special_attack, 0);
+spotanim_pl(sp_attack_maul_spotanim, 96, 0);
+~pvp_spec_land($damage, oc_param(inv_getobj(worn, ^wearpos_rhand), crush_sound));
+
+// ------------------------------------------------------------------ Dragon halberd
+[label,pvp_dragon_halberd_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+~set_pk_vars;
+def_boolean $hit = false;
+def_int $damage = 0;
+$hit, $damage = ~pvp_spec_roll(100, 110, ^slash_style);
+anim(dragon_halberd_special_attack, 0);
+spotanim_pl(spotanim_282, 96, 0);
+~pvp_spec_land($damage, oc_param(inv_getobj(worn, ^wearpos_rhand), slash_sound));
+
+// ------------------------------------------------------------------ Dragon 2h sword
+[label,pvp_dragon_2h_sword_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+~set_pk_vars;
+def_boolean $hit = false;
+def_int $damage = 0;
+$hit, $damage = ~pvp_spec_roll(100, 100, %damagetype);
+anim(dragon_two_handed_sword, 0);
+spotanim_pl(dragon_two_handed_sword_blast, 0, 0);
+~pvp_spec_land($damage, oc_param(inv_getobj(worn, ^wearpos_rhand), slash_sound));

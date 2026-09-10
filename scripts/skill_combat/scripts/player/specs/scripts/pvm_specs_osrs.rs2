@@ -1,0 +1,187 @@
+// Special attacks that were missing or incomplete - OSRS rules (oldschool.runescape.wiki), this
+// build's own 2006 animations and graphics. PvP versions: pvp/specs/scripts/pvp_specs_osrs.rs2.
+//
+//   Dragon scimitar    Sever        55%  +25% accuracy vs slash (PvP: also blocks protection prayers)
+//   Zamorakian spear   Shove        25%  the dragon spear's shove; refused on anything bigger than 1x1
+//   Granite maul       Quick Smash  60%  an ordinary-strength hit with no attack delay, no cooldown
+//   Dragon halberd     Sweep        30%  +10% damage vs slash; a second hit (-25% accuracy) on large
+//                                          targets; in multi-combat also hits the 3x1 line through the
+//                                          target (10 NPCs max)
+//   Dragon 2h sword    Powerstab    60%  in multi-combat hits everything within 1 tile of you
+//                                          (14 NPCs max)
+//   Dragon axe / pickaxe: specwep.rs2 (spec bar buttons, no target).
+
+// Single-target roll. Returns (hit, damage before the hitpoints cap, damage after it).
+[proc,pvm_spec_roll](int $accuracy_pct, int $damage_pct, int $defence_style)(boolean, int, int)
+def_int $maxhit = scale($damage_pct, 100, %com_maxhit);
+def_int $attack_roll = scale($accuracy_pct, 100, ~player_attack_roll_specific(%damagetype));
+def_int $defence_roll = ~npc_defence_roll_specific($defence_style);
+if (randominc($attack_roll) <= randominc($defence_roll)) {
+    return(false, 0, 0);
+}
+if (npc_type = count_draynor & inv_total(inv, garlic) > 0) {
+    $maxhit = add($maxhit, 1);
+}
+def_int $damage = randominc(min($maxhit, npc_param(max_dealt)));
+if (npc_param(slayer_category) = ^slayer_kurask | npc_param(slayer_category) = ^slayer_turoth) {
+    $damage = 0;
+}
+def_int $damage_capped = min($damage, npc_stat(hitpoints));
+~give_combat_experience(%damagestyle, $damage_capped, %npc_combat_xp_multiplier);
+npc_heropoints($damage_capped);
+return(true, $damage, $damage_capped);
+
+// Hitsplat, defend animation and retaliation on the current npc.
+[proc,pvm_spec_land](int $damage, int $delay)
+~npc_retaliate($delay);
+npc_queue(2, $damage, $delay);
+npc_anim(npc_param(defend_anim), 20);
+if (npc_param(defend_sound) ! null) {
+    sound_synth(npc_param(defend_sound), 0, 20); // delay npc this tick
+}
+
+// ------------------------------------------------------------------ Dragon scimitar
+[label,pvm_dragon_scimitar_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+def_boolean $hit = false;
+def_int $damage = 0;
+def_int $damage_capped = 0;
+$hit, $damage, $damage_capped = ~pvm_spec_roll(125, 100, ^slash_style);
+anim(sp_attack_dragon_scimitar, 0);
+spotanim_pl(sp_attack_dragon_scimitar_trail_spotanim, 96, 0);
+sound_synth(oc_param(inv_getobj(worn, ^wearpos_rhand), slash_sound), 1, 0);
+~pvm_spec_land($damage, 0);
+
+// ------------------------------------------------------------------ Zamorakian spear
+[label,pvm_zamorakian_spear_sa]
+if (nc_size(npc_type) > 1) {
+    // OSRS: refused, and no energy is used
+    mes("That creature is too large to knock back!");
+    %sa_attack = ^false;
+    %action_delay = map_clock; // player_special_attack already set a full delay; undo it
+    return;
+}
+@pvm_dragon_spear_sa;
+
+// ------------------------------------------------------------------ Granite maul
+// Reached from player_special_attack BEFORE the attack-delay check, and %action_delay is left
+// alone: Quick Smash lands on the next tick whatever the maul's cooldown, and adds none.
+[label,pvm_granite_maul_sa]
+if (npc_stat(hitpoints) = 0) {
+    p_stopaction;
+    return;
+}
+p_opnpc(2);
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+def_boolean $hit = false;
+def_int $damage = 0;
+def_int $damage_capped = 0;
+$hit, $damage, $damage_capped = ~pvm_spec_roll(100, 100, %damagetype);
+anim(slayer_granite_maul_special_attack, 0);
+spotanim_pl(sp_attack_maul_spotanim, 96, 0);
+sound_synth(oc_param(inv_getobj(worn, ^wearpos_rhand), crush_sound), 1, 0);
+~pvm_spec_land($damage, 0);
+
+// ------------------------------------------------------------------ Dragon halberd
+[label,pvm_dragon_halberd_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+def_npc_uid $primary = npc_uid;
+def_coord $centre = npc_coord;
+def_int $stamp = map_clock;
+%npc_multihit = $stamp;
+def_boolean $hit = false;
+def_int $damage = 0;
+def_int $damage_capped = 0;
+$hit, $damage, $damage_capped = ~pvm_spec_roll(100, 110, ^slash_style);
+anim(dragon_halberd_special_attack, 0);
+spotanim_pl(spotanim_282, 96, 0);
+sound_synth(oc_param(inv_getobj(worn, ^wearpos_rhand), slash_sound), 1, 0);
+~pvm_spec_land($damage, 0);
+if (nc_size(npc_type) > 1) {
+    // large targets take a second swing at 25% lower accuracy
+    $hit, $damage, $damage_capped = ~pvm_spec_roll(75, 110, ^slash_style);
+    ~pvm_spec_land($damage, 0);
+}
+if (map_multiway(coord) = true) {
+    // the 3x1 line through the target, across the direction of the swing
+    def_boolean $across_x = false;
+    if (abs(sub(coordx($centre), coordx(coord))) < abs(sub(coordz($centre), coordz(coord)))) {
+        $across_x = true;
+    }
+    def_int $count = 1;
+    def_npc_uid $next = ~pvm_multi_next($centre, $primary, $stamp, 1, $across_x);
+    while ($next ! null & $count < 10) {
+        ~pvm_spec_extra_hit($next, $stamp, 110, ^slash_style);
+        $count = add($count, 1);
+        $next = ~pvm_multi_next($centre, $primary, $stamp, 1, $across_x);
+    }
+    if (npc_finduid($primary) = false) {
+        return;
+    }
+}
+
+// ------------------------------------------------------------------ Dragon 2h sword
+[label,pvm_dragon_2h_sword_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+def_npc_uid $primary = npc_uid;
+def_int $stamp = map_clock;
+%npc_multihit = $stamp;
+def_boolean $hit = false;
+def_int $damage = 0;
+def_int $damage_capped = 0;
+$hit, $damage, $damage_capped = ~pvm_spec_roll(100, 100, %damagetype);
+anim(dragon_two_handed_sword, 0);
+spotanim_pl(dragon_two_handed_sword_blast, 0, 0);
+sound_synth(oc_param(inv_getobj(worn, ^wearpos_rhand), slash_sound), 1, 0);
+~pvm_spec_land($damage, 0);
+if (map_multiway(coord) = true) {
+    def_int $count = 1;
+    def_npc_uid $next = ~pvm_multi_next(coord, $primary, $stamp, 0, false);
+    while ($next ! null & $count < 14) {
+        ~pvm_spec_extra_hit($next, $stamp, 100, %damagetype);
+        $count = add($count, 1);
+        $next = ~pvm_multi_next(coord, $primary, $stamp, 0, false);
+    }
+    if (npc_finduid($primary) = false) {
+        return;
+    }
+}
+
+// ------------------------------------------------------------------ multi-target helpers
+// Next npc around $centre that this special has not hit yet. No arrays in RuneScript, so each hit
+// npc is stamped (%npc_multihit = map_clock of the swing) and the search simply skips stamped ones.
+// $line: 0 = everything within 1 tile of $centre; 1 = only the 3-tile line through $centre, along
+// x if $across_x, otherwise along z. Both the player and the npc must be in multi-combat.
+[proc,pvm_multi_next](coord $centre, npc_uid $primary, int $stamp, int $line, boolean $across_x)(npc_uid)
+npc_huntall($centre, 1, ^vis_lineofsight);
+while (.npc_findnext = true) {
+    if (.npc_uid ! $primary & .%npc_multihit ! $stamp & map_multiway(.npc_coord) = true & compare(nc_op(.npc_type, 2), "Attack") = 0) {
+        if ($line = 0) {
+            return(.npc_uid);
+        }
+        if ($across_x = true & coordz(.npc_coord) = coordz($centre) & abs(sub(coordx(.npc_coord), coordx($centre))) <= 1) {
+            return(.npc_uid);
+        }
+        if ($across_x = false & coordx(.npc_coord) = coordx($centre) & abs(sub(coordz(.npc_coord), coordz($centre))) <= 1) {
+            return(.npc_uid);
+        }
+    }
+}
+return(null);
+
+[proc,pvm_spec_extra_hit](npc_uid $target, int $stamp, int $damage_pct, int $defence_style)
+if (npc_finduid($target) = false) {
+    return;
+}
+%npc_multihit = $stamp;
+if (npc_stat(hitpoints) = 0) {
+    return;
+}
+if (~npc_is_attackable = false) {
+    return;
+}
+def_boolean $hit = false;
+def_int $damage = 0;
+def_int $damage_capped = 0;
+$hit, $damage, $damage_capped = ~pvm_spec_roll(100, $damage_pct, $defence_style);
+~pvm_spec_land($damage, 0);
