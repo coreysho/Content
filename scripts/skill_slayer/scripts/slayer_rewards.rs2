@@ -1,0 +1,275 @@
+// Slayer point rewards, spent through any master's "I'd like to spend my Slayer points."
+// (slayer_points.rs2 has the points themselves and cancel/block/unblock). Names and prices follow
+// the OSRS Slayer Rewards page, limited to what exists in this build:
+//   Unlocks  Gargoyle Smasher 120, Slug Salter 10, Reptile Freezer 10, Ring Bling 150
+//   Extends  eleven tasks (configs/slayer_rewards.enum) - longer tasks from Chaeldar and Duradel
+//   Buy      Slayer ring (8) 75, Herb sack 750, Looting bag 10
+// Not here because the thing they work on is missing: Bigger and Badder (no superior monsters),
+// 'Shroom Sprayer (zygomite tasks never assigned), Broader Fletching, the boss/TzHaar/lizardman
+// task unlocks. Malevolent Masquerade and Seeing Red are left out on purpose: slayer helmets and red
+// dragon tasks were never locked here, and selling them back would take them away.
+
+[label,slayer_master_rewards]
+~chatplayer("<p,quiz>I'd like to spend my Slayer points.");
+~chatnpc("<p,neutral>You have <tostring(%slayer_points)> Slayer points and have finished <tostring(%slayer_streak)> tasks in a row. What would you like?");
+switch_int (~p_choice5("Unlock something.", 1, "Make my tasks longer.", 2, "Buy something.", 3, "Cancel or block my task.", 4, "Nothing, thanks.", 5)) {
+    case 1 : @slayer_rewards_unlocks;
+    case 2 : @slayer_rewards_extends(0);
+    case 3 : @slayer_rewards_buy;
+    case 4 :
+        switch_int (~p_choice4("Cancel my task. (<tostring(^slayer_cancel_cost)> points)", 1, "Block my task for good. (<tostring(^slayer_block_cost)> points)", 2, "Unblock a task.", 3, "Never mind.", 4)) {
+            case 1 : @slayer_rewards_cancel;
+            case 2 : @slayer_rewards_block;
+            case 3 : @slayer_rewards_unblock;
+        }
+    case default : ~chatplayer("<p,neutral>Nothing, thanks.");
+}
+
+// ---- spending ----
+
+[proc,slayer_can_afford](int $cost)(boolean)
+if (%slayer_points >= $cost) {
+    return(true);
+}
+~chatnpc("<p,neutral>That costs <tostring($cost)> points, and you've only got <tostring(%slayer_points)>.");
+return(false);
+
+[proc,slayer_confirm](string $what, int $cost)(boolean)
+if (~p_choice2_header("Yes, spend <tostring($cost)> points.", 1, "No.", 2, $what) = 1) {
+    return(true);
+}
+return(false);
+
+// ---- unlocks ----
+
+[proc,slayer_has_unlock](int $bit)(boolean)
+if (testbit(%slayer_unlocks, $bit) = ^true) {
+    return(true);
+}
+return(false);
+
+[proc,slayer_unlock_label](string $name, int $bit, int $cost)(string)
+if (~slayer_has_unlock($bit) = true) {
+    return("<$name> (unlocked)");
+}
+return("<$name> (<tostring($cost)>)");
+
+[label,slayer_rewards_unlocks]
+def_int $bit = -1;
+def_int $cost = 0;
+def_string $what = "";
+switch_int (~p_choice5(~slayer_unlock_label("Gargoyle Smasher", 0, 120), 1, ~slayer_unlock_label("Slug Salter", 1, 10), 2, ~slayer_unlock_label("Reptile Freezer", 2, 10), 3, ~slayer_unlock_label("Ring Bling", 3, 150), 4, "Never mind.", 5)) {
+    case 1 : $bit = 0; $cost = 120; $what = "Gargoyles you beat are smashed automatically if you carry a rock hammer.";
+    case 2 : $bit = 1; $cost = 10; $what = "Rockslugs you beat are salted automatically if you carry a bag of salt.";
+    case 3 : $bit = 2; $cost = 10; $what = "Desert lizards you beat are frozen automatically if you carry icy water.";
+    case 4 : $bit = 3; $cost = 150; $what = "Craft Slayer rings: use an enchanted gem on a furnace with a gold bar and ring mould (75 Crafting).";
+    case default : return;
+}
+if (~slayer_has_unlock($bit) = true) {
+    ~chatnpc("<p,neutral>You've already learned that one.");
+    return;
+}
+if (~slayer_can_afford($cost) = false) {
+    return;
+}
+if (~slayer_confirm($what, $cost) = false) {
+    return;
+}
+%slayer_points = sub(%slayer_points, $cost);
+%slayer_unlocks = setbit(%slayer_unlocks, $bit);
+~chatnpc("<p,happy>There you go. You have <tostring(%slayer_points)> points left.");
+
+// ---- extends ----
+
+[proc,slayer_has_extend](int $index)(boolean)
+if (testbit(%slayer_extends, $index) = ^true) {
+    return(true);
+}
+return(false);
+
+[proc,slayer_extend_label](int $index)(string)
+if (~slayer_has_extend($index) = true) {
+    return("<enum(int, string, slayer_extend_name, $index)> (unlocked)");
+}
+return("<enum(int, string, slayer_extend_name, $index)> (<tostring(enum(int, int, slayer_extend_cost, $index))>)");
+
+// Four extends a page; $page 0, 1, 2 (eleven in all).
+[label,slayer_rewards_extends](int $page)
+def_int $first = multiply($page, 4);
+def_int $count = enum_getoutputcount(slayer_extend_name);
+def_int $left = sub($count, $first);
+def_int $pick = -1;
+if ($left > 4) {
+    $pick = ~p_choice5(~slayer_extend_label($first), 0, ~slayer_extend_label(add($first, 1)), 1, ~slayer_extend_label(add($first, 2)), 2, ~slayer_extend_label(add($first, 3)), 3, "More...", 4);
+    if ($pick = 4) {
+        @slayer_rewards_extends(add($page, 1));
+    }
+} else if ($left = 4) {
+    $pick = ~p_choice5(~slayer_extend_label($first), 0, ~slayer_extend_label(add($first, 1)), 1, ~slayer_extend_label(add($first, 2)), 2, ~slayer_extend_label(add($first, 3)), 3, "Back to the start.", 4);
+    if ($pick = 4) {
+        @slayer_rewards_extends(0);
+    }
+} else if ($left = 3) {
+    $pick = ~p_choice4(~slayer_extend_label($first), 0, ~slayer_extend_label(add($first, 1)), 1, ~slayer_extend_label(add($first, 2)), 2, "Back to the start.", 4);
+    if ($pick = 4) {
+        @slayer_rewards_extends(0);
+    }
+} else if ($left = 2) {
+    $pick = ~p_choice3(~slayer_extend_label($first), 0, ~slayer_extend_label(add($first, 1)), 1, "Back to the start.", 4);
+    if ($pick = 4) {
+        @slayer_rewards_extends(0);
+    }
+} else {
+    $pick = ~p_choice2(~slayer_extend_label($first), 0, "Back to the start.", 4);
+    if ($pick = 4) {
+        @slayer_rewards_extends(0);
+    }
+}
+if ($pick < 0 | $pick > 3) {
+    return;
+}
+def_int $index = add($first, $pick);
+if (~slayer_has_extend($index) = true) {
+    ~chatnpc("<p,neutral>You've already got that one.");
+    return;
+}
+def_int $cost = enum(int, int, slayer_extend_cost, $index);
+if (~slayer_can_afford($cost) = false) {
+    return;
+}
+if (~slayer_confirm("<enum(int, string, slayer_extend_monster, $index)> tasks from Chaeldar or Duradel become <tostring(enum(int, int, slayer_extend_min, $index))>-<tostring(enum(int, int, slayer_extend_max, $index))> kills.", $cost) = false) {
+    return;
+}
+%slayer_points = sub(%slayer_points, $cost);
+%slayer_extends = setbit(%slayer_extends, $index);
+~chatnpc("<p,happy>Done - your <enum(int, string, slayer_extend_monster, $index)> tasks from now on will be longer. You have <tostring(%slayer_points)> points left.");
+
+// Called after every assignment (slayer_task.rs2). Only Chaeldar and Duradel give extended tasks,
+// as their lengths are what the OSRS ranges are written against.
+[proc,slayer_apply_extend]
+if (%slayer_task_master < 4) {
+    return;
+}
+def_int $ext = enum(int, int, slayer_task_extend, %slayer_target);
+if ($ext <= 0) {
+    return;
+}
+def_int $index = sub($ext, 1);
+if (~slayer_has_extend($index) = false) {
+    return;
+}
+%slayer_count = ~random_range(enum(int, int, slayer_extend_min, $index), enum(int, int, slayer_extend_max, $index));
+
+// ---- buying ----
+
+[label,slayer_rewards_buy]
+def_namedobj $item = null;
+def_int $cost = 0;
+switch_int (~p_choice4("Slayer ring (8) - 75 points", 1, "Herb sack - 750 points", 2, "Looting bag - 10 points", 3, "Never mind.", 4)) {
+    case 1 : $item = slayer_ring_8; $cost = 75;
+    case 2 : $item = herb_sack; $cost = 750;
+    case 3 : $item = looting_bag; $cost = 10;
+    case default : return;
+}
+if (~slayer_can_afford($cost) = false) {
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,neutral>You'll need a free space in your inventory for that.");
+    return;
+}
+%slayer_points = sub(%slayer_points, $cost);
+inv_add(inv, $item, 1);
+~objbox($item, "You spend <tostring($cost)> Slayer points on <~add_article(lowercase(oc_name($item)))>.", 250, 0, 0);
+
+// ---- automatic finishing blows (called from each monster's ai_queue3) ----
+
+// Returns true if the player who brought the monster down has the unlock and the item, in which case
+// the caller lets it die instead of healing it. $use: the item is used up (salt, icy water).
+[proc,slayer_autofinish](int $bit, namedobj $item, boolean $use, string $message)(boolean)
+if (finduid(%npc_aggressive_player) = false) {
+    return(false);
+}
+if (testbit(%slayer_unlocks, $bit) = ^false | inv_total(inv, $item) < 1) {
+    return(false);
+}
+if ($use = true) {
+    queue*(slayer_autofinish_use, 0)($item);
+}
+mes($message);
+return(true);
+
+[queue,slayer_autofinish_use](namedobj $item)
+inv_del(inv, $item, 1);
+
+// ---- Slayer ring ----
+
+[opheld1,_slayer_ring] @slayer_ring_rub;
+[opheld3,_slayer_ring] @slayer_ring_check;
+
+[label,slayer_ring_check]
+if (%slayer_count <= 0) {
+    mes("You need something new to hunt.");
+} else {
+    mes("You're assigned to kill <lowercase(~slayer_taskname)>; only <tostring(%slayer_count)> more to go.");
+}
+mes("You have <tostring(%slayer_points)> Slayer points and a streak of <tostring(%slayer_streak)> tasks.");
+
+[label,slayer_ring_rub]
+def_obj $ring = last_item;
+def_int $slot = last_slot;
+mes("You rub the ring...");
+def_int $choice = ~p_choice3_header("Slayer Tower.", 1, "Fremennik Slayer Dungeon.", 2, "Nowhere.", 3, "Where would you like to teleport to?");
+if ($choice ! 1 & $choice ! 2) {
+    mes("You remain where you were.");
+    return;
+}
+if (~wilderness_level(coord) > 30) {
+    mes("A mysterious force blocks your teleport.");
+    mes("You can't use this teleport after level 30 wilderness.");
+    return;
+}
+if (~pre_tele_checks(coord) = false) {
+    return;
+}
+if (inv_getobj(inv, $slot) ! $ring) {
+    return;
+}
+def_namedobj $next = oc_param($ring, slayer_ring_next);
+if ($next = null) {
+    inv_delslot(inv, $slot);
+    mes("Your Slayer ring crumbles to dust.");
+} else {
+    inv_setslot(inv, $slot, $next, 1);
+}
+if ($choice = 1) {
+    ~player_teleport_normal(0_53_55_36_4);
+} else {
+    ~player_teleport_normal(0_43_56_44_31);
+}
+
+// Ring Bling: enchanted gem on a furnace, with a gold bar and ring mould (smelting.rs2 routes here)
+[label,slayer_craft_ring]
+if (~slayer_has_unlock(3) = false) {
+    mes("You don't know how to make that. A Slayer master could teach you.");
+    return;
+}
+if (stat(crafting) < 75) {
+    mes("You need a Crafting level of 75 to make a Slayer ring.");
+    return;
+}
+if (inv_total(inv, ring_mould) < 1 | inv_total(inv, gold_bar) < 1) {
+    mes("You need a ring mould and a gold bar to make a Slayer ring.");
+    return;
+}
+p_arrivedelay;
+anim(human_furnace, 0);
+p_delay(2);
+if (inv_total(inv, slayer_gem) < 1 | inv_total(inv, gold_bar) < 1) {
+    return;
+}
+inv_del(inv, slayer_gem, 1);
+inv_del(inv, gold_bar, 1);
+inv_add(inv, slayer_ring_8, 1);
+stat_advance(crafting, 150);
+mes("You make a Slayer ring.");

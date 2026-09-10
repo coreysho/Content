@@ -4,7 +4,8 @@
 //   - the first four tasks pay nothing; every 10th task pays 5x, 50th 15x, 100th 25x, 250th 35x,
 //     1000th 50x;
 //   - Turael swapping out a task you already have resets the streak (slayer_master.rs2).
-// Spent with any master ("I'd like to spend my Slayer points."):
+// Spent with any master ("I'd like to spend my Slayer points." - unlocks, extends and items are in
+// slayer_rewards.rs2):
 //   - cancel the current task, 30 points (the streak is kept);
 //   - block the current task, 100 points - it is cancelled and never assigned again until unblocked.
 //     One block slot, plus one per 50 quest points (4 at this server's 152);
@@ -71,15 +72,7 @@ if ($target <= 0) {
 }
 return(enum(int, string, task_name, $target));
 
-[label,slayer_master_rewards]
-~chatplayer("<p,quiz>I'd like to spend my Slayer points.");
-~chatnpc("<p,neutral>You have <tostring(%slayer_points)> Slayer points and have finished <tostring(%slayer_streak)> tasks in a row. What would you like?");
-switch_int (~p_choice4("Cancel my task. (<tostring(^slayer_cancel_cost)> points)", 1, "Block my task for good. (<tostring(^slayer_block_cost)> points)", 2, "Unblock a task.", 3, "Nothing, thanks.", 4)) {
-    case 1 : @slayer_rewards_cancel;
-    case 2 : @slayer_rewards_block;
-    case 3 : @slayer_rewards_unblock;
-    case default : ~chatplayer("<p,neutral>Nothing, thanks.");
-}
+// [label,slayer_master_rewards], the menu these hang off, is in slayer_rewards.rs2.
 
 [label,slayer_rewards_cancel]
 ~chatplayer("<p,neutral>I'd like to cancel my task.");
