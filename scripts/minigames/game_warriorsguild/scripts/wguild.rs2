@@ -1,0 +1,143 @@
+// Warriors' Guild, Burthorpe - OSRS rules (oldschool.runescape.wiki/w/Warriors'_Guild).
+// The building is the OSRS map square m44_55 and the dragon-defender basement m45_155, imported by
+// tools/models/importosrsmap.py (configs/wguild_map.loc). Done here:
+//   entry (combined Attack + Strength 130, or 99 in either), the Magical Animator and animated
+//   armour (tokens), the two cyclops rooms (10 tokens to go in and every minute after; attack cape
+//   wearers pay nothing), defender drops, stairs, ladders, bank, and the npcs.
+// Not done: the dummy, catapult, shot put and Jimmy's challenge rooms, and the guild shops.
+
+// ------------------------------------------------------------------ areas
+// Top floor cyclops room: everything on level 2 of the guild except the stair lobby.
+[proc,wguild_in_top_room](coord $c)(boolean)
+if (coordy($c) ! 2) return(false);
+def_int $x = coordx($c);
+def_int $z = coordz($c);
+if ($x < 2838 | $x > 2876 | $z < 3537 | $z > 3556) return(false);
+if ($x <= 2846 & $z <= 3541) return(false);
+return(true);
+
+// Basement cyclops room, less the ladder room.
+[proc,wguild_in_basement](coord $c)(boolean)
+if (coordy($c) ! 0) return(false);
+def_int $x = coordx($c);
+def_int $z = coordz($c);
+if ($x < 2905 | $x > 2940 | $z < 9957 | $z > 9973) return(false);
+if ($x <= 2910 & $z >= 9967) return(false);
+return(true);
+
+// ------------------------------------------------------------------ requirements
+[proc,wguild_can_enter]()(boolean)
+if (stat_base(attack) >= 99 | stat_base(strength) >= 99) return(true);
+if (add(stat_base(attack), stat_base(strength)) >= 130) return(true);
+return(false);
+
+[proc,wguild_has_attack_cape]()(boolean)
+if (inv_total(worn, attack_cape) > 0 | inv_total(worn, attack_cape_t) > 0) return(true);
+return(false);
+
+// Best defender carried or worn, as an index into wguild_defenders (0 bronze .. 7 dragon), or -1.
+[proc,wguild_best_defender]()(int)
+def_int $i = 7;
+while ($i >= 0) {
+    def_namedobj $d = enum(int, namedobj, wguild_defenders, $i);
+    if (inv_total(inv, $d) > 0 | inv_total(worn, $d) > 0) return($i);
+    $i = sub($i, 1);
+}
+return(-1);
+
+// ------------------------------------------------------------------ cyclops rooms
+// Called at the door before the player is let through. Lorelai also wants to see a rune defender
+// once, and after that the basement stays open (%wguild_basement).
+[proc,wguild_room_allowed](boolean $basement)(boolean)
+if ($basement = true & %wguild_basement = 0) {
+    if (~wguild_best_defender < 6) {
+        ~chatnpc_specific(nc_name(wguild_lorelai), wguild_lorelai, "<p,neutral>Only warriors who own a rune defender may fight the cyclopes down here. Come back when you have one.");
+        return(false);
+    }
+    %wguild_basement = 1;
+}
+if (~wguild_has_attack_cape = false & inv_total(inv, warrior_guild_token) < ^wguild_tokens_to_enter) {
+    if ($basement = true) {
+        ~chatnpc_specific(nc_name(wguild_lorelai), wguild_lorelai, "<p,neutral>You need at least 100 warrior guild tokens to go in there. You can earn them in the animation room upstairs.");
+    } else {
+        ~chatnpc_specific(nc_name(wguild_kamfreena), wguild_kamfreena, "<p,neutral>You need at least 100 warrior guild tokens to go in there. You can earn them in the animation room on the ground floor.");
+    }
+    return(false);
+}
+return(true);
+
+// Called once the player is through: charge the entry fee, fix which defender drops on this visit,
+// and start the per-minute charge.
+[proc,wguild_room_entered](boolean $basement)
+if (~wguild_has_attack_cape = false) {
+    inv_del(inv, warrior_guild_token, ^wguild_token_charge);
+    mes("10 of your tokens crumble away.");
+}
+def_int $best = ~wguild_best_defender;
+if ($basement = true) {
+    %wguild_target = add(7, 1);
+    mes("The cyclopes down here may drop a dragon defender.");
+} else {
+    def_int $next = min(add($best, 1), 6);
+    %wguild_target = add($next, 1);
+    def_namedobj $d = enum(int, namedobj, wguild_defenders, $next);
+    if ($best < 0) {
+        mes("You have no defender, so the cyclopes will drop a <oc_name($d)> for you.");
+    } else {
+        mes("The cyclopes will drop a <oc_name($d)> for you.");
+    }
+}
+softtimer(wguild_tokens, ^wguild_token_interval);
+
+[softtimer,wguild_tokens]
+def_boolean $basement = ~wguild_in_basement(coord);
+if (~wguild_in_top_room(coord) = false & $basement = false) {
+    clearsofttimer(wguild_tokens);
+    %wguild_target = ^wguild_target_none;
+    return;
+}
+if (~wguild_has_attack_cape = true) return;
+if (inv_total(inv, warrior_guild_token) < 1) {
+    clearsofttimer(wguild_tokens);
+    %wguild_target = ^wguild_target_none;
+    queue(wguild_out_of_tokens, 0, 0);
+    return;
+}
+inv_del(inv, warrior_guild_token, ^wguild_token_charge);
+mes("10 of your tokens crumble away.");
+if (inv_total(inv, warrior_guild_token) < 1) {
+    mes("You have run out of tokens. You have one minute before you are removed from the room.");
+}
+
+[queue,wguild_out_of_tokens]
+mes("You have run out of tokens, so you are shown out of the room.");
+if (~wguild_in_basement(coord) = true) {
+    p_telejump(0_45_155_27_48);
+} else if (~wguild_in_top_room(coord) = true) {
+    p_telejump(2_44_55_29_20);
+}
+
+// ------------------------------------------------------------------ cyclopes
+[ai_queue3,_wguild_cyclops] @wguild_cyclops_death(false);
+[ai_queue3,_wguild_cyclops_basement] @wguild_cyclops_death(true);
+
+[label,wguild_cyclops_death](boolean $basement)
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+~cyclops_loot;
+if (%wguild_target = ^wguild_target_none) {
+    return;
+}
+def_int $target = sub(%wguild_target, 1);
+if ($basement = true) {
+    if ($target = 7 & ~wguild_in_basement(coord) = true & random(^wguild_dragon_defender_rate) = 0) {
+        obj_add(npc_coord, dragon_defender, 1, ^lootdrop_duration);
+    }
+    return;
+}
+if ($target < 7 & ~wguild_in_top_room(coord) = true & random(^wguild_defender_rate) = 0) {
+    obj_add(npc_coord, enum(int, namedobj, wguild_defenders, $target), 1, ^lootdrop_duration);
+}

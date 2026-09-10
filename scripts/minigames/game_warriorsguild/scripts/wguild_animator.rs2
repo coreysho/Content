@@ -1,0 +1,89 @@
+// The Magical Animator: put a full helm, platebody and platelegs of one metal on it and it brings
+// them to life. Kill the animated armour to get the armour back plus tokens
+// (bronze 5, iron 10, steel 15, black 20, mithril 25, adamant 30, rune 40).
+
+[oploc1,osrsloc_23955]
+def_int $set = ~wguild_armour_set_in_inv;
+if ($set = -1) {
+    mes("You need a full helm, a platebody and platelegs of the same metal to use the animator.");
+    return;
+}
+npc_huntall(coord, 16, 0);
+while (npc_findnext = true) {
+    if (npc_category = wguild_armour & %npc_aggressive_player = uid) {
+        mes("You already have some armour animated.");
+        return;
+    }
+}
+def_npc $npc = enum(int, npc, wguild_armour_npc, $set);
+def_coord $spot = map_findsquare(loc_coord, 1, 2, ^map_findsquare_lineofwalk);
+if ($spot = null) {
+    mes("There is no room for the armour to appear.");
+    return;
+}
+inv_del(inv, enum(npc, namedobj, wguild_armour_helm, $npc), 1);
+inv_del(inv, enum(npc, namedobj, wguild_armour_body, $npc), 1);
+inv_del(inv, enum(npc, namedobj, wguild_armour_legs, $npc), 1);
+anim(human_pickuptable, 0);
+mes("You place your armour on the platform where it disappears...");
+p_delay(1);
+mes("The animator hums, something appears to be working. You stand back...");
+p_delay(1);
+npc_add($spot, $npc, 1000);
+npc_say("I'm ALIVE!");
+%npc_aggressive_player = uid;
+%aggressive_npc = npc_uid;
+npc_setmode(opplayer2);
+
+// Highest complete set in the inventory, 0 bronze .. 6 rune, or -1.
+[proc,wguild_armour_set_in_inv]()(int)
+def_int $i = 6;
+while ($i >= 0) {
+    def_npc $n = enum(int, npc, wguild_armour_npc, $i);
+    if (inv_total(inv, enum(npc, namedobj, wguild_armour_helm, $n)) > 0 & inv_total(inv, enum(npc, namedobj, wguild_armour_body, $n)) > 0 & inv_total(inv, enum(npc, namedobj, wguild_armour_legs, $n)) > 0) {
+        return($i);
+    }
+    $i = sub($i, 1);
+}
+return(-1);
+
+// Only the player who animated it may fight it.
+[opnpc2,_wguild_armour]
+if (%npc_aggressive_player ! uid) {
+    mes("That isn't your armour to fight.");
+    return;
+}
+@player_combat_start;
+
+[apnpc2,_wguild_armour]
+if (%npc_aggressive_player ! uid) {
+    mes("That isn't your armour to fight.");
+    return;
+}
+@player_combat_start_ap;
+
+// If the owner wanders off, the armour falls apart at their feet.
+[ai_timer,_wguild_armour]
+if (finduid(%npc_aggressive_player) = true) {
+    if (coordy(coord) = coordy(npc_coord) & npc_range(coord) <= 16) {
+        return;
+    }
+    ~wguild_drop_armour(coord, npc_type, 0);
+    mes("Your animated armour falls apart, and the pieces land at your feet.");
+}
+npc_del;
+
+[ai_queue3,_wguild_armour]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+~wguild_drop_armour(npc_coord, npc_type, enum(npc, int, wguild_armour_tokens, npc_type));
+
+[proc,wguild_drop_armour](coord $c, npc $npc, int $tokens)
+obj_add($c, enum(npc, namedobj, wguild_armour_helm, $npc), 1, ^lootdrop_duration);
+obj_add($c, enum(npc, namedobj, wguild_armour_body, $npc), 1, ^lootdrop_duration);
+obj_add($c, enum(npc, namedobj, wguild_armour_legs, $npc), 1, ^lootdrop_duration);
+if ($tokens > 0) {
+    obj_add($c, warrior_guild_token, $tokens, ^lootdrop_duration);
+}

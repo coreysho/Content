@@ -1,0 +1,45 @@
+// Warriors' Guild npcs.
+
+[opnpc1,wguild_ghommal]
+if (~wguild_can_enter = true) {
+    ~chatnpc("<p,happy>Ghommal welcome you to Warriors' Guild! You strong warrior. Ghommal let you in.");
+} else {
+    ~chatnpc("<p,angry>You not pass through this door. Only strong warriors allowed in guild. You needs combined Attack and Strength of 130, or 99 in either.");
+}
+
+[opnpc1,wguild_harrallak]
+~chatnpc("<p,happy>Welcome to my humble guild, <displayname>.");
+def_int $choice = ~p_choice3("Quite a place you've got here.", 1, "What is there to do here?", 2, "Bye!", 3);
+if ($choice = 1) {
+    ~chatplayer("<p,happy>Quite a place you've got here.");
+    ~chatnpc("<p,happy>Thank you. We are proud of it. Only the finest warriors - those with a combined Attack and Strength of 130 - may join.");
+} else if ($choice = 2) {
+    ~chatplayer("<p,quiz>What is there to do here?");
+    ~chatnpc("<p,neutral>Bring a full helm, platebody and platelegs of one metal to the Magical Animator on the ground floor. Defeat the armour it brings to life and you'll earn tokens.");
+    ~chatnpc("<p,neutral>Spend your tokens with Kamfreena on the top floor, fighting cyclopes. They drop defenders - bronze first, then better ones, each time you come back in with your best one.");
+    ~chatnpc("<p,neutral>Once you own a rune defender, Lorelai will let you at the cyclopes in the basement. They are the only ones that drop the dragon defender.");
+} else {
+    ~chatplayer("<p,happy>Bye!");
+}
+
+[opnpc1,wguild_kamfreena]
+~chatnpc("<p,neutral>Why are you bothering me, <displayname>? The cyclopes are through that door.");
+~chatnpc("<p,neutral>It costs 10 tokens to go in, and 10 more every minute you stay. You need at least 100 to start. Wear an attack cape and I won't charge you at all.");
+~chatnpc("<p,neutral>Carry the best defender you own when you go in, and the cyclopes will drop the next one up. Once you get it, come out and go back in for the one after.");
+[opnpc3,wguild_kamfreena] ~chatnpc("<p,neutral>You don't have any tokens to claim from me.");
+
+[opnpc1,wguild_lorelai]
+if (%wguild_basement = 1) {
+    ~chatnpc("<p,neutral>Welcome back. The cyclopes are through there - they're the only ones that drop dragon defenders.");
+} else {
+    ~chatnpc("<p,neutral>These cyclopes are the strongest in the guild. Show me a rune defender and I'll let you through.");
+}
+~chatnpc("<p,neutral>The same token rules apply down here as upstairs: 10 to go in, 10 a minute, 100 to start.");
+[opnpc3,wguild_lorelai] ~chatnpc("<p,neutral>You don't have any tokens to claim from me.");
+
+[opnpc1,wguild_shanomi] ~chatnpc("<p,happy>Think not dishonestly. The Way is in training. Think not dishonestly!");
+[opnpc3,wguild_shanomi] ~chatnpc("<p,neutral>The dummy room is not open yet, so there are no tokens to claim.");
+
+[opnpc1,wguild_jade] @openbank;
+[opnpc3,wguild_jade] @openbank;
+[opnpc4,wguild_jade] mes("There is nothing waiting to be collected.");

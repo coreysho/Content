@@ -1,0 +1,89 @@
+// Warriors' Guild doors, stairs and ladders. Coordinates are the OSRS ones (the map is imported).
+
+// ------------------------------------------------------------------ front door (east wall)
+[oploc1,osrsloc_24318]
+if (~check_axis(coord, loc_coord, loc_angle) = true) {
+    if (~wguild_can_enter = false) {
+        ~chatnpc_specific(nc_name(wguild_ghommal), wguild_ghommal, "<p,angry>You not pass through this door. Only strong warriors allowed in guild. You needs combined Attack and Strength of 130, or 99 in either.");
+        return;
+    }
+    ~open_and_close_door(loc_param(next_loc_stage), true, false);
+    ~chatnpc_specific(nc_name(wguild_ghommal), wguild_ghommal, "<p,happy>Ghommal welcome you to Warriors' Guild!");
+} else {
+    ~open_and_close_door(loc_param(next_loc_stage), false, false);
+}
+
+// ------------------------------------------------------------------ armour-door pair
+// The same two locs are the animation room doors on the ground floor (free) and the top floor
+// cyclops room doors (tokens). The door tile is on the room side of the wall in both places.
+[oploc1,osrsloc_24306] @wguild_armour_door;
+[oploc1,osrsloc_24309] @wguild_armour_door;
+
+[label,wguild_armour_door]
+def_boolean $door_side = ~check_axis(coord, loc_coord, loc_angle);
+if (coordy(loc_coord) = 2) {
+    if ($door_side = false) {
+        // lobby -> cyclops room
+        if (~wguild_room_allowed(false) = false) {
+            return;
+        }
+        ~open_and_close_door(loc_param(next_loc_stage), false, false);
+        ~wguild_room_entered(false);
+        return;
+    }
+    ~open_and_close_door(loc_param(next_loc_stage), true, false);
+    return;
+}
+~open_and_close_door(loc_param(next_loc_stage), $door_side, false);
+
+// ------------------------------------------------------------------ basement door (Lorelai)
+[oploc1,osrsloc_10043]
+if (~check_axis(coord, loc_coord, loc_angle) = true) {
+    if (~wguild_room_allowed(true) = false) {
+        return;
+    }
+    ~open_and_close_door(loc_param(next_loc_stage), true, false);
+    ~wguild_room_entered(true);
+} else {
+    ~open_and_close_door(loc_param(next_loc_stage), false, false);
+}
+
+// ------------------------------------------------------------------ stairs (north-west tower)
+[oploc1,osrsloc_16671]
+p_arrivedelay;
+p_telejump(1_44_55_24_19);
+
+[oploc1,osrsloc_16672] @ladder_options(2_44_55_24_19, 0_44_55_25_18);
+[oploc2,osrsloc_16672]
+p_arrivedelay;
+p_telejump(2_44_55_24_19);
+[oploc3,osrsloc_16672]
+p_arrivedelay;
+p_telejump(0_44_55_25_18);
+
+[oploc1,osrsloc_24303]
+p_arrivedelay;
+p_telejump(1_44_55_24_19);
+
+// ------------------------------------------------------------------ basement ladder (outside, west)
+[oploc1,osrsloc_10042]
+p_arrivedelay;
+~climb_ladder(0_45_155_27_48, false);
+
+[oploc1,osrsloc_9742]
+p_arrivedelay;
+~climb_ladder(0_44_55_18_22, true);
+
+// ------------------------------------------------------------------ bank
+[oploc2,osrsloc_10355] @openbank;
+[oploc3,osrsloc_10355] mes("There is nothing waiting to be collected.");
+
+[oploc1,osrsloc_10529]
+if_openmain(inter_95);
+if_settab(null, 3);
+if_settab(null, 4);
+inv_transmit(inv, inter_95:com_62);
+
+// ------------------------------------------------------------------ information scrolls
+[oploc1,osrsloc_24908] ~mesbox("The dummy room: hit each dummy as it pops up with the attack style shown on it. (This room is not open yet.)");
+[oploc1,osrsloc_24909] ~mesbox("The catapult room: defend yourself from the catapult's missiles with the right shield stance. (This room is not open yet.)");
