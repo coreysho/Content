@@ -4,7 +4,9 @@
 //   entry (combined Attack + Strength 130, or 99 in either), the Magical Animator and animated
 //   armour (tokens), the two cyclops rooms (10 tokens to go in and every minute after; attack cape
 //   wearers pay nothing), defender drops, stairs, ladders, bank, and the npcs.
-// Not done: the dummy, catapult, shot put and Jimmy's challenge rooms, and the guild shops.
+// The token rooms each have their own file: wguild_dummies.rs2 (ground floor), wguild_catapult.rs2,
+// wguild_shotput.rs2 and wguild_kegs.rs2 (first floor); shops and room npcs in wguild_rooms_npcs.rs2.
+// Tokens go straight into the pack (OSRS banks them with the room's npc for "Claim-Tokens").
 
 // ------------------------------------------------------------------ areas
 // Top floor cyclops room: everything on level 2 of the guild except the stair lobby.
@@ -24,6 +26,17 @@ def_int $z = coordz($c);
 if ($x < 2905 | $x > 2940 | $z < 9957 | $z > 9973) return(false);
 if ($x <= 2910 & $z >= 9967) return(false);
 return(true);
+
+// ------------------------------------------------------------------ tokens
+// Into the pack, or at your feet if it's full.
+[proc,wguild_give_tokens](int $count)
+if ($count < 1) return;
+if (inv_total(inv, warrior_guild_token) > 0 | inv_freespace(inv) > 0) {
+    inv_add(inv, warrior_guild_token, $count);
+} else {
+    obj_add(coord, warrior_guild_token, $count, ^lootdrop_duration);
+    mes("Your pack is full, so the tokens are dropped at your feet.");
+}
 
 // ------------------------------------------------------------------ requirements
 [proc,wguild_can_enter]()(boolean)

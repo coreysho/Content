@@ -1,0 +1,120 @@
+// Warriors' Guild: Jimmy's challenge (first floor, north-east storeroom) - OSRS rules:
+// oldschool.runescape.wiki/w/Keg_(Warriors'_Guild). Pick up the kegs and balance them on your head,
+// up to five. Head, hands, weapon and shield slots must be empty. Every 12 ticks each keg drains
+// run energy and pays Strength xp and tokens (10 tokens for all five). Once your energy is nearly
+// gone the kegs may fall - they hurt (up to 4) and roll back to their places. Walk out of the room or
+// take them off and they're put down. The kegs are worn in the hat slot (OSRS objs 8860-8864) with
+// the OSRS balancing stand/walk animations.
+
+[proc,wguild_in_keg_room](coord $c)(boolean)
+if (coordy($c) ! 1) return(false);
+return(inzone(1_44_55_45_13, 1_44_55_61_22, $c));
+
+[proc,wguild_is_barrels](obj $obj)(boolean)
+if ($obj = null) return(false);
+if (oc_category($obj) = wguild_barrels) return(true);
+return(false);
+
+[oploc1,osrsloc_15668]
+if (%wguild_kegs >= 5) {
+    mes("You can't balance any more kegs on your head.");
+    return;
+}
+if (%wguild_kegs = 0 & inv_getobj(worn, ^wearpos_hat) ! null) {
+    mes("You need to take your hat off to balance a keg on your head.");
+    return;
+}
+if (inv_getobj(worn, ^wearpos_rhand) ! null | inv_getobj(worn, ^wearpos_lhand) ! null | inv_getobj(worn, ^wearpos_hands) ! null) {
+    mes("You need both hands free to pick up a keg.");
+    return;
+}
+anim(wguild_keg_lift, 0);
+loc_del(^wguild_keg_respawn);
+%wguild_kegs = add(%wguild_kegs, 1);
+inv_setslot(worn, ^wearpos_hat, enum(int, namedobj, wguild_barrels, %wguild_kegs), 1);
+~update_bas;
+if (%wguild_kegs = 1) {
+    mes("You lift the keg onto your head.");
+    softtimer(wguild_kegs, ^wguild_keg_interval);
+} else if (%wguild_kegs = 5) {
+    mes("You balance a fifth keg on the stack!");
+} else {
+    mes("You balance another keg on top.");
+}
+
+[softtimer,wguild_kegs] queue(wguild_keg_tick, 0, 0);
+
+[queue,wguild_keg_tick]
+if (%wguild_kegs < 1) {
+    clearsofttimer(wguild_kegs);
+    return;
+}
+if (~wguild_in_keg_room(coord) = false | ~wguild_is_barrels(inv_getobj(worn, ^wearpos_hat)) = false) {
+    ~wguild_keg_drop(false);
+    return;
+}
+def_int $kegs = %wguild_kegs;
+healenergy(sub(0, add(100, multiply($kegs, 160))));
+stat_advance(strength, multiply($kegs, 150));
+if ($kegs = 5) {
+    ~wguild_give_tokens(10);
+} else {
+    ~wguild_give_tokens($kegs);
+}
+if (runenergy = 0 | (runenergy < 1000 & random(2) = 0)) {
+    ~wguild_keg_drop(true);
+}
+
+// Take the kegs off: falling ($fall) hurts and shows them tumbling, otherwise they are set down.
+[proc,wguild_keg_drop](boolean $fall)
+def_int $kegs = %wguild_kegs;
+%wguild_kegs = 0;
+clearsofttimer(wguild_kegs);
+if (~wguild_is_barrels(inv_getobj(worn, ^wearpos_hat)) = true) {
+    inv_delslot(worn, ^wearpos_hat);
+}
+~update_bas;
+if ($kegs < 1) {
+    return;
+}
+if ($fall = true) {
+    spotanim_pl(enum(int, spotanim, wguild_kegfall, $kegs), 0, 0);
+    mes("You're too tired to keep your balance, and the kegs come crashing down.");
+    ~damage_self(add(random(4), 1));
+} else {
+    anim(wguild_keg_putdown, 0);
+    mes("You put the kegs down.");
+}
+
+// update_bas (player/scripts/appearance.rs2) asks this first, so equipping something else while
+// balancing keeps the balancing walk.
+[proc,wguild_keg_bas]()(boolean)
+if (~wguild_is_barrels(inv_getobj(worn, ^wearpos_hat)) = false) {
+    return(false);
+}
+~bas_set(wguild_keg_ready, wguild_keg_ready, wguild_keg_walk, wguild_keg_walk, wguild_keg_walk, wguild_keg_walk, wguild_keg_run);
+buildappearance(worn);
+return(true);
+
+// login.rs2: kegs don't survive a logout.
+[proc,wguild_login]
+if (~wguild_is_barrels(inv_getobj(worn, ^wearpos_hat)) = true) {
+    inv_delslot(worn, ^wearpos_hat);
+}
+%wguild_kegs = 0;
+
+// Jimmy heckles whoever is balancing.
+[ai_timer,wguild_jimmy]
+huntall(npc_coord, 10, 0);
+while (huntnext = true) {
+    if (%wguild_kegs > 0 & random(3) = 0) {
+        if (%wguild_kegs >= 5) {
+            npc_say("Five! Nobody'sh ever done five 'cept me!");
+        } else if (%wguild_kegs >= 4) {
+            npc_say("Hic! No one'sh stronger than me!");
+        } else {
+            npc_say("Ha! You've got no chance o' beatin' me!");
+        }
+        return;
+    }
+}

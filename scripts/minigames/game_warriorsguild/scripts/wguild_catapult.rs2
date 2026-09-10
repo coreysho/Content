@@ -1,0 +1,75 @@
+// Warriors' Guild catapult room (first floor, west) - OSRS rules:
+// oldschool.runescape.wiki/w/Warriors'_Guild#Catapult_room. Gamfred lends you a defensive shield;
+// wield it on the platform in front of the catapult and the inventory tab becomes the defence
+// panel (wguild_defence.if - OSRS if 411). The catapult fires every 8 ticks: a spiky ball (stab),
+// an anvil (crush), slashing blades (slash) or a magic missile. Pick the matching defence before it
+// lands for 1 token and 10 Defence xp; the wrong one knocks you back for 1-4 damage.
+// The OSRS "Catapult Defence Game Key" (if 410) is the information scroll by the door.
+
+[proc,wguild_on_catapult_spot]()(boolean)
+if (coord = ^wguild_catapult_spot) return(true);
+return(false);
+
+[proc,wguild_catapult_ok]()(boolean)
+if (~wguild_on_catapult_spot = false) return(false);
+if (inv_getobj(worn, ^wearpos_lhand) ! wguild_defensive_shield) return(false);
+return(true);
+
+// [opheld2,_] would equip it; this does the same and then starts the game if you're on the spot.
+[opheld2,wguild_defensive_shield]
+~equip(last_slot);
+if (~wguild_catapult_ok = true) {
+    ~wguild_catapult_start;
+} else if (inv_getobj(worn, ^wearpos_lhand) = wguild_defensive_shield & coordy(coord) = 1 & inzone(1_44_55_21_22, 1_44_55_30_35, coord) = true) {
+    mes("Stand on the platform in front of the catapult, then wield the shield.");
+}
+
+[proc,wguild_catapult_start]
+%wguild_catapult_style = 0;
+%wguild_catapult_count = 0;
+if_settab(wguild_defence, ^tab_inventory);
+if_settabactive(^tab_inventory);
+mes("The catapult swings round to face you. Choose the right defence for each missile!");
+softtimer(wguild_catapult, 2);
+
+[proc,wguild_catapult_stop]
+clearsofttimer(wguild_catapult);
+%wguild_catapult_style = 0;
+if_settab(inventory, ^tab_inventory);
+
+[softtimer,wguild_catapult] queue(wguild_catapult_tick, 0, 0);
+
+[queue,wguild_catapult_tick]
+if (~wguild_catapult_ok = false) {
+    ~wguild_catapult_stop;
+    return;
+}
+%wguild_catapult_count = add(%wguild_catapult_count, 1);
+if (modulo(%wguild_catapult_count, ^wguild_catapult_polls) ! 0) {
+    return;
+}
+def_int $missile = random(4);
+if (loc_find(^wguild_catapult_coord, osrsloc_23950) = true) {
+    loc_anim(wguild_catapult_fire);
+}
+def_int $duration = ~player_projectile(^wguild_catapult_coord, coord, uid, enum(int, spotanim, wguild_catapult_missile, $missile), 90, 40, 20, 16, 30, 0, 8);
+queue(wguild_catapult_hit, add(divide($duration, 30), 1), $missile);
+
+[queue,wguild_catapult_hit](int $missile)
+if (~wguild_catapult_ok = false) {
+    return;
+}
+if (%wguild_catapult_style = add($missile, 1)) {
+    anim(enum(int, seq, wguild_catapult_block, $missile), 0);
+    stat_advance(defence, ^wguild_catapult_xp);
+    ~wguild_give_tokens(^wguild_catapult_tokens);
+    return;
+}
+anim(wguild_catapult_knockback, 0);
+mes("You fail to block the missile.");
+~damage_self(add(random(4), 1));
+
+[if_button,wguild_defence:stab] %wguild_catapult_style = 1;
+[if_button,wguild_defence:crush] %wguild_catapult_style = 2;
+[if_button,wguild_defence:slash] %wguild_catapult_style = 3;
+[if_button,wguild_defence:magic] %wguild_catapult_style = 4;

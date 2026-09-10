@@ -1,0 +1,101 @@
+// Warriors' Guild dummy room (ground floor, north of the animator room) - OSRS rules:
+// oldschool.runescape.wiki/w/Dummy_(Warriors'_Guild). Dummies rise through the eight holes; each has
+// a symbol for the attack style or attack type that has to hit it. The right one pays 2 tokens and
+// 15 Attack xp; the wrong one stuns you for 3 ticks (the xp is still given, as in OSRS).
+// Ajjat runs the room: his ai_timer raises the dummies while someone is inside.
+
+[proc,wguild_in_dummy_room](coord $c)(boolean)
+if (coordy($c) ! 0) return(false);
+return(inzone(0_44_55_38_26, 0_44_55_44_35, $c));
+
+[ai_timer,wguild_ajjat]
+// nobody watching, nothing to do
+def_boolean $busy = false;
+huntall(npc_coord, 12, 0);
+while (huntnext = true) {
+    if (~wguild_in_dummy_room(coord) = true) {
+        $busy = true;
+    }
+}
+if ($busy = false) {
+    return;
+}
+// count the dummies already up (their hole loc is swapped out while they are)
+def_int $up = 0;
+def_int $i = 0;
+while ($i < 8) {
+    if (loc_find(enum(int, coord, wguild_dummy_hole_coord, $i), enum(int, loc, wguild_dummy_hole_loc, $i)) = false) {
+        $up = add($up, 1);
+    }
+    $i = add($i, 1);
+}
+if ($up >= ^wguild_dummy_max_up) {
+    return;
+}
+// raise one through a free hole (a few tries - most holes are free most of the time)
+def_int $tries = 0;
+while ($tries < 4) {
+    def_int $hole = random(8);
+    if (loc_find(enum(int, coord, wguild_dummy_hole_coord, $hole), enum(int, loc, wguild_dummy_hole_loc, $hole)) = true) {
+        loc_change(enum(int, loc, wguild_dummy_loc, random(7)), ^wguild_dummy_up);
+        loc_anim(wguild_dummy_rise);
+        return;
+    }
+    $tries = add($tries, 1);
+}
+
+[oploc1,osrsloc_23958] @wguild_dummy_hit(0);
+[oploc1,osrsloc_23959] @wguild_dummy_hit(1);
+[oploc1,osrsloc_23960] @wguild_dummy_hit(2);
+[oploc1,osrsloc_23961] @wguild_dummy_hit(3);
+[oploc1,osrsloc_23962] @wguild_dummy_hit(4);
+[oploc1,osrsloc_23963] @wguild_dummy_hit(5);
+[oploc1,osrsloc_23964] @wguild_dummy_hit(6);
+
+[label,wguild_dummy_hit](int $kind)
+if (map_clock < %stunned) {
+    mes("You're stunned!");
+    return;
+}
+def_obj $weapon = inv_getobj(worn, ^wearpos_rhand);
+def_dbrow $data = ~combat_get_weapon_style_data($weapon);
+def_int $type = ~combat_get_damagetype($data, %com_mode);
+def_int $style = ~combat_get_damagestyle($data, %com_mode);
+if ($type ! ^stab_style & $type ! ^slash_style & $type ! ^crush_style) {
+    mes("You need a melee weapon to hit the dummies.");
+    return;
+}
+facesquare(loc_coord);
+anim(%com_attackanim, 0);
+sound_synth(%com_attacksound, 0, 0);
+def_coord $spot = loc_coord;
+// put the dummy back down straight away so nobody else scores off it
+def_int $i = 0;
+while ($i < 8) {
+    if (enum(int, coord, wguild_dummy_hole_coord, $i) = $spot) {
+        loc_change(enum(int, loc, wguild_dummy_hole_loc, $i), 1);
+    }
+    $i = add($i, 1);
+}
+stat_advance(attack, ^wguild_dummy_xp);
+if (~wguild_dummy_style_ok($kind, $type, $style) = false) {
+    mes("Wrong attack - that dummy needs <lowercase(enum(int, string, wguild_dummy_name, $kind))>. You're stunned!");
+    spotanim_pl(stunned_thieving, 124, 0);
+    %stunned = calc(map_clock + ^wguild_dummy_stun);
+    walktrigger(stunned);
+    return;
+}
+~wguild_give_tokens(^wguild_dummy_tokens);
+
+// 0 accurate, 1 slash, 2 aggressive, 3 controlled, 4 crush, 5 stab, 6 defensive
+[proc,wguild_dummy_style_ok](int $kind, int $type, int $style)(boolean)
+switch_int ($kind) {
+    case 0 : if ($style = ^style_melee_accurate) return(true);
+    case 1 : if ($type = ^slash_style) return(true);
+    case 2 : if ($style = ^style_melee_aggressive) return(true);
+    case 3 : if ($style = ^style_melee_controlled) return(true);
+    case 4 : if ($type = ^crush_style) return(true);
+    case 5 : if ($type = ^stab_style) return(true);
+    case 6 : if ($style = ^style_melee_defensive) return(true);
+}
+return(false);

@@ -1,0 +1,94 @@
+// Warriors' Guild: the npcs who run the training rooms, and the shopkeepers.
+
+// ------------------------------------------------------------------ Ajjat - dummy room
+[opnpc1,wguild_ajjat]
+~chatnpc("<p,happy>Greetings, fellow warrior. I am Ajjat, keeper of the dummy room.");
+def_int $choice = ~p_choice2("How does the dummy room work?", 1, "Bye!", 2);
+if ($choice = 1) {
+    ~chatplayer("<p,quiz>How does the dummy room work?");
+    ~chatnpc("<p,neutral>Dummies pop up through the holes in the floor. Each one is painted with the attack it wants: accurate, aggressive, defensive or controlled, or a stab, slash or crush.");
+    ~chatnpc("<p,neutral>Hit it the right way and you'll earn two tokens. Get it wrong and you'll be dazed for a moment. You'll need more than one weapon - the key on the wall shows every dummy.");
+} else {
+    ~chatplayer("<p,happy>Bye!");
+}
+
+// ------------------------------------------------------------------ Gamfred - catapult room
+[opnpc1,wguild_gamfred]
+~chatnpc("<p,happy>Hello there! I'm Gamfred. I built this catapult - finest bit of dwarven engineering you'll see this side of Keldagrim.");
+def_int $choice = ~p_choice2("How do I use it?", 1, "Bye!", 2);
+if ($choice = 1) {
+    ~chatplayer("<p,quiz>How do I use it?");
+    ~chatnpc("<p,neutral>Stand on the platform in front of it and wield one of my defensive shields. The catapult will start throwing things at you: spiky balls, anvils, spinning blades and magic.");
+    ~chatnpc("<p,neutral>Pick the right defence for each one before it hits and you'll earn a token and some Defence experience. Pick wrong and... well, you'll find out.");
+    @wguild_gamfred_shield;
+} else {
+    ~chatplayer("<p,happy>Bye!");
+}
+
+[opnpc4,wguild_gamfred] @wguild_gamfred_shield;
+
+[label,wguild_gamfred_shield]
+if (inv_total(inv, wguild_defensive_shield) > 0 | inv_total(worn, wguild_defensive_shield) > 0) {
+    ~chatnpc("<p,neutral>You've already got one of my shields.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,neutral>You haven't got room for a shield. Come back when you have.");
+    return;
+}
+inv_add(inv, wguild_defensive_shield, 1);
+~objbox(wguild_defensive_shield, "Gamfred hands you a defensive shield.", 250, 0, 0);
+
+// ------------------------------------------------------------------ Ref - shot put
+[opnpc1,wguild_ref]
+~chatnpc("<p,neutral>Welcome to the shot put room. The north lane uses the 18 pound shot, the south lane the 22 pound.");
+~chatnpc("<p,neutral>Pick up a shot from the pile, stay behind the line and throw. The further it goes, the more tokens you get - and the heavy shot is worth a couple more.");
+~chatnpc("<p,neutral>Dust your hands with ground ashes and you'll drop it less. And mind my head!");
+
+// ------------------------------------------------------------------ Jimmy - kegs
+[opnpc1,wguild_jimmy]
+~chatnpc("<p,drunk>Hic! Whatcha want?");
+def_int $choice = ~p_choice2("What is this place?", 1, "Bye!", 2);
+if ($choice = 1) {
+    ~chatplayer("<p,quiz>What is this place?");
+    ~chatnpc("<p,drunk>Thish ish the shtoreroom. An' I'm the besht at balanshin' kegs. Bet you can't balansh as many as me!");
+    ~chatnpc("<p,drunk>Take off yer hat an' pick up a keg. Pile 'em on yer head - the more you carry, the more tokensh you get. Jusht don't run outta puff or they'll come down on ya.");
+} else {
+    ~chatplayer("<p,happy>Bye!");
+}
+
+// ------------------------------------------------------------------ shops
+[opnpc1,wguild_anton]
+~chatnpc("<p,happy>Ahhh, hello there. How can I help?");
+def_int $choice = ~p_choice2("Looks like you have a good selection of weapons around here...", 1, "Hello.", 2);
+if ($choice = 1) {
+    ~chatplayer("<p,happy>Looks like you have a good selection of weapons around here...");
+    ~chatnpc("<p,happy>Indeed so, specially imported from the finest smiths around the lands, take a look at my wares.");
+    ~openshop(wguild_armoury, 800, 1000, 20, "Warrior Guild Armoury");
+} else {
+    ~chatplayer("<p,happy>Hello.");
+}
+[opnpc3,wguild_anton] ~openshop(wguild_armoury, 800, 1000, 20, "Warrior Guild Armoury");
+
+[opnpc1,wguild_lidio]
+~chatnpc("<p,happy>Greetings, warrior. How can I fill your stomach today?");
+def_int $choice = ~p_choice2("With food preferably.", 1, "I'm not hungry.", 2);
+if ($choice = 1) {
+    ~chatplayer("<p,happy>With food preferably.");
+    ~openshop(wguild_food, 800, 1000, 20, "Warrior Guild Food Shop");
+} else {
+    ~chatplayer("<p,neutral>I'm not hungry.");
+}
+[opnpc3,wguild_lidio] ~openshop(wguild_food, 800, 1000, 20, "Warrior Guild Food Shop");
+
+[opnpc1,wguild_lilly]
+~chatnpc("<p,happy>Uh... hi... didn't see you there. Can I help?");
+def_int $choice = ~p_choice2("Umm... do you sell potions?", 1, "Erm... no, I'm OK thanks.", 2);
+if ($choice = 1) {
+    ~chatplayer("<p,quiz>Umm... do you sell potions?");
+    ~chatnpc("<p,happy>Erm... yes. When I'm not drinking them.");
+    ~openshop(wguild_potions, 800, 1000, 20, "Warrior Guild Potion Shop");
+} else {
+    ~chatplayer("<p,neutral>Erm... no, I'm OK thanks.");
+}
+[opnpc3,wguild_lilly] ~openshop(wguild_potions, 800, 1000, 20, "Warrior Guild Potion Shop");

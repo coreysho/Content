@@ -1,0 +1,114 @@
+// Warriors' Guild shot put (first floor, behind the heavy doors) - OSRS rules:
+// oldschool.runescape.wiki/w/Shot_put_room. 50 Strength to get through the heavy doors. Throw from
+// the pile at the head of either lane: the north lane uses the 18lb shot (yards + 1 tokens, so 2-14),
+// the south lane the 22lb shot (yards + 3, so 4-16). Distance comes from Strength, the throwing style
+// and how much run energy you have left; every throw costs energy. A throw can foul - the shot drops
+// on your foot (1 damage) or you step over the line - less often with hands dusted in ground ashes.
+// Strength xp follows the distance. Ref judges from the middle of the room.
+
+// ------------------------------------------------------------------ heavy doors
+[oploc1,osrsloc_15658] @wguild_heavy_door;
+[oploc1,osrsloc_15660] @wguild_heavy_door;
+
+[label,wguild_heavy_door]
+// the doors are on the east edge of x 2852; west of them is the stair landing
+if (coordx(coord) <= 2852 & stat(strength) < ^wguild_shot_strength) {
+    mes("You need a Strength level of 50 to push the heavy door open.");
+    return;
+}
+if (coordx(coord) <= 2852) {
+    mes("You push the heavy door open.");
+    ~open_and_close_door(loc_param(next_loc_stage), true, false);
+} else {
+    ~open_and_close_door(loc_param(next_loc_stage), false, false);
+}
+
+// ------------------------------------------------------------------ throwing
+[oploc1,osrsloc_15664] @wguild_shot_throw(false); // north lane, 18lb
+[oploc1,osrsloc_15665] @wguild_shot_throw(true);  // south lane, 22lb
+
+[label,wguild_shot_throw](boolean $heavy)
+if (coordx(coord) >= ^wguild_shot_line_x) {
+    mes("You need to be behind the line to throw.");
+    return;
+}
+if (inv_getobj(worn, ^wearpos_rhand) ! null | inv_getobj(worn, ^wearpos_lhand) ! null) {
+    mes("You need both hands free to throw the shot.");
+    return;
+}
+if (runenergy < 100) {
+    mes("You're too tired to throw the shot. Have a rest first.");
+    return;
+}
+anim(wguild_shot_pickup, 0);
+p_delay(1);
+def_int $style = ~p_choice3("Standing throw.", 1, "Step and throw.", 2, "Spin and throw.", 3);
+if ($style < 1) {
+    return;
+}
+facesquare(movecoord(coord, 5, 0, 0));
+// energy per throw: standing 3%, step 6%, spin 9%
+def_int $cost = multiply($style, 300);
+switch_int ($style) {
+    case 1 : anim(wguild_shot_standing, 0);
+    case 2 : anim(wguild_shot_step, 0);
+    case 3 : anim(wguild_shot_spin, 0);
+}
+p_delay(1);
+// foul chance: 1 in 12 standing, 1 in 9 stepping, 1 in 6 spinning; three times rarer when dusted
+def_int $foul_odds = sub(15, multiply($style, 3));
+if (%wguild_shot_dust > 0) {
+    $foul_odds = multiply($foul_odds, 3);
+    %wguild_shot_dust = sub(%wguild_shot_dust, 1);
+    if (%wguild_shot_dust = 0) {
+        mes("The ash on your hands has worn off.");
+    }
+}
+healenergy(sub(0, $cost));
+if (random($foul_odds) = 0) {
+    if (random(2) = 0) {
+        mes("The shot slips out of your hands and lands on your foot. Ouch!");
+        ~damage_self(1);
+    } else {
+        mes("You step over the line - that's a foul.");
+    }
+    return;
+}
+def_int $yards = ~wguild_shot_yards($style, $heavy);
+def_coord $land = movecoord(coord, sub(add(^wguild_shot_line_x, $yards), coordx(coord)), 0, 0);
+def_int $duration = ~coord_projectile(coord, $land, wguild_shot, 100, 0, 0, 30, 30, 0, 6);
+p_delay(divide($duration, 30));
+def_int $tokens = add($yards, 1);
+def_int $xp = multiply($yards, 40);
+if ($heavy = true) {
+    $tokens = add($yards, 3);
+    $xp = multiply($yards, 50);
+}
+mes("The shot lands <tostring($yards)> yards away.");
+stat_advance(strength, $xp);
+~wguild_give_tokens($tokens);
+
+// Strength sets the reach, the style adds to it (at the cost of energy and fouls), the heavier shot
+// takes a yard off, and a tired thrower loses up to half the distance.
+[proc,wguild_shot_yards](int $style, boolean $heavy)(int)
+def_int $yards = add(2, divide(stat(strength), 10));
+$yards = add($yards, sub($style, 1));
+if ($heavy = true) {
+    $yards = sub($yards, 1);
+}
+$yards = scale(add(50, divide(runenergy, 200)), 100, $yards);
+$yards = add($yards, sub(random(3), 1));
+return(min(max($yards, 1), ^wguild_shot_max_yards));
+
+// ------------------------------------------------------------------ ground ashes
+[opheld1,ground_ashes]
+anim(wguild_dust_hands, 0);
+inv_del(inv, ground_ashes, 1);
+%wguild_shot_dust = ^wguild_shot_dust_throws;
+mes("You dust your hands with the finely ground ash.");
+
+[label,wguild_grind_ashes]
+inv_del(inv, ashes, 1);
+inv_add(inv, ground_ashes, 1);
+anim(human_herbing_grind, 0);
+mes("You grind the ashes into a fine powder.");

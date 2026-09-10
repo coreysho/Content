@@ -120,6 +120,10 @@ if ($sound ! null) {
 [proc,unequip](int $slot)
 if (p_finduid(uid) = true) {
     def_obj $obj = inv_getobj(worn, $slot);
+    if (~wguild_is_barrels($obj) = true) { // Warriors' Guild kegs are put down, not pocketed
+        ~wguild_keg_drop(false);
+        return;
+    }
     if (~duel_arena_flower_power_unequip_check($slot) = false) {
         return;
     }
