@@ -1,0 +1,87 @@
+// Wall beasts (Lumbridge Swamp Caves, Slayer 35) - added 2026-09-10. Wall beast tasks were being
+// assigned by four masters, but the hole in the wall had no script and the Wall Beast itself never
+// appeared, so the task could not be done.
+//
+// OSRS (oldschool.runescape.wiki/w/Wall_beast): step in front of the hole without a spiny helmet
+// (or slayer helmet) and a hand grabs your head for up to 18, holding you in place. With one, "Your
+// helmet repels the wall beast!" and it comes out to fight: level 49, 105 hp, crush, max 4.
+
+// The hunt (configs/wallbeast.hunt, huntrange 1) hands the player over in ap mode: a queue-mode hunt
+// would run with no player attached (Npc.consumeHuntTarget drops the target for queue modes).
+[ai_applayer2,swamp_wallbeast]
+npc_setmode(null); // one grab per approach; clearing the mode lets it hunt again
+if (%npc_action_delay > map_clock | distance(coord, npc_coord) > 1) {
+    return;
+}
+%npc_action_delay = add(map_clock, 8);
+if (inv_total(worn, wallbeast_spike_helmet) > 0 | ~slayer_helm_worn = true) {
+    mes("Your helmet repels the wall beast!");
+    npc_anim(wall_beast_specialattack_appear, 0);
+    npc_changetype(swamp_wallbeast_combat, 200); // two minutes out of the wall, then back in
+    npc_setmode(opplayer2);
+    return;
+}
+mes("A giant hand appears and grabs your head.");
+npc_anim(wall_beast_specialattack_start, 0);
+if (p_finduid(uid) = true) {
+    if (%frozen < map_clock) {
+        %frozen = add(map_clock, 4);
+    }
+}
+queue(damage_player, 1, randominc(18));
+
+[ai_queue3,swamp_wallbeast_combat] @wall_beast_drop_table;
+
+[label,wall_beast_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+~wall_beast_loot;
+
+// https://oldschool.runescape.wiki/w/Wall_beast
+[proc,wall_beast_loot]
+if (random(512) = 0) {
+    obj_add(npc_coord, mystic_hat_light, 1, ^lootdrop_duration);
+    return;
+}
+def_int $dropint = random(128);
+if ($dropint < 32) {
+    obj_add(npc_coord, unidentified_guam, 1, ^lootdrop_duration);
+} else if ($dropint < 35) {
+    obj_add(npc_coord, airrune, 3, ^lootdrop_duration);
+} else if ($dropint < 38) {
+    obj_add(npc_coord, cosmicrune, 2, ^lootdrop_duration);
+} else if ($dropint < 40) {
+    obj_add(npc_coord, chaosrune, 3, ^lootdrop_duration);
+} else if ($dropint < 41) {
+    obj_add(npc_coord, chaosrune, 7, ^lootdrop_duration);
+} else if ($dropint < 43) {
+    obj_add(npc_coord, bronze_med_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 45) {
+    obj_add(npc_coord, bronze_full_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 53) {
+    obj_add(npc_coord, iron_med_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 60) {
+    obj_add(npc_coord, steel_med_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 64) {
+    obj_add(npc_coord, steel_full_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 65) {
+    obj_add(npc_coord, mithril_med_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 66) {
+    obj_add(npc_coord, mithril_full_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 67) {
+    obj_add(npc_coord, adamant_med_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 77) {
+    obj_add(npc_coord, coins, 15, ^lootdrop_duration);
+} else if ($dropint < 98) {
+    obj_add(npc_coord, tinderbox, 1, ^lootdrop_duration);
+} else if ($dropint < 110) {
+    obj_add(npc_coord, bullseye_lantern_lens, 1, ^lootdrop_duration);
+} else if ($dropint < 119) {
+    obj_add(npc_coord, torch_unlit, 1, ^lootdrop_duration);
+} else if ($dropint < 124) {
+    obj_add(npc_coord, bullseye_lantern_nolens, 1, ^lootdrop_duration);
+} else if ($dropint < 125) {
+    obj_add(npc_coord, eye_of_newt, 1, ^lootdrop_duration);
+}

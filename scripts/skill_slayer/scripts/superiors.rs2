@@ -156,3 +156,36 @@ if (%imbued_heart_minute > 0 & $wait > 0) {
 %imbued_heart_minute = world_minute;
 stat_boost(magic, 1, 10);
 mes("Your imbued heart invigorates you, boosting your Magic.");
+
+// ---- gear rules the ordinary monsters have (skill_slayer/scripts/npcs) ----
+// Monstrous basilisk and Abhorrent spectre get theirs from their category (superiors.npc); these two
+// are keyed on npc type in banshee.rs2 / cockatrice.rs2, so they are repeated here.
+[ai_queue1,superior_screaming_banshee] gosub(npc_default_retaliate_ap);
+[ai_applayer2,superior_screaming_banshee]
+if (inv_total(worn, slayer_earmuffs) < 1 & ~slayer_helm_worn = false) {
+    ~banshee_screech;
+    return;
+}
+npc_setmode(opplayer2);
+
+[ai_opplayer2,superior_screaming_banshee]
+if (inv_total(worn, slayer_earmuffs) < 1 & ~slayer_helm_worn = false) {
+    npc_setmode(applayer2);
+    return;
+}
+gosub(npc_default_attack);
+
+[ai_queue1,superior_cockathrice] gosub(npc_default_retaliate_ap);
+[ai_applayer2,superior_cockathrice]
+if (inv_total(worn, slayer_mirror_shield) < 1) {
+    ~cockatrice_gaze;
+    return;
+}
+npc_setmode(opplayer2);
+
+[ai_opplayer2,superior_cockathrice]
+if (inv_total(worn, slayer_mirror_shield) < 1) {
+    npc_setmode(applayer2);
+    return;
+}
+gosub(npc_default_attack);

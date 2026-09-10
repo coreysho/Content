@@ -100,11 +100,16 @@ switch_int($target) {
     // no npc carries these categories yet, so the task could never be finished
     case ^slayer_infernalmage, ^slayer_vampire :
         return (false);
-    case ^slayer_otherworldlybeing, ^slayer_mutatedzygomite :
+    case ^slayer_otherworldlybeing :
         if(%zanaris < ^zanaris_complete) {
             return (false);
         }
         return (true);
+    // FIXED 2026-09-10: no npc carries these, so the task could never be finished - zygomites and
+    // shades have no spawns here, and fever spiders live on Braindeath Island (Rum Deal, not in
+    // this build). Everything else a master gives now has tagged, spawned monsters.
+    case ^slayer_mutatedzygomite, ^slayer_shade, ^slayer_feverspider :
+        return (false);
     case ^slayer_killerwatt :
         if(%haunted < ^haunted_complete) {
             return (false);
