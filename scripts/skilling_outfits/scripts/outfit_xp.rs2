@@ -1,0 +1,110 @@
+// Skilling outfit experience bonuses.
+//
+// OSRS awards the bonus per piece, not per set: 0.4% head, 0.8% body, 0.6% legs,
+// 0.2% boots, plus a further 0.5% when all four are worn - 2.5% in total. Those are
+// held here in TENTHS OF A PERCENT (4/8/6/2, +5 = 25) so the maths stays integer;
+// the xp is then scaled by bonus/1000.
+//
+// Why a proc per skill rather than one taking a stat argument: `stat` is a real type
+// in engine.rs2 command signatures, but nothing in this repo passes one as a proc
+// argument, so it is unproven and cannot be compile-tested from outside the build.
+// See claude/rs2-compile-traps.md. Seven small procs cost nothing and are provably safe.
+//
+// Not every skilling outfit gives experience, and the ones that do not are deliberately
+// absent from this file:
+//   Graceful  - weight reduction and run-energy restore, no xp
+//   Rogue     - doubles pickpocketing loot, no xp
+//   Zealot's  - chance not to consume bones/ashes, no xp
+//   Carpenter's and Guild hunter - Construction and Hunter do not exist in this build
+
+// Four pieces in the usual hat / torso / legs / feet slots.
+[proc,outfit_xp_bonus](obj $hat, obj $torso, obj $legs, obj $feet)(int)
+def_int $bonus = 0;
+if (inv_getobj(worn, ^wearpos_hat) = $hat) {
+    $bonus = calc($bonus + 4);
+}
+if (inv_getobj(worn, ^wearpos_torso) = $torso) {
+    $bonus = calc($bonus + 8);
+}
+if (inv_getobj(worn, ^wearpos_legs) = $legs) {
+    $bonus = calc($bonus + 6);
+}
+if (inv_getobj(worn, ^wearpos_feet) = $feet) {
+    $bonus = calc($bonus + 2);
+}
+if ($bonus = 20) {
+    $bonus = 25;
+}
+return($bonus);
+
+// The Smiths' uniform has no headpiece - it is tunic, trousers, boots and gloves.
+[proc,outfit_xp_bonus_smiths]()(int)
+def_int $bonus = 0;
+if (inv_getobj(worn, ^wearpos_torso) = smiths_tunic) {
+    $bonus = calc($bonus + 8);
+}
+if (inv_getobj(worn, ^wearpos_legs) = smiths_trousers) {
+    $bonus = calc($bonus + 6);
+}
+if (inv_getobj(worn, ^wearpos_feet) = smiths_boots) {
+    $bonus = calc($bonus + 2);
+}
+if (inv_getobj(worn, ^wearpos_hands) = smiths_gloves) {
+    $bonus = calc($bonus + 4);
+}
+if ($bonus = 20) {
+    $bonus = 25;
+}
+return($bonus);
+
+// ---------------------------------------------------------------- per-skill awards
+// Every stat_advance for these seven skills routes through here. The guard matches
+// the one farming_xp already had: a zero or negative award is a no-op, not an error.
+
+[proc,mining_xp](int $xp)
+if ($xp <= 0) {
+    return;
+}
+def_int $bonus = ~outfit_xp_bonus(prospector_helm, prospector_jacket, prospector_legs, prospector_boots);
+def_int $extra = calc(($xp * $bonus) / 1000);
+stat_advance(mining, calc($xp + $extra));
+
+[proc,fishing_xp](int $xp)
+if ($xp <= 0) {
+    return;
+}
+def_int $bonus = ~outfit_xp_bonus(angler_hat, angler_top, angler_waders, angler_boots);
+def_int $extra = calc(($xp * $bonus) / 1000);
+stat_advance(fishing, calc($xp + $extra));
+
+[proc,woodcutting_xp](int $xp)
+if ($xp <= 0) {
+    return;
+}
+def_int $bonus = ~outfit_xp_bonus(lumberjack_hat, lumberjack_top, lumberjack_legs, lumberjack_boots);
+def_int $extra = calc(($xp * $bonus) / 1000);
+stat_advance(woodcutting, calc($xp + $extra));
+
+[proc,firemaking_xp](int $xp)
+if ($xp <= 0) {
+    return;
+}
+def_int $bonus = ~outfit_xp_bonus(pyromancer_hood, pyromancer_garb, pyromancer_robe, pyromancer_boots);
+def_int $extra = calc(($xp * $bonus) / 1000);
+stat_advance(firemaking, calc($xp + $extra));
+
+[proc,runecraft_xp](int $xp)
+if ($xp <= 0) {
+    return;
+}
+def_int $bonus = ~outfit_xp_bonus(eye_hat, eye_top, eye_bottoms, eye_boots);
+def_int $extra = calc(($xp * $bonus) / 1000);
+stat_advance(runecraft, calc($xp + $extra));
+
+[proc,smithing_xp](int $xp)
+if ($xp <= 0) {
+    return;
+}
+def_int $bonus = ~outfit_xp_bonus_smiths();
+def_int $extra = calc(($xp * $bonus) / 1000);
+stat_advance(smithing, calc($xp + $extra));

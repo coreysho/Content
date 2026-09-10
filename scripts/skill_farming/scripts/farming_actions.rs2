@@ -42,7 +42,12 @@ return(false);
 if ($amount <= 0) {
     return;
 }
-stat_advance(farming, $amount);
+// Farmer's outfit experience bonus - see skilling_outfits/scripts/outfit_xp.rs2 for the
+// per-piece figures. This proc was already the single chokepoint for farming xp, so the
+// bonus goes in here rather than at the call sites.
+def_int $bonus = ~outfit_xp_bonus(farmers_strawhat, farmers_jacket, farmers_trousers, farmers_boots);
+def_int $extra = calc(($amount * $bonus) / 1000);
+stat_advance(farming, calc($amount + $extra));
 
 // ============================================================================ op1 - the context action
 
@@ -331,7 +336,7 @@ sound_synth(woodchop1, 1, 0);
 if (stat_random(woodcutting, $low, $high) = true) {
     mes("You get some <lowercase(oc_name($logs))>.");
     inv_add(inv, $logs, 1);
-    stat_advance(woodcutting, $xp);
+    ~woodcutting_xp($xp);
     if (map_members = ^true & random(256) = 0) {
         ~drop_bird_nest;
     }
