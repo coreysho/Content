@@ -1,0 +1,130 @@
+// Godsword and Saradomin sword special attacks against players - see
+// player/specs/scripts/pvm_godswords.rs2 for the numbers. Protect from Melee cuts the melee
+// part by 40% as usual; it does not stop the ZGS freeze. Protect from Magic makes the Saradomin
+// sword's lightning splash.
+
+// Returns (hit, damage before the target's hitpoints cap, damage after it).
+[proc,pvp_godsword_roll](int $accuracy_pct, int $damage_pct)(boolean, int, int)
+def_int $maxhit = scale($damage_pct, 100, scale(110, 100, %com_maxhit));
+def_int $attack_roll = scale($accuracy_pct, 100, ~player_attack_roll_specific(%damagetype));
+def_int $defence_roll = ~.player_defence_roll_specific(^slash_style);
+if (randominc($attack_roll) <= randominc($defence_roll)) {
+    return(false, 0, 0);
+}
+if (~.check_protect_prayer(^melee_style) = true) {
+    $maxhit = scale(6, 10, $maxhit); // reduction of 40%
+}
+def_int $potential = randominc($maxhit);
+def_int $damage = min($potential, .stat(hitpoints)); // tick eating existed
+~give_combat_experience_pvp(%damagestyle, $damage, ~pvp_xp_multiplier(~.player_combat_level));
+both_heropoints($damage);
+return(true, $potential, $damage);
+
+[proc,pvp_godsword_finish](int $damage)
+def_synth $sound = oc_param(inv_getobj(worn, ^wearpos_rhand), slash_sound);
+sound_synth($sound, 1, 0);
+.anim(.%com_defendanim, 20);
+.sound_synth($sound, 1, 0);
+.queue*(pvp_retaliate, 0)(uid);
+~.pvp_damage(0, $damage);
+
+[label,pvp_armadyl_godsword_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+~set_pk_vars;
+def_boolean $hit = false;
+def_int $potential = 0;
+def_int $damage = 0;
+$hit, $potential, $damage = ~pvp_godsword_roll(200, 125);
+anim(osrs_ags_spec, 0);
+spotanim_pl(ags_spec, 0, 0);
+~pvp_godsword_finish($damage);
+
+[label,pvp_bandos_godsword_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+~set_pk_vars;
+def_boolean $hit = false;
+def_int $potential = 0;
+def_int $damage = 0;
+$hit, $potential, $damage = ~pvp_godsword_roll(200, 110);
+anim(osrs_bgs_spec, 0);
+spotanim_pl(bgs_spec, 0, 0);
+if ($hit = true & $damage > 0) {
+    def_int $left = $damage;
+    $left = ~pvp_bgs_drain(defence, $left);
+    $left = ~pvp_bgs_drain(strength, $left);
+    $left = ~pvp_bgs_drain(prayer, $left);
+    $left = ~pvp_bgs_drain(attack, $left);
+    $left = ~pvp_bgs_drain(magic, $left);
+    $left = ~pvp_bgs_drain(ranged, $left);
+}
+~pvp_godsword_finish($damage);
+
+[proc,pvp_bgs_drain](stat $stat, int $left)(int)
+if ($left < 1) {
+    return(0);
+}
+def_int $take = min($left, .stat($stat));
+if ($take > 0) {
+    .stat_sub($stat, $take, 0);
+}
+return(sub($left, $take));
+
+[label,pvp_saradomin_godsword_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+~set_pk_vars;
+def_boolean $hit = false;
+def_int $potential = 0;
+def_int $damage = 0;
+$hit, $potential, $damage = ~pvp_godsword_roll(200, 100);
+anim(osrs_sgs_spec, 0);
+spotanim_pl(sgs_spec, 0, 0);
+if ($hit = true) {
+    stat_heal(hitpoints, max(10, divide(add($potential, 1), 2)), 0);
+    stat_heal(prayer, max(5, divide(add($potential, 3), 4)), 0);
+}
+~pvp_godsword_finish($damage);
+
+[label,pvp_zamorak_godsword_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+~set_pk_vars;
+def_boolean $hit = false;
+def_int $potential = 0;
+def_int $damage = 0;
+$hit, $potential, $damage = ~pvp_godsword_roll(200, 100);
+anim(osrs_zgs_spec, 0);
+spotanim_pl(zgs_spec, 0, 0);
+// same hold as Ice Barrage (pvp_magic.rs2 pvp_freeze_effect), including the 5-tick immunity
+// after a freeze ends; unlike the spell, Protect from Magic does not shorten it
+if ($hit = true & calc(.%frozen + 5) <= map_clock & .getwalktrigger() ! duel_arena_no_move) {
+    if (.p_finduid(.uid) = true) {
+        .p_walk(.coord);
+    }
+    .%pk_binder = uid;
+    .queue(pvp_freeze_player, 0, 32);
+    .spotanim_pl(ice_barrage_impact, 92, 0);
+}
+~pvp_godsword_finish($damage);
+
+[label,pvp_saradomin_sword_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+~set_pk_vars;
+def_boolean $hit = false;
+def_int $potential = 0;
+def_int $damage = 0;
+$hit, $potential, $damage = ~pvp_godsword_roll(100, 100);
+anim(osrs_sara_sword_spec, 0);
+spotanim_pl(sara_sword_spec, 0, 0);
+def_int $magic = 0;
+if ($hit = true) {
+    if (~.check_protect_prayer(^magic_style) = false) {
+        $magic = min(add(random(16), 1), max(0, sub(.stat(hitpoints), $damage)));
+        stat_advance(magic, multiply($magic, 20)); // 2 Magic xp per point
+        both_heropoints($magic);
+    }
+    sound_synth(saradomin_strike, 1, 0);
+    .sound_synth(saradomin_strike, 1, 0);
+}
+~pvp_godsword_finish($damage);
+if ($hit = true) {
+    ~.pvp_damage(0, $magic);
+}

@@ -1,0 +1,135 @@
+// Godsword and Saradomin sword special attacks against NPCs - OSRS (oldschool.runescape.wiki).
+//
+//   Armadyl godsword    The Judgement    50%  2x accuracy, max hit x1.1 x1.25
+//   Bandos godsword     Warstrike        50%  2x accuracy, max hit x1.1 x1.1, drains Defence ->
+//                                              Strength -> Attack -> Magic -> Ranged by the damage
+//   Saradomin godsword  Healing Blade    50%  2x accuracy, max hit x1.1, heals 50% of the damage
+//                                              (min 10) and restores 25% as Prayer (min 5)
+//   Zamorak godsword    Ice Cleave       50%  2x accuracy, max hit x1.1, freezes for 32 ticks
+//   Saradomin sword     Saradomin's      100% normal accuracy, melee max hit x1.1, plus 1-16
+//                       Lightning             Magic damage when the melee part hits (2 Magic xp each)
+//
+// Every one rolls against the target's slash defence. Animations and graphics are OSRS
+// (bosses/godwars/configs/godsword_specs.seq/.spotanim). PvP versions: pvp/specs/scripts/pvp_godswords.rs2.
+
+// Shared roll. Returns (hit, damage before the hitpoints cap, damage after it).
+[proc,pvm_godsword_roll](int $accuracy_pct, int $damage_pct)(boolean, int, int)
+def_int $maxhit = scale($damage_pct, 100, scale(110, 100, %com_maxhit));
+def_int $attack_roll = scale($accuracy_pct, 100, ~player_attack_roll_specific(%damagetype));
+def_int $defence_roll = ~npc_defence_roll_specific(^slash_style);
+if (randominc($attack_roll) <= randominc($defence_roll)) {
+    return(false, 0, 0);
+}
+if (npc_type = count_draynor & inv_total(inv, garlic) > 0) {
+    $maxhit = add($maxhit, 1);
+}
+def_int $damage = randominc(min($maxhit, npc_param(max_dealt)));
+if (npc_param(slayer_category) = ^slayer_kurask | npc_param(slayer_category) = ^slayer_turoth) {
+    $damage = 0;
+}
+def_int $damage_capped = min($damage, npc_stat(hitpoints));
+~give_combat_experience(%damagestyle, $damage_capped, %npc_combat_xp_multiplier);
+npc_heropoints($damage_capped);
+return(true, $damage, $damage_capped);
+
+[proc,pvm_godsword_finish](int $damage)
+sound_synth(oc_param(inv_getobj(worn, ^wearpos_rhand), slash_sound), 1, 0);
+~npc_retaliate(0);
+npc_queue(2, $damage, 0);
+npc_anim(npc_param(defend_anim), 20);
+if (npc_param(defend_sound) ! null) {
+    sound_synth(npc_param(defend_sound), 0, 20); // delay npc this tick
+}
+
+[label,pvm_armadyl_godsword_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+def_boolean $hit = false;
+def_int $damage = 0;
+def_int $damage_capped = 0;
+$hit, $damage, $damage_capped = ~pvm_godsword_roll(200, 125);
+anim(osrs_ags_spec, 0);
+spotanim_pl(ags_spec, 0, 0);
+~pvm_godsword_finish($damage);
+
+[label,pvm_bandos_godsword_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+def_boolean $hit = false;
+def_int $damage = 0;
+def_int $damage_capped = 0;
+$hit, $damage, $damage_capped = ~pvm_godsword_roll(200, 110);
+anim(osrs_bgs_spec, 0);
+spotanim_pl(bgs_spec, 0, 0);
+if ($hit = true & $damage_capped > 0) {
+    // NPCs have no Prayer, so that step of the OSRS order is skipped
+    def_int $left = $damage_capped;
+    $left = ~pvm_bgs_drain(defence, $left);
+    $left = ~pvm_bgs_drain(strength, $left);
+    $left = ~pvm_bgs_drain(attack, $left);
+    $left = ~pvm_bgs_drain(magic, $left);
+    $left = ~pvm_bgs_drain(ranged, $left);
+}
+~pvm_godsword_finish($damage);
+
+[proc,pvm_bgs_drain](npc_stat $stat, int $left)(int)
+if ($left < 1) {
+    return(0);
+}
+def_int $take = min($left, npc_stat($stat));
+if ($take > 0) {
+    npc_statsub($stat, $take, 0);
+}
+return(sub($left, $take));
+
+[label,pvm_saradomin_godsword_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+def_boolean $hit = false;
+def_int $damage = 0;
+def_int $damage_capped = 0;
+$hit, $damage, $damage_capped = ~pvm_godsword_roll(200, 100);
+anim(osrs_sgs_spec, 0);
+spotanim_pl(sgs_spec, 0, 0);
+if ($hit = true) {
+    // from the damage the swing could do, before the target's hitpoints cap it
+    stat_heal(hitpoints, max(10, divide(add($damage, 1), 2)), 0);
+    stat_heal(prayer, max(5, divide(add($damage, 3), 4)), 0);
+}
+~pvm_godsword_finish($damage);
+
+[label,pvm_zamorak_godsword_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+def_boolean $hit = false;
+def_int $damage = 0;
+def_int $damage_capped = 0;
+$hit, $damage, $damage_capped = ~pvm_godsword_roll(200, 100);
+anim(osrs_zgs_spec, 0);
+spotanim_pl(zgs_spec, 0, 0);
+if ($hit = true & npc_category ! castlewars_barricade) {
+    // same freeze as Ice Barrage (player_magic.rs2 pvm_freeze_effect); an existing freeze is not refreshed
+    if (%npc_stunned <= map_clock) {
+        %npc_stunned = calc(map_clock + 32 + 1);
+        npc_walktrigger(8, 0);
+        spotanim_npc(ice_barrage_impact, 92, 0);
+    }
+}
+~pvm_godsword_finish($damage);
+
+[label,pvm_saradomin_sword_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+def_boolean $hit = false;
+def_int $damage = 0;
+def_int $damage_capped = 0;
+// normal accuracy: the x1.1 of pvm_godsword_roll is the sword's own melee boost here
+$hit, $damage, $damage_capped = ~pvm_godsword_roll(100, 100);
+anim(osrs_sara_sword_spec, 0);
+spotanim_pl(sara_sword_spec, 0, 0);
+def_int $magic = 0;
+if ($hit = true) {
+    $magic = min(add(random(16), 1), max(0, sub(npc_stat(hitpoints), $damage_capped)));
+    stat_advance(magic, multiply($magic, 20)); // 2 Magic xp per point
+    npc_heropoints($magic);
+    sound_synth(saradomin_strike, 1, 0);
+}
+~pvm_godsword_finish($damage);
+if ($hit = true) {
+    npc_queue(2, $magic, 0);
+}
