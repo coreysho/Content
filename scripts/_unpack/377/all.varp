@@ -33,10 +33,17 @@ protect=no
 
 [frozen]
 
-// not perm: https://youtu.be/HAeh4qE3WJ4?t=34
+// DEVIATION from 2006, at Corey's request 2026-09-10: attack style now PERSISTS across
+// logout. The line below is the original note and its evidence, kept because this is a
+// deliberate departure rather than a bug fix:
+//   "not perm: https://youtu.be/HAeh4qE3WJ4?t=34"
+// Safe to persist: player_combat_stat.rs2:47 clamps %com_mode to the equipped weapon's
+// style count on every combat tick, so a style index restored from a different weapon
+// category cannot go out of range.
 [com_mode]
 protect=no
 transmit=yes
+scope=perm
 
 [com_stabattack]
 protect=no
@@ -278,10 +285,15 @@ scope=perm
 protect=no
 transmit=yes
 
+// Run toggle now persists across logout (Corey, 2026-09-10). Unlike com_mode there was no
+// note here claiming temp was intentional - it simply had no scope line, and a varp with
+// no scope defaults to temp. clientcode=7 keeps the orb in sync; the client is told the
+// restored value by the ordinary varp sync on login.
 [option_run]
 protect=no
 transmit=yes
 clientcode=7
+scope=perm
 
 [marketthief]
 transmit=yes

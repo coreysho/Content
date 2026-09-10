@@ -1,0 +1,34 @@
+// Cave goblin miner - drop audit 2026-09-10.
+// https://oldschool.runescape.wiki/w/Cave_goblin_miner#Drops
+// Bones always, then one roll out of 128 (28/128 nothing).
+[ai_queue3,cave_goblin_miner] @cave_goblin_miner_drop_table;
+[ai_queue3,cave_goblin_miner2] @cave_goblin_miner_drop_table;
+[ai_queue3,cave_goblin_miner3] @cave_goblin_miner_drop_table;
+[ai_queue3,cave_goblin_miner4] @cave_goblin_miner_drop_table;
+[ai_queue3,cave_goblin_miner_mining] @cave_goblin_miner_drop_table;
+[ai_queue3,cave_goblin_miner2_mining] @cave_goblin_miner_drop_table;
+[ai_queue3,cave_goblin_miner3_mining] @cave_goblin_miner_drop_table;
+[ai_queue3,cave_goblin_miner4_mining] @cave_goblin_miner_drop_table;
+
+[label,cave_goblin_miner_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+def_int $random = random(128);
+if ($random < 20) {
+    obj_add(npc_coord, cave_goblin_mining_helmet_unlit, 1, ^lootdrop_duration);
+} else if ($random < 40) {
+    obj_add(npc_coord, coins, 6, ^lootdrop_duration);
+} else if ($random < 60) {
+    obj_add(npc_coord, iron_ore, 7, ^lootdrop_duration);
+} else if ($random < 80) {
+    obj_add(npc_coord, tinderbox, 1, ^lootdrop_duration);
+} else if ($random < 95) {
+    obj_add(npc_coord, iron_ore, 2, ^lootdrop_duration);
+} else if ($random < 100) {
+    obj_add(npc_coord, silver_ore, 1, ^lootdrop_duration);
+}
+// 100-127: nothing (28/128)

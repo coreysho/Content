@@ -1,0 +1,23 @@
+// Monk of Zamorak - drop audit 2026-09-10.
+// https://oldschool.runescape.wiki/w/Monk_of_Zamorak#Drops
+// Bones always; Zamorak monk bottom 1/20; Zamorak monk top 1/20; otherwise nothing.
+// Shared by the Edgeville/Chaos Temple monks and the two Priest in Peril temple monks.
+[ai_queue3,chaosmonk1] @monk_of_zamorak_drop_table;
+[ai_queue3,chaosmonk2] @monk_of_zamorak_drop_table;
+[ai_queue3,chaosmonk3] @monk_of_zamorak_drop_table;
+[ai_queue3,priestperilevilmonk1] @monk_of_zamorak_drop_table;
+[ai_queue3,priestperilevilmonk2] @monk_of_zamorak_drop_table;
+
+[label,monk_of_zamorak_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+def_int $random = random(20);
+if ($random = 0) {
+    obj_add(npc_coord, zamrobebottom, 1, ^lootdrop_duration);
+} else if ($random = 1) {
+    obj_add(npc_coord, zamrobetop, 1, ^lootdrop_duration);
+}
