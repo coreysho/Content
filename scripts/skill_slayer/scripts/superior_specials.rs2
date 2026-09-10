@@ -1,0 +1,189 @@
+// Special mechanics of three superior slayer monsters (superiors.rs2 has the rest), per the OSRS wiki:
+//
+// Marble gargoyle - slash in melee range, stone thrown at range (max 30), and one attack in five a
+//   grey stone lobbed at the tile you are standing on. Still there when it lands: up to 38 damage
+//   (no prayer stops it) and "You have been trapped in stone!" - frozen for 5 seconds. Step off the
+//   tile while it is in the air to dodge it.
+// Nechryarch - crush in melee (max from its stats); while fighting, calls three chaotic death spawns
+//   (one melee, one ranged, one magic; max 7 each, 3-tick attacks, prayer blocks them) - again every
+//   30 seconds. Each set lasts 30 seconds, so after the Nechryarch dies the spawns fade within that
+//   (OSRS removes the latest set at once; nothing here links a spawn to its summoner).
+// Greater abyssal demon - in melee range, one attack in eight is the teleport flurry: it blinks to
+//   four tiles around you in four ticks and strikes from each, every strike landing for 15-27 unless
+//   you pray Protect from Melee.
+
+[proc,superior_adjacent](int $size)(boolean)
+// player within one tile of an npc of this size (npc_coord is its south-west corner)
+def_int $dx = sub(coordx(coord), coordx(npc_coord));
+def_int $dz = sub(coordz(coord), coordz(npc_coord));
+if ($dx >= -1 & $dx <= $size & $dz >= -1 & $dz <= $size) {
+    return(true);
+}
+return(false);
+
+// ---------------------------------------------------------------- Marble gargoyle
+
+[ai_queue1,superior_marble_gargoyle] ~npc_default_retaliate_ap;
+[ai_applayer2,superior_marble_gargoyle] ~marble_gargoyle_attack;
+[ai_opplayer2,superior_marble_gargoyle] ~marble_gargoyle_attack;
+
+[proc,marble_gargoyle_attack]
+if (%npc_action_delay > map_clock) {
+    npc_setmode(applayer2);
+    return;
+}
+if (~npc_check_notcombat = false) {
+    npc_setmode(null);
+    return;
+}
+if (~npc_check_notcombat_self = false) {
+    return;
+}
+if (random(5) = 0) {
+    ~marble_gargoyle_stone;
+    return;
+}
+if (~superior_adjacent(3) = true & random(2) = 0) {
+    anim(%com_defendanim, 0);
+    npc_anim(npc_param(attack_anim), 0);
+    sound_synth(npc_param(attack_sound), 0, 0);
+    ~npc_meleeattack;
+    return;
+}
+~npc_rangeattack;
+
+[proc,marble_gargoyle_stone]
+def_coord $target = coord;
+npc_anim(npc_param(attack_anim), 0);
+sound_synth(npc_param(attack_sound), 0, 0);
+%npc_action_delay = add(map_clock, npc_param(attackrate));
+// 30 cycles before it leaves, 60 in the air: lands 3 ticks after the throw
+projanim_map(npc_coord, $target, troll_rock_travel, 60, 0, 30, 60, 16, 64);
+queue*(marble_gargoyle_stone_land, 3)($target);
+~npc_set_attack_vars;
+
+[queue,marble_gargoyle_stone_land](coord $target)
+spotanim_map(rockfall, $target, 0, 0);
+if (coord ! $target) {
+    return; // stepped off the tile
+}
+mes("You have been trapped in stone!");
+if (%frozen < map_clock) {
+    %frozen = add(map_clock, 8);
+}
+queue(damage_player, 0, randominc(38));
+
+// ---------------------------------------------------------------- Nechryarch
+
+[ai_opplayer2,superior_nechryarch]
+if (%death = ^true) {
+    npc_setmode(null);
+    return;
+}
+if (%npc_action_delay > map_clock) return;
+if (~npc_check_notcombat = false) {
+    npc_setmode(null);
+    return;
+}
+if (~npc_check_notcombat_self = false) {
+    return;
+}
+anim(%com_defendanim, 0);
+npc_anim(npc_param(attack_anim), 0);
+sound_synth(npc_param(attack_sound), 0, 0);
+~npc_meleeattack;
+// the summon comes last: npc_add makes each new spawn the active npc
+if (%superior_summon_clock = 0 | add(%superior_summon_clock, 50) <= map_clock) {
+    %superior_summon_clock = map_clock;
+    npc_anim(demons_bringdead, 0);
+    spotanim_map(demon_spawn_portal, npc_coord, 92, 0);
+    def_coord $home = npc_coord;
+    npc_add(map_findsquare($home, 1, 2, ^map_findsquare_lineofwalk), superior_chaotic_spawn_melee, 50);
+    npc_setmode(opplayer2);
+    npc_add(map_findsquare($home, 1, 2, ^map_findsquare_lineofwalk), superior_chaotic_spawn_ranged, 50);
+    npc_setmode(applayer2);
+    npc_add(map_findsquare($home, 1, 2, ^map_findsquare_lineofwalk), superior_chaotic_spawn_magic, 50);
+    npc_setmode(applayer2);
+}
+
+[ai_opplayer2,superior_chaotic_spawn_melee] ~chaotic_spawn_attack(^melee_style, null);
+[ai_applayer2,superior_chaotic_spawn_ranged] ~chaotic_spawn_attack(^ranged_style, dagannoth_arrow_spotanim_travel);
+[ai_opplayer2,superior_chaotic_spawn_ranged] ~chaotic_spawn_attack(^ranged_style, dagannoth_arrow_spotanim_travel);
+[ai_applayer2,superior_chaotic_spawn_magic] ~chaotic_spawn_attack(^magic_style, curse_travel);
+[ai_opplayer2,superior_chaotic_spawn_magic] ~chaotic_spawn_attack(^magic_style, curse_travel);
+
+// Like the Nechryael's death spawns (necharyael.rs2): no single-combat checks, and the hit doesn't
+// put you in combat. Unlike them, prayer protects.
+[proc,chaotic_spawn_attack](int $style, spotanim $proj)
+if (%death = ^true) {
+    npc_setmode(null);
+    return;
+}
+if (%npc_action_delay > map_clock) return;
+if ($style = ^melee_style & distance(coord, npc_coord) > 1) {
+    return; // still closing in
+}
+npc_anim(npc_param(attack_anim), 0);
+sound_synth(npc_param(attack_sound), 0, 0);
+%npc_action_delay = add(map_clock, 3);
+def_int $damage = 0;
+if (~check_protect_prayer($style) = false) {
+    if (randominc(~npc_melee_attack_roll_typeless) > randominc(~player_defence_roll_specific(npc_param(damagetype)))) {
+        $damage = randominc(7);
+    }
+}
+def_int $delay = 0;
+if ($proj ! null) {
+    $delay = calc(~player_projectile(npc_coord, coord, uid, $proj, 40, 36, 32, 15, 0, 11, 5) / 30);
+}
+if_close;
+queue(damage_player, $delay, $damage);
+
+// ---------------------------------------------------------------- Greater abyssal demon
+
+[ai_opplayer2,superior_greater_abyssal]
+if (%death = ^true) {
+    npc_setmode(null);
+    return;
+}
+if (%npc_action_delay > map_clock) return;
+if (~npc_check_notcombat = false) {
+    npc_setmode(null);
+    return;
+}
+if (~npc_check_notcombat_self = false) {
+    return;
+}
+if (distance(coord, npc_coord) <= 1 & random(8) = 0) {
+    @greater_abyssal_flurry;
+}
+anim(%com_defendanim, 0);
+npc_anim(npc_param(attack_anim), 0);
+sound_synth(npc_param(attack_sound), 0, 0);
+~npc_meleeattack;
+
+[label,greater_abyssal_flurry]
+%npc_action_delay = add(map_clock, add(4, npc_param(attackrate)));
+def_int $i = 0;
+while ($i < 4) {
+    if (finduid(%npc_aggressive_player) = false) {
+        return;
+    }
+    if (npc_stat(hitpoints) = 0 | %death = ^true) {
+        return;
+    }
+    spotanim_npc(abyssal_demon_teleport, 0, 0);
+    sound_synth(grim_reaper_appear, 1, 0);
+    npc_telejump(map_findsquare(coord, 1, 1, ^map_findsquare_lineofwalk));
+    npc_facesquare(coord);
+    npc_anim(npc_param(attack_anim), 0);
+    if_close;
+    if (~check_protect_prayer(^melee_style) = true) {
+        queue(combat_damage_player, 0, 0);
+    } else {
+        queue(combat_damage_player, 0, add(15, random(13)));
+    }
+    ~npc_set_attack_vars;
+    npc_delay(0);
+    $i = add($i, 1);
+}
