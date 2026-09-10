@@ -76,7 +76,7 @@ if($weapon = dragon_battleaxe) {
     return;
 }
 if ($weapon = dragon_axe) {
-    // Lumber Up (OSRS): +3 Woodcutting, never past 99
+    // Lumber Up (OSRS): +3 Woodcutting
     if (p_finduid(uid) = true) {
         ~set_sa_vars(oc_param($weapon, sa_energy));
         say("Chop chop!");
@@ -123,7 +123,7 @@ if (~sa_enough_energy = false) {
 }
 def_obj $weapon = inv_getobj(worn, ^wearpos_rhand);
 if ($weapon = dragon_pickaxe) {
-    // Rock Knocker (OSRS): +3 Mining, never past 99
+    // Rock Knocker (OSRS): +3 Mining
     if (p_finduid(uid) = true) {
         ~set_sa_vars(oc_param($weapon, sa_energy));
         say("Smashing!");
@@ -134,11 +134,10 @@ if ($weapon = dragon_pickaxe) {
 }
 @toggle_sa;
 
+// +3 on top of the base level, and it does show past 99 (e.g. 102), as in OSRS. Success rolls
+// still treat anything above 99 as 99 - the engine's stat_random clamps the level itself.
 [proc,skilling_spec_boost](stat $stat)
-def_int $boost = min(3, sub(99, stat_base($stat)));
-if ($boost > 0) {
-    stat_boost($stat, $boost, 0);
-}
+stat_boost($stat, 3, 0);
 [if_button,combat_whip:specbar] @toggle_sa;
 [if_button,combat_claw:specbar] @toggle_sa;
 [if_button,combat_unarmed:specbar] @toggle_sa;
