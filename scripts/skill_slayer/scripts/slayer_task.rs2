@@ -1,11 +1,40 @@
 [proc,slayer_new_target]()(int)
+def_int $previous = %slayer_target;
+def_dbrow $table = null;
 switch_npc(npc_type) {
-    case slayer_master_1 : ~generate_slayer_task(turael_task_table);
-    case slayer_master_2 : ~generate_slayer_task(mazchna_task_table);
-    case slayer_master_3 : ~generate_slayer_task(vannaka_task_table);
-    case slayer_master_4 : ~generate_slayer_task(chaeldar_task_table);
-    case slayer_master_5 : ~generate_slayer_task(duradel_task_table);
+    case slayer_master_1 : $table = turael_task_table; %slayer_task_master = 1;
+    case slayer_master_2 : $table = mazchna_task_table; %slayer_task_master = 2;
+    case slayer_master_3 : $table = vannaka_task_table; %slayer_task_master = 3;
+    case slayer_master_4 : $table = chaeldar_task_table; %slayer_task_master = 4;
+    case slayer_master_5 : $table = duradel_task_table; %slayer_task_master = 5;
 }
+if ($table ! null) {
+    // Slayer cape: 10% chance of being given the task you just finished again, if this master
+    // assigns it (skillcapes/scripts/skillcape_perks.rs2)
+    if ($previous > 0 & ~skillcape_worn(slayer) = true & random(10) = 0 & ~slayer_repeat_task($table, $previous) = true) {
+        mes("Your Slayer cape lets you take on the same assignment again.");
+    } else {
+        ~generate_slayer_task($table);
+    }
+}
+
+// the row in this master's table for $target, with its own kill range; false if he doesn't give it
+[proc,slayer_repeat_task](dbrow $master, int $target)(boolean)
+if (~validate_slayer_target($target) = false) {
+    return(false);
+}
+def_int $i = 0;
+def_dbrow $task_data;
+while ($i < db_getfieldcount($master, slayer_task_table:task)) {
+    $task_data = db_getfield($master, slayer_task_table:task, $i);
+    if (db_getfield($task_data, slayer_master_task:task, 0) = $target) {
+        %slayer_target = $target;
+        %slayer_count = ~random_range(db_getfield($task_data, slayer_master_task:min_amount, 0), db_getfield($task_data, slayer_master_task:max_amount, 0));
+        return(true);
+    }
+    $i = add($i, 1);
+}
+return(false);
 
 [proc,generate_slayer_task](dbrow $master)
 def_int $i = 0;
@@ -40,6 +69,9 @@ while($i < db_getfieldcount($master, slayer_task_table:task)) {
 }
 
 [proc,validate_slayer_target](int $target)(boolean)
+if (~slayer_is_blocked($target) = true) { // blocked with Slayer points (slayer_points.rs2)
+    return (false);
+}
 if (stat_base(slayer) < enum(int, int, slayer_req, $target)) { // slayer req check
     return (false);
 }
@@ -53,9 +85,18 @@ if(~player_combat_level < enum(int, int, combat_req, $target)) {
 // https://oldschool.runescape.wiki/w/Update:Patch_Notes_(25_April_2013) no fm for harpie bugs
 // https://oldschool.runescape.wiki/w/Update:Patch_Notes_(4_April_2013) no def level reqs (mirror shield)
 switch_int($target) {
-    case ^slayer_crawlinghand, ^slayer_banshee, ^slayer_infernalmage, ^slayer_bloodveld, 
-            ^slayer_aberrantspecter, ^slayer_gargoyle, ^slayer_nechryael, ^slayer_abyssaldemon, 
-            ^slayer_ghoul, ^slayer_werewolf, ^slayer_vampire : // priest peril
+    // FIXED 2026-09-10: Priest in Peril is in the game, so the Morytania tasks it gates are given
+    // once it is done. These are the ones with tagged, spawned npcs (crawling hands, banshees,
+    // bloodvelds, aberrant spectres, gargoyles, nechryael, abyssal demons in the Slayer Tower; the
+    // Canifis werewolves; ghouls - which were tagged as ghosts until now).
+    case ^slayer_crawlinghand, ^slayer_banshee, ^slayer_bloodveld, ^slayer_aberrantspecter,
+            ^slayer_gargoyle, ^slayer_nechryael, ^slayer_abyssaldemon, ^slayer_ghoul, ^slayer_werewolf :
+        if (%priestperil < ^priestperil_complete) {
+            return (false);
+        }
+        return (true);
+    // no npc carries these categories yet, so the task could never be finished
+    case ^slayer_infernalmage, ^slayer_vampire :
         return (false);
     case ^slayer_otherworldlybeing, ^slayer_mutatedzygomite :
         if(%zanaris < ^zanaris_complete) {
@@ -160,5 +201,12 @@ if(npc_finduid($uid) = true) {
 
 [proc,complete_task]
 // https://youtu.be/xq8oz9of6Ck?si=WgGJ5L-rC1sCCh2F&t=66
-mes("You've completed your task; return to a Slayer master.");
+%slayer_streak = add(%slayer_streak, 1);
+def_int $points = ~slayer_task_points;
+if ($points > 0) {
+    %slayer_points = add(%slayer_points, $points);
+    mes("You've completed <tostring(%slayer_streak)> tasks in a row and received <tostring($points)> points, with a total of <tostring(%slayer_points)>; return to a Slayer master.");
+} else {
+    mes("You've completed your task; return to a Slayer master.");
+}
 midi_jingle("advance slayer");

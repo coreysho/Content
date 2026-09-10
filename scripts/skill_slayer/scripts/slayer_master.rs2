@@ -6,7 +6,12 @@
 if(%slayer_target = 0) {
     @multi3("Who are you?", slayer_master_who, "Do you have anything for trade?", slayer_master_trade, "Er...nothing...", slayer_master_nothing);
 }
-@multi3("I need another assignment.", slayer_master_assign, "Do you have anything for trade?", slayer_master_trade, "Er...nothing...", slayer_master_nothing);
+switch_int (~p_choice4("I need another assignment.", 1, "Do you have anything for trade?", 2, "I'd like to spend my Slayer points.", 3, "Er...nothing...", 4)) {
+    case 1 : @slayer_master_assign;
+    case 2 : @slayer_master_trade;
+    case 3 : @slayer_master_rewards; // slayer_points.rs2
+    case default : @slayer_master_nothing;
+}
 
 [opnpc4,_slayer_master] ~openshop_activenpc;
 
@@ -76,6 +81,11 @@ if(%slayer_count > 0) {
             return;
         }
         ~chatplayer("<p,happy>Yes, please.");
+        // Turael swapping a task is free, but it costs the task streak (as in OSRS)
+        if (%slayer_streak > 0) {
+            %slayer_streak = 0;
+            mes("Your Slayer task streak has been reset.");
+        }
         @slayer_master_newassign;
         return;
     }
@@ -99,6 +109,9 @@ if(npc_type ! slayer_master_4 & npc_type ! slayer_master_5 & $slayer_master ! np
 @multi2("Got any tips for me?", slayer_master_tips, "Okay, great!", slayer_master_great);
 
 [proc,slayer_master_eligible](npc $master)(boolean)
+if (~skillcape_worn(slayer) = true) { // the Slayer cape skips every master's combat requirement
+    return(true);
+}
 def_int $cb = ~player_combat_level;
 if($master = slayer_master_2 & $cb < 20) {
     return (false);

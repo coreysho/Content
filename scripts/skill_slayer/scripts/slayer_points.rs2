@@ -1,0 +1,147 @@
+// Slayer points, the way OSRS does them (oldschool.runescape.wiki/w/Slayer_reward_point):
+//   - every finished task adds to %slayer_streak and pays points by the master who gave it:
+//     Turael 0, Mazchna 6, Vannaka 8, Chaeldar 10, Duradel 15 (current OSRS values);
+//   - the first four tasks pay nothing; every 10th task pays 5x, 50th 15x, 100th 25x, 250th 35x,
+//     1000th 50x;
+//   - Turael swapping out a task you already have resets the streak (slayer_master.rs2).
+// Spent with any master ("I'd like to spend my Slayer points."):
+//   - cancel the current task, 30 points (the streak is kept);
+//   - block the current task, 100 points - it is cancelled and never assigned again until unblocked.
+//     One block slot, plus one per 50 quest points (4 at this server's 152);
+//   - unblock, free (OSRS does not refund the points either).
+// 2006 had none of this - it arrived in 2007 - but it is what players expect of Slayer now.
+
+[proc,slayer_task_points]()(int)
+if (%slayer_streak < 5) {
+    return(0);
+}
+def_int $master = %slayer_task_master;
+if ($master = 0) {
+    // a task given before points existed: pay as the master the player would use today
+    switch_npc (~get_best_slayer_master) {
+        case slayer_master_2 : $master = 2;
+        case slayer_master_3 : $master = 3;
+        case slayer_master_4 : $master = 4;
+        case slayer_master_5 : $master = 5;
+        case default : $master = 1;
+    }
+}
+def_int $base = 0;
+switch_int ($master) {
+    case 2 : $base = 6;
+    case 3 : $base = 8;
+    case 4 : $base = 10;
+    case 5 : $base = 15;
+}
+if (modulo(%slayer_streak, 1000) = 0) {
+    return(multiply($base, 50));
+}
+if (modulo(%slayer_streak, 250) = 0) {
+    return(multiply($base, 35));
+}
+if (modulo(%slayer_streak, 100) = 0) {
+    return(multiply($base, 25));
+}
+if (modulo(%slayer_streak, 50) = 0) {
+    return(multiply($base, 15));
+}
+if (modulo(%slayer_streak, 10) = 0) {
+    return(multiply($base, 5));
+}
+return($base);
+
+[proc,slayer_is_blocked](int $target)(boolean)
+if ($target <= 0) {
+    return(false);
+}
+if (%slayer_block1 = $target | %slayer_block2 = $target | %slayer_block3 = $target | %slayer_block4 = $target) {
+    return(true);
+}
+return(false);
+
+[proc,slayer_block_slots]()(int)
+return(min(4, add(1, divide(%qp, 50))));
+
+[proc,slayer_block_name](int $slot, int $target)(string)
+if ($slot > ~slayer_block_slots) {
+    return("(locked - <tostring(multiply(sub($slot, 1), 50))> quest points)");
+}
+if ($target <= 0) {
+    return("(empty)");
+}
+return(enum(int, string, task_name, $target));
+
+[label,slayer_master_rewards]
+~chatplayer("<p,quiz>I'd like to spend my Slayer points.");
+~chatnpc("<p,neutral>You have <tostring(%slayer_points)> Slayer points and have finished <tostring(%slayer_streak)> tasks in a row. What would you like?");
+switch_int (~p_choice4("Cancel my task. (<tostring(^slayer_cancel_cost)> points)", 1, "Block my task for good. (<tostring(^slayer_block_cost)> points)", 2, "Unblock a task.", 3, "Nothing, thanks.", 4)) {
+    case 1 : @slayer_rewards_cancel;
+    case 2 : @slayer_rewards_block;
+    case 3 : @slayer_rewards_unblock;
+    case default : ~chatplayer("<p,neutral>Nothing, thanks.");
+}
+
+[label,slayer_rewards_cancel]
+~chatplayer("<p,neutral>I'd like to cancel my task.");
+if (%slayer_count <= 0) {
+    ~chatnpc("<p,confused>You don't have a task to cancel.");
+    return;
+}
+if (%slayer_points < ^slayer_cancel_cost) {
+    ~chatnpc("<p,neutral>That'll cost you <tostring(^slayer_cancel_cost)> points, and you've only got <tostring(%slayer_points)>.");
+    return;
+}
+%slayer_points = sub(%slayer_points, ^slayer_cancel_cost);
+%slayer_count = 0;
+~chatnpc("<p,neutral>Very well, forget about the <lowercase(~slayer_taskname)>. Ask me for a new assignment when you're ready.");
+
+[label,slayer_rewards_block]
+~chatplayer("<p,neutral>I never want to be given this task again.");
+if (%slayer_count <= 0) {
+    ~chatnpc("<p,confused>You need to have a task before you can block it.");
+    return;
+}
+if (%slayer_points < ^slayer_block_cost) {
+    ~chatnpc("<p,neutral>That'll cost you <tostring(^slayer_block_cost)> points, and you've only got <tostring(%slayer_points)>.");
+    return;
+}
+def_int $target = %slayer_target;
+def_int $slots = ~slayer_block_slots;
+if (%slayer_block1 = 0) {
+    %slayer_block1 = $target;
+} else if (%slayer_block2 = 0 & $slots >= 2) {
+    %slayer_block2 = $target;
+} else if (%slayer_block3 = 0 & $slots >= 3) {
+    %slayer_block3 = $target;
+} else if (%slayer_block4 = 0 & $slots >= 4) {
+    %slayer_block4 = $target;
+} else {
+    ~chatnpc("<p,neutral>You've no room to block any more tasks. Unblock one first, or earn more quest points for another slot.");
+    return;
+}
+%slayer_points = sub(%slayer_points, ^slayer_block_cost);
+%slayer_count = 0;
+~chatnpc("<p,neutral>Done. No Slayer master will send you after <lowercase(~slayer_taskname)> again unless you unblock them.");
+
+[label,slayer_rewards_unblock]
+~chatplayer("<p,quiz>I'd like to unblock a task.");
+def_int $slot = ~p_choice5_header(~slayer_block_name(1, %slayer_block1), 1, ~slayer_block_name(2, %slayer_block2), 2, ~slayer_block_name(3, %slayer_block3), 3, ~slayer_block_name(4, %slayer_block4), 4, "Never mind.", 5, "Which task should be unblocked?");
+def_int $target = 0;
+switch_int ($slot) {
+    case 1 : $target = %slayer_block1;
+    case 2 : $target = %slayer_block2;
+    case 3 : $target = %slayer_block3;
+    case 4 : $target = %slayer_block4;
+    case default : return;
+}
+if ($target <= 0) {
+    ~chatnpc("<p,confused>There's nothing blocked there.");
+    return;
+}
+switch_int ($slot) {
+    case 1 : %slayer_block1 = 0;
+    case 2 : %slayer_block2 = 0;
+    case 3 : %slayer_block3 = 0;
+    case 4 : %slayer_block4 = 0;
+}
+~chatnpc("<p,neutral>All right, <lowercase(enum(int, string, task_name, $target))> can be assigned to you again.");
