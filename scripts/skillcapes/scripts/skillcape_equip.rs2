@@ -14,9 +14,8 @@ if ($level < 99) {
 }
 ~equip($slot);
 
-// Construction, Hunter and quest points do not exist on this server yet, so their capes are
-// imported but cannot be worn. Replace these with a real skillcape_require call when the
-// underlying skill or counter lands.
+// Construction and Hunter do not exist on this server yet, so their capes are imported but cannot
+// be worn. Replace these with a real skillcape_require call when the skill lands.
 [label,skillcape_unavailable](string $what)
 mes("<$what> is not available on this server yet, so this cape cannot be worn.");
 
@@ -66,4 +65,10 @@ mes("<$what> is not available on this server yet, so this cape cannot be worn.")
 [opheld2,farming_cape_t] @skillcape_require(stat_base(farming), "Farming", last_slot);
 [opheld2,hunter_cape] @skillcape_unavailable("Hunter");
 [opheld2,hunter_cape_t] @skillcape_unavailable("Hunter");
-[opheld2,quest_point_cape] @skillcape_unavailable("A quest point total");
+// The Quest point cape needs every quest point there is (~max_questpoints, general/scripts/quests.rs2).
+[opheld2,quest_point_cape]
+if (%qp < ~max_questpoints) {
+    mes("You need all <tostring(~max_questpoints)> quest points to wear this cape.");
+    return;
+}
+~equip(last_slot);

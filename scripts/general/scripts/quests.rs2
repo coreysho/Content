@@ -265,9 +265,6 @@ if (testbit(%elemental_workshop_bits, ^elemental_workshop_complete) = ^true) {
 if (%priestperil >= ^priestperil_complete) {
     $questpoints = add($questpoints, ^priestperil_questpoints); 
 }
-if (%druidspirit = ^druidspirit_complete) {
-    $questpoints = add($questpoints, ^druidspirit_questpoints); 
-}
 if (%death_equiproom = ^death_complete) {
     $questpoints = add($questpoints, ^death_questpoints); 
 }
@@ -296,6 +293,83 @@ if (%mm_main = ^mm_complete) {
 // %hundred_subquest_tally, so it counts bits rather than comparing a stage to a completion value.
 $questpoints = add($questpoints, ~hundred_subquests_done);
 return ($questpoints);
+
+// FIXED 2026-09-10: Nature Spirit (%druidspirit) was counted twice above, so finishing it gave
+// 4 quest points instead of 2. The second check has been removed.
+//
+// ADDED 2026-09-10: the quest point total with every quest done - the Quest point cape requirement
+// (skillcapes/scripts/skillcape_equip.rs2, the Wise Old Man). It sums the same constants as
+// ~count_questpoints, so a quest added there must be added here too.
+[proc,max_questpoints]()(int)
+def_int $total = ^hundred_questpoints;
+$total = add($total, ^runemysteries_questpoints);
+$total = add($total, ^doric_questpoints);
+$total = add($total, ^cook_questpoints);
+$total = add($total, ^romeojuliet_questpoints);
+$total = add($total, ^hetty_questpoints);
+$total = add($total, ^chompybird_questpoints);
+$total = add($total, ^priest_questpoints);
+$total = add($total, ^squire_questpoints);
+$total = add($total, ^imp_questpoints);
+$total = add($total, ^druid_questpoints);
+$total = add($total, ^druidspirit_questpoints);
+$total = add($total, ^gobdip_questpoints);
+$total = add($total, ^sheep_questpoints);
+$total = add($total, ^fluffs_questpoints);
+$total = add($total, ^demon_questpoints);
+$total = add($total, ^prince_questpoints);
+$total = add($total, ^blackknight_questpoints);
+$total = add($total, ^haunted_questpoints);
+$total = add($total, ^hunt_questpoints);
+$total = add($total, ^drunkmonk_questpoints);
+$total = add($total, ^vampire_questpoints);
+$total = add($total, ^totem_questpoints);
+$total = add($total, ^fishingcompo_questpoints);
+$total = add($total, ^scorpcatcher_questpoints);
+$total = add($total, ^zanaris_questpoints);
+$total = add($total, ^blackarmgang_questpoints);
+$total = add($total, ^elena_questpoints);
+$total = add($total, ^dragon_questpoints);
+$total = add($total, ^seaslug_questpoints);
+$total = add($total, ^arthur_questpoints);
+$total = add($total, ^tree_questpoints);
+$total = add($total, ^waterfall_questpoints);
+$total = add($total, ^grail_questpoints);
+$total = add($total, ^ball_questpoints);
+$total = add($total, ^murder_questpoints);
+$total = add($total, ^hazeelcult_questpoints);
+$total = add($total, ^hero_questpoints);
+$total = add($total, ^itgronigen_questpoints);
+$total = add($total, ^arena_questpoints);
+$total = add($total, ^junglepotion_questpoints);
+$total = add($total, ^ikov_questpoints);
+$total = add($total, ^biohazard_questpoints);
+$total = add($total, ^sheepherder_questpoints);
+$total = add($total, ^mcannon_questpoints);
+$total = add($total, ^cog_questpoints);
+$total = add($total, ^grandtree_questpoints);
+$total = add($total, ^upass_questpoints);
+$total = add($total, ^zombiequeen_questpoints);
+$total = add($total, ^crest_questpoints);
+$total = add($total, ^itexam_questpoints);
+$total = add($total, ^deserttreasure_questpoints);
+$total = add($total, ^horror_questpoints);
+$total = add($total, ^regicide_questpoints);
+$total = add($total, ^viking_questpoints);
+$total = add($total, ^desertrescue_questpoints);
+$total = add($total, ^itwatchtower_questpoints);
+$total = add($total, ^legends_questpoints);
+$total = add($total, ^elemental_workshop_questpoints);
+$total = add($total, ^priestperil_questpoints);
+$total = add($total, ^death_questpoints);
+$total = add($total, ^troll_questpoints);
+$total = add($total, ^troll_love_questpoints);
+$total = add($total, ^golem_questpoints);
+$total = add($total, ^recruitmentdrive_questpoints);
+$total = add($total, ^roving_elves_questpoints);
+$total = add($total, ^mourning_questpoints);
+$total = add($total, ^mm_questpoints);
+return ($total);
 
 [proc,update_questlist]
 ~update_questpoints;

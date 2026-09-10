@@ -1,0 +1,224 @@
+// Skill cape sellers, trimming and the Skillcape emote.
+//
+// Every skill has a master who sells its cape and hood for 99,000 coins once the player has 99 in
+// it. Existing npcs that are the masters call ~skillcape_offer(<stat>) at the top of their Talk-to
+// trigger: a player without 99 sees the npc's normal dialogue unchanged; a player with 99 is first
+// offered the cape, and choosing "Something else." falls through to the normal dialogue.
+//
+//   Attack       Ajjat (Warriors' Guild)          Magic        Magic Guild store owner
+//   Strength     Sloane (Warriors' Guild, 1st fl) Runecraft    Aubury
+//   Defence      Melee combat tutor (Lumbridge)   Hitpoints    Surgeon General Tafani (Duel Arena)
+//   Ranged       Ranging Guild armour salesman    Agility      Cap'n Izzy No-Beard (Brimhaven)
+//   Prayer       Brother Jered (Monastery)        Herblore     Kaqemeex (Taverley)
+//   Thieving     Martin Thwait (Rogues' Den)      Crafting     Master crafter (Crafting Guild)
+//   Fletching    Hickton (Catherby)               Slayer       Duradel (Shilo Village)
+//   Mining       Dwarf at the Mining Guild        Smithing     Thurgo (Port Sarim)
+//   Fishing      Master fisher (Fishing Guild)    Cooking      Head chef (Cooking Guild)
+//   Firemaking   Ignatius Vulcan (Seers' forest)  Woodcutting  Woodsman tutor (Lumbridge)
+//   Farming      Martin the Master Gardener       Quest points Wise Old Man (Draynor)
+//
+// A player with two or more 99s gets the trimmed cape, and on reaching a second 99 (or logging in
+// with two) every untrimmed cape they hold - inventory, worn or banked - is swapped for the trimmed
+// one (~skillcape_trim_all, called from [label,levelup] and [login,_]).
+
+[proc,skillcape_count_99s]()(int)
+def_int $count = 0;
+def_int $i = 1;
+while ($i <= enum_getoutputcount(stats)) {
+    if (stat_base(enum(int, stat, stats, $i)) >= 99) {
+        $count = add($count, 1);
+    }
+    $i = add($i, 1);
+}
+return($count);
+
+// Offered at the top of a master's Talk-to. Returns true when the cape conversation replaced the
+// npc's normal dialogue, so the caller should stop.
+[proc,skillcape_offer](stat $stat)(boolean)
+if (stat_base($stat) < 99) {
+    return(false);
+}
+def_string $skill = enum(stat, string, stat_names, $stat);
+if (~p_choice2("Can I buy a Skillcape of <$skill>?", 1, "Something else.", 2) ! 1) {
+    return(false);
+}
+~chatplayer("<p,quiz>Can I buy a Skillcape of <$skill>?");
+def_namedobj $cape = enum(stat, namedobj, skillcape_cape, $stat);
+if (~skillcape_count_99s >= 2) {
+    $cape = enum(stat, namedobj, skillcape_cape_t, $stat);
+}
+~skillcape_sell($cape, enum(stat, namedobj, skillcape_hood, $stat));
+return(true);
+
+[proc,skillcape_sell](namedobj $cape, namedobj $hood)
+~chatnpc("<p,happy>Certainly! Right when you give me 99,000 coins.");
+if (~p_choice2("Okay, here you go.", 1, "No thanks.", 2) ! 1) {
+    ~chatplayer("<p,neutral>No thanks.");
+    ~chatnpc("<p,neutral>Come back if you change your mind.");
+    return;
+}
+~chatplayer("<p,happy>Okay, here you go.");
+if (inv_total(inv, coins) < ^skillcape_price) {
+    ~chatplayer("<p,sad>But, unfortunately, I don't have enough money with me.");
+    ~chatnpc("<p,neutral>Well, come back and see me when you do.");
+    return;
+}
+// the cape comes with its hood, so two free spaces - the coins' slot counts if they all go
+def_int $space = inv_freespace(inv);
+if (inv_total(inv, coins) = ^skillcape_price) {
+    $space = add($space, 1);
+}
+if ($space < 2) {
+    ~chatnpc("<p,neutral>Unfortunately you don't have enough room for the cape and its hood. Come back when you have two free spaces in your inventory.");
+    return;
+}
+inv_del(inv, coins, ^skillcape_price);
+inv_add(inv, $cape, 1);
+inv_add(inv, $hood, 1);
+~doubleobjbox($cape, $hood, "You hand over 99,000 coins and receive a <lowercase(oc_name($cape))> and a hood.", 200);
+~chatnpc("<p,happy>Excellent! Wear that cape with pride, my friend.");
+
+// Swap every untrimmed cape the player holds for its trimmed version. Returns true if any changed.
+[proc,skillcape_trim_all]()(boolean)
+def_boolean $changed = false;
+def_boolean $worn_changed = false;
+def_namedobj $cape = null;
+def_namedobj $trim = null;
+def_int $count = 0;
+def_int $i = 0;
+while ($i < enum_getoutputcount(skillcape_untrimmed)) {
+    $cape = enum(int, namedobj, skillcape_untrimmed, $i);
+    $trim = enum(int, namedobj, skillcape_trimmed, $i);
+    // capes do not stack in the inventory: inv_changeslot swaps one slot per call
+    while (inv_total(inv, $cape) > 0) {
+        inv_changeslot(inv, $cape, $trim, 1);
+        $changed = true;
+    }
+    $count = inv_total(bank, $cape);
+    if ($count > 0) {
+        if (inv_total(bank, $trim) > 0) {
+            // merge into the existing trimmed stack rather than leave two stacks of one item
+            inv_del(bank, $cape, $count);
+            inv_add(bank, $trim, $count);
+        } else {
+            inv_changeslot(bank, $cape, $trim, $count);
+        }
+        $changed = true;
+    }
+    if (inv_getobj(worn, ^wearpos_back) = $cape) {
+        inv_setslot(worn, ^wearpos_back, $trim, 1);
+        $changed = true;
+        $worn_changed = true;
+    }
+    $i = add($i, 1);
+}
+if ($worn_changed = true) {
+    ~update_all(inv_getobj(worn, ^wearpos_rhand));
+}
+return($changed);
+
+// [label,levelup] - runs from the engine queue, so it has protected access to bank and worn
+[proc,skillcape_levelup](stat $stat)
+if (stat_base($stat) < 99) {
+    return;
+}
+if (~skillcape_count_99s < 2) {
+    return;
+}
+if (~skillcape_trim_all = true) {
+    mes("Your Skillcapes have been trimmed to reflect your mastery of more than one skill.");
+}
+
+[proc,skillcape_login]
+if (~skillcape_count_99s < 2) {
+    return;
+}
+if (~skillcape_trim_all = true) {
+    mes("Your Skillcapes have been trimmed to reflect your mastery of more than one skill.");
+}
+
+// The Skillcape emote on the emotes tab plays the worn cape's animation and graphic.
+[if_button,controls:skillcape]
+if (p_finduid(uid) = false) {
+    return;
+}
+def_obj $cape = inv_getobj(worn, ^wearpos_back);
+def_seq $seq = null;
+if ($cape ! null) {
+    $seq = enum(obj, seq, skillcape_emote_seq, $cape);
+}
+if ($seq = null) {
+    mes("You need to be wearing a Skillcape in order to perform that emote.");
+    return;
+}
+if_close;
+p_stopaction;
+anim($seq, 0);
+spotanim_pl(enum(obj, spotanim, skillcape_emote_spot, $cape), 0, 0);
+
+// ---- masters who are new npcs, or existing npcs with no Talk-to until now ----
+
+[proc,skillcape_master](stat $stat, string $greeting)
+~chatnpc($greeting);
+if (~skillcape_offer($stat) = true) {
+    return;
+}
+def_string $skill = enum(stat, string, stat_names, $stat);
+if (~p_choice2("What is that cape you're wearing?", 1, "Goodbye.", 2) ! 1) {
+    ~chatplayer("<p,neutral>Goodbye.");
+    return;
+}
+~chatplayer("<p,quiz>What is that cape you're wearing?");
+~chatnpc("<p,happy>This is a Skillcape of <$skill>. I was given the honour of selling them, as no one knows more about <lowercase($skill)> than I do.");
+if (stat_base($stat) >= 99) {
+    ~chatnpc("<p,happy>And you've mastered it too! Talk to me again and I'll sell you one for 99,000 coins.");
+    return;
+}
+~chatnpc("<p,neutral>Only those who have reached level 99 in <$skill> may wear one. Come and see me when you have, and I'll sell you one for 99,000 coins.");
+
+[opnpc1,skillcape_sloane] ~skillcape_master(strength, "<p,happy>Hello there! I'm Sloane. I keep an eye on the shot put and the kegs - strength is my business.");
+[opnpc1,skillcape_harlan] ~skillcape_master(defence, "<p,neutral>Greetings, adventurer. I teach the ways of melee combat, and there's no one better at keeping a blade off themselves than me.");
+[opnpc1,skillcape_wilfred] ~skillcape_master(woodcutting, "<p,happy>Hello! I'm Wilfred. If it's a tree, I've cut it down.");
+[opnpc1,skillcape_ignatius] ~skillcape_master(firemaking, "<p,happy>Hello, I'm Ignatius Vulcan. Fire is my passion - there's nothing finer than a well-built blaze.");
+[opnpc1,martin_the_master_farmer] ~skillcape_master(farming, "<p,happy>Hello, I'm Martin. I know all there is to know about growing things.");
+
+// The Wise Old Man sells the Quest point cape to players who have finished every quest. He is
+// spawned as wom_multi (a multinpc on %swansong), and npc triggers resolve on the spawned type.
+[opnpc1,wom_multi]
+~chatnpc("<p,neutral>Greetings, adventurer. What brings you to the house of the Wise Old Man?");
+if (%qp >= ~max_questpoints) {
+    if (~p_choice2("Can I buy a Quest point cape?", 1, "Nothing, thanks.", 2) = 1) {
+        ~chatplayer("<p,quiz>Can I buy a Quest point cape?");
+        ~chatnpc("<p,happy>You have completed every quest in the land - you've earned it.");
+        ~skillcape_sell(quest_point_cape, quest_point_hood);
+        return;
+    }
+    ~chatplayer("<p,neutral>Nothing, thanks.");
+    return;
+}
+if (~p_choice2("What is that cape you're wearing?", 1, "Nothing, thanks.", 2) ! 1) {
+    ~chatplayer("<p,neutral>Nothing, thanks.");
+    return;
+}
+~chatplayer("<p,quiz>What is that cape you're wearing?");
+~chatnpc("<p,neutral>This is a Quest point cape. Only those who have completed every quest in the land may wear one.");
+~chatnpc("<p,neutral>You have <tostring(%qp)> of the <tostring(~max_questpoints)> quest points there are. Come back when you have them all and I'll sell you one for 99,000 coins.");
+
+// Masters whose Talk-to comes from their npc category: offer the cape, then the category dialogue.
+[opnpc1,roguesden_trader]
+if (~skillcape_offer(thieving) = true) {
+    return;
+}
+@shop_keeper_talk;
+
+[opnpc1,slayer_master_5]
+if (~skillcape_offer(slayer) = true) {
+    return;
+}
+@slayer_master_talk;
+
+[opnpc1,duel_nurse3]
+if (~skillcape_offer(hitpoints) = true) {
+    return;
+}
+@healer_talk;
