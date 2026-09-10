@@ -1,11 +1,11 @@
 // Slayer point rewards, spent through any master's "I'd like to spend my Slayer points."
 // (slayer_points.rs2 has the points themselves and cancel/block/unblock). Names and prices follow
 // the OSRS Slayer Rewards page, limited to what exists in this build:
-//   Unlocks  Gargoyle Smasher 120, Slug Salter 10, Reptile Freezer 10, Ring Bling 150
+//   Unlocks  Bigger and Badder 50 (superiors.rs2), Gargoyle Smasher 120, Slug Salter 10,
+//            Reptile Freezer 10, Ring Bling 150
 //   Extends  eleven tasks (configs/slayer_rewards.enum) - longer tasks from Chaeldar and Duradel
 //   Buy      Slayer ring (8) 75, Herb sack 750, Looting bag 10
-// Not here because the thing they work on is missing: Bigger and Badder (no superior monsters),
-// 'Shroom Sprayer (zygomite tasks never assigned), Broader Fletching, the boss/TzHaar/lizardman
+// Not here because the thing they work on is missing: 'Shroom Sprayer (zygomite tasks never assigned), Broader Fletching, the boss/TzHaar/lizardman
 // task unlocks. Malevolent Masquerade and Seeing Red are left out on purpose: slayer helmets and red
 // dragon tasks were never locked here, and selling them back would take them away.
 
@@ -58,7 +58,12 @@ return("<$name> (<tostring($cost)>)");
 def_int $bit = -1;
 def_int $cost = 0;
 def_string $what = "";
-switch_int (~p_choice5(~slayer_unlock_label("Gargoyle Smasher", 0, 120), 1, ~slayer_unlock_label("Slug Salter", 1, 10), 2, ~slayer_unlock_label("Reptile Freezer", 2, 10), 3, ~slayer_unlock_label("Ring Bling", 3, 150), 4, "Never mind.", 5)) {
+def_int $pick = ~p_choice5(~slayer_unlock_label("Bigger and Badder", 4, 50), 5, ~slayer_unlock_label("Gargoyle Smasher", 0, 120), 1, ~slayer_unlock_label("Slug Salter", 1, 10), 2, ~slayer_unlock_label("Reptile Freezer", 2, 10), 3, "More...", 6);
+if ($pick = 6) {
+    $pick = ~p_choice2(~slayer_unlock_label("Ring Bling", 3, 150), 4, "Never mind.", 7);
+}
+switch_int ($pick) {
+    case 5 : $bit = 4; $cost = 50; $what = "On task, monsters with a superior form have a 1/200 chance of summoning it when they die.";
     case 1 : $bit = 0; $cost = 120; $what = "Gargoyles you beat are smashed automatically if you carry a rock hammer.";
     case 2 : $bit = 1; $cost = 10; $what = "Rockslugs you beat are salted automatically if you carry a bag of salt.";
     case 3 : $bit = 2; $cost = 10; $what = "Desert lizards you beat are frozen automatically if you carry icy water.";

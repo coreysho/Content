@@ -1,0 +1,56 @@
+// Gargoyle - https://oldschool.runescape.wiki/w/Gargoyle (added 2026-09-10: gargoyles had no drops).
+// Called from [ai_queue4,slayer_gargoyle] once the rock hammer has finished it, and three times for
+// a Marble gargoyle (skill_slayer/scripts/superiors.rs2). No bones: gargoyles crumble.
+
+[proc,slayer_gargoyle_loot]
+~trail_hardcluedrop(^trail_hard_droprate, npc_coord);
+if (random(256) = 0) {
+    obj_add(npc_coord, granite_maul, 1, ^lootdrop_duration);
+    return;
+}
+if (random(512) = 0) {
+    obj_add(npc_coord, mystic_robe_top_dark, 1, ^lootdrop_duration);
+    return;
+}
+def_int $dropint = random(128);
+if ($dropint < 4) {
+    obj_add(npc_coord, adamant_platelegs, 1, ^lootdrop_duration);
+} else if ($dropint < 7) {
+    obj_add(npc_coord, rune_full_helm, 1, ^lootdrop_duration);
+} else if ($dropint < 9) {
+    obj_add(npc_coord, rune_2h_sword, 1, ^lootdrop_duration);
+} else if ($dropint < 10) {
+    obj_add(npc_coord, adamant_armoured_boots, 1, ^lootdrop_duration);
+} else if ($dropint < 11) {
+    obj_add(npc_coord, rune_battleaxe, 1, ^lootdrop_duration);
+} else if ($dropint < 12) {
+    obj_add(npc_coord, rune_platelegs, 1, ^lootdrop_duration);
+} else if ($dropint < 22) {
+    obj_add(npc_coord, firerune, 75, ^lootdrop_duration);
+} else if ($dropint < 28) {
+    obj_add(npc_coord, firerune, 150, ^lootdrop_duration);
+} else if ($dropint < 36) {
+    obj_add(npc_coord, chaosrune, 30, ^lootdrop_duration);
+} else if ($dropint < 41) {
+    obj_add(npc_coord, deathrune, 15, ^lootdrop_duration);
+} else if ($dropint < 51) {
+    obj_add(npc_coord, cert_gold_ore, calc(random(11) + 10), ^lootdrop_duration);
+} else if ($dropint < 57) {
+    obj_add(npc_coord, cert_blankrune_high, 150, ^lootdrop_duration);
+} else if ($dropint < 63) {
+    obj_add(npc_coord, cert_steel_bar, 15, ^lootdrop_duration);
+} else if ($dropint < 66) {
+    obj_add(npc_coord, cert_gold_bar, calc(random(6) + 10), ^lootdrop_duration);
+} else if ($dropint < 68) {
+    obj_add(npc_coord, cert_mithril_bar, 15, ^lootdrop_duration);
+} else if ($dropint < 70) {
+    obj_add(npc_coord, runite_ore, 1, ^lootdrop_duration);
+} else if ($dropint < 98) {
+    obj_add(npc_coord, coins, calc(random(401) + 400), ^lootdrop_duration);
+} else if ($dropint < 118) {
+    obj_add(npc_coord, coins, calc(random(501) + 500), ^lootdrop_duration);
+} else if ($dropint < 123) {
+    obj_add(npc_coord, coins, 10000, ^lootdrop_duration);
+} else {
+    obj_add(npc_coord, ~randomjewel, ^lootdrop_duration);
+}

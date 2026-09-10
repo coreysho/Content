@@ -8,6 +8,10 @@ npc_statheal(hitpoints, 1, 0); // doesn't reset mode in osrs
 [ai_queue4,slayer_gargoyle]
 npc_changetype_keepall(slayer_gargoyle_dead, 5);
 gosub(npc_default_death);
+// ADDED 2026-09-10: gargoyles had no drop table at all (drop_tables/scripts/gargoyle.rs2)
+if (npc_findhero = ^true) {
+    ~slayer_gargoyle_loot;
+}
 
 [opnpcu,slayer_gargoyle]
 if(last_useitem = slayer_rock_hammer) {

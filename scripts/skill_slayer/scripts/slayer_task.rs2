@@ -189,6 +189,7 @@ if(npc_finduid($uid) = true) {
     %slayer_count = sub(%slayer_count, 1);
     stat_advance(slayer, calc(10 * npc_basestat(hitpoints)));
     if(%slayer_count = 0) ~complete_task;
+    ~slayer_superior_roll(npc_type); // Bigger and Badder (superiors.rs2) - keep last, it swaps the active npc
 }
 
 [queue,progress_task_split](npc_uid $uid)
@@ -199,6 +200,7 @@ if(npc_finduid($uid) = true) {
     %slayer_count = sub(%slayer_count, 1);
     stat_advance(slayer, calc(10 * (npc_basestat(hitpoints) / 2)));
     if(%slayer_count = 0) ~complete_task;
+    ~slayer_superior_roll(npc_type);
 }
 
 [proc,complete_task]

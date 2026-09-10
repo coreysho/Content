@@ -8,6 +8,11 @@ npc_statheal(hitpoints, 1, 0);
 
 [ai_queue4,slayer_rockslug]
 gosub(npc_default_death);
+// FIXED 2026-09-10: grown rockslugs dropped only bones - the rockslug table (drop_tables/rockslug.rs2)
+// was only ever hooked to the baby.
+if (npc_findhero = ^true) {
+    ~slayer_rockslug_baby_drop_table_loot;
+}
 
 [opnpcu,slayer_rockslug]
 if(last_useitem = slayer_bag_of_salt) {

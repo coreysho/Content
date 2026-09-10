@@ -1,0 +1,156 @@
+// Superior slayer monsters - the "Bigger and Badder" unlock (50 points, slayer_rewards.rs2).
+// OSRS rules (oldschool.runescape.wiki/w/Superior_slayer_monster), as far as this build allows:
+//   - with the unlock, every on-task kill of a monster that has a superior has a 1/200 chance of the
+//     superior appearing on the spot and attacking; it disappears after 2 minutes if not killed;
+//   - it counts as a kill of the task monster, gives about ten times its hitpoints in Slayer xp
+//     (even once the task is finished), and rolls its ordinary cousin's drop table three times;
+//   - plus the unique roll 9 / (8 * (200 - (level + 55)^2 / 125)) - half of those rolls go to the
+//     table with the imbued heart (1/8 of it); the battlestaffs and eternal gem don't exist here,
+//     so those outcomes give nothing.
+// Not done: the special mechanics (Marble gargoyle's stone throw, Nechryarch's spawns, Greater abyssal
+// demon's teleports), and the stat drains/protections of the basilisk and cockatrice lines - the
+// superiors fight with the plain default combat. Marble gargoyle and Giant rockslug still need the
+// rock hammer / bag of salt to finish, and the finishing unlocks work on them.
+
+// Called from [queue,progress_task] after an on-task kill; $killed is the npc that just died (the
+// active npc). Leaves the superior as the active npc.
+[proc,slayer_superior_roll](npc $killed)
+if (testbit(%slayer_unlocks, 4) = ^false) {
+    return;
+}
+def_npc $superior = enum(int, npc, slayer_superior, %slayer_target);
+if ($superior = null | $killed = $superior) {
+    return;
+}
+if (random(200) ! 0) {
+    return;
+}
+npc_add(npc_coord, $superior, 200); // 2 minutes
+npc_setmode(opplayer2);
+mes("@red@A superior foe has appeared...");
+
+// ---- death ----
+
+[ai_queue3,superior_crushing_hand] @superior_death;
+[ai_queue3,superior_chasm_crawler] @superior_death;
+[ai_queue3,superior_screaming_banshee] @superior_death;
+[ai_queue3,superior_cockathrice] @superior_death;
+[ai_queue3,superior_flaming_pyrelord] @superior_death;
+[ai_queue3,superior_monstrous_basilisk] @superior_death;
+[ai_queue3,superior_insatiable_bloodveld] @superior_death;
+[ai_queue3,superior_vitreous_jelly] @superior_death;
+[ai_queue3,superior_abhorrent_spectre] @superior_death;
+[ai_queue3,superior_king_kurask] @superior_death;
+[ai_queue3,superior_nechryarch] @superior_death;
+[ai_queue3,superior_greater_abyssal] @superior_death;
+
+// the two that need finishing off, like their cousins
+[ai_queue3,superior_giant_rockslug]
+if (~slayer_autofinish(1, slayer_bag_of_salt, true, "The giant rockslug shrivels up and dies.") = true) {
+    npc_queue(4, 0, 0);
+    return;
+}
+npc_setmode(null);
+npc_statheal(hitpoints, 1, 0);
+
+[ai_queue4,superior_giant_rockslug] @superior_death;
+
+[opnpcu,superior_giant_rockslug]
+if (last_useitem = slayer_bag_of_salt) {
+    inv_del(inv, slayer_bag_of_salt, 1);
+    anim(slayer_salt_sprinkle, 0);
+    spotanim_pl(slayer_salt_sprinkle_spotanim, 92, 0);
+    sound_synth(sprinkle_salt, 1, 0);
+    if (npc_stat(hitpoints) > 4) {
+        mes("The giant rockslug isn't weak enough to be affected by the salt.");
+    } else {
+        mes("The giant rockslug shrivels up and dies.");
+        npc_queue(4, 0, 0);
+    }
+    return;
+}
+~displaymessage(^dm_default);
+
+[ai_queue3,superior_marble_gargoyle]
+if (~slayer_autofinish(0, slayer_rock_hammer, false, "The marble gargoyle cracks apart.") = true) {
+    npc_queue(4, 0, 0);
+    return;
+}
+npc_statheal(hitpoints, 1, 0);
+
+[ai_queue4,superior_marble_gargoyle] @superior_death;
+
+[opnpcu,superior_marble_gargoyle]
+if (last_useitem = slayer_rock_hammer) {
+    anim(human_blunt_pound, 0);
+    sound_synth(warhammer_crush, 1, 0);
+    if (npc_stat(hitpoints) > 8) {
+        mes("The marble gargoyle isn't weak enough to be harmed by the hammer.");
+    } else {
+        mes("The marble gargoyle cracks apart.");
+        npc_queue(4, 0, 0);
+    }
+    return;
+}
+~displaymessage(^dm_default);
+
+[label,superior_death]
+def_int $hp = npc_basestat(hitpoints);
+def_npc $type = npc_type;
+def_int $category = npc_param(slayer_category);
+gosub(npc_death); // task credit and hitpoints xp through the slayer_category param, like any kill
+if (npc_findhero = ^false) {
+    return;
+}
+// ~10x its hitpoints in Slayer xp in all; the kill itself paid 1x if it was on task
+stat_advance(slayer, multiply($hp, 90));
+~superior_loot($type);
+~superior_loot($type);
+~superior_loot($type);
+~superior_unique(enum(int, int, slayer_req, $category));
+
+// one roll of the ordinary monster's drop table (drop_tables/scripts/*.rs2 - split into *_loot procs
+// for this)
+[proc,superior_loot](npc $type)
+switch_npc ($type) {
+    case superior_crushing_hand : ~crawling_hand_drop_table_loot;
+    case superior_chasm_crawler : ~slayer_cave_crawler_1_drop_table_loot;
+    case superior_screaming_banshee : ~banshee_drop_table_loot;
+    case superior_giant_rockslug : ~slayer_rockslug_baby_drop_table_loot;
+    case superior_cockathrice : ~slayer_cockatrice_drop_table_loot;
+    case superior_flaming_pyrelord : ~pyrefiend_death_loot;
+    case superior_monstrous_basilisk : ~slayer_basilisk_loot;
+    case superior_insatiable_bloodveld : ~slayer_bloodveld_drop_table_loot;
+    case superior_vitreous_jelly : ~slayer_jelly_loot;
+    case superior_abhorrent_spectre : ~slayer_abberant_spectre_1_drop_table_loot;
+    case superior_king_kurask : ~slayer_kursk_1_drop_table_loot;
+    case superior_marble_gargoyle : ~slayer_gargoyle_loot;
+    case superior_nechryarch : ~slayer_nechryael_drop_table_loot;
+    case superior_greater_abyssal : ~slayer_abyssal_drop_table_loot;
+}
+
+[proc,superior_unique](int $level)
+def_int $range = multiply(8, sub(200, divide(multiply(add($level, 55), add($level, 55)), 125)));
+if ($range <= 9 | random($range) < 9) {
+    // table 1 or 2, then 1/8 of table 1 is the imbued heart
+    if (random(2) = 0 & random(8) = 0) {
+        obj_add(npc_coord, imbued_heart, 1, ^lootdrop_duration);
+    }
+}
+
+// ---- Imbued heart (general/configs/osrs_items.obj), the superiors' rare drop ----
+// Invigorate: Magic +1 +10% for the usual boost time, then a 7-minute cooldown that survives logging
+// out (real minutes, world_minute). OSRS wording for the cooldown message.
+[opheld1,imbued_heart]
+def_int $wait = sub(7, sub(world_minute, %imbued_heart_minute));
+if (%imbued_heart_minute > 0 & $wait > 0) {
+    if ($wait = 1) {
+        mes("The heart is still drained of its power. Judging by how it feels, it will be ready in around 1 minute.");
+    } else {
+        mes("The heart is still drained of its power. Judging by how it feels, it will be ready in around <tostring($wait)> minutes.");
+    }
+    return;
+}
+%imbued_heart_minute = world_minute;
+stat_boost(magic, 1, 10);
+mes("Your imbued heart invigorates you, boosting your Magic.");
