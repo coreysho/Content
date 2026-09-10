@@ -1,13 +1,15 @@
 // Herb sack, seed box and looting bag - OSRS behaviour, minus the OSRS interfaces.
 //
 // Contents live in three perm invs (configs/storage_items.inv), so they survive logout.
-// "Open" sets a bit in %storage_open: while open, matching items you pick up go straight in
-// (player/scripts/pickup.rs2 asks ~storage_autocollect first). Check lists the contents in chat.
+// "Open" swaps the item for its open variant (herb_sack_open, seed_box_open, looting_bag_open -
+// OSRS models, configs/storage_open.obj) and "Close" swaps it back, so the inventory icon shows
+// the state. While you carry an open one, matching items you pick up go straight in
+// (player/scripts/pickup.rs2 asks ~storage_autocollect_store first). Check lists the contents.
 //
-//   Herb sack   Fill / Open / Check / Empty (to inventory) / Destroy. 14 grimy herbs, 30 of each.
-//   Seed box    Fill / Empty / Check / Open / Destroy. 6 kinds of seed, any number of each.
-//   Looting bag Open / Check / Deposit / Settings / Destroy. 28 slots. Items only go in while you
-//               are in the Wilderness, and only tradeable ones. It can only be emptied at a bank:
+//   Herb sack   Fill / Open|Close / Check / Empty (to inventory) / Destroy. 14 grimy herbs, 30 each.
+//   Seed box    Fill / Empty / Check / Open|Close / Destroy. 6 kinds of seed, any number of each.
+//   Looting bag Open|Close / Check / Deposit / Settings / Destroy. 28 slots. Items only go in while
+//               you are in the Wilderness, and only tradeable ones. It can only be emptied at a bank:
 //               use the bag on a bank booth. Its contents are dropped when you die, like OSRS.
 //
 // All three can also be emptied into the bank by using them on a bank booth.
@@ -24,7 +26,10 @@ while ($i < 14) {
 }
 return(false);
 
-[opheld1,herb_sack]
+[opheld1,herb_sack] ~herb_sack_fill;
+[opheld1,herb_sack_open] ~herb_sack_fill;
+
+[proc,herb_sack_fill]
 def_int $moved = 0;
 def_int $i = 0;
 while ($i < 14) {
@@ -55,13 +60,20 @@ while ($i < 14) {
 }
 return(false);
 
-[opheld2,herb_sack] ~storage_toggle_open(^storage_open_herb_sack, "herb sack", "Grimy herbs you pick up will go straight into it.");
+[opheld2,herb_sack] ~storage_swap(herb_sack_open, "You open the herb sack. Grimy herbs you pick up will go straight into it.");
+[opheld2,herb_sack_open] ~storage_swap(herb_sack, "You close the herb sack.");
 [opheld3,herb_sack] ~storage_check(herb_sack_store, "herb sack");
+[opheld3,herb_sack_open] ~storage_check(herb_sack_store, "herb sack");
 [opheld4,herb_sack] ~storage_empty_to_inv(herb_sack_store, "herb sack");
-[opheld5,herb_sack] @storage_destroy(herb_sack, herb_sack_store, ^storage_open_herb_sack, "herb sack");
+[opheld4,herb_sack_open] ~storage_empty_to_inv(herb_sack_store, "herb sack");
+[opheld5,herb_sack] @storage_destroy(herb_sack, herb_sack_store, "herb sack");
+[opheld5,herb_sack_open] @storage_destroy(herb_sack_open, herb_sack_store, "herb sack");
 
 // ================================================================ seed box
-[opheld1,seed_box]
+[opheld1,seed_box] ~seed_box_fill;
+[opheld1,seed_box_open] ~seed_box_fill;
+
+[proc,seed_box_fill]
 def_int $moved = 0;
 def_int $slot = 0;
 while ($slot < inv_size(inv)) {
@@ -84,20 +96,37 @@ if ($moved > 0) {
 }
 
 [opheld2,seed_box] ~storage_empty_to_inv(seed_box_store, "seed box");
+[opheld2,seed_box_open] ~storage_empty_to_inv(seed_box_store, "seed box");
 [opheld3,seed_box] ~storage_check(seed_box_store, "seed box");
-[opheld4,seed_box] ~storage_toggle_open(^storage_open_seed_box, "seed box", "Seeds you pick up will go straight into it.");
-[opheld5,seed_box] @storage_destroy(seed_box, seed_box_store, ^storage_open_seed_box, "seed box");
+[opheld3,seed_box_open] ~storage_check(seed_box_store, "seed box");
+[opheld4,seed_box] ~storage_swap(seed_box_open, "You open the seed box. Seeds you pick up will go straight into it.");
+[opheld4,seed_box_open] ~storage_swap(seed_box, "You close the seed box.");
+[opheld5,seed_box] @storage_destroy(seed_box, seed_box_store, "seed box");
+[opheld5,seed_box_open] @storage_destroy(seed_box_open, seed_box_store, "seed box");
 
 // ================================================================ looting bag
-[opheld1,looting_bag] ~storage_toggle_open(^storage_open_looting_bag, "looting bag", "Items you pick up in the Wilderness will go straight into it.");
+[opheld1,looting_bag] ~storage_swap(looting_bag_open, "You open the looting bag. Items you pick up in the Wilderness will go straight into it.");
+[opheld1,looting_bag_open] ~storage_swap(looting_bag, "You close the looting bag.");
 [opheld2,looting_bag] ~storage_check(looting_bag_store, "looting bag");
-[opheld3,looting_bag] mes("Use an item on the looting bag to put it in. It only works in the Wilderness.");
-[opheld4,looting_bag] mes("The looting bag has no settings here - use an item on it to deposit that item.");
-[opheld5,looting_bag] @storage_destroy(looting_bag, looting_bag_store, ^storage_open_looting_bag, "looting bag");
+[opheld2,looting_bag_open] ~storage_check(looting_bag_store, "looting bag");
+[opheld3,looting_bag] ~looting_bag_deposit_help;
+[opheld3,looting_bag_open] ~looting_bag_deposit_help;
+[opheld4,looting_bag] ~looting_bag_settings;
+[opheld4,looting_bag_open] ~looting_bag_settings;
+[opheld5,looting_bag] @storage_destroy(looting_bag, looting_bag_store, "looting bag");
+[opheld5,looting_bag_open] @storage_destroy(looting_bag_open, looting_bag_store, "looting bag");
 
-[opheldu,looting_bag]
-def_obj $obj = last_useitem;
-if ($obj = looting_bag) {
+[proc,looting_bag_deposit_help]
+mes("Use an item on the looting bag to put it in. It only works in the Wilderness.");
+
+[proc,looting_bag_settings]
+mes("The looting bag has no settings here - use an item on it to deposit that item.");
+
+[opheldu,looting_bag] ~looting_bag_deposit(last_useitem);
+[opheldu,looting_bag_open] ~looting_bag_deposit(last_useitem);
+
+[proc,looting_bag_deposit](obj $obj)
+if ($obj = looting_bag | $obj = looting_bag_open) {
     return;
 }
 if (~wilderness_level(coord) < 1) {
@@ -117,14 +146,10 @@ inv_moveitem(inv, looting_bag_store, $obj, $n);
 mes("You put the <oc_name($obj)> in the looting bag.");
 
 // ================================================================ shared
-[proc,storage_toggle_open](int $bit, string $name, string $what)
-if (testbit(%storage_open, $bit) = ^true) {
-    %storage_open = clearbit(%storage_open, $bit);
-    mes("You close the <$name>.");
-} else {
-    %storage_open = setbit(%storage_open, $bit);
-    mes("You open the <$name>. <$what>");
-}
+// Open/Close: swap the item in the slot that was clicked for its other variant.
+[proc,storage_swap](namedobj $to, string $message)
+inv_setslot(inv, last_slot, $to, 1);
+mes($message);
 
 [proc,storage_check](inv $store, string $name)
 if (inv_freespace($store) = inv_size($store)) {
@@ -180,13 +205,13 @@ if ($left = true) {
 [label,storage_bank_deposit]
 def_inv $store;
 def_string $name;
-if (last_useitem = herb_sack) {
+if (last_useitem = herb_sack | last_useitem = herb_sack_open) {
     $store = herb_sack_store;
     $name = "herb sack";
-} else if (last_useitem = seed_box) {
+} else if (last_useitem = seed_box | last_useitem = seed_box_open) {
     $store = seed_box_store;
     $name = "seed box";
-} else if (last_useitem = looting_bag) {
+} else if (last_useitem = looting_bag | last_useitem = looting_bag_open) {
     $store = looting_bag_store;
     $name = "looting bag";
 } else {
@@ -209,7 +234,7 @@ while ($slot < inv_size($store)) {
 }
 mes("You empty the <$name> into your bank.");
 
-[label,storage_destroy](namedobj $item, inv $store, int $bit, string $name)
+[label,storage_destroy](namedobj $item, inv $store, string $name)
 if (inv_freespace($store) < inv_size($store)) {
     ~mesbox("If you destroy the <$name>, everything inside it will be lost.");
 }
@@ -220,7 +245,6 @@ if (inv_total(inv, $item) < 1) {
     return;
 }
 inv_clear($store);
-%storage_open = clearbit(%storage_open, $bit);
 inv_del(inv, $item, 1);
 mes("You destroy the <$name>.");
 
@@ -228,22 +252,19 @@ mes("You destroy the <$name>.");
 // Called first thing by player/scripts/pickup.rs2: returns the container an obj being picked up
 // should go into, or null to pick it up normally.
 [proc,storage_autocollect_store]()(inv)
-if (%storage_open = 0) {
-    return(null);
-}
 def_obj $obj = obj_type;
 def_int $count = obj_count;
-if (testbit(%storage_open, ^storage_open_herb_sack) = ^true & inv_total(inv, herb_sack) > 0) {
+if (inv_total(inv, herb_sack_open) > 0) {
     if (~herb_sack_accepts($obj) = true & calc(inv_total(herb_sack_store, $obj) + $count) <= ^herb_sack_max_per_herb) {
         return(herb_sack_store);
     }
 }
-if (testbit(%storage_open, ^storage_open_seed_box) = ^true & inv_total(inv, seed_box) > 0) {
+if (inv_total(inv, seed_box_open) > 0) {
     if (~farming_seed_crop($obj) > 0 & (inv_total(seed_box_store, $obj) > 0 | inv_freespace(seed_box_store) > 0)) {
         return(seed_box_store);
     }
 }
-if (testbit(%storage_open, ^storage_open_looting_bag) = ^true & inv_total(inv, looting_bag) > 0) {
+if (inv_total(inv, looting_bag_open) > 0) {
     if (~wilderness_level(coord) > 0 & oc_tradeable($obj) = true & inv_itemspace(looting_bag_store, $obj, $count, inv_size(looting_bag_store)) = true) {
         return(looting_bag_store);
     }

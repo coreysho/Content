@@ -76,6 +76,22 @@ if (oc_category($weapon) = weapon_scythe) {
         return(human_scythe_spin, oc_param($weapon, slash_sound));
     }
 }
+// weapons with a different animation per combat-tab style (combat.param style1..4_attack_anim)
+def_seq $style_anim = null;
+switch_int ($attackstyle) {
+    case 0 : $style_anim = oc_param($weapon, style1_attack_anim);
+    case 1 : $style_anim = oc_param($weapon, style2_attack_anim);
+    case 2 : $style_anim = oc_param($weapon, style3_attack_anim);
+    case 3 : $style_anim = oc_param($weapon, style4_attack_anim);
+}
+if ($style_anim ! null) {
+    switch_int ($damagetype) {
+        case ^stab_style : return($style_anim, oc_param($weapon, stab_sound));
+        case ^slash_style : return($style_anim, oc_param($weapon, slash_sound));
+        case ^crush_style : return($style_anim, oc_param($weapon, crush_sound));
+        case ^ranged_style : return($style_anim, oc_param($weapon, rangeattack_sound));
+    }
+}
 // everything else
 switch_int ($damagetype) {
     case ^stab_style : return(oc_param($weapon, stabattack_anim), oc_param($weapon, stab_sound));
