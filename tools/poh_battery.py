@@ -172,7 +172,7 @@ for f in ['pack/varp.pack', 'pack/loc.pack', 'pack/npc.pack', 'pack/interface.pa
 print('12. pack ids are unique, and the new ones sit above what was there')
 # Not contiguity: varp.pack is missing id 746 upstream and has always built fine. What matters is
 # that nothing is claimed twice and that the ids added here were free.
-NEW = {'pack/varp.pack': list(range(876, 958)),
+NEW = {'pack/varp.pack': list(range(876, 1150)),
        'pack/loc.pack': [15296, 15297], 'pack/npc.pack': [3920, 3921]}
 for f in ['pack/varp.pack', 'pack/loc.pack', 'pack/npc.pack']:
     ids = [int(l.split('=', 1)[0]) for l in open(os.path.join(C, f)).read().split('\n') if '=' in l]
@@ -637,28 +637,35 @@ SLOTS = const('poh_furn_slots')
 check(N and N > 0, '^poh_furn_items is %s' % N)
 for t in ('poh_furn_fam', 'poh_furn_name', 'poh_furn_level', 'poh_furn_wood', 'poh_furn_planks', 'poh_wood_name'):
     check(sorted(ftab.get(t, {})) == list(range(1, N + 1)), '%s covers every item 1..%d' % (t, N))
-for i, v in ftab['poh_furn_wood'].items():
-    check(1 <= int(v) <= 4, 'item %d has a real wood (%s)' % (i, v))
-for i, v in ftab['poh_furn_planks'].items():
-    check(int(v) > 0, 'item %d costs planks (%s)' % (i, v))
-for i, v in ftab['poh_furn_level'].items():
-    check(1 <= int(v) <= 99, 'item %d has a sane level (%s)' % (i, v))
+# aggregates, not a line each: %d items would bury everything else in the run
+bad = [(i, v) for i, v in ftab['poh_furn_wood'].items() if not 1 <= int(v) <= 4]
+check(not bad, 'every item has a wood the script can pay for: %s' % (bad[:3] or '1..4 throughout'))
+bad = [(i, v) for i, v in ftab['poh_furn_planks'].items() if int(v) <= 0]
+check(not bad, 'every item costs planks: %s' % (bad[:3] or 'all of them'))
+bad = [(i, v) for i, v in ftab['poh_furn_level'].items() if not 1 <= int(v) <= 99]
+check(not bad, 'every level is reachable: %s (highest %d)'
+      % (bad[:3] or 'all 1..99', max(int(v) for v in ftab['poh_furn_level'].values())))
 # labels have to tell two tiers of the SAME family apart, or the menu is a coin toss
 byfam = {}
 for i, f in ftab['poh_furn_fam'].items():
     byfam.setdefault(int(f), []).append(ftab['poh_furn_name'][i])
-for f, names in sorted(byfam.items()):
-    check(len(names) == len(set(names)), 'family %d has %d distinct labels for %d tiers' % (f, len(set(names)), len(names)))
+bad = [(f, [n for n in names if names.count(n) > 1]) for f, names in sorted(byfam.items())
+       if len(names) != len(set(names))]
+check(not bad, '%d families, every one with a distinct label per tier: %s'
+      % (len(byfam), bad[:2] or 'no family repeats a label'))
 
 fu = clean[FILES[5]]
 placed = sorted(int(m) for m in re.findall(r'^    case (\d+) : loc_add\(', fu, re.M))
 check(placed == list(range(1, N + 1)), '~poh_furn_show places every item 1..%d' % N)
 # every loc it places is registered, and every one is a real furniture loc from poh.loc
 POHLOC = blocks(read('scripts/skill_construction/configs/poh.loc'))
-for m in re.finditer(r'loc_add\(\$spot, (\w+), \$angle, (\w+),', fu):
-    check(m.group(1) in LOCS, '%s is in loc.pack' % m.group(1))
-    check(m.group(1) in POHLOC, '%s is a real furniture loc' % m.group(1))
-    check('Remove' in (POHLOC.get(m.group(1), {}).get('op5') or []), '%s carries op5=Remove' % m.group(1))
+placements = re.findall(r'loc_add\(\$spot, (\w+), \$angle, (\w+),', fu)
+bad = [l for l, _ in placements if l not in LOCS]
+check(not bad, 'every placed loc is in loc.pack: %s' % (bad[:3] or '%d checked' % len(placements)))
+bad = [l for l, _ in placements if l not in POHLOC]
+check(not bad, 'every placed loc is a real furniture loc: %s' % (bad[:3] or 'all of them'))
+bad = [l for l, _ in placements if 'Remove' not in (POHLOC.get(l, {}).get('op5') or [])]
+check(not bad, 'every placed loc carries op5=Remove: %s' % (bad[:3] or 'all of them'))
 # a piece can only be taken out if its own op5 is wired
 rm = sorted(set(re.findall(r'^\[oploc5,(\w+)\]\s*\n~poh_furn_remove;', fu, re.M)))
 placed_locs = sorted({m.group(1) for m in re.finditer(r'loc_add\(\$spot, (\w+), \$angle,', fu)})
@@ -666,11 +673,46 @@ check(rm == placed_locs, 'every placeable piece has a Remove trigger: %d placed,
 # hotspot triggers pass a family and nothing looks one up
 hot = re.findall(r'^\[oploc5,(\w+)\]\s*\n~poh_furn_click\(\^poh_fam_(\w+)\);', fu, re.M)
 check(len(hot) > 0, '%d furniture hotspot triggers' % len(hot))
-for loc, fam in hot:
-    check(loc in LOCS, 'hotspot %s is in loc.pack' % loc)
-    check(const('poh_fam_' + fam) is not None, '^poh_fam_%s resolves' % fam)
-    check('poh_hotspot' in (TEMPL.get(loc, {}).get('category') or []), '%s is a real hotspot' % loc)
+bad = [l for l, _ in hot if l not in LOCS]
+check(not bad, 'every hotspot trigger names a loc in loc.pack: %s' % (bad[:3] or 'all %d' % len(hot)))
+bad = [f for _, f in hot if const('poh_fam_' + f) is None]
+check(not bad, 'every ^poh_fam_* it passes resolves: %s' % (bad[:3] or 'all of them'))
+bad = [l for l, _ in hot if 'poh_hotspot' not in (TEMPL.get(l, {}).get('category') or [])]
+check(not bad, 'every one is category=poh_hotspot: %s' % (bad[:3] or 'all of them'))
 check(len({l for l, _ in hot} & set(doors)) == 0, 'no door hotspot is wired to furniture')
+check(len({l for l, _ in hot}) == len(hot), 'no hotspot is wired twice')
+
+# THE ONE THIS ROUND EARNED. loc_add's shape decides which LAYER the loc lands on, and World.changeLoc
+# only replaces a loc already on that layer. Place a centrepiece on a grounddecor hotspot and you get
+# the furniture AND the hotspot standing in the same tile. So every family's shape has to be the shape
+# its own hotspots carry in the six style squares - read from the maps, not assumed.
+SHAPES = {0: 'wall_straight', 4: 'walldecor_straight_nooffset', 5: 'walldecor_straight_offset',
+          10: 'centrepiece_straight', 11: 'centrepiece_diagonal', 22: 'grounddecor'}
+mapshape = {}
+for mp in ('maps/m29_79.jm2', 'maps/m30_79.jm2'):
+    sec = None
+    for l in read(mp).split('\n'):
+        if l.startswith('===='):
+            sec = l.strip('= '); continue
+        if sec != 'LOC' or ':' not in l:
+            continue
+        d = (l.split(':', 1)[1].split() + ['10', '0'])[:3]
+        mapshape.setdefault(int(d[0]), set()).add(SHAPES.get(int(d[1]), d[1]))
+famshape = {}
+for i, f in ftab['poh_furn_fam'].items():
+    famshape.setdefault(int(f), set()).add(dict(placements and [(int(a), b) for a, b in
+        re.findall(r'^    case (\d+) : loc_add\(\$spot, \w+, \$angle, (\w+),', fu, re.M)])[i])
+ALLOWED = {('chair', 15214), ('chair', 15215)}   # see shape_allowances in tools/furnspec.json
+bad = []
+for loc, fam in hot:
+    want = famshape.get(const('poh_fam_' + fam), set())
+    have = mapshape.get(LOCS[loc], set())
+    if len(want) != 1:
+        bad.append((fam, 'places %s - a family must have ONE shape' % sorted(want)))
+    elif not (want & have) and (fam, LOCS[loc]) not in ALLOWED:
+        bad.append((fam, '%d: places %s, template has %s' % (LOCS[loc], sorted(want), sorted(have))))
+check(not bad, 'every family is placed with its hotspots\' own shape: %s'
+      % (bad[:3] or '%d hotspots checked' % len(hot)))
 
 # the bit layout has to be gapless and fit an int
 bits = [(const('poh_furn_bit_rx'), 3), (const('poh_furn_bit_rz'), 3), (const('poh_furn_bit_lx'), 3),
@@ -693,6 +735,27 @@ for m in re.finditer(r'case (\d+) : return\(%poh_furn_(\d+)\);', fu):
     if m.group(1) != m.group(2): check(False, 'get case %s reads varp %s' % (m.group(1), m.group(2)))
 for m in re.finditer(r'case (\d+) : %poh_furn_(\d+) = \$value;', fu):
     if m.group(1) != m.group(2): check(False, 'set case %s writes varp %s' % (m.group(1), m.group(2)))
+
+# A trigger declared twice will not compile, and 238 generated [oploc5] on names as ordinary as
+# loc_13581 is exactly how you collide with something in another skill. Checked repo-wide, not just
+# in these files, because the collision would be with a file nobody was looking at.
+seen_trig = {}
+dup_trig = []
+for root, _, fs in os.walk(os.path.join(C, 'scripts')):
+    for fn in fs:
+        if not fn.endswith('.rs2'):
+            continue
+        fp = os.path.join(root, fn)
+        with open(fp, encoding='utf-8', errors='replace') as fh:
+            for m in re.finditer(r'^\[(\w+),([\w+.]+)\]', fh.read().replace('\r\n', '\n'), re.M):
+                if m.group(1) in ('proc', 'label', 'debugproc', 'command', 'queue', 'timer'):
+                    continue
+                k = m.groups()
+                if k in seen_trig:
+                    dup_trig.append((k, seen_trig[k], fp))
+                seen_trig[k] = fp
+check(not dup_trig, 'no trigger is declared twice anywhere in the repo: %s'
+      % (dup_trig[:2] or '%d checked' % len(seen_trig)))
 
 print('29. furniture: materials leave before the thing arrives, and a room takes its own with it')
 clickb = fu.split('[proc,poh_furn_click]')[1].split('\n[')[0]
@@ -817,6 +880,19 @@ check(sorted(room_zoom) == sorted(room_model), '~poh_room_zoom covers the same r
 check(sorted(furn_zoom) == sorted(furn_model), '~poh_furn_zoom covers every item ~poh_furn_model does')
 
 XAN, YAN = const('poh_menu_xan'), const('poh_menu_yan')
+# the pictures are turned face-on, so the zoom that frames them was solved with THEIR camera and
+# has to be measured with it too
+def cam_table(proc, dflt):
+    body = menu.split('[proc,%s]' % proc)[1].split('\n[')[0]
+    return {int(a): int(b) for a, b in re.findall(r'case (\d+) : return\((\d+)\);', body)}, dflt
+fam_xan, _ = cam_table('poh_furn_xan', XAN)
+fam_yan, _ = cam_table('poh_furn_yan', YAN)
+FAMOF = {int(k): int(v) for k, v in ftab['poh_furn_fam'].items()}
+def camera(label, k):
+    if label != 'furniture':
+        return XAN, YAN
+    f = FAMOF[k]
+    return fam_xan.get(f, XAN), fam_yan.get(f, YAN)
 for label, models, zooms, comp, win in [
         ('room', room_model, room_zoom, 'r0model', 'poh_roommenu'),
         ('furniture', furn_model, furn_zoom, 's0model', 'poh_furnmenu')]:
@@ -836,7 +912,7 @@ for label, models, zooms, comp, win in [
             bad.append((k, models[k], name, 'no .ob2'))
             continue
         m = ifmodels.R.Model(path)
-        hw, rise, drop = ifmodels.extent(m, cw, ch, XAN, YAN, zooms[k])
+        hw, rise, drop = ifmodels.extent(m, cw, ch, *camera(label, k), zooms[k])
         if cx - hw < 0 or cx + hw > rw or cy - rise < 0 or cy + drop > rh:
             bad.append((k, name, 'x %.0f..%.0f of %d, y %.0f..%.0f of %d'
                         % (cx - hw, cx + hw, rw, cy - rise, cy + drop, rh)))
@@ -856,7 +932,28 @@ wrong = [(k, cost[k], costtext.get(k)) for k in cost
          if (costtext.get(k) or '').replace(',', '') != cost[k]]
 check(not wrong, 'every grouped price is its own number: %s' % (wrong[:3] or 'all agree'))
 FAMS = enumtable(read('scripts/skill_construction/configs/poh_furniture.enum'), 'poh_fam_name')
-check(sorted(FAMS) == list(range(1, 13)), 'poh_fam_name names all 12 hotspot families')
+NFAM = len(re.findall(r'^\^poh_fam_\w+\s*=', read('scripts/skill_construction/configs/construction.constant'), re.M))
+check(sorted(FAMS) == list(range(1, NFAM + 1)), 'poh_fam_name names all %d hotspot families' % NFAM)
+
+print('38. the furniture generator still produces exactly what is checked in')
+kept2 = {f: open(os.path.join(C, f), 'rb').read() for f in [
+    'scripts/skill_construction/configs/poh_furniture.enum',
+    'scripts/skill_construction/configs/construction.varp',
+    'scripts/skill_construction/configs/construction.constant',
+    'scripts/skill_construction/scripts/poh_furniture.rs2',
+    'pack/varp.pack']}
+import subprocess as _sp
+r = _sp.run([sys.executable, os.path.join(C, 'tools/genfurn.py'), str(SLOTS)],
+            capture_output=True, text=True, cwd=C)
+check(r.returncode == 0, 'tools/genfurn.py runs clean' + ('' if r.returncode == 0 else ': ' + r.stderr[-400:]))
+moved = [f for f in kept2 if open(os.path.join(C, f), 'rb').read() != kept2[f]]
+for f in moved:
+    open(os.path.join(C, f), 'wb').write(kept2[f])
+check(not moved, 're-running it changes nothing: %s' % (moved or 'byte-identical'))
+# and the varps a save already holds must never be renumbered under it
+vp = {l.split('=', 1)[1]: int(l.split('=', 1)[0]) for l in read('pack/varp.pack').split('\n') if '=' in l}
+check(all(vp.get('poh_furn_%d' % i) == 894 + i for i in range(64)),
+      'poh_furn_0..63 still have the ids the first 64-slot houses were saved with')
 
 print('36. every string these windows can show fits the box it is shown in')
 # Not hypothetical: the chat panel's names ran into each other at 90px, and its More and

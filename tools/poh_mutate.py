@@ -60,6 +60,19 @@ MUTS = [
  ('scripts/skill_construction/scripts/poh_build.rs2',
   'if (~poh_room_rot_for($rx, $rz, $type, $side) < 0) {',
   'if (stat(construction) < enum(int, int, poh_room_level, $type)) {', '6 rooms listed whole (build sim)'),
+ ('scripts/skill_construction/scripts/poh_furniture.rs2',
+  'case 87 : loc_add($spot, poh_pet_1, $angle, grounddecor,',
+  'case 87 : loc_add($spot, poh_pet_1, $angle, centrepiece_straight,',
+  '28 a family placed with the wrong shape'),
+ ('scripts/skill_construction/scripts/poh_furniture.rs2',
+  'case 238 : loc_add($spot, poh_treasure_magic_chest, $angle, centrepiece_straight, ^poh_loc_duration);\n',
+  '', '28 an item that nothing places'),
+ ('scripts/skill_construction/configs/construction.constant',
+  '^poh_furn_slots = 256', '^poh_furn_slots = 257', '28 a slot with no varp'),
+ ('scripts/skill_construction/scripts/poh_menus.rs2',
+  '[proc,poh_furn_xan](int $fam)(int)\nswitch_int ($fam) {\n    case 32 : return(120);',
+  '[proc,poh_furn_xan](int $fam)(int)\nswitch_int ($fam) {\n    case 32 : return(150);',
+  '33 a camera the zoom was not solved for'),
 ]
 
 def checker_for(why):

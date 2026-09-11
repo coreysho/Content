@@ -189,8 +189,10 @@ check(bound * MENU_SLOTS >= biggest,
       'the page loop (%d x %d) reaches all %d tiers of the biggest family' % (bound, MENU_SLOTS, biggest))
 check(pick.count('~poh_furn_slot') == MENU_SLOTS,
       'it fills exactly the %d slots the window has' % MENU_SLOTS)
-check(MENU_SLOTS >= biggest,
-      'one page already holds the biggest family (%d slots, %d tiers)' % (MENU_SLOTS, biggest))
+pages = [(f, -(-len(v) // MENU_SLOTS)) for f, v in sorted(byfam.items()) if len(v) > MENU_SLOTS]
+check(all(p <= bound for _, p in pages),
+      '%d of %d families need a second page and all of them fit the loop: %s'
+      % (len(pages), len(byfam), pages or 'none do'))
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

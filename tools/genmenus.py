@@ -308,8 +308,20 @@ def rs2_room(spec, costtext):
     o.append('')
     return o
 
-def rs2_furn(spec):
+def rs2_furn(spec, cams, fams):
     o = ['// =========================================================================== furniture', '']
+    o.append('// A framed picture has no depth: seen three-quarters on it is a one-pixel sliver, so the')
+    o.append('// families that are pictures get turned face-on. Everything else keeps the shared camera.')
+    o.append('// tools/furnspec.json holds the list and says why each one is on it.')
+    for name, i in (('poh_furn_xan', 0), ('poh_furn_yan', 1)):
+        o.append('[proc,%s](int $fam)(int)' % name)
+        o.append('switch_int ($fam) {')
+        for n, f in enumerate(fams, 1):
+            if f['key'] in cams:
+                o.append('    case %d : return(%d);   // %s' % (n, cams[f['key']][i], f['key']))
+        o.append('    case default : return(^poh_menu_%s);' % ('xan' if i == 0 else 'yan'))
+        o.append('}')
+        o.append('')
     o.append('[proc,poh_furn_zoom](int $item)(int)')
     o.append('switch_int ($item) {')
     for r in spec:
@@ -331,8 +343,9 @@ def rs2_furn(spec):
         o.append('if (stat(construction) < enum(int, int, poh_furn_level, $item)) {')
         o.append('    $state = ^poh_state_locked;')
         o.append('}')
+        o.append('def_int $fam = enum(int, int, poh_furn_fam, $item);')
         o.append('if_setmodel(poh_furnmenu:s%dmodel, ~poh_furn_model($item));' % i)
-        o.append('if_setangle(poh_furnmenu:s%dmodel, ^poh_menu_xan, ^poh_menu_yan, ~poh_furn_zoom($item));' % i)
+        o.append('if_setangle(poh_furnmenu:s%dmodel, ~poh_furn_xan($fam), ~poh_furn_yan($fam), ~poh_furn_zoom($item));' % i)
         o.append('if_settext(poh_furnmenu:s%dlvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");' % i)
         o.append('if_settext(poh_furnmenu:s%dname, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");' % i)
         o.append('if_settext(poh_furnmenu:s%dneed, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");' % i)
@@ -466,9 +479,6 @@ def group(n):
         s = s[:-3]
     return s + out
 
-FAMS = ['Stove', 'Sink', 'Larder', 'Shelves', 'Kitchen table', 'Barrel', 'Dining table',
-        'Bench', 'Bell-pull', 'Bed', 'Wardrobe', 'Clock']
-
 def enum_block(name, rows, outtype='string', head=''):
     o = []
     if head:
@@ -537,6 +547,14 @@ def resolve(locname, locs, mp):
         raise SystemExit('no model in model.pack for loc %s (model=%s)' % (locname, base))
     return cands[0]
 
+def default_camera():
+    c = read_text('scripts/skill_construction/configs/construction.constant')
+    return (int(re.search(r'\^poh_menu_xan\s*=\s*(\d+)', c).group(1)),
+            int(re.search(r'\^poh_menu_yan\s*=\s*(\d+)', c).group(1)))
+
+def read_text(p):
+    return open(os.path.join(ROOT, p), newline='').read().replace('\r\n', '\n')
+
 def read_costs():
     raw = open(os.path.join(ROOT, 'scripts/skill_construction/configs/poh_rooms.enum'),
                newline='').read().replace('\r\n', '\n')
@@ -567,12 +585,24 @@ if __name__ == '__main__':
         name = resolve(r['loc'], locs, mp)
         z, hw, rise, drop = ifmodels.fit(ifmodels.ob2path(name), ROOM_ICON, ROOM_ICON, ROOM_BELOW)
         rooms.append(dict(type=r['type'], loc=r['loc'], model=name, id=mp[name], zoom=z))
+    fspec = json.load(open(os.path.join(ROOT, 'tools/furnspec.json')))
+    fams = fspec['families']
+    cams = {k: v for k, v in fspec.get('cameras', {}).items() if k != '_'}
+    famof = {}
+    n = 0
+    for f in fams:
+        for _ in f['locs']:
+            n += 1
+            famof[n] = f['key']
+    XAN, YAN = default_camera()
     furn = []
     for f in furn_models():
         if byid.get(f['id']) != f['model']:
             raise SystemExit('poh_furn_model item %d says %s but model.pack id %d is %s'
                              % (f['item'], f['model'], f['id'], byid.get(f['id'])))
-        z, hw, rise, drop = ifmodels.fit(ifmodels.ob2path(f['model']), FURN_ICON, FURN_ICON, FURN_BELOW)
+        xan, yan = cams.get(famof[f['item']], (XAN, YAN))
+        z, hw, rise, drop = ifmodels.fit(ifmodels.ob2path(f['model']), FURN_ICON, FURN_ICON,
+                                         FURN_BELOW, xan=xan, yan=yan)
         furn.append(dict(f, zoom=z))
 
     names = {}
@@ -599,11 +629,7 @@ if __name__ == '__main__':
                         '// The same numbers as poh_room_cost, written the way OSRS writes them. The 377 engine\n'
                         '// has no command that groups digits, and a menu that says 150000 coins reads as noise.\n'
                         '// Battery check 34 fails if the two tables ever disagree.'))
-    add_enum(os.path.join(ROOT, 'scripts/skill_construction/configs/poh_furniture.enum'),
-             'poh_fam_name',
-             enum_block('poh_fam_name', list(enumerate(FAMS, 1)), 'string',
-                        '// What the furniture window calls each hotspot family, for its title bar. Families are\n'
-                        '// the ^poh_fam_* constants in construction.constant.'))
+    # poh_fam_name belongs to tools/genfurn.py, which owns poh_furniture.enum and the family list
     tints = os.path.join(ROOT, 'scripts/skill_construction/configs/poh_menus.enum')
     if not os.path.exists(tints):
         open(tints, 'wb').write(b'')
@@ -612,7 +638,7 @@ if __name__ == '__main__':
                                          '\n'.join('// ' + l for l in why.split('\n'))))
     print('enums: poh_room_cost_text, poh_fam_name, ' + ', '.join(n for n, _, _ in TINTS))
 
-    rs2 = rs2_room(rooms, None) + rs2_furn(furn)
+    rs2 = rs2_room(rooms, None) + rs2_furn(furn, cams, fams)
     path = os.path.join(ROOT, 'scripts/skill_construction/scripts/poh_menus.rs2')
     nl = '\r\n' if _crlf(os.path.join(ROOT, 'scripts/skill_construction/scripts/poh_build.rs2')) else '\n'
     open(path, 'wb').write((nl.join(rs2).rstrip('\r\n') + nl).encode('utf-8'))

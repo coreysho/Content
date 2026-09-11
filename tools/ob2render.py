@@ -306,12 +306,19 @@ def render_interface(m, w, h, xan=0, yan=0, zoom=560, bg=None):
     zbuf = np.full((h, w), 1 << 30, np.float64)
     order = np.argsort(-((pz[m.fa] + pz[m.fb] + pz[m.fc]) / 3.0))
     for i in order:
-        if m.finfo is not None and (m.finfo[i] & 2) != 0:
-            continue
+        # A TEXTURED face carries a texture id where its colour would be, so there is no colour to
+        # look up - but SKIPPING it hides the whole model when the model is a painting, which is
+        # exactly the case this preview exists to judge. Draw it in a flat grey shaded by the same
+        # lightness instead: the silhouette is real even though the pattern on it is not.
+        textured = m.finfo is not None and (m.finfo[i] & 2) != 0
         ia, ib, ic = m.fa[i], m.fb[i], m.fc[i]
         x0, y0, x1, y1, x2, y2 = px[ia], py[ia], px[ib], py[ib], px[ic], py[ic]
         if (x1-x0)*(y2-y0) - (x2-x0)*(y1-y0) == 0: continue
-        rgb = PALETTE[adjust_lightness(int(m.colour[i]), light[i])]
+        if textured:
+            g = max(70, min(210, 70 + int(light[i])))
+            rgb = np.array([g, g, g], np.uint8)
+        else:
+            rgb = PALETTE[adjust_lightness(int(m.colour[i]), light[i])]
         z = (pz[ia] + pz[ib] + pz[ic]) / 3.0
         minx, maxx = int(max(0, min(x0,x1,x2))), int(min(w-1, max(x0,x1,x2)))
         miny, maxy = int(max(0, min(y0,y1,y2))), int(min(h-1, max(y0,y1,y2)))

@@ -272,6 +272,33 @@ return(0);
 
 // =========================================================================== furniture
 
+// A framed picture has no depth: seen three-quarters on it is a one-pixel sliver, so the
+// families that are pictures get turned face-on. Everything else keeps the shared camera.
+// tools/furnspec.json holds the list and says why each one is on it.
+[proc,poh_furn_xan](int $fam)(int)
+switch_int ($fam) {
+    case 32 : return(120);   // wallchart
+    case 36 : return(120);   // thronedecor
+    case 46 : return(120);   // portrait
+    case 47 : return(120);   // landscape
+    case 48 : return(120);   // guildtrophy
+    case 49 : return(120);   // sword
+    case 50 : return(120);   // map
+    case default : return(^poh_menu_xan);
+}
+
+[proc,poh_furn_yan](int $fam)(int)
+switch_int ($fam) {
+    case 32 : return(1536);   // wallchart
+    case 36 : return(1536);   // thronedecor
+    case 46 : return(1536);   // portrait
+    case 47 : return(1536);   // landscape
+    case 48 : return(1536);   // guildtrophy
+    case 49 : return(1536);   // sword
+    case 50 : return(1536);   // map
+    case default : return(^poh_menu_yan);
+}
+
 [proc,poh_furn_zoom](int $item)(int)
 switch_int ($item) {
     case 1 : return(1883);   // poh_stove1_8
@@ -337,6 +364,181 @@ switch_int ($item) {
     case 61 : return(3873);   // poh_clock1_8
     case 62 : return(4204);   // 100_dave_grandfatherclock_8
     case 63 : return(4204);   // poh_clock3_8
+    case 64 : return(2536);   // loc_13581_8
+    case 65 : return(2763);   // loc_13582_8
+    case 66 : return(2763);   // qip_sheep_shearer_rocking_chair_8
+    case 67 : return(2991);   // loc_13584_8
+    case 68 : return(2991);   // loc_13585_8
+    case 69 : return(2644);   // loc_13586_8
+    case 70 : return(3067);   // loc_13587_8
+    case 71 : return(4000);   // loc_13597_8
+    case 72 : return(4322);   // loc_13598_8
+    case 73 : return(4391);   // loc_13599_8
+    case 74 : return(3577);   // loc_13600_8
+    case 75 : return(3882);   // loc_13601_8
+    case 76 : return(3921);   // loc_13602_8
+    case 77 : return(2773);   // loc_13609_8
+    case 78 : return(3793);   // loc_13611_8
+    case 79 : return(5404);   // loc_13613_8
+    case 80 : return(2815);   // poh_mirror1_8
+    case 81 : return(3277);   // poh_mirror2_8
+    case 82 : return(3485);   // poh_mirror3_8
+    case 83 : return(4039);   // poh_mirror4_8
+    case 84 : return(4039);   // poh_mirror5_8
+    case 85 : return(3356);   // poh_mirror_6_8
+    case 86 : return(3300);   // poh_mirror_7_8
+    case 87 : return(2011);   // poh_pet1_0
+    case 88 : return(2041);   // poh_pet2_0
+    case 89 : return(2041);   // poh_pet3_0
+    case 90 : return(4041);   // loc_10673i2_8
+    case 91 : return(3389);   // loc_10676_8
+    case 92 : return(3448);   // loc_13706_8
+    case 93 : return(3448);   // loc_13706_8
+    case 94 : return(3448);   // loc_13706_8
+    case 95 : return(4504);   // loc_13699_q
+    case 96 : return(4504);   // loc_13700_q
+    case 97 : return(4504);   // loc_13701_q
+    case 98 : return(4504);   // loc_13702_q
+    case 99 : return(4589);   // loc_13703_q
+    case 100 : return(3300);   // loc_13709_8
+    case 101 : return(3300);   // loc_13709_8
+    case 102 : return(3300);   // loc_13709_8
+    case 103 : return(3300);   // loc_13712_8
+    case 104 : return(4041);   // loc_13713_8
+    case 105 : return(3128);   // devious_whetstone_8
+    case 106 : return(3085);   // loc_13715_8
+    case 107 : return(3085);   // loc_13716_8
+    case 108 : return(2891);   // loc_13717_8
+    case 109 : return(3379);   // loc_13718_8
+    case 110 : return(3655);   // poh_altar_saradomin1_8
+    case 111 : return(3656);   // poh_altar_saradomin2_8
+    case 112 : return(3958);   // poh_altar_saradomin3_8
+    case 113 : return(3722);   // poh_altar_saradomin4_8
+    case 114 : return(3656);   // poh_altar_saradomin5_8
+    case 115 : return(3656);   // poh_altar_saradomin_6_8
+    case 116 : return(3656);   // poh_altar_saradomin_7_8
+    case 117 : return(3734);   // poh_icon1_8
+    case 118 : return(3734);   // poh_icon2_8
+    case 119 : return(3734);   // poh_icon3_8
+    case 120 : return(3398);   // poh_icon4_8
+    case 121 : return(4265);   // poh_icon5_8
+    case 122 : return(3801);   // poh_icon_6_8
+    case 123 : return(3623);   // poh_icon_7_8
+    case 124 : return(2250);   // poh_torch1_8
+    case 125 : return(2250);   // poh_torch2_8
+    case 126 : return(2518);   // poh_torch3_8
+    case 127 : return(2518);   // poh_torch4_8
+    case 128 : return(3270);   // poh_torch5_8
+    case 129 : return(3188);   // poh_torch_6_8
+    case 130 : return(6822);   // poh_torch_7_8
+    case 131 : return(1851);   // poh_statue_bob1_8
+    case 132 : return(2259);   // poh_statue_bob2_8
+    case 133 : return(2874);   // poh_statue_bob3_8
+    case 134 : return(3835);   // poh_statue_angel_8
+    case 135 : return(4452);   // poh_statue_delrith_8
+    case 136 : return(3547);   // poh_statue_druid_8
+    case 137 : return(3153);   // poh_statue_guthix_8
+    case 138 : return(1807);   // poh_statue_juna_8
+    case 139 : return(4191);   // poh_statue_lucien_8
+    case 140 : return(3511);   // poh_statue_monk_8
+    case 141 : return(5439);   // poh_statue_saradomin_8
+    case 142 : return(4587);   // poh_statue_zamorak_8
+    case 143 : return(4781);   // poh_musical_thing1_8
+    case 144 : return(4749);   // poh_musical_thing2_8
+    case 145 : return(4412);   // poh_musical_thing3_8
+    case 146 : return(2685);   // poh_lectern1_8
+    case 147 : return(2653);   // poh_lectern2_8
+    case 148 : return(2646);   // poh_lectern3_8
+    case 149 : return(2653);   // poh_lectern4_8
+    case 150 : return(2653);   // poh_lectern5_8
+    case 151 : return(2653);   // poh_lectern_6_8
+    case 152 : return(2646);   // poh_lectern_7_8
+    case 153 : return(4650);   // poh_globe1_8
+    case 154 : return(5447);   // poh_globe2_8
+    case 155 : return(5447);   // poh_globe3_8
+    case 156 : return(5479);   // poh_globe4_8
+    case 157 : return(5286);   // poh_globe5_8
+    case 158 : return(5591);   // poh_globe_6_8
+    case 159 : return(6861);   // poh_globe_7_8
+    case 160 : return(3020);   // poh_crystalball1_8
+    case 161 : return(3927);   // poh_crystalball2_8
+    case 162 : return(3970);   // poh_crystalball3_8
+    case 163 : return(3031);   // poh_telescope1_8
+    case 164 : return(3031);   // poh_telescope2_8
+    case 165 : return(3031);   // poh_telescope3_8
+    case 166 : return(3424);   // poh_wallchart1_q
+    case 167 : return(3596);   // poh_wallchart2_q
+    case 168 : return(3868);   // 100_dave_wallchart_q
+    case 169 : return(3857);   // poh_throne1_8
+    case 170 : return(3693);   // poh_throne2_8
+    case 171 : return(4288);   // poh_throne3_8
+    case 172 : return(4288);   // poh_throne4_8
+    case 173 : return(3302);   // poh_throne5_8
+    case 174 : return(3500);   // poh_throne_6_8
+    case 175 : return(4058);   // poh_throne_7_8
+    case 176 : return(2721);   // poh_diningchairs5_8
+    case 177 : return(2808);   // poh_diningchairs_6_8
+    case 178 : return(2808);   // poh_diningchairs_7_8
+    case 179 : return(3374);   // poh_lever_oak4_8
+    case 180 : return(3374);   // poh_lever_teak4_8
+    case 181 : return(3374);   // poh_lever_mag4_8
+    case 182 : return(5060);   // poh_throne_backdecor_cloth_8
+    case 183 : return(3129);   // poh_throne_backdecor_stainedglass_8
+    case 184 : return(3680);   // poh_dartboard1_8
+    case 185 : return(3680);   // poh_dartboard1_8
+    case 186 : return(3007);   // poh_hangman_chest_8
+    case 187 : return(2160);   // poh_mime_jester_8
+    case 188 : return(1923);   // qip_sheep_shearer_chestclosed_8
+    case 189 : return(1923);   // poh_treasure_teak_chest_8
+    case 190 : return(1923);   // fever_chestclosed_8
+    case 191 : return(2135);   // poh_tbt_limestone_new_8
+    case 192 : return(2135);   // poh_tbt_limestone_new_8
+    case 193 : return(2135);   // poh_tbt_limestone_new_8
+    case 194 : return(1054);   // poh_elemental_orb1_8
+    case 195 : return(1054);   // poh_elemental_orb1_8
+    case 196 : return(1054);   // poh_elemental_orb1_8
+    case 197 : return(1551);   // poh_magic_circle_mat_0
+    case 198 : return(2169);   // poh_archery_target1_8
+    case 199 : return(2169);   // poh_archery_target1_8
+    case 200 : return(3491);   // poh_armour_mithril5_8
+    case 201 : return(3491);   // poh_armour_mithril5_8
+    case 202 : return(3491);   // poh_armour_mithril5_8
+    case 203 : return(3330);   // poh_armour_castlewars_red_6_8
+    case 204 : return(3330);   // poh_armour_castlewars_red_6_8
+    case 205 : return(3330);   // poh_armour_castlewars_red_6_8
+    case 206 : return(2626);   // poh_display_case_rune1_6_8
+    case 207 : return(2626);   // poh_display_case_rune1_6_8
+    case 208 : return(2626);   // poh_display_case_rune1_6_8
+    case 209 : return(2522);   // loc_13481_8
+    case 210 : return(3763);   // vm_digsite_finds_tablet_8
+    case 211 : return(3828);   // vm_digsite_finds_coin_senntisten_8
+    case 212 : return(3612);   // loc_12235_8
+    case 213 : return(4144);   // loc_13485_8
+    case 214 : return(4209);   // loc_13486_8
+    case 215 : return(4162);   // loc_13487_8
+    case 216 : return(3722);   // loc_12236_8
+    case 217 : return(3680);   // loc_12237_8
+    case 218 : return(3923);   // loc_13490_8
+    case 219 : return(3530);   // poh_portrait_elena1_q
+    case 220 : return(3627);   // poh_portrait_giantdwarf1_q
+    case 221 : return(3515);   // poh_portrait_kingarthur1_q
+    case 222 : return(3509);   // poh_landscape_desert1_q
+    case 223 : return(3502);   // poh_landscape_istafar1_q
+    case 224 : return(3509);   // poh_landscape_karamja1_q
+    case 225 : return(3509);   // poh_landscape_lumbridge1_q
+    case 226 : return(3509);   // poh_landscape_morytania1_q
+    case 227 : return(3502);   // poh_trophy_amuletofglory4_q
+    case 228 : return(3746);   // poh_trophy_antidragonbreath4_q
+    case 229 : return(3628);   // poh_trophy_legendscape4_q
+    case 230 : return(3165);   // poh_trophy_silverlight5_q
+    case 231 : return(3165);   // poh_trophy_silverlight5_q
+    case 232 : return(3165);   // poh_trophy_excalibur5_q
+    case 233 : return(2779);   // poh_wall_map_freearea_q
+    case 234 : return(2924);   // poh_wall_map_world_q
+    case 235 : return(1923);   // qip_sheep_shearer_chestclosed_8
+    case 236 : return(1923);   // poh_treasure_teak_chest_8
+    case 237 : return(1923);   // fever_chestclosed_8
+    case 238 : return(1923);   // poh_treasure_magic_chest_8
     case default : return(1883);
 }
 
@@ -353,8 +555,9 @@ if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int,
 if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
     $state = ^poh_state_locked;
 }
+def_int $fam = enum(int, int, poh_furn_fam, $item);
 if_setmodel(poh_furnmenu:s0model, ~poh_furn_model($item));
-if_setangle(poh_furnmenu:s0model, ^poh_menu_xan, ^poh_menu_yan, ~poh_furn_zoom($item));
+if_setangle(poh_furnmenu:s0model, ~poh_furn_xan($fam), ~poh_furn_yan($fam), ~poh_furn_zoom($item));
 if_settext(poh_furnmenu:s0lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
 if_settext(poh_furnmenu:s0name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
 if_settext(poh_furnmenu:s0need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
@@ -372,8 +575,9 @@ if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int,
 if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
     $state = ^poh_state_locked;
 }
+def_int $fam = enum(int, int, poh_furn_fam, $item);
 if_setmodel(poh_furnmenu:s1model, ~poh_furn_model($item));
-if_setangle(poh_furnmenu:s1model, ^poh_menu_xan, ^poh_menu_yan, ~poh_furn_zoom($item));
+if_setangle(poh_furnmenu:s1model, ~poh_furn_xan($fam), ~poh_furn_yan($fam), ~poh_furn_zoom($item));
 if_settext(poh_furnmenu:s1lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
 if_settext(poh_furnmenu:s1name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
 if_settext(poh_furnmenu:s1need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
@@ -391,8 +595,9 @@ if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int,
 if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
     $state = ^poh_state_locked;
 }
+def_int $fam = enum(int, int, poh_furn_fam, $item);
 if_setmodel(poh_furnmenu:s2model, ~poh_furn_model($item));
-if_setangle(poh_furnmenu:s2model, ^poh_menu_xan, ^poh_menu_yan, ~poh_furn_zoom($item));
+if_setangle(poh_furnmenu:s2model, ~poh_furn_xan($fam), ~poh_furn_yan($fam), ~poh_furn_zoom($item));
 if_settext(poh_furnmenu:s2lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
 if_settext(poh_furnmenu:s2name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
 if_settext(poh_furnmenu:s2need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
@@ -410,8 +615,9 @@ if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int,
 if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
     $state = ^poh_state_locked;
 }
+def_int $fam = enum(int, int, poh_furn_fam, $item);
 if_setmodel(poh_furnmenu:s3model, ~poh_furn_model($item));
-if_setangle(poh_furnmenu:s3model, ^poh_menu_xan, ^poh_menu_yan, ~poh_furn_zoom($item));
+if_setangle(poh_furnmenu:s3model, ~poh_furn_xan($fam), ~poh_furn_yan($fam), ~poh_furn_zoom($item));
 if_settext(poh_furnmenu:s3lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
 if_settext(poh_furnmenu:s3name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
 if_settext(poh_furnmenu:s3need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
@@ -429,8 +635,9 @@ if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int,
 if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
     $state = ^poh_state_locked;
 }
+def_int $fam = enum(int, int, poh_furn_fam, $item);
 if_setmodel(poh_furnmenu:s4model, ~poh_furn_model($item));
-if_setangle(poh_furnmenu:s4model, ^poh_menu_xan, ^poh_menu_yan, ~poh_furn_zoom($item));
+if_setangle(poh_furnmenu:s4model, ~poh_furn_xan($fam), ~poh_furn_yan($fam), ~poh_furn_zoom($item));
 if_settext(poh_furnmenu:s4lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
 if_settext(poh_furnmenu:s4name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
 if_settext(poh_furnmenu:s4need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
@@ -448,8 +655,9 @@ if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int,
 if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
     $state = ^poh_state_locked;
 }
+def_int $fam = enum(int, int, poh_furn_fam, $item);
 if_setmodel(poh_furnmenu:s5model, ~poh_furn_model($item));
-if_setangle(poh_furnmenu:s5model, ^poh_menu_xan, ^poh_menu_yan, ~poh_furn_zoom($item));
+if_setangle(poh_furnmenu:s5model, ~poh_furn_xan($fam), ~poh_furn_yan($fam), ~poh_furn_zoom($item));
 if_settext(poh_furnmenu:s5lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
 if_settext(poh_furnmenu:s5name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
 if_settext(poh_furnmenu:s5need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
@@ -467,8 +675,9 @@ if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int,
 if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
     $state = ^poh_state_locked;
 }
+def_int $fam = enum(int, int, poh_furn_fam, $item);
 if_setmodel(poh_furnmenu:s6model, ~poh_furn_model($item));
-if_setangle(poh_furnmenu:s6model, ^poh_menu_xan, ^poh_menu_yan, ~poh_furn_zoom($item));
+if_setangle(poh_furnmenu:s6model, ~poh_furn_xan($fam), ~poh_furn_yan($fam), ~poh_furn_zoom($item));
 if_settext(poh_furnmenu:s6lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
 if_settext(poh_furnmenu:s6name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
 if_settext(poh_furnmenu:s6need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
@@ -486,8 +695,9 @@ if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int,
 if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
     $state = ^poh_state_locked;
 }
+def_int $fam = enum(int, int, poh_furn_fam, $item);
 if_setmodel(poh_furnmenu:s7model, ~poh_furn_model($item));
-if_setangle(poh_furnmenu:s7model, ^poh_menu_xan, ^poh_menu_yan, ~poh_furn_zoom($item));
+if_setangle(poh_furnmenu:s7model, ~poh_furn_xan($fam), ~poh_furn_yan($fam), ~poh_furn_zoom($item));
 if_settext(poh_furnmenu:s7lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
 if_settext(poh_furnmenu:s7name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
 if_settext(poh_furnmenu:s7need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
