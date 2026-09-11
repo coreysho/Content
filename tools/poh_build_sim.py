@@ -275,16 +275,24 @@ for level in (1, 10, 25, 40, 60, 99):
     missing = [t for t in range(1, COUNT + 1)
                if LEVEL[t] <= level and h.rot_for(tx, tz, t, OPP[side]) >= 0 and t not in offered]
     check(not missing, 'at level %d nothing eligible is hidden: %s' % (level, [NAME[t] for t in missing]))
-# nth_room must enumerate each eligible room exactly once, and five pages of three must reach all
+# nth_room must enumerate each eligible room exactly once, and the pages must reach all of them.
+# ~poh_pick_room moved to poh_menus.rs2 when the menu became a window; the row count is a window
+# measurement now, so take it from the constant the generator writes rather than from a literal.
 seq = [h.nth_room(tx, tz, OPP[side], n, 99) for n in range(COUNT)]
 listed = [t for t in seq if t]
 check(len(listed) == len(set(listed)), 'nth_room lists each room once: %s' % [NAME[t] for t in listed])
-check(len(listed) <= 5 * 3, '%d eligible rooms fit in the five pages of three the menu loops over'
-      % len(listed))
-pages = build.split('[proc,poh_pick_room]', 1)[1].split('\n[', 1)[0]
+MENUS = read('scripts/skill_construction/scripts/poh_menus.rs2')
+ROWS = int(re.search(r'\^poh_menu_rows\s*=\s*(\d+)',
+                     read('scripts/skill_construction/configs/construction.constant')).group(1))
+pages = MENUS.split('[proc,poh_pick_room]', 1)[1].split('\n[', 1)[0]
 m = re.search(r'while \(\$page < (\d+)\)', pages)
-check(m is not None and int(m.group(1)) * 3 >= COUNT,
-      'the page loop bound (%s x 3) covers all %d room types' % (m and m.group(1), COUNT))
+BOUND = int(m.group(1)) if m else 0
+check(len(listed) <= BOUND * ROWS, '%d eligible rooms fit in the %d pages of %d the menu loops over'
+      % (len(listed), BOUND, ROWS))
+check(BOUND * ROWS >= COUNT,
+      'the page loop bound (%d x %d) covers all %d room types' % (BOUND, ROWS, COUNT))
+check(pages.count('~poh_room_row') == ROWS,
+      'it fills exactly the %d rows the window has' % ROWS)
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

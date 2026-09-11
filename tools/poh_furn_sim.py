@@ -155,10 +155,21 @@ for fam, its in sorted(byfam.items()):
         offered = {nth(fam, n, level) for n in range(ITEMS)} - {0}
         should = {i for i in its if LEVEL[i] <= level}
         check(offered == should, 'family %d at level %d offers %d of %d' % (fam, level, len(offered), len(should)))
-m = re.search(r'\[proc,poh_furn_pick\].*?while \(\$page < (\d+)\)', rs2, re.S)
+# ~poh_furn_pick moved to poh_menus.rs2 when the menu became a window, and a page is now as many
+# slots as the window has - so read both numbers rather than keeping a literal that can go stale.
+menus = read('scripts/skill_construction/scripts/poh_menus.rs2')
+SLOTS = int(re.search(r'\^poh_menu_slots\s*=\s*(\d+)',
+                      read('scripts/skill_construction/configs/construction.constant')).group(1))
+body = menus.split('[proc,poh_furn_pick]', 1)[1].split('\n[', 1)[0]
+m = re.search(r'while \(\$page < (\d+)\)', body)
 bound = int(m.group(1)) if m else 0
 biggest = max(len(v) for v in byfam.values())
-check(bound * 3 >= biggest, 'the page loop (%d x 3) reaches all %d tiers of the biggest family' % (bound, biggest))
+check(bound * SLOTS >= biggest,
+      'the page loop (%d x %d) reaches all %d tiers of the biggest family' % (bound, SLOTS, biggest))
+check(body.count('~poh_furn_slot') == SLOTS,
+      'it fills exactly the %d slots the window has' % SLOTS)
+check(SLOTS >= biggest,
+      'one page already holds the biggest family (%d slots, %d tiers)' % (SLOTS, biggest))
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

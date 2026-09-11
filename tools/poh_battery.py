@@ -4,7 +4,8 @@ C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FILES = ['scripts/skill_construction/scripts/poh.rs2', 'scripts/skill_construction/scripts/poh_test.rs2',
          'scripts/skill_construction/scripts/poh_portal.rs2', 'scripts/skill_construction/scripts/poh_build.rs2',
          'scripts/skill_construction/scripts/sawmill.rs2',
-         'scripts/skill_construction/scripts/poh_furniture.rs2']
+         'scripts/skill_construction/scripts/poh_furniture.rs2',
+         'scripts/skill_construction/scripts/poh_menus.rs2']
 fails = 0
 def check(ok, what):
     global fails
@@ -73,8 +74,19 @@ for p in ['scripts/skill_construction/configs/construction.constant', 'scripts/e
 usedc = set(re.findall(r'\^(\w+)', alltext))
 check(not (usedc - consts), 'unresolved: %s' % sorted(usedc - consts))
 
-print('7. every enum name resolves against pack/enum.pack')
-enums = {l.split('=', 1)[1] for l in open(C + '/pack/enum.pack').read().split('\n') if '=' in l}
+print('7. every enum name resolves')
+# pack/enum.pack is GENERATED and gitignored - deploy.sh deletes it before every build - so a
+# clean clone has none and the one in a working copy proves nothing about what will be built.
+# The .enum sources are what the packer reads, so read those.
+if os.path.exists(C + '/pack/enum.pack'):
+    enums = {l.split('=', 1)[1] for l in open(C + '/pack/enum.pack').read().split('\n') if '=' in l}
+else:
+    enums = set()
+    for root, _, fs in os.walk(os.path.join(C, 'scripts')):
+        for fn in fs:
+            if fn.endswith('.enum'):
+                with open(os.path.join(root, fn), encoding='utf-8', errors='replace') as fh:
+                    enums |= set(re.findall(r'^\[(\w+)\]', fh.read(), re.M))
 usede = set(re.findall(r'enum\(\s*\w+\s*,\s*\w+\s*,\s*(\w+)\s*,', alltext))
 check(not (usede - enums), 'unresolved: %s (used %s)' % (sorted(usede - enums), sorted(usede)))
 
@@ -139,23 +151,30 @@ check(not bad, 'discarded returns: %s' % bad)
 
 print('11. line endings')
 for f in FILES + ['scripts/skill_construction/configs/poh_rooms.enum',
+                  'scripts/skill_construction/configs/poh_furniture.enum',
+                  'scripts/skill_construction/interfaces/poh_roommenu.if',
+                  'scripts/skill_construction/interfaces/poh_furnmenu.if',
                   'scripts/skill_construction/configs/construction.varp',
                   'scripts/skill_construction/configs/construction.constant',
                   'scripts/skill_construction/configs/poh_portal.loc',
                   'scripts/skill_construction/configs/poh_portal.npc',
                   'maps/m46_50.jm2']:
     b = open(os.path.join(C, f), 'rb').read()
-    check(b'\r\r' not in b and b.count(b'\n') == b.count(b'\r\n'), '%s is clean CRLF' % os.path.basename(f))
-for f in ['pack/varp.pack', 'pack/enum.pack', 'pack/loc.pack', 'pack/npc.pack']:
+    # .gitattributes sets `* text=auto`, so the repo stores LF and a Windows working copy has
+    # CRLF. Either is correct; a file with SOME of each is a hand edit that will diff whole.
+    crlf, lf = b.count(b'\r\n'), b.count(b'\n')
+    check(b'\r\r' not in b and crlf in (0, lf), '%s has one line ending throughout (%s)'
+          % (os.path.basename(f), 'CRLF' if crlf else 'LF'))
+for f in ['pack/varp.pack', 'pack/loc.pack', 'pack/npc.pack', 'pack/interface.pack']:
     b = open(os.path.join(C, f), 'rb').read()
     check(b'\r' not in b and b.endswith(b'\n'), '%s is LF and ends with a newline' % os.path.basename(f))
 
 print('12. pack ids are unique, and the new ones sit above what was there')
 # Not contiguity: varp.pack is missing id 746 upstream and has always built fine. What matters is
 # that nothing is claimed twice and that the ids added here were free.
-NEW = {'pack/varp.pack': list(range(876, 958)), 'pack/enum.pack': list(range(128, 139)),
+NEW = {'pack/varp.pack': list(range(876, 958)),
        'pack/loc.pack': [15296, 15297], 'pack/npc.pack': [3920, 3921]}
-for f in ['pack/varp.pack', 'pack/enum.pack', 'pack/loc.pack', 'pack/npc.pack']:
+for f in ['pack/varp.pack', 'pack/loc.pack', 'pack/npc.pack']:
     ids = [int(l.split('=', 1)[0]) for l in open(os.path.join(C, f)).read().split('\n') if '=' in l]
     check(len(set(ids)) == len(ids), '%s has no duplicate id' % os.path.basename(f))
     check(all(ids.count(i) == 1 for i in NEW[f]), '%s: every id added here appears exactly once' % os.path.basename(f))
@@ -692,41 +711,210 @@ build_body = pb.split('[proc,poh_build]')[1].split('\n[')[0]
 check(build_body.index('~poh_furn_restore') < build_body.index('instance_loccategory'),
       'furniture is placed BEFORE the hotspots are hidden, so it changes them in place')
 
-print('30. the build panel: the interface is registered and the raw model ids still point where they did')
+print('30. the build windows: registered, in file order, and the old chat panel gone')
 IFACE = {}
 for l in read('pack/interface.pack').split('\n'):
     if '=' in l:
         i, n = l.split('=', 1); IFACE[n] = int(i)
-IFF = read('scripts/skill_construction/interfaces/poh_buildmenu.if')
-blocknames = re.findall(r'^\[(\w+)\]', IFF, re.M)
-check(len(blocknames) == len(set(blocknames)), 'poh_buildmenu.if has %d distinct components' % len(set(blocknames)))
-check('poh_buildmenu' in IFACE, 'poh_buildmenu is in interface.pack')
-for c in blocknames:
-    check(('poh_buildmenu:' + c) in IFACE, 'poh_buildmenu:%s is registered' % c)
-# the components must be registered in file order, straight after the interface, as every other one is
-want = [IFACE['poh_buildmenu'] + 1 + i for i in range(len(blocknames))]
-got = [IFACE.get('poh_buildmenu:' + c) for c in blocknames]
-check(got == want, 'its components are numbered in file order from %d' % (IFACE['poh_buildmenu'] + 1))
 order = [int(l) for l in read('pack/interface.order').split('\n') if l.strip()]
 check(len(order) == len(set(order)), 'interface.order has no duplicate id')
-missing = [IFACE['poh_buildmenu'] + i for i in range(len(blocknames) + 1) if (IFACE['poh_buildmenu'] + i) not in set(order)]
-check(not missing, 'every new interface id is in interface.order: missing %s' % missing)
-packids = set(IFACE.values())
-check(packids == set(order), 'interface.pack and interface.order still hold the same id set')
-# every component the script drives really exists
-used = sorted(set(re.findall(r'poh_buildmenu:(\w+)', clean[FILES[5]])))
-for c in used:
-    check(c in blocknames, 'the script drives poh_buildmenu:%s, which the .if defines' % c)
-# every clickable it adds a resume button for is a button in the .if
-def block(name):
-    m = re.search(r'^\[%s\]\n(.*?)(?=\n\[|\Z)' % name, IFF, re.M | re.S)
-    return m.group(1) if m else ''
-for c in sorted(set(re.findall(r'if_addresumebutton\(poh_buildmenu:(\w+)\)', clean[FILES[5]]))):
-    check('buttontype=' in block(c), 'poh_buildmenu:%s is a button, so it can resume' % c)
-for c in sorted(set(re.findall(r'if_setmodel\(poh_buildmenu:(\w+),', clean[FILES[5]]))):
-    check('type=model' in block(c), 'poh_buildmenu:%s is a model component' % c)
-for c in sorted(set(re.findall(r'if_settext\(poh_buildmenu:(\w+),', clean[FILES[5]]))):
-    check('type=text' in block(c), 'poh_buildmenu:%s is a text component' % c)
+check(set(IFACE.values()) == set(order), 'interface.pack and interface.order hold the same id set')
+check(not [n for n in IFACE if n.startswith('poh_buildmenu')], 'poh_buildmenu is out of interface.pack')
+check(not os.path.exists(os.path.join(C, 'scripts/skill_construction/interfaces/poh_buildmenu.if')),
+      'poh_buildmenu.if is deleted')
+check('poh_buildmenu' not in alltext, 'no script still names poh_buildmenu')
+
+def parse_if(path):
+    """-> file order, and each component's key/values. Same grammar as PackShared.ts."""
+    o, coms, cur = [], {}, None
+    for line in read(path).split('\n'):
+        line = line.strip()
+        if not line or line.startswith('//'):
+            continue
+        if line.startswith('['):
+            cur = line[1:line.index(']')]; coms[cur] = {}; o.append(cur)
+        elif '=' in line and cur:
+            k, v = line.split('=', 1); coms[cur][k] = v
+    return o, coms
+
+MENUS = 'scripts/skill_construction/scripts/poh_menus.rs2'
+menu = clean[MENUS]
+IFF = {}
+for w in ('poh_roommenu', 'poh_furnmenu'):
+    o, coms = parse_if('scripts/skill_construction/interfaces/%s.if' % w)
+    IFF[w] = (o, coms)
+    check(len(o) == len(set(o)), '%s.if has %d distinct components' % (w, len(set(o))))
+    check(w in IFACE, '%s is in interface.pack' % w)
+    want = [IFACE[w] + 1 + i for i in range(len(o))]
+    got = [IFACE.get('%s:%s' % (w, c)) for c in o]
+    check(got == want, '%s: its components are numbered in file order from %d' % (w, IFACE[w] + 1))
+    used = sorted(set(re.findall(r'%s:(\w+)' % w, menu)))
+    for c in used:
+        check(c in coms, '%s: the script drives :%s, which the .if defines' % (w, c))
+
+print('31. the build windows: the client only obeys these on the right kind of component')
+# THE CHECK THIS ROUND EARNED. Client.drawInterface tests hide on the LAYER it is drawing and
+# never on a child, so if_sethide on a text or a model does nothing at all - which is what the
+# chat panel did, and why its empty slots stayed on screen. The other three are the same class
+# of mistake: a call whose component is the wrong type fails silently rather than loudly.
+for w, (o, coms) in IFF.items():
+    for c in sorted(set(re.findall(r'if_sethide\(%s:(\w+),' % w, menu))):
+        check(coms.get(c, {}).get('type') == 'layer',
+              '%s:%s is a LAYER, so if_sethide can hide it' % (w, c))
+    for c in sorted(set(re.findall(r'if_setmodel\(%s:(\w+),' % w, menu))):
+        check(coms.get(c, {}).get('type') == 'model', '%s:%s is a model component' % (w, c))
+    for c in sorted(set(re.findall(r'if_setangle\(%s:(\w+),' % w, menu))):
+        check(coms.get(c, {}).get('type') == 'model', '%s:%s is a model component' % (w, c))
+    for c in sorted(set(re.findall(r'if_settext\(%s:(\w+),' % w, menu))):
+        check(coms.get(c, {}).get('type') == 'text', '%s:%s is a text component' % (w, c))
+    for c in sorted(set(re.findall(r'if_addresumebutton\(%s:(\w+)\)' % w, menu))):
+        bt = coms.get(c, {}).get('buttontype')
+        check(bt == 'normal', '%s:%s is buttontype=normal, so a click can resume the script' % (w, c))
+    for c in sorted(set(re.findall(r'case %s:(\w+) :' % w, menu))):
+        check(c in coms, '%s: switch_component names :%s, which exists' % (w, c))
+
+print('32. the build windows: nothing is drawn outside the window')
+# The window is the smithing frame's box. Text or a border past it hangs over bare viewport,
+# which is exactly what put More and Cancel off the bottom of the chat panel last round.
+WIN = (12, 20, 500, 320)
+for w, (o, coms) in IFF.items():
+    out = []
+    for c in o:
+        d = coms[c]
+        if d.get('type') == 'graphic':
+            continue        # the frame's studs deliberately straddle the edge
+        x, y = int(d.get('x', 0)), int(d.get('y', 0))
+        cw, ch = int(d.get('width', 0)), int(d.get('height', 0))
+        if 'layer' in d:
+            p = coms[d['layer']]
+            x += int(p['x']); y += int(p['y'])
+            if d.get('type') == 'model':
+                # a model component is deliberately twice its icon's height (see genmenus.py);
+                # what must fit is the icon, which is its top half
+                ch = ch // 2
+        if x < WIN[0] or y < WIN[1] or x + cw > WIN[2] or y + ch > WIN[3]:
+            out.append((c, x, y, cw, ch))
+    check(not out, '%s: every component is inside %s: %s' % (w, WIN, out[:3] or 'all inside'))
+
+print('33. the model icons are framed by their own geometry, and land inside their row')
+sys.path.insert(0, os.path.join(C, 'tools'))
+import ifmodels
+MODELS_BY_ID = {}
+for l in read('pack/model.pack').split('\n'):
+    if '=' in l:
+        i, n = l.split('=', 1); MODELS_BY_ID[int(i)] = n
+
+def table(proc, pat=r'case (\d+) : return\((\d+)\);'):
+    body = menu.split('[proc,%s]' % proc)[1].split('\n[')[0]
+    return {int(a): int(b) for a, b in re.findall(pat, body)}
+
+room_model, room_zoom = table('poh_room_model'), table('poh_room_zoom')
+furn_model = {int(a): int(b) for a, b in re.findall(r'case (\d+) : return\((\d+)\);',
+              clean[FILES[5]].split('[proc,poh_furn_model]')[1].split('\n[')[0])}
+furn_zoom = table('poh_furn_zoom')
+check(sorted(room_model) == list(range(1, 16)), '~poh_room_model answers for every room 1..15')
+check(sorted(room_zoom) == sorted(room_model), '~poh_room_zoom covers the same rooms')
+check(sorted(furn_zoom) == sorted(furn_model), '~poh_furn_zoom covers every item ~poh_furn_model does')
+
+XAN, YAN = const('poh_menu_xan'), const('poh_menu_yan')
+for label, models, zooms, comp, win in [
+        ('room', room_model, room_zoom, 'r0model', 'poh_roommenu'),
+        ('furniture', furn_model, furn_zoom, 's0model', 'poh_furnmenu')]:
+    d = IFF[win][1][comp]
+    row = IFF[win][1][d['layer']]
+    rw, rh = int(row['width']), int(row['height'])
+    cw, ch = int(d['width']), int(d['height'])
+    # the client centres the model on the component and clips it to the LAYER: at the bottom
+    # only (Pix3D's rasterisers clamp to Pix2D.bottom and to nothing else), so anything that
+    # overruns the top or the sides is drawn over whatever is next to it
+    cx, cy = int(d['x']) + cw // 2, int(d['y']) + ch // 2
+    bad = []
+    for k in sorted(models):
+        name = MODELS_BY_ID.get(models[k])
+        path = ifmodels.ob2path(name) if name else None
+        if path is None:
+            bad.append((k, models[k], name, 'no .ob2'))
+            continue
+        m = ifmodels.R.Model(path)
+        hw, rise, drop = ifmodels.extent(m, cw, ch, XAN, YAN, zooms[k])
+        if cx - hw < 0 or cx + hw > rw or cy - rise < 0 or cy + drop > rh:
+            bad.append((k, name, 'x %.0f..%.0f of %d, y %.0f..%.0f of %d'
+                        % (cx - hw, cx + hw, rw, cy - rise, cy + drop, rh)))
+    check(not bad, '%s: all %d icons are drawn inside their %dx%d row: %s'
+          % (label, len(models), rw, rh, bad[:3] or 'all inside'))
+
+print('34. the room prices are written twice and say the same thing')
+ROOMS = read('scripts/skill_construction/configs/poh_rooms.enum')
+def enumtable(txt, name):
+    b = txt.split('[%s]' % name)[1]
+    b = b.split('\n[')[0]
+    return {int(m.group(1)): m.group(2) for m in re.finditer(r'^val=(\d+),(.*)$', b, re.M)}
+cost = enumtable(ROOMS, 'poh_room_cost')
+costtext = enumtable(ROOMS, 'poh_room_cost_text')
+check(sorted(cost) == sorted(costtext), 'poh_room_cost_text covers every room poh_room_cost does')
+wrong = [(k, cost[k], costtext.get(k)) for k in cost
+         if (costtext.get(k) or '').replace(',', '') != cost[k]]
+check(not wrong, 'every grouped price is its own number: %s' % (wrong[:3] or 'all agree'))
+FAMS = enumtable(read('scripts/skill_construction/configs/poh_furniture.enum'), 'poh_fam_name')
+check(sorted(FAMS) == list(range(1, 13)), 'poh_fam_name names all 12 hotspot families')
+
+print('36. every string these windows can show fits the box it is shown in')
+# Not hypothetical: the chat panel's names ran into each other at 90px, and its More and
+# Cancel fell off the bottom. The fonts here are the client's own sheets and the advance rule
+# is PixFont's, so these widths are the widths the client will draw.
+import ifrender
+FURNE = read('scripts/skill_construction/configs/poh_furniture.enum')
+rname, rlvl, rcost = (enumtable(ROOMS, t) for t in ('poh_room_name', 'poh_room_level', 'poh_room_cost_text'))
+fname, flvl, fplank, fwood = (enumtable(FURNE, t) for t in
+                              ('poh_furn_name', 'poh_furn_level', 'poh_furn_planks', 'poh_wood_name'))
+SHOWN = [
+    ('poh_roommenu', 'r0name', ['%s: Lvl %s' % (rname[k], rlvl[k]) for k in rname]),
+    ('poh_roommenu', 'r0cost', ['%s coins' % rcost[k] for k in rcost]),
+    ('poh_furnmenu', 's0lvl',  ['Level %s' % flvl[k] for k in flvl]),
+    ('poh_furnmenu', 's0name', [fname[k] for k in fname]),
+    ('poh_furnmenu', 's0need', ['%s %s' % (fplank[k], fwood[k]) for k in fplank]),
+    ('poh_furnmenu', 'title',  list(FAMS.values())),
+]
+for win, comp, strings in SHOWN:
+    d = IFF[win][1][comp]
+    f = ifrender.font(d.get('font', 'p12_full'))
+    w = int(d['width'])
+    over = sorted(((f.width(t) - w, t) for t in strings if f.width(t) > w), reverse=True)
+    check(not over, '%s:%s fits %dpx: widest is %dpx (%s)%s'
+          % (win, comp, w, max(f.width(t) for t in strings),
+             max(strings, key=f.width), '' if not over else ' OVER by %d: %s' % over[0]))
+# and the fixed text the .if itself carries
+for win, (o, coms) in IFF.items():
+    over = []
+    for c in o:
+        t = coms[c].get('text')
+        if not t or coms[c].get('type') != 'text':
+            continue
+        f = ifrender.font(coms[c].get('font', 'p12_full'))
+        if f.width(t) > int(coms[c]['width']):
+            over.append((c, t, f.width(t), int(coms[c]['width'])))
+    check(not over, '%s: its own labels fit: %s' % (win, over or 'all fit'))
+
+print('35. the generator still produces exactly what is checked in')
+import subprocess, filecmp, tempfile, shutil
+kept = {f: open(os.path.join(C, f), 'rb').read() for f in [
+    'scripts/skill_construction/interfaces/poh_roommenu.if',
+    'scripts/skill_construction/interfaces/poh_furnmenu.if',
+    'scripts/skill_construction/scripts/poh_menus.rs2',
+    'pack/interface.pack', 'pack/interface.order',
+    'scripts/skill_construction/configs/poh_rooms.enum',
+    'scripts/skill_construction/configs/poh_furniture.enum']}
+spec = os.path.join(C, 'tools/menuspec.json')
+if os.path.exists(spec):
+    r = subprocess.run([sys.executable, os.path.join(C, 'tools/genmenus.py'), spec],
+                       capture_output=True, text=True, cwd=C)
+    check(r.returncode == 0, 'tools/genmenus.py runs clean' + ('' if r.returncode == 0 else ': ' + r.stderr[-400:]))
+    same = [f for f in kept if open(os.path.join(C, f), 'rb').read() != kept[f]]
+    for f in same:
+        open(os.path.join(C, f), 'wb').write(kept[f])
+    check(not same, 're-running it changes nothing: %s' % (same or 'byte-identical'))
+else:
+    check(False, 'tools/menuspec.json is missing, so the generator cannot be re-run')
 
 # THE ONE THAT MATTERS: if_setmodel takes a raw id, so every literal in ~poh_furn_model has to still
 # be the model.pack id of the model its own loc names. model.pack is append-only in practice, but

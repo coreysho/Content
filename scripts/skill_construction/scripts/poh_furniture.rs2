@@ -352,11 +352,12 @@ while ($item <= ^poh_furn_items) {
 }
 return(0);
 
-// =========================================================================== the build panel
+// =========================================================================== what the window shows
 
-// The model the panel shows for each piece: the first model its loc names, resolved through
-// model.pack. if_setmodel takes a RAW id, not a symbol, so these are numbers - and battery check 30
-// reads every one back out of model.pack and fails if a name ever moves under them.
+// The model each piece is shown by in poh_furnmenu: the first model its loc names, resolved
+// through model.pack. if_setmodel takes a RAW id, not a symbol, so these are numbers - and
+// battery check 30 reads every one back out of model.pack and fails if a name ever moves under
+// them. The zoom that frames each of these is ~poh_furn_zoom, next to the window it fills.
 [proc,poh_furn_model](int $item)(int)
 switch_int ($item) {
     case 1 : return(12625);   // poh_stove1_8
@@ -429,121 +430,6 @@ switch_int ($item) {
 // name under it and what it costs under that. The mechanism is the one every choice box in this
 // build already uses - if_openchat, a resume button per row, p_pausebutton, switch_component on
 // last_com (interface_chat/scripts/chat.rs2) - so nothing new had to be invented to drive it.
-[proc,poh_furn_pick](int $fam, int $level)(int)
-def_int $page = 0;
-while ($page < 3) {
-    def_int $a = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 0), $level);
-    def_int $b = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 1), $level);
-    def_int $c = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 2), $level);
-    def_int $d = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 3), $level);
-    def_int $e = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 4), $level);
-    def_int $more = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + ^poh_menu_slots), $level);
-    if ($a = 0) {
-        return(0);
-    }
-    if ($a = 0) {
-        if_sethide(poh_buildmenu:model1, true);
-        if_sethide(poh_buildmenu:name1, true);
-        if_sethide(poh_buildmenu:need1, true);
-    } else {
-        if_sethide(poh_buildmenu:model1, false);
-        if_sethide(poh_buildmenu:name1, false);
-        if_sethide(poh_buildmenu:need1, false);
-        if_setmodel(poh_buildmenu:model1, ~poh_furn_model($a));
-        if_setangle(poh_buildmenu:model1, ^poh_menu_xan, ^poh_menu_yan, ^poh_menu_zoom);
-        if_settext(poh_buildmenu:name1, "<enum(int, string, poh_furn_name, $a)>");
-        if_settext(poh_buildmenu:need1, "<tostring(enum(int, int, poh_furn_planks, $a))> <enum(int, string, poh_wood_name, $a)>");
-    }
-    if ($b = 0) {
-        if_sethide(poh_buildmenu:model2, true);
-        if_sethide(poh_buildmenu:name2, true);
-        if_sethide(poh_buildmenu:need2, true);
-    } else {
-        if_sethide(poh_buildmenu:model2, false);
-        if_sethide(poh_buildmenu:name2, false);
-        if_sethide(poh_buildmenu:need2, false);
-        if_setmodel(poh_buildmenu:model2, ~poh_furn_model($b));
-        if_setangle(poh_buildmenu:model2, ^poh_menu_xan, ^poh_menu_yan, ^poh_menu_zoom);
-        if_settext(poh_buildmenu:name2, "<enum(int, string, poh_furn_name, $b)>");
-        if_settext(poh_buildmenu:need2, "<tostring(enum(int, int, poh_furn_planks, $b))> <enum(int, string, poh_wood_name, $b)>");
-    }
-    if ($c = 0) {
-        if_sethide(poh_buildmenu:model3, true);
-        if_sethide(poh_buildmenu:name3, true);
-        if_sethide(poh_buildmenu:need3, true);
-    } else {
-        if_sethide(poh_buildmenu:model3, false);
-        if_sethide(poh_buildmenu:name3, false);
-        if_sethide(poh_buildmenu:need3, false);
-        if_setmodel(poh_buildmenu:model3, ~poh_furn_model($c));
-        if_setangle(poh_buildmenu:model3, ^poh_menu_xan, ^poh_menu_yan, ^poh_menu_zoom);
-        if_settext(poh_buildmenu:name3, "<enum(int, string, poh_furn_name, $c)>");
-        if_settext(poh_buildmenu:need3, "<tostring(enum(int, int, poh_furn_planks, $c))> <enum(int, string, poh_wood_name, $c)>");
-    }
-    if ($d = 0) {
-        if_sethide(poh_buildmenu:model4, true);
-        if_sethide(poh_buildmenu:name4, true);
-        if_sethide(poh_buildmenu:need4, true);
-    } else {
-        if_sethide(poh_buildmenu:model4, false);
-        if_sethide(poh_buildmenu:name4, false);
-        if_sethide(poh_buildmenu:need4, false);
-        if_setmodel(poh_buildmenu:model4, ~poh_furn_model($d));
-        if_setangle(poh_buildmenu:model4, ^poh_menu_xan, ^poh_menu_yan, ^poh_menu_zoom);
-        if_settext(poh_buildmenu:name4, "<enum(int, string, poh_furn_name, $d)>");
-        if_settext(poh_buildmenu:need4, "<tostring(enum(int, int, poh_furn_planks, $d))> <enum(int, string, poh_wood_name, $d)>");
-    }
-    if ($e = 0) {
-        if_sethide(poh_buildmenu:model5, true);
-        if_sethide(poh_buildmenu:name5, true);
-        if_sethide(poh_buildmenu:need5, true);
-    } else {
-        if_sethide(poh_buildmenu:model5, false);
-        if_sethide(poh_buildmenu:name5, false);
-        if_sethide(poh_buildmenu:need5, false);
-        if_setmodel(poh_buildmenu:model5, ~poh_furn_model($e));
-        if_setangle(poh_buildmenu:model5, ^poh_menu_xan, ^poh_menu_yan, ^poh_menu_zoom);
-        if_settext(poh_buildmenu:name5, "<enum(int, string, poh_furn_name, $e)>");
-        if_settext(poh_buildmenu:need5, "<tostring(enum(int, int, poh_furn_planks, $e))> <enum(int, string, poh_wood_name, $e)>");
-    }
-    if ($more = 0) {
-        if_sethide(poh_buildmenu:more, true);
-    } else {
-        if_sethide(poh_buildmenu:more, false);
-    }
-    if_openchat(poh_buildmenu);
-    if ($a ! 0) {
-        if_addresumebutton(poh_buildmenu:name1);
-    }
-    if ($b ! 0) {
-        if_addresumebutton(poh_buildmenu:name2);
-    }
-    if ($c ! 0) {
-        if_addresumebutton(poh_buildmenu:name3);
-    }
-    if ($d ! 0) {
-        if_addresumebutton(poh_buildmenu:name4);
-    }
-    if ($e ! 0) {
-        if_addresumebutton(poh_buildmenu:name5);
-    }
-    if ($more ! 0) {
-        if_addresumebutton(poh_buildmenu:more);
-    }
-    if_addresumebutton(poh_buildmenu:cancel);
-    p_pausebutton;
-    switch_component (last_com) {
-        case poh_buildmenu:name1 : return($a);
-        case poh_buildmenu:name2 : return($b);
-        case poh_buildmenu:name3 : return($c);
-        case poh_buildmenu:name4 : return($d);
-        case poh_buildmenu:name5 : return($e);
-        case poh_buildmenu:more : $page = calc($page + 1);
-        case default : return(0);
-    }
-}
-return(0);
-
 // =========================================================================== the click
 
 [proc,poh_furn_click](int $fam)
