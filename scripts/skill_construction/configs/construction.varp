@@ -2,3 +2,72 @@
 // null. Temp: an instance does not survive a restart, so neither may the pointer to it.
 [poh_instance]
 type=coord
+
+// ---------------------------------------------------------------------------------------------
+// The saved house layout (skill_construction/scripts/poh.rs2), added 2026-09-11.
+//
+// %poh_grid_<n> each hold FOUR rooms, one per byte: bits 0-5 the room type (0 = no room, see
+// poh_rooms.enum), bits 6-7 the rotation. Sixteen of them cover the 8x8 ground-floor grid.
+//
+// Packed rather than one varp per room because the save writes varps sparsely by id - an empty
+// house costs nothing either way, but a built one costs 16 entries instead of 64, and the whole
+// grid can be wiped by zeroing sixteen values.
+//
+// Perm: this is the house. It has to be there next login, which is the entire point of the round.
+// ---------------------------------------------------------------------------------------------
+
+// House style 0-5 (which of the six template squares this house is built from).
+[poh_style]
+scope=perm
+
+// Set once the player has a house at all, so an empty grid can be told from "never had one".
+[poh_owned]
+scope=perm
+
+[poh_grid_0]
+scope=perm
+
+[poh_grid_1]
+scope=perm
+
+[poh_grid_2]
+scope=perm
+
+[poh_grid_3]
+scope=perm
+
+[poh_grid_4]
+scope=perm
+
+[poh_grid_5]
+scope=perm
+
+[poh_grid_6]
+scope=perm
+
+[poh_grid_7]
+scope=perm
+
+[poh_grid_8]
+scope=perm
+
+[poh_grid_9]
+scope=perm
+
+[poh_grid_10]
+scope=perm
+
+[poh_grid_11]
+scope=perm
+
+[poh_grid_12]
+scope=perm
+
+[poh_grid_13]
+scope=perm
+
+[poh_grid_14]
+scope=perm
+
+[poh_grid_15]
+scope=perm

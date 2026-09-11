@@ -1,0 +1,299 @@
+// The player-owned house: the saved layout, and building it.
+//
+// WHAT THIS ROUND IS. claude/poh-instancing.md got a house standing in an instance from a hardcoded
+// script. This makes the house a thing the player OWNS: a grid of rooms that survives logout and is
+// rebuilt from storage on the way in. Everything after it - the portal, build mode, furniture - needs
+// somewhere to write what the player built, and this is it.
+//
+// WHERE IT LIVES. Sixteen perm varps, four rooms to a varp, one byte each: type in bits 0-5 and
+// rotation in bits 6-7 (construction.varp). No engine change and no save-format bump: the save
+// already writes varps sparsely by id, so an empty house costs nothing and a built one costs
+// sixteen entries.
+//
+// WHY THE BYTES AND NOT SIXTY-FOUR VARPS. RuneScript cannot index a varp by number, so either way
+// the accessor is a switch over the words; sixteen cases is a quarter of the size of sixty-four,
+// and zeroing sixteen values wipes the grid.
+//
+// ROOMS JOIN DOOR TO DOOR. Every room template has doors on particular sides only, and a door
+// hotspot is a wall loc - so a room placed against a blank side seals itself off. ~poh_can_place is
+// what stops a layout being built that cannot be walked through, and it is the rule build mode will
+// enforce later.
+
+// =========================================================================== storage
+
+// The sixteen packed words. A switch because RuneScript has no way to name a varp by number.
+[proc,poh_word_get](int $i)(int)
+switch_int ($i) {
+    case 0 : return(%poh_grid_0);
+    case 1 : return(%poh_grid_1);
+    case 2 : return(%poh_grid_2);
+    case 3 : return(%poh_grid_3);
+    case 4 : return(%poh_grid_4);
+    case 5 : return(%poh_grid_5);
+    case 6 : return(%poh_grid_6);
+    case 7 : return(%poh_grid_7);
+    case 8 : return(%poh_grid_8);
+    case 9 : return(%poh_grid_9);
+    case 10 : return(%poh_grid_10);
+    case 11 : return(%poh_grid_11);
+    case 12 : return(%poh_grid_12);
+    case 13 : return(%poh_grid_13);
+    case 14 : return(%poh_grid_14);
+    case 15 : return(%poh_grid_15);
+    case default : return(0);
+}
+
+[proc,poh_word_set](int $i, int $value)
+switch_int ($i) {
+    case 0 : %poh_grid_0 = $value;
+    case 1 : %poh_grid_1 = $value;
+    case 2 : %poh_grid_2 = $value;
+    case 3 : %poh_grid_3 = $value;
+    case 4 : %poh_grid_4 = $value;
+    case 5 : %poh_grid_5 = $value;
+    case 6 : %poh_grid_6 = $value;
+    case 7 : %poh_grid_7 = $value;
+    case 8 : %poh_grid_8 = $value;
+    case 9 : %poh_grid_9 = $value;
+    case 10 : %poh_grid_10 = $value;
+    case 11 : %poh_grid_11 = $value;
+    case 12 : %poh_grid_12 = $value;
+    case 13 : %poh_grid_13 = $value;
+    case 14 : %poh_grid_14 = $value;
+    case 15 : %poh_grid_15 = $value;
+    case default : return;
+}
+
+// The packed byte for one room slot: type in bits 0-5, rotation in 6-7. Off-grid reads as empty,
+// so a neighbour check at the edge needs no special case.
+[proc,poh_room_packed](int $rx, int $rz)(int)
+if ($rx < 0 | $rx >= ^poh_grid | $rz < 0 | $rz >= ^poh_grid) {
+    return(0);
+}
+def_int $slot = calc($rz * ^poh_grid + $rx);
+def_int $lo = calc(modulo($slot, 4) * 8);
+return(getbit_range(~poh_word_get(divide($slot, 4)), $lo, calc($lo + 7)));
+
+[proc,poh_room_type](int $rx, int $rz)(int)
+return(and(~poh_room_packed($rx, $rz), 63));
+
+[proc,poh_room_rot](int $rx, int $rz)(int)
+return(divide(~poh_room_packed($rx, $rz), 64));
+
+// Write one slot. Type 0 clears it. Silently ignores an off-grid write rather than corrupting a
+// slot that wraps - a caller getting the coordinates wrong should see nothing happen, not a room
+// appear somewhere else.
+[proc,poh_room_set](int $rx, int $rz, int $type, int $rot)
+if ($rx < 0 | $rx >= ^poh_grid | $rz < 0 | $rz >= ^poh_grid) {
+    return;
+}
+def_int $slot = calc($rz * ^poh_grid + $rx);
+def_int $i = divide($slot, 4);
+def_int $lo = calc(modulo($slot, 4) * 8);
+def_int $packed = calc(and($type, 63) + modulo($rot, 4) * 64);
+~poh_word_set($i, setbit_range_toint(~poh_word_get($i), $packed, $lo, calc($lo + 7)));
+
+[proc,poh_wipe]
+def_int $i = 0;
+while ($i < 16) {
+    ~poh_word_set($i, 0);
+    $i = calc($i + 1);
+}
+
+[proc,poh_room_total]()(int)
+def_int $total = 0;
+def_int $rz = 0;
+while ($rz < ^poh_grid) {
+    def_int $rx = 0;
+    while ($rx < ^poh_grid) {
+        if (~poh_room_type($rx, $rz) ! 0) {
+            $total = calc($total + 1);
+        }
+        $rx = calc($rx + 1);
+    }
+    $rz = calc($rz + 1);
+}
+return($total);
+
+// =========================================================================== doors
+
+// Rotate a door mask. N 1 -> E 2 -> S 4 -> W 8 -> N, which is a four-bit rotate left by $rot, and
+// is why the four constants may not be renumbered independently.
+[proc,poh_rot_doors](int $doors, int $rot)(int)
+def_int $r = modulo($rot, 4);
+switch_int ($r) {
+    case 1 : return(and(calc($doors * 2 + divide($doors, 8)), 15));
+    case 2 : return(and(calc($doors * 4 + divide($doors, 4)), 15));
+    case 3 : return(and(calc($doors * 8 + divide($doors, 2)), 15));
+    case default : return($doors);
+}
+
+// The door mask of whatever is in this slot, already rotated. Empty slots have no doors.
+[proc,poh_doors_at](int $rx, int $rz)(int)
+def_int $type = ~poh_room_type($rx, $rz);
+if ($type = 0) {
+    return(0);
+}
+return(~poh_rot_doors(enum(int, int, poh_room_doors, $type), ~poh_room_rot($rx, $rz)));
+
+// Does the room in this slot have a door on this side?
+[proc,poh_door_on](int $rx, int $rz, int $side)(boolean)
+if (and(~poh_doors_at($rx, $rz), $side) = 0) {
+    return(false);
+}
+return(true);
+
+// May this room go here? The first room in an empty house may go anywhere; after that a room must
+// meet at least one neighbour door to door, or it would be sealed off behind its own walls.
+// Clearing a slot (type 0) is always allowed.
+[proc,poh_can_place](int $rx, int $rz, int $type, int $rot)(boolean)
+if ($rx < 0 | $rx >= ^poh_grid | $rz < 0 | $rz >= ^poh_grid) {
+    return(false);
+}
+if ($type = 0) {
+    return(true);
+}
+if (~poh_room_total = 0) {
+    return(true);
+}
+def_int $doors = ~poh_rot_doors(enum(int, int, poh_room_doors, $type), $rot);
+if (and($doors, ^poh_door_n) ! 0 & ~poh_door_on($rx, calc($rz + 1), ^poh_door_s) = true) {
+    return(true);
+}
+if (and($doors, ^poh_door_e) ! 0 & ~poh_door_on(calc($rx + 1), $rz, ^poh_door_w) = true) {
+    return(true);
+}
+if (and($doors, ^poh_door_s) ! 0 & ~poh_door_on($rx, calc($rz - 1), ^poh_door_n) = true) {
+    return(true);
+}
+if (and($doors, ^poh_door_w) ! 0 & ~poh_door_on(calc($rx - 1), $rz, ^poh_door_e) = true) {
+    return(true);
+}
+return(false);
+
+// =========================================================================== building
+
+// The square and level a house style is cut from. Six styles: m29_79 levels 0-3, m30_79 levels 0-1.
+[proc,poh_style_origin](int $style)(coord)
+switch_int ($style) {
+    case 1 : return(movecoord(^poh_templates_a, 0, 1, 0));
+    case 2 : return(movecoord(^poh_templates_a, 0, 2, 0));
+    case 3 : return(movecoord(^poh_templates_a, 0, 3, 0));
+    case 4 : return(^poh_templates_b);
+    case 5 : return(movecoord(^poh_templates_b, 0, 1, 0));
+    case default : return(^poh_templates_a);
+}
+
+// Lay the saved grid into a fresh instance. Returns its south-west corner, or null if no instance
+// slot was free.
+[proc,poh_build]()(coord)
+if (%poh_instance ! null) {
+    ~poh_free;
+}
+def_coord $base = instance_create;
+if ($base = null) {
+    return(null);
+}
+%poh_instance = $base;
+def_coord $src = ~poh_style_origin(%poh_style);
+def_int $rz = 0;
+while ($rz < ^poh_grid) {
+    def_int $rx = 0;
+    while ($rx < ^poh_grid) {
+        def_int $type = ~poh_room_type($rx, $rz);
+        if ($type ! 0) {
+            def_int $zone = enum(int, int, poh_room_zone, $type);
+            def_coord $dst = movecoord($base, calc((^poh_grid_origin + $rx) * 8), 0, calc((^poh_grid_origin + $rz) * 8));
+            def_coord $from = movecoord($src, calc(divide($zone, 8) * 8), 0, calc(modulo($zone, 8) * 8));
+            if (instance_setzone($dst, $from, ~poh_room_rot($rx, $rz)) = false) {
+                mes("Could not build the room at <tostring($rx)>, <tostring($rz)>.");
+            }
+        }
+        $rx = calc($rx + 1);
+    }
+    $rz = calc($rz + 1);
+}
+// Out of build mode there are no hotspots. Door hotspots are wall locs, so leaving them up seals
+// every doorway - the bug that made the first test house one room big. Zero hidden in a house that
+// has rooms means the category never applied, and the player is about to be walled in.
+def_int $hidden = instance_loccategory($base, poh_hotspot, false);
+if ($hidden = 0) {
+    mes("Warning: no hotspots were hidden - the doorways may be sealed.");
+}
+return($base);
+
+// Where to land. The garden if there is one, because that is the room OSRS puts the portal in and
+// the one that is open ground; otherwise the first room on the grid.
+[proc,poh_entry_slot]()(int)
+def_int $fallback = -1;
+def_int $rz = 0;
+while ($rz < ^poh_grid) {
+    def_int $rx = 0;
+    while ($rx < ^poh_grid) {
+        def_int $type = ~poh_room_type($rx, $rz);
+        if ($type = ^poh_room_garden) {
+            return(calc($rz * ^poh_grid + $rx));
+        }
+        if ($type ! 0 & $fallback < 0) {
+            $fallback = calc($rz * ^poh_grid + $rx);
+        }
+        $rx = calc($rx + 1);
+    }
+    $rz = calc($rz + 1);
+}
+return($fallback);
+
+[proc,poh_entry_coord](coord $base, int $slot)(coord)
+def_int $rx = modulo($slot, ^poh_grid);
+def_int $rz = divide($slot, ^poh_grid);
+return(movecoord($base, calc((^poh_grid_origin + $rx) * 8 + ^poh_spawn_x), 0, calc((^poh_grid_origin + $rz) * 8 + ^poh_spawn_z)));
+
+// A house for someone who has never had one: a garden with a parlour to its east. The garden has a
+// door on all four sides and the parlour one on its west, so they join, and every later room has
+// somewhere to attach to.
+[proc,poh_grant_starter]
+~poh_wipe;
+def_int $mid = divide(^poh_grid, 2);
+~poh_room_set($mid, $mid, ^poh_room_garden, 0);
+~poh_room_set(calc($mid + 1), $mid, ^poh_room_parlour, 0);
+%poh_owned = 1;
+
+// =========================================================================== entering and leaving
+
+[proc,poh_enter]
+if (%poh_owned = 0 | ~poh_room_total = 0) {
+    ~poh_grant_starter;
+}
+def_coord $base = ~poh_build;
+if ($base = null) {
+    mes("Every house slot is in use - try again in a moment.");
+    return;
+}
+def_int $slot = ~poh_entry_slot;
+if ($slot < 0) {
+    ~poh_free;
+    mes("Your house has no rooms in it.");
+    return;
+}
+p_telejump(~poh_entry_coord($base, $slot));
+
+[proc,poh_leave]
+p_telejump(^poh_exit);
+~poh_free;
+
+[proc,poh_free]
+if (%poh_instance ! null) {
+    instance_delete(%poh_instance);
+    %poh_instance = null;
+}
+
+// Logging out inside a house frees its instance; logging IN inside instance space with no instance
+// there (after a logout, a restart or a crash) puts the player back at the portal instead of in the
+// void. The layout is saved, so nothing is lost - the house is rebuilt next time they enter.
+[proc,poh_logout]
+~poh_free;
+
+[proc,poh_login]
+if (coordx(coord) >= 6400 & coordz(coord) >= 6400 & instance_find(coord) = null) {
+    p_telejump(^poh_exit);
+}
