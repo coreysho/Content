@@ -2,7 +2,7 @@
 import re, sys, os
 C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FILES = ['scripts/skill_construction/scripts/poh.rs2', 'scripts/skill_construction/scripts/poh_test.rs2',
-         'scripts/skill_construction/scripts/poh_portal.rs2']
+         'scripts/skill_construction/scripts/poh_portal.rs2', 'scripts/skill_construction/scripts/poh_build.rs2']
 fails = 0
 def check(ok, what):
     global fails
@@ -151,7 +151,7 @@ for f in ['pack/varp.pack', 'pack/enum.pack', 'pack/loc.pack', 'pack/npc.pack']:
 print('12. pack ids are unique, and the new ones sit above what was there')
 # Not contiguity: varp.pack is missing id 746 upstream and has always built fine. What matters is
 # that nothing is claimed twice and that the ids added here were free.
-NEW = {'pack/varp.pack': list(range(876, 894)), 'pack/enum.pack': [128, 129, 130],
+NEW = {'pack/varp.pack': list(range(876, 894)), 'pack/enum.pack': [128, 129, 130, 131, 132],
        'pack/loc.pack': [15296, 15297], 'pack/npc.pack': [3920]}
 for f in ['pack/varp.pack', 'pack/enum.pack', 'pack/loc.pack', 'pack/npc.pack']:
     ids = [int(l.split('=', 1)[0]) for l in open(os.path.join(C, f)).read().split('\n') if '=' in l]
@@ -477,6 +477,64 @@ if len(placed) == 1:
     xs = {x for lv, x, z in covered}; zs = {z for lv, x, z in covered}
     check(len(xs) == l and len(zs) == w,
           'the footprint is %d wide by %d deep on the ground (config %dx%d)' % (len(xs), len(zs), w, l))
+
+print('23. build mode: every door hotspot has a trigger, and nothing else does')
+# The click has to resolve to a grid cell and a side, and only a door hotspot carries both. A
+# "Door space" or a "Centrepiece space" wired to the same proc would compute a side of 0 and dead-end.
+TEMPL = blocks(read('scripts/skill_construction/configs/poh_templates.loc'))
+doors = sorted(n for n, cfg in TEMPL.items() if (cfg.get('name') or [''])[0] == 'Door hotspot')
+trig = sorted(re.findall(r'^\[oploc5,(\w+)\]', clean[FILES[3]], re.M))
+check(trig == doors, '%d door hotspot locs, %d triggered, same set: %s'
+      % (len(doors), len(trig), 'yes' if trig == doors else sorted(set(doors) ^ set(trig))))
+for n in trig:
+    check(n in LOCS, '%s is registered in loc.pack' % n)
+    check('poh_hotspot' in (TEMPL.get(n, {}).get('category') or []), '%s carries category=poh_hotspot' % n)
+    check('Build' in (TEMPL.get(n, {}).get('op5') or []), '%s has op5=Build for the trigger to fire on' % n)
+
+print('24. build mode: the tables are complete and the idioms are ones this repo has compiled')
+ENUMF = read('scripts/skill_construction/configs/poh_rooms.enum')
+tables = {}
+cur = None
+for line in ENUMF.split('\n'):
+    line = line.split('//')[0].strip()
+    if line.startswith('['):
+        cur = line.strip('[]'); tables[cur] = {}
+    else:
+        m = re.match(r'^val=(\d+),(.*)$', line)
+        if m and cur: tables[cur][int(m.group(1))] = m.group(2)
+COUNT = const('poh_room_count')
+check(COUNT == 15, '^poh_room_count is %s' % COUNT)
+for t in ('poh_room_zone', 'poh_room_doors', 'poh_room_name', 'poh_room_cost', 'poh_room_level'):
+    check(t in tables, '%s exists' % t)
+    have = sorted(tables.get(t, {}))
+    check(have == list(range(1, COUNT + 1)), '%s covers every room type 1..%d' % (t, COUNT))
+for i, v in tables.get('poh_room_cost', {}).items():
+    check(int(v) > 0, 'room %d costs something (%s)' % (i, v))
+for i, v in tables.get('poh_room_level', {}).items():
+    check(1 <= int(v) <= 99, 'room %d has a sane level (%s)' % (i, v))
+
+# the four idioms that have no precedent in this repo, per claude/rs2-compile-traps.md
+bad = []
+for f, t in clean.items():
+    if 'def_string' in t: bad.append('%s: def_string' % os.path.basename(f))
+    if 'while (true)' in t: bad.append('%s: while (true)' % os.path.basename(f))
+    if re.search(r'\)\(string\)', t): bad.append('%s: a proc returning a string' % os.path.basename(f))
+    if re.search(r'<\$\w+>', src[f]): bad.append('%s: interpolating a string variable' % os.path.basename(f))
+check(not bad, 'no unproven idiom: %s' % bad)
+
+print('25. build mode: the money and the grid are touched in the right order')
+bd = clean[FILES[3]]
+click = bd.split('[proc,poh_hotspot_click]')[1].split('\n[')[0]
+check(click.index('inv_del') < click.index('~poh_room_set'), 'the coins go before the room does')
+check(click.index('~poh_room_rot_for') < click.index('inv_del'), 'the rotation is re-checked before charging')
+check(click.index('inv_total') < click.index('inv_del'), 'the purse is checked before it is emptied')
+check('~poh_spawn_exit' in click and click.index('~poh_place_zone') < click.index('~poh_spawn_exit'),
+      'the way out is re-spawned after the room changes')
+rm = bd.split('[proc,poh_remove_room]')[1].split('\n[')[0]
+check('~poh_room_total <= 1' in rm, 'the last room cannot be removed')
+check('~poh_player_in_cell' in rm, 'you cannot remove the room you are standing in')
+check('~poh_joined_count' in rm and '> 1' in rm, 'only a leaf room can be removed')
+check('~poh_spawn_exit' in rm, 'the way out is re-spawned after a removal too')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

@@ -1,0 +1,298 @@
+// Build mode: clicking a door hotspot puts a room through it.
+//
+// WHY THE DOOR HOTSPOT AND NOT A ROOM HOTSPOT. OSRS builds rooms from the doorway, and that turns out
+// to be the only handle carrying the information the placement rule needs. A door hotspot is a wall
+// loc sitting at the MIDDLE OF ONE SIDE of its room's 8x8 zone, so its coord alone gives both the
+// grid cell it belongs to and which way the new room goes. Checked across all six house styles and
+// all fifteen rooms: 456 hotspots, every one at x=0, x=7, z=0 or z=7, and the side masks they spell
+// out match poh_room_doors in all 90 room/style pairs.
+//
+// THE NEW ROOM IS LAID ON ITS OWN. ~poh_build would work, but it frees the instance and takes a new
+// slot, which would teleport the player out of the room they are standing in. ~poh_place_zone does
+// one cell; the engine's restoreNeighbours puts the collision seams back.
+//
+// COSTS AND LEVELS are in poh_rooms.enum. Rooms give no Construction experience - they do not in
+// OSRS either; furniture is what trains the skill, and that is the next round.
+//
+// Every idiom here has precedent in this repo (claude/rs2-compile-traps.md): no def_string, no
+// string-returning proc, no unbounded while, and nothing interpolated that poh_test.rs2 has not
+// already compiled.
+
+// =========================================================================== sides
+
+// Which side of its room a door hotspot is on, from its position inside the zone. 0 if the tile is
+// not a side midpoint, which no door hotspot in any template is.
+[proc,poh_hotspot_side](int $lx, int $lz)(int)
+if ($lx = 0) {
+    return(^poh_door_w);
+}
+if ($lx = 7) {
+    return(^poh_door_e);
+}
+if ($lz = 0) {
+    return(^poh_door_s);
+}
+if ($lz = 7) {
+    return(^poh_door_n);
+}
+return(0);
+
+[proc,poh_side_opposite](int $side)(int)
+switch_int ($side) {
+    case ^poh_door_n : return(^poh_door_s);
+    case ^poh_door_e : return(^poh_door_w);
+    case ^poh_door_s : return(^poh_door_n);
+    case ^poh_door_w : return(^poh_door_e);
+    case default : return(0);
+}
+
+[proc,poh_side_dx](int $side)(int)
+switch_int ($side) {
+    case ^poh_door_e : return(1);
+    case ^poh_door_w : return(-1);
+    case default : return(0);
+}
+
+[proc,poh_side_dz](int $side)(int)
+switch_int ($side) {
+    case ^poh_door_n : return(1);
+    case ^poh_door_s : return(-1);
+    case default : return(0);
+}
+
+// =========================================================================== what may be built here
+
+// The lowest rotation that puts a door of $type on $side and still satisfies the join rule, or -1.
+[proc,poh_room_rot_for](int $rx, int $rz, int $type, int $side)(int)
+def_int $rot = 0;
+while ($rot < 4) {
+    if (and(~poh_rot_doors(enum(int, int, poh_room_doors, $type), $rot), $side) ! 0) {
+        if (~poh_can_place($rx, $rz, $type, $rot) = true) {
+            return($rot);
+        }
+    }
+    $rot = calc($rot + 1);
+}
+return(-1);
+
+// Cost is deliberately NOT a filter - the price is in the menu label, so a player can see what they
+// are saving for instead of wondering why a room is missing.
+[proc,poh_can_build](int $rx, int $rz, int $type, int $side)(boolean)
+if (~poh_room_type($rx, $rz) ! 0) {
+    return(false);
+}
+if (stat(construction) < enum(int, int, poh_room_level, $type)) {
+    return(false);
+}
+if (~poh_room_rot_for($rx, $rz, $type, $side) < 0) {
+    return(false);
+}
+return(true);
+
+// The nth (0-based) room type that may be built here, or 0. This is how the menu pages without
+// anywhere to hold a list.
+[proc,poh_nth_room](int $rx, int $rz, int $side, int $n)(int)
+def_int $type = 1;
+def_int $seen = 0;
+while ($type <= ^poh_room_count) {
+    if (~poh_can_build($rx, $rz, $type, $side) = true) {
+        if ($seen = $n) {
+            return($type);
+        }
+        $seen = calc($seen + 1);
+    }
+    $type = calc($type + 1);
+}
+return(0);
+
+// =========================================================================== the menu
+
+// Three rooms a page, so More and Cancel both always fit: a menu you cannot back out of is worse
+// than one extra click. The page loop is bounded rather than while(true) - five pages is all fifteen
+// room types, and a bounded loop cannot hang the player's script.
+[proc,poh_pick_room](int $rx, int $rz, int $side)(int)
+def_int $page = 0;
+while ($page < 5) {
+    def_int $a = ~poh_nth_room($rx, $rz, $side, calc($page * 3));
+    def_int $b = ~poh_nth_room($rx, $rz, $side, calc($page * 3 + 1));
+    def_int $c = ~poh_nth_room($rx, $rz, $side, calc($page * 3 + 2));
+    def_int $more = ~poh_nth_room($rx, $rz, $side, calc($page * 3 + 3));
+    def_int $pick = 0;
+    if ($a = 0) {
+        return(0);
+    }
+    if ($more ! 0) {
+        $pick = ~p_choice5_header("<enum(int, string, poh_room_name, $a)> - <tostring(enum(int, int, poh_room_cost, $a))> coins", $a, "<enum(int, string, poh_room_name, $b)> - <tostring(enum(int, int, poh_room_cost, $b))> coins", $b, "<enum(int, string, poh_room_name, $c)> - <tostring(enum(int, int, poh_room_cost, $c))> coins", $c, "More rooms...", -2, "Cancel", 0, "Build a room");
+    } else if ($c ! 0) {
+        $pick = ~p_choice4_header("<enum(int, string, poh_room_name, $a)> - <tostring(enum(int, int, poh_room_cost, $a))> coins", $a, "<enum(int, string, poh_room_name, $b)> - <tostring(enum(int, int, poh_room_cost, $b))> coins", $b, "<enum(int, string, poh_room_name, $c)> - <tostring(enum(int, int, poh_room_cost, $c))> coins", $c, "Cancel", 0, "Build a room");
+    } else if ($b ! 0) {
+        $pick = ~p_choice3_header("<enum(int, string, poh_room_name, $a)> - <tostring(enum(int, int, poh_room_cost, $a))> coins", $a, "<enum(int, string, poh_room_name, $b)> - <tostring(enum(int, int, poh_room_cost, $b))> coins", $b, "Cancel", 0, "Build a room");
+    } else {
+        $pick = ~p_choice2_header("<enum(int, string, poh_room_name, $a)> - <tostring(enum(int, int, poh_room_cost, $a))> coins", $a, "Cancel", 0, "Build a room");
+    }
+    if ($pick ! -2) {
+        return($pick);
+    }
+    $page = calc($page + 1);
+}
+return(0);
+
+// =========================================================================== removing
+
+// How many neighbours this room actually joins door to door.
+[proc,poh_joined_count](int $rx, int $rz)(int)
+def_int $n = 0;
+if (~poh_door_on($rx, $rz, ^poh_door_n) = true & ~poh_door_on($rx, calc($rz + 1), ^poh_door_s) = true) {
+    $n = calc($n + 1);
+}
+if (~poh_door_on($rx, $rz, ^poh_door_e) = true & ~poh_door_on(calc($rx + 1), $rz, ^poh_door_w) = true) {
+    $n = calc($n + 1);
+}
+if (~poh_door_on($rx, $rz, ^poh_door_s) = true & ~poh_door_on($rx, calc($rz - 1), ^poh_door_n) = true) {
+    $n = calc($n + 1);
+}
+if (~poh_door_on($rx, $rz, ^poh_door_w) = true & ~poh_door_on(calc($rx - 1), $rz, ^poh_door_e) = true) {
+    $n = calc($n + 1);
+}
+return($n);
+
+// Is the player standing in this grid cell? Clicking is done with the mouse, not the feet, so a
+// player in room A can click room B's hotspot - which points back at A, the room they are in.
+[proc,poh_player_in_cell](coord $base, int $rx, int $rz)(boolean)
+if (divide(calc(coordx(coord) - coordx($base)), 8) ! calc(^poh_grid_origin + $rx)) {
+    return(false);
+}
+if (divide(calc(coordz(coord) - coordz($base)), 8) ! calc(^poh_grid_origin + $rz)) {
+    return(false);
+}
+return(true);
+
+[proc,poh_remove_room](int $rx, int $rz)
+def_int $type = ~poh_room_type($rx, $rz);
+if (~poh_room_total <= 1) {
+    mes("You can't remove your last room.");
+    return;
+}
+if (~poh_player_in_cell(%poh_instance, $rx, $rz) = true) {
+    mes("You can't remove the room you are standing in.");
+    return;
+}
+// A room with one door-to-door neighbour is a leaf: taking it out cannot cut anything off. A room
+// with two or more might be the only way between them, and working out which would need a flood
+// fill the script language has nowhere to hold.
+if (~poh_joined_count($rx, $rz) > 1) {
+    mes("Other rooms join through the <enum(int, string, poh_room_name, $type)>. Remove those first.");
+    return;
+}
+def_int $option = ~p_choice2("Remove the <enum(int, string, poh_room_name, $type)>.", 1, "Leave it where it is.", 2);
+if ($option ! 1) {
+    return;
+}
+~poh_room_set($rx, $rz, 0, 0);
+~poh_place_zone(%poh_instance, $rx, $rz);
+~poh_spawn_exit(%poh_instance);
+mes("You remove the <enum(int, string, poh_room_name, $type)>. You get nothing back for it.");
+
+// =========================================================================== the click
+
+[proc,poh_hotspot_click]
+if (%poh_instance = null) {
+    mes("You can only build in your own house.");
+    return;
+}
+def_coord $spot = loc_coord;
+if (instance_find($spot) ! %poh_instance) {
+    mes("You can only build in your own house.");
+    return;
+}
+def_int $gx = calc(coordx($spot) - coordx(%poh_instance));
+def_int $gz = calc(coordz($spot) - coordz(%poh_instance));
+def_int $rx = calc(divide($gx, 8) - ^poh_grid_origin);
+def_int $rz = calc(divide($gz, 8) - ^poh_grid_origin);
+def_int $side = ~poh_hotspot_side(modulo($gx, 8), modulo($gz, 8));
+if ($side = 0) {
+    mes("That doorway is in an odd place - it should be in the middle of a wall.");
+    return;
+}
+def_int $tx = calc($rx + ~poh_side_dx($side));
+def_int $tz = calc($rz + ~poh_side_dz($side));
+if ($tx < 0 | $tx >= ^poh_grid | $tz < 0 | $tz >= ^poh_grid) {
+    mes("Your house can't stretch any further that way.");
+    return;
+}
+if (~poh_room_type($tx, $tz) ! 0) {
+    ~poh_remove_room($tx, $tz);
+    return;
+}
+// The new room needs a door facing back through the one that was clicked.
+def_int $need = ~poh_side_opposite($side);
+def_int $type = ~poh_pick_room($tx, $tz, $need);
+if ($type = 0) {
+    mes("There's nothing you can build through that doorway yet.");
+    return;
+}
+def_int $cost = enum(int, int, poh_room_cost, $type);
+if (inv_total(inv, coins) < $cost) {
+    mes("You need <tostring($cost)> coins to build a <enum(int, string, poh_room_name, $type)>.");
+    return;
+}
+// Re-check between the menu and the money: the menu suspends, and a lot can happen while it is open.
+def_int $rot = ~poh_room_rot_for($tx, $tz, $type, $need);
+if ($rot < 0 | ~poh_room_type($tx, $tz) ! 0) {
+    mes("That room won't fit there any more.");
+    return;
+}
+inv_del(inv, coins, $cost);
+~poh_room_set($tx, $tz, $type, $rot);
+if (~poh_place_zone(%poh_instance, $tx, $tz) = false) {
+    mes("Something went wrong building that room.");
+    return;
+}
+~poh_spawn_exit(%poh_instance);
+mes("You build the <enum(int, string, poh_room_name, $type)>.");
+
+// =========================================================================== triggers
+//
+// Twelve door hotspot locs are used across the six house styles (15126-15137, 38 of each);
+// loc474_15317 is the thirteenth, appears in none of them, and is wired up anyway so a style that
+// does use it is not a silent dead end. poh_battery.py checks this list against every loc in
+// poh_templates.loc named "Door hotspot".
+
+[oploc5,loc474_15305]
+~poh_hotspot_click;
+
+[oploc5,loc474_15306]
+~poh_hotspot_click;
+
+[oploc5,loc474_15307]
+~poh_hotspot_click;
+
+[oploc5,loc474_15308]
+~poh_hotspot_click;
+
+[oploc5,loc474_15309]
+~poh_hotspot_click;
+
+[oploc5,loc474_15310]
+~poh_hotspot_click;
+
+[oploc5,loc474_15311]
+~poh_hotspot_click;
+
+[oploc5,loc474_15312]
+~poh_hotspot_click;
+
+[oploc5,loc474_15313]
+~poh_hotspot_click;
+
+[oploc5,loc474_15314]
+~poh_hotspot_click;
+
+[oploc5,loc474_15315]
+~poh_hotspot_click;
+
+[oploc5,loc474_15316]
+~poh_hotspot_click;
+
+[oploc5,loc474_15317]
+~poh_hotspot_click;

@@ -184,6 +184,30 @@ switch_int ($style) {
     case default : return(^poh_templates_a);
 }
 
+// Lay ONE grid cell into the instance, or clear it if the cell is empty. Build mode changes a single
+// room at a time, and rebuilding the whole house for that would take a new instance slot and leave
+// the player standing in the void, so this is the unit of work and ~poh_build is a loop over it.
+[proc,poh_place_zone](coord $base, int $rx, int $rz)(boolean)
+def_coord $dst = movecoord($base, calc((^poh_grid_origin + $rx) * 8), 0, calc((^poh_grid_origin + $rz) * 8));
+def_int $type = ~poh_room_type($rx, $rz);
+if ($type = 0) {
+    instance_clearzone($dst);
+    return(true);
+}
+def_int $zone = enum(int, int, poh_room_zone, $type);
+def_coord $from = movecoord(~poh_style_origin(%poh_style), calc(divide($zone, 8) * 8), 0, calc(modulo($zone, 8) * 8));
+return(instance_setzone($dst, $from, ~poh_room_rot($rx, $rz)));
+
+// The way out, beside where the player lands. Re-run after any room change: if the room holding the
+// portal was the one removed, the only way out went with it.
+[proc,poh_spawn_exit](coord $base)
+def_int $slot = ~poh_entry_slot;
+if ($slot < 0) {
+    return;
+}
+def_coord $entry = ~poh_entry_coord($base, $slot);
+loc_add(movecoord($entry, calc(^poh_exit_portal_x - ^poh_spawn_x), 0, calc(^poh_exit_portal_z - ^poh_spawn_z)), poh_exit_portal, 0, centrepiece_straight, ^poh_loc_duration);
+
 // Lay the saved grid into a fresh instance. Returns its south-west corner, or null if no instance
 // slot was free.
 [proc,poh_build](boolean $buildmode)(coord)
@@ -195,17 +219,12 @@ if ($base = null) {
     return(null);
 }
 %poh_instance = $base;
-def_coord $src = ~poh_style_origin(%poh_style);
 def_int $rz = 0;
 while ($rz < ^poh_grid) {
     def_int $rx = 0;
     while ($rx < ^poh_grid) {
-        def_int $type = ~poh_room_type($rx, $rz);
-        if ($type ! 0) {
-            def_int $zone = enum(int, int, poh_room_zone, $type);
-            def_coord $dst = movecoord($base, calc((^poh_grid_origin + $rx) * 8), 0, calc((^poh_grid_origin + $rz) * 8));
-            def_coord $from = movecoord($src, calc(divide($zone, 8) * 8), 0, calc(modulo($zone, 8) * 8));
-            if (instance_setzone($dst, $from, ~poh_room_rot($rx, $rz)) = false) {
+        if (~poh_room_type($rx, $rz) ! 0) {
+            if (~poh_place_zone($base, $rx, $rz) = false) {
                 mes("Could not build the room at <tostring($rx)>, <tostring($rz)>.");
             }
         }
@@ -286,11 +305,10 @@ if ($slot < 0) {
     mes("Your house has no rooms in it.");
     return;
 }
-def_coord $entry = ~poh_entry_coord($base, $slot);
 // The way out, in the room the player is about to land in. After ~poh_build, never before it: the
 // last instance_setzone purges its zone and would take this with it.
-loc_add(movecoord($entry, calc(^poh_exit_portal_x - ^poh_spawn_x), 0, calc(^poh_exit_portal_z - ^poh_spawn_z)), poh_exit_portal, 0, centrepiece_straight, ^poh_loc_duration);
-p_telejump($entry);
+~poh_spawn_exit($base);
+p_telejump(~poh_entry_coord($base, $slot));
 
 [proc,poh_leave]
 p_telejump(^poh_exit);
