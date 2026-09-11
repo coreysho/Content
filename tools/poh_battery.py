@@ -692,6 +692,66 @@ build_body = pb.split('[proc,poh_build]')[1].split('\n[')[0]
 check(build_body.index('~poh_furn_restore') < build_body.index('instance_loccategory'),
       'furniture is placed BEFORE the hotspots are hidden, so it changes them in place')
 
+print('30. the build panel: the interface is registered and the raw model ids still point where they did')
+IFACE = {}
+for l in read('pack/interface.pack').split('\n'):
+    if '=' in l:
+        i, n = l.split('=', 1); IFACE[n] = int(i)
+IFF = read('scripts/skill_construction/interfaces/poh_buildmenu.if')
+blocknames = re.findall(r'^\[(\w+)\]', IFF, re.M)
+check(len(blocknames) == len(set(blocknames)), 'poh_buildmenu.if has %d distinct components' % len(set(blocknames)))
+check('poh_buildmenu' in IFACE, 'poh_buildmenu is in interface.pack')
+for c in blocknames:
+    check(('poh_buildmenu:' + c) in IFACE, 'poh_buildmenu:%s is registered' % c)
+# the components must be registered in file order, straight after the interface, as every other one is
+want = [IFACE['poh_buildmenu'] + 1 + i for i in range(len(blocknames))]
+got = [IFACE.get('poh_buildmenu:' + c) for c in blocknames]
+check(got == want, 'its components are numbered in file order from %d' % (IFACE['poh_buildmenu'] + 1))
+order = [int(l) for l in read('pack/interface.order').split('\n') if l.strip()]
+check(len(order) == len(set(order)), 'interface.order has no duplicate id')
+missing = [IFACE['poh_buildmenu'] + i for i in range(len(blocknames) + 1) if (IFACE['poh_buildmenu'] + i) not in set(order)]
+check(not missing, 'every new interface id is in interface.order: missing %s' % missing)
+packids = set(IFACE.values())
+check(packids == set(order), 'interface.pack and interface.order still hold the same id set')
+# every component the script drives really exists
+used = sorted(set(re.findall(r'poh_buildmenu:(\w+)', clean[FILES[5]])))
+for c in used:
+    check(c in blocknames, 'the script drives poh_buildmenu:%s, which the .if defines' % c)
+# every clickable it adds a resume button for is a button in the .if
+def block(name):
+    m = re.search(r'^\[%s\]\n(.*?)(?=\n\[|\Z)' % name, IFF, re.M | re.S)
+    return m.group(1) if m else ''
+for c in sorted(set(re.findall(r'if_addresumebutton\(poh_buildmenu:(\w+)\)', clean[FILES[5]]))):
+    check('buttontype=' in block(c), 'poh_buildmenu:%s is a button, so it can resume' % c)
+for c in sorted(set(re.findall(r'if_setmodel\(poh_buildmenu:(\w+),', clean[FILES[5]]))):
+    check('type=model' in block(c), 'poh_buildmenu:%s is a model component' % c)
+for c in sorted(set(re.findall(r'if_settext\(poh_buildmenu:(\w+),', clean[FILES[5]]))):
+    check('type=text' in block(c), 'poh_buildmenu:%s is a text component' % c)
+
+# THE ONE THAT MATTERS: if_setmodel takes a raw id, so every literal in ~poh_furn_model has to still
+# be the model.pack id of the model its own loc names. model.pack is append-only in practice, but
+# "in practice" is not a check.
+MODELS_BY_ID = {}
+for l in read('pack/model.pack').split('\n'):
+    if '=' in l:
+        i, n = l.split('=', 1); MODELS_BY_ID[int(i)] = n
+SUF = ['', '_8', '_1', '_2', '_3', '_4', '_q', '_w', '_r', '_e', '_t', '_5', '_9',
+       '_a', '_s', '_d', '_f', '_g', '_h', '_z', '_x', '_c', '_v', '_0']
+mbody = clean[FILES[5]].split('[proc,poh_furn_model]')[1].split('\n[')[0]
+cases = {int(a): int(b) for a, b in re.findall(r'case (\d+) : return\((\d+)\);', mbody)}
+check(sorted(cases) == list(range(1, N + 1)), '~poh_furn_model answers for every item 1..%d' % N)
+placer = clean[FILES[5]].split('[proc,poh_furn_show]')[1].split('\n[')[0]
+loc_of = {int(a): b for a, b in re.findall(r'case (\d+) : loc_add\(\$spot, (\w+),', placer)}
+wrong = []
+for item, mid in sorted(cases.items()):
+    loc = loc_of.get(item)
+    want_model = (POHLOC.get(loc, {}).get('model') or [None])[0]
+    have = MODELS_BY_ID.get(mid)
+    if want_model is None or have is None or have not in [want_model + s for s in SUF]:
+        wrong.append((item, loc, want_model, mid, have))
+check(not wrong, 'every raw model id is still its own loc\'s model: %d checked, %s'
+      % (len(cases), wrong[:3] or 'all correct'))
+
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
 sys.exit(1 if fails else 0)

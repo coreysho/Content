@@ -352,32 +352,195 @@ while ($item <= ^poh_furn_items) {
 }
 return(0);
 
-// Three a page, so More and Cancel both fit. Bounded rather than while(true): the largest family has
-// seven tiers, so three pages is every one of them twice over.
+// =========================================================================== the build panel
+
+// The model the panel shows for each piece: the first model its loc names, resolved through
+// model.pack. if_setmodel takes a RAW id, not a symbol, so these are numbers - and battery check 30
+// reads every one back out of model.pack and fails if a name ever moves under them.
+[proc,poh_furn_model](int $item)(int)
+switch_int ($item) {
+    case 1 : return(12625);   // poh_stove1_8
+    case 2 : return(14101);   // poh_stove2_8
+    case 3 : return(14101);   // poh_stove2_8
+    case 4 : return(14100);   // poh_stove4_8
+    case 5 : return(12629);   // poh_stove5_8
+    case 6 : return(12616);   // 100_dave_stove_8
+    case 7 : return(12632);   // poh_stove_7_8
+    case 8 : return(13219);   // poh_sink1_8
+    case 9 : return(13221);   // poh_sink2_8
+    case 10 : return(13220);   // poh_sink3_8
+    case 11 : return(12504);   // poh_larder1_8
+    case 12 : return(12502);   // poh_larder2_8
+    case 13 : return(12503);   // poh_larder3_8
+    case 14 : return(12548);   // poh_kitchen_shelves1_q
+    case 15 : return(12538);   // 100_dave_cook_shelf_q
+    case 16 : return(12546);   // poh_kitchen_shelves3_q
+    case 17 : return(12537);   // poh_kitchen_shelves4_q
+    case 18 : return(12544);   // poh_kitchen_shelves5_q
+    case 19 : return(12545);   // poh_kitchen_shelves_6_q
+    case 20 : return(12540);   // poh_kitchen_shelves_7_q
+    case 21 : return(12493);   // poh_kitchentable1_8
+    case 22 : return(12491);   // poh_kitchentable2_8
+    case 23 : return(12492);   // poh_kitchentable3_8
+    case 24 : return(12388);   // poh_barrel1_8
+    case 25 : return(12389);   // poh_barrel2_8
+    case 26 : return(12386);   // poh_barrel3_8
+    case 27 : return(12387);   // poh_barrel4_8
+    case 28 : return(12384);   // poh_barrel5_8
+    case 29 : return(14093);   // poh_barrel_6_8
+    case 30 : return(12461);   // poh_diningtable1_8
+    case 31 : return(12459);   // poh_diningtable2_8
+    case 32 : return(12454);   // poh_diningtable3_8
+    case 33 : return(12460);   // poh_diningtable4_8
+    case 34 : return(12455);   // poh_diningtable5_8
+    case 35 : return(12456);   // poh_diningtable_6_8
+    case 36 : return(12457);   // poh_diningtable_7_8
+    case 37 : return(12408);   // poh_diningchairs1_8
+    case 38 : return(12406);   // poh_diningchairs2_8
+    case 39 : return(12402);   // poh_diningchairs3_8
+    case 40 : return(12407);   // poh_diningchairs4_8
+    case 41 : return(12403);   // poh_diningchairs5_8
+    case 42 : return(12405);   // poh_diningchairs_6_8
+    case 43 : return(12404);   // poh_diningchairs_7_8
+    case 44 : return(12902);   // poh_bellpull1_8
+    case 45 : return(12903);   // poh_bellpull2_8
+    case 46 : return(12904);   // poh_bellpull3_8
+    case 47 : return(12550);   // poh_bed1_8
+    case 48 : return(12397);   // poh_bed2_8
+    case 49 : return(12395);   // poh_bed3_8
+    case 50 : return(12398);   // poh_bed4_8
+    case 51 : return(12396);   // poh_bed5_8
+    case 52 : return(12394);   // poh_bed_6_8
+    case 53 : return(12393);   // poh_bed_7_8
+    case 54 : return(11129);   // fever_repair_locker_8
+    case 55 : return(12958);   // poh_wardrobe2_8
+    case 56 : return(11127);   // vm_digsite_finds_talisman_8
+    case 57 : return(12959);   // poh_wardrobe4_8
+    case 58 : return(11128);   // poh_wardrobe5_8
+    case 59 : return(11126);   // poh_wardrobe_6_8
+    case 60 : return(11125);   // poh_wardrobe_7_8
+    case 61 : return(12974);   // poh_clock1_8
+    case 62 : return(12973);   // 100_dave_grandfatherclock_8
+    case 63 : return(12972);   // poh_clock3_8
+    case default : return(0);
+}
+
+// The real thing instead of a chat menu: five furniture models across the chat area, each with its
+// name under it and what it costs under that. The mechanism is the one every choice box in this
+// build already uses - if_openchat, a resume button per row, p_pausebutton, switch_component on
+// last_com (interface_chat/scripts/chat.rs2) - so nothing new had to be invented to drive it.
 [proc,poh_furn_pick](int $fam, int $level)(int)
 def_int $page = 0;
 while ($page < 3) {
-    def_int $a = ~poh_furn_nth($fam, calc($page * 3), $level);
-    def_int $b = ~poh_furn_nth($fam, calc($page * 3 + 1), $level);
-    def_int $c = ~poh_furn_nth($fam, calc($page * 3 + 2), $level);
-    def_int $more = ~poh_furn_nth($fam, calc($page * 3 + 3), $level);
-    def_int $pick = 0;
+    def_int $a = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 0), $level);
+    def_int $b = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 1), $level);
+    def_int $c = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 2), $level);
+    def_int $d = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 3), $level);
+    def_int $e = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 4), $level);
+    def_int $more = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + ^poh_menu_slots), $level);
     if ($a = 0) {
         return(0);
     }
-    if ($more ! 0) {
-        $pick = ~p_choice5_header("<enum(int, string, poh_furn_name, $a)> - <tostring(enum(int, int, poh_furn_planks, $a))> <enum(int, string, poh_wood_name, $a)>", $a, "<enum(int, string, poh_furn_name, $b)> - <tostring(enum(int, int, poh_furn_planks, $b))> <enum(int, string, poh_wood_name, $b)>", $b, "<enum(int, string, poh_furn_name, $c)> - <tostring(enum(int, int, poh_furn_planks, $c))> <enum(int, string, poh_wood_name, $c)>", $c, "More...", -2, "Cancel", 0, "Build what?");
-    } else if ($c ! 0) {
-        $pick = ~p_choice4_header("<enum(int, string, poh_furn_name, $a)> - <tostring(enum(int, int, poh_furn_planks, $a))> <enum(int, string, poh_wood_name, $a)>", $a, "<enum(int, string, poh_furn_name, $b)> - <tostring(enum(int, int, poh_furn_planks, $b))> <enum(int, string, poh_wood_name, $b)>", $b, "<enum(int, string, poh_furn_name, $c)> - <tostring(enum(int, int, poh_furn_planks, $c))> <enum(int, string, poh_wood_name, $c)>", $c, "Cancel", 0, "Build what?");
-    } else if ($b ! 0) {
-        $pick = ~p_choice3_header("<enum(int, string, poh_furn_name, $a)> - <tostring(enum(int, int, poh_furn_planks, $a))> <enum(int, string, poh_wood_name, $a)>", $a, "<enum(int, string, poh_furn_name, $b)> - <tostring(enum(int, int, poh_furn_planks, $b))> <enum(int, string, poh_wood_name, $b)>", $b, "Cancel", 0, "Build what?");
+    if ($a = 0) {
+        if_sethide(poh_buildmenu:model1, true);
+        if_sethide(poh_buildmenu:name1, true);
+        if_sethide(poh_buildmenu:need1, true);
     } else {
-        $pick = ~p_choice2_header("<enum(int, string, poh_furn_name, $a)> - <tostring(enum(int, int, poh_furn_planks, $a))> <enum(int, string, poh_wood_name, $a)>", $a, "Cancel", 0, "Build what?");
+        if_sethide(poh_buildmenu:model1, false);
+        if_sethide(poh_buildmenu:name1, false);
+        if_sethide(poh_buildmenu:need1, false);
+        if_setmodel(poh_buildmenu:model1, ~poh_furn_model($a));
+        if_setangle(poh_buildmenu:model1, ^poh_menu_xan, ^poh_menu_yan, ^poh_menu_zoom);
+        if_settext(poh_buildmenu:name1, "<enum(int, string, poh_furn_name, $a)>");
+        if_settext(poh_buildmenu:need1, "<tostring(enum(int, int, poh_furn_planks, $a))> <enum(int, string, poh_wood_name, $a)>");
     }
-    if ($pick ! -2) {
-        return($pick);
+    if ($b = 0) {
+        if_sethide(poh_buildmenu:model2, true);
+        if_sethide(poh_buildmenu:name2, true);
+        if_sethide(poh_buildmenu:need2, true);
+    } else {
+        if_sethide(poh_buildmenu:model2, false);
+        if_sethide(poh_buildmenu:name2, false);
+        if_sethide(poh_buildmenu:need2, false);
+        if_setmodel(poh_buildmenu:model2, ~poh_furn_model($b));
+        if_setangle(poh_buildmenu:model2, ^poh_menu_xan, ^poh_menu_yan, ^poh_menu_zoom);
+        if_settext(poh_buildmenu:name2, "<enum(int, string, poh_furn_name, $b)>");
+        if_settext(poh_buildmenu:need2, "<tostring(enum(int, int, poh_furn_planks, $b))> <enum(int, string, poh_wood_name, $b)>");
     }
-    $page = calc($page + 1);
+    if ($c = 0) {
+        if_sethide(poh_buildmenu:model3, true);
+        if_sethide(poh_buildmenu:name3, true);
+        if_sethide(poh_buildmenu:need3, true);
+    } else {
+        if_sethide(poh_buildmenu:model3, false);
+        if_sethide(poh_buildmenu:name3, false);
+        if_sethide(poh_buildmenu:need3, false);
+        if_setmodel(poh_buildmenu:model3, ~poh_furn_model($c));
+        if_setangle(poh_buildmenu:model3, ^poh_menu_xan, ^poh_menu_yan, ^poh_menu_zoom);
+        if_settext(poh_buildmenu:name3, "<enum(int, string, poh_furn_name, $c)>");
+        if_settext(poh_buildmenu:need3, "<tostring(enum(int, int, poh_furn_planks, $c))> <enum(int, string, poh_wood_name, $c)>");
+    }
+    if ($d = 0) {
+        if_sethide(poh_buildmenu:model4, true);
+        if_sethide(poh_buildmenu:name4, true);
+        if_sethide(poh_buildmenu:need4, true);
+    } else {
+        if_sethide(poh_buildmenu:model4, false);
+        if_sethide(poh_buildmenu:name4, false);
+        if_sethide(poh_buildmenu:need4, false);
+        if_setmodel(poh_buildmenu:model4, ~poh_furn_model($d));
+        if_setangle(poh_buildmenu:model4, ^poh_menu_xan, ^poh_menu_yan, ^poh_menu_zoom);
+        if_settext(poh_buildmenu:name4, "<enum(int, string, poh_furn_name, $d)>");
+        if_settext(poh_buildmenu:need4, "<tostring(enum(int, int, poh_furn_planks, $d))> <enum(int, string, poh_wood_name, $d)>");
+    }
+    if ($e = 0) {
+        if_sethide(poh_buildmenu:model5, true);
+        if_sethide(poh_buildmenu:name5, true);
+        if_sethide(poh_buildmenu:need5, true);
+    } else {
+        if_sethide(poh_buildmenu:model5, false);
+        if_sethide(poh_buildmenu:name5, false);
+        if_sethide(poh_buildmenu:need5, false);
+        if_setmodel(poh_buildmenu:model5, ~poh_furn_model($e));
+        if_setangle(poh_buildmenu:model5, ^poh_menu_xan, ^poh_menu_yan, ^poh_menu_zoom);
+        if_settext(poh_buildmenu:name5, "<enum(int, string, poh_furn_name, $e)>");
+        if_settext(poh_buildmenu:need5, "<tostring(enum(int, int, poh_furn_planks, $e))> <enum(int, string, poh_wood_name, $e)>");
+    }
+    if ($more = 0) {
+        if_sethide(poh_buildmenu:more, true);
+    } else {
+        if_sethide(poh_buildmenu:more, false);
+    }
+    if_openchat(poh_buildmenu);
+    if ($a ! 0) {
+        if_addresumebutton(poh_buildmenu:name1);
+    }
+    if ($b ! 0) {
+        if_addresumebutton(poh_buildmenu:name2);
+    }
+    if ($c ! 0) {
+        if_addresumebutton(poh_buildmenu:name3);
+    }
+    if ($d ! 0) {
+        if_addresumebutton(poh_buildmenu:name4);
+    }
+    if ($e ! 0) {
+        if_addresumebutton(poh_buildmenu:name5);
+    }
+    if ($more ! 0) {
+        if_addresumebutton(poh_buildmenu:more);
+    }
+    if_addresumebutton(poh_buildmenu:cancel);
+    p_pausebutton;
+    switch_component (last_com) {
+        case poh_buildmenu:name1 : return($a);
+        case poh_buildmenu:name2 : return($b);
+        case poh_buildmenu:name3 : return($c);
+        case poh_buildmenu:name4 : return($d);
+        case poh_buildmenu:name5 : return($e);
+        case poh_buildmenu:more : $page = calc($page + 1);
+        case default : return(0);
+    }
 }
 return(0);
 
