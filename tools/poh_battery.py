@@ -5,7 +5,8 @@ FILES = ['scripts/skill_construction/scripts/poh.rs2', 'scripts/skill_constructi
          'scripts/skill_construction/scripts/poh_portal.rs2', 'scripts/skill_construction/scripts/poh_build.rs2',
          'scripts/skill_construction/scripts/sawmill.rs2',
          'scripts/skill_construction/scripts/poh_furniture.rs2',
-         'scripts/skill_construction/scripts/poh_menus.rs2']
+         'scripts/skill_construction/scripts/poh_menus.rs2',
+         'scripts/skill_construction/scripts/poh_furn_ops.rs2']
 fails = 0
 def check(ok, what):
     global fails
@@ -45,7 +46,10 @@ print('3. declared scripts are unique, and nothing is declared twice')
 decl = re.findall(r'^\[(\w+),(\w+)\]', alltext, re.M)
 check(len(decl) == len(set(decl)), 'no duplicate [kind,name] in the new files')
 names = {n for k, n in decl}
-print('   declares: ' + ', '.join('%s %s' % (k, n) for k, n in decl))
+kinds = {}
+for k, n in decl:
+    kinds[k] = kinds.get(k, 0) + 1
+print('   declares: ' + ', '.join('%d %s' % (v, k) for k, v in sorted(kinds.items())))
 
 print('4. every ~proc call resolves')
 # Against the WHOLE repo, not just these files: poh_portal.rs2 talks to the shared dialogue procs
@@ -655,8 +659,19 @@ check(not bad, '%d families, every one with a distinct label per tier: %s'
       % (len(byfam), bad[:2] or 'no family repeats a label'))
 
 fu = clean[FILES[5]]
-placed = sorted(int(m) for m in re.findall(r'^    case (\d+) : loc_add\(', fu, re.M))
+ops = clean['scripts/skill_construction/scripts/poh_furn_ops.rs2']
+def procbody(src, name):
+    return src.split('[proc,%s]' % name, 1)[1].split('\n[', 1)[0]
+show = procbody(fu, 'poh_furn_show')
+showlit = procbody(fu, 'poh_furn_show_lit')
+placed = sorted(int(m) for m in re.findall(r'^    case (\d+) : loc_add\(', show, re.M))
 check(placed == list(range(1, N + 1)), '~poh_furn_show places every item 1..%d' % N)
+# the lit twins are a SUBSET, and every one of them has to be an item that really can be lit
+litcase = sorted(int(m) for m in re.findall(r'^    case (\d+) : loc_add\(', showlit, re.M))
+lightable = sorted(int(m) for m in re.findall(r'^    case (\d+) : return\(true\);',
+                   procbody(ops, 'poh_furn_lightable'), re.M)) if '[proc,poh_furn_lightable]' in ops else litcase
+check(litcase and set(litcase) <= set(placed),
+      '~poh_furn_show_lit covers %d of the %d pieces, all of them real items' % (len(litcase), N))
 # every loc it places is registered, and every one is a real furniture loc from poh.loc
 POHLOC = blocks(read('scripts/skill_construction/configs/poh.loc'))
 placements = re.findall(r'loc_add\(\$spot, (\w+), \$angle, (\w+),', fu)
@@ -667,9 +682,16 @@ check(not bad, 'every placed loc is a real furniture loc: %s' % (bad[:3] or 'all
 bad = [l for l, _ in placements if 'Remove' not in (POHLOC.get(l, {}).get('op5') or [])]
 check(not bad, 'every placed loc carries op5=Remove: %s' % (bad[:3] or 'all of them'))
 # a piece can only be taken out if its own op5 is wired
-rm = sorted(set(re.findall(r'^\[oploc5,(\w+)\]\s*\n~poh_furn_remove;', fu, re.M)))
+# the lit twins are placed by poh_furniture.rs2 and taken out by poh_furn_ops.rs2, so both files
+rm = sorted(set(re.findall(r'^\[oploc5,(\w+)\]\s*\n~poh_furn_remove;', fu + '\n' + ops, re.M)))
 placed_locs = sorted({m.group(1) for m in re.finditer(r'loc_add\(\$spot, (\w+), \$angle,', fu)})
-check(rm == placed_locs, 'every placeable piece has a Remove trigger: %d placed, %d wired' % (len(placed_locs), len(rm)))
+check(rm == placed_locs, 'every placeable piece has a Remove trigger: %d placed, %d wired'
+      % (len(placed_locs), len(rm)))
+# and a lit twin nobody can take out is a piece of furniture welded to the floor
+POHLOC2 = blocks(read('scripts/skill_construction/configs/poh.loc'))
+bad = [l for l in {m.group(1) for m in re.finditer(r'loc_add\(\$spot, (\w+), \$angle,', showlit)}
+       if 'Remove' not in (POHLOC2.get(l, {}).get('op5') or [])]
+check(not bad, 'every lit twin carries op5=Remove: %s' % (bad[:3] or 'all of them'))
 # hotspot triggers pass a family and nothing looks one up
 hot = re.findall(r'^\[oploc5,(\w+)\]\s*\n~poh_furn_click\(\^poh_fam_(\w+)\);', fu, re.M)
 check(len(hot) > 0, '%d furniture hotspot triggers' % len(hot))
@@ -773,6 +795,38 @@ check('~poh_furn_restore' in pb, '~poh_build puts the furniture back')
 build_body = pb.split('[proc,poh_build]')[1].split('\n[')[0]
 check(build_body.index('~poh_furn_restore') < build_body.index('instance_loccategory'),
       'furniture is placed BEFORE the hotspots are hidden, so it changes them in place')
+
+print('39. what the furniture does: every trigger is on an op the loc really has')
+# A trigger on an op the loc does not carry is not an error - it simply never fires, which is the
+# quietest kind of broken. The op TEXT has to match the kind too: [oploc1] on a "light" family must
+# be a loc whose op1 really says Light.
+import json as _json
+FSPEC = _json.load(open(os.path.join(C, 'tools/furnspec.json')))
+KINDOP = {'sit': 'Sit-on', 'light': 'Light', 'altar': 'Pray', 'jingle': 'Play',
+          'observe': 'Observe', 'talk': 'Talk-to', 'preen': 'Preen'}
+
+
+OPSRC = src['scripts/skill_construction/scripts/poh_furn_ops.rs2']
+fired = sorted(set(re.findall(r'^\[oploc1,(\w+)\]', OPSRC, re.M)))
+bad = [l for l in fired if not (POHLOC.get(l, {}).get('op1') or [])]
+check(not bad, 'every [oploc1] is on a loc that carries an op1: %s' % (bad[:3] or '%d checked' % len(fired)))
+want = {}
+for f in FSPEC['families']:
+    if 'op1' in f:
+        for n, l in enumerate(f['locs']):
+            want[l] = (f['key'], f['op1']['kind'])
+bad = [(l, want[l][1], (POHLOC[l].get('op1') or ['?'])[0]) for l in fired
+       if want[l][1] in KINDOP and (POHLOC[l].get('op1') or ['?'])[0] != KINDOP[want[l][1]]]
+check(not bad, 'the kind matches the op the loc advertises: %s' % (bad[:3] or 'all of them'))
+check(sorted(want) == fired, 'every family with an op1 in the spec has a trigger for every tier: %d'
+      % len(fired))
+# the altar's use-item trigger is on the altars and nothing else
+users = sorted(set(re.findall(r'^\[oplocu,(\w+)\]', OPSRC, re.M)))
+altars = sorted(l for l in want if want[l][1] == 'altar')
+check(users == altars, 'the offer-bones trigger is on the %d altars and nothing else: %s'
+      % (len(altars), users[:3] if users != altars else 'yes'))
+check('oc_param($bone, bone_exp)' in OPSRC,
+      'it tests bone_exp, the same param burying uses, rather than a list of bones')
 
 print('30. the build windows: registered, in file order, and the old chat panel gone')
 IFACE = {}

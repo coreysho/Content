@@ -73,6 +73,16 @@ MUTS = [
   '[proc,poh_furn_xan](int $fam)(int)\nswitch_int ($fam) {\n    case 32 : return(120);',
   '[proc,poh_furn_xan](int $fam)(int)\nswitch_int ($fam) {\n    case 32 : return(150);',
   '33 a camera the zoom was not solved for'),
+ ('scripts/skill_construction/configs/construction.constant',
+  '^poh_furn_bit_lit = 22', '^poh_furn_bit_lit = 13', '1 the lit bit must sit above the old fields (furn sim)'),
+ ('scripts/skill_construction/scripts/poh_furn_ops.rs2',
+  '[oploc1,poh_torch_1]', '[oploc2,poh_torch_1]', '39 a trigger on an op the loc does not have'),
+ ('scripts/skill_construction/scripts/poh_furn_ops.rs2',
+  '[oplocu,poh_altar_saradomin_1]', '[oplocu,poh_lectern_1]', '39 the offer trigger on the wrong loc'),
+ ('scripts/skill_construction/configs/poh.loc',
+  '[loc_13610]\nname=Clay fireplace\ndesc=A fire burns cosily in the grate.\nmodel=loc_13609\nmodel2=loc_13610\nlength=2\nanim=fireplace\nanim=fire_effect\nforceapproach=east\nop5=Remove',
+  '[loc_13610]\nname=Clay fireplace\ndesc=A fire burns cosily in the grate.\nmodel=loc_13609\nmodel2=loc_13610\nlength=2\nanim=fireplace\nanim=fire_effect\nforceapproach=east',
+  '28 a lit twin you could never take out'),
 ]
 
 def checker_for(why):

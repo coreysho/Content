@@ -238,7 +238,11 @@ def map_shapes():
 
 # --------------------------------------------------------------------------- emit
 
-BITS = [('rx', 3), ('rz', 3), ('lx', 3), ('lz', 3), ('angle', 2), ('item', 8)]
+# The packed record. APPEND ONLY, and only above bit 21: a save written before a field existed has
+# zero in it, so a new field at the top is free and a field inserted anywhere else would misread
+# every house that already exists. `lit` went in at 22 for exactly that reason - an old record reads
+# as unlit, which is what it was.
+BITS = [('rx', 3), ('rz', 3), ('lx', 3), ('lz', 3), ('angle', 2), ('item', 8), ('lit', 1)]
 
 def emit_enum(fams, items, path):
     o = ['// Everything that can be built into a furniture hotspot, one row per buildable thing.',
@@ -273,6 +277,9 @@ def emit_enum(fams, items, path):
     table('poh_furn_level', 'int', [(i['n'], i['level']) for i in items])
     table('poh_furn_wood', 'int', [(i['n'], i['wood']) for i in items])
     table('poh_furn_planks', 'int', [(i['n'], i['planks']) for i in items])
+    table('poh_furn_tier', 'int', [(i['n'], i['tier']) for i in items],
+          ['// Which step of its own family a piece is, 1-based. The altar reads it to work out what it',
+           '// pays for a set of bones.'])
     table('poh_wood_name', 'string', [(i['n'], WOOD_PLANK[i['wood']]) for i in items],
           ['// What to ask for in the build window: the plank type this piece is made of, worded for a',
            '// sentence ("4 oak planks").'])
@@ -345,6 +352,15 @@ def emit_constant(fams, items, slots, path='scripts/skill_construction/configs/c
               '^poh_xp_teak = 90',
               '^poh_xp_mahogany = 140',
               '',
+              '',
+              '// ---- what the furniture does (poh_furn_ops.rs2) ----',
+              '// What a house altar pays for bones, as a percentage of the burying experience: the base for',
+              '// the plainest altar, a step per tier above it, and a bonus for every lit thing in the same',
+              '// room. OSRS pays 250% to 350% and another 50% a burner. NOT cache data - tune away.',
+              '^poh_altar_base = 250',
+              '^poh_altar_step = 15',
+              '^poh_altar_burner = 25',
+              '',
               '// The furniture families, one per hotspot kind. A hotspot\'s trigger passes its own family in,',
               '// so nothing has to look one up. NEVER REORDER: item numbers follow family order and item',
               '// numbers are what is stored in a save.']
@@ -398,6 +414,8 @@ def emit_rs2(fams, items, slots, path='scripts/skill_construction/scripts/poh_fu
     o += ['[proc,poh_furn_pack](int $rx, int $rz, int $lx, int $lz, int $angle, int $item)(int)',
           'def_int $v = 0;']
     for name, width in BITS:
+        if name == 'lit':
+            continue                     # never set at build time; ~poh_furn_light flips it later
         if name == 'angle':
             o.append('$v = setbit_range_toint($v, modulo($angle, 4), ^poh_furn_bit_angle, calc(^poh_furn_bit_angle + %d));' % (width - 1))
         elif name == 'item':
@@ -445,11 +463,30 @@ def emit_rs2(fams, items, slots, path='scripts/skill_construction/scripts/poh_fu
           '// =========================================================================== putting it there', '',
           '// One case per buildable thing. The loc AND its shape are literals here, so a piece can only ever',
           '// be placed as the shape its own hotspot was - there is no shape to store and none to get wrong.',
-          '[proc,poh_furn_show](int $item, coord $spot, int $angle)', 'switch_int ($item) {']
+          '//',
+          '// A piece that has been lit goes down as its lit twin instead, which is what makes a fire still',
+          '// be burning after you build a room somewhere else in the house.',
+          '[proc,poh_furn_show](int $item, coord $spot, int $angle, int $lit)',
+          'if ($lit = 1) {',
+          '    if (~poh_furn_show_lit($item, $spot, $angle) = true) {',
+          '        return;',
+          '    }',
+          '}',
+          'switch_int ($item) {']
     for i in items:
         o.append('    case %d : loc_add($spot, %s, $angle, %s, ^poh_loc_duration);'
                  % (i['n'], i['loc'], byfam[i['famkey']]['shape']))
-    o += ['    case default : return;', '}', '']
+    o += ['    case default : return;', '}', '',
+          '// The lit twin of anything that can be lit, and false for everything else.',
+          '[proc,poh_furn_show_lit](int $item, coord $spot, int $angle)(boolean)',
+          'switch_int ($item) {']
+    for i in items:
+        f = byfam[i['famkey']]
+        op = f.get('op1') or {}
+        if op.get('kind') == 'light':
+            o.append('    case %d : loc_add($spot, %s, $angle, %s, ^poh_loc_duration); return(true);'
+                     % (i['n'], op['lit'][i['tier'] - 1], f['shape']))
+    o += ['    case default : return(false);', '}', '']
     return o, byfam
 
 def emit_rs2_tail(fams, items, byfam):
@@ -463,7 +500,7 @@ def emit_rs2_tail(fams, items, byfam):
          '            // its room is gone - so is it', '            ~poh_furn_set($i, 0);',
          '        } else {',
          '            def_coord $spot = movecoord($base, calc((^poh_grid_origin + $rx) * 8 + ~poh_furn_field($v, ^poh_furn_bit_lx, 3)), 0, calc((^poh_grid_origin + $rz) * 8 + ~poh_furn_field($v, ^poh_furn_bit_lz, 3)));',
-         '            ~poh_furn_show(~poh_furn_field($v, ^poh_furn_bit_item, 8), $spot, ~poh_furn_field($v, ^poh_furn_bit_angle, 2));',
+         '            ~poh_furn_show(~poh_furn_field($v, ^poh_furn_bit_item, 8), $spot, ~poh_furn_field($v, ^poh_furn_bit_angle, 2), ~poh_furn_field($v, ^poh_furn_bit_lit, 1));',
          '        }', '    }', '    $i = calc($i + 1);', '}', '',
          '// Re-lay one room and put its furniture back. The template is the truth about what a hotspot was, so',
          '// taking something out is a re-lay rather than an attempt to reconstruct the hotspot by hand.',
@@ -517,7 +554,7 @@ def emit_rs2_tail(fams, items, byfam):
           '    mes("Something is in the way.");', '    return;', '}',
           '~poh_furn_plank_take($wood, $need);',
           '~poh_furn_set($slot, ~poh_furn_pack($rx, $rz, $lx, $lz, $angle, $item));',
-          '~poh_furn_show($item, $spot, $angle);',
+          '~poh_furn_show($item, $spot, $angle, 0);',
           'stat_advance(construction, ~poh_furn_xp($wood, $need));',
           'mes("You build the <enum(int, string, poh_furn_name, $item)>.");', '',
           '// Taking a piece out. No refund and no planks back, as in OSRS.',
@@ -548,6 +585,124 @@ def emit_rs2_tail(fams, items, byfam):
         o += ['[oploc5,%s]' % i['loc'], '~poh_furn_remove;', '']
     return o
 
+OPS_HEAD = """// What the furniture DOES. One [oploc1] per piece, generated from the op1 block of each family in
+// tools/furnspec.json.
+//
+// Every op these locs carry sits at op1 - checked across all {n} pieces - so the trigger is always
+// oploc1 and there is no per-family index to get wrong. The op's WORDS are in the spec too: a
+// generator that invents flavour text is a generator nobody can review.
+//
+// WHAT IS NOT HERE. Study (lecterns) is teleport tablets and needs the tablet objs; Work-at
+// (workbenches) is flatpacks and needs one obj per piece of furniture; Craft, Open, Change-clothes,
+// Upgrade, Activate, Set-up, Shoot-at, Throw-at, Challenge-mode, Pull, Use and Make-helmet each need
+// new objects, a new interface, or a servant. The spec says so next to each family.
+"""
+
+def q(s):
+    return '"%s"' % s.replace('"', "'")
+
+def emit_ops(fams, items, byfam, path='scripts/skill_construction/scripts/poh_furn_ops.rs2'):
+    lit_items = [i for i in items if (byfam[i['famkey']].get('op1') or {}).get('kind') == 'light']
+    o = OPS_HEAD.format(n=len(items)).split('\n')
+
+    o += ['// =========================================================================== lighting', '',
+          '// Lighting is REMEMBERED - bit %d of the packed record - so a fire is still burning after you'
+          % dict((n, sum(w for _, w in BITS[:i])) for i, (n, w) in enumerate(BITS))['lit'],
+          '// build a room somewhere else and the house is laid out again. A record written before this',
+          '// field existed has 0 there, which reads as unlit, which is what it was.',
+          '[proc,poh_furn_light](string $mes)',
+          'if (%poh_instance = null | instance_find(loc_coord) ! %poh_instance) {', '    return;', '}',
+          'if (inv_total(inv, tinderbox) < 1) {',
+          '    mes("You need a tinderbox to light that.");', '    return;', '}',
+          'def_coord $spot = loc_coord;',
+          'def_int $gx = calc(coordx($spot) - coordx(%poh_instance));',
+          'def_int $gz = calc(coordz($spot) - coordz(%poh_instance));',
+          'def_int $slot = ~poh_furn_at(calc(divide($gx, 8) - ^poh_grid_origin), calc(divide($gz, 8) - ^poh_grid_origin), modulo($gx, 8), modulo($gz, 8));',
+          'if ($slot < 0) {', '    return;', '}',
+          'def_int $v = ~poh_furn_get($slot);',
+          'if (~poh_furn_field($v, ^poh_furn_bit_lit, 1) = 1) {',
+          '    mes("It is already lit.");', '    return;', '}',
+          '~poh_furn_set($slot, setbit_range_toint($v, 1, ^poh_furn_bit_lit, ^poh_furn_bit_lit));',
+          'anim(human_pickupfloor, 0);',
+          'sound_synth(tinderbox_strike, 1, 0);',
+          '~poh_furn_show_lit(~poh_furn_field($v, ^poh_furn_bit_item, 8), $spot, ~poh_furn_field($v, ^poh_furn_bit_angle, 2));',
+          'mes($mes);', '',
+          '// =========================================================================== the altar', '',
+          '// What the altar pays for a set of bones, as a percentage of what burying them gives. OSRS pays',
+          '// 250% at a plain altar and 350% at the best one, and another 50% for each of the two burners',
+          '// beside it. NOT cache data - the tunable part, like the room prices.',
+          '[proc,poh_furn_altar_bonus](int $item)(int)',
+          'def_int $pct = calc(^poh_altar_base + calc(enum(int, int, poh_furn_tier, $item) - 1) * ^poh_altar_step);',
+          'return(calc($pct + ~poh_furn_lit_in_room * ^poh_altar_burner));', '',
+          '// How many lit things stand in the room the player is standing in. A linear scan, like every',
+          '// other question this design asks about the furniture.',
+          '[proc,poh_furn_lit_in_room]()(int)',
+          'def_int $rx = calc(divide(calc(coordx(coord) - coordx(%poh_instance)), 8) - ^poh_grid_origin);',
+          'def_int $rz = calc(divide(calc(coordz(coord) - coordz(%poh_instance)), 8) - ^poh_grid_origin);',
+          'def_int $i = 0;', 'def_int $n = 0;',
+          'while ($i < ^poh_furn_slots) {',
+          '    def_int $v = ~poh_furn_get($i);',
+          '    if ($v ! 0) {',
+          '        if (~poh_furn_field($v, ^poh_furn_bit_lit, 1) = 1) {',
+          '            if (~poh_furn_field($v, ^poh_furn_bit_rx, 3) = $rx & ~poh_furn_field($v, ^poh_furn_bit_rz, 3) = $rz) {',
+          '                $n = calc($n + 1);', '            }', '        }', '    }',
+          '    $i = calc($i + 1);', '}', 'return($n);', '',
+          '// Anything with a bone_exp param may be offered, which is the same test burying uses - so a bone',
+          '// added to the game later works here without this file knowing it exists.',
+          '[proc,poh_furn_offer](int $item)',
+          'if (%poh_instance = null | instance_find(loc_coord) ! %poh_instance) {', '    return;', '}',
+          'def_obj $bone = last_useitem;',
+          'if (oc_param($bone, bone_exp) <= 0) {',
+          '    mes("The gods have no use for that.");', '    return;', '}',
+          'def_int $pct = ~poh_furn_altar_bonus($item);',
+          'inv_del(inv, $bone, 1);',
+          'anim(human_pray, 0);',
+          'sound_synth(prayer_recharge, 1, 0);',
+          'stat_advance(prayer, calc(oc_param($bone, bone_exp) * $pct / 100));',
+          'mes("You offer the bones. The gods are pleased.");', '',
+          '// =========================================================================== the triggers', '']
+
+    KIND = {}
+    def add(fam, item, lines):
+        KIND.setdefault(fam, []).append((item, lines))
+    for i in items:
+        f = byfam[i['famkey']]
+        op = f.get('op1')
+        if not op:
+            continue
+        k = op['kind']
+        if k == 'sit':
+            body = ['anim(%s, 0);' % op['seq'], 'mes(%s);' % q(op['mes'])]
+        elif k == 'light':
+            body = ['~poh_furn_light(%s);' % q(op['mes'])]
+        elif k == 'altar':
+            body = ['@pray_at_altar(stat_base(prayer));']
+        elif k == 'jingle':
+            body = ['midi_jingle(%s);' % q(op['midi']), 'mes(%s);' % q(op['mes'])]
+        elif k == 'clock':
+            body = ['mes("The clock says it is <tostring(divide(modulo(map_clock, 6000), 250))> o\'clock.");']
+        elif k == 'observe':
+            body = ['switch_int (random(%d)) {' % len(op['lines'])]
+            for n, l in enumerate(op['lines']):
+                body.append('    case %d : mes(%s);' % (n, q(l)))
+            body.append('    case default : mes(%s);' % q(op['lines'][0]))
+            body.append('}')
+        elif k == 'talk':
+            body = ['mes(%s);' % q(op['lines'][min(i['tier'], len(op['lines'])) - 1])]
+        elif k == 'preen':
+            body = ['anim(%s, 0);' % op['seq'], 'mes(%s);' % q(op['mes'])]
+        elif k == 'mes':
+            body = ['mes(%s);' % q(l) for l in op['lines']]
+        else:
+            raise SystemExit('unknown op kind %r on %s' % (k, f['key']))
+        o += ['[oploc1,%s]' % i['loc']] + body + ['']
+        if k == 'light':
+            o += ['[oploc5,%s]' % op['lit'][i['tier'] - 1], '~poh_furn_remove;', '']
+        if k == 'altar':
+            o += ['[oplocu,%s]' % i['loc'], '~poh_furn_offer(%d);' % i['n'], '']
+    write(path, o)
+    return lit_items
+
 if __name__ == '__main__':
     SLOTS = int(sys.argv[1]) if len(sys.argv) > 1 else 256
     fams, items = build()
@@ -572,5 +727,8 @@ if __name__ == '__main__':
     emit_constant(fams, items, SLOTS)
     head, byfam = emit_rs2(fams, items, SLOTS)
     write('scripts/skill_construction/scripts/poh_furniture.rs2', head + emit_rs2_tail(fams, items, byfam))
+    lit = emit_ops(fams, items, byfam)
+    print('%d pieces answer op1, %d of them can be lit' %
+          (sum(1 for i in items if byfam[i['famkey']].get('op1')), len(lit)))
     print('%d families, %d items, %d hotspots, %d slots (varp ids up to %d)'
           % (len(fams), len(items), sum(len(f['hotspots']) for f in fams), SLOTS, max(i for i, _ in ids)))

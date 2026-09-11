@@ -87,13 +87,14 @@
 ^poh_furn_slots = 256
 ^poh_furn_items = 238
 
-// The bit layout of one packed piece. 22 bits, so it fits an int with room to spare.
+// The bit layout of one packed piece. 23 bits, so it fits an int with room to spare.
 ^poh_furn_bit_rx = 0
 ^poh_furn_bit_rz = 3
 ^poh_furn_bit_lx = 6
 ^poh_furn_bit_lz = 9
 ^poh_furn_bit_angle = 12
 ^poh_furn_bit_item = 14
+^poh_furn_bit_lit = 22
 
 // Construction experience per plank. OSRS's furniture xp is very nearly planks x this, so it
 // is one rule rather than 238 rows of remembered numbers - and it is the obvious thing to tune.
@@ -101,6 +102,15 @@
 ^poh_xp_oak = 60
 ^poh_xp_teak = 90
 ^poh_xp_mahogany = 140
+
+
+// ---- what the furniture does (poh_furn_ops.rs2) ----
+// What a house altar pays for bones, as a percentage of the burying experience: the base for
+// the plainest altar, a step per tier above it, and a bonus for every lit thing in the same
+// room. OSRS pays 250% to 350% and another 50% a burner. NOT cache data - tune away.
+^poh_altar_base = 250
+^poh_altar_step = 15
+^poh_altar_burner = 25
 
 // The furniture families, one per hotspot kind. A hotspot's trigger passes its own family in,
 // so nothing has to look one up. NEVER REORDER: item numbers follow family order and item

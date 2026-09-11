@@ -1,0 +1,485 @@
+// What the furniture DOES. One [oploc1] per piece, generated from the op1 block of each family in
+// tools/furnspec.json.
+//
+// Every op these locs carry sits at op1 - checked across all 238 pieces - so the trigger is always
+// oploc1 and there is no per-family index to get wrong. The op's WORDS are in the spec too: a
+// generator that invents flavour text is a generator nobody can review.
+//
+// WHAT IS NOT HERE. Study (lecterns) is teleport tablets and needs the tablet objs; Work-at
+// (workbenches) is flatpacks and needs one obj per piece of furniture; Craft, Open, Change-clothes,
+// Upgrade, Activate, Set-up, Shoot-at, Throw-at, Challenge-mode, Pull, Use and Make-helmet each need
+// new objects, a new interface, or a servant. The spec says so next to each family.
+
+// =========================================================================== lighting
+
+// Lighting is REMEMBERED - bit 22 of the packed record - so a fire is still burning after you
+// build a room somewhere else and the house is laid out again. A record written before this
+// field existed has 0 there, which reads as unlit, which is what it was.
+[proc,poh_furn_light](string $mes)
+if (%poh_instance = null | instance_find(loc_coord) ! %poh_instance) {
+    return;
+}
+if (inv_total(inv, tinderbox) < 1) {
+    mes("You need a tinderbox to light that.");
+    return;
+}
+def_coord $spot = loc_coord;
+def_int $gx = calc(coordx($spot) - coordx(%poh_instance));
+def_int $gz = calc(coordz($spot) - coordz(%poh_instance));
+def_int $slot = ~poh_furn_at(calc(divide($gx, 8) - ^poh_grid_origin), calc(divide($gz, 8) - ^poh_grid_origin), modulo($gx, 8), modulo($gz, 8));
+if ($slot < 0) {
+    return;
+}
+def_int $v = ~poh_furn_get($slot);
+if (~poh_furn_field($v, ^poh_furn_bit_lit, 1) = 1) {
+    mes("It is already lit.");
+    return;
+}
+~poh_furn_set($slot, setbit_range_toint($v, 1, ^poh_furn_bit_lit, ^poh_furn_bit_lit));
+anim(human_pickupfloor, 0);
+sound_synth(tinderbox_strike, 1, 0);
+~poh_furn_show_lit(~poh_furn_field($v, ^poh_furn_bit_item, 8), $spot, ~poh_furn_field($v, ^poh_furn_bit_angle, 2));
+mes($mes);
+
+// =========================================================================== the altar
+
+// What the altar pays for a set of bones, as a percentage of what burying them gives. OSRS pays
+// 250% at a plain altar and 350% at the best one, and another 50% for each of the two burners
+// beside it. NOT cache data - the tunable part, like the room prices.
+[proc,poh_furn_altar_bonus](int $item)(int)
+def_int $pct = calc(^poh_altar_base + calc(enum(int, int, poh_furn_tier, $item) - 1) * ^poh_altar_step);
+return(calc($pct + ~poh_furn_lit_in_room * ^poh_altar_burner));
+
+// How many lit things stand in the room the player is standing in. A linear scan, like every
+// other question this design asks about the furniture.
+[proc,poh_furn_lit_in_room]()(int)
+def_int $rx = calc(divide(calc(coordx(coord) - coordx(%poh_instance)), 8) - ^poh_grid_origin);
+def_int $rz = calc(divide(calc(coordz(coord) - coordz(%poh_instance)), 8) - ^poh_grid_origin);
+def_int $i = 0;
+def_int $n = 0;
+while ($i < ^poh_furn_slots) {
+    def_int $v = ~poh_furn_get($i);
+    if ($v ! 0) {
+        if (~poh_furn_field($v, ^poh_furn_bit_lit, 1) = 1) {
+            if (~poh_furn_field($v, ^poh_furn_bit_rx, 3) = $rx & ~poh_furn_field($v, ^poh_furn_bit_rz, 3) = $rz) {
+                $n = calc($n + 1);
+            }
+        }
+    }
+    $i = calc($i + 1);
+}
+return($n);
+
+// Anything with a bone_exp param may be offered, which is the same test burying uses - so a bone
+// added to the game later works here without this file knowing it exists.
+[proc,poh_furn_offer](int $item)
+if (%poh_instance = null | instance_find(loc_coord) ! %poh_instance) {
+    return;
+}
+def_obj $bone = last_useitem;
+if (oc_param($bone, bone_exp) <= 0) {
+    mes("The gods have no use for that.");
+    return;
+}
+def_int $pct = ~poh_furn_altar_bonus($item);
+inv_del(inv, $bone, 1);
+anim(human_pray, 0);
+sound_synth(prayer_recharge, 1, 0);
+stat_advance(prayer, calc(oc_param($bone, bone_exp) * $pct / 100));
+mes("You offer the bones. The gods are pleased.");
+
+// =========================================================================== the triggers
+
+[oploc1,poh_larder_1]
+mes("You search the larder.");
+mes("There is food in it, but nothing you want right now.");
+
+[oploc1,poh_larder_2]
+mes("You search the larder.");
+mes("There is food in it, but nothing you want right now.");
+
+[oploc1,poh_larder_3]
+mes("You search the larder.");
+mes("There is food in it, but nothing you want right now.");
+
+[oploc1,poh_kitchen_shelves_1]
+mes("You search the shelves.");
+mes("There is nothing on them.");
+
+[oploc1,poh_kitchen_shelves_2]
+mes("You search the shelves.");
+mes("There is nothing on them.");
+
+[oploc1,poh_kitchen_shelves_3]
+mes("You search the shelves.");
+mes("There is nothing on them.");
+
+[oploc1,poh_kitchen_shelves_4]
+mes("You search the shelves.");
+mes("There is nothing on them.");
+
+[oploc1,poh_kitchen_shelves_5]
+mes("You search the shelves.");
+mes("There is nothing on them.");
+
+[oploc1,poh_kitchen_shelves_6]
+mes("You search the shelves.");
+mes("There is nothing on them.");
+
+[oploc1,poh_kitchen_shelves_7]
+mes("You search the shelves.");
+mes("There is nothing on them.");
+
+[oploc1,poh_diningchairs_1]
+anim(human_sitting_chair, 0);
+mes("You sit down on the bench.");
+
+[oploc1,poh_diningchairs_2]
+anim(human_sitting_chair, 0);
+mes("You sit down on the bench.");
+
+[oploc1,poh_diningchairs_3]
+anim(human_sitting_chair, 0);
+mes("You sit down on the bench.");
+
+[oploc1,poh_diningchairs_4]
+anim(human_sitting_chair, 0);
+mes("You sit down on the bench.");
+
+[oploc1,poh_diningchairs_5]
+anim(human_sitting_chair, 0);
+mes("You sit down on the bench.");
+
+[oploc1,poh_diningchairs_6]
+anim(human_sitting_chair, 0);
+mes("You sit down on the bench.");
+
+[oploc1,poh_diningchairs_7]
+anim(human_sitting_chair, 0);
+mes("You sit down on the bench.");
+
+[oploc1,poh_bellpull_1]
+mes("You ring the bell.");
+mes("Nobody comes. You have not hired a servant yet.");
+
+[oploc1,poh_bellpull_2]
+mes("You ring the bell.");
+mes("Nobody comes. You have not hired a servant yet.");
+
+[oploc1,poh_bellpull_3]
+mes("You ring the bell.");
+mes("Nobody comes. You have not hired a servant yet.");
+
+[oploc1,poh_clock_1]
+mes("You glance at the clock.");
+mes("There is still plenty of the day left for building.");
+
+[oploc1,poh_clock_2]
+mes("You glance at the clock.");
+mes("There is still plenty of the day left for building.");
+
+[oploc1,poh_clock_3]
+mes("You glance at the clock.");
+mes("There is still plenty of the day left for building.");
+
+[oploc1,loc_13581]
+anim(human_sitting_chair, 0);
+mes("You sit down.");
+
+[oploc1,loc_13582]
+anim(human_sitting_chair, 0);
+mes("You sit down.");
+
+[oploc1,loc_13583]
+anim(human_sitting_chair, 0);
+mes("You sit down.");
+
+[oploc1,loc_13584]
+anim(human_sitting_chair, 0);
+mes("You sit down.");
+
+[oploc1,loc_13585]
+anim(human_sitting_chair, 0);
+mes("You sit down.");
+
+[oploc1,loc_13586]
+anim(human_sitting_chair, 0);
+mes("You sit down.");
+
+[oploc1,loc_13587]
+anim(human_sitting_chair, 0);
+mes("You sit down.");
+
+[oploc1,loc_13597]
+mes("You search the shelves.");
+mes("There is nothing here but books you have already read.");
+
+[oploc1,loc_13598]
+mes("You search the shelves.");
+mes("There is nothing here but books you have already read.");
+
+[oploc1,loc_13599]
+mes("You search the shelves.");
+mes("There is nothing here but books you have already read.");
+
+[oploc1,loc_13600]
+mes("You search the shelves.");
+mes("There is nothing here but books you have already read.");
+
+[oploc1,loc_13601]
+mes("You search the shelves.");
+mes("There is nothing here but books you have already read.");
+
+[oploc1,loc_13602]
+mes("You search the shelves.");
+mes("There is nothing here but books you have already read.");
+
+[oploc1,loc_13609]
+~poh_furn_light("You light the fire.");
+
+[oploc5,loc_13610]
+~poh_furn_remove;
+
+[oploc1,loc_13611]
+~poh_furn_light("You light the fire.");
+
+[oploc5,loc_13612]
+~poh_furn_remove;
+
+[oploc1,loc_13613]
+~poh_furn_light("You light the fire.");
+
+[oploc5,loc_13614]
+~poh_furn_remove;
+
+[oploc1,poh_mirror_1]
+anim(human_pickupfloor, 0);
+mes("You look at yourself. Your reflection looks back, unimpressed.");
+
+[oploc1,poh_mirror_2]
+anim(human_pickupfloor, 0);
+mes("You look at yourself. Your reflection looks back, unimpressed.");
+
+[oploc1,poh_mirror_3]
+anim(human_pickupfloor, 0);
+mes("You look at yourself. Your reflection looks back, unimpressed.");
+
+[oploc1,poh_mirror_4]
+anim(human_pickupfloor, 0);
+mes("You look at yourself. Your reflection looks back, unimpressed.");
+
+[oploc1,poh_mirror_5]
+anim(human_pickupfloor, 0);
+mes("You look at yourself. Your reflection looks back, unimpressed.");
+
+[oploc1,poh_mirror_6]
+anim(human_pickupfloor, 0);
+mes("You look at yourself. Your reflection looks back, unimpressed.");
+
+[oploc1,poh_mirror_7]
+anim(human_pickupfloor, 0);
+mes("You look at yourself. Your reflection looks back, unimpressed.");
+
+[oploc1,loc_13699]
+mes("You search the rack.");
+mes("The tools are all where you left them.");
+
+[oploc1,loc_13700]
+mes("You search the rack.");
+mes("The tools are all where you left them.");
+
+[oploc1,loc_13701]
+mes("You search the rack.");
+mes("The tools are all where you left them.");
+
+[oploc1,loc_13702]
+mes("You search the rack.");
+mes("The tools are all where you left them.");
+
+[oploc1,loc_13703]
+mes("You search the rack.");
+mes("The tools are all where you left them.");
+
+[oploc1,poh_altar_saradomin_1]
+@pray_at_altar(stat_base(prayer));
+
+[oplocu,poh_altar_saradomin_1]
+~poh_furn_offer(110);
+
+[oploc1,poh_altar_saradomin_2]
+@pray_at_altar(stat_base(prayer));
+
+[oplocu,poh_altar_saradomin_2]
+~poh_furn_offer(111);
+
+[oploc1,poh_altar_saradomin_3]
+@pray_at_altar(stat_base(prayer));
+
+[oplocu,poh_altar_saradomin_3]
+~poh_furn_offer(112);
+
+[oploc1,poh_altar_saradomin_4]
+@pray_at_altar(stat_base(prayer));
+
+[oplocu,poh_altar_saradomin_4]
+~poh_furn_offer(113);
+
+[oploc1,poh_altar_saradomin_5]
+@pray_at_altar(stat_base(prayer));
+
+[oplocu,poh_altar_saradomin_5]
+~poh_furn_offer(114);
+
+[oploc1,poh_altar_saradomin_6]
+@pray_at_altar(stat_base(prayer));
+
+[oplocu,poh_altar_saradomin_6]
+~poh_furn_offer(115);
+
+[oploc1,poh_altar_saradomin_7]
+@pray_at_altar(stat_base(prayer));
+
+[oplocu,poh_altar_saradomin_7]
+~poh_furn_offer(116);
+
+[oploc1,poh_torch_1]
+~poh_furn_light("You light it.");
+
+[oploc5,poh_torch_1_lit]
+~poh_furn_remove;
+
+[oploc1,poh_torch_2]
+~poh_furn_light("You light it.");
+
+[oploc5,poh_torch_2_lit]
+~poh_furn_remove;
+
+[oploc1,poh_torch_3]
+~poh_furn_light("You light it.");
+
+[oploc5,poh_torch_3_lit]
+~poh_furn_remove;
+
+[oploc1,poh_torch_4]
+~poh_furn_light("You light it.");
+
+[oploc5,poh_torch_4_lit]
+~poh_furn_remove;
+
+[oploc1,poh_torch_5]
+~poh_furn_light("You light it.");
+
+[oploc5,poh_torch_5_lit]
+~poh_furn_remove;
+
+[oploc1,poh_torch_6]
+~poh_furn_light("You light it.");
+
+[oploc5,poh_torch_6_lit]
+~poh_furn_remove;
+
+[oploc1,poh_torch_7]
+~poh_furn_light("You light it.");
+
+[oploc5,poh_torch_7_lit]
+~poh_furn_remove;
+
+[oploc1,poh_musical_thing_1]
+midi_jingle("scape soft");
+mes("You play a tune. It sounds rather nice.");
+
+[oploc1,poh_musical_thing_2]
+midi_jingle("scape soft");
+mes("You play a tune. It sounds rather nice.");
+
+[oploc1,poh_musical_thing_3]
+midi_jingle("scape soft");
+mes("You play a tune. It sounds rather nice.");
+
+[oploc1,poh_telescope_1]
+switch_int (random(4)) {
+    case 0 : mes("You gaze at the stars. You feel very small.");
+    case 1 : mes("You look through the telescope. A shooting star crosses the sky.");
+    case 2 : mes("You watch the clouds drift past. Nothing much is happening up there.");
+    case 3 : mes("You peer through the telescope and see the moon, very close up.");
+    case default : mes("You gaze at the stars. You feel very small.");
+}
+
+[oploc1,poh_telescope_2]
+switch_int (random(4)) {
+    case 0 : mes("You gaze at the stars. You feel very small.");
+    case 1 : mes("You look through the telescope. A shooting star crosses the sky.");
+    case 2 : mes("You watch the clouds drift past. Nothing much is happening up there.");
+    case 3 : mes("You peer through the telescope and see the moon, very close up.");
+    case default : mes("You gaze at the stars. You feel very small.");
+}
+
+[oploc1,poh_telescope_3]
+switch_int (random(4)) {
+    case 0 : mes("You gaze at the stars. You feel very small.");
+    case 1 : mes("You look through the telescope. A shooting star crosses the sky.");
+    case 2 : mes("You watch the clouds drift past. Nothing much is happening up there.");
+    case 3 : mes("You peer through the telescope and see the moon, very close up.");
+    case default : mes("You gaze at the stars. You feel very small.");
+}
+
+[oploc1,poh_throne_1]
+anim(sitting_throne, 0);
+mes("You sit on your throne and survey your kingdom.");
+
+[oploc1,poh_throne_2]
+anim(sitting_throne, 0);
+mes("You sit on your throne and survey your kingdom.");
+
+[oploc1,poh_throne_3]
+anim(sitting_throne, 0);
+mes("You sit on your throne and survey your kingdom.");
+
+[oploc1,poh_throne_4]
+anim(sitting_throne, 0);
+mes("You sit on your throne and survey your kingdom.");
+
+[oploc1,poh_throne_5]
+anim(sitting_throne, 0);
+mes("You sit on your throne and survey your kingdom.");
+
+[oploc1,poh_throne_6]
+anim(sitting_throne, 0);
+mes("You sit on your throne and survey your kingdom.");
+
+[oploc1,poh_throne_7]
+anim(sitting_throne, 0);
+mes("You sit on your throne and survey your kingdom.");
+
+[oploc1,poh_throneroom_bench_1]
+anim(human_sitting_chair, 0);
+mes("You sit down on the bench.");
+
+[oploc1,poh_throneroom_bench_2]
+anim(human_sitting_chair, 0);
+mes("You sit down on the bench.");
+
+[oploc1,poh_throneroom_bench_3]
+anim(human_sitting_chair, 0);
+mes("You sit down on the bench.");
+
+[oploc1,loc_13481]
+mes("The crawling hand waves a finger at you.");
+
+[oploc1,loc_13482]
+mes("The cockatrice head fixes you with a stony look.");
+
+[oploc1,loc_13483]
+mes("The basilisk head stares blankly past your shoulder.");
+
+[oploc1,loc_13484]
+mes("The kurask head says nothing. It never did have much to say.");
+
+[oploc1,loc_13485]
+mes("The abyssal demon head whispers something you would rather not have heard.");
+
+[oploc1,loc_13486]
+mes("The dragon heads snap at each other, then at you.");
+
+[oploc1,loc_13487]
+mes("The kalphite queen's head clicks its mandibles.");

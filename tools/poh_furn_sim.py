@@ -14,11 +14,18 @@ def read(p): return open(os.path.join(CONTENT, p), newline='').read().replace('\
 const = read('scripts/skill_construction/configs/construction.constant')
 enums = read('scripts/skill_construction/configs/poh_furniture.enum')
 rs2 = read('scripts/skill_construction/scripts/poh_furniture.rs2')
+ops = read('scripts/skill_construction/scripts/poh_furn_ops.rs2')
 
 C = {m.group(1): int(m.group(2)) for m in re.finditer(r'\^(\w+)\s*=\s*(-?\d+)', const)}
 SLOTS, ITEMS = C['poh_furn_slots'], C['poh_furn_items']
 BIT = {k[len('poh_furn_bit_'):]: v for k, v in C.items() if k.startswith('poh_furn_bit_')}
-WIDTH = {'rx': 3, 'rz': 3, 'lx': 3, 'lz': 3, 'angle': 2, 'item': 8}
+# Widths are derived from where the NEXT field starts, so adding a field to the record adds it here
+# too and nothing has to be kept in step by hand. The top field's width is checked against the .rs2
+# by check 1 below; `lit` is one bit and is never written by ~poh_furn_pack (~poh_furn_light flips
+# it afterwards), so it gets its width from the constants like the rest.
+_edges = sorted(BIT.values()) + [31]
+WIDTH = {k: next(e for e in _edges if e > v) - v for k, v in BIT.items()}
+WIDTH['lit'] = 1
 
 def table(name):
     body = enums.split('[' + name + ']', 1)[1].split('\n[', 1)[0]
@@ -55,6 +62,11 @@ def field(v, k):                                         # ~poh_furn_field
 print('1. the layout in the .rs2 is the layout here')
 # the packed value may itself hold a comma (modulo($angle, 4)), so match up to the field constant
 for k in WIDTH:
+    if k == 'lit':
+        # not packed at build time - ~poh_furn_light sets it on a record that already exists
+        m = re.search(r'setbit_range_toint\(\$v, 1, \^poh_furn_bit_lit, \^poh_furn_bit_lit\)', ops)
+        check(m is not None, 'lit is set one bit at a time by ~poh_furn_light, not by ~poh_furn_pack')
+        continue
     m = re.search(r'setbit_range_toint\(.*?\^poh_furn_bit_%s, calc\(\^poh_furn_bit_%s \+ (\d+)\)\)' % (k, k), rs2)
     check(m is not None and int(m.group(1)) + 1 == WIDTH[k],
           '%s is %d bits wide in poh_furniture.rs2' % (k, WIDTH[k]))
@@ -85,6 +97,25 @@ check(not bad, '%d combinations round-trip, %d wrong %s' % (8*8*8*8*4*4, len(bad
 zeros = [(rx, rz, lx, lz, a, i) for rx in range(8) for rz in range(8) for lx in range(8)
          for lz in range(8) for a in range(4) for i in (1, ITEMS) if pack(rx, rz, lx, lz, a, i) == 0]
 check(not zeros, 'no real piece packs to 0, which is the empty marker: %s' % zeros[:2])
+
+# THE ONE THIS ROUND EARNED. `lit` was appended at the top of the record, above every field that
+# already existed, because a save written before it existed has 0 in those bits. Decode a record
+# packed WITHOUT it and every old field has to come back unchanged, with lit reading as 0 - unlit,
+# which is what it was.
+OLD = {k: (BIT[k], WIDTH[k]) for k in WIDTH if k != 'lit'}
+oldtop = max(b + w for b, w in OLD.values())
+check('lit' in WIDTH and BIT['lit'] >= oldtop,
+      'lit sits at bit %s, above the %d bits that existed before it' % (BIT.get('lit'), oldtop))
+bad = []
+for rx, rz, lx, lz, angle, item in [(0,0,0,0,0,1), (7,7,7,7,3,ITEMS), (3,5,2,6,1,63), (1,2,3,4,2,127)]:
+    v = 0
+    for k, (b, w) in OLD.items():
+        v |= (dict(rx=rx, rz=rz, lx=lx, lz=lz, angle=angle, item=item)[k] & ((1 << w) - 1)) << b
+    got = tuple(field(v, k) for k in ('rx', 'rz', 'lx', 'lz', 'angle', 'item', 'lit'))
+    if got != (rx, rz, lx, lz, angle, item, 0):
+        bad.append((rx, rz, lx, lz, angle, item, got))
+check(not bad, 'a record written before the lit bit existed still decodes: %s'
+      % (bad[:2] or '4 shapes checked, lit reads 0'))
 
 print('3. the slot scan finds the right piece and nothing else')
 random.seed(4525)

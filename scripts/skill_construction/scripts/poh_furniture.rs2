@@ -5,7 +5,7 @@
 // 238 rows, all of which have to agree with each other and with the 65 hotspot triggers. Twelve
 // families were hand-checkable; fifty-one are not. Edit the spec, not this file.
 //
-// WHERE IT LIVES. 256 perm varps, one piece each, packed into 22 bits - the room cell (3+3), the
+// WHERE IT LIVES. 256 perm varps, one piece each, packed into 23 bits - the room cell (3+3), the
 // tile inside that room (3+3), the angle (2) and which of the 238 buildable things it is (8). The
 // tile inside the zone is what identifies the hotspot, and it is exactly what loc_coord gives, so
 // nothing has to enumerate hotspots or number them. Same trick as the room grid: the save writes
@@ -633,7 +633,15 @@ switch_int ($wood) {
 
 // One case per buildable thing. The loc AND its shape are literals here, so a piece can only ever
 // be placed as the shape its own hotspot was - there is no shape to store and none to get wrong.
-[proc,poh_furn_show](int $item, coord $spot, int $angle)
+//
+// A piece that has been lit goes down as its lit twin instead, which is what makes a fire still
+// be burning after you build a room somewhere else in the house.
+[proc,poh_furn_show](int $item, coord $spot, int $angle, int $lit)
+if ($lit = 1) {
+    if (~poh_furn_show_lit($item, $spot, $angle) = true) {
+        return;
+    }
+}
 switch_int ($item) {
     case 1 : loc_add($spot, poh_stove_1, $angle, centrepiece_straight, ^poh_loc_duration);
     case 2 : loc_add($spot, poh_stove_2, $angle, centrepiece_straight, ^poh_loc_duration);
@@ -876,6 +884,22 @@ switch_int ($item) {
     case default : return;
 }
 
+// The lit twin of anything that can be lit, and false for everything else.
+[proc,poh_furn_show_lit](int $item, coord $spot, int $angle)(boolean)
+switch_int ($item) {
+    case 77 : loc_add($spot, loc_13610, $angle, centrepiece_straight, ^poh_loc_duration); return(true);
+    case 78 : loc_add($spot, loc_13612, $angle, centrepiece_straight, ^poh_loc_duration); return(true);
+    case 79 : loc_add($spot, loc_13614, $angle, centrepiece_straight, ^poh_loc_duration); return(true);
+    case 124 : loc_add($spot, poh_torch_1_lit, $angle, centrepiece_straight, ^poh_loc_duration); return(true);
+    case 125 : loc_add($spot, poh_torch_2_lit, $angle, centrepiece_straight, ^poh_loc_duration); return(true);
+    case 126 : loc_add($spot, poh_torch_3_lit, $angle, centrepiece_straight, ^poh_loc_duration); return(true);
+    case 127 : loc_add($spot, poh_torch_4_lit, $angle, centrepiece_straight, ^poh_loc_duration); return(true);
+    case 128 : loc_add($spot, poh_torch_5_lit, $angle, centrepiece_straight, ^poh_loc_duration); return(true);
+    case 129 : loc_add($spot, poh_torch_6_lit, $angle, centrepiece_straight, ^poh_loc_duration); return(true);
+    case 130 : loc_add($spot, poh_torch_7_lit, $angle, centrepiece_straight, ^poh_loc_duration); return(true);
+    case default : return(false);
+}
+
 // Lay every saved piece back into a freshly built house. Called from ~poh_build after the rooms and
 // before the hotspots are hidden, so each piece lands on the hotspot it belongs to and changes it.
 [proc,poh_furn_restore](coord $base)
@@ -890,7 +914,7 @@ while ($i < ^poh_furn_slots) {
             ~poh_furn_set($i, 0);
         } else {
             def_coord $spot = movecoord($base, calc((^poh_grid_origin + $rx) * 8 + ~poh_furn_field($v, ^poh_furn_bit_lx, 3)), 0, calc((^poh_grid_origin + $rz) * 8 + ~poh_furn_field($v, ^poh_furn_bit_lz, 3)));
-            ~poh_furn_show(~poh_furn_field($v, ^poh_furn_bit_item, 8), $spot, ~poh_furn_field($v, ^poh_furn_bit_angle, 2));
+            ~poh_furn_show(~poh_furn_field($v, ^poh_furn_bit_item, 8), $spot, ~poh_furn_field($v, ^poh_furn_bit_angle, 2), ~poh_furn_field($v, ^poh_furn_bit_lit, 1));
         }
     }
     $i = calc($i + 1);
@@ -1216,7 +1240,7 @@ if ($slot < 0 | ~poh_furn_at($rx, $rz, $lx, $lz) ! -1) {
 }
 ~poh_furn_plank_take($wood, $need);
 ~poh_furn_set($slot, ~poh_furn_pack($rx, $rz, $lx, $lz, $angle, $item));
-~poh_furn_show($item, $spot, $angle);
+~poh_furn_show($item, $spot, $angle, 0);
 stat_advance(construction, ~poh_furn_xp($wood, $need));
 mes("You build the <enum(int, string, poh_furn_name, $item)>.");
 
