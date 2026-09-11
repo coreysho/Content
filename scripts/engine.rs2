@@ -83,6 +83,19 @@
 // info: Minutes elapsed since 1 Jan 2025 UTC (custom, Corey 2026-09-05). Unlike map_clock this is
 // real time and survives a restart, which is what lets farming crops keep growing while offline.
 [command,world_minute]()(int)
+// info: Instanced regions (custom, 2026-09-11 - Construction). An instance is a block of world
+// coordinates filled with copies of 8x8 source zones; players inside are sent REBUILD_REGION.
+// Allocate one: returns its south-west tile on level 0, or null when every slot is taken.
+[command,instance_create]()(coord)
+// info: Lay the source zone containing $src (on its level) over the instance zone containing $dst (on
+// its level), rotated $rot quarter-turns clockwise. False if $dst is not in an instance.
+[command,instance_setzone](coord $dst, coord $src, int $rot)(boolean)
+// info: Empty the instance zone containing $dst.
+[command,instance_clearzone](coord $dst)
+// info: Free the instance containing $coord. Move players out first.
+[command,instance_delete](coord $coord)
+// info: South-west tile (level 0) of the instance containing $coord, or null.
+[command,instance_find](coord $coord)(coord)
 
 // Player ops (2000-2499)
 // info: Get access to $player if they are in the world

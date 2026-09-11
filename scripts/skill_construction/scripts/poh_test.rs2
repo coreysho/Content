@@ -1,0 +1,73 @@
+// POH groundwork (2026-09-11): exercises instanced regions end to end before any Construction content
+// exists. Not a feature - a test house built from the imported room templates.
+//
+//   ::pohtest 0..5   build a garden + parlour + kitchen + dining room + bedroom (rotated 180) in
+//                    house style 0-5 and walk into the garden
+//   ::pohleave       back to Rimmington; the instance is freed
+//
+// Template zone offsets inside each style's square (from the 474 hotspot names): garden 0,1 -
+// workshop 0,5 - parlour 0,7 - kitchen 2,7 - dining 4,7 - bedroom 6,7 (full table in
+// claude/poh-instancing.md).
+
+[debugproc,pohtest](int $style)
+// debugprocs run without protected access; the teleport and the varp need it
+if (p_finduid(uid) = true) {
+    ~poh_test_build($style);
+}
+
+[debugproc,pohleave]
+if (p_finduid(uid) = true) {
+    p_telejump(^poh_exit);
+    ~poh_free;
+}
+
+[proc,poh_test_build](int $style)
+if (%poh_instance ! null) {
+    ~poh_free;
+}
+def_coord $base = instance_create;
+if ($base = null) {
+    mes("No free instance slot.");
+    return;
+}
+%poh_instance = $base;
+def_coord $src = ~poh_style_origin($style);
+~poh_room($base, 7, 7, $src, 0, 1, 0); // garden
+~poh_room($base, 7, 8, $src, 0, 7, 0); // parlour
+~poh_room($base, 8, 8, $src, 2, 7, 0); // kitchen
+~poh_room($base, 6, 8, $src, 4, 7, 0); // dining room
+~poh_room($base, 7, 9, $src, 6, 7, 2); // bedroom, rotated 180 - the rotation check
+p_telejump(movecoord($base, 59, 0, 58));
+mes("Test house (style <tostring($style)>) at <tostring(coordx($base))>, <tostring(coordz($base))>.");
+
+[proc,poh_style_origin](int $style)(coord)
+switch_int ($style) {
+    case 1 : return(movecoord(^poh_templates_a, 0, 1, 0));
+    case 2 : return(movecoord(^poh_templates_a, 0, 2, 0));
+    case 3 : return(movecoord(^poh_templates_a, 0, 3, 0));
+    case 4 : return(^poh_templates_b);
+    case 5 : return(movecoord(^poh_templates_b, 0, 1, 0));
+    case default : return(^poh_templates_a);
+}
+
+// Lay template zone ($tx, $tz) of the style at $src over instance zone ($zx, $zz), ground floor.
+[proc,poh_room](coord $base, int $zx, int $zz, coord $src, int $tx, int $tz, int $rot)
+if (instance_setzone(movecoord($base, multiply($zx, 8), 0, multiply($zz, 8)), movecoord($src, multiply($tx, 8), 0, multiply($tz, 8)), $rot) = false) {
+    mes("instance_setzone failed for zone <tostring($zx)>,<tostring($zz)>.");
+}
+
+[proc,poh_free]
+if (%poh_instance ! null) {
+    instance_delete(%poh_instance);
+    %poh_instance = null;
+}
+
+// Logging out inside a test house frees it; logging IN inside instance space with no instance there
+// (after a logout, a restart or a crash) puts the player back at the portal instead of in the void.
+[proc,poh_logout]
+~poh_free;
+
+[proc,poh_login]
+if (coordx(coord) >= 6400 & coordz(coord) >= 6400 & instance_find(coord) = null) {
+    p_telejump(^poh_exit);
+}
