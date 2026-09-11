@@ -3,9 +3,9 @@
 //   m29_79 levels 0-3 and m30_79 levels 0-1 = the six styles.
 ^poh_templates_a = 0_29_79_0_0
 ^poh_templates_b = 0_30_79_0_0
-// Where a player lands leaving a house. The OSRS house portal's own tile is 2953,3224 = 9,24, but
-// the portal is five tiles wide and covers 7..11, so landing goes one tile east of its east edge.
-^poh_exit = 0_46_50_12_24
+// Where a player lands leaving a house: one tile east of the portal's east edge, on the bank above
+// the Rimmington road.
+^poh_exit = 0_46_50_9_22
 
 // ---- the saved house layout (poh.rs2, 2026-09-11) ----
 // The grid is ^poh_grid x ^poh_grid rooms on the ground floor. Eight is more than OSRS ever needs
@@ -46,15 +46,20 @@
 // ---- the portal round (poh_portal.rs2, 2026-09-11) ----
 // What the estate agent charges for the plot, the garden and the parlour.
 ^poh_house_cost = 1000
-// Where the exit portal stands inside the entry room, in that room's own 8x8 tiles. The OSRS ring
-// is 2x2, so it takes (1,1) to (2,2) - the corner, with the player landing at (3,2) beside it.
-// The corner matters: a garden's door hotspots sit in the MIDDLE of each side (x 3-4 north and
-// south, z 3-4 east and west), so anything parked there would stand in a doorway.
-// Every tile in a garden zone is otherwise open - grass ground decor and hotspots, and the hotspots
-// are gone by the time this is placed.
-^poh_exit_portal_x = 1
-^poh_exit_portal_z = 1
+// Where the exit portal stands inside the entry room, in that room's own 8x8 tiles: (3,3) to (4,4),
+// the middle. That is the garden's CENTREPIECE slot - loc474_15361 "Centrepiece space", 2x2, sits on
+// exactly those tiles in the template - and OSRS loc 4525 is a centrepiece, one of the same family as
+// the Tree, Pond and Statue in category 206. Putting it in a corner (the first attempt) was avoiding
+// the door hotspots, which sit in the MIDDLE of each SIDE (x 3-4 north and south, z 3-4 east and
+// west) and are nowhere near the middle of the room.
+// The player lands at (3,2), directly south of it.
+^poh_exit_portal_x = 3
+^poh_exit_portal_z = 3
 // How long a spawned loc inside a house lasts. loc_add rejects 0, and there is no "forever" - but
 // the instance is purged on the way out, which takes the portal with it, so this only has to
 // outlast one visit. Two million cycles is about a fortnight.
 ^poh_loc_duration = 2000000
+
+// How long ::~pohportal's probe stands. 300 ticks is three minutes - long enough to walk round it
+// and look, short enough that a forgotten one does not block the road.
+^poh_portal_probe_ticks = 300

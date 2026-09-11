@@ -401,6 +401,48 @@ for f in ['pack/model.pack', 'pack/anim.pack', 'pack/animset.pack', 'pack/base.p
     check(len(set(ids)) == len(ids), '%s has no duplicate id' % os.path.basename(f))
     check(len(set(nms)) == len(nms), '%s has no duplicate name' % os.path.basename(f))
 
+print('21. the ground under the portal is level')
+# THE CHECK THIS ROUND EARNED. The OSRS house portal is five tiles wide - every variant in the cache
+# is, so there is no smaller one to fall back to - and a 377 loc sits at ONE height taken from its
+# footprint, with the ground running through it. The first two placements put it across the bank west
+# of the Rimmington road, where the map heights run h35 at x8 down to h12 at x12: about a tile and a
+# half of drop over the five tiles the portal needs, so its west end was buried and its east end
+# floated. Nothing in the pipeline looks at terrain, so nothing said so.
+#
+# A tile with no explicit h in the .jm2 gets a procedural height from the client, which this cannot
+# know - so an unknown tile under the portal fails too, rather than passing by omission.
+HEIGHT = {}
+sec = None
+for line in read(MAPF).split('\n'):
+    if line.startswith('===='):
+        sec = line.strip('= '); continue
+    if sec != 'MAP' or ':' not in line:
+        continue
+    head, data = line.split(':', 1)
+    lv, x, z = (int(v) for v in head.split())
+    if lv != 0:
+        continue
+    m = re.search(r'(?:^| )h(\d+)', data)
+    HEIGHT[(x, z)] = int(m.group(1)) if m else None
+
+MAX_SPREAD = 4          # ~0.25 of a tile of elevation across the whole footprint
+if len(placed) == 1:
+    hs = []
+    for lv, x, z in sorted(covered):
+        h = HEIGHT.get((x, z))
+        check(h is not None, 'tile %d,%d has an explicit height in the map' % (x, z))
+        if h is not None: hs.append(h)
+    if len(hs) == len(covered):
+        check(max(hs) - min(hs) <= MAX_SPREAD,
+              'the footprint is level: heights %d..%d, spread %d (max %d)' % (min(hs), max(hs), max(hs) - min(hs), MAX_SPREAD))
+    exh = HEIGHT.get((ex, ez)) if exitc else None
+    if exh is not None and hs:
+        check(abs(exh - min(hs)) <= 12, 'the landing tile is at a sane height next to it (h%d vs h%d)' % (exh, min(hs)))
+    for lv, x, z in agent:
+        ah = HEIGHT.get((x, z))
+        if ah is not None and hs:
+            check(abs(ah - min(hs)) <= 12, 'the estate agent stands at a sane height (h%d vs h%d)' % (ah, min(hs)))
+
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
 sys.exit(1 if fails else 0)
