@@ -207,7 +207,8 @@ def rgb(v):
 # --------------------------------------------------------------------------- rendering
 
 def render(path, out, modelbleed=False, bg=(0, 0, 0), fill=None):
-    """fill: {component: {"text": "...", "model": <raw model.pack id>, "hide": "yes"}} -
+    """fill: {component: {"text": "...", "model": <raw model.pack id>, "hide": "yes",
+    "recol": "src:dst,..."}} -
     what a script would have pushed with if_settext / if_setmodel / if_sethide, so the
     preview shows a populated window rather than an empty template."""
     order, coms = parse_if(path)
@@ -302,7 +303,7 @@ def _model_tile(c, w, h):
     spec = c.get('model')
     if spec is None:
         return None
-    key = (spec, w, h, c.get('xan', 0), c.get('yan', 0), c.get('zoom', 0))
+    key = (spec, w, h, c.get('xan', 0), c.get('yan', 0), c.get('zoom', 0), c.get('recol', ''))
     if key in _model_cache:
         return _model_cache[key]
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -317,6 +318,11 @@ def _model_tile(c, w, h):
         return None
     import ob2render
     m = ob2render.Model(path)
+    # `recol` is how a fill spells if_setobject: the client builds an obj's model with the obj
+    # config's recolNs/recolNd applied, so a preview that skipped them would show fourteen
+    # identical grey slabs. "src:dst,src:dst", exactly the config's numbers.
+    if c.get('recol'):
+        m.recolour([tuple(int(x) for x in pair.split(':')) for pair in str(c['recol']).split(',')])
     tile = ob2render.render_interface(m, w, h, xan=int(c.get('xan', 0)),
                                       yan=int(c.get('yan', 0)), zoom=int(c.get('zoom', 1)))
     _model_cache[key] = tile

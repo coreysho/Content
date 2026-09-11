@@ -163,6 +163,48 @@ def furnmenu():
     coms += tail('More')
     return coms
 
+# --------------------------------------------------------------------------- the lectern window
+
+TAB_ROWS = 8
+TAB_Y, TAB_STEP, TAB_H = 62, 30, 28
+TAB_X, TAB_W = 26, 448
+TAB_ICON, TAB_BOX = 34, 44
+TAB_SCALE = 90         # if_setobject's scale: zoom = the obj's 2dzoom x 100 / scale. 90 draws the
+                       # tablet 21x27, which is the biggest that fits a 27px row.
+
+def tabletmenu(spec):
+    """One column of eight, not the furniture window's 2x4 grid: a tablet's shopping list is up
+    to '15 earth, 15 water, 1 cosmic, 1 soft clay' and there is nowhere to put that in a 224px
+    slot. Eight is also the most tablets any OSRS lectern lists, so nothing pages."""
+    coms = window('Magic tablets')
+    for i in range(TAB_ROWS):
+        L = 'row%d' % i
+        coms.append((L, dict(type='layer', x=TAB_X, y=TAB_Y + i * TAB_STEP,
+                             width=TAB_W, height=TAB_H, scroll=0)))
+        p = 't%d' % i
+        coms.append((p + 'box', dict(layer=L, type='rect', x=0, y=0, buttontype='normal',
+                                     width=TAB_W, height=TAB_H, fill='no',
+                                     colour='0x6F6250', overcolour='0xFFFFFF', option='Make')))
+        # if_setobject overwrites model/xan/yan/zoom from the ObjType itself, so these four are
+        # only what the packer preloads and what the previewer draws - they are the same values.
+        # The box is 44 tall for a 27-tall tablet because an interface model hangs UPWARD from the
+        # middle of its component and Pix3D clips against Pix2D.bottom and nothing else: a component
+        # too short lets the icon draw up out of the row and over the one above. At 44 the centre
+        # line is 22 down, which is exactly how far the tablet reaches, so it lands at y 0..27 - the
+        # full height of the row, and not one pixel more.
+        coms.append((p + 'model', dict(layer=L, type='model', x=4, y=0, width=TAB_ICON, height=TAB_BOX,
+                                       model=spec['model'], zoom=spec['icon']['2dzoom'],
+                                       xan=spec['icon']['2dxan'], yan=spec['icon']['2dyan'])))
+        coms.append((p + 'name', dict(layer=L, type='text', x=42, y=7, width=126, height=14,
+                                      font='p12_full', shadowed='yes', text='', colour='0xFFFFFF')))
+        coms.append((p + 'need', dict(layer=L, type='text', x=172, y=8, width=200, height=13,
+                                      font='p11_full', shadowed='yes', text='', colour='0xFFFF00')))
+        coms.append((p + 'lvl', dict(layer=L, type='text', x=376, y=7, width=68, height=14,
+                                     center='yes', font='p12_full', shadowed='yes',
+                                     text='', colour='0xFFFFFF')))
+    coms += tail('More')
+    return coms
+
 def tail(moretext):
     """More (in a layer so it can be hidden) and Cancel."""
     out = [('more', dict(type='layer', x=130, y=301, width=110, height=16, scroll=0))]
@@ -403,6 +445,80 @@ def rs2_furn(spec, cams, fams):
     o.append('return(0);')
     return o
 
+def rs2_tab(scale):
+    o = ['// =========================================================================== tablets', '']
+    o.append('// The lectern window. Same three tints and the same whole-row button as the other two; the')
+    o.append('// difference is the icon, which is an OBJ and not a loc model. if_setobject takes the obj and')
+    o.append('// the client reads xan, yan and zoom off the ObjType itself - zoom = the obj\'s own 2dzoom x')
+    o.append('// 100 / scale - so there is no zoom table here and nothing to solve. %d is the scale that puts' % scale)
+    o.append('// a tablet in a 34px box; it was rendered and looked at, like the other two windows.')
+    o.append('//')
+    o.append('// State 1 here means "you have the level but not the runes", which is the same shape as not')
+    o.append('// being able to afford a room - so the needs line goes red and the row stays clickable, and')
+    o.append('// clicking it tells you exactly what is missing.')
+    for i in range(TAB_ROWS):
+        o.append('[proc,poh_tab_row%d](int $tab)' % i)
+        o.append('if ($tab = 0) {')
+        o.append('    if_sethide(poh_tabletmenu:row%d, true);' % i)
+        o.append('    return;')
+        o.append('}')
+        o.append('if_sethide(poh_tabletmenu:row%d, false);' % i)
+        o.append('def_int $state = ^poh_state_ready;')
+        o.append('if (~poh_tab_have($tab) = false) {')
+        o.append('    $state = ^poh_state_poor;')
+        o.append('}')
+        o.append('if (stat(magic) < enum(int, int, poh_tab_level, $tab)) {')
+        o.append('    $state = ^poh_state_locked;')
+        o.append('}')
+        o.append('if_setobject(poh_tabletmenu:t%dmodel, enum(int, obj, poh_tab_obj, $tab), %d);' % (i, scale))
+        o.append('if_settext(poh_tabletmenu:t%dname, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_tab_name, $tab)>");' % i)
+        o.append('if_settext(poh_tabletmenu:t%dneed, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_tab_need, $tab)>");' % i)
+        o.append('if_settext(poh_tabletmenu:t%dlvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_tab_level, $tab))>");' % i)
+        o.append('')
+    o.append('// Study. The window stays up and redraws after every tablet, so one soft clay at a time turns')
+    o.append('// into an inventory of tablets without walking away from the lectern; ^poh_tab_loops is an')
+    o.append('// inventory\'s worth, and the bound is there because a loop that cannot end hangs the script.')
+    o.append('//')
+    o.append('// There is no second page: no lectern lists more than ^poh_tab_max tablets, which is exactly')
+    o.append('// the number of rows, and ~poh_tab_nth has no index above that to give. The More button the')
+    o.append('// shared frame provides is therefore hidden rather than wired up.')
+    o.append('[proc,poh_tab_pick](int $lect)')
+    o.append('def_int $n = 0;')
+    o.append('while ($n < ^poh_tab_loops) {')
+    o.append('    $n = calc($n + 1);')
+    lets = 'abcdefgh'
+    for i in range(TAB_ROWS):
+        o.append('    def_int $%s = ~poh_tab_nth($lect, %d);' % (lets[i], i))
+    o.append('    if ($a = 0) {')
+    o.append('        if_close;')
+    o.append('        return;')
+    o.append('    }')
+    o.append('    if_settext(poh_tabletmenu:title, "<enum(int, string, poh_lectern_name, $lect)>");')
+    o.append('    if_settext(poh_tabletmenu:subtitle, "Select a tablet to make");')
+    for i in range(TAB_ROWS):
+        o.append('    ~poh_tab_row%d($%s);' % (i, lets[i]))
+    o.append('    if_sethide(poh_tabletmenu:more, true);')
+    o.append('    if_openmain(poh_tabletmenu);')
+    for i in range(TAB_ROWS):
+        o.append('    if ($%s ! 0) {' % lets[i])
+        o.append('        if_addresumebutton(poh_tabletmenu:t%dbox);' % i)
+        o.append('    }')
+    o.append('    if_addresumebutton(poh_tabletmenu:cancel);')
+    o.append('    p_pausebutton;')
+    o.append('    def_int $pick = 0;')
+    o.append('    switch_component (last_com) {')
+    for i in range(TAB_ROWS):
+        o.append('        case poh_tabletmenu:t%dbox : $pick = $%s;' % (i, lets[i]))
+    o.append('        case default : if_close; return;')
+    o.append('    }')
+    o.append('    if ($pick > 0) {')
+    o.append('        ~poh_tab_make($pick);')
+    o.append('    }')
+    o.append('}')
+    o.append('if_close;')
+    o.append('')
+    return o
+
 # --------------------------------------------------------------------------- the tint tables
 
 TINTS = [
@@ -605,8 +721,10 @@ if __name__ == '__main__':
                                          FURN_BELOW, xan=xan, yan=yan)
         furn.append(dict(f, zoom=z))
 
+    tspec = json.load(open(os.path.join(ROOT, 'tools/tabletspec.json')))
     names = {}
-    for name, builder in [('poh_roommenu', roommenu), ('poh_furnmenu', furnmenu)]:
+    for name, builder in [('poh_roommenu', roommenu), ('poh_furnmenu', furnmenu),
+                          ('poh_tabletmenu', lambda: tabletmenu(tspec))]:
         coms = builder()
         path = os.path.join(ROOT, 'scripts/skill_construction/interfaces/%s.if' % name)
         text = emit(coms)
@@ -638,7 +756,7 @@ if __name__ == '__main__':
                                          '\n'.join('// ' + l for l in why.split('\n'))))
     print('enums: poh_room_cost_text, poh_fam_name, ' + ', '.join(n for n, _, _ in TINTS))
 
-    rs2 = rs2_room(rooms, None) + rs2_furn(furn, cams, fams)
+    rs2 = rs2_room(rooms, None) + rs2_furn(furn, cams, fams) + [''] + rs2_tab(TAB_SCALE)
     path = os.path.join(ROOT, 'scripts/skill_construction/scripts/poh_menus.rs2')
     nl = '\r\n' if _crlf(os.path.join(ROOT, 'scripts/skill_construction/scripts/poh_build.rs2')) else '\n'
     open(path, 'wb').write((nl.join(rs2).rstrip('\r\n') + nl).encode('utf-8'))

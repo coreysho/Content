@@ -693,6 +693,10 @@ def emit_ops(fams, items, byfam, path='scripts/skill_construction/scripts/poh_fu
             body = ['anim(%s, 0);' % op['seq'], 'mes(%s);' % q(op['mes'])]
         elif k == 'mes':
             body = ['mes(%s);' % q(l) for l in op['lines']]
+        elif k == 'study':
+            # The lectern window, and the only op1 whose body depends on WHICH piece it is: a
+            # lectern's tier is which of the seven it is, and that is what decides its tablet list.
+            body = ['~poh_tab_pick(%d);' % i['tier']]
         else:
             raise SystemExit('unknown op kind %r on %s' % (k, f['key']))
         o += ['[oploc1,%s]' % i['loc']] + body + ['']

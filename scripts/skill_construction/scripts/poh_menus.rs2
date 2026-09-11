@@ -790,3 +790,237 @@ while ($page < 3) {
 }
 if_close;
 return(0);
+
+// =========================================================================== tablets
+
+// The lectern window. Same three tints and the same whole-row button as the other two; the
+// difference is the icon, which is an OBJ and not a loc model. if_setobject takes the obj and
+// the client reads xan, yan and zoom off the ObjType itself - zoom = the obj's own 2dzoom x
+// 100 / scale - so there is no zoom table here and nothing to solve. 90 is the scale that puts
+// a tablet in a 34px box; it was rendered and looked at, like the other two windows.
+//
+// State 1 here means "you have the level but not the runes", which is the same shape as not
+// being able to afford a room - so the needs line goes red and the row stays clickable, and
+// clicking it tells you exactly what is missing.
+[proc,poh_tab_row0](int $tab)
+if ($tab = 0) {
+    if_sethide(poh_tabletmenu:row0, true);
+    return;
+}
+if_sethide(poh_tabletmenu:row0, false);
+def_int $state = ^poh_state_ready;
+if (~poh_tab_have($tab) = false) {
+    $state = ^poh_state_poor;
+}
+if (stat(magic) < enum(int, int, poh_tab_level, $tab)) {
+    $state = ^poh_state_locked;
+}
+if_setobject(poh_tabletmenu:t0model, enum(int, obj, poh_tab_obj, $tab), 90);
+if_settext(poh_tabletmenu:t0name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_tab_name, $tab)>");
+if_settext(poh_tabletmenu:t0need, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_tab_need, $tab)>");
+if_settext(poh_tabletmenu:t0lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_tab_level, $tab))>");
+
+[proc,poh_tab_row1](int $tab)
+if ($tab = 0) {
+    if_sethide(poh_tabletmenu:row1, true);
+    return;
+}
+if_sethide(poh_tabletmenu:row1, false);
+def_int $state = ^poh_state_ready;
+if (~poh_tab_have($tab) = false) {
+    $state = ^poh_state_poor;
+}
+if (stat(magic) < enum(int, int, poh_tab_level, $tab)) {
+    $state = ^poh_state_locked;
+}
+if_setobject(poh_tabletmenu:t1model, enum(int, obj, poh_tab_obj, $tab), 90);
+if_settext(poh_tabletmenu:t1name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_tab_name, $tab)>");
+if_settext(poh_tabletmenu:t1need, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_tab_need, $tab)>");
+if_settext(poh_tabletmenu:t1lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_tab_level, $tab))>");
+
+[proc,poh_tab_row2](int $tab)
+if ($tab = 0) {
+    if_sethide(poh_tabletmenu:row2, true);
+    return;
+}
+if_sethide(poh_tabletmenu:row2, false);
+def_int $state = ^poh_state_ready;
+if (~poh_tab_have($tab) = false) {
+    $state = ^poh_state_poor;
+}
+if (stat(magic) < enum(int, int, poh_tab_level, $tab)) {
+    $state = ^poh_state_locked;
+}
+if_setobject(poh_tabletmenu:t2model, enum(int, obj, poh_tab_obj, $tab), 90);
+if_settext(poh_tabletmenu:t2name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_tab_name, $tab)>");
+if_settext(poh_tabletmenu:t2need, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_tab_need, $tab)>");
+if_settext(poh_tabletmenu:t2lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_tab_level, $tab))>");
+
+[proc,poh_tab_row3](int $tab)
+if ($tab = 0) {
+    if_sethide(poh_tabletmenu:row3, true);
+    return;
+}
+if_sethide(poh_tabletmenu:row3, false);
+def_int $state = ^poh_state_ready;
+if (~poh_tab_have($tab) = false) {
+    $state = ^poh_state_poor;
+}
+if (stat(magic) < enum(int, int, poh_tab_level, $tab)) {
+    $state = ^poh_state_locked;
+}
+if_setobject(poh_tabletmenu:t3model, enum(int, obj, poh_tab_obj, $tab), 90);
+if_settext(poh_tabletmenu:t3name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_tab_name, $tab)>");
+if_settext(poh_tabletmenu:t3need, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_tab_need, $tab)>");
+if_settext(poh_tabletmenu:t3lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_tab_level, $tab))>");
+
+[proc,poh_tab_row4](int $tab)
+if ($tab = 0) {
+    if_sethide(poh_tabletmenu:row4, true);
+    return;
+}
+if_sethide(poh_tabletmenu:row4, false);
+def_int $state = ^poh_state_ready;
+if (~poh_tab_have($tab) = false) {
+    $state = ^poh_state_poor;
+}
+if (stat(magic) < enum(int, int, poh_tab_level, $tab)) {
+    $state = ^poh_state_locked;
+}
+if_setobject(poh_tabletmenu:t4model, enum(int, obj, poh_tab_obj, $tab), 90);
+if_settext(poh_tabletmenu:t4name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_tab_name, $tab)>");
+if_settext(poh_tabletmenu:t4need, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_tab_need, $tab)>");
+if_settext(poh_tabletmenu:t4lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_tab_level, $tab))>");
+
+[proc,poh_tab_row5](int $tab)
+if ($tab = 0) {
+    if_sethide(poh_tabletmenu:row5, true);
+    return;
+}
+if_sethide(poh_tabletmenu:row5, false);
+def_int $state = ^poh_state_ready;
+if (~poh_tab_have($tab) = false) {
+    $state = ^poh_state_poor;
+}
+if (stat(magic) < enum(int, int, poh_tab_level, $tab)) {
+    $state = ^poh_state_locked;
+}
+if_setobject(poh_tabletmenu:t5model, enum(int, obj, poh_tab_obj, $tab), 90);
+if_settext(poh_tabletmenu:t5name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_tab_name, $tab)>");
+if_settext(poh_tabletmenu:t5need, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_tab_need, $tab)>");
+if_settext(poh_tabletmenu:t5lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_tab_level, $tab))>");
+
+[proc,poh_tab_row6](int $tab)
+if ($tab = 0) {
+    if_sethide(poh_tabletmenu:row6, true);
+    return;
+}
+if_sethide(poh_tabletmenu:row6, false);
+def_int $state = ^poh_state_ready;
+if (~poh_tab_have($tab) = false) {
+    $state = ^poh_state_poor;
+}
+if (stat(magic) < enum(int, int, poh_tab_level, $tab)) {
+    $state = ^poh_state_locked;
+}
+if_setobject(poh_tabletmenu:t6model, enum(int, obj, poh_tab_obj, $tab), 90);
+if_settext(poh_tabletmenu:t6name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_tab_name, $tab)>");
+if_settext(poh_tabletmenu:t6need, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_tab_need, $tab)>");
+if_settext(poh_tabletmenu:t6lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_tab_level, $tab))>");
+
+[proc,poh_tab_row7](int $tab)
+if ($tab = 0) {
+    if_sethide(poh_tabletmenu:row7, true);
+    return;
+}
+if_sethide(poh_tabletmenu:row7, false);
+def_int $state = ^poh_state_ready;
+if (~poh_tab_have($tab) = false) {
+    $state = ^poh_state_poor;
+}
+if (stat(magic) < enum(int, int, poh_tab_level, $tab)) {
+    $state = ^poh_state_locked;
+}
+if_setobject(poh_tabletmenu:t7model, enum(int, obj, poh_tab_obj, $tab), 90);
+if_settext(poh_tabletmenu:t7name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_tab_name, $tab)>");
+if_settext(poh_tabletmenu:t7need, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_tab_need, $tab)>");
+if_settext(poh_tabletmenu:t7lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_tab_level, $tab))>");
+
+// Study. The window stays up and redraws after every tablet, so one soft clay at a time turns
+// into an inventory of tablets without walking away from the lectern; ^poh_tab_loops is an
+// inventory's worth, and the bound is there because a loop that cannot end hangs the script.
+//
+// There is no second page: no lectern lists more than ^poh_tab_max tablets, which is exactly
+// the number of rows, and ~poh_tab_nth has no index above that to give. The More button the
+// shared frame provides is therefore hidden rather than wired up.
+[proc,poh_tab_pick](int $lect)
+def_int $n = 0;
+while ($n < ^poh_tab_loops) {
+    $n = calc($n + 1);
+    def_int $a = ~poh_tab_nth($lect, 0);
+    def_int $b = ~poh_tab_nth($lect, 1);
+    def_int $c = ~poh_tab_nth($lect, 2);
+    def_int $d = ~poh_tab_nth($lect, 3);
+    def_int $e = ~poh_tab_nth($lect, 4);
+    def_int $f = ~poh_tab_nth($lect, 5);
+    def_int $g = ~poh_tab_nth($lect, 6);
+    def_int $h = ~poh_tab_nth($lect, 7);
+    if ($a = 0) {
+        if_close;
+        return;
+    }
+    if_settext(poh_tabletmenu:title, "<enum(int, string, poh_lectern_name, $lect)>");
+    if_settext(poh_tabletmenu:subtitle, "Select a tablet to make");
+    ~poh_tab_row0($a);
+    ~poh_tab_row1($b);
+    ~poh_tab_row2($c);
+    ~poh_tab_row3($d);
+    ~poh_tab_row4($e);
+    ~poh_tab_row5($f);
+    ~poh_tab_row6($g);
+    ~poh_tab_row7($h);
+    if_sethide(poh_tabletmenu:more, true);
+    if_openmain(poh_tabletmenu);
+    if ($a ! 0) {
+        if_addresumebutton(poh_tabletmenu:t0box);
+    }
+    if ($b ! 0) {
+        if_addresumebutton(poh_tabletmenu:t1box);
+    }
+    if ($c ! 0) {
+        if_addresumebutton(poh_tabletmenu:t2box);
+    }
+    if ($d ! 0) {
+        if_addresumebutton(poh_tabletmenu:t3box);
+    }
+    if ($e ! 0) {
+        if_addresumebutton(poh_tabletmenu:t4box);
+    }
+    if ($f ! 0) {
+        if_addresumebutton(poh_tabletmenu:t5box);
+    }
+    if ($g ! 0) {
+        if_addresumebutton(poh_tabletmenu:t6box);
+    }
+    if ($h ! 0) {
+        if_addresumebutton(poh_tabletmenu:t7box);
+    }
+    if_addresumebutton(poh_tabletmenu:cancel);
+    p_pausebutton;
+    def_int $pick = 0;
+    switch_component (last_com) {
+        case poh_tabletmenu:t0box : $pick = $a;
+        case poh_tabletmenu:t1box : $pick = $b;
+        case poh_tabletmenu:t2box : $pick = $c;
+        case poh_tabletmenu:t3box : $pick = $d;
+        case poh_tabletmenu:t4box : $pick = $e;
+        case poh_tabletmenu:t5box : $pick = $f;
+        case poh_tabletmenu:t6box : $pick = $g;
+        case poh_tabletmenu:t7box : $pick = $h;
+        case default : if_close; return;
+    }
+    if ($pick > 0) {
+        ~poh_tab_make($pick);
+    }
+}
+if_close;

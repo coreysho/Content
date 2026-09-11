@@ -6,7 +6,8 @@ FILES = ['scripts/skill_construction/scripts/poh.rs2', 'scripts/skill_constructi
          'scripts/skill_construction/scripts/sawmill.rs2',
          'scripts/skill_construction/scripts/poh_furniture.rs2',
          'scripts/skill_construction/scripts/poh_menus.rs2',
-         'scripts/skill_construction/scripts/poh_furn_ops.rs2']
+         'scripts/skill_construction/scripts/poh_furn_ops.rs2',
+         'scripts/skill_construction/scripts/poh_tablets.rs2']
 fails = 0
 def check(ok, what):
     global fails
@@ -71,10 +72,15 @@ check(not (used - varps), 'unresolved: %s' % sorted(used - varps))
 print('   uses: ' + ', '.join(sorted(used)))
 
 print('6. every ^constant resolves')
+# Against every .constant in the repo, for the same reason check 4 walks every .rs2: this round
+# reaches into the spell book's constants (^varrock_teleport, ^enchant_lvl1) and the quest ones
+# (^elena_complete), and a hand-kept list of files would only record which ones I remembered.
 consts = set()
-for p in ['scripts/skill_construction/configs/construction.constant', 'scripts/engine.constant']:
-    if os.path.exists(os.path.join(C, p)):
-        consts |= set(re.findall(r'^\^(\w+)\s*=', read(p), re.M))
+for _root, _, _fs in os.walk(os.path.join(C, 'scripts')):
+    for _fn in _fs:
+        if _fn.endswith('.constant'):
+            consts |= set(re.findall(r'^\^(\w+)\s*=', read(os.path.relpath(os.path.join(_root, _fn), C)), re.M))
+consts |= set(re.findall(r'^\^(\w+)\s*=', read('scripts/engine.constant'), re.M))
 usedc = set(re.findall(r'\^(\w+)', alltext))
 check(not (usedc - consts), 'unresolved: %s' % sorted(usedc - consts))
 
@@ -157,6 +163,7 @@ print('11. line endings')
 for f in FILES + ['scripts/skill_construction/configs/poh_rooms.enum',
                   'scripts/skill_construction/configs/poh_furniture.enum',
                   'scripts/skill_construction/interfaces/poh_roommenu.if',
+    'scripts/skill_construction/interfaces/poh_tabletmenu.if',
                   'scripts/skill_construction/interfaces/poh_furnmenu.if',
                   'scripts/skill_construction/configs/construction.varp',
                   'scripts/skill_construction/configs/construction.constant',
@@ -239,7 +246,9 @@ for n, cfg in NPCCFG.items():
         if re.match(r'^(model|head)\d+$', k):
             for v in vs:
                 check(v in MODELS, '%s %s=%s resolves' % (n, k, v))
-objs_used = set(re.findall(r'inv_(?:total|del|add)\(\s*\w+\s*,\s*(\w+)', alltext))
+# The trailing [,)] is load-bearing: without it `inv_add(inv, enum(int, obj, ...))` reports that
+# there is no obj called "enum". A name followed by "(" is a call, not an item.
+objs_used = set(re.findall(r'inv_(?:total|del|add)\(\s*\w+\s*,\s*(\w+)\s*[,)]', alltext))
 for o in sorted(objs_used):
     check(o in OBJS, 'obj %s is in obj.pack' % o)
 
@@ -857,7 +866,7 @@ def parse_if(path):
 MENUS = 'scripts/skill_construction/scripts/poh_menus.rs2'
 menu = clean[MENUS]
 IFF = {}
-for w in ('poh_roommenu', 'poh_furnmenu'):
+for w in ('poh_roommenu', 'poh_furnmenu', 'poh_tabletmenu'):
     o, coms = parse_if('scripts/skill_construction/interfaces/%s.if' % w)
     IFF[w] = (o, coms)
     check(len(o) == len(set(o)), '%s.if has %d distinct components' % (w, len(set(o))))
@@ -1015,6 +1024,10 @@ print('36. every string these windows can show fits the box it is shown in')
 # is PixFont's, so these widths are the widths the client will draw.
 import ifrender
 FURNE = read('scripts/skill_construction/configs/poh_furniture.enum')
+TABLE_ = read('scripts/skill_construction/configs/poh_tablets.enum')
+TABE = {t: enumtable(TABLE_, t) for t in
+        ('poh_tab_obj', 'poh_tab_name', 'poh_tab_spell', 'poh_tab_level', 'poh_tab_need',
+         'poh_lectern_name')}
 rname, rlvl, rcost = (enumtable(ROOMS, t) for t in ('poh_room_name', 'poh_room_level', 'poh_room_cost_text'))
 fname, flvl, fplank, fwood = (enumtable(FURNE, t) for t in
                               ('poh_furn_name', 'poh_furn_level', 'poh_furn_planks', 'poh_wood_name'))
@@ -1025,6 +1038,10 @@ SHOWN = [
     ('poh_furnmenu', 's0name', [fname[k] for k in fname]),
     ('poh_furnmenu', 's0need', ['%s %s' % (fplank[k], fwood[k]) for k in fplank]),
     ('poh_furnmenu', 'title',  list(FAMS.values())),
+    ('poh_tabletmenu', 't0name', list(TABE['poh_tab_name'].values())),
+    ('poh_tabletmenu', 't0need', list(TABE['poh_tab_need'].values())),
+    ('poh_tabletmenu', 't0lvl',  ['Level %s' % v for v in TABE['poh_tab_level'].values()]),
+    ('poh_tabletmenu', 'title',  list(TABE['poh_lectern_name'].values())),
 ]
 for win, comp, strings in SHOWN:
     d = IFF[win][1][comp]
@@ -1065,8 +1082,10 @@ for t in ('poh_tint_name', 'poh_tint_level', 'poh_tint_need'):
     check(not bad, '%s: every value is a tag PixFont.evaluateTag knows: %s' % (t, bad or 'all known'))
 # and the rows really use them - a table nothing reads is not a feature
 for win, comp, tables in [('poh_roommenu', 'r0', ('poh_tint_name', 'poh_tint_level', 'poh_tint_need')),
-                          ('poh_furnmenu', 's0', ('poh_tint_name', 'poh_tint_level', 'poh_tint_need'))]:
-    proc = 'poh_room_row0' if win == 'poh_roommenu' else 'poh_furn_slot0'
+                          ('poh_furnmenu', 's0', ('poh_tint_name', 'poh_tint_level', 'poh_tint_need')),
+                          ('poh_tabletmenu', 't0', ('poh_tint_name', 'poh_tint_level', 'poh_tint_need'))]:
+    proc = {'poh_roommenu': 'poh_room_row0', 'poh_furnmenu': 'poh_furn_slot0',
+            'poh_tabletmenu': 'poh_tab_row0'}[win]
     # src, not clean: `clean` blanks string literals and the enum lookups live inside if_settext's
     body = src[MENUS].split('[proc,%s]' % proc)[1].split('\n[')[0]
     for t in tables:
@@ -1078,6 +1097,7 @@ print('35. the generator still produces exactly what is checked in')
 import subprocess, filecmp, tempfile, shutil
 kept = {f: open(os.path.join(C, f), 'rb').read() for f in [
     'scripts/skill_construction/interfaces/poh_roommenu.if',
+    'scripts/skill_construction/interfaces/poh_tabletmenu.if',
     'scripts/skill_construction/interfaces/poh_furnmenu.if',
     'scripts/skill_construction/scripts/poh_menus.rs2',
     'pack/interface.pack', 'pack/interface.order',
@@ -1118,6 +1138,174 @@ for item, mid in sorted(cases.items()):
         wrong.append((item, loc, want_model, mid, have))
 check(not wrong, 'every raw model id is still its own loc\'s model: %d checked, %s'
       % (len(cases), wrong[:3] or 'all correct'))
+
+print('40. the tablets say exactly what the spell rows say')
+# A tablet IS a spell, stored. Its level, its runes and the experience making it pays are copied
+# into the enum tables because the window cannot run a db_find per row - so this reads them back
+# out of magic_spell_table and fails if the two have drifted. The copy is the risk this check
+# exists for; nothing else about a tablet is duplicated anywhere.
+import json as _json
+TSPEC = _json.load(open(os.path.join(C, 'tools/tabletspec.json')))
+TABS = TSPEC['tablets']
+SPELLROW = {}
+for _b in read('scripts/skill_magic/configs/magic_spells.dbrow').split('\n['):
+    _m = re.search(r'data=spell,\^(\w+)', _b)
+    if not _m:
+        continue
+    _d = {}
+    for _l in _b.split('\n'):
+        if _l.startswith('data='):
+            _k, _v = _l[5:].split(',', 1)
+            _d.setdefault(_k, []).append(_v)
+    SPELLROW[_m.group(1)] = _d
+RUNEWORD = TSPEC['rune_words']
+def _runes(name):
+    p = SPELLROW[name]['runesrequired'][0].split(',')
+    return [(p[i], int(p[i + 1])) for i in range(0, len(p) - 1, 2) if p[i] != 'null']
+check(len(TABS) == const('poh_tab_items'),
+      '^poh_tab_items is %d, the number of tablets in the spec' % const('poh_tab_items'))
+check(sorted(TABE['poh_tab_name']) == list(range(1, len(TABS) + 1)),
+      'the tablet tables are numbered 1..%d with no gaps' % len(TABS))
+bad = [t['spell'] for t in TABS if t['spell'] not in SPELLROW]
+check(not bad, 'every tablet names a spell that has a magic_spell_table row: %s' % (bad or 'all 14'))
+bad = [(n + 1, TABE['poh_tab_level'][n + 1], SPELLROW[t['spell']]['levelrequired'][0])
+       for n, t in enumerate(TABS)
+       if TABE['poh_tab_level'][n + 1] != SPELLROW[t['spell']]['levelrequired'][0]]
+check(not bad, 'poh_tab_level is the spell row\'s levelrequired: %s' % (bad[:3] or 'all 14 agree'))
+bad = []
+for n, t in enumerate(TABS):
+    want = ', '.join(['%d %s' % (c, RUNEWORD[o]) for o, c in _runes(t['spell'])] + ['1 soft clay'])
+    if TABE['poh_tab_need'][n + 1] != want:
+        bad.append((t['key'], TABE['poh_tab_need'][n + 1], want))
+check(not bad, 'poh_tab_need is the spell row\'s runes plus the clay: %s' % (bad[:3] or 'all 14 agree'))
+bad = [t['key'] for n, t in enumerate(TABS)
+       if TABE['poh_tab_spell'][n + 1] != '^' + t['spell']]
+check(not bad, 'poh_tab_spell names the same spell the spec does: %s' % (bad or 'all 14'))
+# and each kind needs the field its break path reads
+bad = [t['key'] for t in TABS if t['kind'] == 'teleport' and 'tele_coord' not in SPELLROW[t['spell']]]
+check(not bad, 'every teleport tablet\'s spell row carries a tele_coord: %s' % (bad or 'all 6'))
+bad = [t['key'] for t in TABS if t['kind'] in ('convert', 'enchant')
+       and 'convertobj' not in SPELLROW[t['spell']]]
+check(not bad, 'every enchant and bones tablet\'s row carries a convertobj: %s' % (bad or 'all 7'))
+TABRS = clean['scripts/skill_construction/scripts/poh_tablets.rs2']
+check('~staff_runes' not in TABRS,
+      'making a tablet does NOT go through ~staff_runes - a staff pays for casting, not for binding')
+check('~give_spell_xp' not in TABRS and 'stat_advance(magic' in TABRS,
+      'making pays the spell row\'s own experience, and reads it from the row')
+mk = TABRS.split('[proc,poh_tab_make]')[1].split('\n[')[0]
+check(mk.index('inv_del(inv, softclay') < mk.index('inv_add(inv,'),
+      'the clay and the runes go before the tablet arrives')
+for prc in ('poh_tab_teleport', 'poh_tab_gohome'):
+    body = TABRS.split('[proc,%s]' % prc)[1].split('\n[')[0]
+    check('~wilderness_level(coord) > 20' in body, '%s keeps the level 20 wilderness ceiling' % prc)
+    check('~pre_tele_checks(coord)' in body, '%s runs the same pre-tele checks a spell does' % prc)
+for prc in ('poh_tab_teleport', 'poh_tab_gohome', 'poh_tab_convert', 'poh_tab_enchant'):
+    body = TABRS.split('[proc,%s]' % prc)[1].split('\n[')[0]
+    check('stat(magic)' not in body, '%s asks for no Magic level - a tablet is broken, not cast' % prc)
+    check('stat_advance' not in body, '%s pays no experience' % prc)
+    check('inv_total(inv, $tab) < 1' in body, '%s re-checks the tablet is still held' % prc)
+
+print('41. the tablet objs are real, and their recolours really match the model')
+OBJTAB = blocks(read('scripts/skill_construction/configs/poh_tablets.obj'))
+check(sorted(OBJTAB) == sorted(t['obj'] for t in TABS),
+      'poh_tablets.obj defines exactly the %d tablets in the spec' % len(TABS))
+bad = [n for n in OBJTAB if n not in OBJS]
+check(not bad, 'every tablet obj is in obj.pack: %s' % (bad or 'all %d' % len(OBJTAB)))
+bad = [TABE['poh_tab_obj'][n + 1] for n, t in enumerate(TABS)
+       if TABE['poh_tab_obj'][n + 1] != t['obj']]
+check(not bad, 'poh_tab_obj names the spec\'s objs: %s' % (bad or 'all 14'))
+# THE TRAP claude/obj-recolours.md names: a recolour SOURCE that is not one of the model's own
+# face colours does nothing at all, silently, and the item just renders in the base colours.
+srcs = {int(OBJTAB[n]['recol1s'][0]) for n in OBJTAB} | {int(OBJTAB[n]['recol2s'][0]) for n in OBJTAB}
+check(srcs == set(TSPEC['recol_src']),
+      'every tablet recolours off the same two sources the spec names: %s' % sorted(srcs))
+import ob2render as _ob
+_m = _ob.Model(os.path.join(C, 'models/obj/%s.ob2' % TSPEC['model']))
+_faces = set(int(x) for x in _m.colour.tolist())
+bad = [(v, _ob.rgb15_to_hsl16(v)) for v in sorted(srcs) if _ob.rgb15_to_hsl16(v) not in _faces]
+check(not bad, 'each source really is one of the model\'s own face colours, in HSL16: %s'
+      % (bad or 'both of them'))
+bad = [n for n in OBJTAB if OBJTAB[n].get('model', [None])[0] != TSPEC['model']]
+check(not bad, 'every tablet is the same model: %s' % (bad or TSPEC['model']))
+dst = {n: (int(OBJTAB[n]['recol1d'][0]), int(OBJTAB[n]['recol2d'][0])) for n in OBJTAB}
+check(len(set(dst.values())) == len(dst),
+      'no two tablets are the same colour: %d distinct pairs' % len(set(dst.values())))
+# iop1 exactly on the ones that do something by themselves
+want_break = {t['obj'] for t in TABS if t['kind'] != 'enchant'}
+have_break = {n for n in OBJTAB if OBJTAB[n].get('iop1', [None])[0] == 'Break'}
+check(want_break == have_break,
+      'Break is on the nine tablets that need no target, and only those: %s'
+      % (sorted(want_break ^ have_break) or 'exact'))
+# and the triggers match the ops - a trigger on an op the obj does not carry never fires
+fired1 = set(re.findall(r'^\[opheld1,(\w+)\]', TABRS, re.M))
+firedu = set(re.findall(r'^\[opheldu,(\w+)\]', TABRS, re.M))
+check(fired1 == want_break, 'every [opheld1] is on a tablet that carries iop1=Break: %s'
+      % (sorted(fired1 ^ want_break) or 'exact'))
+check(firedu == {t['obj'] for t in TABS if t['kind'] == 'enchant'},
+      'the five enchant tablets are the [opheldu] ones and have no Break')
+
+print('42. the lectern window and the seven lecterns')
+LECT = TSPEC['lecterns']
+MAXT = const('poh_tab_max')
+over = [(l['name'], len(l['tablets'])) for l in LECT if len(l['tablets']) > MAXT]
+check(not over, 'no lectern lists more than ^poh_tab_max (%d) tablets: %s'
+      % (MAXT, over or 'largest is %d' % max(len(l['tablets']) for l in LECT)))
+check(len([c for c in IFF['poh_tabletmenu'][0] if re.fullmatch(r'row\d+', c)]) == MAXT,
+      'poh_tabletmenu has exactly %d rows, one per listable tablet' % MAXT)
+nth = TABRS.split('[proc,poh_tab_nth]')[1].split('\n[')[0]
+got = {int(a): int(b) for a, b in re.findall(r'case (\d+) : return\((\d+)\);', nth)}
+idx = {t['key']: n + 1 for n, t in enumerate(TABS)}
+want = {l['tier'] * MAXT + i: idx[k] for l in LECT for i, k in enumerate(l['tablets'])}
+check(got == want, '~poh_tab_nth is exactly the spec\'s seven lists: %d entries%s'
+      % (len(want), '' if got == want else ' MISMATCH %s' % sorted(set(got.items()) ^ set(want.items()))[:3]))
+check(sorted(TABE['poh_lectern_name']) == sorted(l['tier'] for l in LECT),
+      'poh_lectern_name names all %d lecterns' % len(LECT))
+# Study really opens it, on every lectern, and the loc really carries that op
+studies = {int(a): int(b) for a, b in
+           re.findall(r'\[oploc1,poh_lectern_?(\d)\]\n~poh_tab_pick\((\d)\);',
+                      src['scripts/skill_construction/scripts/poh_furn_ops.rs2'])}
+check(studies == {l['tier']: l['tier'] for l in LECT},
+      'all seven lecterns Study their own tier: %s' % (studies if len(studies) != 7 else 'yes'))
+bad = [l['loc'] for l in LECT if (POHLOC.get(l['loc'], {}).get('op1') or [None])[0] != 'Study']
+check(not bad, 'every lectern loc really advertises op1=Study: %s' % (bad or 'all seven'))
+# the row procs drive the window through if_setobject, which is the obj path and not if_setmodel
+row0 = src[MENUS].split('[proc,poh_tab_row0]')[1].split('\n[')[0]
+check('if_setobject(' in row0 and 'if_setmodel(' not in row0,
+      'the icons come from if_setobject, which takes the obj and reads its own 2d camera')
+scale = int(re.search(r'if_setobject\(poh_tabletmenu:t0model, .*, (\d+)\);', row0).group(1))
+zoom = int(TSPEC['icon']['2dzoom']) * 100 // scale
+d = IFF['poh_tabletmenu'][1]['t0model']
+rowc = IFF['poh_tabletmenu'][1][d['layer']]
+cw, ch = int(d['width']), int(d['height'])
+hw, rise, drop = ifmodels.extent(ifmodels.R.Model(
+    os.path.join(C, 'models/obj/%s.ob2' % TSPEC['model'])), cw, ch,
+    int(TSPEC['icon']['2dxan']), int(TSPEC['icon']['2dyan']), zoom)
+cx, cy = int(d['x']) + cw // 2, int(d['y']) + ch // 2
+check(cx - hw >= 0 and cx + hw <= int(rowc['width']) and cy - rise >= 0 and cy + drop <= int(rowc['height']),
+      'the tablet icon at scale %d lands inside its %sx%s row: x %.0f..%.0f, y %.0f..%.0f'
+      % (scale, rowc['width'], rowc['height'], cx - hw, cx + hw, cy - rise, cy + drop))
+
+print('43. the tablet generator still produces exactly what is checked in')
+kept3 = {f: open(os.path.join(C, f), 'rb').read() for f in [
+    'scripts/skill_construction/configs/poh_tablets.obj',
+    'scripts/skill_construction/configs/poh_tablets.enum',
+    'scripts/skill_construction/scripts/poh_tablets.rs2',
+    'scripts/skill_construction/configs/construction.constant',
+    'scripts/skill_combat/configs/magic/spells.constant',
+    'scripts/skill_magic/configs/magic_spells.dbrow',
+    'pack/obj.pack']}
+r = _sp.run([sys.executable, os.path.join(C, 'tools/gentablets.py')],
+            capture_output=True, text=True, cwd=C)
+check(r.returncode == 0, 'tools/gentablets.py runs clean'
+      + ('' if r.returncode == 0 else ': ' + r.stderr[-400:]))
+moved = [f for f in kept3 if open(os.path.join(C, f), 'rb').read() != kept3[f]]
+for f in moved:
+    open(os.path.join(C, f), 'wb').write(kept3[f])
+check(not moved, 're-running it changes nothing: %s' % (moved or 'byte-identical'))
+op = {l.split('=', 1)[1]: int(l.split('=', 1)[0]) for l in read('pack/obj.pack').split('\n') if '=' in l}
+check(op.get('saw') == 8191 and min(op[t['obj']] for t in TABS) == 8192,
+      'the tablets took the ids after the saw, and nothing already in a bank moved')
+
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

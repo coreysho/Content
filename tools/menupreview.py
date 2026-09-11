@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Draw the two Construction windows as the client would, filled with real data.
+"""Draw the three Construction windows as the client would, filled with real data.
 
 The battery can prove a component is the right type and inside the window. It cannot say
 whether the window LOOKS right - that is a question about pixels, and the only two rounds
@@ -82,6 +82,42 @@ def furn_fill(fam, more, level=99, planks=10 ** 6):
             fill['slot%d' % s] = {'hide': 'yes'}
     return fill
 
+T = 'scripts/skill_construction/configs/poh_tablets.enum'
+TSPEC = os.path.join(HERE, 'tabletspec.json')
+
+def tab_fill(lect, magic=99, runes=None):
+    """runes: the set of tablet keys the player can pay for. None means all of them.
+
+    The tablet icons are objs, not loc models, so this is what if_setobject does: the model is
+    the obj's, the camera is the obj config's own 2d fields, and the recolours are the obj's -
+    without them all fourteen preview as the same grey slab, which is exactly the kind of thing
+    a preview exists to catch."""
+    spec = json.load(open(TSPEC))
+    idx = {t['key']: n + 1 for n, t in enumerate(spec['tablets'])}
+    by = {t['key']: t for t in spec['tablets']}
+    name, lvl = enumtable(T, 'poh_tab_name'), enumtable(T, 'poh_tab_level')
+    need, lname = enumtable(T, 'poh_tab_need'), enumtable(T, 'poh_lectern_name')
+    keys = next(l for l in spec['lecterns'] if l['tier'] == lect)['tablets']
+    s1, s2 = spec['recol_src']
+    rgb = lambda v: (v[0] << 10) | (v[1] << 5) | v[2]
+    fill = {'title': {'text': lname[lect]}, 'subtitle': {'text': 'Select a tablet to make'},
+            'more': {'hide': 'yes'}}
+    for i in range(8):
+        if i >= len(keys):
+            fill['row%d' % i] = {'hide': 'yes'}
+            continue
+        k = keys[i]
+        t = idx[k]
+        st = 2 if magic < int(lvl[t]) else (0 if runes is None or k in runes else 1)
+        tn, tl, td = tint(st)
+        body = by[k]['body']
+        dark = [max(0, round(c * 0.72)) for c in body]
+        fill['t%dmodel' % i] = {'recol': '%d:%d,%d:%d' % (s1, rgb(body), s2, rgb(dark))}
+        fill['t%dname' % i] = {'text': tn + name[t]}
+        fill['t%dneed' % i] = {'text': td + need[t]}
+        fill['t%dlvl' % i] = {'text': tl + 'Level ' + lvl[t]}
+    return fill
+
 STATES = [
     ('Room creation at level 12 with 3,000 coins: all three states at once',
      'poh_roommenu', room_fill([1, 2, 3, 4, 5, 6], True, level=12, coins=3000)),
@@ -92,6 +128,14 @@ STATES = [
     ('The bed hotspot at 99 with nothing in the bank',
      'poh_furnmenu', furn_fill(10, False, level=99, planks=0)),
     ('The larder hotspot, all three affordable', 'poh_furnmenu', furn_fill(3, False)),
+    ('The mahogany demon lectern at Magic 60 with no nature runes: the widest strings there are',
+     'poh_tabletmenu', tab_fill(7, magic=60,
+                                runes={'enchant_sapphire', 'enchant_emerald', 'enchant_ruby',
+                                       'enchant_diamond', 'varrock'})),
+    ('The oak lectern - two tablets and six hidden rows',
+     'poh_tabletmenu', tab_fill(1, magic=99)),
+    ('The mahogany eagle lectern, every teleport there is, at Magic 40',
+     'poh_tabletmenu', tab_fill(6, magic=40)),
 ]
 
 if __name__ == '__main__':
@@ -99,7 +143,7 @@ if __name__ == '__main__':
     tiles = []
     for label, win, fill in STATES:
         path = os.path.join(ROOT, 'scripts/skill_construction/interfaces/%s.if' % win)
-        tmp = '/tmp/_%s.png' % win
+        tmp = '/tmp/_%s_%d.png' % (win, len(tiles))
         ifrender.render(path, tmp, fill=fill)
         tiles.append((label, Image.open(tmp).convert('RGB')))
     W, H = 512, 334
