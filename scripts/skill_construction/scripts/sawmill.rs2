@@ -1,0 +1,93 @@
+// The sawmill operator in the timber yard north-east of Varrock.
+//
+// He turns logs into planks, which is what Construction is built out of. One log makes one plank and
+// the fee is per plank, exactly as in OSRS: 100 for a plank, 250 oak, 500 teak, 1500 mahogany - the
+// same numbers the cache carries as those items' own `cost`, so they are data rather than invention.
+//
+// Buy-plank cuts EVERY log of the chosen kind that you are carrying, and stops when the money runs
+// out rather than refusing the lot. That is OSRS's behaviour and it is the kind one: a player with
+// 27 logs and enough for 19 planks gets 19 planks, not a "you can't afford that".
+//
+// The saw and the hammer are sold in the dialogue instead of through a shop, because there is no
+// shop inv behind his Trade op yet - see the note in sawmill.npc.
+
+[opnpc1,sawmill_operator]
+~chatnpc("<p,happy>Want some planks cut? Bring me logs and I'll saw them for you.");
+def_int $option = ~p_choice3("Let's see about those planks.", 1, "Can you sell me a saw or a hammer?", 2, "Not just now, thanks.", 3);
+if ($option = 1) {
+    ~chatplayer("<p,neutral>Let's see about those planks.");
+    ~sawmill_buy_planks;
+} else if ($option = 2) {
+    ~chatplayer("<p,neutral>Can you sell me a saw or a hammer?");
+    ~sawmill_buy_tool;
+} else {
+    ~chatplayer("<p,neutral>Not just now, thanks.");
+    ~chatnpc("<p,neutral>I'll be here.");
+}
+
+[opnpc3,sawmill_operator]
+~sawmill_buy_planks;
+
+// =========================================================================== planks
+
+[proc,sawmill_buy_planks]
+def_int $pick = ~p_choice5_header("Plank - <tostring(^sawmill_fee_plank)> coins each", 1, "Oak plank - <tostring(^sawmill_fee_oak)> coins each", 2, "Teak plank - <tostring(^sawmill_fee_teak)> coins each", 3, "Mahogany plank - <tostring(^sawmill_fee_mahogany)> coins each", 4, "Cancel", 0, "Which planks?");
+switch_int ($pick) {
+    case 1 : ~sawmill_cut(logs, plank, ^sawmill_fee_plank);
+    case 2 : ~sawmill_cut(oak_logs, oak_plank, ^sawmill_fee_oak);
+    case 3 : ~sawmill_cut(teak_logs, teak_plank, ^sawmill_fee_teak);
+    case 4 : ~sawmill_cut(mahogany_logs, mahogany_plank, ^sawmill_fee_mahogany);
+    case default : return;
+}
+
+// One log in, one plank out, paid for one at a time so a half-funded batch still gets cut.
+[proc,sawmill_cut](namedobj $log, namedobj $plank, int $fee)
+def_int $have = inv_total(inv, $log);
+if ($have = 0) {
+    ~chatnpc("<p,neutral>You've got none of those logs on you.");
+    return;
+}
+def_int $coins = inv_total(inv, coins);
+if ($coins < $fee) {
+    ~chatnpc("<p,neutral>It's <tostring($fee)> coins a plank, and you've not got that on you.");
+    return;
+}
+def_int $afford = divide($coins, $fee);
+def_int $cut = $have;
+if ($afford < $cut) {
+    $cut = $afford;
+}
+inv_del(inv, $log, $cut);
+inv_del(inv, coins, calc($cut * $fee));
+inv_add(inv, $plank, $cut);
+if ($cut < $have) {
+    mes("You pay for <tostring($cut)> plank(s). That's all your coins would stretch to.");
+} else {
+    mes("You pay <tostring(calc($cut * $fee))> coins and get <tostring($cut)> plank(s).");
+}
+
+// =========================================================================== tools
+
+[proc,sawmill_buy_tool]
+~chatnpc("<p,happy>A saw's <tostring(^sawmill_cost_saw)> coins, a hammer's <tostring(^sawmill_cost_hammer)>. You'll want both if you're building.");
+def_int $pick = ~p_choice3("A saw, please.", 1, "A hammer, please.", 2, "Neither, thanks.", 3);
+if ($pick = 1) {
+    ~sawmill_sell(saw, ^sawmill_cost_saw);
+} else if ($pick = 2) {
+    ~sawmill_sell(hammer, ^sawmill_cost_hammer);
+} else {
+    ~chatplayer("<p,neutral>Neither, thanks.");
+}
+
+[proc,sawmill_sell](namedobj $item, int $cost)
+if (inv_total(inv, coins) < $cost) {
+    ~chatnpc("<p,sad>You've not got <tostring($cost)> coins on you.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,sad>You've nowhere to put it.");
+    return;
+}
+inv_del(inv, coins, $cost);
+inv_add(inv, $item, 1);
+~chatnpc("<p,happy>There you go. Mind your fingers.");

@@ -2,7 +2,8 @@
 import re, sys, os
 C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FILES = ['scripts/skill_construction/scripts/poh.rs2', 'scripts/skill_construction/scripts/poh_test.rs2',
-         'scripts/skill_construction/scripts/poh_portal.rs2', 'scripts/skill_construction/scripts/poh_build.rs2']
+         'scripts/skill_construction/scripts/poh_portal.rs2', 'scripts/skill_construction/scripts/poh_build.rs2',
+         'scripts/skill_construction/scripts/sawmill.rs2']
 fails = 0
 def check(ok, what):
     global fails
@@ -152,7 +153,7 @@ print('12. pack ids are unique, and the new ones sit above what was there')
 # Not contiguity: varp.pack is missing id 746 upstream and has always built fine. What matters is
 # that nothing is claimed twice and that the ids added here were free.
 NEW = {'pack/varp.pack': list(range(876, 894)), 'pack/enum.pack': [128, 129, 130, 131, 132],
-       'pack/loc.pack': [15296, 15297], 'pack/npc.pack': [3920]}
+       'pack/loc.pack': [15296, 15297], 'pack/npc.pack': [3920, 3921]}
 for f in ['pack/varp.pack', 'pack/enum.pack', 'pack/loc.pack', 'pack/npc.pack']:
     ids = [int(l.split('=', 1)[0]) for l in open(os.path.join(C, f)).read().split('\n') if '=' in l]
     check(len(set(ids)) == len(ids), '%s has no duplicate id' % os.path.basename(f))
@@ -535,6 +536,70 @@ check('~poh_room_total <= 1' in rm, 'the last room cannot be removed')
 check('~poh_player_in_cell' in rm, 'you cannot remove the room you are standing in')
 check('~poh_joined_count' in rm and '> 1' in rm, 'only a leaf room can be removed')
 check('~poh_spawn_exit' in rm, 'the way out is re-spawned after a removal too')
+
+print('26. the sawmill: the items, the npc and where he stands')
+OBJCFG = blocks(read('scripts/skill_construction/configs/construction.obj'))
+SAWNPC = blocks(read('scripts/skill_construction/configs/sawmill.npc'))
+check(sorted(OBJCFG) == ['mahogany_plank', 'oak_plank', 'plank', 'saw', 'teak_plank'],
+      'construction.obj defines %s' % sorted(OBJCFG))
+for n in OBJCFG:
+    check(n in OBJS, '%s is in obj.pack' % n)
+    for v in (OBJCFG[n].get('model') or []):
+        check(v in MODELS and v in ON_DISK, '%s model=%s is packed and on disk' % (n, v))
+    for k in ('manwear', 'womanwear'):
+        for v in (OBJCFG[n].get(k) or []):
+            mv = v.split(',')[0]
+            check(mv in MODELS and mv in ON_DISK, '%s %s=%s is packed and on disk' % (n, k, mv))
+check('sawmill_operator' in SAWNPC and 'sawmill_operator' in NPCS, 'sawmill_operator is in npc.pack')
+for k, vs in SAWNPC.get('sawmill_operator', {}).items():
+    if re.match(r'^(model|head)\d+$', k):
+        for v in vs:
+            check(v in MODELS and v in ON_DISK, 'sawmill_operator %s=%s is packed and on disk' % (k, v))
+# the importer leaves a TODO on every block it cannot fill; none may ship
+left = re.findall(r'^// TODO by hand:.*$', read('scripts/skill_construction/configs/construction.obj'), re.M)
+check(not left, 'no unanswered importer TODO line left in construction.obj: %s' % left)
+# no dead op: every op the sawmill npc declares has a trigger
+sw = clean[FILES[4]]
+ops = sorted(int(k[2:]) for k in SAWNPC.get('sawmill_operator', {}) if re.match(r'^op\d+$', k))
+trig = sorted(int(m) for m in re.findall(r'^\[opnpc(\d+),sawmill_operator\]', sw, re.M))
+check(ops == trig, 'every op the sawmill operator has is wired: declares %s, triggers %s' % (ops, trig))
+
+SAWMAP = 'maps/m51_54.jm2'
+sec = None; spots = []
+for line in read(SAWMAP).split('\n'):
+    if line.startswith('===='):
+        sec = line.strip('= '); continue
+    if sec != 'NPC' or ':' not in line: continue
+    head, data = line.split(':', 1)
+    lv, x, z = (int(v) for v in head.split())
+    if int(data) == NPCS['sawmill_operator']: spots.append((lv, x, z))
+check(len(spots) == 1, 'the sawmill operator is placed exactly once, got %d' % len(spots))
+
+print('27. the sawmill: the fees are the cache\'s own, and nothing is free')
+for name, c in (('plank', 'sawmill_fee_plank'), ('oak_plank', 'sawmill_fee_oak'),
+                ('teak_plank', 'sawmill_fee_teak'), ('mahogany_plank', 'sawmill_fee_mahogany')):
+    fee = const(c)
+    cost = OBJCFG[name].get('cost')
+    check(fee is not None and fee > 0, '^%s is %s' % (c, fee))
+    if cost:
+        check(int(cost[0]) == fee, '%s: the fee (%s) is the item\'s own cache cost (%s)' % (name, fee, cost[0]))
+for c in ('sawmill_cost_saw', 'sawmill_cost_hammer'):
+    check((const(c) or 0) > 0, '^%s is set' % c)
+# every log and plank the script names resolves, and the pairing is log -> its own plank
+pairs = re.findall(r'~sawmill_cut\((\w+), (\w+), \^(\w+)\)', sw)
+check(len(pairs) == 4, 'four log/plank pairs, got %d' % len(pairs))
+for log, plank, fee in pairs:
+    check(log in OBJS, '%s is in obj.pack' % log)
+    check(plank in OBJS, '%s is in obj.pack' % plank)
+    check(plank in OBJCFG, '%s is one of the new planks' % plank)
+    check(const(fee) is not None, '^%s resolves' % fee)
+    stem = plank.replace('_plank', '')
+    check(log.startswith(stem) or (plank == 'plank' and log == 'logs'),
+          '%s is cut from %s' % (plank, log))
+cut = sw.split('[proc,sawmill_cut]')[1].split('\n[')[0]
+check(cut.index('inv_del') < cut.index('inv_add'), 'the logs and the coins go before the planks arrive')
+check('inv_total(inv, coins)' in cut, 'the purse is read before it is charged')
+check('divide($coins, $fee)' in cut, 'a half-funded batch is cut down, not refused')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
