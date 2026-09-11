@@ -3,8 +3,9 @@
 //   m29_79 levels 0-3 and m30_79 levels 0-1 = the six styles.
 ^poh_templates_a = 0_29_79_0_0
 ^poh_templates_b = 0_30_79_0_0
-// Where a player lands leaving a house (Rimmington portal, OSRS 2953,3224).
-^poh_exit = 0_46_50_9_24
+// Where a player lands leaving a house. The OSRS house portal's own tile is 2953,3224 = 9,24, but
+// the portal is five tiles wide and covers 7..11, so landing goes one tile east of its east edge.
+^poh_exit = 0_46_50_12_24
 
 // ---- the saved house layout (poh.rs2, 2026-09-11) ----
 // The grid is ^poh_grid x ^poh_grid rooms on the ground floor. Eight is more than OSRS ever needs
@@ -45,11 +46,13 @@
 // ---- the portal round (poh_portal.rs2, 2026-09-11) ----
 // What the estate agent charges for the plot, the garden and the parlour.
 ^poh_house_cost = 1000
-// Where the exit portal stands inside the entry room, in that room's own 8x8 tiles. It is two tiles
-// wide, so it takes (2,1) and (3,1) - directly south of where the player lands at (3,2). Both tiles
-// are open in every garden: the only template locs in a garden zone are the grass ground decor and
-// the hotspots, and the hotspots are gone by the time this is placed.
-^poh_exit_portal_x = 2
+// Where the exit portal stands inside the entry room, in that room's own 8x8 tiles. The OSRS ring
+// is 2x2, so it takes (1,1) to (2,2) - the corner, with the player landing at (3,2) beside it.
+// The corner matters: a garden's door hotspots sit in the MIDDLE of each side (x 3-4 north and
+// south, z 3-4 east and west), so anything parked there would stand in a doorway.
+// Every tile in a garden zone is otherwise open - grass ground decor and hotspots, and the hotspots
+// are gone by the time this is placed.
+^poh_exit_portal_x = 1
 ^poh_exit_portal_z = 1
 // How long a spawned loc inside a house lasts. loc_add rejects 0, and there is no "forever" - but
 // the instance is purged on the way out, which takes the portal with it, so this only has to

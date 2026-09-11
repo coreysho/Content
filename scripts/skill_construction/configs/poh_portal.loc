@@ -1,28 +1,44 @@
 // The house entrance in Rimmington and the exit portal inside the house.
 //
-// 377 has no house portal of its own - the 561 poh_ locs imported from 474 are the portals that go
-// INSIDE a portal chamber, each already pointed at a city. These two are built from the same art:
-// the marble frame that ships undirected (poh_portal_marble_empty) with the killerwatt swirl inside
-// it, which is what every one of those imported portals already uses as its first model.
+// Both come out of the OSRS cache (rev 240) via tools/models/importosrslocs.py, models re-encoded
+// by osrs2ob2.py and round-trip verified. The first attempt built them from 377 art instead - the
+// undirected marble frame that shipped with the 474 construction import plus the Draynor killerwatt
+// swirl - and in game that renders as a flat blue disc lying on the grass, because the 474 "frame"
+// is a floor ring and the swirl is a disc with nothing to stand it up. The OSRS models carry their
+// own arch.
 //
-// Both are centrepiece_straight (shape 10) and two tiles wide, so wherever one is placed it takes
-// that tile and the one to its east at angle 0.
+//   poh_house_portal   OSRS loc 15477 - the stone arch on the 5x2 base that stands in Rimmington
+//   poh_exit_portal    OSRS loc 4525  - the 2x2 twisted-root ring that is the garden's way out
+//
+// Both animate with osrsloc_anim_3174 (poh_portal.seq), the OSRS seq the OSRS models are rigged
+// for. 377's own seq 3174 is also called poh_portal and came from the 474 import, but it belongs to
+// the 474 models and is not what these are labelled against.
+//
+// OPS ARE ONLY WHAT WORKS. OSRS gives 15477 Enter / Home / Build mode / Friend's house and 4525
+// Enter / Lock / Remove board advert / Remove. Home needs a house teleport, Friend's house needs an
+// instance two players can be in, and the rest are build-mode furniture ops - none of which exist
+// yet - so they are left off rather than shipped dead (claude/dead-op-audit.md).
 
 [poh_house_portal]
 name=Portal
 desc=A portal to a player-owned house.
-model=draynor_killerwatt_portal
-model2=poh_portal_marble_empty
-anim=poh_portal
-width=2
+model=osrsloc_15477
+model2=osrsloc_15477_2
+width=5
+length=2
+mapscene=64
+ambient=40
+anim=osrsloc_anim_3174
 op1=Enter
 op2=Build mode
 
 [poh_exit_portal]
 name=Portal
 desc=A portal out of the house.
-model=draynor_killerwatt_portal
-model2=poh_portal_marble_empty
-anim=poh_portal
+model=osrsloc_4525
+model2=osrsloc_4525_2
 width=2
+length=2
+ambient=40
+anim=osrsloc_anim_3174
 op1=Enter

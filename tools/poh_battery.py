@@ -344,6 +344,63 @@ check('%poh_owned = 0' in enter_body and 'return' in enter_body,
       'poh_enter turns away a player who owns nothing')
 check('%poh_owned = 1' not in enter_body, 'poh_enter does not hand out ownership')
 
+print('19. the imported OSRS art: every model, frame and base actually on disk')
+# claude/osrs-cache.md's pre-ship sweep, narrowed to this round. A name in a .pack is not a file:
+# every earlier import batch was checked this way before it shipped, and this one has three chained
+# registries behind it (seq -> anim -> animset/base) where a miss shows up in game as an invisible
+# loc rather than an error.
+ON_DISK = set()
+for root, _, fs in os.walk(os.path.join(C, 'models')):
+    for fn in fs:
+        if fn.endswith('.ob2'): ON_DISK.add(fn[:-4])
+ANIMS = set(packmap('pack/anim.pack'))
+ANIMSETS = set(packmap('pack/animset.pack'))
+BASES = set(packmap('pack/base.pack'))
+SUFFIX = ['_1', '_2', '_3', '_4', '_q', '_w', '_r', '_e', '_t', '_5', '_8', '_9',
+          '_a', '_s', '_d', '_f', '_g', '_h', '_z', '_x', '_c', '_v', '_0']
+
+named = []
+for n, cfg in LOCCFG.items():
+    for k, vs in cfg.items():
+        if re.match(r'^model\d*$', k): named += [(n, k, v, True) for v in vs]
+for n, cfg in NPCCFG.items():
+    for k, vs in cfg.items():
+        if re.match(r'^(model|head)\d+$', k): named += [(n, k, v, False) for v in vs]
+for n, k, v, is_loc in named:
+    hit = v in ON_DISK or (is_loc and any((v + sfx) in ON_DISK for sfx in SUFFIX))
+    check(hit, '%s %s=%s has a .ob2 on disk' % (n, k, v))
+
+SEQF = 'scripts/skill_construction/configs/poh_portal.seq'
+seqs_declared = set(re.findall(r'^\[(\w+)\]', read(SEQF), re.M))
+anims_used = {v for cfg in LOCCFG.values() for v in cfg.get('anim', [])}
+for a in sorted(anims_used):
+    check(a in seqs_declared or a in SEQS, '%s is declared (poh_portal.seq) or already in seq.pack' % a)
+    check(a in SEQS, '%s is registered in seq.pack' % a)
+
+frames = re.findall(r'^frame\d+=(\S+)$', read(SEQF), re.M)
+check(len(frames) > 0, 'poh_portal.seq names %d frames' % len(frames))
+delays = re.findall(r'^delay\d+=', read(SEQF), re.M)
+check(len(delays) == len(frames), 'every frame has a delay (%d/%d)' % (len(delays), len(frames)))
+sets_needed = set()
+for f in frames:
+    check(f in ANIMS, 'frame %s is in anim.pack' % f)
+    sets_needed.add(f.rsplit('_', 1)[0])
+for st_ in sorted(sets_needed):
+    check(st_ in ANIMSETS, '%s is in animset.pack' % st_)
+    check(st_.replace('anim_', 'base_', 1) in BASES, '%s base is in base.pack' % st_)
+    path = os.path.join(C, 'models', st_ + '.anim')
+    check(os.path.exists(path) and os.path.getsize(path) > 0, '%s.anim is on disk' % st_)
+
+print('20. no pack gained a CR, a duplicate name or a duplicate id')
+for f in ['pack/model.pack', 'pack/anim.pack', 'pack/animset.pack', 'pack/base.pack',
+          'pack/seq.pack', 'pack/loc.pack', 'pack/npc.pack']:
+    b = open(os.path.join(C, f), 'rb').read()
+    check(b'\r' not in b and b.endswith(b'\n'), '%s is LF and ends with a newline' % os.path.basename(f))
+    rows = [l for l in b.decode().split('\n') if '=' in l]
+    ids = [l.split('=', 1)[0] for l in rows]; nms = [l.split('=', 1)[1] for l in rows]
+    check(len(set(ids)) == len(ids), '%s has no duplicate id' % os.path.basename(f))
+    check(len(set(nms)) == len(nms), '%s has no duplicate name' % os.path.basename(f))
+
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
 sys.exit(1 if fails else 0)
