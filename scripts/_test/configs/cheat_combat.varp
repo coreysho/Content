@@ -1,0 +1,19 @@
+// Debug-only varps for the combat/drop test cheats in scripts/cheats/cheat_combat.rs2.
+//
+// All three are TEMP on purpose - no scope line, so they reset on logout. A one-shot flag that
+// survived a relog would be a trap: you would come back the next day still killing everything in
+// one hit and have no idea why.
+//
+// protect=no so the combat hot path can read %debug_onehit without needing p_active_player. The
+// read sits in ~npc_default_damage, which also runs for npc-vs-npc recoil, where that pointer is
+// not guaranteed.
+
+[debug_onehit]
+protect=no
+
+[debug_droptest_npc]
+type=npc
+protect=no
+
+[debug_droptest_left]
+protect=no

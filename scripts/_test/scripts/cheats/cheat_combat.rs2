@@ -1,0 +1,153 @@
+// Combat and drop-table test cheats.
+//
+// ::~onehit            toggle - every swing kills whatever you hit, hit or miss
+// ::~kill              instantly kill the nearest npc, no fighting
+// ::~droptest <npc> <n>  spawn that npc next to you and kill it n times, for drop-rate testing
+// ::~droptest <npc> 0    cancel a running drop test
+//
+// RIGHTS. These are [debugproc,...], which ClientCheatHandler only dispatches at
+// staffModLevel >= 4 - the whole developer block is skipped below that. The explicit
+// ~debug_require_dev check below is belt-and-braces so the requirement is visible in the file
+// rather than only in the engine, and so these stay gated if that block is ever loosened.
+//
+// PREFIX. Debugprocs need the ~: ::~onehit, not ::onehit. ::onehit looks for [debugproc,onehi],
+// finds nothing and returns SILENTLY. See claude/debug-cheats.md.
+//
+// POINTERS. A debugproc is handed no pointers, not even an active player, so each one acquires
+// with p_finduid(uid) and works inside the success branch - same shape as cheat_quests.rs2.
+
+[proc,debug_require_dev]()(boolean)
+if (staffmodlevel >= 4) {
+    return(true);
+}
+return(false);
+
+// ---------------------------------------------------------------------------------------------
+// ::~onehit
+//
+// The check itself lives in ONE place - [proc,npc_default_damage] in
+// skill_combat/scripts/npc/npc_combat.rs2 - rather than in the melee, ranged and magic damage
+// calculations separately. That proc is the chokepoint every hit funnels through: melee, ranged,
+// magic, special attacks and recoil all end at npc_queue(2, ...) -> [ai_queue2,_] ->
+// ~npc_default_damage. Overriding there covers all of them with a single edit, and it covers a
+// MISS too, because a miss still queues the hit with damage 0.
+//
+// Two npcs bypass it: slayer_abyssal and ogre_shaman have their own [ai_queue2,...] that does not
+// call ~npc_default_damage. ::~kill still works on those.
+// ---------------------------------------------------------------------------------------------
+[debugproc,onehit]
+if (p_finduid(uid) = true) {
+    if (~debug_require_dev = false) {
+        return;
+    }
+    if (%debug_onehit = ^true) {
+        %debug_onehit = ^false;
+        mes("One-hit kills: @red@OFF@whi@.");
+    } else {
+        %debug_onehit = ^true;
+        mes("One-hit kills: @gre@ON@whi@. Every swing kills, hit or miss. ::~onehit again to stop.");
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// ::~kill - nearest npc, whatever it is. npc_findallany walks every npc near a coord regardless
+// of type, which is what makes this work without naming one.
+// ---------------------------------------------------------------------------------------------
+[debugproc,kill]
+if (p_finduid(uid) = true) {
+    if (~debug_require_dev = false) {
+        return;
+    }
+    npc_findallany(coord, 10, 0);
+    if (npc_findnext = false) {
+        mes("No npc within 10 tiles.");
+        return;
+    }
+    if (npc_stat(hitpoints) <= 0) {
+        mes("<npc_name> has no hitpoints - nothing to kill.");
+        return;
+    }
+    def_string $name = npc_name;
+    npc_heropoints(^debug_heropoints);
+    npc_damage(^hitmark_damage, npc_stat(hitpoints));
+    mes("Killed <$name>.");
+}
+
+// ---------------------------------------------------------------------------------------------
+// ::~droptest <npc> <count>
+//
+// Spawns the npc on your tile, credits you as the hero, and damages it for its full hitpoints.
+// That runs the npc's REAL death hook and REAL drop table at its REAL rates - it does not fake a
+// roll or bias random(). Rare drops still need the kills; this just makes the kills cost a tick
+// each instead of a fight each.
+//
+// One kill per queue cycle rather than a tight loop, because npc_damage does not drop the loot
+// itself: it takes the hitpoints to 0 and calls npc_queue(3, ...), which runs the death script on
+// the NPC's own queue on a later tick. A loop would spawn <count> npcs on one tile in a single
+// tick, then find the same already-dead one over and over.
+//
+// WHY NOT A RATE MULTIPLIER. There is no shared roll helper to hook. Almost every table is an
+// inline `def_int $random = random(128);` in that npc's own [ai_queue3,...], so a global boost
+// would mean editing 100+ files. Biasing random() engine-side would be worse than useless here:
+// these tables put the common drops at the LOW end (king_black_dragon.rs2: `$random < 10` is a
+// rune longsword) and the rare ones at the HIGH end (`$random < 126` is the ultrarare table), so
+// making random() return small numbers would test the exact opposite of what you want.
+// ---------------------------------------------------------------------------------------------
+[debugproc,droptest](npc $npc, int $count)
+if (p_finduid(uid) = true) {
+    if (~debug_require_dev = false) {
+        return;
+    }
+    if ($npc = null) {
+        @debugusage("::~droptest (npc) (count)", "::~droptest king_dragon 100", "::~droptest chicken 20");
+        return;
+    }
+    if ($count <= 0) {
+        %debug_droptest_left = 0;
+        mes("Drop test cancelled.");
+        return;
+    }
+    if ($count > ^debug_droptest_max) {
+        $count = ^debug_droptest_max;
+        mes("Capped at <tostring(^debug_droptest_max)> kills.");
+    }
+    %debug_droptest_npc = $npc;
+    %debug_droptest_left = $count;
+    mes("Drop test: <tostring($count)> x <nc_name($npc)>. ::~droptest <nc_debugname($npc)> 0 to stop.");
+    queue(debug_droptest, 1, 0);
+}
+
+[queue,debug_droptest]
+~debug_droptest_tick;
+
+[proc,debug_droptest_tick]
+if (%debug_droptest_left <= 0) {
+    %debug_droptest_left = 0;
+    mes("Drop test finished.");
+    return;
+}
+def_npc $type = %debug_droptest_npc;
+if ($type = null) {
+    %debug_droptest_left = 0;
+    return;
+}
+%debug_droptest_left = sub(%debug_droptest_left, 1);
+npc_add(coord, $type, ^debug_droptest_lifetime);
+if (npc_find(coord, $type, 2, 0) = true) {
+    if (npc_stat(hitpoints) > 0) {
+        npc_heropoints(^debug_heropoints);
+        npc_damage(^hitmark_damage, npc_stat(hitpoints));
+    } else {
+        // No hitpoints stat, so npc_damage can never take it to 0 and its death hook would never
+        // run. Say so once and stop rather than spinning for the full count.
+        %debug_droptest_left = 0;
+        mes("<npc_name> has no hitpoints - it has no death drop to test.");
+        npc_del;
+        return;
+    }
+}
+if (%debug_droptest_left > 0) {
+    queue(debug_droptest, ^debug_droptest_delay, 0);
+} else {
+    mes("Drop test finished.");
+}

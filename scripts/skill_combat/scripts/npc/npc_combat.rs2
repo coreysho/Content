@@ -64,6 +64,16 @@ if (npc_param(attack_sound) ! null) {
 if (npc_stat(hitpoints) = 0) {
     return;
 }
+// DEBUG: ::~onehit (scripts/_test/scripts/cheats/cheat_combat.rs2, staffModLevel >= 4 only).
+// Placed here rather than in the melee/ranged/magic damage calculations because this proc is
+// the one chokepoint they all funnel through - every attack, special and recoil ends at
+// npc_queue(2, ...) -> [ai_queue2,_] -> here. Deliberately NOT gated on $damage > 0, so a miss
+// kills too: a miss still queues the hit with damage 0.
+// %debug_onehit is temp and protect=no, so it resets on logout and is safe to read here even
+// when this runs for npc-vs-npc recoil without a player pointer.
+if (%debug_onehit = ^true) {
+    $damage = npc_stat(hitpoints);
+}
 // damage the npc
 if ($damage = 0) {
     npc_damage(^hitmark_block, 0);
