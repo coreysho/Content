@@ -4,8 +4,8 @@
 //   ::~pohenter                   build your saved house and walk in
 //   ::~pohbuild                   the same, in build mode - the hotspots stay up
 //   ::~pohbuy                     grant the house the estate agent sells, without the coins
-//   ::~pohportal                  drop a real house portal where you stand for 3 minutes and print
-//                                 its coord - how to choose a tile without a deploy per guess
+//   ::~pohportal <rot>            drop a real house portal where you stand, rotated <rot> x90, for
+//                                 3 minutes - how to choose a tile and a facing without a deploy
 //   ::~pohleave                   back to Rimmington; the instance is freed, the layout is kept
 //   ::~pohset <rx> <rz> <t> <rot> put room type <t> (0 clears) at grid <rx>,<rz>, rotated <rot> x90
 //   ::~pohwipe                    empty the grid, then hand out the starter house again
@@ -38,11 +38,17 @@ if (p_finduid(uid) = true) {
 // drops about a tile and a half across those five. This drops the real thing at your feet so the
 // next tile can be chosen by looking at it. It stands for 3 minutes and then goes.
 // loc_add anchors at the south-west corner, so it runs 5 tiles EAST and 2 NORTH of where you stand.
-[debugproc,pohportal]
+[debugproc,pohportal](int $rot)
 if (p_finduid(uid) = true) {
-    loc_add(coord, poh_house_portal, 0, centrepiece_straight, ^poh_portal_probe_ticks);
-    mes("Portal at <tostring(divide(coordx(coord), 64))>_<tostring(divide(coordz(coord), 64))>_<tostring(modulo(coordx(coord), 64))>_<tostring(modulo(coordz(coord), 64))> (map_x, map_z, local_x, local_z).");
-    mes("It covers 5 tiles east and 2 north of here, and goes in 3 minutes.");
+    def_int $r = modulo($rot, 4);
+    loc_add(coord, poh_house_portal, $r, centrepiece_straight, ^poh_portal_probe_ticks);
+    mes("Portal at <tostring(divide(coordx(coord), 64))>_<tostring(divide(coordz(coord), 64))>_<tostring(modulo(coordx(coord), 64))>_<tostring(modulo(coordz(coord), 64))> (map_x, map_z, local_x, local_z), rotated <tostring($r)>.");
+    // width and length swap on an odd rotation, and loc_add anchors at the south-west corner
+    if (modulo($r, 2) = 0) {
+        mes("It covers 5 tiles east and 2 north of here, and goes in 3 minutes.");
+    } else {
+        mes("It covers 2 tiles east and 5 north of here, and goes in 3 minutes.");
+    }
 }
 
 [debugproc,pohleave]

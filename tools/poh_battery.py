@@ -404,14 +404,18 @@ for f in ['pack/model.pack', 'pack/anim.pack', 'pack/animset.pack', 'pack/base.p
 print('21. the ground under the portal is level')
 # THE CHECK THIS ROUND EARNED. The OSRS house portal is five tiles wide - every variant in the cache
 # is, so there is no smaller one to fall back to - and a 377 loc sits at ONE height taken from its
-# footprint, with the ground running through it. The first two placements put it across the bank west
-# of the Rimmington road, where the map heights run h35 at x8 down to h12 at x12: about a tile and a
-# half of drop over the five tiles the portal needs, so its west end was buried and its east end
-# floated. Nothing in the pipeline looks at terrain, so nothing said so.
+# footprint, with the ground running through it. The first placements put it across the bank west of
+# the Rimmington road, where the ground falls h35 to h12 over the five tiles it needs: its west end
+# was buried and its east end floated. Nothing in the pipeline had ever looked at terrain.
 #
-# A tile with no explicit h in the .jm2 gets a procedural height from the client, which this cannot
-# know - so an unknown tile under the portal fails too, rather than passing by omission.
-HEIGHT = {}
+# A tile with no explicit h in the .jm2 is NOT unknown: the client generates it (World.method32), and
+# tools/terrain377.py is that function transcribed, so every tile has a height here. Validated
+# against the map itself - at the 801 places an explicit tile borders a generated one the two agree
+# to a mean of 2.3, against 9.1 for the same noise sampled 37 tiles away.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from terrain377 import height_of
+
+EXPLICIT = {}
 sec = None
 for line in read(MAPF).split('\n'):
     if line.startswith('===='):
@@ -423,25 +427,56 @@ for line in read(MAPF).split('\n'):
     if lv != 0:
         continue
     m = re.search(r'(?:^| )h(\d+)', data)
-    HEIGHT[(x, z)] = int(m.group(1)) if m else None
+    EXPLICIT[(x, z)] = int(m.group(1)) if m else None
+
+MSQ = re.match(r'maps/m(\d+)_(\d+)\.jm2', MAPF)
+MX, MZ = int(MSQ.group(1)), int(MSQ.group(2))
+def ground(x, z):
+    h = EXPLICIT.get((x, z))
+    return h if h is not None else height_of(MX * 64 + x, MZ * 64 + z)
+
+# the transcription has to be right, or every number below is decoration
+seams = []
+for (x, z), h in EXPLICIT.items():
+    if h is None: continue
+    for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        n = (x + dx, z + dz)
+        if n in EXPLICIT and EXPLICIT[n] is None:
+            seams.append(abs(h - height_of(MX * 64 + n[0], MZ * 64 + n[1])))
+mean = sum(seams) / len(seams) if seams else 99
+ctrl = []
+for (x, z), h in EXPLICIT.items():
+    if h is None: continue
+    for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        n = (x + dx, z + dz)
+        if n in EXPLICIT and EXPLICIT[n] is None:
+            ctrl.append(abs(h - height_of(MX * 64 + n[0] + 37, MZ * 64 + n[1] + 37)))
+cmean = sum(ctrl) / len(ctrl) if ctrl else 0
+check(mean < cmean / 2, 'terrain377 tracks the map: %d seams, mean |diff| %.2f vs %.2f for shifted noise'
+      % (len(seams), mean, cmean))
 
 MAX_SPREAD = 4          # ~0.25 of a tile of elevation across the whole footprint
 if len(placed) == 1:
-    hs = []
-    for lv, x, z in sorted(covered):
-        h = HEIGHT.get((x, z))
-        check(h is not None, 'tile %d,%d has an explicit height in the map' % (x, z))
-        if h is not None: hs.append(h)
-    if len(hs) == len(covered):
-        check(max(hs) - min(hs) <= MAX_SPREAD,
-              'the footprint is level: heights %d..%d, spread %d (max %d)' % (min(hs), max(hs), max(hs) - min(hs), MAX_SPREAD))
-    exh = HEIGHT.get((ex, ez)) if exitc else None
-    if exh is not None and hs:
-        check(abs(exh - min(hs)) <= 12, 'the landing tile is at a sane height next to it (h%d vs h%d)' % (exh, min(hs)))
+    hs = [ground(x, z) for lv, x, z in sorted(covered)]
+    check(max(hs) - min(hs) <= MAX_SPREAD,
+          'the footprint is level: heights %d..%d, spread %d (max %d)' % (min(hs), max(hs), max(hs) - min(hs), MAX_SPREAD))
+    if exitc:
+        eh = ground(ex, ez)
+        check(abs(eh - min(hs)) <= 12, 'the landing tile is at a sane height next to it (h%d vs h%d)' % (eh, min(hs)))
     for lv, x, z in agent:
-        ah = HEIGHT.get((x, z))
-        if ah is not None and hs:
-            check(abs(ah - min(hs)) <= 12, 'the estate agent stands at a sane height (h%d vs h%d)' % (ah, min(hs)))
+        check(abs(ground(x, z) - min(hs)) <= 12, 'the estate agent stands at a sane height (h%d vs h%d)' % (ground(x, z), min(hs)))
+
+print('22. the portal is rotated so it faces the road')
+# Placed at angle 3 with width 5 and length 2: an odd rotation swaps them, so the five-tile face runs
+# NORTH-SOUTH and the portal looks east, down the bank at the Rimmington road. Check 15 already reads
+# the footprint from the config with that swap applied; this is the intent, written down.
+if len(placed) == 1:
+    check(pangle in (1, 3), 'it is on an odd rotation (angle %d), so its wide face runs north-south' % pangle)
+    w = int(LOCCFG['poh_house_portal'].get('width', ['1'])[0])
+    l = int(LOCCFG['poh_house_portal'].get('length', ['1'])[0])
+    xs = {x for lv, x, z in covered}; zs = {z for lv, x, z in covered}
+    check(len(xs) == l and len(zs) == w,
+          'the footprint is %d wide by %d deep on the ground (config %dx%d)' % (len(xs), len(zs), w, l))
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
