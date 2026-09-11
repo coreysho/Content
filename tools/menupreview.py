@@ -85,23 +85,27 @@ def furn_fill(fam, more, level=99, planks=10 ** 6):
 T = 'scripts/skill_construction/configs/poh_tablets.enum'
 TSPEC = os.path.join(HERE, 'tabletspec.json')
 
-def tab_fill(lect, magic=99, runes=None):
+def tab_fill(lect, magic=99, runes=None, qty=1):
     """runes: the set of tablet keys the player can pay for. None means all of them.
 
-    The tablet icons are objs, not loc models, so this is what if_setobject does: the model is
-    the obj's, the camera is the obj config's own 2d fields, and the recolours are the obj's -
-    without them all fourteen preview as the same grey slab, which is exactly the kind of thing
-    a preview exists to catch."""
+    The tablet icons are objs, not loc models, so this is what if_setobject does: the model and
+    the camera both come from the obj config, and the zoom is that config's own 2dzoom scaled by
+    the if_setobject scale. Each of the fourteen OSRS tablets has its own model, so unlike the
+    recoloured slab this replaced there is nothing to recolour."""
     spec = json.load(open(TSPEC))
     idx = {t['key']: n + 1 for n, t in enumerate(spec['tablets'])}
     by = {t['key']: t for t in spec['tablets']}
     name, lvl = enumtable(T, 'poh_tab_name'), enumtable(T, 'poh_tab_level')
     need, lname = enumtable(T, 'poh_tab_need'), enumtable(T, 'poh_lectern_name')
     keys = next(l for l in spec['lecterns'] if l['tier'] == lect)['tablets']
-    s1, s2 = spec['recol_src']
-    rgb = lambda v: (v[0] << 10) | (v[1] << 5) | v[2]
+    scale = int(re.search(r'if_setobject\(poh_tabletmenu:t0model, .*, (\d+)\);',
+                          open(os.path.join(ROOT, MENUS), newline='').read()).group(1))
     fill = {'title': {'text': lname[lect]}, 'subtitle': {'text': 'Select a tablet to make'},
             'more': {'hide': 'yes'}}
+    steps = spec['quantities']['steps']
+    for n in steps:
+        fill['qty%d' % n] = {'text': ('@gre@' if n == qty else '@whi@') + str(n)}
+    fill['qtyx'] = {'text': ('@gre@%d' % qty) if qty not in steps else '@whi@X'}
     for i in range(8):
         if i >= len(keys):
             fill['row%d' % i] = {'hide': 'yes'}
@@ -110,9 +114,9 @@ def tab_fill(lect, magic=99, runes=None):
         t = idx[k]
         st = 2 if magic < int(lvl[t]) else (0 if runes is None or k in runes else 1)
         tn, tl, td = tint(st)
-        body = by[k]['body']
-        dark = [max(0, round(c * 0.72)) for c in body]
-        fill['t%dmodel' % i] = {'recol': '%d:%d,%d:%d' % (s1, rgb(body), s2, rgb(dark))}
+        ic = by[k]['icon']
+        fill['t%dmodel' % i] = {'model': by[k]['model'], 'zoom': ic['2dzoom'] * 100 // scale,
+                                'xan': ic.get('2dxan', 0), 'yan': ic.get('2dyan', 0)}
         fill['t%dname' % i] = {'text': tn + name[t]}
         fill['t%dneed' % i] = {'text': td + need[t]}
         fill['t%dlvl' % i] = {'text': tl + 'Level ' + lvl[t]}
@@ -136,6 +140,10 @@ STATES = [
      'poh_tabletmenu', tab_fill(1, magic=99)),
     ('The mahogany eagle lectern, every teleport there is, at Magic 40',
      'poh_tabletmenu', tab_fill(6, magic=40)),
+    ('Make 10 selected, and Make X holding a number of its own',
+     'poh_tabletmenu', tab_fill(7, magic=99, qty=10)),
+    ('Make X set to 25 - the X button shows the number it was given',
+     'poh_tabletmenu', tab_fill(5, magic=99, qty=25)),
 ]
 
 if __name__ == '__main__':

@@ -10,8 +10,10 @@
 // a hard cap; 1000 kills is ~35 minutes of queue cycles at the delay below
 ^debug_droptest_max = 1000
 
-// ticks between kills - 1 is not enough for the npc's own queue3 to run
-^debug_droptest_delay = 2
+// ticks between kills. The death script itself takes a couple: npc_death does npc_arrivedelay
+// (up to 2 ticks) then npc_delay(1) then npc_del, so the corpse is still standing for a moment
+// after the drop lands. 4 leaves clear air between kills.
+^debug_droptest_delay = 4
 
 // ticks the spawned npc lives if something goes wrong and it is never killed, so a failed test
 // cleans itself up rather than leaving a monster standing on you

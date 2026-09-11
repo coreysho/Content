@@ -50,6 +50,29 @@ if (p_finduid(uid) = true) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Kills whatever npc is currently active, the way the combat code does it.
+//
+// THREE STEPS, ALL REQUIRED. The first version of these cheats only did the middle one and the
+// npcs died without dropping anything:
+//
+//   1. heropoints. Every drop table opens with "if (npc_findhero = ^false) { return; }", and
+//      findhero only names someone who has been credited damage. No credit, no drops, silently.
+//   2. npc_damage. Takes the hitpoints to 0 - and does NOTHING else.
+//   3. npc_queue(3, ...). THIS is what runs the death script and the drop table.
+//      npc_damage does not do it; [proc,npc_default_damage] fires it explicitly once hitpoints
+//      reach 0 (see the bottom of that proc). A cheat that skips it leaves a 0-hp npc standing
+//      around forever with no death hook ever running.
+//
+// %npc_aggressive_player is set as well so the npc's own death script - which does
+// finduid(%npc_aggressive_player) for its death sound - has someone to point at.
+// ---------------------------------------------------------------------------------------------
+[proc,debug_kill_active]
+%npc_aggressive_player = uid;
+npc_heropoints(^debug_heropoints);
+npc_damage(^hitmark_damage, npc_stat(hitpoints));
+npc_queue(3, 0, 0);
+
+// ---------------------------------------------------------------------------------------------
 // ::~kill - nearest npc, whatever it is. npc_findallany walks every npc near a coord regardless
 // of type, which is what makes this work without naming one.
 // ---------------------------------------------------------------------------------------------
@@ -68,8 +91,7 @@ if (p_finduid(uid) = true) {
         return;
     }
     def_string $name = npc_name;
-    npc_heropoints(^debug_heropoints);
-    npc_damage(^hitmark_damage, npc_stat(hitpoints));
+    ~debug_kill_active;
     mes("Killed <$name>.");
 }
 
@@ -132,19 +154,20 @@ if ($type = null) {
     return;
 }
 %debug_droptest_left = sub(%debug_droptest_left, 1);
+// npc_add leaves the new npc as the ACTIVE npc for the rest of this script, so no find is needed.
+// The first version used npc_find here and that was a real bug: the previous kill's corpse is
+// still standing for a tick or two while its death animation plays, so the find latched onto a
+// 0-hp body, hit the "no hitpoints" branch below and stopped the whole run after two kills.
 npc_add(coord, $type, ^debug_droptest_lifetime);
-if (npc_find(coord, $type, 2, 0) = true) {
-    if (npc_stat(hitpoints) > 0) {
-        npc_heropoints(^debug_heropoints);
-        npc_damage(^hitmark_damage, npc_stat(hitpoints));
-    } else {
-        // No hitpoints stat, so npc_damage can never take it to 0 and its death hook would never
-        // run. Say so once and stop rather than spinning for the full count.
-        %debug_droptest_left = 0;
-        mes("<npc_name> has no hitpoints - it has no death drop to test.");
-        npc_del;
-        return;
-    }
+if (npc_stat(hitpoints) > 0) {
+    ~debug_kill_active;
+} else {
+    // A genuinely hitpoint-less npc - npc_damage can never take it to 0, so its death hook would
+    // never run. Say so once and stop rather than spinning for the full count.
+    %debug_droptest_left = 0;
+    mes("<npc_name> has no hitpoints - it has no death drop to test.");
+    npc_del;
+    return;
 }
 if (%debug_droptest_left > 0) {
     queue(debug_droptest, ^debug_droptest_delay, 0);

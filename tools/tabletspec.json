@@ -1,71 +1,414 @@
 {
-  "_": [
-    "The fourteen magic tablets the lecterns make, and which lectern makes which.",
-    "",
-    "WHAT IS DATA AND WHAT IS NOT. A tablet's LEVEL, RUNES and EXPERIENCE are not here: they",
-    "are read out of magic_spell_table, the same row the spell itself is cast from, so a tablet",
-    "can never cost something different from the spell it stores. What IS here is the part the",
-    "spell row has no opinion about - the obj, its colour, and which lecterns list it.",
-    "",
-    "THE LECTERN TABLE IS OSRS'S. Seven lecterns, and the models say which is which: 1 is plain,",
-    "2 4 and 6 carry a bird's head, 3 5 and 7 a horned one, and 6 and 7 are gilded. That is the",
-    "oak / eagle / demon / teak eagle / teak demon / mahogany eagle / mahogany demon ladder, and",
-    "each one's tablet list below is the wiki's, minus the four tablets whose spells do not exist",
-    "at 377 (Kourend, Civitas illa Fortis, the two boat ones) and the onyx enchant.",
-    "",
-    "The biggest list is eight, which is exactly the number of rows the window has. That is not a",
-    "coincidence worth relying on - poh_tab_pick pages like the other two windows - but it does",
-    "mean no lectern needs a second page today.",
-    "",
-    "COLOUR. obj_zarosstonetablet has two face colours (28 faces of 12651, 14 of 9480 - see",
-    "tools/models/ob2palette.py), so a tablet is two recolour pairs: the body, and the engraving",
-    "at 72% of it. Teleports take their town's colour, enchants their gem's, the bones ones their",
-    "fruit's. All fourteen were rendered and looked at before shipping."
-  ],
-  "model": "obj_zarosstonetablet",
-  "recol_src": [12651, 9480],
-  "icon": {"2dzoom": 1370, "2dxan": 180, "2dyan": 1888, "2dyof": -16},
-  "tablets": [
-    {"key": "enchant_sapphire",    "obj": "poh_tab_enchant_sapphire",    "name": "Enchant sapphire",    "spell": "enchant_lvl1",        "kind": "enchant",  "body": [5, 7, 17]},
-    {"key": "enchant_emerald",     "obj": "poh_tab_enchant_emerald",     "name": "Enchant emerald",     "spell": "enchant_lvl2",        "kind": "enchant",  "body": [4, 14, 7]},
-    {"key": "enchant_ruby",        "obj": "poh_tab_enchant_ruby",        "name": "Enchant ruby",        "spell": "enchant_lvl3",        "kind": "enchant",  "body": [17, 3, 6]},
-    {"key": "enchant_diamond",     "obj": "poh_tab_enchant_diamond",     "name": "Enchant diamond",     "spell": "enchant_lvl4",        "kind": "enchant",  "body": [16, 17, 18]},
-    {"key": "enchant_dragonstone", "obj": "poh_tab_enchant_dragonstone", "name": "Enchant dragonstone", "spell": "enchant_lvl5",        "kind": "enchant",  "body": [14, 4, 12]},
-    {"key": "varrock",             "obj": "poh_tab_varrock",             "name": "Varrock teleport",    "spell": "varrock_teleport",    "kind": "teleport", "body": [10, 4, 4]},
-    {"key": "lumbridge",           "obj": "poh_tab_lumbridge",           "name": "Lumbridge teleport",  "spell": "lumbridge_teleport",  "kind": "teleport", "body": [7, 13, 6]},
-    {"key": "falador",             "obj": "poh_tab_falador",             "name": "Falador teleport",    "spell": "falador_teleport",    "kind": "teleport", "body": [14, 15, 17]},
-    {"key": "camelot",             "obj": "poh_tab_camelot",             "name": "Camelot teleport",    "spell": "camelot_teleport",    "kind": "teleport", "body": [6, 14, 15]},
-    {"key": "ardougne",            "obj": "poh_tab_ardougne",            "name": "Ardougne teleport",   "spell": "ardougne_teleport",   "kind": "teleport", "body": [11, 6, 14],
-     "quest": ["%elenaquest", "^elena_complete", "You must have completed Plague City to use this tablet."]},
-    {"key": "watchtower",          "obj": "poh_tab_watchtower",          "name": "Watchtower teleport", "spell": "watchtower_teleport", "kind": "teleport", "body": [11, 11, 9],
-     "quest": ["%itwatchtower", "^itwatchtower_complete", "You must have completed Watch Tower to use this tablet."]},
-    {"key": "house",               "obj": "poh_tab_house",               "name": "Teleport to house",   "spell": "teleport_to_house",   "kind": "house",    "body": [12, 8, 4]},
-    {"key": "bones_bananas",       "obj": "poh_tab_bones_bananas",       "name": "Bones to bananas",    "spell": "bones_to_bananas",    "kind": "convert",  "body": [18, 16, 3]},
-    {"key": "bones_peaches",       "obj": "poh_tab_bones_peaches",       "name": "Bones to peaches",    "spell": "bones_to_peaches",    "kind": "convert",  "body": [16, 10, 6]}
-  ],
-  "house_spell": {
-    "_": [
-      "Teleport to house has no button in the 377 spellbook and never will - it was added to the",
-      "game in 2006 with Construction, after this revision. The row exists so its tablet's recipe",
-      "comes from the same table as every other tablet's; nothing can cast it, because db_find on",
-      "magic_spell_table:spell is the only way in and only poh_tablets.rs2 asks for this id."
-    ],
-    "id": 226,
-    "levelrequired": 40,
-    "runes": [["lawrune", 1], ["airrune", 1], ["earthrune", 1]],
-    "experience": 300
+ "_": [
+  "The fourteen magic tablets the lecterns make, and which lectern makes which.",
+  "",
+  "WHAT IS DATA AND WHAT IS NOT. A tablet's LEVEL, RUNES and EXPERIENCE are not here: they",
+  "are read out of magic_spell_table, the same row the spell itself is cast from, so a tablet",
+  "can never cost something different from the spell it stores. What IS here is the part the",
+  "spell row has no opinion about - the obj, its art, and which lecterns list it.",
+  "",
+  "THE LECTERN TABLE IS OSRS'S. Seven lecterns, and the models say which is which: 1 is plain,",
+  "2 4 and 6 carry a bird's head, 3 5 and 7 a horned one, and 6 and 7 are gilded. That is the",
+  "oak / eagle / demon / teak eagle / teak demon / mahogany eagle / mahogany demon ladder, and",
+  "each one's tablet list below is the wiki's, minus the four tablets whose spells do not exist",
+  "at 377 (Kourend, Civitas illa Fortis, the two boat ones) and the onyx enchant.",
+  "",
+  "The biggest list is eight, which is exactly the number of rows the window has. That is not a",
+  "coincidence worth relying on - poh_tab_pick pages like the other two windows - but it does",
+  "mean no lectern needs a second page today.",
+  "",
+  "THE ART IS OSRS'S OWN (Corey, 2026-09-11). The fourteen tablets were the real items all along:",
+  "OSRS objs 8007-8020, imported with tools/models/importosrs.py from the rev 240 cache, models",
+  "re-encoded by osrs2ob2.py and round-trip verified. They replace the recoloured Zaros stone slab",
+  "the first version used, and they carry their OSRS name, description, 1g weight, 2d camera and",
+  "- the point of the round - stackable=yes. Each one's model, icon camera and name below are the",
+  "cache's, not a decision made here.",
+  "",
+  "WINDOW LABELS. The window's name column is 126px in p12_full and two OSRS names do not fit:",
+  "'Enchant sapphire or opal' is 140px and 'Enchant emerald or jade' 138px. Those two get a",
+  "'label', the same trim the furniture window's rows use; the obj keeps the full OSRS name."
+ ],
+ "tablets": [
+  {
+   "key": "enchant_sapphire",
+   "obj": "poh_tab_enchant_sapphire",
+   "name": "Enchant sapphire or opal",
+   "spell": "enchant_lvl1",
+   "kind": "enchant",
+   "desc": "A tablet containing a magic spell.",
+   "model": "obj_tab_enchant_sapphire",
+   "weight": "1g",
+   "icon": {
+    "2dzoom": 465,
+    "2dxan": 373,
+    "2dyof": -1
+   },
+   "label": "Enchant sapphire"
   },
-  "lecterns": [
-    {"tier": 1, "loc": "poh_lectern_1", "name": "Oak lectern",            "label": "Oak lectern",     "tablets": ["enchant_sapphire", "varrock"]},
-    {"tier": 2, "loc": "poh_lectern_2", "name": "Eagle lectern",          "label": "Eagle lectern",   "tablets": ["enchant_sapphire", "varrock", "falador", "lumbridge"]},
-    {"tier": 3, "loc": "poh_lectern_3", "name": "Demon lectern",          "label": "Demon lectern",   "tablets": ["enchant_sapphire", "enchant_emerald", "varrock", "bones_bananas"]},
-    {"tier": 4, "loc": "poh_lectern_4", "name": "Teak eagle lectern",     "label": "Teak eagle lectern",  "tablets": ["enchant_sapphire", "varrock", "falador", "lumbridge", "camelot", "ardougne"]},
-    {"tier": 5, "loc": "poh_lectern_5", "name": "Teak demon lectern",     "label": "Teak demon lectern",  "tablets": ["enchant_sapphire", "enchant_emerald", "enchant_ruby", "enchant_diamond", "varrock", "bones_bananas"]},
-    {"tier": 6, "loc": "poh_lectern_6", "name": "Mahogany eagle lectern", "label": "Mahogany eagle",  "tablets": ["enchant_sapphire", "varrock", "falador", "lumbridge", "camelot", "ardougne", "watchtower", "house"]},
-    {"tier": 7, "loc": "poh_lectern_7", "name": "Mahogany demon lectern", "label": "Mahogany demon",  "tablets": ["enchant_sapphire", "enchant_emerald", "enchant_ruby", "enchant_diamond", "enchant_dragonstone", "varrock", "bones_bananas", "bones_peaches"]}
-  ],
-  "rune_words": {
-    "lawrune": "law", "airrune": "air", "firerune": "fire", "waterrune": "water",
-    "earthrune": "earth", "cosmicrune": "cosmic", "naturerune": "nature"
+  {
+   "key": "enchant_emerald",
+   "obj": "poh_tab_enchant_emerald",
+   "name": "Enchant emerald or jade",
+   "spell": "enchant_lvl2",
+   "kind": "enchant",
+   "desc": "A tablet containing a magic spell.",
+   "model": "obj_tab_enchant_emerald",
+   "weight": "1g",
+   "icon": {
+    "2dzoom": 465,
+    "2dxan": 373,
+    "2dyof": -1
+   },
+   "label": "Enchant emerald"
+  },
+  {
+   "key": "enchant_ruby",
+   "obj": "poh_tab_enchant_ruby",
+   "name": "Enchant ruby or topaz",
+   "spell": "enchant_lvl3",
+   "kind": "enchant",
+   "desc": "A tablet containing a magic spell.",
+   "model": "obj_tab_enchant_ruby",
+   "weight": "1g",
+   "icon": {
+    "2dzoom": 465,
+    "2dxan": 373,
+    "2dyof": -1
+   }
+  },
+  {
+   "key": "enchant_diamond",
+   "obj": "poh_tab_enchant_diamond",
+   "name": "Enchant diamond",
+   "spell": "enchant_lvl4",
+   "kind": "enchant",
+   "desc": "A tablet containing a magic spell.",
+   "model": "obj_tab_enchant_diamond",
+   "weight": "1g",
+   "icon": {
+    "2dzoom": 465,
+    "2dxan": 373,
+    "2dyof": -1
+   }
+  },
+  {
+   "key": "enchant_dragonstone",
+   "obj": "poh_tab_enchant_dragonstone",
+   "name": "Enchant dragonstone",
+   "spell": "enchant_lvl5",
+   "kind": "enchant",
+   "desc": "A tablet containing a magic spell.",
+   "model": "obj_tab_enchant_dragonstone",
+   "weight": "1g",
+   "icon": {
+    "2dzoom": 465,
+    "2dxan": 373,
+    "2dyof": -1
+   }
+  },
+  {
+   "key": "varrock",
+   "obj": "poh_tab_varrock",
+   "name": "Varrock teleport",
+   "spell": "varrock_teleport",
+   "kind": "teleport",
+   "desc": "A teleport to Varrock.",
+   "model": "obj_tab_varrock",
+   "weight": "1g",
+   "icon": {
+    "2dzoom": 465,
+    "2dxan": 373,
+    "2dyof": -1
+   }
+  },
+  {
+   "key": "lumbridge",
+   "obj": "poh_tab_lumbridge",
+   "name": "Lumbridge teleport",
+   "spell": "lumbridge_teleport",
+   "kind": "teleport",
+   "desc": "A teleport to Lumbridge.",
+   "model": "obj_tab_lumbridge",
+   "weight": "1g",
+   "icon": {
+    "2dzoom": 465,
+    "2dxan": 373,
+    "2dyof": -1
+   }
+  },
+  {
+   "key": "falador",
+   "obj": "poh_tab_falador",
+   "name": "Falador teleport",
+   "spell": "falador_teleport",
+   "kind": "teleport",
+   "desc": "A teleport to Falador.",
+   "model": "obj_tab_falador",
+   "weight": "1g",
+   "icon": {
+    "2dzoom": 465,
+    "2dxan": 377,
+    "2dyof": -1
+   }
+  },
+  {
+   "key": "camelot",
+   "obj": "poh_tab_camelot",
+   "name": "Camelot teleport",
+   "spell": "camelot_teleport",
+   "kind": "teleport",
+   "desc": "A teleport to Camelot.",
+   "model": "obj_tab_camelot",
+   "weight": "1g",
+   "icon": {
+    "2dzoom": 465,
+    "2dxan": 373,
+    "2dyof": -1
+   }
+  },
+  {
+   "key": "ardougne",
+   "obj": "poh_tab_ardougne",
+   "name": "Ardougne teleport",
+   "spell": "ardougne_teleport",
+   "kind": "teleport",
+   "quest": [
+    "%elenaquest",
+    "^elena_complete",
+    "You must have completed Plague City to use this tablet."
+   ],
+   "desc": "A teleport to East Ardougne.",
+   "model": "obj_tab_ardougne",
+   "weight": "1g",
+   "icon": {
+    "2dzoom": 465,
+    "2dxan": 373,
+    "2dyof": -1
+   }
+  },
+  {
+   "key": "watchtower",
+   "obj": "poh_tab_watchtower",
+   "name": "Watchtower teleport",
+   "spell": "watchtower_teleport",
+   "kind": "teleport",
+   "quest": [
+    "%itwatchtower",
+    "^itwatchtower_complete",
+    "You must have completed Watch Tower to use this tablet."
+   ],
+   "desc": "A teleport to the Yanille Watchtower.",
+   "model": "obj_tab_watchtower",
+   "weight": "1g",
+   "icon": {
+    "2dzoom": 465,
+    "2dxan": 373,
+    "2dyof": -1
+   }
+  },
+  {
+   "key": "house",
+   "obj": "poh_tab_house",
+   "name": "Teleport to house",
+   "spell": "teleport_to_house",
+   "kind": "house",
+   "desc": "A teleport to one's own house.",
+   "model": "obj_tab_house",
+   "weight": "1g",
+   "icon": {
+    "2dzoom": 465,
+    "2dxan": 373,
+    "2dyof": -1
+   }
+  },
+  {
+   "key": "bones_bananas",
+   "obj": "poh_tab_bones_bananas",
+   "name": "Bones to bananas",
+   "spell": "bones_to_bananas",
+   "kind": "convert",
+   "desc": "A tablet containing a magic spell.",
+   "model": "obj_tab_bones_bananas",
+   "weight": "1g",
+   "icon": {
+    "2dzoom": 465,
+    "2dxan": 373,
+    "2dyof": -1
+   }
+  },
+  {
+   "key": "bones_peaches",
+   "obj": "poh_tab_bones_peaches",
+   "name": "Bones to peaches",
+   "spell": "bones_to_peaches",
+   "kind": "convert",
+   "desc": "A tablet containing a magic spell.",
+   "model": "obj_tab_bones_peaches",
+   "weight": "1g",
+   "icon": {
+    "2dzoom": 465,
+    "2dxan": 373,
+    "2dyof": -1
+   }
   }
+ ],
+ "house_spell": {
+  "_": [
+   "Teleport to house has no button in the 377 spellbook and never will - it was added to the",
+   "game in 2006 with Construction, after this revision. The row exists so its tablet's recipe",
+   "comes from the same table as every other tablet's; nothing can cast it, because db_find on",
+   "magic_spell_table:spell is the only way in and only poh_tablets.rs2 asks for this id."
+  ],
+  "id": 226,
+  "levelrequired": 40,
+  "runes": [
+   [
+    "lawrune",
+    1
+   ],
+   [
+    "airrune",
+    1
+   ],
+   [
+    "earthrune",
+    1
+   ]
+  ],
+  "experience": 300
+ },
+ "lecterns": [
+  {
+   "tier": 1,
+   "loc": "poh_lectern_1",
+   "name": "Oak lectern",
+   "label": "Oak lectern",
+   "tablets": [
+    "enchant_sapphire",
+    "varrock"
+   ]
+  },
+  {
+   "tier": 2,
+   "loc": "poh_lectern_2",
+   "name": "Eagle lectern",
+   "label": "Eagle lectern",
+   "tablets": [
+    "enchant_sapphire",
+    "varrock",
+    "falador",
+    "lumbridge"
+   ]
+  },
+  {
+   "tier": 3,
+   "loc": "poh_lectern_3",
+   "name": "Demon lectern",
+   "label": "Demon lectern",
+   "tablets": [
+    "enchant_sapphire",
+    "enchant_emerald",
+    "varrock",
+    "bones_bananas"
+   ]
+  },
+  {
+   "tier": 4,
+   "loc": "poh_lectern_4",
+   "name": "Teak eagle lectern",
+   "label": "Teak eagle lectern",
+   "tablets": [
+    "enchant_sapphire",
+    "varrock",
+    "falador",
+    "lumbridge",
+    "camelot",
+    "ardougne"
+   ]
+  },
+  {
+   "tier": 5,
+   "loc": "poh_lectern_5",
+   "name": "Teak demon lectern",
+   "label": "Teak demon lectern",
+   "tablets": [
+    "enchant_sapphire",
+    "enchant_emerald",
+    "enchant_ruby",
+    "enchant_diamond",
+    "varrock",
+    "bones_bananas"
+   ]
+  },
+  {
+   "tier": 6,
+   "loc": "poh_lectern_6",
+   "name": "Mahogany eagle lectern",
+   "label": "Mahogany eagle",
+   "tablets": [
+    "enchant_sapphire",
+    "varrock",
+    "falador",
+    "lumbridge",
+    "camelot",
+    "ardougne",
+    "watchtower",
+    "house"
+   ]
+  },
+  {
+   "tier": 7,
+   "loc": "poh_lectern_7",
+   "name": "Mahogany demon lectern",
+   "label": "Mahogany demon",
+   "tablets": [
+    "enchant_sapphire",
+    "enchant_emerald",
+    "enchant_ruby",
+    "enchant_diamond",
+    "enchant_dragonstone",
+    "varrock",
+    "bones_bananas",
+    "bones_peaches"
+   ]
+  }
+ ],
+ "rune_words": {
+  "lawrune": "law",
+  "airrune": "air",
+  "firerune": "fire",
+  "waterrune": "water",
+  "earthrune": "earth",
+  "cosmicrune": "cosmic",
+  "naturerune": "nature"
+ },
+ "break": {
+  "_": [
+   "Breaking a tablet plays OSRS's own tablet-break animation (seq 4069) and its graphic",
+   "(spotanim 678, which animates itself on OSRS seq 4072), imported by",
+   "tools/models/importosrsspot.py. Before this round every break played the spell's cast -",
+   "human_castteleport and teleport_casting for a teleport - which is the animation for casting",
+   "the spell, not for smashing a tablet. Candidate seqs 4069, 4070, 4071 and 4731 were rendered",
+   "on a player (tools/models/../render/osrsanim.py) and looked at: 4069 raises the tablet and",
+   "brings it down, 4071 and 4731 are the teleport shrink, 4070 is a plank carry."
+  ],
+  "anim": "poh_tab_break",
+  "spot": "poh_tab_break_gfx",
+  "height": 92
+ },
+ "quantities": {
+  "_": [
+   "Make 1 / 5 / 10 / X, as buttons in the window (Corey, 2026-09-11). The chosen quantity is",
+   "kept in %poh_tab_qty (temp) so it survives a page of the window and the rest of the visit,",
+   "and X asks with p_countdialog - the same prompt Cook X uses. The cap is an inventory's",
+   "worth: a tablet needs a soft clay and clay does not stack, so 28 is already more than can",
+   "be carried."
+  ],
+  "steps": [
+   1,
+   5,
+   10
+  ],
+  "max": 28
+ }
 }

@@ -168,15 +168,33 @@ def furnmenu():
 TAB_ROWS = 8
 TAB_Y, TAB_STEP, TAB_H = 62, 30, 28
 TAB_X, TAB_W = 26, 448
-TAB_ICON, TAB_BOX = 34, 44
-TAB_SCALE = 90         # if_setobject's scale: zoom = the obj's 2dzoom x 100 / scale. 90 draws the
-                       # tablet 21x27, which is the biggest that fits a 27px row.
+TAB_ICON, TAB_BOX = 34, 28
+TAB_SCALE = 90         # if_setobject's scale: zoom = the obj's 2dzoom x 100 / scale. The OSRS tablets
+                       # carry 2dzoom 465, so 90 gives an effective 516 and draws one 24x23 - the
+                       # biggest that fits a 28px row. Solved with tools/ifmodels.extent and checked
+                       # by battery 42; the recoloured slab it replaced needed a 44-tall box because
+                       # its own 2dzoom was 1370.
+TAB_QTY_Y, TAB_QTY_W, TAB_QTY_H = 46, 34, 16
+TAB_QTY_X = [344, 382, 420, 458]
 
 def tabletmenu(spec):
     """One column of eight, not the furniture window's 2x4 grid: a tablet's shopping list is up
     to '15 earth, 15 water, 1 cosmic, 1 soft clay' and there is nowhere to put that in a 224px
     slot. Eight is also the most tablets any OSRS lectern lists, so nothing pages."""
     coms = window('Magic tablets')
+    # The subtitle stops being centred so the quantity buttons can share its line: it is 129px of
+    # text in a 250px box on the left, and Make 1 / 5 / 10 / X sit at the right. The row strip below
+    # starts at y 62 and the bottom strip is already More and Cancel, so this line is the only place
+    # in the frame with room for four more buttons.
+    coms = [(n, c) for n, c in coms if n != 'subtitle']
+    coms.append(('subtitle', dict(type='text', x=26, y=48, width=250, height=13,
+                                  font='p12_full', shadowed='yes', text='', colour='0xFFFFFF')))
+    coms.append(('qtylabel', dict(type='text', x=300, y=48, width=40, height=13,
+                                  font='p12_full', shadowed='yes', text='Make:', colour='0xFFFF00')))
+    for n, (nm, lab) in enumerate(zip(['qty1', 'qty5', 'qty10', 'qtyx'], ['1', '5', '10', 'X'])):
+        coms.append((nm, dict(type='text', x=TAB_QTY_X[n], y=TAB_QTY_Y, buttontype='normal',
+                              width=TAB_QTY_W, height=TAB_QTY_H, option='Make %s' % lab,
+                              text=lab, **BTN)))
     for i in range(TAB_ROWS):
         L = 'row%d' % i
         coms.append((L, dict(type='layer', x=TAB_X, y=TAB_Y + i * TAB_STEP,
@@ -186,15 +204,16 @@ def tabletmenu(spec):
                                      width=TAB_W, height=TAB_H, fill='no',
                                      colour='0x6F6250', overcolour='0xFFFFFF', option='Make')))
         # if_setobject overwrites model/xan/yan/zoom from the ObjType itself, so these four are
-        # only what the packer preloads and what the previewer draws - they are the same values.
-        # The box is 44 tall for a 27-tall tablet because an interface model hangs UPWARD from the
-        # middle of its component and Pix3D clips against Pix2D.bottom and nothing else: a component
-        # too short lets the icon draw up out of the row and over the one above. At 44 the centre
-        # line is 22 down, which is exactly how far the tablet reaches, so it lands at y 0..27 - the
-        # full height of the row, and not one pixel more.
+        # only what the packer preloads and what the previewer draws - they are the first tablet's.
+        # The box is the row's own 28 and sits at its top: an OSRS tablet icon is drawn around the
+        # centre of its component rather than hanging up from the floor the way a loc model does, so
+        # a taller box would push it below the row instead of filling it. The centre line is 14 down
+        # and the icon reaches 13 up and 11 down from there - inside the row, by battery 42.
         coms.append((p + 'model', dict(layer=L, type='model', x=4, y=0, width=TAB_ICON, height=TAB_BOX,
-                                       model=spec['model'], zoom=spec['icon']['2dzoom'],
-                                       xan=spec['icon']['2dxan'], yan=spec['icon']['2dyan'])))
+                                       model=spec['tablets'][0]['model'],
+                                       zoom=spec['tablets'][0]['icon']['2dzoom'],
+                                       xan=spec['tablets'][0]['icon'].get('2dxan', 0),
+                                       yan=spec['tablets'][0]['icon'].get('2dyan', 0))))
         coms.append((p + 'name', dict(layer=L, type='text', x=42, y=7, width=126, height=14,
                                       font='p12_full', shadowed='yes', text='', colour='0xFFFFFF')))
         coms.append((p + 'need', dict(layer=L, type='text', x=172, y=8, width=200, height=13,
@@ -445,7 +464,7 @@ def rs2_furn(spec, cams, fams):
     o.append('return(0);')
     return o
 
-def rs2_tab(scale):
+def rs2_tab(scale, steps):
     o = ['// =========================================================================== tablets', '']
     o.append('// The lectern window. Same three tints and the same whole-row button as the other two; the')
     o.append('// difference is the icon, which is an OBJ and not a loc model. if_setobject takes the obj and')
@@ -475,6 +494,36 @@ def rs2_tab(scale):
         o.append('if_settext(poh_tabletmenu:t%dneed, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_tab_need, $tab)>");' % i)
         o.append('if_settext(poh_tabletmenu:t%dlvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_tab_level, $tab))>");' % i)
         o.append('')
+    o.append('// Make 1 / 5 / 10 / X. The chosen one is green and the others white - the same @xxx@ tags the')
+    o.append('// rows use, so no extra components and no second set of texts. The X button shows the number')
+    o.append('// it was given rather than an X once it holds one, because "Make X" with X forgotten is the')
+    o.append('// one thing about this control that can confuse.')
+    o.append('[proc,poh_tab_qty_draw](int $qty)')
+    for n in steps:
+        o.append('if_settext(poh_tabletmenu:qty%d, "@whi@%d");' % (n, n))
+    o.append('if_settext(poh_tabletmenu:qtyx, "@whi@X");')
+    for n in steps:
+        o.append('if ($qty = %d) {' % n)
+        o.append('    if_settext(poh_tabletmenu:qty%d, "@gre@%d");' % (n, n))
+        o.append('}')
+    o.append('if (%s) {' % ' & '.join('$qty ! %d' % n for n in steps))
+    o.append('    if_settext(poh_tabletmenu:qtyx, "@gre@<tostring($qty)>");')
+    o.append('}')
+    o.append('')
+    o.append('// Make X. p_countdialog is the same "Enter amount" prompt Cook X uses; it can be opened over')
+    o.append('// the main window because openMainModal only drops a suspended script when the script is')
+    o.append('// waiting on a PAUSEBUTTON or a COUNTDIALOG, and this one is RUNNING. A cancelled prompt')
+    o.append('// answers 0, which leaves the quantity alone.')
+    o.append('[proc,poh_tab_qty_ask]')
+    o.append('p_countdialog;')
+    o.append('if (last_int < 1) {')
+    o.append('    return;')
+    o.append('}')
+    o.append('%poh_tab_qty = last_int;')
+    o.append('if (%poh_tab_qty > ^poh_tab_qty_max) {')
+    o.append('    %poh_tab_qty = ^poh_tab_qty_max;')
+    o.append('}')
+    o.append('')
     o.append('// Study. The window stays up and redraws after every tablet, so one soft clay at a time turns')
     o.append('// into an inventory of tablets without walking away from the lectern; ^poh_tab_loops is an')
     o.append('// inventory\'s worth, and the bound is there because a loop that cannot end hangs the script.')
@@ -495,6 +544,10 @@ def rs2_tab(scale):
     o.append('    }')
     o.append('    if_settext(poh_tabletmenu:title, "<enum(int, string, poh_lectern_name, $lect)>");')
     o.append('    if_settext(poh_tabletmenu:subtitle, "Select a tablet to make");')
+    o.append('    if (%poh_tab_qty < 1) {')
+    o.append('        %poh_tab_qty = 1;')
+    o.append('    }')
+    o.append('    ~poh_tab_qty_draw(%poh_tab_qty);')
     for i in range(TAB_ROWS):
         o.append('    ~poh_tab_row%d($%s);' % (i, lets[i]))
     o.append('    if_sethide(poh_tabletmenu:more, true);')
@@ -503,16 +556,25 @@ def rs2_tab(scale):
         o.append('    if ($%s ! 0) {' % lets[i])
         o.append('        if_addresumebutton(poh_tabletmenu:t%dbox);' % i)
         o.append('    }')
+    for n in steps:
+        o.append('    if_addresumebutton(poh_tabletmenu:qty%d);' % n)
+    o.append('    if_addresumebutton(poh_tabletmenu:qtyx);')
     o.append('    if_addresumebutton(poh_tabletmenu:cancel);')
     o.append('    p_pausebutton;')
     o.append('    def_int $pick = 0;')
     o.append('    switch_component (last_com) {')
     for i in range(TAB_ROWS):
         o.append('        case poh_tabletmenu:t%dbox : $pick = $%s;' % (i, lets[i]))
+    for n in steps:
+        o.append('        case poh_tabletmenu:qty%d : %%poh_tab_qty = %d;' % (n, n))
+    o.append('        case poh_tabletmenu:qtyx : ~poh_tab_qty_ask;')
     o.append('        case default : if_close; return;')
     o.append('    }')
     o.append('    if ($pick > 0) {')
-    o.append('        ~poh_tab_make($pick);')
+    o.append('        // The window comes down while they are being made: the animation is the feedback, and')
+    o.append('        // the loop above puts it back up with the new counts as soon as the batch is done.')
+    o.append('        if_close;')
+    o.append('        ~poh_tab_make_n($pick, %poh_tab_qty);')
     o.append('    }')
     o.append('}')
     o.append('if_close;')
@@ -756,7 +818,7 @@ if __name__ == '__main__':
                                          '\n'.join('// ' + l for l in why.split('\n'))))
     print('enums: poh_room_cost_text, poh_fam_name, ' + ', '.join(n for n, _, _ in TINTS))
 
-    rs2 = rs2_room(rooms, None) + rs2_furn(furn, cams, fams) + [''] + rs2_tab(TAB_SCALE)
+    rs2 = rs2_room(rooms, None) + rs2_furn(furn, cams, fams) + [''] + rs2_tab(TAB_SCALE, tspec['quantities']['steps'])
     path = os.path.join(ROOT, 'scripts/skill_construction/scripts/poh_menus.rs2')
     nl = '\r\n' if _crlf(os.path.join(ROOT, 'scripts/skill_construction/scripts/poh_build.rs2')) else '\n'
     open(path, 'wb').write((nl.join(rs2).rstrip('\r\n') + nl).encode('utf-8'))

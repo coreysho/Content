@@ -85,18 +85,17 @@ usedc = set(re.findall(r'\^(\w+)', alltext))
 check(not (usedc - consts), 'unresolved: %s' % sorted(usedc - consts))
 
 print('7. every enum name resolves')
-# pack/enum.pack is GENERATED and gitignored - deploy.sh deletes it before every build - so a
-# clean clone has none and the one in a working copy proves nothing about what will be built.
-# The .enum sources are what the packer reads, so read those.
-if os.path.exists(C + '/pack/enum.pack'):
-    enums = {l.split('=', 1)[1] for l in open(C + '/pack/enum.pack').read().split('\n') if '=' in l}
-else:
-    enums = set()
-    for root, _, fs in os.walk(os.path.join(C, 'scripts')):
-        for fn in fs:
-            if fn.endswith('.enum'):
-                with open(os.path.join(root, fn), encoding='utf-8', errors='replace') as fh:
-                    enums |= set(re.findall(r'^\[(\w+)\]', fh.read(), re.M))
+# pack/enum.pack is GENERATED and gitignored - deploy.sh deletes it before every build - so the
+# .enum sources are the only honest answer to "what will exist after the build". This used to
+# prefer the pack when one happened to be lying around, and a STALE pack then reported twelve
+# perfectly good tables as unresolved (and would just as happily have passed a table that had
+# since been deleted). The sources are what the packer reads; read those, always.
+enums = set()
+for root, _, fs in os.walk(os.path.join(C, 'scripts')):
+    for fn in fs:
+        if fn.endswith('.enum'):
+            with open(os.path.join(root, fn), encoding='utf-8', errors='replace') as fh:
+                enums |= set(re.findall(r'^\[(\w+)\]', fh.read(), re.M))
 usede = set(re.findall(r'enum\(\s*\w+\s*,\s*\w+\s*,\s*(\w+)\s*,', alltext))
 check(not (usede - enums), 'unresolved: %s (used %s)' % (sorted(usede - enums), sorted(usede)))
 
@@ -183,7 +182,9 @@ for f in ['pack/varp.pack', 'pack/loc.pack', 'pack/npc.pack', 'pack/interface.pa
 print('12. pack ids are unique, and the new ones sit above what was there')
 # Not contiguity: varp.pack is missing id 746 upstream and has always built fine. What matters is
 # that nothing is claimed twice and that the ids added here were free.
-NEW = {'pack/varp.pack': list(range(876, 1150)),
+# 1150-1152 are three debug varps that exist only in the laptop's working copy, so they are not
+# in this list and the check does not demand contiguity - see the note above.
+NEW = {'pack/varp.pack': list(range(876, 1150)) + [1153],
        'pack/loc.pack': [15296, 15297], 'pack/npc.pack': [3920, 3921]}
 for f in ['pack/varp.pack', 'pack/loc.pack', 'pack/npc.pack']:
     ids = [int(l.split('=', 1)[0]) for l in open(os.path.join(C, f)).read().split('\n') if '=' in l]
@@ -1205,7 +1206,7 @@ for prc in ('poh_tab_teleport', 'poh_tab_gohome', 'poh_tab_convert', 'poh_tab_en
     check('stat_advance' not in body, '%s pays no experience' % prc)
     check('inv_total(inv, $tab) < 1' in body, '%s re-checks the tablet is still held' % prc)
 
-print('41. the tablet objs are real, and their recolours really match the model')
+print('41. the tablet objs are the real OSRS ones, and they stack')
 OBJTAB = blocks(read('scripts/skill_construction/configs/poh_tablets.obj'))
 check(sorted(OBJTAB) == sorted(t['obj'] for t in TABS),
       'poh_tablets.obj defines exactly the %d tablets in the spec' % len(TABS))
@@ -1214,22 +1215,35 @@ check(not bad, 'every tablet obj is in obj.pack: %s' % (bad or 'all %d' % len(OB
 bad = [TABE['poh_tab_obj'][n + 1] for n, t in enumerate(TABS)
        if TABE['poh_tab_obj'][n + 1] != t['obj']]
 check(not bad, 'poh_tab_obj names the spec\'s objs: %s' % (bad or 'all 14'))
-# THE TRAP claude/obj-recolours.md names: a recolour SOURCE that is not one of the model's own
-# face colours does nothing at all, silently, and the item just renders in the base colours.
-srcs = {int(OBJTAB[n]['recol1s'][0]) for n in OBJTAB} | {int(OBJTAB[n]['recol2s'][0]) for n in OBJTAB}
-check(srcs == set(TSPEC['recol_src']),
-      'every tablet recolours off the same two sources the spec names: %s' % sorted(srcs))
-import ob2render as _ob
-_m = _ob.Model(os.path.join(C, 'models/obj/%s.ob2' % TSPEC['model']))
-_faces = set(int(x) for x in _m.colour.tolist())
-bad = [(v, _ob.rgb15_to_hsl16(v)) for v in sorted(srcs) if _ob.rgb15_to_hsl16(v) not in _faces]
-check(not bad, 'each source really is one of the model\'s own face colours, in HSL16: %s'
-      % (bad or 'both of them'))
-bad = [n for n in OBJTAB if OBJTAB[n].get('model', [None])[0] != TSPEC['model']]
-check(not bad, 'every tablet is the same model: %s' % (bad or TSPEC['model']))
-dst = {n: (int(OBJTAB[n]['recol1d'][0]), int(OBJTAB[n]['recol2d'][0])) for n in OBJTAB}
-check(len(set(dst.values())) == len(dst),
-      'no two tablets are the same colour: %d distinct pairs' % len(set(dst.values())))
+# STACKABLE is the point of the round: OSRS tablets stack, and a lectern that makes ten of them
+# is only useful if they land in one slot.
+bad = [n for n in OBJTAB if OBJTAB[n].get('stackable', [None])[0] != 'yes']
+check(not bad, 'every tablet is stackable: %s' % (bad or 'all %d' % len(OBJTAB)))
+# Each one is its own OSRS model, on disk and in model.pack - a name in a pack is not a file, and a
+# miss shows up in game as an invisible item rather than an error (claude/osrs-cache.md).
+mods = {n: OBJTAB[n].get('model', [None])[0] for n in OBJTAB}
+want = {t['obj']: t['model'] for t in TABS}
+check(mods == want, 'every tablet carries the model the spec imported for it: %s'
+      % ('all %d, one each' % len(want) if mods == want
+         else sorted(k for k in want if mods.get(k) != want[k])))
+check(len(set(mods.values())) == len(mods),
+      'no two tablets share a model: %d distinct' % len(set(mods.values())))
+bad = [m for m in mods.values() if m not in MODELS]
+check(not bad, 'every tablet model is registered in model.pack: %s' % (bad or 'all 14'))
+bad = [m for m in mods.values() if not os.path.exists(os.path.join(C, 'models/obj/%s.ob2' % m))]
+check(not bad, 'every tablet model is a file on disk: %s' % (bad or 'all 14'))
+# no recolour anywhere: the art is the real item, so there is nothing to tint
+bad = [n for n in OBJTAB if any(k.startswith('recol') for k in OBJTAB[n])]
+check(not bad, 'no tablet recolours anything any more: %s' % (bad or 'none of them'))
+# the icon camera is the cache's own, field for field
+bad = []
+for t in TABS:
+    for k, v in t['icon'].items():
+        if OBJTAB[t['obj']].get(k, [None])[0] != str(v):
+            bad.append('%s %s' % (t['obj'], k))
+check(not bad, 'every tablet keeps the 2d camera the OSRS config gave it: %s' % (bad or 'all 14'))
+bad = [t['obj'] for t in TABS if OBJTAB[t['obj']].get('name', [None])[0] != t['name']]
+check(not bad, 'every obj name is the OSRS name: %s' % (bad or 'all 14'))
 # iop1 exactly on the ones that do something by themselves
 want_break = {t['obj'] for t in TABS if t['kind'] != 'enchant'}
 have_break = {n for n in OBJTAB if OBJTAB[n].get('iop1', [None])[0] == 'Break'}
@@ -1273,17 +1287,27 @@ row0 = src[MENUS].split('[proc,poh_tab_row0]')[1].split('\n[')[0]
 check('if_setobject(' in row0 and 'if_setmodel(' not in row0,
       'the icons come from if_setobject, which takes the obj and reads its own 2d camera')
 scale = int(re.search(r'if_setobject\(poh_tabletmenu:t0model, .*, (\d+)\);', row0).group(1))
-zoom = int(TSPEC['icon']['2dzoom']) * 100 // scale
 d = IFF['poh_tabletmenu'][1]['t0model']
 rowc = IFF['poh_tabletmenu'][1][d['layer']]
 cw, ch = int(d['width']), int(d['height'])
-hw, rise, drop = ifmodels.extent(ifmodels.R.Model(
-    os.path.join(C, 'models/obj/%s.ob2' % TSPEC['model'])), cw, ch,
-    int(TSPEC['icon']['2dxan']), int(TSPEC['icon']['2dyan']), zoom)
 cx, cy = int(d['x']) + cw // 2, int(d['y']) + ch // 2
-check(cx - hw >= 0 and cx + hw <= int(rowc['width']) and cy - rise >= 0 and cy + drop <= int(rowc['height']),
-      'the tablet icon at scale %d lands inside its %sx%s row: x %.0f..%.0f, y %.0f..%.0f'
-      % (scale, rowc['width'], rowc['height'], cx - hw, cx + hw, cy - rise, cy + drop))
+# Fourteen models with fourteen cameras now, so every one is measured, not just the first. The
+# zoom is what if_setobject works out: the obj's own 2dzoom x 100 / scale.
+worst, bad = None, []
+for t in TABS:
+    zoom = int(t['icon']['2dzoom']) * 100 // scale
+    hw, rise, drop = ifmodels.extent(ifmodels.R.Model(
+        os.path.join(C, 'models/obj/%s.ob2' % t['model'])), cw, ch,
+        int(t['icon'].get('2dxan', 0)), int(t['icon'].get('2dyan', 0)), zoom)
+    if not (cx - hw >= 0 and cx + hw <= int(rowc['width'])
+            and cy - rise >= 0 and cy + drop <= int(rowc['height'])):
+        bad.append('%s x %.0f..%.0f y %.0f..%.0f' % (t['obj'], cx - hw, cx + hw, cy - rise, cy + drop))
+    if worst is None or (rise + drop) > worst[0]:
+        worst = (rise + drop, t['obj'], hw, rise, drop)
+check(not bad, 'all %d tablet icons at scale %d land inside their %sx%s row: %s'
+      % (len(TABS), scale, rowc['width'], rowc['height'],
+         bad or 'tallest is %s at %.0f x %.0f, y %.0f..%.0f'
+         % (worst[1], worst[2] * 2, worst[0], cy - worst[3], cy + worst[4])))
 
 print('43. the tablet generator still produces exactly what is checked in')
 kept3 = {f: open(os.path.join(C, f), 'rb').read() for f in [
@@ -1305,6 +1329,112 @@ check(not moved, 're-running it changes nothing: %s' % (moved or 'byte-identical
 op = {l.split('=', 1)[1]: int(l.split('=', 1)[0]) for l in read('pack/obj.pack').split('\n') if '=' in l}
 check(op.get('saw') == 8191 and min(op[t['obj']] for t in TABS) == 8192,
       'the tablets took the ids after the saw, and nothing already in a bank moved')
+
+print('44. breaking a tablet plays the tablet-break animation, not the spell')
+# The whole point of the round: every break path used to play the CAST - human_castteleport and
+# teleport_casting for a teleport, the enchant's own pair for an enchant - which is the animation
+# for casting the spell, not for smashing a tablet. One proc plays OSRS's break pair now.
+BRK = TSPEC['break']
+BRKSEQ = 'scripts/skill_construction/configs/poh_tab_break.seq'
+BRKSPOT = 'scripts/skill_construction/configs/poh_tab_break.spotanim'
+banim = TABRS.split('[proc,poh_tab_breakanim]')[1].split('\n[')[0] if '[proc,poh_tab_breakanim]' in TABRS else ''
+check('anim(%s, 0);' % BRK['anim'] in banim,
+      '~poh_tab_breakanim plays %s' % BRK['anim'])
+check('spotanim_pl(%s, %d, 0);' % (BRK['spot'], BRK['height']) in banim,
+      '~poh_tab_breakanim plays %s at height %d' % (BRK['spot'], BRK['height']))
+for proc in ('poh_tab_teleport', 'poh_tab_gohome', 'poh_tab_convert', 'poh_tab_enchant'):
+    body = TABRS.split('[proc,%s]' % proc)[1].split('\n[')[0]
+    check('~poh_tab_breakanim;' in body, '~%s breaks with the break animation' % proc)
+    bad = re.findall(r'anim\((human_castteleport|teleport_casting|\$anim|\$spotanim)', body)
+    check(not bad, '~%s plays no cast animation of its own: %s' % (proc, bad or 'none'))
+check('~player_teleport_normal' not in TABRS,
+      'nothing calls ~player_teleport_normal, which would play the cast (it teleports via ~p_telejump_safe)')
+check('~p_telejump_safe(' in TABRS, 'the teleport still goes through ~p_telejump_safe, with its own checks')
+# the art chain, the same sweep as check 19: a name in a pack is not a file
+seqd = set(re.findall(r'^\[(\w+)\]', read(BRKSEQ), re.M))
+check(BRK['anim'] in seqd and BRK['spot'] in seqd,
+      'poh_tab_break.seq declares both %s and %s' % (BRK['anim'], BRK['spot']))
+check(BRK['anim'] in SEQS and BRK['spot'] in SEQS, 'both are registered in seq.pack')
+SPOTS = set(packmap('pack/spotanim.pack'))
+spotcfg = blocks(read(BRKSPOT))
+check(BRK['spot'] in spotcfg and BRK['spot'] in SPOTS,
+      '%s is a spotanim config and is in spotanim.pack' % BRK['spot'])
+smodel = spotcfg[BRK['spot']].get('model', [None])[0]
+check(smodel in MODELS, 'the break graphic model %s is in model.pack' % smodel)
+check(os.path.exists(os.path.join(C, 'models/spot/%s.ob2' % smodel)),
+      '%s.ob2 is on disk' % smodel)
+check(spotcfg[BRK['spot']].get('anim', [None])[0] in SEQS,
+      'the break graphic animates on a seq that is registered')
+bframes = re.findall(r'^frame\d+=(\S+)$', read(BRKSEQ), re.M)
+bdelays = re.findall(r'^delay\d+=', read(BRKSEQ), re.M)
+check(len(bframes) > 0 and len(bdelays) == len(bframes),
+      'every one of the %d break frames has a delay' % len(bframes))
+ANIMS2 = set(packmap('pack/anim.pack'))
+ANIMSETS2 = set(packmap('pack/animset.pack'))
+BASES2 = set(packmap('pack/base.pack'))
+bad = [f for f in bframes if f not in ANIMS2]
+check(not bad, 'every break frame is in anim.pack: %s' % (bad or 'all %d' % len(bframes)))
+for st_ in sorted({f.rsplit('_', 1)[0] for f in bframes}):
+    check(st_ in ANIMSETS2, '%s is in animset.pack' % st_)
+    check(st_.replace('anim_', 'base_', 1) in BASES2, '%s base is in base.pack' % st_)
+    fp = os.path.join(C, 'models', st_ + '.anim')
+    check(os.path.exists(fp) and os.path.getsize(fp) > 0, '%s.anim is on disk' % st_)
+
+print('45. Make 1 / 5 / 10 / X')
+QSTEPS = TSPEC['quantities']['steps']
+QMAX = const('poh_tab_qty_max')
+order, coms = IFF['poh_tabletmenu']
+btns = ['qty%d' % n for n in QSTEPS] + ['qtyx']
+missing = [b for b in btns + ['qtylabel'] if b not in coms]
+check(not missing, 'the window has a button for every quantity: %s' % (missing or ', '.join(btns)))
+bad = [b for b in btns if coms[b].get('buttontype') != 'normal']
+check(not bad, 'every quantity button is a button: %s' % (bad or 'all %d' % len(btns)))
+bad = [b for b in btns if coms[b].get('type') != 'text' or 'layer' in coms[b]]
+check(not bad, 'each is a top-level text component, so if_settext really reaches it: %s' % (bad or 'all four'))
+# they must not sit under the rows, or a click lands on both
+rowtop = min(int(coms[c]['y']) for c in coms if re.fullmatch(r'row\d+', c))
+bad = [b for b in btns if int(coms[b]['y']) + int(coms[b]['height']) > rowtop]
+check(not bad, 'the buttons sit above the first row (y %d): %s' % (rowtop, bad or 'all four'))
+pick = src[MENUS].split('[proc,poh_tab_pick]')[1].split('\n[')[0]
+bad = [b for b in btns if 'if_addresumebutton(poh_tabletmenu:%s);' % b not in pick]
+check(not bad, 'every quantity button is a resume target: %s' % (bad or 'all four'))
+for n in QSTEPS:
+    check('case poh_tabletmenu:qty%d : %%poh_tab_qty = %d;' % (n, n) in pick,
+          'clicking %d sets the quantity to %d' % (n, n))
+check('case poh_tabletmenu:qtyx : ~poh_tab_qty_ask;' in pick, 'X asks for a number')
+ask = src[MENUS].split('[proc,poh_tab_qty_ask]')[1].split('\n[')[0]
+check('p_countdialog;' in ask, 'Make X uses p_countdialog, the prompt Cook X uses')
+check('if (last_int < 1) {' in ask, 'a cancelled prompt (0) leaves the quantity alone')
+check('if (%poh_tab_qty > ^poh_tab_qty_max) {' in ask, 'Make X is clamped to ^poh_tab_qty_max (%d)' % QMAX)
+draw = src[MENUS].split('[proc,poh_tab_qty_draw]')[1].split('\n[')[0]
+bad = [b for b in btns if 'if_settext(poh_tabletmenu:%s, "@whi@' % b not in draw]
+check(not bad, 'every button is redrawn white before one is picked out: %s' % (bad or 'all four'))
+check(draw.count('@gre@') == len(QSTEPS) + 1,
+      'exactly one of the %d can be green at a time' % len(btns))
+TAGS = set(re.findall(r'@(\w{3})@', draw))
+check(TAGS <= KNOWN, 'the quantity tints are tags PixFont.evaluateTag knows: %s' % sorted(TAGS))
+# the making loop: bounded, and it stops at the first refusal rather than repeating the message
+mk = TABRS.split('[proc,poh_tab_make_n]')[1].split('\n[')[0]
+check('while ($i < $count & $i < ^poh_tab_qty_max) {' in mk,
+      'the make loop is bounded by both the count and ^poh_tab_qty_max')
+check('if (~poh_tab_make($tab) = false) {' in mk and 'return;' in mk,
+      'it stops at the first tablet it cannot make')
+check('[proc,poh_tab_make](int $tab)(boolean)' in TABRS,
+      '~poh_tab_make answers whether it made one')
+check('while (true)' not in TABRS and 'def_string' not in TABRS,
+      'no unproven idiom in the tablet script (claude/rs2-compile-traps.md)')
+# the window comes down before the animation and the loop puts it back
+after = pick.split('if ($pick > 0) {')[1]
+check(after.index('if_close;') < after.index('~poh_tab_make_n('),
+      'the window closes before the tablets are made, so the animation is visible')
+# the quantity lives in a temp varp: it is a setting for this visit, not part of the house
+check('poh_tab_qty' in varps, '%poh_tab_qty is registered in varp.pack')
+qvarp = blocks(read('scripts/skill_construction/configs/construction.varp')).get('poh_tab_qty', {})
+check('scope' not in qvarp, '%poh_tab_qty is temp - it is a setting, not part of the saved house')
+p12q = ifrender.font('b12_full')
+wide = max((p12q.width(str(n)) for n in list(QSTEPS) + [QMAX]))
+check(wide <= int(coms['qty1']['width']),
+      'the widest number a quantity button can show is %dpx in a %spx box' % (wide, coms['qty1']['width']))
 
 
 print()

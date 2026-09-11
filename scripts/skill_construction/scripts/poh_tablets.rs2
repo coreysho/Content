@@ -94,26 +94,26 @@ if ($r3 ! null & inv_total(inv, $r3) < $c3) {
 }
 return(true);
 
-// One tablet per click. The window stays open and redraws, so a stack of clay becomes a stack
-// of tablets without leaving the lectern.
-[proc,poh_tab_make](int $tab)
+// One tablet. Returns false the moment it cannot make another - no level, no clay, no runes -
+// so ~poh_tab_make_n stops at the first refusal instead of printing the same message ten times.
+[proc,poh_tab_make](int $tab)(boolean)
 def_dbrow $d = ~get_spell_data(enum(int, int, poh_tab_spell, $tab));
 if (stat(magic) < db_getfield($d, magic_spell_table:levelrequired, 0)) {
     mes("You need a Magic level of <tostring(db_getfield($d, magic_spell_table:levelrequired, 0))> to make that tablet.");
-    return;
+    return(false);
 }
 if (db_getfield($d, magic_spell_table:members, 0) = true & map_members = ^false) {
     mes("You can only make that on a members' server.");
-    return;
+    return(false);
 }
 if (inv_total(inv, softclay) < 1) {
     mes("You need a piece of soft clay to make a tablet.");
-    return;
+    return(false);
 }
 if (~poh_tab_have($tab) = false) {
     mes("You do not have enough runes to make that tablet.");
     mes("It needs <enum(int, string, poh_tab_need, $tab)>.");
-    return;
+    return(false);
 }
 def_namedobj $r1;
 def_int $c1;
@@ -122,8 +122,8 @@ def_int $c2;
 def_namedobj $r3;
 def_int $c3;
 $r1, $c1, $r2, $c2, $r3, $c3 = ~poh_tab_runes($tab);
-// The clay goes first and it is not a stacking item, so its slot is the tablet's slot and
-// a full inventory cannot lose one.
+// The clay goes first. It does not stack, so its slot comes free before the tablet is added -
+// and the tablet does stack, so a full inventory can still take one either way.
 inv_del(inv, softclay, 1);
 if ($r1 ! null) {
     inv_del(inv, $r1, $c1);
@@ -139,6 +139,30 @@ stat_advance(magic, db_getfield($d, magic_spell_table:experience, 0));
 anim(human_cast_enchantring, 0);
 spotanim_pl(enchant_ring, 92, 0);
 mes("You bind the spell into the clay.");
+return(true);
+
+// Make 1, 5, 10 or X. The window's quantity buttons write %poh_tab_qty and hand it here; the
+// loop stops at the first tablet it cannot make, so running out of clay says so once and not
+// ten times. Bounded by ^poh_tab_qty_max, an inventory's worth: a tablet needs a soft clay and
+// clay does not stack, so no more than that can be carried to the lectern anyway.
+[proc,poh_tab_make_n](int $tab, int $count)
+def_int $i = 0;
+while ($i < $count & $i < ^poh_tab_qty_max) {
+    $i = calc($i + 1);
+    if (~poh_tab_make($tab) = false) {
+        return;
+    }
+    if ($i < $count) {
+        p_delay(2);
+    }
+}
+
+// The animation OSRS plays when a tablet is broken (seq 4069) and the graphic that goes with
+// it (spotanim 678, which animates itself). One proc, so every break path looks the same and
+// there is one place to change it.
+[proc,poh_tab_breakanim]
+anim(poh_tab_break, 0);
+spotanim_pl(poh_tab_break_gfx, 92, 0);
 
 // =========================================================================== breaking
 
@@ -159,7 +183,16 @@ if (inv_total(inv, $tab) < 1) {
 inv_del(inv, $tab, 1);
 mes("You break the tablet.");
 def_dbrow $d = ~get_spell_data($spell);
-~player_teleport_normal(map_findsquare(db_getfield($d, magic_spell_table:tele_coord, 0), 0, 2, ^map_findsquare_lineofwalk));
+def_coord $dest = map_findsquare(db_getfield($d, magic_spell_table:tele_coord, 0), 0, 2, ^map_findsquare_lineofwalk);
+// NOT ~player_teleport_normal: that plays human_castteleport, which is the animation for
+// CASTING the spell. Breaking a tablet has its own. This is that proc with the pair swapped -
+// the sound, the delay and ~p_telejump_safe are exactly its.
+if_close;
+p_stopaction;
+sound_synth(teleport_all, 1, 0);
+~poh_tab_breakanim;
+p_delay(2);
+~p_telejump_safe($dest);
 
 // The house tablet does not name a coord - ~poh_enter builds the instance and picks the door.
 [proc,poh_tab_gohome](obj $tab)
@@ -186,8 +219,7 @@ inv_del(inv, $tab, 1);
 mes("You break the tablet.");
 p_stopaction;
 sound_synth(teleport_all, 1, 0);
-anim(human_castteleport, 0);
-spotanim_pl(teleport_casting, 92, 0);
+~poh_tab_breakanim;
 p_delay(2);
 anim(null, 0);
 ~poh_enter(false);
@@ -214,8 +246,7 @@ mes("You break the tablet.");
 inv_del(inv, bones, $total);
 inv_add(inv, $product, $total);
 sound_synth($sound, 0, 0);
-anim($anim, 0);
-spotanim_pl($spotanim, 92, 0);
+~poh_tab_breakanim;
 p_delay(2);
 
 // An enchant needs a target, so the five enchant tablets arrive here from [opheldu] with the
@@ -245,8 +276,7 @@ if (oc_members($final) = true & map_members = ^false) {
 inv_del(inv, $tab, 1);
 mes("You break the tablet.");
 inv_setslot(inv, $slot, $final, 1);
-anim($anim, 0);
-spotanim_pl($spotanim, 92, 0);
+~poh_tab_breakanim;
 sound_synth($sound, 0, 0);
 mes("You successfully enchant the <lowercase(oc_name($target))>.");
 p_delay(1);

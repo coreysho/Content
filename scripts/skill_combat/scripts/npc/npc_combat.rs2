@@ -82,6 +82,13 @@ if (npc_stat(hitpoints) = 0) {
 if (finduid(%npc_aggressive_player) = true) {
     if (%debug_onehit = ^true) {
         $damage = npc_stat(hitpoints);
+        // The heropoints award is NOT optional. Every drop table starts with
+        // "if (npc_findhero = ^false) { return; }", and heropoints are normally awarded in
+        // player_melee.rs2 INSIDE the successful-hit branch, from the original rolled damage.
+        // A one-shot that lands on a MISS skips that branch entirely, so nothing is credited,
+        // findhero comes back false and the npc dies without dropping anything. Crediting the
+        // full kill here makes the tester unambiguously the hero however the swing rolled.
+        npc_heropoints($damage);
     }
 }
 // damage the npc

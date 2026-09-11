@@ -946,6 +946,42 @@ if_settext(poh_tabletmenu:t7name, "<enum(int, string, poh_tint_name, $state)><en
 if_settext(poh_tabletmenu:t7need, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_tab_need, $tab)>");
 if_settext(poh_tabletmenu:t7lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_tab_level, $tab))>");
 
+// Make 1 / 5 / 10 / X. The chosen one is green and the others white - the same @xxx@ tags the
+// rows use, so no extra components and no second set of texts. The X button shows the number
+// it was given rather than an X once it holds one, because "Make X" with X forgotten is the
+// one thing about this control that can confuse.
+[proc,poh_tab_qty_draw](int $qty)
+if_settext(poh_tabletmenu:qty1, "@whi@1");
+if_settext(poh_tabletmenu:qty5, "@whi@5");
+if_settext(poh_tabletmenu:qty10, "@whi@10");
+if_settext(poh_tabletmenu:qtyx, "@whi@X");
+if ($qty = 1) {
+    if_settext(poh_tabletmenu:qty1, "@gre@1");
+}
+if ($qty = 5) {
+    if_settext(poh_tabletmenu:qty5, "@gre@5");
+}
+if ($qty = 10) {
+    if_settext(poh_tabletmenu:qty10, "@gre@10");
+}
+if ($qty ! 1 & $qty ! 5 & $qty ! 10) {
+    if_settext(poh_tabletmenu:qtyx, "@gre@<tostring($qty)>");
+}
+
+// Make X. p_countdialog is the same "Enter amount" prompt Cook X uses; it can be opened over
+// the main window because openMainModal only drops a suspended script when the script is
+// waiting on a PAUSEBUTTON or a COUNTDIALOG, and this one is RUNNING. A cancelled prompt
+// answers 0, which leaves the quantity alone.
+[proc,poh_tab_qty_ask]
+p_countdialog;
+if (last_int < 1) {
+    return;
+}
+%poh_tab_qty = last_int;
+if (%poh_tab_qty > ^poh_tab_qty_max) {
+    %poh_tab_qty = ^poh_tab_qty_max;
+}
+
 // Study. The window stays up and redraws after every tablet, so one soft clay at a time turns
 // into an inventory of tablets without walking away from the lectern; ^poh_tab_loops is an
 // inventory's worth, and the bound is there because a loop that cannot end hangs the script.
@@ -971,6 +1007,10 @@ while ($n < ^poh_tab_loops) {
     }
     if_settext(poh_tabletmenu:title, "<enum(int, string, poh_lectern_name, $lect)>");
     if_settext(poh_tabletmenu:subtitle, "Select a tablet to make");
+    if (%poh_tab_qty < 1) {
+        %poh_tab_qty = 1;
+    }
+    ~poh_tab_qty_draw(%poh_tab_qty);
     ~poh_tab_row0($a);
     ~poh_tab_row1($b);
     ~poh_tab_row2($c);
@@ -1005,6 +1045,10 @@ while ($n < ^poh_tab_loops) {
     if ($h ! 0) {
         if_addresumebutton(poh_tabletmenu:t7box);
     }
+    if_addresumebutton(poh_tabletmenu:qty1);
+    if_addresumebutton(poh_tabletmenu:qty5);
+    if_addresumebutton(poh_tabletmenu:qty10);
+    if_addresumebutton(poh_tabletmenu:qtyx);
     if_addresumebutton(poh_tabletmenu:cancel);
     p_pausebutton;
     def_int $pick = 0;
@@ -1017,10 +1061,17 @@ while ($n < ^poh_tab_loops) {
         case poh_tabletmenu:t5box : $pick = $f;
         case poh_tabletmenu:t6box : $pick = $g;
         case poh_tabletmenu:t7box : $pick = $h;
+        case poh_tabletmenu:qty1 : %poh_tab_qty = 1;
+        case poh_tabletmenu:qty5 : %poh_tab_qty = 5;
+        case poh_tabletmenu:qty10 : %poh_tab_qty = 10;
+        case poh_tabletmenu:qtyx : ~poh_tab_qty_ask;
         case default : if_close; return;
     }
     if ($pick > 0) {
-        ~poh_tab_make($pick);
+        // The window comes down while they are being made: the animation is the feedback, and
+        // the loop above puts it back up with the new counts as soon as the batch is done.
+        if_close;
+        ~poh_tab_make_n($pick, %poh_tab_qty);
     }
 }
 if_close;
