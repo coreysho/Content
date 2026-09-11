@@ -338,11 +338,13 @@ while ($i < ^poh_furn_slots) {
 
 // =========================================================================== the menu
 
-[proc,poh_furn_nth](int $fam, int $n, int $level)(int)
+// The nth (0-based) piece in this family, whatever the player's level. The window shows the whole
+// family and dims the tiers above you - see ~poh_furn_slot0 - so the level is not a filter here.
+[proc,poh_furn_nth](int $fam, int $n)(int)
 def_int $item = 1;
 def_int $seen = 0;
 while ($item <= ^poh_furn_items) {
-    if (enum(int, int, poh_furn_fam, $item) = $fam & enum(int, int, poh_furn_level, $item) <= $level) {
+    if (enum(int, int, poh_furn_fam, $item) = $fam) {
         if ($seen = $n) {
             return($item);
         }
@@ -457,7 +459,7 @@ if (~poh_furn_free < 0) {
     mes("Your house is as full of furniture as it will hold.");
     return;
 }
-def_int $item = ~poh_furn_pick($fam, stat(construction));
+def_int $item = ~poh_furn_pick($fam);
 if ($item = 0) {
     mes("There's nothing you can build here yet.");
     return;

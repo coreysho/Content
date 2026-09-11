@@ -142,34 +142,55 @@ for proc, pat in (('poh_furn_plank_total', r'case (\d) : return\(inv_total'),
           '%s handles woods 2,3,4 with 1 as the default: %s' % (proc, cases))
 check(set(WOOD.values()) <= {1, 2, 3, 4}, 'the table only uses woods the script can pay for')
 
-print('6. the menu offers exactly what the level allows, and pages far enough')
-def nth(fam, n, level):                                  # ~poh_furn_nth
+print('6. the window lists a whole family whatever the level, and gates on the way out')
+# The level stopped being a filter when the window started dimming what you cannot reach: a tier you
+# have not earned is shown in black with its level in red, which is the point of the thing.
+def nth(fam, n):                                         # ~poh_furn_nth
     seen = 0
     for i in range(1, ITEMS + 1):
-        if FAM[i] == fam and LEVEL[i] <= level:
+        if FAM[i] == fam:
             if seen == n: return i
             seen += 1
     return 0
+nthbody = rs2.split('[proc,poh_furn_nth]', 1)[1].split('\n[', 1)[0]
+check('poh_furn_level' not in nthbody,
+      '~poh_furn_nth does not filter by level - the window dims instead of hiding')
+check(nthbody.count('poh_furn_fam') == 1, 'it filters on the family and on nothing else')
 for fam, its in sorted(byfam.items()):
-    for level in (1, 10, 20, 30, 45, 99):
-        offered = {nth(fam, n, level) for n in range(ITEMS)} - {0}
-        should = {i for i in its if LEVEL[i] <= level}
-        check(offered == should, 'family %d at level %d offers %d of %d' % (fam, level, len(offered), len(should)))
+    offered = {nth(fam, n) for n in range(ITEMS)} - {0}
+    check(offered == set(its), 'family %d lists all %d of its tiers' % (fam, len(its)))
+locked = [f for f, its in byfam.items() if any(LEVEL[i] > 1 for i in its)]
+check(len(locked) == len(byfam), 'every family has a tier a level-1 player cannot build (%d of %d)'
+      % (len(locked), len(byfam)))
+menus = read('scripts/skill_construction/scripts/poh_menus.rs2')
+pick = menus.split('[proc,poh_furn_pick]', 1)[1].split('\n[', 1)[0]
+check('stat(construction) >= enum(int, int, poh_furn_level, $pick)' in pick,
+      '~poh_furn_pick re-checks the level before it returns a piece')
+check(pick.index('p_pausebutton') < pick.index('stat(construction) >='),
+      'and it does so AFTER the click, not while building the page')
+check('mes(' in pick.split('stat(construction) >=', 1)[1], 'a click it refuses says why')
+# the three tint tables have to cover every state the row procs can produce
+tints = read('scripts/skill_construction/configs/poh_menus.enum')
+slot = menus.split('[proc,poh_furn_slot0]', 1)[1].split('\n[', 1)[0]
+states = {v for k, v in C.items() if k.startswith('poh_state_')}
+for t in ('poh_tint_name', 'poh_tint_level', 'poh_tint_need'):
+    rows = {int(m.group(1)) for m in re.finditer(r'^val=(\d+),', tints.split('[%s]' % t)[1].split('\n[')[0], re.M)}
+    check(states <= rows, '%s answers for every ^poh_state_* (%s)' % (t, sorted(rows)))
+check('^poh_state_poor' in slot and '^poh_state_locked' in slot,
+      'the slot proc really sets both states')
 # ~poh_furn_pick moved to poh_menus.rs2 when the menu became a window, and a page is now as many
 # slots as the window has - so read both numbers rather than keeping a literal that can go stale.
-menus = read('scripts/skill_construction/scripts/poh_menus.rs2')
-SLOTS = int(re.search(r'\^poh_menu_slots\s*=\s*(\d+)',
-                      read('scripts/skill_construction/configs/construction.constant')).group(1))
-body = menus.split('[proc,poh_furn_pick]', 1)[1].split('\n[', 1)[0]
-m = re.search(r'while \(\$page < (\d+)\)', body)
+# NOT `SLOTS`: that one is ^poh_furn_slots, the 64 varp slots a house's furniture is saved in.
+MENU_SLOTS = C['poh_menu_slots']
+m = re.search(r'while \(\$page < (\d+)\)', pick)
 bound = int(m.group(1)) if m else 0
 biggest = max(len(v) for v in byfam.values())
-check(bound * SLOTS >= biggest,
-      'the page loop (%d x %d) reaches all %d tiers of the biggest family' % (bound, SLOTS, biggest))
-check(body.count('~poh_furn_slot') == SLOTS,
-      'it fills exactly the %d slots the window has' % SLOTS)
-check(SLOTS >= biggest,
-      'one page already holds the biggest family (%d slots, %d tiers)' % (SLOTS, biggest))
+check(bound * MENU_SLOTS >= biggest,
+      'the page loop (%d x %d) reaches all %d tiers of the biggest family' % (bound, MENU_SLOTS, biggest))
+check(pick.count('~poh_furn_slot') == MENU_SLOTS,
+      'it fills exactly the %d slots the window has' % MENU_SLOTS)
+check(MENU_SLOTS >= biggest,
+      'one page already holds the biggest family (%d slots, %d tiers)' % (MENU_SLOTS, biggest))
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

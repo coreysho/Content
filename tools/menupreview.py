@@ -31,24 +31,39 @@ F = 'scripts/skill_construction/configs/poh_furniture.enum'
 MENUS = 'scripts/skill_construction/scripts/poh_menus.rs2'
 FURN = 'scripts/skill_construction/scripts/poh_furniture.rs2'
 
-def room_fill(types, more):
+TINTS = 'scripts/skill_construction/configs/poh_menus.enum'
+
+def tint(state):
+    """The three @xxx@ tags a row of this state is drawn with, straight out of the enum."""
+    return tuple(enumtable(TINTS, t)[state] for t in
+                 ('poh_tint_name', 'poh_tint_level', 'poh_tint_need'))
+
+def state(level, cost, have_level, have_cost):
+    if have_level < level:
+        return 2
+    return 0 if have_cost >= cost else 1
+
+def room_fill(types, more, level=99, coins=10 ** 9):
     rm, rz = rs2table(MENUS, 'poh_room_model'), rs2table(MENUS, 'poh_room_zoom')
-    name, lvl, cost = enumtable(R, 'poh_room_name'), enumtable(R, 'poh_room_level'), enumtable(R, 'poh_room_cost_text')
+    name, lvl = enumtable(R, 'poh_room_name'), enumtable(R, 'poh_room_level')
+    cost, costn = enumtable(R, 'poh_room_cost_text'), enumtable(R, 'poh_room_cost')
     fill = {'subtitle': {'text': 'Select a room to build'}, 'more': {'hide': 'no' if more else 'yes'}}
     for i in range(6):
         if i < len(types):
             t = types[i]
+            st = state(int(lvl[t]), int(costn[t]), level, coins)
+            tn, tl, td = tint(st)
             fill['r%dmodel' % i] = {'model': rm[t], 'zoom': rz[t]}
-            fill['r%dname' % i] = {'text': '%s: Lvl %s' % (name[t], lvl[t])}
-            fill['r%dcost' % i] = {'text': '%s coins' % cost[t]}
+            fill['r%dname' % i] = {'text': '%s%s: %sLvl %s' % (tn, name[t], tl, lvl[t])}
+            fill['r%dcost' % i] = {'text': '%s%s coins' % (td, cost[t])}
         else:
             fill['row%d' % i] = {'hide': 'yes'}
     return fill
 
-def furn_fill(fam, more):
+def furn_fill(fam, more, level=99, planks=10 ** 6):
     fm, fz = rs2table(FURN, 'poh_furn_model'), rs2table(MENUS, 'poh_furn_zoom')
     famof = enumtable(F, 'poh_furn_fam'); name = enumtable(F, 'poh_furn_name')
-    lvl = enumtable(F, 'poh_furn_level'); planks = enumtable(F, 'poh_furn_planks')
+    lvl = enumtable(F, 'poh_furn_level'); plank = enumtable(F, 'poh_furn_planks')
     wood = enumtable(F, 'poh_wood_name'); famname = enumtable(F, 'poh_fam_name')
     items = [i for i in sorted(famof) if int(famof[i]) == fam]
     fill = {'title': {'text': famname[fam]},
@@ -57,19 +72,26 @@ def furn_fill(fam, more):
     for s in range(8):
         if s < len(items):
             it = items[s]
+            st = state(int(lvl[it]), int(plank[it]), level, planks)
+            tn, tl, td = tint(st)
             fill['s%dmodel' % s] = {'model': fm[it], 'zoom': fz[it]}
-            fill['s%dlvl' % s] = {'text': 'Level %s' % lvl[it]}
-            fill['s%dname' % s] = {'text': name[it]}
-            fill['s%dneed' % s] = {'text': '%s %s' % (planks[it], wood[it])}
+            fill['s%dlvl' % s] = {'text': '%sLevel %s' % (tl, lvl[it])}
+            fill['s%dname' % s] = {'text': '%s%s' % (tn, name[it])}
+            fill['s%dneed' % s] = {'text': '%s%s %s' % (td, plank[it], wood[it])}
         else:
             fill['slot%d' % s] = {'hide': 'yes'}
     return fill
 
 STATES = [
-    ('Room creation, a full page with more to come', 'poh_roommenu', room_fill([1, 2, 3, 4, 5, 6], True)),
-    ('Room creation, the costliest rooms, short page', 'poh_roommenu', room_fill([9, 10, 15], False)),
-    ('Furniture, the bed hotspot (7 tiers)', 'poh_furnmenu', furn_fill(10, False)),
-    ('Furniture, the larder hotspot (3 tiers)', 'poh_furnmenu', furn_fill(3, False)),
+    ('Room creation at level 12 with 3,000 coins: all three states at once',
+     'poh_roommenu', room_fill([1, 2, 3, 4, 5, 6], True, level=12, coins=3000)),
+    ('Room creation, the costly end of the ladder, all of it locked',
+     'poh_roommenu', room_fill([9, 10, 15], False, level=22, coins=6000)),
+    ('The bed hotspot at level 33 with 3 planks of everything',
+     'poh_furnmenu', furn_fill(10, False, level=33, planks=3)),
+    ('The bed hotspot at 99 with nothing in the bank',
+     'poh_furnmenu', furn_fill(10, False, level=99, planks=0)),
+    ('The larder hotspot, all three affordable', 'poh_furnmenu', furn_fill(3, False)),
 ]
 
 if __name__ == '__main__':

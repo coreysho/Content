@@ -895,6 +895,34 @@ for win, (o, coms) in IFF.items():
             over.append((c, t, f.width(t), int(coms[c]['width'])))
     check(not over, '%s: its own labels fit: %s' % (win, over or 'all fit'))
 
+print('37. the dim/highlight tags are ones the client actually knows')
+# PixFont.evaluateTag returns -1 for anything it does not recognise and drawStringTag then just
+# swallows the five characters: an unknown tag is INVISIBLE, not an error, and the run silently
+# keeps the previous colour. A typo would show as "the greying stopped working" and nothing else.
+KNOWN = {'red', 'gre', 'blu', 'yel', 'cya', 'mag', 'whi', 'bla', 'lre', 'dre', 'dbl',
+         'or1', 'or2', 'or3', 'gr1', 'gr2', 'gr3', 'str', 'end'}
+TINTS = read('scripts/skill_construction/configs/poh_menus.enum')
+STATES = {n: v for n, v in re.findall(r'^\^(poh_state_\w+)\s*=\s*(\d+)$',
+                                     read('scripts/skill_construction/configs/construction.constant'), re.M)}
+check(len(STATES) == 3, 'there are %d ^poh_state_* constants: %s' % (len(STATES), sorted(STATES)))
+for t in ('poh_tint_name', 'poh_tint_level', 'poh_tint_need'):
+    rows = enumtable(TINTS, t)
+    check(sorted(rows) == sorted(int(v) for v in STATES.values()),
+          '%s answers for every ^poh_state_* and nothing else' % t)
+    bad = [(k, v) for k, v in rows.items()
+           if not re.fullmatch(r'@(\w{3})@', v) or re.fullmatch(r'@(\w{3})@', v).group(1) not in KNOWN]
+    check(not bad, '%s: every value is a tag PixFont.evaluateTag knows: %s' % (t, bad or 'all known'))
+# and the rows really use them - a table nothing reads is not a feature
+for win, comp, tables in [('poh_roommenu', 'r0', ('poh_tint_name', 'poh_tint_level', 'poh_tint_need')),
+                          ('poh_furnmenu', 's0', ('poh_tint_name', 'poh_tint_level', 'poh_tint_need'))]:
+    proc = 'poh_room_row0' if win == 'poh_roommenu' else 'poh_furn_slot0'
+    # src, not clean: `clean` blanks string literals and the enum lookups live inside if_settext's
+    body = src[MENUS].split('[proc,%s]' % proc)[1].split('\n[')[0]
+    for t in tables:
+        check(t in body, '%s: %s reads %s' % (win, proc, t))
+    check('^poh_state_locked' in body and '^poh_state_poor' in body,
+          '%s: %s sets both the poor and the locked state' % (win, proc))
+
 print('35. the generator still produces exactly what is checked in')
 import subprocess, filecmp, tempfile, shutil
 kept = {f: open(os.path.join(C, f), 'rb').read() for f in [

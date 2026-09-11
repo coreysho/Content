@@ -75,13 +75,13 @@ while ($rot < 4) {
 }
 return(-1);
 
-// Cost is deliberately NOT a filter - the price is in the menu label, so a player can see what they
-// are saving for instead of wondering why a room is missing.
-[proc,poh_can_build](int $rx, int $rz, int $type, int $side)(boolean)
+// Whether this room CAN GO HERE - which is a question about geometry, not about the player. Neither
+// the price nor the Construction level is a filter: the window lists the whole ladder and dims what
+// you cannot reach yet, because a room that is simply missing teaches nothing, and "Lvl 60" in red
+// is how you find out the skill goes somewhere. A room with no door on the side you clicked is a
+// different thing - it can never go there at any level - so that one is still a filter.
+[proc,poh_room_fits](int $rx, int $rz, int $type, int $side)(boolean)
 if (~poh_room_type($rx, $rz) ! 0) {
-    return(false);
-}
-if (stat(construction) < enum(int, int, poh_room_level, $type)) {
     return(false);
 }
 if (~poh_room_rot_for($rx, $rz, $type, $side) < 0) {
@@ -89,13 +89,13 @@ if (~poh_room_rot_for($rx, $rz, $type, $side) < 0) {
 }
 return(true);
 
-// The nth (0-based) room type that may be built here, or 0. This is how the menu pages without
-// anywhere to hold a list.
+// The nth (0-based) room type that fits here, or 0. This is how the window pages without anywhere
+// to hold a list.
 [proc,poh_nth_room](int $rx, int $rz, int $side, int $n)(int)
 def_int $type = 1;
 def_int $seen = 0;
 while ($type <= ^poh_room_count) {
-    if (~poh_can_build($rx, $rz, $type, $side) = true) {
+    if (~poh_room_fits($rx, $rz, $type, $side) = true) {
         if ($seen = $n) {
             return($type);
         }

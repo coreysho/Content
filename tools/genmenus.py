@@ -200,6 +200,14 @@ HEAD = '''// The two Construction windows, and the code that fills them.
 // value cannot frame 78 models of different sizes, so tools/ifmodels.py solves each one from
 // its own geometry and writes the tables below.
 //
+// WHY THE TINTS ARE THREE ENUMS AND NOT A PROC. Colour comes from @xxx@ tags inside the text -
+// PixFont.drawStringTag reads them mid-string, so one if_settext controls the colour of every run
+// in a row without extra components. The tag itself has to come from somewhere, and a proc that
+// returns a string has no precedent in this repo (claude/rs2-compile-traps.md), so each row works
+// out an int state and looks the tag up: <enum(int, string, poh_tint_name, $state)>, which is the
+// idiom poh_test.rs2 already compiles. State 0 is buildable, 1 is buildable but you cannot pay for
+// it, 2 is above your Construction level.
+//
 // ON THE MODELS ARRIVING LATE. if_setmodel names a model the .if never mentions, so the packer
 // does not flag it for the client's preload batch. Model.tryGet asks the on-demand stream for
 // anything missing and returns null until it lands, so an icon can be blank for the first frame
@@ -234,13 +242,24 @@ def rs2_room(spec, costtext):
         o.append('    return;')
         o.append('}')
         o.append('if_sethide(poh_roommenu:row%d, false);' % i)
+        o.append('def_int $state = ^poh_state_ready;')
+        o.append('if (inv_total(inv, coins) < enum(int, int, poh_room_cost, $type)) {')
+        o.append('    $state = ^poh_state_poor;')
+        o.append('}')
+        o.append('if (stat(construction) < enum(int, int, poh_room_level, $type)) {')
+        o.append('    $state = ^poh_state_locked;')
+        o.append('}')
         o.append('if_setmodel(poh_roommenu:r%dmodel, ~poh_room_model($type));' % i)
         o.append('if_setangle(poh_roommenu:r%dmodel, ^poh_menu_xan, ^poh_menu_yan, ~poh_room_zoom($type));' % i)
-        o.append('if_settext(poh_roommenu:r%dname, "<enum(int, string, poh_room_name, $type)>: Lvl <tostring(enum(int, int, poh_room_level, $type))>");' % i)
-        o.append('if_settext(poh_roommenu:r%dcost, "<enum(int, string, poh_room_cost_text, $type)> coins");' % i)
+        o.append('if_settext(poh_roommenu:r%dname, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_room_name, $type)>: <enum(int, string, poh_tint_level, $state)>Lvl <tostring(enum(int, int, poh_room_level, $type))>");' % i)
+        o.append('if_settext(poh_roommenu:r%dcost, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_room_cost_text, $type)> coins");' % i)
         o.append('')
     o.append('// Six rooms a page, three pages, which is every room type twice over. The page loop is')
     o.append('// bounded rather than while(true): a menu that cannot end would hang the player script.')
+    o.append('//')
+    o.append('// A click on a room you have the level for returns it and the caller does the paying. A click')
+    o.append('// on one you do not says so and leaves the window open - money is a thing you go and fix, a')
+    o.append('// level is a thing you go on browsing past.')
     o.append('[proc,poh_pick_room](int $rx, int $rz, int $side)(int)')
     o.append('def_int $page = 0;')
     o.append('while ($page < 3) {')
@@ -269,11 +288,19 @@ def rs2_room(spec, costtext):
     o.append('    }')
     o.append('    if_addresumebutton(poh_roommenu:cancel);')
     o.append('    p_pausebutton;')
+    o.append('    def_int $pick = 0;')
     o.append('    switch_component (last_com) {')
     for i in range(ROOM_ROWS):
-        o.append('        case poh_roommenu:r%dbox : if_close; return($%s);' % (i, lets[i]))
+        o.append('        case poh_roommenu:r%dbox : $pick = $%s;' % (i, lets[i]))
     o.append('        case poh_roommenu:morebtn : $page = calc($page + 1);')
     o.append('        case default : if_close; return(0);')
+    o.append('    }')
+    o.append('    if ($pick > 0) {')
+    o.append('        if (stat(construction) >= enum(int, int, poh_room_level, $pick)) {')
+    o.append('            if_close;')
+    o.append('            return($pick);')
+    o.append('        }')
+    o.append('        mes("You need a Construction level of <tostring(enum(int, int, poh_room_level, $pick))> to build a <enum(int, string, poh_room_name, $pick)>.");')
     o.append('    }')
     o.append('}')
     o.append('if_close;')
@@ -297,21 +324,31 @@ def rs2_furn(spec):
         o.append('    return;')
         o.append('}')
         o.append('if_sethide(poh_furnmenu:slot%d, false);' % i)
+        o.append('def_int $state = ^poh_state_ready;')
+        o.append('if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int, poh_furn_planks, $item)) {')
+        o.append('    $state = ^poh_state_poor;')
+        o.append('}')
+        o.append('if (stat(construction) < enum(int, int, poh_furn_level, $item)) {')
+        o.append('    $state = ^poh_state_locked;')
+        o.append('}')
         o.append('if_setmodel(poh_furnmenu:s%dmodel, ~poh_furn_model($item));' % i)
         o.append('if_setangle(poh_furnmenu:s%dmodel, ^poh_menu_xan, ^poh_menu_yan, ~poh_furn_zoom($item));' % i)
-        o.append('if_settext(poh_furnmenu:s%dlvl, "Level <tostring(enum(int, int, poh_furn_level, $item))>");' % i)
-        o.append('if_settext(poh_furnmenu:s%dname, "<enum(int, string, poh_furn_name, $item)>");' % i)
-        o.append('if_settext(poh_furnmenu:s%dneed, "<tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");' % i)
+        o.append('if_settext(poh_furnmenu:s%dlvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");' % i)
+        o.append('if_settext(poh_furnmenu:s%dname, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");' % i)
+        o.append('if_settext(poh_furnmenu:s%dneed, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");' % i)
         o.append('')
     o.append('// Eight slots is one more than the largest family has tiers, so the More button is dead')
     o.append('// weight today and there anyway: the tables are data, and a family can grow.')
-    o.append('[proc,poh_furn_pick](int $fam, int $level)(int)')
+    o.append('//')
+    o.append('// Level is not a filter - the whole family is listed and the tiers above you are dimmed, so')
+    o.append('// the window is also where you find out what the next twenty levels are for.')
+    o.append('[proc,poh_furn_pick](int $fam)(int)')
     o.append('def_int $page = 0;')
     o.append('while ($page < 3) {')
     lets = 'abcdefgh'
     for i in range(FURN_SLOTS):
-        o.append('    def_int $%s = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + %d), $level);' % (lets[i], i))
-    o.append('    def_int $more = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + ^poh_menu_slots), $level);')
+        o.append('    def_int $%s = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + %d));' % (lets[i], i))
+    o.append('    def_int $more = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + ^poh_menu_slots));')
     o.append('    if ($a = 0) {')
     o.append('        return(0);')
     o.append('    }')
@@ -334,17 +371,43 @@ def rs2_furn(spec):
     o.append('    }')
     o.append('    if_addresumebutton(poh_furnmenu:cancel);')
     o.append('    p_pausebutton;')
+    o.append('    def_int $pick = 0;')
     o.append('    switch_component (last_com) {')
     for i in range(FURN_SLOTS):
-        o.append('        case poh_furnmenu:s%dbox : if_close; return($%s);' % (i, lets[i]))
+        o.append('        case poh_furnmenu:s%dbox : $pick = $%s;' % (i, lets[i]))
     o.append('        case poh_furnmenu:morebtn : $page = calc($page + 1);')
     o.append('        case default : if_close; return(0);')
+    o.append('    }')
+    o.append('    if ($pick > 0) {')
+    o.append('        if (stat(construction) >= enum(int, int, poh_furn_level, $pick)) {')
+    o.append('            if_close;')
+    o.append('            return($pick);')
+    o.append('        }')
+    o.append('        mes("You need a Construction level of <tostring(enum(int, int, poh_furn_level, $pick))> to build that.");')
     o.append('    }')
     o.append('}')
     o.append('if_close;')
     o.append('return(0);')
     return o
 
+# --------------------------------------------------------------------------- the tint tables
+
+TINTS = [
+    ('poh_tint_name',  ['@whi@', '@whi@', '@bla@'],
+     'What colour each part of a row is drawn in, by state: 0 you can build it, 1 you can build it but\n'
+     'cannot pay for it, 2 your Construction level is too low. These are PixFont @xxx@ tags, read\n'
+     'mid-string by drawStringTag, so one if_settext colours a whole row.\n'
+     '\n'
+     'The name of a locked row is BLACK rather than grey: PixFont.evaluateTag has no grey, and black on\n'
+     'the stone panel recedes the way a disabled entry should. Checked by rendering it - see\n'
+     'tools/menupreview.py.'),
+    ('poh_tint_level', ['@whi@', '@whi@', '@red@'],
+     'The level requirement, red when you have not got it. This is the one OSRS shows in red too.'),
+    ('poh_tint_need',  ['@gre@', '@red@', '@bla@'],
+     'What it costs: green when you have it, red when you have not, black when the level puts it out of\n'
+     'reach anyway. Green-for-have and red-for-have-not is the smithing interface\'s own convention\n'
+     '(its bar counts are colour=0xC00000 with activecolour=0x00C000).'),
+]
 
 # --------------------------------------------------------------------------- pack registration
 
@@ -358,7 +421,8 @@ def repack(names_by_iface, drop):
     windows being written are dropped first too, so running the generator twice reuses the
     same ids instead of abandoning a block of them on every run.
 
-    interface.pack is LF; interface.order is CRLF. Mixing them up is a whole-file diff.
+    interface.pack is LF; interface.order follows the repo's other text files. Mixing them
+    up is a whole-file diff.
     """
     p = os.path.join(ROOT, 'pack/interface.pack')
     o = os.path.join(ROOT, 'pack/interface.order')
@@ -408,7 +472,7 @@ FAMS = ['Stove', 'Sink', 'Larder', 'Shelves', 'Kitchen table', 'Barrel', 'Dining
 def enum_block(name, rows, outtype='string', head=''):
     o = []
     if head:
-        o += head.split('\n')
+        o += [l.rstrip() for l in head.split('\n')]
     o.append('[%s]' % name)
     o.append('inputtype=int')
     o.append('outputtype=%s' % outtype)
@@ -423,8 +487,10 @@ def add_enum(path, name, lines):
     comment block: replacing from the [name] header leaves the old comment behind, and
     running the generator twice then grows the file a paragraph at a time.
     """
-    raw = open(path, 'rb').read().decode('utf-8')
+    raw = open(path, 'rb').read().decode('utf-8') if os.path.exists(path) else ''
     nl = '\r\n' if raw.count('\r\n') > raw.count('\n') / 2 else '\n'
+    if not raw:
+        nl = '\r\n' if _crlf(os.path.join(ROOT, 'scripts/skill_construction/configs/poh_rooms.enum')) else '\n'
     src = raw.split(nl)
     hdr = '[%s]' % name
     if hdr in src:
@@ -441,8 +507,8 @@ def add_enum(path, name, lines):
     else:
         while src and src[-1].strip() == '':
             src.pop()
-        src += [''] + lines
-    open(path, 'wb').write((nl.join(src).rstrip('\r\n') + nl).encode('utf-8'))
+        src += ([''] if any(x.strip() for x in src) else []) + lines
+    open(path, 'wb').write((nl.join(src).lstrip('\r\n').rstrip('\r\n') + nl).encode('utf-8'))
 
 # --------------------------------------------------------------------------- main
 
@@ -538,7 +604,13 @@ if __name__ == '__main__':
              enum_block('poh_fam_name', list(enumerate(FAMS, 1)), 'string',
                         '// What the furniture window calls each hotspot family, for its title bar. Families are\n'
                         '// the ^poh_fam_* constants in construction.constant.'))
-    print('enums: poh_room_cost_text, poh_fam_name')
+    tints = os.path.join(ROOT, 'scripts/skill_construction/configs/poh_menus.enum')
+    if not os.path.exists(tints):
+        open(tints, 'wb').write(b'')
+    for name, vals, why in TINTS:
+        add_enum(tints, name, enum_block(name, list(enumerate(vals)), 'string',
+                                         '\n'.join('// ' + l for l in why.split('\n'))))
+    print('enums: poh_room_cost_text, poh_fam_name, ' + ', '.join(n for n, _, _ in TINTS))
 
     rs2 = rs2_room(rooms, None) + rs2_furn(furn)
     path = os.path.join(ROOT, 'scripts/skill_construction/scripts/poh_menus.rs2')

@@ -75,14 +75,13 @@ class House:
             if rot_doors(DOORS[t], rot) & side and s.can_place(rx, rz, t, rot):
                 return rot
         return -1
-    def can_build(s, rx, rz, t, side, level):            # ~poh_can_build
+    def fits(s, rx, rz, t, side):                        # ~poh_room_fits
         if s.type(rx, rz) != 0: return False
-        if level < LEVEL[t]: return False
         return s.rot_for(rx, rz, t, side) >= 0
-    def nth_room(s, rx, rz, side, n, level):             # ~poh_nth_room
+    def nth_room(s, rx, rz, side, n):                    # ~poh_nth_room
         seen = 0
         for t in range(1, COUNT + 1):
-            if s.can_build(rx, rz, t, side, level):
+            if s.fits(rx, rz, t, side):
                 if seen == n: return t
                 seen += 1
         return 0
@@ -213,7 +212,7 @@ for trial in range(1000):
             dx, dz = DXDZ[side]; tx, tz = rx + dx, rz + dz
             if not (0 <= tx < GRID and 0 <= tz < GRID) or h.type(tx, tz): continue
             need = OPP[side]
-            opts = [t for t in range(1, COUNT + 1) if h.can_build(tx, tz, t, need, level)]
+            opts = [t for t in range(1, COUNT + 1) if h.fits(tx, tz, t, need) and LEVEL[t] <= level]
             if not opts: continue
             t = random.choice(opts)
             h.set(tx, tz, t, h.rot_for(tx, tz, t, need)); built += 1; placed = True
@@ -238,7 +237,7 @@ for trial in range(600):
         for rx, rz, side in spots:
             dx, dz = DXDZ[side]; tx, tz = rx + dx, rz + dz
             if not (0 <= tx < GRID and 0 <= tz < GRID) or h.type(tx, tz): continue
-            opts = [t for t in range(1, COUNT + 1) if h.can_build(tx, tz, t, OPP[side], level)]
+            opts = [t for t in range(1, COUNT + 1) if h.fits(tx, tz, t, OPP[side]) and LEVEL[t] <= level]
             if not opts: continue
             t = random.choice(opts); h.set(tx, tz, t, h.rot_for(tx, tz, t, OPP[side]))
             break
@@ -262,23 +261,38 @@ check(nonleaf_would_break > 0,
       '%d of %d non-leaf removals WOULD have cut it in two - the guard earns its place'
       % (nonleaf_would_break, nonleaf_tested))
 
-# ---- 6. level gating and paging --------------------------------------------------------------
-print('6. the level gate and the menu paging')
+# ---- 6. what the window lists, and the paging -------------------------------------------------
+print('6. the window lists every room that FITS, at any level, and gates on the way out')
+# The level stopped being a filter when the windows started dimming what you cannot reach. What is
+# listed is a question about geometry; what you may click is a question about you.
 h = starter()
 rx, rz = sorted(h.cell)[0]
 side = N
 tx, tz = rx, rz + 1
-for level in (1, 10, 25, 40, 60, 99):
-    offered = {h.nth_room(tx, tz, OPP[side], n, level) for n in range(COUNT)} - {0}
-    for t in offered:
-        check(LEVEL[t] <= level, 'at level %d, %s (needs %d) is offered' % (level, NAME[t], LEVEL[t]))
-    missing = [t for t in range(1, COUNT + 1)
-               if LEVEL[t] <= level and h.rot_for(tx, tz, t, OPP[side]) >= 0 and t not in offered]
-    check(not missing, 'at level %d nothing eligible is hidden: %s' % (level, [NAME[t] for t in missing]))
+fitsbody = build.split('[proc,poh_room_fits]', 1)[1].split('\n[', 1)[0]
+check('poh_room_level' not in fitsbody and 'stat(construction)' not in fitsbody,
+      '~poh_room_fits does not filter by level - the window dims instead of hiding')
+check('poh_room_cost' not in fitsbody, 'nor by price')
+offered = {h.nth_room(tx, tz, OPP[side], n) for n in range(COUNT)} - {0}
+fits = {t for t in range(1, COUNT + 1) if h.rot_for(tx, tz, t, OPP[side]) >= 0}
+check(offered == fits, 'every room that fits is listed whatever the level: %d of %d'
+      % (len(offered), len(fits)))
+check(any(LEVEL[t] > 1 for t in offered),
+      'and that includes ones a new player cannot build: %s'
+      % sorted(NAME[t] for t in offered if LEVEL[t] > 1)[:3])
+# the gate has to be somewhere, so it has to be at the click
+MENUS_SRC = read('scripts/skill_construction/scripts/poh_menus.rs2')
+pick = MENUS_SRC.split('[proc,poh_pick_room]', 1)[1].split('\n[', 1)[0]
+check('stat(construction) >= enum(int, int, poh_room_level, $pick)' in pick,
+      '~poh_pick_room re-checks the level before it returns a room')
+check(pick.index('p_pausebutton') < pick.index('stat(construction) >='),
+      'and it does so AFTER the click, not while building the page')
+check('mes(' in pick.split('stat(construction) >=', 1)[1],
+      'a click it refuses says why')
 # nth_room must enumerate each eligible room exactly once, and the pages must reach all of them.
 # ~poh_pick_room moved to poh_menus.rs2 when the menu became a window; the row count is a window
 # measurement now, so take it from the constant the generator writes rather than from a literal.
-seq = [h.nth_room(tx, tz, OPP[side], n, 99) for n in range(COUNT)]
+seq = [h.nth_room(tx, tz, OPP[side], n) for n in range(COUNT)]
 listed = [t for t in seq if t]
 check(len(listed) == len(set(listed)), 'nth_room lists each room once: %s' % [NAME[t] for t in listed])
 MENUS = read('scripts/skill_construction/scripts/poh_menus.rs2')

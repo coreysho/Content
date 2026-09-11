@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Mutation test for the build-window checks in poh_battery.py.
+"""Mutation test for the build-window checks in poh_battery.py and the two sims.
 
 A check that cannot fail is worse than no check: it reads as coverage and is not. Each entry
-below breaks one thing the battery claims to catch - in a throwaway copy of the tree, never in
-place - and the battery has to go red. Every mistake here is one that was actually made, or
-one the 377 client fails silently on.
+below breaks one thing the checkers claim to catch - in a throwaway copy of the tree, never in
+place - and the named checker has to go red. Every mistake here is one that was actually made,
+or one the 377 client fails silently on.
+
+Naming the checker is half the point: a mutation caught by the wrong script means a check is
+testing something other than what it says.
 
     python3 tools/poh_mutate.py
 """
@@ -43,27 +46,57 @@ MUTS = [
  ('scripts/skill_construction/scripts/poh_menus.rs2',
   'if_settext(poh_roommenu:r0cost,', 'if_settext(poh_roommenu:row0,',
   '31 settext needs a text component'),
+ ('scripts/skill_construction/configs/poh_menus.enum',
+  'val=2,@bla@', 'val=2,@gry@', '37 an unknown colour tag'),
+ ('scripts/skill_construction/configs/poh_menus.enum',
+  'val=0,@gre@\nval=1,@red@\nval=2,@bla@', 'val=0,@gre@\nval=1,@red@', '37 a tint table missing a state'),
+ ('scripts/skill_construction/scripts/poh_menus.rs2',
+  'if (stat(construction) >= enum(int, int, poh_room_level, $pick)) {',
+  'if (true) {', '6 the level gate at the click (build sim)'),
+ ('scripts/skill_construction/scripts/poh_furniture.rs2',
+  '    if (enum(int, int, poh_furn_fam, $item) = $fam) {',
+  '    if (enum(int, int, poh_furn_fam, $item) = $fam & enum(int, int, poh_furn_level, $item) <= 1) {',
+  '6 the family is listed whole (furn sim)'),
+ ('scripts/skill_construction/scripts/poh_build.rs2',
+  'if (~poh_room_rot_for($rx, $rz, $type, $side) < 0) {',
+  'if (stat(construction) < enum(int, int, poh_room_level, $type)) {', '6 rooms listed whole (build sim)'),
 ]
 
-def run():
-    r = subprocess.run([sys.executable, os.path.join(W, 'tools/poh_battery.py')],
-                       capture_output=True, text=True)
-    return r.returncode, r.stdout + r.stderr
+def checker_for(why):
+    if why.endswith('(build sim)'):
+        return 'tools/poh_build_sim.py'
+    if why.endswith('(furn sim)'):
+        return 'tools/poh_furn_sim.py'
+    return 'tools/poh_battery.py'
 
-fails = 0
-for path, find, repl, why in MUTS:
-    if os.path.exists(W): shutil.rmtree(W)
+def main():
+    # one copy of the tree, not one per mutation: the repo has 24k files in it and copying it
+    # fifteen times turns a two-second test into a four-minute one
+    if os.path.exists(W):
+        shutil.rmtree(W)
     shutil.copytree(C, W, ignore=shutil.ignore_patterns('.git', '__pycache__'))
-    p = os.path.join(W, path)
-    raw = open(p, newline='').read()
-    nl = '\r\n' if raw.count('\r\n') > raw.count('\n') / 2 else '\n'
-    f, r2 = find.replace('\n', nl), repl.replace('\n', nl)
-    if f not in raw:
-        print('  SKIP (pattern not found) %-44s %s' % (path, why)); fails += 1; continue
-    open(p, 'w', newline='').write(raw.replace(f, r2, 1))
-    code, out = run()
-    ok = code != 0
-    print('  %-4s %-46s -> %s' % ('red' if ok else 'GREEN', why, 'caught' if ok else 'NOT CAUGHT'))
-    if not ok: fails += 1
-print('\n%s' % ('every mutation was caught' if not fails else '%d MUTATIONS SURVIVED' % fails))
-sys.exit(1 if fails else 0)
+    fails = 0
+    for path, find, repl, why in MUTS:
+        p = os.path.join(W, path)
+        original = open(p, 'rb').read()
+        raw = original.decode('utf-8')
+        nl = '\r\n' if raw.count('\r\n') > raw.count('\n') / 2 else '\n'
+        f, r2 = find.replace('\n', nl), repl.replace('\n', nl)
+        checker = checker_for(why)
+        if f not in raw:
+            print('  SKIP (pattern not found) %-44s %s' % (path, why))
+            fails += 1
+            continue
+        open(p, 'w', newline='').write(raw.replace(f, r2, 1))
+        r = subprocess.run([sys.executable, os.path.join(W, checker)], capture_output=True, text=True)
+        open(p, 'wb').write(original)
+        ok = r.returncode != 0
+        print('  %-5s %-46s %-20s %s' % ('red' if ok else 'GREEN', why,
+              os.path.basename(checker), 'caught' if ok else 'NOT CAUGHT'))
+        if not ok:
+            fails += 1
+    print('\n%s' % ('every mutation was caught' if not fails else '%d MUTATIONS SURVIVED' % fails))
+    return 1 if fails else 0
+
+if __name__ == '__main__':
+    sys.exit(main())

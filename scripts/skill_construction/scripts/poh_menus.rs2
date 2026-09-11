@@ -24,6 +24,14 @@
 // value cannot frame 78 models of different sizes, so tools/ifmodels.py solves each one from
 // its own geometry and writes the tables below.
 //
+// WHY THE TINTS ARE THREE ENUMS AND NOT A PROC. Colour comes from @xxx@ tags inside the text -
+// PixFont.drawStringTag reads them mid-string, so one if_settext controls the colour of every run
+// in a row without extra components. The tag itself has to come from somewhere, and a proc that
+// returns a string has no precedent in this repo (claude/rs2-compile-traps.md), so each row works
+// out an int state and looks the tag up: <enum(int, string, poh_tint_name, $state)>, which is the
+// idiom poh_test.rs2 already compiles. State 0 is buildable, 1 is buildable but you cannot pay for
+// it, 2 is above your Construction level.
+//
 // ON THE MODELS ARRIVING LATE. if_setmodel names a model the .if never mentions, so the packer
 // does not flag it for the client's preload batch. Model.tryGet asks the on-demand stream for
 // anything missing and returns null until it lands, so an icon can be blank for the first frame
@@ -83,10 +91,17 @@ if ($type = 0) {
     return;
 }
 if_sethide(poh_roommenu:row0, false);
+def_int $state = ^poh_state_ready;
+if (inv_total(inv, coins) < enum(int, int, poh_room_cost, $type)) {
+    $state = ^poh_state_poor;
+}
+if (stat(construction) < enum(int, int, poh_room_level, $type)) {
+    $state = ^poh_state_locked;
+}
 if_setmodel(poh_roommenu:r0model, ~poh_room_model($type));
 if_setangle(poh_roommenu:r0model, ^poh_menu_xan, ^poh_menu_yan, ~poh_room_zoom($type));
-if_settext(poh_roommenu:r0name, "<enum(int, string, poh_room_name, $type)>: Lvl <tostring(enum(int, int, poh_room_level, $type))>");
-if_settext(poh_roommenu:r0cost, "<enum(int, string, poh_room_cost_text, $type)> coins");
+if_settext(poh_roommenu:r0name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_room_name, $type)>: <enum(int, string, poh_tint_level, $state)>Lvl <tostring(enum(int, int, poh_room_level, $type))>");
+if_settext(poh_roommenu:r0cost, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_room_cost_text, $type)> coins");
 
 [proc,poh_room_row1](int $type)
 if ($type = 0) {
@@ -94,10 +109,17 @@ if ($type = 0) {
     return;
 }
 if_sethide(poh_roommenu:row1, false);
+def_int $state = ^poh_state_ready;
+if (inv_total(inv, coins) < enum(int, int, poh_room_cost, $type)) {
+    $state = ^poh_state_poor;
+}
+if (stat(construction) < enum(int, int, poh_room_level, $type)) {
+    $state = ^poh_state_locked;
+}
 if_setmodel(poh_roommenu:r1model, ~poh_room_model($type));
 if_setangle(poh_roommenu:r1model, ^poh_menu_xan, ^poh_menu_yan, ~poh_room_zoom($type));
-if_settext(poh_roommenu:r1name, "<enum(int, string, poh_room_name, $type)>: Lvl <tostring(enum(int, int, poh_room_level, $type))>");
-if_settext(poh_roommenu:r1cost, "<enum(int, string, poh_room_cost_text, $type)> coins");
+if_settext(poh_roommenu:r1name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_room_name, $type)>: <enum(int, string, poh_tint_level, $state)>Lvl <tostring(enum(int, int, poh_room_level, $type))>");
+if_settext(poh_roommenu:r1cost, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_room_cost_text, $type)> coins");
 
 [proc,poh_room_row2](int $type)
 if ($type = 0) {
@@ -105,10 +127,17 @@ if ($type = 0) {
     return;
 }
 if_sethide(poh_roommenu:row2, false);
+def_int $state = ^poh_state_ready;
+if (inv_total(inv, coins) < enum(int, int, poh_room_cost, $type)) {
+    $state = ^poh_state_poor;
+}
+if (stat(construction) < enum(int, int, poh_room_level, $type)) {
+    $state = ^poh_state_locked;
+}
 if_setmodel(poh_roommenu:r2model, ~poh_room_model($type));
 if_setangle(poh_roommenu:r2model, ^poh_menu_xan, ^poh_menu_yan, ~poh_room_zoom($type));
-if_settext(poh_roommenu:r2name, "<enum(int, string, poh_room_name, $type)>: Lvl <tostring(enum(int, int, poh_room_level, $type))>");
-if_settext(poh_roommenu:r2cost, "<enum(int, string, poh_room_cost_text, $type)> coins");
+if_settext(poh_roommenu:r2name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_room_name, $type)>: <enum(int, string, poh_tint_level, $state)>Lvl <tostring(enum(int, int, poh_room_level, $type))>");
+if_settext(poh_roommenu:r2cost, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_room_cost_text, $type)> coins");
 
 [proc,poh_room_row3](int $type)
 if ($type = 0) {
@@ -116,10 +145,17 @@ if ($type = 0) {
     return;
 }
 if_sethide(poh_roommenu:row3, false);
+def_int $state = ^poh_state_ready;
+if (inv_total(inv, coins) < enum(int, int, poh_room_cost, $type)) {
+    $state = ^poh_state_poor;
+}
+if (stat(construction) < enum(int, int, poh_room_level, $type)) {
+    $state = ^poh_state_locked;
+}
 if_setmodel(poh_roommenu:r3model, ~poh_room_model($type));
 if_setangle(poh_roommenu:r3model, ^poh_menu_xan, ^poh_menu_yan, ~poh_room_zoom($type));
-if_settext(poh_roommenu:r3name, "<enum(int, string, poh_room_name, $type)>: Lvl <tostring(enum(int, int, poh_room_level, $type))>");
-if_settext(poh_roommenu:r3cost, "<enum(int, string, poh_room_cost_text, $type)> coins");
+if_settext(poh_roommenu:r3name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_room_name, $type)>: <enum(int, string, poh_tint_level, $state)>Lvl <tostring(enum(int, int, poh_room_level, $type))>");
+if_settext(poh_roommenu:r3cost, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_room_cost_text, $type)> coins");
 
 [proc,poh_room_row4](int $type)
 if ($type = 0) {
@@ -127,10 +163,17 @@ if ($type = 0) {
     return;
 }
 if_sethide(poh_roommenu:row4, false);
+def_int $state = ^poh_state_ready;
+if (inv_total(inv, coins) < enum(int, int, poh_room_cost, $type)) {
+    $state = ^poh_state_poor;
+}
+if (stat(construction) < enum(int, int, poh_room_level, $type)) {
+    $state = ^poh_state_locked;
+}
 if_setmodel(poh_roommenu:r4model, ~poh_room_model($type));
 if_setangle(poh_roommenu:r4model, ^poh_menu_xan, ^poh_menu_yan, ~poh_room_zoom($type));
-if_settext(poh_roommenu:r4name, "<enum(int, string, poh_room_name, $type)>: Lvl <tostring(enum(int, int, poh_room_level, $type))>");
-if_settext(poh_roommenu:r4cost, "<enum(int, string, poh_room_cost_text, $type)> coins");
+if_settext(poh_roommenu:r4name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_room_name, $type)>: <enum(int, string, poh_tint_level, $state)>Lvl <tostring(enum(int, int, poh_room_level, $type))>");
+if_settext(poh_roommenu:r4cost, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_room_cost_text, $type)> coins");
 
 [proc,poh_room_row5](int $type)
 if ($type = 0) {
@@ -138,13 +181,24 @@ if ($type = 0) {
     return;
 }
 if_sethide(poh_roommenu:row5, false);
+def_int $state = ^poh_state_ready;
+if (inv_total(inv, coins) < enum(int, int, poh_room_cost, $type)) {
+    $state = ^poh_state_poor;
+}
+if (stat(construction) < enum(int, int, poh_room_level, $type)) {
+    $state = ^poh_state_locked;
+}
 if_setmodel(poh_roommenu:r5model, ~poh_room_model($type));
 if_setangle(poh_roommenu:r5model, ^poh_menu_xan, ^poh_menu_yan, ~poh_room_zoom($type));
-if_settext(poh_roommenu:r5name, "<enum(int, string, poh_room_name, $type)>: Lvl <tostring(enum(int, int, poh_room_level, $type))>");
-if_settext(poh_roommenu:r5cost, "<enum(int, string, poh_room_cost_text, $type)> coins");
+if_settext(poh_roommenu:r5name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_room_name, $type)>: <enum(int, string, poh_tint_level, $state)>Lvl <tostring(enum(int, int, poh_room_level, $type))>");
+if_settext(poh_roommenu:r5cost, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_room_cost_text, $type)> coins");
 
 // Six rooms a page, three pages, which is every room type twice over. The page loop is
 // bounded rather than while(true): a menu that cannot end would hang the player script.
+//
+// A click on a room you have the level for returns it and the caller does the paying. A click
+// on one you do not says so and leaves the window open - money is a thing you go and fix, a
+// level is a thing you go on browsing past.
 [proc,poh_pick_room](int $rx, int $rz, int $side)(int)
 def_int $page = 0;
 while ($page < 3) {
@@ -194,15 +248,23 @@ while ($page < 3) {
     }
     if_addresumebutton(poh_roommenu:cancel);
     p_pausebutton;
+    def_int $pick = 0;
     switch_component (last_com) {
-        case poh_roommenu:r0box : if_close; return($a);
-        case poh_roommenu:r1box : if_close; return($b);
-        case poh_roommenu:r2box : if_close; return($c);
-        case poh_roommenu:r3box : if_close; return($d);
-        case poh_roommenu:r4box : if_close; return($e);
-        case poh_roommenu:r5box : if_close; return($f);
+        case poh_roommenu:r0box : $pick = $a;
+        case poh_roommenu:r1box : $pick = $b;
+        case poh_roommenu:r2box : $pick = $c;
+        case poh_roommenu:r3box : $pick = $d;
+        case poh_roommenu:r4box : $pick = $e;
+        case poh_roommenu:r5box : $pick = $f;
         case poh_roommenu:morebtn : $page = calc($page + 1);
         case default : if_close; return(0);
+    }
+    if ($pick > 0) {
+        if (stat(construction) >= enum(int, int, poh_room_level, $pick)) {
+            if_close;
+            return($pick);
+        }
+        mes("You need a Construction level of <tostring(enum(int, int, poh_room_level, $pick))> to build a <enum(int, string, poh_room_name, $pick)>.");
     }
 }
 if_close;
@@ -284,11 +346,18 @@ if ($item = 0) {
     return;
 }
 if_sethide(poh_furnmenu:slot0, false);
+def_int $state = ^poh_state_ready;
+if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int, poh_furn_planks, $item)) {
+    $state = ^poh_state_poor;
+}
+if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
+    $state = ^poh_state_locked;
+}
 if_setmodel(poh_furnmenu:s0model, ~poh_furn_model($item));
 if_setangle(poh_furnmenu:s0model, ^poh_menu_xan, ^poh_menu_yan, ~poh_furn_zoom($item));
-if_settext(poh_furnmenu:s0lvl, "Level <tostring(enum(int, int, poh_furn_level, $item))>");
-if_settext(poh_furnmenu:s0name, "<enum(int, string, poh_furn_name, $item)>");
-if_settext(poh_furnmenu:s0need, "<tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
+if_settext(poh_furnmenu:s0lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
+if_settext(poh_furnmenu:s0name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
+if_settext(poh_furnmenu:s0need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
 
 [proc,poh_furn_slot1](int $item)
 if ($item = 0) {
@@ -296,11 +365,18 @@ if ($item = 0) {
     return;
 }
 if_sethide(poh_furnmenu:slot1, false);
+def_int $state = ^poh_state_ready;
+if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int, poh_furn_planks, $item)) {
+    $state = ^poh_state_poor;
+}
+if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
+    $state = ^poh_state_locked;
+}
 if_setmodel(poh_furnmenu:s1model, ~poh_furn_model($item));
 if_setangle(poh_furnmenu:s1model, ^poh_menu_xan, ^poh_menu_yan, ~poh_furn_zoom($item));
-if_settext(poh_furnmenu:s1lvl, "Level <tostring(enum(int, int, poh_furn_level, $item))>");
-if_settext(poh_furnmenu:s1name, "<enum(int, string, poh_furn_name, $item)>");
-if_settext(poh_furnmenu:s1need, "<tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
+if_settext(poh_furnmenu:s1lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
+if_settext(poh_furnmenu:s1name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
+if_settext(poh_furnmenu:s1need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
 
 [proc,poh_furn_slot2](int $item)
 if ($item = 0) {
@@ -308,11 +384,18 @@ if ($item = 0) {
     return;
 }
 if_sethide(poh_furnmenu:slot2, false);
+def_int $state = ^poh_state_ready;
+if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int, poh_furn_planks, $item)) {
+    $state = ^poh_state_poor;
+}
+if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
+    $state = ^poh_state_locked;
+}
 if_setmodel(poh_furnmenu:s2model, ~poh_furn_model($item));
 if_setangle(poh_furnmenu:s2model, ^poh_menu_xan, ^poh_menu_yan, ~poh_furn_zoom($item));
-if_settext(poh_furnmenu:s2lvl, "Level <tostring(enum(int, int, poh_furn_level, $item))>");
-if_settext(poh_furnmenu:s2name, "<enum(int, string, poh_furn_name, $item)>");
-if_settext(poh_furnmenu:s2need, "<tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
+if_settext(poh_furnmenu:s2lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
+if_settext(poh_furnmenu:s2name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
+if_settext(poh_furnmenu:s2need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
 
 [proc,poh_furn_slot3](int $item)
 if ($item = 0) {
@@ -320,11 +403,18 @@ if ($item = 0) {
     return;
 }
 if_sethide(poh_furnmenu:slot3, false);
+def_int $state = ^poh_state_ready;
+if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int, poh_furn_planks, $item)) {
+    $state = ^poh_state_poor;
+}
+if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
+    $state = ^poh_state_locked;
+}
 if_setmodel(poh_furnmenu:s3model, ~poh_furn_model($item));
 if_setangle(poh_furnmenu:s3model, ^poh_menu_xan, ^poh_menu_yan, ~poh_furn_zoom($item));
-if_settext(poh_furnmenu:s3lvl, "Level <tostring(enum(int, int, poh_furn_level, $item))>");
-if_settext(poh_furnmenu:s3name, "<enum(int, string, poh_furn_name, $item)>");
-if_settext(poh_furnmenu:s3need, "<tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
+if_settext(poh_furnmenu:s3lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
+if_settext(poh_furnmenu:s3name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
+if_settext(poh_furnmenu:s3need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
 
 [proc,poh_furn_slot4](int $item)
 if ($item = 0) {
@@ -332,11 +422,18 @@ if ($item = 0) {
     return;
 }
 if_sethide(poh_furnmenu:slot4, false);
+def_int $state = ^poh_state_ready;
+if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int, poh_furn_planks, $item)) {
+    $state = ^poh_state_poor;
+}
+if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
+    $state = ^poh_state_locked;
+}
 if_setmodel(poh_furnmenu:s4model, ~poh_furn_model($item));
 if_setangle(poh_furnmenu:s4model, ^poh_menu_xan, ^poh_menu_yan, ~poh_furn_zoom($item));
-if_settext(poh_furnmenu:s4lvl, "Level <tostring(enum(int, int, poh_furn_level, $item))>");
-if_settext(poh_furnmenu:s4name, "<enum(int, string, poh_furn_name, $item)>");
-if_settext(poh_furnmenu:s4need, "<tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
+if_settext(poh_furnmenu:s4lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
+if_settext(poh_furnmenu:s4name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
+if_settext(poh_furnmenu:s4need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
 
 [proc,poh_furn_slot5](int $item)
 if ($item = 0) {
@@ -344,11 +441,18 @@ if ($item = 0) {
     return;
 }
 if_sethide(poh_furnmenu:slot5, false);
+def_int $state = ^poh_state_ready;
+if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int, poh_furn_planks, $item)) {
+    $state = ^poh_state_poor;
+}
+if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
+    $state = ^poh_state_locked;
+}
 if_setmodel(poh_furnmenu:s5model, ~poh_furn_model($item));
 if_setangle(poh_furnmenu:s5model, ^poh_menu_xan, ^poh_menu_yan, ~poh_furn_zoom($item));
-if_settext(poh_furnmenu:s5lvl, "Level <tostring(enum(int, int, poh_furn_level, $item))>");
-if_settext(poh_furnmenu:s5name, "<enum(int, string, poh_furn_name, $item)>");
-if_settext(poh_furnmenu:s5need, "<tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
+if_settext(poh_furnmenu:s5lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
+if_settext(poh_furnmenu:s5name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
+if_settext(poh_furnmenu:s5need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
 
 [proc,poh_furn_slot6](int $item)
 if ($item = 0) {
@@ -356,11 +460,18 @@ if ($item = 0) {
     return;
 }
 if_sethide(poh_furnmenu:slot6, false);
+def_int $state = ^poh_state_ready;
+if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int, poh_furn_planks, $item)) {
+    $state = ^poh_state_poor;
+}
+if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
+    $state = ^poh_state_locked;
+}
 if_setmodel(poh_furnmenu:s6model, ~poh_furn_model($item));
 if_setangle(poh_furnmenu:s6model, ^poh_menu_xan, ^poh_menu_yan, ~poh_furn_zoom($item));
-if_settext(poh_furnmenu:s6lvl, "Level <tostring(enum(int, int, poh_furn_level, $item))>");
-if_settext(poh_furnmenu:s6name, "<enum(int, string, poh_furn_name, $item)>");
-if_settext(poh_furnmenu:s6need, "<tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
+if_settext(poh_furnmenu:s6lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
+if_settext(poh_furnmenu:s6name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
+if_settext(poh_furnmenu:s6need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
 
 [proc,poh_furn_slot7](int $item)
 if ($item = 0) {
@@ -368,26 +479,36 @@ if ($item = 0) {
     return;
 }
 if_sethide(poh_furnmenu:slot7, false);
+def_int $state = ^poh_state_ready;
+if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int, poh_furn_planks, $item)) {
+    $state = ^poh_state_poor;
+}
+if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
+    $state = ^poh_state_locked;
+}
 if_setmodel(poh_furnmenu:s7model, ~poh_furn_model($item));
 if_setangle(poh_furnmenu:s7model, ^poh_menu_xan, ^poh_menu_yan, ~poh_furn_zoom($item));
-if_settext(poh_furnmenu:s7lvl, "Level <tostring(enum(int, int, poh_furn_level, $item))>");
-if_settext(poh_furnmenu:s7name, "<enum(int, string, poh_furn_name, $item)>");
-if_settext(poh_furnmenu:s7need, "<tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
+if_settext(poh_furnmenu:s7lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
+if_settext(poh_furnmenu:s7name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
+if_settext(poh_furnmenu:s7need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
 
 // Eight slots is one more than the largest family has tiers, so the More button is dead
 // weight today and there anyway: the tables are data, and a family can grow.
-[proc,poh_furn_pick](int $fam, int $level)(int)
+//
+// Level is not a filter - the whole family is listed and the tiers above you are dimmed, so
+// the window is also where you find out what the next twenty levels are for.
+[proc,poh_furn_pick](int $fam)(int)
 def_int $page = 0;
 while ($page < 3) {
-    def_int $a = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 0), $level);
-    def_int $b = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 1), $level);
-    def_int $c = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 2), $level);
-    def_int $d = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 3), $level);
-    def_int $e = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 4), $level);
-    def_int $f = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 5), $level);
-    def_int $g = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 6), $level);
-    def_int $h = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 7), $level);
-    def_int $more = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + ^poh_menu_slots), $level);
+    def_int $a = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 0));
+    def_int $b = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 1));
+    def_int $c = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 2));
+    def_int $d = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 3));
+    def_int $e = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 4));
+    def_int $f = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 5));
+    def_int $g = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 6));
+    def_int $h = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 7));
+    def_int $more = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + ^poh_menu_slots));
     if ($a = 0) {
         return(0);
     }
@@ -436,17 +557,25 @@ while ($page < 3) {
     }
     if_addresumebutton(poh_furnmenu:cancel);
     p_pausebutton;
+    def_int $pick = 0;
     switch_component (last_com) {
-        case poh_furnmenu:s0box : if_close; return($a);
-        case poh_furnmenu:s1box : if_close; return($b);
-        case poh_furnmenu:s2box : if_close; return($c);
-        case poh_furnmenu:s3box : if_close; return($d);
-        case poh_furnmenu:s4box : if_close; return($e);
-        case poh_furnmenu:s5box : if_close; return($f);
-        case poh_furnmenu:s6box : if_close; return($g);
-        case poh_furnmenu:s7box : if_close; return($h);
+        case poh_furnmenu:s0box : $pick = $a;
+        case poh_furnmenu:s1box : $pick = $b;
+        case poh_furnmenu:s2box : $pick = $c;
+        case poh_furnmenu:s3box : $pick = $d;
+        case poh_furnmenu:s4box : $pick = $e;
+        case poh_furnmenu:s5box : $pick = $f;
+        case poh_furnmenu:s6box : $pick = $g;
+        case poh_furnmenu:s7box : $pick = $h;
         case poh_furnmenu:morebtn : $page = calc($page + 1);
         case default : if_close; return(0);
+    }
+    if ($pick > 0) {
+        if (stat(construction) >= enum(int, int, poh_furn_level, $pick)) {
+            if_close;
+            return($pick);
+        }
+        mes("You need a Construction level of <tostring(enum(int, int, poh_furn_level, $pick))> to build that.");
     }
 }
 if_close;
