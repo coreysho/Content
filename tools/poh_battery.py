@@ -3,7 +3,8 @@ import re, sys, os
 C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FILES = ['scripts/skill_construction/scripts/poh.rs2', 'scripts/skill_construction/scripts/poh_test.rs2',
          'scripts/skill_construction/scripts/poh_portal.rs2', 'scripts/skill_construction/scripts/poh_build.rs2',
-         'scripts/skill_construction/scripts/sawmill.rs2']
+         'scripts/skill_construction/scripts/sawmill.rs2',
+         'scripts/skill_construction/scripts/poh_furniture.rs2']
 fails = 0
 def check(ok, what):
     global fails
@@ -152,7 +153,7 @@ for f in ['pack/varp.pack', 'pack/enum.pack', 'pack/loc.pack', 'pack/npc.pack']:
 print('12. pack ids are unique, and the new ones sit above what was there')
 # Not contiguity: varp.pack is missing id 746 upstream and has always built fine. What matters is
 # that nothing is claimed twice and that the ids added here were free.
-NEW = {'pack/varp.pack': list(range(876, 894)), 'pack/enum.pack': [128, 129, 130, 131, 132],
+NEW = {'pack/varp.pack': list(range(876, 958)), 'pack/enum.pack': list(range(128, 139)),
        'pack/loc.pack': [15296, 15297], 'pack/npc.pack': [3920, 3921]}
 for f in ['pack/varp.pack', 'pack/enum.pack', 'pack/loc.pack', 'pack/npc.pack']:
     ids = [int(l.split('=', 1)[0]) for l in open(os.path.join(C, f)).read().split('\n') if '=' in l]
@@ -600,6 +601,96 @@ cut = sw.split('[proc,sawmill_cut]')[1].split('\n[')[0]
 check(cut.index('inv_del') < cut.index('inv_add'), 'the logs and the coins go before the planks arrive')
 check('inv_total(inv, coins)' in cut, 'the purse is read before it is charged')
 check('divide($coins, $fee)' in cut, 'a half-funded batch is cut down, not refused')
+
+print('28. furniture: the tables, the triggers and the bit layout')
+FURN = read('scripts/skill_construction/configs/poh_furniture.enum')
+ftab = {}
+cur = None
+for line in FURN.split('\n'):
+    line = line.split('//')[0].strip()
+    if line.startswith('['):
+        cur = line.strip('[]'); ftab[cur] = {}
+    else:
+        m = re.match(r'^val=(\d+),(.*)$', line)
+        if m and cur: ftab[cur][int(m.group(1))] = m.group(2)
+N = const('poh_furn_items')
+SLOTS = const('poh_furn_slots')
+check(N and N > 0, '^poh_furn_items is %s' % N)
+for t in ('poh_furn_fam', 'poh_furn_name', 'poh_furn_level', 'poh_furn_wood', 'poh_furn_planks', 'poh_wood_name'):
+    check(sorted(ftab.get(t, {})) == list(range(1, N + 1)), '%s covers every item 1..%d' % (t, N))
+for i, v in ftab['poh_furn_wood'].items():
+    check(1 <= int(v) <= 4, 'item %d has a real wood (%s)' % (i, v))
+for i, v in ftab['poh_furn_planks'].items():
+    check(int(v) > 0, 'item %d costs planks (%s)' % (i, v))
+for i, v in ftab['poh_furn_level'].items():
+    check(1 <= int(v) <= 99, 'item %d has a sane level (%s)' % (i, v))
+# labels have to tell two tiers of the SAME family apart, or the menu is a coin toss
+byfam = {}
+for i, f in ftab['poh_furn_fam'].items():
+    byfam.setdefault(int(f), []).append(ftab['poh_furn_name'][i])
+for f, names in sorted(byfam.items()):
+    check(len(names) == len(set(names)), 'family %d has %d distinct labels for %d tiers' % (f, len(set(names)), len(names)))
+
+fu = clean[FILES[5]]
+placed = sorted(int(m) for m in re.findall(r'^    case (\d+) : loc_add\(', fu, re.M))
+check(placed == list(range(1, N + 1)), '~poh_furn_show places every item 1..%d' % N)
+# every loc it places is registered, and every one is a real furniture loc from poh.loc
+POHLOC = blocks(read('scripts/skill_construction/configs/poh.loc'))
+for m in re.finditer(r'loc_add\(\$spot, (\w+), \$angle, (\w+),', fu):
+    check(m.group(1) in LOCS, '%s is in loc.pack' % m.group(1))
+    check(m.group(1) in POHLOC, '%s is a real furniture loc' % m.group(1))
+    check('Remove' in (POHLOC.get(m.group(1), {}).get('op5') or []), '%s carries op5=Remove' % m.group(1))
+# a piece can only be taken out if its own op5 is wired
+rm = sorted(set(re.findall(r'^\[oploc5,(\w+)\]\s*\n~poh_furn_remove;', fu, re.M)))
+placed_locs = sorted({m.group(1) for m in re.finditer(r'loc_add\(\$spot, (\w+), \$angle,', fu)})
+check(rm == placed_locs, 'every placeable piece has a Remove trigger: %d placed, %d wired' % (len(placed_locs), len(rm)))
+# hotspot triggers pass a family and nothing looks one up
+hot = re.findall(r'^\[oploc5,(\w+)\]\s*\n~poh_furn_click\(\^poh_fam_(\w+)\);', fu, re.M)
+check(len(hot) > 0, '%d furniture hotspot triggers' % len(hot))
+for loc, fam in hot:
+    check(loc in LOCS, 'hotspot %s is in loc.pack' % loc)
+    check(const('poh_fam_' + fam) is not None, '^poh_fam_%s resolves' % fam)
+    check('poh_hotspot' in (TEMPL.get(loc, {}).get('category') or []), '%s is a real hotspot' % loc)
+check(len({l for l, _ in hot} & set(doors)) == 0, 'no door hotspot is wired to furniture')
+
+# the bit layout has to be gapless and fit an int
+bits = [(const('poh_furn_bit_rx'), 3), (const('poh_furn_bit_rz'), 3), (const('poh_furn_bit_lx'), 3),
+        (const('poh_furn_bit_lz'), 3), (const('poh_furn_bit_angle'), 2), (const('poh_furn_bit_item'), 8)]
+at = 0; ok = True
+for off, w in bits:
+    if off != at: ok = False
+    at = off + w
+check(ok, 'the packed fields are contiguous from bit 0: %s' % bits)
+check(at <= 31, 'a piece fits an int (%d bits)' % at)
+check(N < (1 << 8), '%d items fit the 8-bit item field' % N)
+check(SLOTS and SLOTS <= 256, '^poh_furn_slots is %s' % SLOTS)
+varps = {l.split('=', 1)[1] for l in read('pack/varp.pack').split('\n') if '=' in l}
+missing = [i for i in range(SLOTS) if ('poh_furn_%d' % i) not in varps]
+check(not missing, 'every furniture slot has a varp: missing %s' % missing[:5])
+gs = sorted(int(m) for m in re.findall(r'^    case (\d+) : return\(%poh_furn_\d+\);', fu, re.M))
+ss = sorted(int(m) for m in re.findall(r'^    case (\d+) : %poh_furn_\d+ = \$value;', fu, re.M))
+check(gs == list(range(SLOTS)) and ss == list(range(SLOTS)), 'get and set cover all %d slots' % SLOTS)
+for m in re.finditer(r'case (\d+) : return\(%poh_furn_(\d+)\);', fu):
+    if m.group(1) != m.group(2): check(False, 'get case %s reads varp %s' % (m.group(1), m.group(2)))
+for m in re.finditer(r'case (\d+) : %poh_furn_(\d+) = \$value;', fu):
+    if m.group(1) != m.group(2): check(False, 'set case %s writes varp %s' % (m.group(1), m.group(2)))
+
+print('29. furniture: materials leave before the thing arrives, and a room takes its own with it')
+clickb = fu.split('[proc,poh_furn_click]')[1].split('\n[')[0]
+check(clickb.index('~poh_furn_plank_total') < clickb.index('~poh_furn_plank_take'), 'the planks are counted before they are taken')
+check(clickb.index('~poh_furn_plank_take') < clickb.index('~poh_furn_show'), 'the planks go before the furniture appears')
+check(clickb.index('~poh_furn_set') < clickb.index('stat_advance'), 'it is saved before the xp is paid')
+check('inv_total(inv, hammer)' in clickb and 'inv_total(inv, saw)' in clickb, 'a hammer and a saw are required')
+check('~poh_furn_free' in clickb and clickb.count('~poh_furn_free') >= 2, 'a free slot is re-checked after the menu suspends')
+rmb = fu.split('[proc,poh_furn_remove]')[1].split('\n[')[0]
+check('~poh_furn_set($slot, 0)' in rmb and '~poh_furn_relay' in rmb, 'removing clears the slot and re-lays the room')
+bd = clean[FILES[3]]
+check('~poh_furn_clear_cell' in bd, 'removing a ROOM clears its furniture too')
+pb = clean[FILES[0]]
+check('~poh_furn_restore' in pb, '~poh_build puts the furniture back')
+build_body = pb.split('[proc,poh_build]')[1].split('\n[')[0]
+check(build_body.index('~poh_furn_restore') < build_body.index('instance_loccategory'),
+      'furniture is placed BEFORE the hotspots are hidden, so it changes them in place')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

@@ -1,0 +1,694 @@
+// Furniture: building into a hotspot, and remembering what was built.
+//
+// WHERE IT LIVES. 64 perm varps, one piece each, packed into 22 bits - the room cell (3+3), the tile
+// inside that room (3+3), the angle (2) and which of the 63 buildable things it is (8). The tile
+// inside the zone is what identifies the hotspot, and it is exactly what loc_coord gives, so nothing
+// has to enumerate hotspots or number them. Same trick as the room grid: the save writes varps
+// sparsely by id, so an unfurnished house costs nothing. No engine change, no save bump.
+//
+// HOW IT APPEARS. loc_add at the hotspot's own coord and angle. World.changeLoc swaps the type in
+// place, so the hotspot BECOMES the furniture - and it then survives instance_loccategory(...,
+// poh_hotspot, false), because that only removes locs whose TYPE's category is poh_hotspot, which
+// the furniture's is not. ~poh_build places furniture after the zone loop and before the hide.
+//
+// TAKING IT BACK OUT re-lays the whole zone rather than trying to put the hotspot back. The template
+// is the exact truth about what was there; reconstructing it from a family id would be a guess, and
+// two of these families have two different hotspot locs.
+//
+// THE SHAPE IS NOT STORED. Every piece of a family shares its hotspot's shape, so the shape is a
+// literal in the one switch that places it - correct by construction rather than by bookkeeping.
+
+// =========================================================================== storage
+
+// 64 cases because RuneScript cannot index a varp by number.
+[proc,poh_furn_get](int $i)(int)
+switch_int ($i) {
+    case 0 : return(%poh_furn_0);
+    case 1 : return(%poh_furn_1);
+    case 2 : return(%poh_furn_2);
+    case 3 : return(%poh_furn_3);
+    case 4 : return(%poh_furn_4);
+    case 5 : return(%poh_furn_5);
+    case 6 : return(%poh_furn_6);
+    case 7 : return(%poh_furn_7);
+    case 8 : return(%poh_furn_8);
+    case 9 : return(%poh_furn_9);
+    case 10 : return(%poh_furn_10);
+    case 11 : return(%poh_furn_11);
+    case 12 : return(%poh_furn_12);
+    case 13 : return(%poh_furn_13);
+    case 14 : return(%poh_furn_14);
+    case 15 : return(%poh_furn_15);
+    case 16 : return(%poh_furn_16);
+    case 17 : return(%poh_furn_17);
+    case 18 : return(%poh_furn_18);
+    case 19 : return(%poh_furn_19);
+    case 20 : return(%poh_furn_20);
+    case 21 : return(%poh_furn_21);
+    case 22 : return(%poh_furn_22);
+    case 23 : return(%poh_furn_23);
+    case 24 : return(%poh_furn_24);
+    case 25 : return(%poh_furn_25);
+    case 26 : return(%poh_furn_26);
+    case 27 : return(%poh_furn_27);
+    case 28 : return(%poh_furn_28);
+    case 29 : return(%poh_furn_29);
+    case 30 : return(%poh_furn_30);
+    case 31 : return(%poh_furn_31);
+    case 32 : return(%poh_furn_32);
+    case 33 : return(%poh_furn_33);
+    case 34 : return(%poh_furn_34);
+    case 35 : return(%poh_furn_35);
+    case 36 : return(%poh_furn_36);
+    case 37 : return(%poh_furn_37);
+    case 38 : return(%poh_furn_38);
+    case 39 : return(%poh_furn_39);
+    case 40 : return(%poh_furn_40);
+    case 41 : return(%poh_furn_41);
+    case 42 : return(%poh_furn_42);
+    case 43 : return(%poh_furn_43);
+    case 44 : return(%poh_furn_44);
+    case 45 : return(%poh_furn_45);
+    case 46 : return(%poh_furn_46);
+    case 47 : return(%poh_furn_47);
+    case 48 : return(%poh_furn_48);
+    case 49 : return(%poh_furn_49);
+    case 50 : return(%poh_furn_50);
+    case 51 : return(%poh_furn_51);
+    case 52 : return(%poh_furn_52);
+    case 53 : return(%poh_furn_53);
+    case 54 : return(%poh_furn_54);
+    case 55 : return(%poh_furn_55);
+    case 56 : return(%poh_furn_56);
+    case 57 : return(%poh_furn_57);
+    case 58 : return(%poh_furn_58);
+    case 59 : return(%poh_furn_59);
+    case 60 : return(%poh_furn_60);
+    case 61 : return(%poh_furn_61);
+    case 62 : return(%poh_furn_62);
+    case 63 : return(%poh_furn_63);
+    case default : return(0);
+}
+
+[proc,poh_furn_set](int $i, int $value)
+switch_int ($i) {
+    case 0 : %poh_furn_0 = $value;
+    case 1 : %poh_furn_1 = $value;
+    case 2 : %poh_furn_2 = $value;
+    case 3 : %poh_furn_3 = $value;
+    case 4 : %poh_furn_4 = $value;
+    case 5 : %poh_furn_5 = $value;
+    case 6 : %poh_furn_6 = $value;
+    case 7 : %poh_furn_7 = $value;
+    case 8 : %poh_furn_8 = $value;
+    case 9 : %poh_furn_9 = $value;
+    case 10 : %poh_furn_10 = $value;
+    case 11 : %poh_furn_11 = $value;
+    case 12 : %poh_furn_12 = $value;
+    case 13 : %poh_furn_13 = $value;
+    case 14 : %poh_furn_14 = $value;
+    case 15 : %poh_furn_15 = $value;
+    case 16 : %poh_furn_16 = $value;
+    case 17 : %poh_furn_17 = $value;
+    case 18 : %poh_furn_18 = $value;
+    case 19 : %poh_furn_19 = $value;
+    case 20 : %poh_furn_20 = $value;
+    case 21 : %poh_furn_21 = $value;
+    case 22 : %poh_furn_22 = $value;
+    case 23 : %poh_furn_23 = $value;
+    case 24 : %poh_furn_24 = $value;
+    case 25 : %poh_furn_25 = $value;
+    case 26 : %poh_furn_26 = $value;
+    case 27 : %poh_furn_27 = $value;
+    case 28 : %poh_furn_28 = $value;
+    case 29 : %poh_furn_29 = $value;
+    case 30 : %poh_furn_30 = $value;
+    case 31 : %poh_furn_31 = $value;
+    case 32 : %poh_furn_32 = $value;
+    case 33 : %poh_furn_33 = $value;
+    case 34 : %poh_furn_34 = $value;
+    case 35 : %poh_furn_35 = $value;
+    case 36 : %poh_furn_36 = $value;
+    case 37 : %poh_furn_37 = $value;
+    case 38 : %poh_furn_38 = $value;
+    case 39 : %poh_furn_39 = $value;
+    case 40 : %poh_furn_40 = $value;
+    case 41 : %poh_furn_41 = $value;
+    case 42 : %poh_furn_42 = $value;
+    case 43 : %poh_furn_43 = $value;
+    case 44 : %poh_furn_44 = $value;
+    case 45 : %poh_furn_45 = $value;
+    case 46 : %poh_furn_46 = $value;
+    case 47 : %poh_furn_47 = $value;
+    case 48 : %poh_furn_48 = $value;
+    case 49 : %poh_furn_49 = $value;
+    case 50 : %poh_furn_50 = $value;
+    case 51 : %poh_furn_51 = $value;
+    case 52 : %poh_furn_52 = $value;
+    case 53 : %poh_furn_53 = $value;
+    case 54 : %poh_furn_54 = $value;
+    case 55 : %poh_furn_55 = $value;
+    case 56 : %poh_furn_56 = $value;
+    case 57 : %poh_furn_57 = $value;
+    case 58 : %poh_furn_58 = $value;
+    case 59 : %poh_furn_59 = $value;
+    case 60 : %poh_furn_60 = $value;
+    case 61 : %poh_furn_61 = $value;
+    case 62 : %poh_furn_62 = $value;
+    case 63 : %poh_furn_63 = $value;
+    case default : return;
+}
+
+[proc,poh_furn_pack](int $rx, int $rz, int $lx, int $lz, int $angle, int $item)(int)
+def_int $v = 0;
+$v = setbit_range_toint($v, $rx, ^poh_furn_bit_rx, calc(^poh_furn_bit_rx + 2));
+$v = setbit_range_toint($v, $rz, ^poh_furn_bit_rz, calc(^poh_furn_bit_rz + 2));
+$v = setbit_range_toint($v, $lx, ^poh_furn_bit_lx, calc(^poh_furn_bit_lx + 2));
+$v = setbit_range_toint($v, $lz, ^poh_furn_bit_lz, calc(^poh_furn_bit_lz + 2));
+$v = setbit_range_toint($v, modulo($angle, 4), ^poh_furn_bit_angle, calc(^poh_furn_bit_angle + 1));
+return(setbit_range_toint($v, $item, ^poh_furn_bit_item, calc(^poh_furn_bit_item + 7)));
+
+[proc,poh_furn_field](int $v, int $bit, int $width)(int)
+return(getbit_range($v, $bit, calc($bit + $width - 1)));
+
+// The slot holding the piece on this tile, or -1. A linear scan over 64 is nothing next to the
+// menus it sits behind, and it is the only lookup this design needs.
+[proc,poh_furn_at](int $rx, int $rz, int $lx, int $lz)(int)
+def_int $i = 0;
+while ($i < ^poh_furn_slots) {
+    def_int $v = ~poh_furn_get($i);
+    if ($v ! 0) {
+        if (~poh_furn_field($v, ^poh_furn_bit_rx, 3) = $rx & ~poh_furn_field($v, ^poh_furn_bit_rz, 3) = $rz) {
+            if (~poh_furn_field($v, ^poh_furn_bit_lx, 3) = $lx & ~poh_furn_field($v, ^poh_furn_bit_lz, 3) = $lz) {
+                return($i);
+            }
+        }
+    }
+    $i = calc($i + 1);
+}
+return(-1);
+
+[proc,poh_furn_free]()(int)
+def_int $i = 0;
+while ($i < ^poh_furn_slots) {
+    if (~poh_furn_get($i) = 0) {
+        return($i);
+    }
+    $i = calc($i + 1);
+}
+return(-1);
+
+// Everything in one room goes when the room does.
+[proc,poh_furn_clear_cell](int $rx, int $rz)
+def_int $i = 0;
+while ($i < ^poh_furn_slots) {
+    def_int $v = ~poh_furn_get($i);
+    if ($v ! 0) {
+        if (~poh_furn_field($v, ^poh_furn_bit_rx, 3) = $rx & ~poh_furn_field($v, ^poh_furn_bit_rz, 3) = $rz) {
+            ~poh_furn_set($i, 0);
+        }
+    }
+    $i = calc($i + 1);
+}
+
+// =========================================================================== materials
+
+[proc,poh_furn_plank_total](int $wood)(int)
+switch_int ($wood) {
+    case 2 : return(inv_total(inv, oak_plank));
+    case 3 : return(inv_total(inv, teak_plank));
+    case 4 : return(inv_total(inv, mahogany_plank));
+    case default : return(inv_total(inv, plank));
+}
+
+[proc,poh_furn_plank_take](int $wood, int $count)
+switch_int ($wood) {
+    case 2 : inv_del(inv, oak_plank, $count);
+    case 3 : inv_del(inv, teak_plank, $count);
+    case 4 : inv_del(inv, mahogany_plank, $count);
+    case default : inv_del(inv, plank, $count);
+}
+
+[proc,poh_furn_xp](int $wood, int $count)(int)
+switch_int ($wood) {
+    case 2 : return(calc($count * ^poh_xp_oak));
+    case 3 : return(calc($count * ^poh_xp_teak));
+    case 4 : return(calc($count * ^poh_xp_mahogany));
+    case default : return(calc($count * ^poh_xp_plank));
+}
+
+// =========================================================================== putting it there
+
+// One case per buildable thing. The loc AND its shape are literals here, so a piece can only ever be
+// placed as the shape its own hotspot was - there is no shape to store and none to get wrong.
+[proc,poh_furn_show](int $item, coord $spot, int $angle)
+switch_int ($item) {
+    case 1 : loc_add($spot, poh_stove_1, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 2 : loc_add($spot, poh_stove_2, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 3 : loc_add($spot, poh_stove_3, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 4 : loc_add($spot, poh_stove_4, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 5 : loc_add($spot, poh_stove_5, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 6 : loc_add($spot, poh_stove_6, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 7 : loc_add($spot, poh_stove_7, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 8 : loc_add($spot, poh_sink_1, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 9 : loc_add($spot, poh_sink_2, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 10 : loc_add($spot, poh_sink_3, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 11 : loc_add($spot, poh_larder_1, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 12 : loc_add($spot, poh_larder_2, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 13 : loc_add($spot, poh_larder_3, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 14 : loc_add($spot, poh_kitchen_shelves_1, $angle, walldecor_straight_offset, ^poh_loc_duration);
+    case 15 : loc_add($spot, poh_kitchen_shelves_2, $angle, walldecor_straight_offset, ^poh_loc_duration);
+    case 16 : loc_add($spot, poh_kitchen_shelves_3, $angle, walldecor_straight_offset, ^poh_loc_duration);
+    case 17 : loc_add($spot, poh_kitchen_shelves_4, $angle, walldecor_straight_offset, ^poh_loc_duration);
+    case 18 : loc_add($spot, poh_kitchen_shelves_5, $angle, walldecor_straight_offset, ^poh_loc_duration);
+    case 19 : loc_add($spot, poh_kitchen_shelves_6, $angle, walldecor_straight_offset, ^poh_loc_duration);
+    case 20 : loc_add($spot, poh_kitchen_shelves_7, $angle, walldecor_straight_offset, ^poh_loc_duration);
+    case 21 : loc_add($spot, poh_kitchentable_1, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 22 : loc_add($spot, poh_kitchentable_2, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 23 : loc_add($spot, poh_kitchentable_3, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 24 : loc_add($spot, poh_barrel_1, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 25 : loc_add($spot, poh_barrel_2, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 26 : loc_add($spot, poh_barrel_3, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 27 : loc_add($spot, poh_barrel_4, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 28 : loc_add($spot, poh_barrel_5, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 29 : loc_add($spot, poh_barrel_6, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 30 : loc_add($spot, poh_diningtable_1, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 31 : loc_add($spot, poh_diningtable_2, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 32 : loc_add($spot, poh_diningtable_3, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 33 : loc_add($spot, poh_diningtable_4, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 34 : loc_add($spot, poh_diningtable_5, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 35 : loc_add($spot, poh_diningtable_6, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 36 : loc_add($spot, poh_diningtable_7, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 37 : loc_add($spot, poh_diningchairs_1, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 38 : loc_add($spot, poh_diningchairs_2, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 39 : loc_add($spot, poh_diningchairs_3, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 40 : loc_add($spot, poh_diningchairs_4, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 41 : loc_add($spot, poh_diningchairs_5, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 42 : loc_add($spot, poh_diningchairs_6, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 43 : loc_add($spot, poh_diningchairs_7, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 44 : loc_add($spot, poh_bellpull_1, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 45 : loc_add($spot, poh_bellpull_2, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 46 : loc_add($spot, poh_bellpull_3, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 47 : loc_add($spot, poh_bed_1, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 48 : loc_add($spot, poh_bed_2, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 49 : loc_add($spot, poh_bed_3, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 50 : loc_add($spot, poh_bed_4, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 51 : loc_add($spot, poh_bed_5, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 52 : loc_add($spot, poh_bed_6, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 53 : loc_add($spot, poh_bed_7, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 54 : loc_add($spot, poh_wardrobe_1, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 55 : loc_add($spot, poh_wardrobe_2, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 56 : loc_add($spot, poh_wardrobe_3, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 57 : loc_add($spot, poh_wardrobe_4, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 58 : loc_add($spot, poh_wardrobe_5, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 59 : loc_add($spot, poh_wardrobe_6, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 60 : loc_add($spot, poh_wardrobe_7, $angle, centrepiece_straight, ^poh_loc_duration);
+    case 61 : loc_add($spot, poh_clock_1, $angle, centrepiece_diagonal, ^poh_loc_duration);
+    case 62 : loc_add($spot, poh_clock_2, $angle, centrepiece_diagonal, ^poh_loc_duration);
+    case 63 : loc_add($spot, poh_clock_3, $angle, centrepiece_diagonal, ^poh_loc_duration);
+    case default : return;
+}
+
+// Lay every saved piece back into a freshly built house. Called from ~poh_build after the rooms and
+// before the hotspots are hidden, so each piece lands on the hotspot it belongs to and changes it.
+[proc,poh_furn_restore](coord $base)
+def_int $i = 0;
+while ($i < ^poh_furn_slots) {
+    def_int $v = ~poh_furn_get($i);
+    if ($v ! 0) {
+        def_int $rx = ~poh_furn_field($v, ^poh_furn_bit_rx, 3);
+        def_int $rz = ~poh_furn_field($v, ^poh_furn_bit_rz, 3);
+        if (~poh_room_type($rx, $rz) = 0) {
+            // its room is gone - so is it
+            ~poh_furn_set($i, 0);
+        } else {
+            def_coord $spot = movecoord($base, calc((^poh_grid_origin + $rx) * 8 + ~poh_furn_field($v, ^poh_furn_bit_lx, 3)), 0, calc((^poh_grid_origin + $rz) * 8 + ~poh_furn_field($v, ^poh_furn_bit_lz, 3)));
+            ~poh_furn_show(~poh_furn_field($v, ^poh_furn_bit_item, 8), $spot, ~poh_furn_field($v, ^poh_furn_bit_angle, 2));
+        }
+    }
+    $i = calc($i + 1);
+}
+
+// Re-lay one room and put its furniture back. The template is the truth about what a hotspot was, so
+// taking something out is a re-lay rather than an attempt to reconstruct the hotspot by hand.
+[proc,poh_furn_relay](int $rx, int $rz)
+~poh_place_zone(%poh_instance, $rx, $rz);
+~poh_furn_restore(%poh_instance);
+~poh_spawn_exit(%poh_instance);
+
+// =========================================================================== the menu
+
+[proc,poh_furn_nth](int $fam, int $n, int $level)(int)
+def_int $item = 1;
+def_int $seen = 0;
+while ($item <= ^poh_furn_items) {
+    if (enum(int, int, poh_furn_fam, $item) = $fam & enum(int, int, poh_furn_level, $item) <= $level) {
+        if ($seen = $n) {
+            return($item);
+        }
+        $seen = calc($seen + 1);
+    }
+    $item = calc($item + 1);
+}
+return(0);
+
+// Three a page, so More and Cancel both fit. Bounded rather than while(true): the largest family has
+// seven tiers, so three pages is every one of them twice over.
+[proc,poh_furn_pick](int $fam, int $level)(int)
+def_int $page = 0;
+while ($page < 3) {
+    def_int $a = ~poh_furn_nth($fam, calc($page * 3), $level);
+    def_int $b = ~poh_furn_nth($fam, calc($page * 3 + 1), $level);
+    def_int $c = ~poh_furn_nth($fam, calc($page * 3 + 2), $level);
+    def_int $more = ~poh_furn_nth($fam, calc($page * 3 + 3), $level);
+    def_int $pick = 0;
+    if ($a = 0) {
+        return(0);
+    }
+    if ($more ! 0) {
+        $pick = ~p_choice5_header("<enum(int, string, poh_furn_name, $a)> - <tostring(enum(int, int, poh_furn_planks, $a))> <enum(int, string, poh_wood_name, $a)>", $a, "<enum(int, string, poh_furn_name, $b)> - <tostring(enum(int, int, poh_furn_planks, $b))> <enum(int, string, poh_wood_name, $b)>", $b, "<enum(int, string, poh_furn_name, $c)> - <tostring(enum(int, int, poh_furn_planks, $c))> <enum(int, string, poh_wood_name, $c)>", $c, "More...", -2, "Cancel", 0, "Build what?");
+    } else if ($c ! 0) {
+        $pick = ~p_choice4_header("<enum(int, string, poh_furn_name, $a)> - <tostring(enum(int, int, poh_furn_planks, $a))> <enum(int, string, poh_wood_name, $a)>", $a, "<enum(int, string, poh_furn_name, $b)> - <tostring(enum(int, int, poh_furn_planks, $b))> <enum(int, string, poh_wood_name, $b)>", $b, "<enum(int, string, poh_furn_name, $c)> - <tostring(enum(int, int, poh_furn_planks, $c))> <enum(int, string, poh_wood_name, $c)>", $c, "Cancel", 0, "Build what?");
+    } else if ($b ! 0) {
+        $pick = ~p_choice3_header("<enum(int, string, poh_furn_name, $a)> - <tostring(enum(int, int, poh_furn_planks, $a))> <enum(int, string, poh_wood_name, $a)>", $a, "<enum(int, string, poh_furn_name, $b)> - <tostring(enum(int, int, poh_furn_planks, $b))> <enum(int, string, poh_wood_name, $b)>", $b, "Cancel", 0, "Build what?");
+    } else {
+        $pick = ~p_choice2_header("<enum(int, string, poh_furn_name, $a)> - <tostring(enum(int, int, poh_furn_planks, $a))> <enum(int, string, poh_wood_name, $a)>", $a, "Cancel", 0, "Build what?");
+    }
+    if ($pick ! -2) {
+        return($pick);
+    }
+    $page = calc($page + 1);
+}
+return(0);
+
+// =========================================================================== the click
+
+[proc,poh_furn_click](int $fam)
+if (%poh_instance = null) {
+    mes("You can only build in your own house.");
+    return;
+}
+def_coord $spot = loc_coord;
+if (instance_find($spot) ! %poh_instance) {
+    mes("You can only build in your own house.");
+    return;
+}
+if (inv_total(inv, hammer) < 1 | inv_total(inv, saw) < 1) {
+    mes("You need a hammer and a saw to build furniture.");
+    return;
+}
+def_int $angle = loc_angle;
+def_int $gx = calc(coordx($spot) - coordx(%poh_instance));
+def_int $gz = calc(coordz($spot) - coordz(%poh_instance));
+def_int $rx = calc(divide($gx, 8) - ^poh_grid_origin);
+def_int $rz = calc(divide($gz, 8) - ^poh_grid_origin);
+def_int $lx = modulo($gx, 8);
+def_int $lz = modulo($gz, 8);
+if (~poh_furn_free < 0) {
+    mes("Your house is as full of furniture as it will hold.");
+    return;
+}
+def_int $item = ~poh_furn_pick($fam, stat(construction));
+if ($item = 0) {
+    mes("There's nothing you can build here yet.");
+    return;
+}
+def_int $wood = enum(int, int, poh_furn_wood, $item);
+def_int $need = enum(int, int, poh_furn_planks, $item);
+if (~poh_furn_plank_total($wood) < $need) {
+    mes("You need <tostring($need)> <enum(int, string, poh_wood_name, $item)> to build that.");
+    return;
+}
+// re-check after the menu: it suspends, and the slot or the planks can go while it is open
+def_int $slot = ~poh_furn_free;
+if ($slot < 0 | ~poh_furn_at($rx, $rz, $lx, $lz) ! -1) {
+    mes("Something is in the way.");
+    return;
+}
+~poh_furn_plank_take($wood, $need);
+~poh_furn_set($slot, ~poh_furn_pack($rx, $rz, $lx, $lz, $angle, $item));
+~poh_furn_show($item, $spot, $angle);
+stat_advance(construction, ~poh_furn_xp($wood, $need));
+mes("You build the <enum(int, string, poh_furn_name, $item)>.");
+
+// Taking a piece out. No refund and no planks back, as in OSRS.
+[proc,poh_furn_remove]
+if (%poh_instance = null | instance_find(loc_coord) ! %poh_instance) {
+    return;
+}
+def_coord $spot = loc_coord;
+def_int $gx = calc(coordx($spot) - coordx(%poh_instance));
+def_int $gz = calc(coordz($spot) - coordz(%poh_instance));
+def_int $rx = calc(divide($gx, 8) - ^poh_grid_origin);
+def_int $rz = calc(divide($gz, 8) - ^poh_grid_origin);
+def_int $slot = ~poh_furn_at($rx, $rz, modulo($gx, 8), modulo($gz, 8));
+if ($slot < 0) {
+    mes("That isn't yours to take out.");
+    return;
+}
+def_int $item = ~poh_furn_field(~poh_furn_get($slot), ^poh_furn_bit_item, 8);
+def_int $option = ~p_choice2("Take out the <enum(int, string, poh_furn_name, $item)>.", 1, "Leave it.", 2);
+if ($option ! 1) {
+    return;
+}
+~poh_furn_set($slot, 0);
+~poh_furn_relay($rx, $rz);
+mes("You take out the <enum(int, string, poh_furn_name, $item)>. The materials are gone.");
+
+// =========================================================================== triggers
+//
+// Each hotspot passes its own family in, so nothing has to look one up from a loc id. The hotspot
+// locs and the shapes they are placed at were read out of the six style squares, not assumed.
+
+[oploc5,loc474_15398]
+~poh_furn_click(^poh_fam_stove);
+
+[oploc5,loc474_15404]
+~poh_furn_click(^poh_fam_sink);
+
+[oploc5,loc474_15403]
+~poh_furn_click(^poh_fam_larder);
+
+[oploc5,loc474_15399]
+~poh_furn_click(^poh_fam_shelves);
+
+[oploc5,loc474_15400]
+~poh_furn_click(^poh_fam_shelves);
+
+[oploc5,loc474_15405]
+~poh_furn_click(^poh_fam_kitchentable);
+
+[oploc5,loc474_15401]
+~poh_furn_click(^poh_fam_barrel);
+
+[oploc5,loc474_15298]
+~poh_furn_click(^poh_fam_diningtable);
+
+[oploc5,loc474_15299]
+~poh_furn_click(^poh_fam_bench);
+
+[oploc5,loc474_15300]
+~poh_furn_click(^poh_fam_bench);
+
+[oploc5,loc474_15304]
+~poh_furn_click(^poh_fam_bellpull);
+
+[oploc5,loc474_15260]
+~poh_furn_click(^poh_fam_bed);
+
+[oploc5,loc474_15261]
+~poh_furn_click(^poh_fam_wardrobe);
+
+[oploc5,loc474_15268]
+~poh_furn_click(^poh_fam_clock);
+
+// Every built piece keeps its own op5=Remove, straight out of poh.loc.
+
+[oploc5,poh_stove_1]
+~poh_furn_remove;
+
+[oploc5,poh_stove_2]
+~poh_furn_remove;
+
+[oploc5,poh_stove_3]
+~poh_furn_remove;
+
+[oploc5,poh_stove_4]
+~poh_furn_remove;
+
+[oploc5,poh_stove_5]
+~poh_furn_remove;
+
+[oploc5,poh_stove_6]
+~poh_furn_remove;
+
+[oploc5,poh_stove_7]
+~poh_furn_remove;
+
+[oploc5,poh_sink_1]
+~poh_furn_remove;
+
+[oploc5,poh_sink_2]
+~poh_furn_remove;
+
+[oploc5,poh_sink_3]
+~poh_furn_remove;
+
+[oploc5,poh_larder_1]
+~poh_furn_remove;
+
+[oploc5,poh_larder_2]
+~poh_furn_remove;
+
+[oploc5,poh_larder_3]
+~poh_furn_remove;
+
+[oploc5,poh_kitchen_shelves_1]
+~poh_furn_remove;
+
+[oploc5,poh_kitchen_shelves_2]
+~poh_furn_remove;
+
+[oploc5,poh_kitchen_shelves_3]
+~poh_furn_remove;
+
+[oploc5,poh_kitchen_shelves_4]
+~poh_furn_remove;
+
+[oploc5,poh_kitchen_shelves_5]
+~poh_furn_remove;
+
+[oploc5,poh_kitchen_shelves_6]
+~poh_furn_remove;
+
+[oploc5,poh_kitchen_shelves_7]
+~poh_furn_remove;
+
+[oploc5,poh_kitchentable_1]
+~poh_furn_remove;
+
+[oploc5,poh_kitchentable_2]
+~poh_furn_remove;
+
+[oploc5,poh_kitchentable_3]
+~poh_furn_remove;
+
+[oploc5,poh_barrel_1]
+~poh_furn_remove;
+
+[oploc5,poh_barrel_2]
+~poh_furn_remove;
+
+[oploc5,poh_barrel_3]
+~poh_furn_remove;
+
+[oploc5,poh_barrel_4]
+~poh_furn_remove;
+
+[oploc5,poh_barrel_5]
+~poh_furn_remove;
+
+[oploc5,poh_barrel_6]
+~poh_furn_remove;
+
+[oploc5,poh_diningtable_1]
+~poh_furn_remove;
+
+[oploc5,poh_diningtable_2]
+~poh_furn_remove;
+
+[oploc5,poh_diningtable_3]
+~poh_furn_remove;
+
+[oploc5,poh_diningtable_4]
+~poh_furn_remove;
+
+[oploc5,poh_diningtable_5]
+~poh_furn_remove;
+
+[oploc5,poh_diningtable_6]
+~poh_furn_remove;
+
+[oploc5,poh_diningtable_7]
+~poh_furn_remove;
+
+[oploc5,poh_diningchairs_1]
+~poh_furn_remove;
+
+[oploc5,poh_diningchairs_2]
+~poh_furn_remove;
+
+[oploc5,poh_diningchairs_3]
+~poh_furn_remove;
+
+[oploc5,poh_diningchairs_4]
+~poh_furn_remove;
+
+[oploc5,poh_diningchairs_5]
+~poh_furn_remove;
+
+[oploc5,poh_diningchairs_6]
+~poh_furn_remove;
+
+[oploc5,poh_diningchairs_7]
+~poh_furn_remove;
+
+[oploc5,poh_bellpull_1]
+~poh_furn_remove;
+
+[oploc5,poh_bellpull_2]
+~poh_furn_remove;
+
+[oploc5,poh_bellpull_3]
+~poh_furn_remove;
+
+[oploc5,poh_bed_1]
+~poh_furn_remove;
+
+[oploc5,poh_bed_2]
+~poh_furn_remove;
+
+[oploc5,poh_bed_3]
+~poh_furn_remove;
+
+[oploc5,poh_bed_4]
+~poh_furn_remove;
+
+[oploc5,poh_bed_5]
+~poh_furn_remove;
+
+[oploc5,poh_bed_6]
+~poh_furn_remove;
+
+[oploc5,poh_bed_7]
+~poh_furn_remove;
+
+[oploc5,poh_wardrobe_1]
+~poh_furn_remove;
+
+[oploc5,poh_wardrobe_2]
+~poh_furn_remove;
+
+[oploc5,poh_wardrobe_3]
+~poh_furn_remove;
+
+[oploc5,poh_wardrobe_4]
+~poh_furn_remove;
+
+[oploc5,poh_wardrobe_5]
+~poh_furn_remove;
+
+[oploc5,poh_wardrobe_6]
+~poh_furn_remove;
+
+[oploc5,poh_wardrobe_7]
+~poh_furn_remove;
+
+[oploc5,poh_clock_1]
+~poh_furn_remove;
+
+[oploc5,poh_clock_2]
+~poh_furn_remove;
+
+[oploc5,poh_clock_3]
+~poh_furn_remove;
