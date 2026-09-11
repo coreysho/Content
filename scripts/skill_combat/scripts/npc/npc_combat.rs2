@@ -69,10 +69,20 @@ if (npc_stat(hitpoints) = 0) {
 // the one chokepoint they all funnel through - every attack, special and recoil ends at
 // npc_queue(2, ...) -> [ai_queue2,_] -> here. Deliberately NOT gated on $damage > 0, so a miss
 // kills too: a miss still queues the hit with damage 0.
-// %debug_onehit is temp and protect=no, so it resets on logout and is safe to read here even
-// when this runs for npc-vs-npc recoil without a player pointer.
-if (%debug_onehit = ^true) {
-    $damage = npc_stat(hitpoints);
+//
+// The finduid is REQUIRED, not defensive. %debug_onehit is a player varp, this proc runs in npc
+// context, and reading a player varp needs the active_player pointer - which protect=no does NOT
+// provide (that governs PROTECTED access, p_active_player, a different pointer). Without this the
+// compiler rejects all eight call sites with "Attempt to access uninitialized pointer".
+// finduid on the npc's own aggressor is the established way to get it here: [proc,npc_death] in
+// npc_death.rs2 does exactly the same thing from the same context. ~npc_retaliate sets
+// %npc_aggressive_player and is called before npc_queue(2, ...) on the melee, ranged and magic
+// paths alike, so it is always set by the time this runs for a player hit. For npc-vs-npc damage
+// (commander_montai) it is null, finduid returns false, and the override correctly does nothing.
+if (finduid(%npc_aggressive_player) = true) {
+    if (%debug_onehit = ^true) {
+        $damage = npc_stat(hitpoints);
+    }
 }
 // damage the npc
 if ($damage = 0) {
