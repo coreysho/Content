@@ -1,7 +1,9 @@
 // Debug commands for the player-owned house. The house itself is poh.rs2; this is only how it gets
-// driven until the portal and build mode exist.
+// driven; the portal in Rimmington and the estate agent beside it are poh_portal.rs2.
 //
 //   ::~pohenter                   build your saved house and walk in
+//   ::~pohbuild                   the same, in build mode - the hotspots stay up
+//   ::~pohbuy                     grant the house the estate agent sells, without the coins
 //   ::~pohleave                   back to Rimmington; the instance is freed, the layout is kept
 //   ::~pohset <rx> <rz> <t> <rot> put room type <t> (0 clears) at grid <rx>,<rz>, rotated <rot> x90
 //   ::~pohwipe                    empty the grid, then hand out the starter house again
@@ -15,7 +17,18 @@
 [debugproc,pohenter]
 // debugprocs run without protected access; the teleport and the varps need it
 if (p_finduid(uid) = true) {
-    ~poh_enter;
+    ~poh_enter(false);
+}
+
+[debugproc,pohbuild]
+if (p_finduid(uid) = true) {
+    ~poh_enter(true);
+}
+
+[debugproc,pohbuy]
+if (p_finduid(uid) = true) {
+    ~poh_grant_starter;
+    mes("You own a house in Rimmington.");
 }
 
 [debugproc,pohleave]

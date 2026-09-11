@@ -1,0 +1,67 @@
+// The way in and the way out.
+//
+// Before this round the only way into a house was ::~pohenter, and the only way out was ::~pohleave
+// or a logout. Now: an estate agent in Rimmington sells the house (which is what %poh_owned has
+// always been for - it was granted on first entry because nothing else could grant it), a portal
+// beside him is the door, and a second portal is spawned inside the entry room on the way in so the
+// player can walk back out.
+//
+// THE EXIT PORTAL IS SPAWNED, NOT BUILT IN. It cannot live in the room templates: those are the 474
+// maps, shared by every house and by every copy of the same room, and a garden is a garden whether
+// or not it is the room you come in through. ~poh_enter loc_adds it after ~poh_build, because
+// instance_setzone purges its zone - anything added before the last setzone would be gone - and
+// instance_delete purges every templated zone, so it dies with the house rather than outliving it.
+
+[oploc1,poh_house_portal]
+~poh_enter(false);
+
+[oploc2,poh_house_portal]
+~poh_enter(true);
+
+[oploc1,poh_exit_portal]
+~poh_leave;
+
+// =========================================================================== the estate agent
+
+[opnpc1,poh_estate_agent]
+if (%poh_owned = 1) {
+    ~chatnpc("<p,happy>How are you finding the new place?");
+    def_int $owned = ~p_choice2("It's lovely, thanks.", 1, "Can I move house?", 2);
+    if ($owned = 1) {
+        ~chatplayer("<p,happy>It's lovely, thanks.");
+        ~chatnpc("<p,happy>Glad to hear it. The portal is right outside.");
+    } else {
+        ~chatplayer("<p,neutral>Can I move house?");
+        ~chatnpc("<p,sad>Not yet, I'm afraid. Rimmington is all I have on my books.");
+    }
+    return;
+}
+~chatnpc("<p,happy>Hello. Would you be interested in buying a house?");
+def_int $option = ~p_choice2("Yes please.", 1, "No thanks.", 2);
+if ($option = 2) {
+    ~chatplayer("<p,neutral>No thanks.");
+    ~chatnpc("<p,neutral>Come back if you change your mind.");
+    return;
+}
+~chatplayer("<p,happy>Yes please.");
+~chatnpc("<p,neutral>A plot here in Rimmington is <tostring(^poh_house_cost)> coins. That buys you the land, a garden and a parlour.");
+if (inv_total(inv, coins) < ^poh_house_cost) {
+    ~chatnpc("<p,sad>Come back when you have the money and it's yours.");
+    return;
+}
+def_int $buy = ~p_choice2("Here you are.", 1, "That's too much for me.", 2);
+if ($buy = 2) {
+    ~chatplayer("<p,neutral>That's too much for me.");
+    ~chatnpc("<p,neutral>It's a fair price for Rimmington, but suit yourself.");
+    return;
+}
+// re-check: the choice box gives the player a chance to drop or trade the coins away
+if (inv_total(inv, coins) < ^poh_house_cost) {
+    ~chatplayer("<p,sad>Actually, I don't have the money.");
+    ~chatnpc("<p,sad>Come back when you do.");
+    return;
+}
+~chatplayer("<p,happy>Here you are.");
+inv_del(inv, coins, ^poh_house_cost);
+~poh_grant_starter;
+~chatnpc("<p,happy>Congratulations on your new home! Step through the portal whenever you like.");

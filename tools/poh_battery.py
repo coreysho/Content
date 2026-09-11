@@ -1,7 +1,8 @@
 """Symbol and signature battery for the two new .rs2 files, from claude/rs2-compile-traps.md."""
 import re, sys, os
 C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FILES = ['scripts/skill_construction/scripts/poh.rs2', 'scripts/skill_construction/scripts/poh_test.rs2']
+FILES = ['scripts/skill_construction/scripts/poh.rs2', 'scripts/skill_construction/scripts/poh_test.rs2',
+         'scripts/skill_construction/scripts/poh_portal.rs2']
 fails = 0
 def check(ok, what):
     global fails
@@ -44,8 +45,16 @@ names = {n for k, n in decl}
 print('   declares: ' + ', '.join('%s %s' % (k, n) for k, n in decl))
 
 print('4. every ~proc call resolves')
+# Against the WHOLE repo, not just these files: poh_portal.rs2 talks to the shared dialogue procs
+# (~chatnpc, ~p_choice2) and a whitelist would only record that I believed they exist.
+repo_procs = set()
+for root, _, fs in os.walk(os.path.join(C, 'scripts')):
+    for fn in fs:
+        if fn.endswith('.rs2'):
+            with open(os.path.join(root, fn), encoding='utf-8', errors='replace') as fh:
+                repo_procs |= set(re.findall(r'^\[(?:proc|label|debugproc),(\w+)\]', fh.read(), re.M))
 called = set(re.findall(r'~(\w+)', alltext))
-unknown = sorted(called - names)
+unknown = sorted(called - names - repo_procs)
 check(not unknown, 'unresolved: %s' % unknown)
 
 print('5. every %varp resolves against pack/varp.pack')
@@ -129,22 +138,211 @@ check(not bad, 'discarded returns: %s' % bad)
 print('11. line endings')
 for f in FILES + ['scripts/skill_construction/configs/poh_rooms.enum',
                   'scripts/skill_construction/configs/construction.varp',
-                  'scripts/skill_construction/configs/construction.constant']:
+                  'scripts/skill_construction/configs/construction.constant',
+                  'scripts/skill_construction/configs/poh_portal.loc',
+                  'scripts/skill_construction/configs/poh_portal.npc',
+                  'maps/m46_50.jm2']:
     b = open(os.path.join(C, f), 'rb').read()
     check(b'\r\r' not in b and b.count(b'\n') == b.count(b'\r\n'), '%s is clean CRLF' % os.path.basename(f))
-for f in ['pack/varp.pack', 'pack/enum.pack']:
+for f in ['pack/varp.pack', 'pack/enum.pack', 'pack/loc.pack', 'pack/npc.pack']:
     b = open(os.path.join(C, f), 'rb').read()
     check(b'\r' not in b and b.endswith(b'\n'), '%s is LF and ends with a newline' % os.path.basename(f))
 
 print('12. pack ids are unique, and the new ones sit above what was there')
 # Not contiguity: varp.pack is missing id 746 upstream and has always built fine. What matters is
 # that nothing is claimed twice and that the ids added here were free.
-NEW = {'pack/varp.pack': list(range(876, 894)), 'pack/enum.pack': [128, 129, 130]}
-for f in ['pack/varp.pack', 'pack/enum.pack']:
+NEW = {'pack/varp.pack': list(range(876, 894)), 'pack/enum.pack': [128, 129, 130],
+       'pack/loc.pack': [15296, 15297], 'pack/npc.pack': [3920]}
+for f in ['pack/varp.pack', 'pack/enum.pack', 'pack/loc.pack', 'pack/npc.pack']:
     ids = [int(l.split('=', 1)[0]) for l in open(os.path.join(C, f)).read().split('\n') if '=' in l]
     check(len(set(ids)) == len(ids), '%s has no duplicate id' % os.path.basename(f))
     check(all(ids.count(i) == 1 for i in NEW[f]), '%s: every id added here appears exactly once' % os.path.basename(f))
     check(max(ids) == max(NEW[f]), '%s: the new block is the top of the file' % os.path.basename(f))
+
+# =========================================================================== the portal round
+
+def packmap(f):
+    out = {}
+    for l in open(os.path.join(C, f)).read().split('\n'):
+        if '=' in l:
+            i, n = l.split('=', 1)
+            out[n] = int(i)
+    return out
+
+LOCS = packmap('pack/loc.pack')
+NPCS = packmap('pack/npc.pack')
+MODELS = set(packmap('pack/model.pack'))
+SEQS = set(packmap('pack/seq.pack'))
+OBJS = set(packmap('pack/obj.pack'))
+
+def blocks(text):
+    """[name] -> {key: [values]} for a config file"""
+    out, cur = {}, None
+    for line in text.split('\n'):
+        line = line.split('//')[0].strip()
+        if not line:
+            continue
+        if line.startswith('['):
+            cur = line.strip('[]')
+            out[cur] = {}
+        elif '=' in line and cur:
+            k, v = line.split('=', 1)
+            out[cur].setdefault(k, []).append(v)
+    return out
+
+print('13. the new locs and npc are registered and used by name')
+LOCCFG = blocks(read('scripts/skill_construction/configs/poh_portal.loc'))
+NPCCFG = blocks(read('scripts/skill_construction/configs/poh_portal.npc'))
+check(sorted(LOCCFG) == ['poh_exit_portal', 'poh_house_portal'], 'poh_portal.loc defines %s' % sorted(LOCCFG))
+check(sorted(NPCCFG) == ['poh_estate_agent'], 'poh_portal.npc defines %s' % sorted(NPCCFG))
+for n in LOCCFG:
+    check(n in LOCS, '%s is in loc.pack (id %s)' % (n, LOCS.get(n)))
+for n in NPCCFG:
+    check(n in NPCS, '%s is in npc.pack (id %s)' % (n, NPCS.get(n)))
+
+print('14. every model, anim and obj the round names really exists')
+# The loc packer looks up the bare name first and falls back to name_8 (LocConfig.ts); npc models
+# are looked up as written.
+for n, cfg in LOCCFG.items():
+    for k in ('model', 'model2', 'model3', 'model4', 'model5'):
+        for v in cfg.get(k, []):
+            check(v in MODELS or (v + '_8') in MODELS, '%s %s=%s resolves' % (n, k, v))
+    for v in cfg.get('anim', []):
+        check(v in SEQS, '%s anim=%s is in seq.pack' % (n, v))
+for n, cfg in NPCCFG.items():
+    for k, vs in cfg.items():
+        if re.match(r'^(model|head)\d+$', k):
+            for v in vs:
+                check(v in MODELS, '%s %s=%s resolves' % (n, k, v))
+objs_used = set(re.findall(r'inv_(?:total|del|add)\(\s*\w+\s*,\s*(\w+)', alltext))
+for o in sorted(objs_used):
+    check(o in OBJS, 'obj %s is in obj.pack' % o)
+
+print('15. Rimmington: the portal is on the map, on free tiles, next to where leaving lands you')
+MAPF = 'maps/m46_50.jm2'
+mlines = read(MAPF).split('\n')
+sec, land, mlocs, mnpcs = None, {}, {}, {}
+for line in mlines:
+    if line.startswith('===='):
+        sec = line.strip('= ')
+        continue
+    if ':' not in line:
+        continue
+    head, data = line.split(':', 1)
+    lv, x, z = (int(v) for v in head.split())
+    d = data.split()
+    if sec == 'LOC':
+        parts = [int(v) for v in d]
+        shape = parts[1] if len(parts) > 1 else 10
+        angle = parts[2] if len(parts) > 2 else 0
+        mlocs.setdefault((lv, x, z), []).append((parts[0], shape, angle))
+    elif sec == 'NPC':
+        mnpcs.setdefault((lv, x, z), []).append(int(d[0]))
+    elif sec == 'MAP':
+        land[(lv, x, z)] = d
+
+placed = [(k, e) for k, es in mlocs.items() for e in es if e[0] == LOCS['poh_house_portal']]
+check(len(placed) == 1, 'the house portal is placed exactly once, got %d' % len(placed))
+agent = [k for k, ids in mnpcs.items() for i in ids if i == NPCS['poh_estate_agent']]
+check(len(agent) == 1, 'the estate agent is placed exactly once, got %d' % len(agent))
+check(LOCS['poh_exit_portal'] not in [e[0] for es in mlocs.values() for e in es],
+      'the exit portal is NOT on the map - it is spawned inside the house')
+
+if len(placed) == 1:
+    (plv, px, pz), (_, pshape, pangle) = placed[0]
+    width = int(LOCCFG['poh_house_portal'].get('width', ['1'])[0])
+    length = int(LOCCFG['poh_house_portal'].get('length', ['1'])[0])
+    if pangle % 2 == 1:
+        width, length = length, width
+    covered = {(plv, px + dx, pz + dz) for dx in range(width) for dz in range(length)}
+    check(pshape == 10, 'it is centrepiece_straight (shape %d)' % pshape)
+    for t in sorted(covered):
+        others = [e for e in mlocs.get(t, []) if e[0] != LOCS['poh_house_portal'] and e[1] != 22]
+        check(not others, 'tile %s carries nothing else that blocks: %s' % (t[1:], others))
+        check(t in land, 'tile %s is real ground' % (t[1:],))
+    # ^poh_exit is level_mx_mz_lx_lz
+    exitc = re.search(r'^\^poh_exit\s*=\s*(\d+)_(\d+)_(\d+)_(\d+)_(\d+)',
+                      read('scripts/skill_construction/configs/construction.constant'), re.M)
+    check(exitc is not None, '^poh_exit parses')
+    if exitc:
+        elv, emx, emz, ex, ez = (int(g) for g in exitc.groups())
+        check((emx, emz) == (46, 50), '^poh_exit is in the square the portal is on (m%d_%d)' % (emx, emz))
+        check((elv, ex, ez) not in covered, 'leaving does not land you inside the portal')
+        check(any(abs(ex - x) + abs(ez - z) == 1 for (_, x, z) in covered),
+              'leaving lands you next to the portal, at %d,%d' % (ex, ez))
+        check((elv, ex, ez) in land, 'the landing tile is real ground')
+    for t in agent:
+        check(t not in covered, 'the estate agent does not stand inside the portal')
+
+print('16. inside the house: the exit portal fits in a garden')
+CONST = read('scripts/skill_construction/configs/construction.constant')
+def const(name):
+    m = re.search(r'^\^%s\s*=\s*(-?\d+)\s*$' % name, CONST, re.M)
+    return int(m.group(1)) if m else None
+EX, EZ = const('poh_exit_portal_x'), const('poh_exit_portal_z')
+SX, SZ = const('poh_spawn_x'), const('poh_spawn_z')
+DUR = const('poh_loc_duration')
+check(DUR is not None and DUR >= 1, '^poh_loc_duration=%s (the engine rejects 0)' % DUR)
+ewidth = int(LOCCFG['poh_exit_portal'].get('width', ['1'])[0])
+elength = int(LOCCFG['poh_exit_portal'].get('length', ['1'])[0])
+ecov = {(EX + dx, EZ + dz) for dx in range(ewidth) for dz in range(elength)}
+check(all(0 <= x <= 7 and 0 <= z <= 7 for x, z in ecov), 'it stays inside the room: %s' % sorted(ecov))
+check((SX, SZ) not in ecov, 'it does not stand on the tile the player lands on')
+check(min(abs(SX - x) + abs(SZ - z) for x, z in ecov) == 1, 'it is next to that tile')
+
+# the garden template itself: everything in that zone must be grass decor or a hotspot, or the
+# portal could land on top of something solid.
+tmpl = re.search(r'^\^poh_templates_a\s*=\s*(\d+)_(\d+)_(\d+)_(\d+)_(\d+)', CONST, re.M)
+gz = None
+for m in re.finditer(r'^val=(\d+),(\d+)$', read('scripts/skill_construction/configs/poh_rooms.enum'), re.M):
+    if int(m.group(1)) == const('poh_room_garden'):
+        gz = int(m.group(2))
+        break
+check(gz is not None and tmpl is not None, 'the garden template zone is %s of m%s_%s' % (gz, tmpl and tmpl.group(2), tmpl and tmpl.group(3)))
+if gz is not None and tmpl is not None:
+    tlv, tmx, tmz = int(tmpl.group(1)), int(tmpl.group(2)), int(tmpl.group(3))
+    gx0, gz0 = (gz // 8) * 8, (gz % 8) * 8
+    hotspots = set()
+    TL = blocks(read('scripts/skill_construction/configs/poh_templates.loc'))
+    TLIDS = packmap('pack/loc.pack')
+    for n, cfg in TL.items():
+        if 'poh_hotspot' in cfg.get('category', []):
+            hotspots.add(TLIDS.get(n))
+    tsec, tlocs = None, {}
+    for line in read('maps/m%d_%d.jm2' % (tmx, tmz)).split('\n'):
+        if line.startswith('===='):
+            tsec = line.strip('= ')
+            continue
+        if tsec != 'LOC' or ':' not in line:
+            continue
+        head, data = line.split(':', 1)
+        lv, x, z = (int(v) for v in head.split())
+        d = [int(v) for v in data.split()]
+        tlocs.setdefault((lv, x, z), []).append((d[0], d[1] if len(d) > 1 else 10))
+    blockers = []
+    for x, z in sorted(ecov | {(SX, SZ)}):
+        for lid, shape in tlocs.get((tlv, gx0 + x, gz0 + z), []):
+            if shape != 22 and lid not in hotspots:
+                blockers.append((x, z, lid, shape))
+    check(not blockers, 'no solid template loc under the exit portal or the landing tile: %s' % blockers)
+
+print('17. ~poh_enter and ~poh_build are always called with the build-mode flag')
+bad = []
+for f, t in clean.items():
+    for m in re.finditer(r'~(poh_enter|poh_build)\b(\()?', t):
+        if m.group(2) is None:
+            bad.append('%s: bare ~%s' % (os.path.basename(f), m.group(1)))
+check(not bad, 'no bare calls: %s' % bad)
+check(re.search(r'^\[proc,poh_enter\]\(boolean \$\w+\)', clean[FILES[0]], re.M) is not None,
+      '[proc,poh_enter] takes a boolean')
+check(re.search(r'^\[proc,poh_build\]\(boolean \$\w+\)\(coord\)', clean[FILES[0]], re.M) is not None,
+      '[proc,poh_build] takes a boolean and returns a coord')
+
+print('18. %poh_owned is a gate, not something entering grants')
+enter_body = clean[FILES[0]].split('[proc,poh_enter]')[1].split('[proc,')[0]
+check('%poh_owned = 0' in enter_body and 'return' in enter_body,
+      'poh_enter turns away a player who owns nothing')
+check('%poh_owned = 1' not in enter_body, 'poh_enter does not hand out ownership')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

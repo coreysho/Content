@@ -186,7 +186,7 @@ switch_int ($style) {
 
 // Lay the saved grid into a fresh instance. Returns its south-west corner, or null if no instance
 // slot was free.
-[proc,poh_build]()(coord)
+[proc,poh_build](boolean $buildmode)(coord)
 if (%poh_instance ! null) {
     ~poh_free;
 }
@@ -216,9 +216,13 @@ while ($rz < ^poh_grid) {
 // Out of build mode there are no hotspots. Door hotspots are wall locs, so leaving them up seals
 // every doorway - the bug that made the first test house one room big. Zero hidden in a house that
 // has rooms means the category never applied, and the player is about to be walled in.
-def_int $hidden = instance_loccategory($base, poh_hotspot, false);
-if ($hidden = 0) {
-    mes("Warning: no hotspots were hidden - the doorways may be sealed.");
+// In build mode they stay: that is the whole point of build mode, and a sealed room is survivable
+// because the exit portal is spawned in the room the player lands in.
+if ($buildmode = false) {
+    def_int $hidden = instance_loccategory($base, poh_hotspot, false);
+    if ($hidden = 0) {
+        mes("Warning: no hotspots were hidden - the doorways may be sealed.");
+    }
 }
 return($base);
 
@@ -260,11 +264,18 @@ def_int $mid = divide(^poh_grid, 2);
 
 // =========================================================================== entering and leaving
 
-[proc,poh_enter]
-if (%poh_owned = 0 | ~poh_room_total = 0) {
+// %poh_owned is now a real gate: the estate agent sets it, and nothing else does except the debug
+// commands. Before the portal round it was granted on the way in, because there was no other way to
+// get one.
+[proc,poh_enter](boolean $buildmode)
+if (%poh_owned = 0) {
+    mes("You don't own a house. The estate agent in Rimmington will sell you one.");
+    return;
+}
+if (~poh_room_total = 0) {
     ~poh_grant_starter;
 }
-def_coord $base = ~poh_build;
+def_coord $base = ~poh_build($buildmode);
 if ($base = null) {
     mes("Every house slot is in use - try again in a moment.");
     return;
@@ -275,7 +286,11 @@ if ($slot < 0) {
     mes("Your house has no rooms in it.");
     return;
 }
-p_telejump(~poh_entry_coord($base, $slot));
+def_coord $entry = ~poh_entry_coord($base, $slot);
+// The way out, in the room the player is about to land in. After ~poh_build, never before it: the
+// last instance_setzone purges its zone and would take this with it.
+loc_add(movecoord($entry, calc(^poh_exit_portal_x - ^poh_spawn_x), 0, calc(^poh_exit_portal_z - ^poh_spawn_z)), poh_exit_portal, 0, centrepiece_straight, ^poh_loc_duration);
+p_telejump($entry);
 
 [proc,poh_leave]
 p_telejump(^poh_exit);
