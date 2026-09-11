@@ -185,8 +185,8 @@ def emit_enum(spec, rows, ids):
         out += ['val=%s,%s' % kv for kv in vals]
         return out + ['']
 
-    o += table('poh_tab_obj', 'obj', [(n + 1, t['obj']) for n, t in enumerate(tabs)],
-               'Which obj each tablet is. The window draws it with if_setobject, which takes the obj\nand works the icon camera out from the obj config, so there is no zoom table here.')
+    o += table('poh_tab_obj', 'namedobj', [(n + 1, t['obj']) for n, t in enumerate(tabs)],
+               'Which obj each tablet is. namedobj and not obj: inv_add takes a namedobj, and an enum\ntyped obj will not pass to it ("Type mismatch: inv,obj,int was given but inv,namedobj,int\nwas expected"). namedobj passes everywhere obj does - if_setobject takes it fine - so this\nis the type that works in both places. The window draws it with if_setobject, which works\nthe icon camera out from the obj config, so there is no zoom table here.')
     o += table('poh_tab_name', 'string', [(n + 1, t['name']) for n, t in enumerate(tabs)],
                'The name as the window writes it - the same string as the obj\'s name=.')
     o += table('poh_tab_spell', 'int', [(n + 1, '^' + t['spell']) for n, t in enumerate(tabs)],
@@ -277,7 +277,7 @@ def emit_rs2(spec, rows, ids):
           'if ($r1 ! null) {', '    inv_del(inv, $r1, $c1);', '}',
           'if ($r2 ! null) {', '    inv_del(inv, $r2, $c2);', '}',
           'if ($r3 ! null) {', '    inv_del(inv, $r3, $c3);', '}',
-          'inv_add(inv, enum(int, obj, poh_tab_obj, $tab), 1);',
+          'inv_add(inv, enum(int, namedobj, poh_tab_obj, $tab), 1);',
           'stat_advance(magic, db_getfield($d, magic_spell_table:experience, 0));',
           'anim(human_cast_enchantring, 0);',
           'spotanim_pl(enchant_ring, 92, 0);',

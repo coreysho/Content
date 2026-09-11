@@ -163,8 +163,17 @@ def build_tables():
         "packs": {},        # kind -> set(names)
     }
 
-    # engine.rs2 command signatures
+    # engine.rs2 command signatures.
+    #
+    # SCRIPTS is the CURRENT DIRECTORY, so this file is only found when the tool is run from
+    # content/scripts as the docstring says. Run it from content/ and it still walks the tree and
+    # still prints "0 ERROR" - but with no signatures loaded, rules 6, 7, 7b and 15 all check
+    # nothing at all. That silent half-run hid a real type error on 2026-09-11 until the server
+    # build caught it. So: loud, not quiet.
     eng = os.path.join(SCRIPTS, "engine.rs2")
+    if not os.path.exists(eng):
+        sys.exit("rs2check: no engine.rs2 in %s - run this from content/scripts, or half the "
+                 "rules check nothing" % SCRIPTS)
     if os.path.exists(eng):
         for raw in text(eng).split("\n"):
             m = SIG.match(raw)
@@ -350,6 +359,63 @@ def check_script(path, T):
                 if got != want:
                     report("ERROR", path, n, "7b",
                            "%s%s takes %d argument(s), given %d" % (sigil, name, want, got))
+
+
+        # 15: an enum(...) passed where the declared parameter is a different type.
+        #
+        # THE RULE THIS ROUND EARNED. enum's second argument IS its output type, and the compiler
+        # checks it against the parameter exactly: enum(int, obj, ...) into inv_add's namedobj is
+        #   "Type mismatch: 'inv,obj,int' was given but 'inv,namedobj,int' was expected"
+        # and nothing else in this file would have caught it, because the arity is right. namedobj
+        # widens to obj (rule 7 already knows that); obj does not narrow to namedobj.
+        #
+        # Only argument lists with no ~proc, @label or db_getfield call in them: those can return
+        # several values and fill several parameters at once, so the positions no longer line up.
+        for sigil, table in (("", "commands"), ("~", "procs"), ("@", "labels")):
+            pat = (re.escape(sigil) if sigil else r"(?<![a-zA-Z_0-9.~@$])") + r"([a-zA-Z_0-9]+)\s*\("
+            for m in re.finditer(pat, s):
+                name = m.group(1)
+                if name not in T[table] or name == "enum":
+                    continue
+                params = T[table][name][0]
+                start = m.end() - 1
+                depth, end = 0, -1
+                for i in range(start, len(s)):
+                    if s[i] == "(":
+                        depth += 1
+                    elif s[i] == ")":
+                        depth -= 1
+                        if depth == 0:
+                            end = i
+                            break
+                if end < 0:
+                    continue
+                inner = s[start + 1:end]
+                if "~" in inner or "@" in inner or "db_getfield" in inner:
+                    continue
+                args, depth, cur = [], 0, ""
+                for ch in inner:
+                    if ch == "," and depth == 0:
+                        args.append(cur.strip()); cur = ""
+                        continue
+                    if ch == "(":
+                        depth += 1
+                    elif ch == ")":
+                        depth -= 1
+                    cur += ch
+                if cur.strip():
+                    args.append(cur.strip())
+                if len(args) != len(params):
+                    continue
+                for arg, want in zip(args, params):
+                    e = re.match(r"^enum\s*\(\s*[a-zA-Z_0-9]+\s*,\s*([a-zA-Z_0-9]+)\s*,", arg)
+                    if not e:
+                        continue
+                    got = e.group(1)
+                    if got == want or (got == "namedobj" and want == "obj"):
+                        continue
+                    report("ERROR", path, n, 15,
+                           "%s%s wants %s here, enum(...) gives %s" % (sigil, name, want, got))
 
         # 14: a seq or synth that does not exist. Only the positions where the argument is
         # always a bare name - this is what caught sound_synth(cannon_fire) and

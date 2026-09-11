@@ -89,8 +89,8 @@ MUTS = [
   'val=6,1 fire, 3 air, 1 law, 1 soft clay', 'val=6,1 fire, 2 air, 1 law, 1 soft clay',
   '40 poh_tab_need drifting from the spell row'),
  ('scripts/skill_construction/scripts/poh_tablets.rs2',
-  '$r1, $c1, $r2, $c2, $r3, $c3 = ~poh_tab_runes($tab);\ninv_del(inv, softclay, 1);',
-  '$r1, $c1, $r2, $c2, $r3, $c3 = ~staff_runes(~get_spell_data(1));\ninv_del(inv, softclay, 1);',
+  'return(db_getfield($d, magic_spell_table:runesrequired, 0));',
+  'return(~staff_runes($d));',
   '40 a staff paying for a tablet'),
  ('scripts/skill_construction/scripts/poh_tablets.rs2',
   'if (~wilderness_level(coord) > 20) {\n    mes("A mysterious force blocks your teleport!");\n    mes("You can\'t use this teleport after level 20 wilderness.");\n    return;\n}\nif (~pre_tele_checks(coord) = false) {\n    return;\n}\nif (inv_total(inv, $tab) < 1) {\n    return;\n}\ninv_del(inv, $tab, 1);\nmes("You break the tablet.");\ndef_dbrow $d',
@@ -114,12 +114,17 @@ MUTS = [
   '[t0model]\nlayer=row0\ntype=model\nx=4\ny=0\nwidth=34\nheight=30',
   '42 an icon that draws up out of its row'),
  ('scripts/skill_construction/scripts/poh_menus.rs2',
-  'if_setobject(poh_tabletmenu:t0model, enum(int, obj, poh_tab_obj, $tab), 90);',
-  'if_setobject(poh_tabletmenu:t0model, enum(int, obj, poh_tab_obj, $tab), 220);',
+  'if_setobject(poh_tabletmenu:t0model, enum(int, namedobj, poh_tab_obj, $tab), 90);',
+  'if_setobject(poh_tabletmenu:t0model, enum(int, namedobj, poh_tab_obj, $tab), 220);',
   '42 an icon scaled past its row'),
+ ('scripts/skill_construction/scripts/poh_tablets.rs2',
+  'enum(int, namedobj, poh_tab_obj, $tab), 1);', 'enum(int, obj, poh_tab_obj, $tab), 1);',
+  '15 an enum of the wrong type for the parameter (rs2check)'),
 ]
 
 def checker_for(why):
+    if why.endswith('(rs2check)'):
+        return 'tools/rs2check.py'
     if why.endswith('(build sim)'):
         return 'tools/poh_build_sim.py'
     if why.endswith('(furn sim)'):
@@ -145,7 +150,11 @@ def main():
             fails += 1
             continue
         open(p, 'w', newline='').write(raw.replace(f, r2, 1))
-        r = subprocess.run([sys.executable, os.path.join(W, checker)], capture_output=True, text=True)
+        # rs2check takes the current directory as the script root, and refuses to run anywhere
+        # else - see the note beside engine.rs2 in it.
+        cwd = os.path.join(W, 'scripts') if checker.endswith('rs2check.py') else W
+        r = subprocess.run([sys.executable, os.path.join(W, checker)], capture_output=True,
+                           text=True, cwd=cwd)
         open(p, 'wb').write(original)
         ok = r.returncode != 0
         print('  %-5s %-46s %-20s %s' % ('red' if ok else 'GREEN', why,

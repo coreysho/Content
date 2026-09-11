@@ -470,7 +470,7 @@ def rs2_tab(scale):
         o.append('if (stat(magic) < enum(int, int, poh_tab_level, $tab)) {')
         o.append('    $state = ^poh_state_locked;')
         o.append('}')
-        o.append('if_setobject(poh_tabletmenu:t%dmodel, enum(int, obj, poh_tab_obj, $tab), %d);' % (i, scale))
+        o.append('if_setobject(poh_tabletmenu:t%dmodel, enum(int, namedobj, poh_tab_obj, $tab), %d);' % (i, scale))
         o.append('if_settext(poh_tabletmenu:t%dname, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_tab_name, $tab)>");' % i)
         o.append('if_settext(poh_tabletmenu:t%dneed, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_tab_need, $tab)>");' % i)
         o.append('if_settext(poh_tabletmenu:t%dlvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_tab_level, $tab))>");' % i)

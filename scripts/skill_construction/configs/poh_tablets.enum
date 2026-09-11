@@ -7,11 +7,14 @@
 // back out of the spell rows and fails if they have drifted. Nothing else here is a copy of
 // anything: the make and break scripts ask the db directly.
 
-// Which obj each tablet is. The window draws it with if_setobject, which takes the obj
-// and works the icon camera out from the obj config, so there is no zoom table here.
+// Which obj each tablet is. namedobj and not obj: inv_add takes a namedobj, and an enum
+// typed obj will not pass to it ("Type mismatch: inv,obj,int was given but inv,namedobj,int
+// was expected"). namedobj passes everywhere obj does - if_setobject takes it fine - so this
+// is the type that works in both places. The window draws it with if_setobject, which works
+// the icon camera out from the obj config, so there is no zoom table here.
 [poh_tab_obj]
 inputtype=int
-outputtype=obj
+outputtype=namedobj
 val=1,poh_tab_enchant_sapphire
 val=2,poh_tab_enchant_emerald
 val=3,poh_tab_enchant_ruby
