@@ -190,7 +190,12 @@ for f in ['pack/varp.pack', 'pack/loc.pack', 'pack/npc.pack']:
     ids = [int(l.split('=', 1)[0]) for l in open(os.path.join(C, f)).read().split('\n') if '=' in l]
     check(len(set(ids)) == len(ids), '%s has no duplicate id' % os.path.basename(f))
     check(all(ids.count(i) == 1 for i in NEW[f]), '%s: every id added here appears exactly once' % os.path.basename(f))
-    check(max(ids) == max(NEW[f]), '%s: the new block is the top of the file' % os.path.basename(f))
+    # Was `== max(NEW[f])`, i.e. "the POH round is still the newest thing in this pack". That was
+    # true when it was written and is a landmine for every round after it - bank tabs added varps
+    # 1154-1162 and it went red for a reason that had nothing to do with Construction. The part
+    # worth keeping is that this round's block is present, unduplicated and not stranded above the
+    # top of the file, which >= still says.
+    check(max(ids) >= max(NEW[f]), '%s: the new block is not stranded above the top of the file' % os.path.basename(f))
 
 # =========================================================================== the portal round
 
@@ -1737,6 +1742,66 @@ check('poh_exit_portal' in {k for k in FSPEC.get('loc_allowances', {}) if k != '
 dup = [l for l in re.findall(r'^\[oploc5,(\w+)\]', fu, re.M)]
 check(len(dup) == len(set(dup)), 'no loc has two removal triggers: %d triggers' % len(dup))
 
+
+# ============================================================================ 50
+print('50. the windows are built once per click, not once per row (the instruction budget)')
+# ScriptRunner allows a script 500,000 opcodes and does NOT reset the count across the
+# p_pausebutton a window waits on, so everything a player does with one window comes out of one
+# budget. The room window used to ask "what is the nth room that fits" seven times a page, each
+# question walking the whole room ladder and each rung scanning all 64 grid slots: 913,000 opcodes
+# over three pages, and "branch Too many instructions" thrown out of poh.rs2 on More rooms.
+# claude/poh-menu-opcount.md has the measurements and how they were taken.
+poh = clean[FILES[0]]
+bd = clean[FILES[3]]
+mn = clean[FILES[6]]
+cp = poh.split('[proc,poh_can_place]', 1)[1].split('\n[', 1)[0]
+check('~poh_room_total' not in cp and '~poh_house_empty' in cp,
+      '~poh_can_place asks ~poh_house_empty, not ~poh_room_total')
+he = poh.split('[proc,poh_house_empty]', 1)[1].split('\n[', 1)[0]
+check('^poh_type_mask' in he and '~poh_word_get' in he,
+      'and ~poh_house_empty masks whole layout words rather than decoding slots')
+check(int(re.search(r'\^poh_type_mask\s*=\s*(\d+)', CONST).group(1)) == 0x3f3f3f3f,
+      '^poh_type_mask covers the four 6-bit type fields of a word, nothing else')
+check('return(false)' in he, 'it stops at the first room it finds')
+fm = bd.split('[proc,poh_fit_mask]', 1)[1].split('\n[', 1)[0]
+check('~poh_room_fits' in fm and '$bit = calc($bit * 2)' in fm,
+      '~poh_fit_mask turns the ladder into one bitmask')
+nf = bd.split('[proc,poh_nth_fit]', 1)[1].split('\n[', 1)[0]
+check('~poh_' not in nf, '~poh_nth_fit calls nothing - it just reads bits')
+RC = int(re.search(r'\^poh_room_count\s*=\s*(\d+)', CONST).group(1))
+check(RC <= 31, 'the %d room types fit in the bits of one mask (31 is the ceiling)' % RC)
+pick = mn.split('[proc,poh_pick_room]', 1)[1].split('\n[', 1)[0]
+check('[proc,poh_pick_room](int $mask)(int)' in mn,
+      '~poh_pick_room is handed the mask rather than the cell it is for')
+check('~poh_fit_mask' not in pick and '~poh_nth_room' not in pick,
+      'and derives nothing while paging')
+ROWS_ = int(re.search(r'\^poh_menu_rows\s*=\s*(\d+)', CONST).group(1))
+check(pick.count('~poh_nth_fit') == ROWS_ + 1,
+      'it reads its %d rows and the More rooms button straight out of the mask' % ROWS_)
+hc = bd.split('[proc,poh_hotspot_click]', 1)[1].split('\n[', 1)[0]
+check(hc.count('~poh_fit_mask') == 1, 'the click builds the mask exactly once')
+check('~poh_nth_room' not in alltext, 'the per-row walk is gone from the build, not just unused')
+
+# ============================================================================ 51
+print('51. and the furniture window pages by arithmetic, for the same reason')
+fn = fu.split('[proc,poh_furn_nth]', 1)[1].split('\n[', 1)[0]
+check('while' not in fn, '~poh_furn_nth does not walk every piece in the game per row')
+check('poh_fam_first' in fn and 'poh_fam_last' in fn, "it adds the row to the family's first piece")
+ffirst = enumtable(FURNE, 'poh_fam_first')
+flast = enumtable(FURNE, 'poh_fam_last')
+ffam = enumtable(FURNE, 'poh_furn_fam')
+byfam = {}
+for item, f in ffam.items():
+    byfam.setdefault(int(f), []).append(int(item))
+check(len(ffirst) == len(byfam) and len(flast) == len(byfam),
+      'every one of the %d families has a first and a last' % len(byfam))
+bad = [f for f, items in byfam.items()
+       if sorted(items) != list(range(int(ffirst[f]), int(flast[f]) + 1))]
+check(not bad, "and each family's pieces really are consecutive - the arithmetic depends on it")
+check(all(sorted(byfam[f])[0] == int(ffirst[f]) for f in byfam),
+      'first is the lowest piece id in the family')
+check(all(sorted(byfam[f])[-1] == int(flast[f]) for f in byfam),
+      'last is the highest')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

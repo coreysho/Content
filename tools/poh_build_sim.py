@@ -48,10 +48,15 @@ def rot_doors(d, rot):                                   # ~poh_rot_doors
     return d
 
 class House:
-    def __init__(s): s.cell = {}
-    def type(s, rx, rz): return s.cell.get((rx, rz), (0, 0))[0]
+    def __init__(s): s.cell = {}; s.reads = 0; s.oldshape = False
+    def type(s, rx, rz):
+        s.reads += 1                                     # ~poh_room_type -> ~poh_room_packed, the leaf
+        return s.cell.get((rx, rz), (0, 0))[0]
     def rot(s, rx, rz): return s.cell.get((rx, rz), (0, 0))[1]
-    def total(s): return sum(1 for v in s.cell.values() if v[0])
+    def total(s): s.reads += GRID * GRID; return sum(1 for v in s.cell.values() if v[0])
+    def empty(s):                                        # ~poh_house_empty
+        s.words = getattr(s, 'words', 0) + 1
+        return not any(v[0] for v in s.cell.values())
     def set(s, rx, rz, t, r):
         if t == 0: s.cell.pop((rx, rz), None)
         else: s.cell[(rx, rz)] = (t, r % 4)
@@ -63,7 +68,7 @@ class House:
     def can_place(s, rx, rz, t, rot):                    # ~poh_can_place
         if rx < 0 or rx >= GRID or rz < 0 or rz >= GRID: return False
         if t == 0: return True
-        if s.total() == 0: return True
+        if s.total() == 0 if s.oldshape else s.empty(): return True
         d = rot_doors(DOORS[t], rot)
         if d & N and s.door_on(rx, rz + 1, S): return True
         if d & E and s.door_on(rx + 1, rz, W): return True
@@ -78,13 +83,20 @@ class House:
     def fits(s, rx, rz, t, side):                        # ~poh_room_fits
         if s.type(rx, rz) != 0: return False
         return s.rot_for(rx, rz, t, side) >= 0
-    def nth_room(s, rx, rz, side, n):                    # ~poh_nth_room
+    def fit_mask(s, rx, rz, side):                       # ~poh_fit_mask
+        m = 0
+        for t in range(1, COUNT + 1):
+            if s.fits(rx, rz, t, side): m |= 1 << (t - 1)
+        return m
+    def nth_fit(s, mask, n):                             # ~poh_nth_fit
         seen = 0
         for t in range(1, COUNT + 1):
-            if s.fits(rx, rz, t, side):
+            if mask & (1 << (t - 1)):
                 if seen == n: return t
                 seen += 1
         return 0
+    def nth_room(s, rx, rz, side, n):                    # the two of them together, as the click does
+        return s.nth_fit(s.fit_mask(rx, rz, side), n)
     def joined_count(s, rx, rz):                         # ~poh_joined_count
         n = 0
         if s.door_on(rx, rz, N) and s.door_on(rx, rz + 1, S): n += 1
@@ -307,6 +319,49 @@ check(BOUND * ROWS >= COUNT,
       'the page loop bound (%d x %d) covers all %d room types' % (BOUND, ROWS, COUNT))
 check(pages.count('~poh_room_row') == ROWS,
       'it fills exactly the %d rows the window has' % ROWS)
+
+# ---- 7. the instruction budget ----------------------------------------------------------------
+print('7. opening the window and paging it stays inside the engine\'s instruction budget')
+# ScriptRunner counts opcodes for a WHOLE script run - 500,000 of them - and does NOT reset that
+# count when a script suspends on p_pausebutton. A window that waits for clicks therefore spends one
+# budget across every page the player looks at. The room window used to re-derive its list per row
+# per page: that cost a real house 913,000 opcodes over three pages and threw "branch Too many
+# instructions" out of poh.rs2 on the click of More rooms (2026-09-12). The list is worked out once
+# now. What is counted below is the leaf - ~poh_room_type, which every geometry question ends in.
+h = starter()
+rx, rz = sorted(h.cell)[0]
+tx, tz = rx, rz + 1
+h.reads = 0; h.words = 0
+mask = h.fit_mask(tx, tz, OPP[N])
+for page in range(3):
+    for n in range(ROWS + 1):
+        h.nth_fit(mask, page * ROWS + n)
+now = h.reads
+h.reads = 0; h.oldshape = True                           # what it used to do, for the comparison:
+for page in range(3):                                    # the list re-derived per row, and
+    for n in range(ROWS + 1):                            # ~poh_can_place scanning all 64 slots
+        h.fit_mask(tx, tz, OPP[N])
+        h.nth_fit(mask, page * ROWS + n)
+before = h.reads
+h.oldshape = False
+check(now * 100 < before, 'three pages cost %d grid reads, not the %d the old shape cost (%.0fx)'
+      % (now, before, before / max(now, 1)))
+check(now < 600, 'and %d reads is a tenth of what the budget allows even before the fix\'s margin' % now)
+canplace = read('scripts/skill_construction/scripts/poh.rs2').split('[proc,poh_can_place]', 1)[1].split('\n[', 1)[0]
+check('~poh_room_total' not in canplace,
+      '~poh_can_place does not scan the whole grid - it asks ~poh_house_empty')
+check('~poh_house_empty' in canplace, 'which is the masked sixteen-word test, not 64 decoded slots')
+MASKC = int(re.search(r'\^poh_type_mask\s*=\s*(\d+)', read('scripts/skill_construction/configs/construction.constant')).group(1))
+check(MASKC == 0x3f3f3f3f, '^poh_type_mask is the four 6-bit type fields of a layout word (0x3F3F3F3F)')
+check(COUNT <= 31, 'the %d room types still fit in the bits of a fit mask' % COUNT)
+pickbody = MENUS.split('[proc,poh_pick_room]', 1)[1].split('\n[', 1)[0]
+check('~poh_fit_mask' not in pickbody, '~poh_pick_room does not re-derive its list while paging')
+check(pickbody.count('~poh_nth_fit') == ROWS + 1, 'it reads %d rows and the More button out of the mask' % ROWS)
+clickbody = build.split('[proc,poh_hotspot_click]', 1)[1].split('\n[', 1)[0]
+check(clickbody.count('~poh_fit_mask') == 1, 'the mask is built exactly once, at the click')
+furn = read('scripts/skill_construction/scripts/poh_furniture.rs2').split('[proc,poh_furn_nth]', 1)[1].split('\n[', 1)[0]
+check('while' not in furn and 'poh_fam_first' in furn,
+      'the furniture window pages the same cheap way - two lookups, not a walk down all its pieces')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

@@ -198,19 +198,23 @@ if_settext(poh_roommenu:r5cost, "<enum(int, string, poh_tint_need, $state)><enum
 // Six rooms a page, three pages, which is every room type twice over. The page loop is
 // bounded rather than while(true): a menu that cannot end would hang the player script.
 //
+// The list arrives as a bitmask from ~poh_fit_mask, worked out once before the window opens.
+// Paging used to re-ask the geometry per row per page and cost a house its 500,000-opcode
+// budget on page two - claude/poh-menu-opcount.md. Reading bits out of a mask is free.
+//
 // A click on a room you have the level for returns it and the caller does the paying. A click
 // on one you do not says so and leaves the window open - money is a thing you go and fix, a
 // level is a thing you go on browsing past.
-[proc,poh_pick_room](int $rx, int $rz, int $side)(int)
+[proc,poh_pick_room](int $mask)(int)
 def_int $page = 0;
 while ($page < 3) {
-    def_int $a = ~poh_nth_room($rx, $rz, $side, calc($page * ^poh_menu_rows + 0));
-    def_int $b = ~poh_nth_room($rx, $rz, $side, calc($page * ^poh_menu_rows + 1));
-    def_int $c = ~poh_nth_room($rx, $rz, $side, calc($page * ^poh_menu_rows + 2));
-    def_int $d = ~poh_nth_room($rx, $rz, $side, calc($page * ^poh_menu_rows + 3));
-    def_int $e = ~poh_nth_room($rx, $rz, $side, calc($page * ^poh_menu_rows + 4));
-    def_int $f = ~poh_nth_room($rx, $rz, $side, calc($page * ^poh_menu_rows + 5));
-    def_int $more = ~poh_nth_room($rx, $rz, $side, calc($page * ^poh_menu_rows + ^poh_menu_rows));
+    def_int $a = ~poh_nth_fit($mask, calc($page * ^poh_menu_rows + 0));
+    def_int $b = ~poh_nth_fit($mask, calc($page * ^poh_menu_rows + 1));
+    def_int $c = ~poh_nth_fit($mask, calc($page * ^poh_menu_rows + 2));
+    def_int $d = ~poh_nth_fit($mask, calc($page * ^poh_menu_rows + 3));
+    def_int $e = ~poh_nth_fit($mask, calc($page * ^poh_menu_rows + 4));
+    def_int $f = ~poh_nth_fit($mask, calc($page * ^poh_menu_rows + 5));
+    def_int $more = ~poh_nth_fit($mask, calc($page * ^poh_menu_rows + ^poh_menu_rows));
     if ($a = 0) {
         return(0);
     }

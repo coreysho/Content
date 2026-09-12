@@ -248,3 +248,12 @@
 // and it is not a fitted one. Battery 48 checks all four against the shop's own list.
 ^poh_stone_sell = 500
 ^poh_stone_buy = 300
+
+// ---- the instruction budget (poh.rs2, poh_build.rs2, 2026-09-12) ----
+// HAND WRITTEN, behind its own marker for the same reason as the block above.
+//
+// The type fields of the four room slots packed into one layout word, masked together: 0x3F3F3F3F.
+// ~poh_house_empty tests whole words against this instead of decoding all 64 slots, and the mask
+// matters - clearing a slot writes its rotation back with type 0, so a word can be non-zero with
+// no room in it. Tied to ^poh_furn_bit_* only by the 8-bit slot: 6 type bits + 2 rotation bits.
+^poh_type_mask = 1061109567

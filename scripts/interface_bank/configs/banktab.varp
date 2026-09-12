@@ -1,0 +1,33 @@
+// Bank tabs (Corey, 2026-09-12). See claude/bank-tabs.md.
+//
+// The bank stays ONE ordered 352-slot list. A tab is a contiguous range of it, in order:
+//   [tab1][tab2]...[tab8][ everything else = the "all items" tab 0 ]
+// so a tab is fully described by how many items are in it, and tab k starts at the sum of
+// the counts below it. Nothing tags an individual item with a tab - position IS the tab.
+// That is what keeps every existing withdraw/deposit/drag handler working on real bank
+// slots, and it is why the list must never be left with a gap in it.
+
+// The tab currently being viewed. 0 = all items. TEMP on purpose: reset on every open, so
+// nobody comes back tomorrow to a bank that looks empty because they left it on tab 7.
+// transmit=yes because the tab buttons highlight themselves client-side off this varp
+// (buttontype=select + script1op1=pushvar,banktab), which costs no packets at all.
+[banktab]
+transmit=yes
+
+// How many items are in each numbered tab. scope=perm - this IS the player's filing.
+[banktab_c1]
+scope=perm
+[banktab_c2]
+scope=perm
+[banktab_c3]
+scope=perm
+[banktab_c4]
+scope=perm
+[banktab_c5]
+scope=perm
+[banktab_c6]
+scope=perm
+[banktab_c7]
+scope=perm
+[banktab_c8]
+scope=perm

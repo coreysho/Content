@@ -89,18 +89,44 @@ if (~poh_room_rot_for($rx, $rz, $type, $side) < 0) {
 }
 return(true);
 
-// The nth (0-based) room type that fits here, or 0. This is how the window pages without anywhere
-// to hold a list.
-[proc,poh_nth_room](int $rx, int $rz, int $side, int $n)(int)
+// Which rooms can go here, as a bitmask: bit (type - 1) per type, low bit for room 1. This is the
+// window's list, and it is built ONCE per click.
+//
+// It used to be built a row at a time: ~poh_pick_room asked "what is the nth room that fits" seven
+// times a page, and each of those questions walked the whole room ladder again, asking
+// ~poh_can_place up to four times per room. The engine counts opcodes over a WHOLE script run -
+// across every p_pausebutton the window waits on, 500,000 of them (ScriptRunner.ts) - so the second
+// page of the window ran a house out of instructions and logged the player out with "Too many
+// instructions". One mask, read by ~poh_nth_fit, makes paging cost nothing. claude/poh-menu-opcount.md
+// has the measurements. ^poh_room_count may not exceed 31 for the same reason a byte holds 8 bits;
+// battery check 50 holds that line.
+[proc,poh_fit_mask](int $rx, int $rz, int $side)(int)
+def_int $mask = 0;
+def_int $bit = 1;
 def_int $type = 1;
-def_int $seen = 0;
 while ($type <= ^poh_room_count) {
     if (~poh_room_fits($rx, $rz, $type, $side) = true) {
+        $mask = or($mask, $bit);
+    }
+    $bit = calc($bit * 2);
+    $type = calc($type + 1);
+}
+return($mask);
+
+// The nth (0-based) room in a mask, or 0 when the mask runs out - which is what ends a page and
+// hides the More rooms button.
+[proc,poh_nth_fit](int $mask, int $n)(int)
+def_int $type = 1;
+def_int $bit = 1;
+def_int $seen = 0;
+while ($type <= ^poh_room_count) {
+    if (and($mask, $bit) ! 0) {
         if ($seen = $n) {
             return($type);
         }
         $seen = calc($seen + 1);
     }
+    $bit = calc($bit * 2);
     $type = calc($type + 1);
 }
 return(0);
@@ -207,7 +233,7 @@ if (~poh_room_type($tx, $tz) ! 0) {
 }
 // The new room needs a door facing back through the one that was clicked.
 def_int $need = ~poh_side_opposite($side);
-def_int $type = ~poh_pick_room($tx, $tz, $need);
+def_int $type = ~poh_pick_room(~poh_fit_mask($tx, $tz, $need));
 if ($type = 0) {
     mes("There's nothing you can build through that doorway yet.");
     return;

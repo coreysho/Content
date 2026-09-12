@@ -1017,19 +1017,16 @@ while ($i < ^poh_furn_slots) {
 
 // The nth (0-based) piece in this family, whatever the player's level. The window shows the whole
 // family and dims the tiers above you - see ~poh_furn_slot0 - so the level is not a filter here.
+//
+// Two lookups, because a family's pieces are consecutive (poh_fam_first/last, asserted by the
+// generator and by battery check 51). The walk this replaces read all 285 rows per window row per
+// page, which is the shape that cost the room window its instruction budget.
 [proc,poh_furn_nth](int $fam, int $n)(int)
-def_int $item = 1;
-def_int $seen = 0;
-while ($item <= ^poh_furn_items) {
-    if (enum(int, int, poh_furn_fam, $item) = $fam) {
-        if ($seen = $n) {
-            return($item);
-        }
-        $seen = calc($seen + 1);
-    }
-    $item = calc($item + 1);
+def_int $item = calc(enum(int, int, poh_fam_first, $fam) + $n);
+if ($item > enum(int, int, poh_fam_last, $fam)) {
+    return(0);
 }
-return(0);
+return($item);
 
 // =========================================================================== what the window shows
 

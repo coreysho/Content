@@ -318,16 +318,20 @@ def rs2_room(spec, costtext):
     o.append('// Six rooms a page, three pages, which is every room type twice over. The page loop is')
     o.append('// bounded rather than while(true): a menu that cannot end would hang the player script.')
     o.append('//')
+    o.append('// The list arrives as a bitmask from ~poh_fit_mask, worked out once before the window opens.')
+    o.append('// Paging used to re-ask the geometry per row per page and cost a house its 500,000-opcode')
+    o.append('// budget on page two - claude/poh-menu-opcount.md. Reading bits out of a mask is free.')
+    o.append('//')
     o.append('// A click on a room you have the level for returns it and the caller does the paying. A click')
     o.append('// on one you do not says so and leaves the window open - money is a thing you go and fix, a')
     o.append('// level is a thing you go on browsing past.')
-    o.append('[proc,poh_pick_room](int $rx, int $rz, int $side)(int)')
+    o.append('[proc,poh_pick_room](int $mask)(int)')
     o.append('def_int $page = 0;')
     o.append('while ($page < 3) {')
     lets = 'abcdef'
     for i in range(ROOM_ROWS):
-        o.append('    def_int $%s = ~poh_nth_room($rx, $rz, $side, calc($page * ^poh_menu_rows + %d));' % (lets[i], i))
-    o.append('    def_int $more = ~poh_nth_room($rx, $rz, $side, calc($page * ^poh_menu_rows + ^poh_menu_rows));')
+        o.append('    def_int $%s = ~poh_nth_fit($mask, calc($page * ^poh_menu_rows + %d));' % (lets[i], i))
+    o.append('    def_int $more = ~poh_nth_fit($mask, calc($page * ^poh_menu_rows + ^poh_menu_rows));')
     o.append('    if ($a = 0) {')
     o.append('        return(0);')
     o.append('    }')
@@ -620,28 +624,52 @@ def repack(names_by_iface, drop):
     pack = [l for l in open(p, 'rb').read().decode('utf-8').split('\n') if l]
     keep, ids = [], set()
     gone = list(drop) + list(names_by_iface)     # re-running must reuse the same ids, not append
+    # ...and reuse them EXACTLY, not just "append at max+1 again". That only gave the same answer
+    # while this generator's block was the last thing in the file. tools/genbanktabs.py now also
+    # repacks, and only one block can be the tail: whoever ran second used to shove the other's ids
+    # and neither was idempotent any more. Remembering the id each name already had makes this one
+    # stable wherever it sits, so neither generator has to own the end of the file.
+    was = {}
     for l in pack:
         i, n = l.split('=', 1)
         if any(n == g or n.startswith(g + ':') for g in gone):
+            was[n] = int(i)
             continue
         keep.append((int(i), n))
         ids.add(int(i))
     nxt = max(ids) + 1
     order = [int(l) for l in open(o, 'rb').read().decode('utf-8').replace('\r\n', '\n').split('\n') if l.strip()]
     order = [i for i in order if i in ids]
+    def take(name):
+        nonlocal nxt
+        i = was.get(name)
+        if i is None or i in ids:
+            while nxt in ids:
+                nxt += 1
+            i = nxt
+            nxt += 1
+        ids.add(i)
+        return i
+
     for iface, names in names_by_iface.items():
-        base = nxt
+        base = take(iface)
         keep.append((base, iface))
         order.append(base)
-        nxt += 1
+        used = [base]
         for n in names:
-            keep.append((nxt, '%s:%s' % (iface, n)))
-            order.append(nxt)
-            nxt += 1
-        print('%-14s ids %d..%d' % (iface, base, nxt - 1))
+            i = take('%s:%s' % (iface, n))
+            keep.append((i, '%s:%s' % (iface, n)))
+            order.append(i)
+            used.append(i)
+        print('%-14s ids %d..%d' % (iface, min(used), max(used)))
     keep.sort()
     open(p, 'wb').write(('\n'.join('%d=%s' % kv for kv in keep) + '\n').encode('utf-8'))
     nl = '\r\n' if _crlf(o) else '\n'
+    # Sorted, because both files are canonically ascending by id (they always have been) and
+    # because appending our block at the end made the ORDER differ between runs even once the
+    # ids themselves were stable. Sorting makes a re-run byte-identical whichever generator
+    # ran last.
+    order.sort()
     open(o, 'wb').write((nl.join(str(i) for i in order) + nl).encode('utf-8'))
 
 # --------------------------------------------------------------------------- enums

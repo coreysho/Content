@@ -341,6 +341,13 @@
 [command,.if_setposition](component $component, int $x, int $y);
 // info: Set the scrollbar position on a component
 [command,if_setscrollpos](component $component, int $y);
+// info: Show only $count slots of a transmitted inv on $component, starting at slot $first.
+// info: The client still reports REAL slot numbers back, so slot-addressed handlers are unaffected.
+// info: $count of -1 restores the whole inv. Added for bank tabs - see claude/bank-tabs.md.
+[command,if_setinvwindow](component $component, int $first, int $count);
+// info: The mode byte of the inv_buttond that is being handled: 0 swap, 1 insert,
+// info: or ^bank_drag_tab + n when the drag was dropped on bank tab n.
+[command,last_dragmode]()(int)
 // info: Give xp in a stat
 [command,stat_advance](stat $stat, int $exp)
 // info: Hurt a player

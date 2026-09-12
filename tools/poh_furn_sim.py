@@ -243,17 +243,21 @@ check(set(WOOD.values()) <= {0, 1, 2, 3, 4}, 'the wood column is a wood or 0 for
 print('6. the window lists a whole family whatever the level, and gates on the way out')
 # The level stopped being a filter when the window started dimming what you cannot reach: a tier you
 # have not earned is shown in black with its level in red, which is the point of the thing.
+# ~poh_furn_nth is two lookups rather than a walk: a family's pieces are consecutive, so the nth of
+# them is the first plus n. That is what keeps paging the window out of the engine's instruction
+# budget - the room window died of the walk this replaces (claude/poh-menu-opcount.md) - and it is
+# only correct while the families really are consecutive, which is checked below and in battery 51.
+FFIRST = {k: int(v) for k, v in table('poh_fam_first').items()}
+FLAST = {k: int(v) for k, v in table('poh_fam_last').items()}
 def nth(fam, n):                                         # ~poh_furn_nth
-    seen = 0
-    for i in range(1, ITEMS + 1):
-        if FAM[i] == fam:
-            if seen == n: return i
-            seen += 1
-    return 0
+    item = FFIRST.get(fam, 0) + n
+    return 0 if item > FLAST.get(fam, 0) else item
 nthbody = rs2.split('[proc,poh_furn_nth]', 1)[1].split('\n[', 1)[0]
 check('poh_furn_level' not in nthbody,
       '~poh_furn_nth does not filter by level - the window dims instead of hiding')
-check(nthbody.count('poh_furn_fam') == 1, 'it filters on the family and on nothing else')
+check('while' not in nthbody, 'and does not walk every piece in the game to find a row')
+check(nthbody.count('poh_fam_first') == 1 and nthbody.count('poh_fam_last') == 1,
+      'it reads the family\'s first piece and its last, and nothing else')
 for fam, its in sorted(byfam.items()):
     offered = {nth(fam, n) for n in range(ITEMS)} - {0}
     check(offered == set(its), 'family %d lists all %d of its tiers' % (fam, len(its)))

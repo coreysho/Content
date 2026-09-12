@@ -7,3 +7,12 @@
 ^bankpin_flow_enter_new = 3
 ^bankpin_flow_confirm_new = 4
 ^bankpin_flow_verify_access = 5
+
+// ---- bank tabs (Corey, 2026-09-12) - see claude/bank-tabs.md
+^bank_tabs = 8              // numbered tabs; tab 0 is the "all items" view and is not one of them
+^bank_tab_all = 0
+// The drag-onto-a-tab gesture rides the INV_BUTTOND packet's existing mode byte, which the
+// engine decoded and then threw away ("todo: is it necessary to pass message.mode to script?").
+// mode 0 = swap, 1 = insert, and now ^bank_drag_tab + k = "dropped on tab k". Reusing the byte
+// avoided allocating a new client packet opcode for one gesture.
+^bank_drag_tab = 100

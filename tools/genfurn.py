@@ -388,6 +388,23 @@ def emit_enum(fams, items, path):
           default='null')
     table('poh_fam_name', 'string', [(n, f['label']) for n, f in enumerate(fams, 1)],
           ['// What the Furniture creation window calls each hotspot family, for its title bar.'])
+    # A family's pieces are consecutive because this generator writes them family by family, which is
+    # what lets ~poh_furn_nth be two lookups instead of a walk down all %d rows. Asserted here as well
+    # as in poh_battery.py check 51: if the spec ever interleaves families, the window would list the
+    # wrong things, so this has to fail at generation rather than in someone's house.
+    first, last = {}, {}
+    for i in items:
+        first.setdefault(i['fam'], i['n'])
+        last[i['fam']] = i['n']
+    for fam in first:
+        span = [i['n'] for i in items if i['fam'] == fam]
+        assert span == list(range(first[fam], last[fam] + 1)), 'family %s is not contiguous' % fam
+    table('poh_fam_first', 'int', sorted(first.items()),
+          ['// The first and last piece of each family. ~poh_furn_nth adds the row number to the first',
+           '// and stops at the last, so paging the Furniture window costs the same whatever family it is',
+           '// showing. It used to walk every piece in the game per row per page - the room window died of',
+           '// exactly that (claude/poh-menu-opcount.md) and this one was on its way there.'])
+    table('poh_fam_last', 'int', sorted(last.items()))
     write(path, o)
 
 def emit_varp(fams, items, slots, path):
@@ -653,11 +670,15 @@ def emit_rs2_tail(fams, items, byfam):
          '// =========================================================================== the menu', '',
          '// The nth (0-based) piece in this family, whatever the player\'s level. The window shows the whole',
          '// family and dims the tiers above you - see ~poh_furn_slot0 - so the level is not a filter here.',
-         '[proc,poh_furn_nth](int $fam, int $n)(int)', 'def_int $item = 1;', 'def_int $seen = 0;',
-         'while ($item <= ^poh_furn_items) {',
-         '    if (enum(int, int, poh_furn_fam, $item) = $fam) {',
-         '        if ($seen = $n) {', '            return($item);', '        }',
-         '        $seen = calc($seen + 1);', '    }', '    $item = calc($item + 1);', '}', 'return(0);', '',
+         '//',
+         '// Two lookups, because a family\'s pieces are consecutive (poh_fam_first/last, asserted by the',
+         '// generator and by battery check 51). The walk this replaces read all %d rows per window row per'
+         % len(items),
+         '// page, which is the shape that cost the room window its instruction budget.',
+         '[proc,poh_furn_nth](int $fam, int $n)(int)',
+         'def_int $item = calc(enum(int, int, poh_fam_first, $fam) + $n);',
+         'if ($item > enum(int, int, poh_fam_last, $fam)) {', '    return(0);', '}',
+         'return($item);', '',
          '// =========================================================================== what the window shows', '',
          '// The model each piece is shown by in poh_furnmenu: the first model its loc names, resolved',
          '// through model.pack. if_setmodel takes a RAW id, not a symbol, so these are numbers - and',

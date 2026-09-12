@@ -100,6 +100,20 @@ while ($i < 16) {
     $i = calc($i + 1);
 }
 
+// Is there a room anywhere in the house? The same question as ~poh_room_total = 0 and the cheap way
+// to ask it: sixteen word reads with one mask each rather than 64 decoded slots, and it stops at the
+// first room it finds. ~poh_can_place asks this once per candidate rotation, so the difference is
+// what keeps the room window inside the engine's instruction budget - see claude/poh-menu-opcount.md.
+[proc,poh_house_empty]()(boolean)
+def_int $i = 0;
+while ($i < 16) {
+    if (and(~poh_word_get($i), ^poh_type_mask) ! 0) {
+        return(false);
+    }
+    $i = calc($i + 1);
+}
+return(true);
+
 [proc,poh_room_total]()(int)
 def_int $total = 0;
 def_int $rz = 0;
@@ -153,7 +167,7 @@ if ($rx < 0 | $rx >= ^poh_grid | $rz < 0 | $rz >= ^poh_grid) {
 if ($type = 0) {
     return(true);
 }
-if (~poh_room_total = 0) {
+if (~poh_house_empty = true) {
     return(true);
 }
 def_int $doors = ~poh_rot_doors(enum(int, int, poh_room_doors, $type), $rot);

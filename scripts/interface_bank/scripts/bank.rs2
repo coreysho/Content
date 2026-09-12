@@ -4,10 +4,17 @@
 [inv_button4,bank_main:bank] @bank_withdraw(last_slot, ^max_32bit_int);
 [inv_button5,bank_main:bank] @bank_withdraw(last_slot, null);
 [inv_buttond,bank_main:bank] 
-if(%bankinsert = 1) {
+// Dropped on a tab button rather than on another slot. The client cannot express that in the
+// packet's component/slot fields - both slots have to be valid slots of the SAME inv or the
+// engine rejects it - so it rides the mode byte instead. See claude/bank-tabs.md.
+if(last_dragmode >= ^bank_drag_tab) {
+    ~banktab_move_to(last_slot, sub(last_dragmode, ^bank_drag_tab));
+} else if(%bankinsert = 1) {
     @insert_bank(last_slot, last_targetslot);
+    ~banktab_refresh;
 } else {
     inv_movetoslot(bank, bank, last_slot, last_targetslot);
+    ~banktab_refresh;
 }
 [if_button,bank_main:com_94] %bankcert = 0;
 [if_button,bank_main:com_93] %bankcert = 1;
@@ -39,6 +46,11 @@ if (%bankpin_verified = 1) {
 ~reorganize_inv(bank);
 inv_transmit(inv, bank_side:inv);
 inv_transmit(bank, bank_main:bank);
+// Always open on the "all items" tab. %banktab is temp for this reason: a bank that opened on
+// tab 7 the next day would look empty. ~banktab_show also sets the inv window, so this is what
+// puts the grid into its unfiltered state rather than relying on the client's default.
+~banktab_validate;
+~banktab_show(^bank_tab_all);
 if_openmain_side(bank_main, bank_side);
 
 [label,closebank]
@@ -101,6 +113,11 @@ if ($withdraw > 0) {
         case 0 : inv_moveitem_uncert(bank, $inv, $obj, $withdraw);
         case default : inv_moveitem_cert(bank, $inv, $obj, $withdraw);
     }
+    // $slot has been a dead parameter since this proc was written; tabs give it a job. If the
+    // withdrawal emptied the slot the list now has a hole in it, and a hole shifts every range
+    // above it - so close it here and decrement whichever tab owned it.
+    ~banktab_removed($slot);
+    ~banktab_refresh;
 }
 
 [proc,bank_deposit_request](inv $inv, obj $obj, int $amount, int $slot)
@@ -116,7 +133,17 @@ if (sub(^max_32bit_int, $amount) < inv_total(bank, $obj)) {
 def_int $deposit = sub($amount, $overflow);
 if ($deposit > 0) {
     session_log(^log_moderator, "Deposited <oc_debugname($obj)> x<tostring($deposit)> into bank");
+    // Occupied-slot count either side of the move tells us whether this landed in a NEW slot or
+    // stacked onto one the player already had. There is no inv_findslot, and this works only
+    // because the list is kept gapless: occupied slots are always 0..n-1, so a new one is n-1.
+    def_int $before = sub(inv_size(bank), inv_freespace(bank));
     inv_moveitem_uncert($inv, bank, $obj, $deposit);
+    def_int $after = sub(inv_size(bank), inv_freespace(bank));
+    if ($after > $before) {
+        ~banktab_deposited(sub($after, 1));
+    } else {
+        ~banktab_refresh;
+    }
 }
 
 [proc,bank_check_nobreak](obj $obj)(boolean)

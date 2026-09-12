@@ -1,0 +1,230 @@
+// ===================================================================================================
+// Bank tabs
+// ===================================================================================================
+// The bank is ONE ordered 352-slot list and a tab is a contiguous range of it:
+//
+//     [ tab1 ][ tab2 ] ... [ tab8 ][ everything else ]
+//       c1      c2           c8      <- the "all items" tab, whatever is left
+//
+// Nothing tags an item with a tab. POSITION is the tab, and %banktab_c1..c8 are just how long
+// each range is. Two consequences run through everything below:
+//
+//   1. The list must never be left with a gap. Every removal closes the gap immediately and
+//      decrements the count of whichever tab the hole was in, or every range after it shifts and
+//      the whole filing silently scrambles.
+//   2. Nothing has to be copied anywhere. The grid still shows the real bank inv, so every
+//      existing withdraw/deposit/drag handler keeps addressing real bank slots. That is the whole
+//      reason for this design - see claude/bank-tabs.md for the two approaches it replaced, both
+//      of which needed a second inv and one of which could strand items on a disconnect.
+//
+// Filtering is done by if_setinvwindow, which tells the client to draw only $count slots starting
+// at $first and to report real slot numbers back. There is no way to do it in content alone:
+// inv_transmit binds a WHOLE inv to a component and has no offset, and nothing can copy a runtime
+// obj into another inv (inv_setslot and inv_add both take namedobj, and an obj does not widen to
+// one - see the commented-out attempt at skill_crafting/scripts/pottery/pottery.rs2:111).
+
+[proc,banktab_count](int $tab)(int)
+switch_int ($tab) {
+    case 1 : return(%banktab_c1);
+    case 2 : return(%banktab_c2);
+    case 3 : return(%banktab_c3);
+    case 4 : return(%banktab_c4);
+    case 5 : return(%banktab_c5);
+    case 6 : return(%banktab_c6);
+    case 7 : return(%banktab_c7);
+    case 8 : return(%banktab_c8);
+}
+return(0);
+
+[proc,banktab_setcount](int $tab, int $count)
+if ($count < 0) {
+    $count = 0;
+}
+switch_int ($tab) {
+    case 1 : %banktab_c1 = $count;
+    case 2 : %banktab_c2 = $count;
+    case 3 : %banktab_c3 = $count;
+    case 4 : %banktab_c4 = $count;
+    case 5 : %banktab_c5 = $count;
+    case 6 : %banktab_c6 = $count;
+    case 7 : %banktab_c7 = $count;
+    case 8 : %banktab_c8 = $count;
+}
+
+// First bank slot of $tab. Tab 0 starts at 0 because it is the whole list.
+[proc,banktab_start](int $tab)(int)
+def_int $start = 0;
+def_int $i = 1;
+while ($i < $tab) {
+    $start = add($start, ~banktab_count($i));
+    $i = add($i, 1);
+}
+return($start);
+
+// Where the numbered tabs stop and the "all items" remainder begins.
+[proc,banktab_numbered_total](int $unused)(int)
+return(~banktab_start(add(^bank_tabs, 1)));
+
+// Which tab owns $slot. 0 = the remainder.
+[proc,banktab_of_slot](int $slot)(int)
+def_int $end = 0;
+def_int $i = 1;
+while ($i <= ^bank_tabs) {
+    $end = add($end, ~banktab_count($i));
+    if ($slot < $end) {
+        return($i);
+    }
+    $i = add($i, 1);
+}
+return(^bank_tab_all);
+
+// ---------------------------------------------------------------------------------------------
+// Showing a tab
+// ---------------------------------------------------------------------------------------------
+// Tab 0 is the whole inv, which is also the state the window is in before any of this existed -
+// so a player who never touches a tab sees exactly the bank they had.
+[proc,banktab_show](int $tab)
+%banktab = $tab;
+if ($tab = ^bank_tab_all) {
+    if_setinvwindow(bank_main:bank, 0, inv_size(bank));
+    if_setscrollpos(bank_main:com_92, 0);
+    return;
+}
+if_setinvwindow(bank_main:bank, ~banktab_start($tab), ~banktab_count($tab));
+if_setscrollpos(bank_main:com_92, 0);
+
+// Repaint the current tab. Called after anything that changes the bank, because the window is
+// expressed in slot numbers and those move whenever the list shifts.
+[proc,banktab_refresh]
+~banktab_show(%banktab);
+
+[if_button,bank_main:banktab0] ~banktab_show(0);
+[if_button,bank_main:banktab1] ~banktab_show(1);
+[if_button,bank_main:banktab2] ~banktab_show(2);
+[if_button,bank_main:banktab3] ~banktab_show(3);
+[if_button,bank_main:banktab4] ~banktab_show(4);
+[if_button,bank_main:banktab5] ~banktab_show(5);
+[if_button,bank_main:banktab6] ~banktab_show(6);
+[if_button,bank_main:banktab7] ~banktab_show(7);
+[if_button,bank_main:banktab8] ~banktab_show(8);
+
+// ---------------------------------------------------------------------------------------------
+// Keeping the list contiguous
+// ---------------------------------------------------------------------------------------------
+// Shift everything above $slot down one, so the hole at $slot closes. Bounded by inv_size, and it
+// stops at the first empty pair rather than walking all 352 slots every time.
+[proc,banktab_closegap](int $slot)
+def_int $i = $slot;
+def_int $size = inv_size(bank);
+while ($i < sub($size, 1)) {
+    if (inv_getobj(bank, add($i, 1)) = null) {
+        return;
+    }
+    inv_movetoslot(bank, bank, add($i, 1), $i);
+    $i = add($i, 1);
+}
+
+// An item has just left $slot. Decrement whichever tab owned it and close the gap. Order matters:
+// the owning tab has to be worked out BEFORE the gap closes, or the slot has already moved.
+[proc,banktab_removed](int $slot)
+if (inv_getobj(bank, $slot) ! null) {
+    return;
+}
+def_int $tab = ~banktab_of_slot($slot);
+if ($tab ! ^bank_tab_all) {
+    ~banktab_setcount($tab, sub(~banktab_count($tab), 1));
+}
+~banktab_closegap($slot);
+
+// Move the item at $from to $to, shifting everything between along by one - an insert, not a swap,
+// so the ranges either side stay contiguous. Same shape as [label,insert_bank].
+[proc,banktab_insert](int $from, int $to)
+def_int $src = $from;
+while ($src ! $to) {
+    if ($src > $to) {
+        inv_movetoslot(bank, bank, sub($src, 1), $src);
+        $src = sub($src, 1);
+    } else {
+        inv_movetoslot(bank, bank, add($src, 1), $src);
+        $src = add($src, 1);
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Filing an item into a tab
+// ---------------------------------------------------------------------------------------------
+// The drag-onto-a-tab gesture, and the only way an item changes tab. Moving into tab $tab means
+// inserting at the END of that tab's range; moving to tab 0 means pushing past the end of the
+// numbered tabs into the remainder.
+[proc,banktab_move_to](int $slot, int $tab)
+if (inv_getobj(bank, $slot) = null) {
+    return;
+}
+def_int $from_tab = ~banktab_of_slot($slot);
+if ($from_tab = $tab) {
+    return;
+}
+// Take it out of its old tab first, so the destination is computed against the ranges as they
+// will be once it has left. Doing this the other way round puts the item one slot wrong whenever
+// it moves rightwards.
+if ($from_tab ! ^bank_tab_all) {
+    ~banktab_setcount($from_tab, sub(~banktab_count($from_tab), 1));
+}
+def_int $dest = ~banktab_numbered_total(0);
+if ($tab ! ^bank_tab_all) {
+    $dest = sub(add(~banktab_start($tab), ~banktab_count($tab)), 0);
+}
+// The insert walks the item across, so the destination index is expressed in the list as it is
+// right now: shifting left means the gap it leaves has already been accounted for.
+if ($slot < $dest) {
+    $dest = sub($dest, 1);
+}
+~banktab_insert($slot, $dest);
+if ($tab ! ^bank_tab_all) {
+    ~banktab_setcount($tab, add(~banktab_count($tab), 1));
+}
+~banktab_refresh;
+
+// A freshly deposited item lands at the end of the list, which is the remainder. If the player is
+// looking at a numbered tab, OSRS files it there instead - so do that.
+[proc,banktab_deposited](int $slot)
+if (%banktab = ^bank_tab_all) {
+    ~banktab_refresh;
+    return;
+}
+~banktab_move_to($slot, %banktab);
+
+// ---------------------------------------------------------------------------------------------
+// The safety net
+// ---------------------------------------------------------------------------------------------
+// Everything above keeps the list gapless as long as items enter and leave through the bank
+// window. They do not always: deaths, other scripts and ~reorganize_inv (which runs on open and
+// on close and closes holes without knowing tabs exist) can all shorten the list behind our back.
+// If that happens the counts describe ranges that run off the end of the real items, and every
+// tab after the damage shows the wrong things.
+//
+// So before the window is built, clamp. Shrink the numbered tabs from the LAST one down until
+// they fit inside what is actually there. Losing the filing of the highest tabs is recoverable by
+// dragging; ranges pointing at nothing are not obviously wrong to a player, which is worse.
+[proc,banktab_validate]
+def_int $occupied = sub(inv_size(bank), inv_freespace(bank));
+def_int $total = ~banktab_numbered_total(0);
+if ($total <= $occupied) {
+    return;
+}
+def_int $tab = ^bank_tabs;
+while ($tab > 0) {
+    if ($total <= $occupied) {
+        return;
+    }
+    def_int $count = ~banktab_count($tab);
+    def_int $excess = sub($total, $occupied);
+    if ($count <= $excess) {
+        ~banktab_setcount($tab, 0);
+        $total = sub($total, $count);
+    } else {
+        ~banktab_setcount($tab, sub($count, $excess));
+        $total = $occupied;
+    }
+    $tab = sub($tab, 1);
+}
