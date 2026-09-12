@@ -13,17 +13,21 @@ if(last_dragmode >= ^bank_drag_swap) {
     ~banktab_swap(add(divide($pair, 8), 1), add(modulo($pair, 8), 1));
 } else if(last_dragmode >= ^bank_drag_tab) {
     ~banktab_move_to(last_slot, sub(last_dragmode, ^bank_drag_tab));
+} else if(~banktab_of_slot(last_slot) ! ~banktab_of_slot(last_targetslot)) {
+    // Dropped in a DIFFERENT tab's block. Whatever the rearrange mode says, what the player meant
+    // is "put this in that tab" - so file it there rather than swapping it with whatever happened
+    // to be under the cursor, which left one item in each of the wrong tabs and read as the drag
+    // not working at all.
+    ~banktab_move_to(last_slot, ~banktab_of_slot(last_targetslot));
 } else if(%bankinsert = 1) {
-    // Insert SHIFTS, so a drag that crosses a break changes how many items sit on each side of it:
-    // the tab the item left is one shorter, the one it landed in one longer. Work both out BEFORE
-    // the shift, because afterwards the slot numbers mean something different.
+    // Within one tab, insert SHIFTS. It cannot cross a break any more (that is the branch above),
+    // but ~banktab_dragged stays because the untabbed block is a tab too and the shift can still
+    // run past its boundary.
     ~banktab_dragged(last_slot, last_targetslot);
     @insert_bank(last_slot, last_targetslot);
     ~banktab_refresh;
 } else {
-    // Swap needs no bookkeeping: two items trade places, so every range keeps its length and the
-    // item simply belongs to whichever tab it landed in. That is why dragging across a break
-    // already worked in swap mode and quietly corrupted the counts in insert mode.
+    // Within one tab, swap: two items trade places and the range keeps its length.
     inv_movetoslot(bank, bank, last_slot, last_targetslot);
     ~banktab_refresh;
 }

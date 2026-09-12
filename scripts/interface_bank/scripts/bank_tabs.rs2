@@ -87,7 +87,18 @@ return($total);
 
 // Which tab owns $slot. 0 = untabbed, and the untabbed block is everything below the first tab.
 [proc,banktab_of_slot](int $slot)(int)
-def_int $end = ~banktab_untabbed(0);
+return(~banktab_of_slot2($slot, ~banktab_untabbed(0)));
+
+// The same question, but against an untabbed length you supply rather than the live one.
+//
+// This exists because the untabbed block's length is DERIVED - occupied minus what the tabs claim -
+// so it moves the instant an item leaves the bank, before any count has been adjusted. Asking
+// ~banktab_of_slot who owned a slot AFTER the withdrawal that emptied it therefore measured against
+// a boundary that had already slid one place, and the last untabbed item came back as belonging to
+// tab 1. That decremented tab 1, which really did steal an item out of it - the bug where taking
+// something out quietly pulled another item into a tab it was never in.
+[proc,banktab_of_slot2](int $slot, int $untabbed)(int)
+def_int $end = $untabbed;
 if ($slot < $end) {
     return(^bank_tab_all);
 }
@@ -180,7 +191,9 @@ while ($i < sub($size, 1)) {
 if (inv_getobj(bank, $slot) ! null) {
     return;
 }
-def_int $tab = ~banktab_of_slot($slot);
+// The item is already gone, so the untabbed block reads one shorter than it was when the item was
+// still in it. Ask against the length it HAD - see ~banktab_of_slot2.
+def_int $tab = ~banktab_of_slot2($slot, add(~banktab_untabbed(0), 1));
 if ($tab ! ^bank_tab_all) {
     ~banktab_setcount($tab, sub(~banktab_count($tab), 1));
 }

@@ -30,7 +30,12 @@ class Bank:
             return 0
         return s.untabbed() + sum(s.c[i] for i in range(1, tab))
     def of_slot(s, slot):
-        end = s.untabbed()
+        return s.of_slot2(slot, s.untabbed())
+
+    def of_slot2(s, slot, untabbed):
+        # The untabbed length is DERIVED, so it slides the moment an item leaves the bank. Anything
+        # asking who owned a slot after that has to supply the length it HAD.
+        end = untabbed
         if slot < end:
             return 0
         for i in range(1, TABS + 1):
@@ -42,11 +47,14 @@ class Bank:
         if slot < len(s.items):
             s.items.pop(slot)
     def removed(s, slot):
-        # called when the slot has been emptied; rs2 checks inv_getobj == null first
-        tab = s.of_slot(slot)
+        # Mirrors ~banktab_removed, which runs AFTER the withdrawal has already taken the item out
+        # of the bank. The sim used to pop afterwards, which quietly gave it a pre-removal view the
+        # real script never has - and that is exactly why it missed the bug where withdrawing the
+        # last untabbed item was blamed on tab 1.
+        s.items.pop(slot)
+        tab = s.of_slot2(slot, s.untabbed() + 1)
         if tab:
             s.c[tab] = max(0, s.c[tab] - 1)
-        s.closegap(slot)
         s.compact()
     def insert(s, frm, to):
         it = s.items.pop(frm)
@@ -388,3 +396,67 @@ b.swap_tabs(1, 2)
 b.check('swap with an empty tab')
 assert b.c[1] == 3, 'compaction should pull the contents back down to tab 1'
 print('swapping a tab with an empty one is a no-op after compaction, which is the sane answer')
+
+# THE REGRESSION THIS ORDERING EXISTS FOR. Withdrawing the LAST untabbed item used to be blamed on
+# tab 1, because the untabbed block's derived length had already slid one place by the time anyone
+# asked. Tab 1 lost an item it never gave up - "taking something out pulled another item into a tab
+# it was never in". Reproduced here with the naive (wrong) question, then with the right one.
+b = Bank(); b.items = list(range(8)); b.c[1] = 3     # untabbed 0-4, tab1 5-7
+assert b.untabbed() == 5
+tab1_before = b.items[b.start(1):]
+b.items.pop(4)                                       # withdraw the last untabbed item
+naive = b.of_slot2(4, b.untabbed())                  # asking with the ALREADY-SLID length
+right = b.of_slot2(4, b.untabbed() + 1)              # asking with the length it had
+assert naive == 1, 'the naive question should wrongly blame tab 1'
+assert right == 0, 'the right question should say untabbed'
+print('withdrawing the last untabbed item: naive lookup blames tab 1, corrected lookup says untabbed')
+
+b = Bank(); b.items = list(range(8)); b.c[1] = 3
+b.removed(4)
+b.check('withdraw the last untabbed item')
+assert b.c[1] == 3, f'tab 1 should be untouched, got {b.c[1]}'
+assert b.items[b.start(1):] == tab1_before, 'tab 1 should still hold exactly the same items'
+print('and the fixed ~banktab_removed leaves tab 1 holding exactly what it held')
+
+# The same at every boundary. The slot just below tab t belongs to tab t-1 (or to the untabbed
+# block when t is 1), so exactly that owner should shrink and nobody else should be touched. This
+# is the general form of the bug: whoever owned the slot pays, and only them.
+for t in range(1, 4):
+    b = Bank(); b.items = list(range(12)); b.c[1] = 2; b.c[2] = 2; b.c[3] = 2
+    slot = b.start(t) - 1
+    owner = b.of_slot(slot)
+    before = {k: b.items[b.start(k):b.start(k) + b.c[k]] for k in range(1, 4)}
+    b.removed(slot)
+    b.check(f'withdraw just below tab {t}')
+    for k in range(1, 4):
+        got = b.items[b.start(k):b.start(k) + b.c[k]]
+        if k == owner:
+            assert len(got) == len(before[k]) - 1, f'tab {k} should lose exactly one: {before[k]} -> {got}'
+        else:
+            assert got == before[k], f'tab {k} was not the owner but changed: {before[k]} -> {got}'
+print('withdrawing at any boundary charges the tab that owned the slot, and only that tab')
+
+# A drag that lands in ANOTHER tab's block files the item into that tab, whatever the rearrange
+# mode says. Swapping it with whatever sat under the cursor left one item in each of the wrong
+# tabs, which is what "you can't move an item past the break line" actually looked like.
+b = Bank(); b.items = list(range(12)); b.c[1] = 3; b.c[2] = 3   # untabbed 0-5, tab1 6-8, tab2 9-11
+src = b.start(1)                       # first item of tab 1
+item = b.items[src]
+dst = b.start(2) + 1                   # somewhere inside tab 2
+assert b.of_slot(src) == 1 and b.of_slot(dst) == 2
+b.move_to(src, b.of_slot(dst))
+b.check('cross-tab drag')
+assert b.c[1] == 2 and b.c[2] == 4, f'counts wrong: {b.c[1:3]}'
+assert b.items[b.start(2):b.start(2) + b.c[2]][-1] == item, 'it should be the last item of tab 2'
+assert item not in b.items[b.start(1):b.start(1) + b.c[1]], 'and gone from tab 1'
+print('a drag landing in another tab files the item there instead of swapping two items wrong')
+
+# dragging into the untabbed block works the same way
+b = Bank(); b.items = list(range(12)); b.c[1] = 3; b.c[2] = 3
+src = b.start(2)
+item = b.items[src]
+b.move_to(src, b.of_slot(0))
+b.check('drag into the untabbed block')
+assert b.c[2] == 2, f'tab 2 should have lost it: {b.c[1:3]}'
+assert b.items[b.untabbed() - 1] == item, 'it should be the last untabbed item'
+print('and dragging back into the untabbed block does the same in reverse')
