@@ -3,8 +3,13 @@
 // ===================================================================================================
 // The bank is ONE ordered 352-slot list and a tab is a contiguous range of it:
 //
-//     [ tab1 ][ tab2 ] ... [ tab8 ][ everything else ]
-//       c1      c2           c8      <- the "all items" tab, whatever is left
+//     [ everything else ][ tab1 ][ tab2 ] ... [ tab8 ]
+//       the untabbed block   c1      c2           c8
+//
+// The untabbed block leads. That is what "All" means as a section of the bank rather than as a
+// button: the items you have not filed are the first thing you see, and the tabs follow. It also
+// makes the untabbed block the only range whose length is DERIVED rather than stored - it is
+// whatever is left over - which is why there is no %banktab_c0.      <- the "all items" tab, whatever is left
 //
 // Nothing tags an item with a tab. POSITION is the tab, and %banktab_c1..c8 are just how long
 // each range is. Two consequences run through everything below:
@@ -52,8 +57,17 @@ switch_int ($tab) {
 }
 
 // First bank slot of $tab. Tab 0 starts at 0 because it is the whole list.
+// How many items are in no numbered tab. Derived, not stored: whatever the tabs do not claim.
+[proc,banktab_untabbed](int $unused)(int)
+return(sub(sub(inv_size(bank), inv_freespace(bank)), ~banktab_numbered_total(0)));
+
+// First bank slot of $tab. The untabbed block leads, so every numbered tab sits after it, and
+// tab 0 starts at 0 because the untabbed block IS the front of the list.
 [proc,banktab_start](int $tab)(int)
-def_int $start = 0;
+if ($tab = ^bank_tab_all) {
+    return(0);
+}
+def_int $start = ~banktab_untabbed(0);
 def_int $i = 1;
 while ($i < $tab) {
     $start = add($start, ~banktab_count($i));
@@ -61,13 +75,22 @@ while ($i < $tab) {
 }
 return($start);
 
-// Where the numbered tabs stop and the "all items" remainder begins.
+// How many items the numbered tabs claim between them.
 [proc,banktab_numbered_total](int $unused)(int)
-return(~banktab_start(add(^bank_tabs, 1)));
+def_int $total = 0;
+def_int $i = 1;
+while ($i <= ^bank_tabs) {
+    $total = add($total, ~banktab_count($i));
+    $i = add($i, 1);
+}
+return($total);
 
-// Which tab owns $slot. 0 = the remainder.
+// Which tab owns $slot. 0 = untabbed, and the untabbed block is everything below the first tab.
 [proc,banktab_of_slot](int $slot)(int)
-def_int $end = 0;
+def_int $end = ~banktab_untabbed(0);
+if ($slot < $end) {
+    return(^bank_tab_all);
+}
 def_int $i = 1;
 while ($i <= ^bank_tabs) {
     $end = add($end, ~banktab_count($i));
@@ -88,13 +111,13 @@ return(^bank_tab_all);
 ~banktab_icons;
 if ($tab = ^bank_tab_all) {
     // The "all items" view is the whole list, but it must not run the tabs together - OSRS starts
-    // each tab on a fresh row. The break list is where each tab begins: tab 1 starts at 0 and needs
-    // no break, so the eight values are the starts of tabs 2..8 and the start of the remainder.
-    // An empty tab makes two of them equal, which the client treats as one break, not two.
+    // each tab on a fresh row. The untabbed block leads and starts at 0, so it needs no break of
+    // its own; the eight values are the starts of tabs 1..8. An empty tab makes two of them equal,
+    // which the client treats as one break, not two.
     if_setinvwindow(bank_main:bank, 0, inv_size(bank));
-    if_setinvbreaks(bank_main:bank, ~banktab_start(2), ~banktab_start(3), ~banktab_start(4),
-        ~banktab_start(5), ~banktab_start(6), ~banktab_start(7), ~banktab_start(8),
-        ~banktab_numbered_total(0));
+    if_setinvbreaks(bank_main:bank, ~banktab_start(1), ~banktab_start(2), ~banktab_start(3),
+        ~banktab_start(4), ~banktab_start(5), ~banktab_start(6), ~banktab_start(7),
+        ~banktab_start(8));
     if_setscrollpos(bank_main:com_92, 0);
     return;
 }
@@ -182,35 +205,42 @@ def_int $from_tab = ~banktab_of_slot($slot);
 if ($from_tab = $tab) {
     return;
 }
-// Take it out of its old tab first, so the destination is computed against the ranges as they
-// will be once it has left. Doing this the other way round puts the item one slot wrong whenever
-// it moves rightwards.
-if ($from_tab ! ^bank_tab_all) {
-    ~banktab_setcount($from_tab, sub(~banktab_count($from_tab), 1));
+~banktab_place($slot, $tab, $from_tab);
+
+// Put the item at $slot into $tab. $in_tab is the tab it belongs to now, or ^bank_tab_none if it
+// belongs to none yet - a fresh deposit sitting on the end of the list.
+//
+// The destination is computed as the item's FINAL index, not as "one past the end of the range",
+// because ~banktab_insert lands the item exactly on the index it is given. Working in final
+// indices is what removes the off-by-one correction this used to need when moving rightwards.
+[proc,banktab_place](int $slot, int $tab, int $in_tab)
+if ($in_tab > ^bank_tab_all) {
+    // take it out of its old tab first, so every count below describes the list WITHOUT this item
+    ~banktab_setcount($in_tab, sub(~banktab_count($in_tab), 1));
 }
-def_int $dest = ~banktab_numbered_total(0);
+def_int $n = sub(inv_size(bank), inv_freespace(bank));
+def_int $numbered = ~banktab_numbered_total(0);
+def_int $dest = sub(sub($n, $numbered), 1);
 if ($tab ! ^bank_tab_all) {
-    $dest = sub(add(~banktab_start($tab), ~banktab_count($tab)), 0);
-}
-// The insert walks the item across, so the destination index is expressed in the list as it is
-// right now: shifting left means the gap it leaves has already been accounted for.
-if ($slot < $dest) {
-    $dest = sub($dest, 1);
-}
-~banktab_insert($slot, $dest);
-if ($tab ! ^bank_tab_all) {
+    // the untabbed block will be one shorter once this item joins a tab, so tab 1 starts one
+    // earlier than it does right now
+    $dest = sub($n, add($numbered, 1));
+    def_int $i = 1;
+    while ($i <= $tab) {
+        $dest = add($dest, ~banktab_count($i));
+        $i = add($i, 1);
+    }
     ~banktab_setcount($tab, add(~banktab_count($tab), 1));
 }
+~banktab_insert($slot, $dest);
 ~banktab_refresh;
 
-// A freshly deposited item lands at the end of the list, which is the remainder. If the player is
-// looking at a numbered tab, OSRS files it there instead - so do that.
+// A freshly deposited item lands on the END of the list, which in this layout is the end of the
+// last numbered tab - never where it belongs. Untabbed, it goes to the end of the leading untabbed
+// block; with a tab open, OSRS files it into that tab, so it goes there. Either way it has to move,
+// which is why there is no early return for tab 0 here.
 [proc,banktab_deposited](int $slot)
-if (%banktab = ^bank_tab_all) {
-    ~banktab_refresh;
-    return;
-}
-~banktab_move_to($slot, %banktab);
+~banktab_place($slot, %banktab, ^bank_tab_none);
 
 // ---------------------------------------------------------------------------------------------
 // The safety net
@@ -224,12 +254,6 @@ if (%banktab = ^bank_tab_all) {
 // So before the window is built, clamp. Shrink the numbered tabs from the LAST one down until
 // they fit inside what is actually there. Losing the filing of the highest tabs is recoverable by
 // dragging; ranges pointing at nothing are not obviously wrong to a player, which is worse.
-//
-// It ends by compacting, and that is not belt-and-braces. Compaction otherwise only runs from
-// ~banktab_refresh, i.e. on a bank CHANGE - so a filing that already had a hole in it (made before
-// compaction existed, or by the clamp above emptying a tab in the middle) kept the hole through
-// every open until the player happened to deposit something. Opening the bank is exactly when a
-// player looks at the tab row, so it is exactly when the row has to be right.
 [proc,banktab_validate]
 def_int $occupied = sub(inv_size(bank), inv_freespace(bank));
 def_int $total = ~banktab_numbered_total(0);
@@ -252,6 +276,10 @@ while ($tab > 0) {
     }
     $tab = sub($tab, 1);
 }
+// Compaction otherwise only runs from ~banktab_refresh, i.e. on a bank CHANGE - so a filing that
+// already had a hole in it kept the hole through every open until the player happened to deposit
+// something. Opening the bank is when a player looks at the tab row, so it is when the row has to
+// be right. It also covers a hole the clamp above can punch by emptying a tab in the middle.
 ~banktab_compact;
 
 // ---------------------------------------------------------------------------------------------

@@ -42,9 +42,13 @@ CLIENTCODE_BASE = 207        # 206 is the bank grid itself; the client keys off 
 
 # Geometry. The grid layer com_92 gives up 30px of height to make room; it keeps its
 # bottom edge at y=284 so the Swap/Insert and Item/Note rows below are untouched.
-ROW_Y, ROW_H = 56, 27
+# The row is 32 tall, not 27. if_setobject draws an obj at roughly its inventory size, and a tall
+# item - a vial, a staff - overflowed a 27px box top and bottom. Model components are clipped at
+# the BOTTOM and nowhere else, so the overspill above sat on the window chrome. Five more pixels
+# costs the grid 0.13 of a row and lets the icon sit inside its tab.
+ROW_Y, ROW_H = 56, 32
 TAB_X0, TAB_W, TAB_PITCH = 37, 44, 47
-GRID_Y, GRID_H = 85, 199
+GRID_Y, GRID_H = 90, 194
 
 # The grid gains rows it did not need before. In the "all items" view each tab starts on a fresh
 # row, so eight ragged tabs can burn up to 7 padding cells each - 56 in total - and a 44-row grid
@@ -80,7 +84,7 @@ def blocks():
     out += ['[banktab0text]',
             'type=text',
             f'x={TAB_X0}',
-            f'y={ROW_Y + 8}',
+            f'y={ROW_Y + 10}',
             f'width={TAB_W}',
             'height=14',
             'center=yes',
@@ -93,20 +97,22 @@ def blocks():
         x = TAB_X0 + k * TAB_PITCH
         # the icon lives in its own layer so an empty tab can hide it - if_sethide is
         # layer-only, so a bare model component could never be hidden
+        # the layer IS the tab box: an obj icon is drawn around the centre of its component, so
+        # matching the box means the icon centres on the tab instead of on a smaller inset box
         out += [f'[banktab{k}icon]',
                 'type=layer',
-                f'x={x + 6}',
-                f'y={ROW_Y + 1}',
-                'width=32',
-                'height=25',
+                f'x={x}',
+                f'y={ROW_Y}',
+                f'width={TAB_W}',
+                f'height={ROW_H}',
                 '']
         out += [f'[banktab{k}obj]',
                 f'layer=banktab{k}icon',
                 'type=model',
                 'x=0',
                 'y=0',
-                'width=32',
-                'height=25',
+                f'width={TAB_W}',
+                f'height={ROW_H}',
                 '']
     out += [MARK_B, '']
     return '\n'.join(out)

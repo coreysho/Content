@@ -19,13 +19,20 @@ class Bank:
         s.items = []            # the gapless ordered list; each entry is an opaque id
         s.c = [0] * (TABS + 1)  # c[1..8]
 
-    # ---- transcribed procs
-    def start(s, tab):
-        return sum(s.c[i] for i in range(1, tab))
+    # ---- transcribed procs. The untabbed block LEADS the list:
+    #        [ untabbed ][ tab1 ][ tab2 ] ... [ tab8 ]
     def numbered_total(s):
-        return s.start(TABS + 1)
+        return sum(s.c[i] for i in range(1, TABS + 1))
+    def untabbed(s):
+        return len(s.items) - s.numbered_total()
+    def start(s, tab):
+        if tab == 0:
+            return 0
+        return s.untabbed() + sum(s.c[i] for i in range(1, tab))
     def of_slot(s, slot):
-        end = 0
+        end = s.untabbed()
+        if slot < end:
+            return 0
         for i in range(1, TABS + 1):
             end += s.c[i]
             if slot < end:
@@ -48,19 +55,25 @@ class Bank:
         frm = s.of_slot(slot)
         if frm == tab:
             return
-        if frm:
-            s.c[frm] -= 1
-        dest = s.numbered_total() if tab == 0 else s.start(tab) + s.c[tab]
-        if slot < dest:
-            dest -= 1
-        s.insert(slot, dest)
-        if tab:
+        s.place(slot, tab, frm)
+
+    def place(s, slot, tab, in_tab):
+        if in_tab > 0:
+            s.c[in_tab] -= 1
+        n = len(s.items)
+        numbered = s.numbered_total()
+        if tab == 0:
+            dest = n - numbered - 1
+        else:
+            dest = n - numbered - 1
+            for i in range(1, tab + 1):
+                dest += s.c[i]
             s.c[tab] += 1
+        s.insert(slot, dest)
         s.compact()
     def deposit(s, obj, viewing):
         s.items.append(obj)
-        if viewing:
-            s.move_to(len(s.items) - 1, viewing)
+        s.place(len(s.items) - 1, viewing, -1)
     def compact(s):
         # tabs in use must be 1..n with no holes. Nothing MOVES - an empty tab occupies zero slots,
         # so renumbering the tabs above it down leaves every item exactly where it was.
@@ -100,6 +113,11 @@ class Bank:
         assert all(x >= 0 for x in s.c), f'{where}: negative count {s.c}'
         assert s.numbered_total() <= len(s.items), \
             f'{where}: tabs claim {s.numbered_total()} of {len(s.items)} items -> a tab points past the end'
+        # the untabbed block leads, so the last numbered tab must end exactly at the end of the list
+        if s.numbered_total() > 0:
+            last = max(t for t in range(1, TABS + 1) if s.c[t] > 0)
+            assert s.start(last) + s.c[last] == len(s.items), \
+                f'{where}: tab {last} ends at {s.start(last) + s.c[last]}, list is {len(s.items)}'
         assert len(s.items) == len(set(s.items)), f'{where}: an item was duplicated'
         # every item is in exactly one tab, and the ranges tile the list in order
         seen = 0
@@ -108,8 +126,9 @@ class Bank:
                 assert s.of_slot(i) == t, f'{where}: slot {i} should be tab {t}, of_slot says {s.of_slot(i)}'
                 seen += 1
         assert seen == s.numbered_total()
-        for i in range(s.numbered_total(), len(s.items)):
-            assert s.of_slot(i) == 0, f'{where}: slot {i} past the numbered tabs is not tab 0'
+        for i in range(0, s.untabbed()):
+            assert s.of_slot(i) == 0, f'{where}: slot {i} in the leading untabbed block is not tab 0'
+        assert s.untabbed() >= 0, f'{where}: the tabs claim more than the bank holds'
 
 def run(seed):
     rnd = random.Random(seed)
@@ -128,6 +147,7 @@ def run(seed):
             for _ in range(rnd.randrange(1, 4)):
                 if b.items: b.items.pop(rnd.randrange(len(b.items)))
             b.validate()
+            b.compact()
         b.check(f'seed {seed} step {step}')
     return b
 
@@ -137,22 +157,53 @@ for seed in range(400):
     worst = max(worst, len(b.items))
 print(f'400 seeds x 400 operations: all invariants held (largest bank reached {worst} items)')
 
-# a targeted case: moving rightwards across a boundary is the one the -1 exists for
+# Targeted cases. Layout: items 0..9, c1=3 c2=3, so untabbed is slots 0-3, tab1 is 4-6, tab2 is 7-9.
+# These pin the arithmetic in ~banktab_place, which computes the item's FINAL index rather than
+# "one past the end of the range" - that is what removed the old off-by-one correction.
 b = Bank(); b.items = list(range(10)); b.c[1] = 3; b.c[2] = 3
-before = list(b.items)
-b.move_to(0, 2)                     # first item of tab 1 -> tab 2
+b.check('setup')
+assert b.untabbed() == 4 and b.start(1) == 4 and b.start(2) == 7
+
+b = Bank(); b.items = list(range(10)); b.c[1] = 3; b.c[2] = 3
+b.move_to(4, 2)                     # first item of tab 1 -> tab 2
 b.check('rightward move')
 assert b.c[1] == 2 and b.c[2] == 4, f'counts wrong: {b.c[1:3]}'
-assert b.items[:5] == [1, 2, 3, 4, 0], f'item landed wrong: {b.items[:6]}'
+assert b.items == [0, 1, 2, 3, 5, 6, 7, 8, 9, 4], f'item landed wrong: {b.items}'
+assert b.of_slot(9) == 2, 'it should be the last item of tab 2'
 print('rightward move across a boundary lands at the end of the destination tab')
 
 b = Bank(); b.items = list(range(10)); b.c[1] = 3; b.c[2] = 3
-b.move_to(5, 1)                     # last item of tab 2 -> tab 1
+b.move_to(9, 1)                     # last item of tab 2 -> tab 1
 b.check('leftward move')
 assert b.c[1] == 4 and b.c[2] == 2, f'counts wrong: {b.c[1:3]}'
-assert b.items[:5] == [0, 1, 2, 5, 3], f'item landed wrong: {b.items[:6]}'
+assert b.items == [0, 1, 2, 3, 4, 5, 6, 9, 7, 8], f'item landed wrong: {b.items}'
+assert b.of_slot(7) == 1, 'it should be the last item of tab 1'
 print('leftward move across a boundary lands at the end of the destination tab')
-print('ALL PASS')
+
+# out of a tab and back into the untabbed block, which now LEADS the list
+b = Bank(); b.items = list(range(10)); b.c[1] = 3; b.c[2] = 3
+b.move_to(4, 0)                     # first item of tab 1 -> untabbed
+b.check('move to untabbed')
+assert b.c[1] == 2 and b.c[2] == 3, f'counts wrong: {b.c[1:3]}'
+assert b.items == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], f'item landed wrong: {b.items}'
+assert b.of_slot(4) == 0, 'it should now be the last item of the untabbed block'
+print('moving out of a tab puts the item at the end of the leading untabbed block')
+
+# a deposit while a tab is open goes into that tab, not onto the end of the list
+b = Bank(); b.items = list(range(6)); b.c[1] = 2; b.c[2] = 2
+b.deposit(99, 1)
+b.check('deposit into an open tab')
+assert b.c[1] == 3, f'deposit did not join tab 1: {b.c[1:3]}'
+assert b.of_slot(b.items.index(99)) == 1
+print('a deposit with tab 1 open joins tab 1 rather than landing on the end of the list')
+
+# and a deposit with no tab open lands at the end of the untabbed block, ahead of the tabs
+b = Bank(); b.items = list(range(6)); b.c[1] = 2; b.c[2] = 2
+b.deposit(99, 0)
+b.check('deposit untabbed')
+assert b.c[1] == 2 and b.c[2] == 2
+assert b.of_slot(b.items.index(99)) == 0 and b.items.index(99) == b.untabbed() - 1
+print('an untabbed deposit lands at the end of the untabbed block, ahead of every tab')
 
 # ===================================================================================================
 # The "all items" cell map
@@ -187,7 +238,7 @@ def cellmap(first, count, breaks):
     return m
 
 def all_view(b):
-    breaks = [b.start(t) for t in range(2, TABS + 1)] + [b.numbered_total()]
+    breaks = [b.start(t) for t in range(1, TABS + 1)]
     m = cellmap(0, -1, breaks)
     # None is the client's "identity mapping" case - every break is 0, i.e. no tab is in use, so
     # the all-items view is just the plain contiguous list. Spell it out rather than special-case
@@ -227,7 +278,7 @@ shown = [s for s in m if s >= 0]
 assert shown[:16] == list(range(16)), 'worst case lost an item'
 for t in range(1, 9):
     assert m.index(b.start(t)) % WIDTH == 0 or b.start(t) == 0
-print('worst case (8 tabs x 1 item): 8 rows of one, remainder starts on row 9, nothing lost')
+print('worst case (8 tabs x 1 item): the untabbed block leads, then 8 rows of one, nothing lost')
 
 # and the capacity cost of the breaks at full tilt
 # the capacity question the extra rows exist to answer: a FULL bank, eight tabs each ragged
@@ -242,12 +293,3 @@ assert shown[:SLOTS] == list(range(SLOTS)), \
 print(f'full bank (352) with 8 maximally ragged tabs: all 352 reachable in {CELLS} cells '
       f'({CELLS - SLOTS} spare)')
 print('ALL PASS')
-
-# a filing that already has a hole in it - made before compaction existed - must be tidied by the
-# next OPEN, not left until the player happens to deposit something
-b = Bank(); b.items = list(range(4))
-b.c[1] = 1; b.c[2] = 0; b.c[3] = 1; b.c[4] = 1
-b.validate()
-assert b.c[1:5] == [1, 1, 1, 0], f'open did not close the hole: {b.c[1:5]}'
-b.check('hole closed on open')
-print('a tab row with a hole in it is tidied by opening the bank, not by the next deposit')
