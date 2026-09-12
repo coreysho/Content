@@ -255,6 +255,8 @@ if ($tab ! ^bank_tab_all) {
     ~banktab_setcount($tab, add(~banktab_count($tab), 1));
 }
 ~banktab_insert($slot, $dest);
+// the client may have optimistically swapped two slots for this drag; the server moved a whole run
+~banktab_resend;
 ~banktab_refresh;
 
 // A freshly deposited item lands on the END of the list, which in this layout is the end of the
@@ -458,4 +460,20 @@ if ($hi_count > 0) {
 // the tabs between them keep their own counts and their order; only the two ends trade
 ~banktab_setcount($lo, $hi_count);
 ~banktab_setcount($hi, $lo_count);
+~banktab_resend;
 ~banktab_refresh;
+
+// Force the client to throw away its copy of the bank and take a fresh one.
+//
+// The client applies a drag OPTIMISTICALLY - it swaps or shifts its own slots before the packet
+// even leaves - so whenever the server does something other than exactly that, the two disagree.
+// Ordinary inv deltas do not rescue it: they describe what changed on the SERVER, and a slot the
+// server never touched gets no delta even though the client has already altered it. The result is
+// an item that appears twice until the bank is closed and reopened.
+//
+// invListenOnCom returns early if the same inv is already bound to the same component, so simply
+// re-transmitting does nothing. Dropping the listener first makes the new one firstSeen, which
+// resends the lot.
+[proc,banktab_resend]
+inv_stoptransmit(bank_main:bank);
+inv_transmit(bank, bank_main:bank);

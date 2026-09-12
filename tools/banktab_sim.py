@@ -279,6 +279,30 @@ WIDTH, ROWS = 8, 51
 CELLS = WIDTH * ROWS
 SLOTS = 352
 
+def cellmap_drop(first, count, breaks):
+    """The DROP map from Component.rebuildCellMap: same as cellmap, except the blank cells that pad
+    a block out to the end of its row aim at that block's last item instead of at nothing."""
+    broken = any(b > 0 for b in breaks)
+    d = [-1] * CELLS
+    first = first if count >= 0 else 0
+    count = count if count >= 0 else CELLS
+    cell = 0
+    slot = first
+    while slot < first + count and cell < CELLS:
+        if broken:
+            for b in breaks:
+                if b == slot and slot > first and cell % WIDTH != 0:
+                    pad = cell + WIDTH - cell % WIDTH
+                    while cell < pad and cell < CELLS:
+                        d[cell] = slot - 1
+                        cell += 1
+        if cell >= CELLS:
+            break
+        d[cell] = slot
+        cell += 1
+        slot += 1
+    return d
+
 def cellmap(first, count, breaks):
     broken = any(b > 0 for b in breaks)
     if count < 0 and not broken:
@@ -436,9 +460,9 @@ for t in range(1, 4):
             assert got == before[k], f'tab {k} was not the owner but changed: {before[k]} -> {got}'
 print('withdrawing at any boundary charges the tab that owned the slot, and only that tab')
 
-# A drag that lands in ANOTHER tab's block files the item into that tab, whatever the rearrange
-# mode says. Swapping it with whatever sat under the cursor left one item in each of the wrong
-# tabs, which is what "you can't move an item past the break line" actually looked like.
+# Dropping an item on a TAB BUTTON files it into that tab - the append path, and the only way to
+# reach a tab that is empty. (Dropping inside another tab's block in the grid is a different thing:
+# that is an ordinary swap, so the two items trade places AND trade tabs. See swap_drag below.)
 b = Bank(); b.items = list(range(12)); b.c[1] = 3; b.c[2] = 3   # untabbed 0-5, tab1 6-8, tab2 9-11
 src = b.start(1)                       # first item of tab 1
 item = b.items[src]
@@ -449,7 +473,7 @@ b.check('cross-tab drag')
 assert b.c[1] == 2 and b.c[2] == 4, f'counts wrong: {b.c[1:3]}'
 assert b.items[b.start(2):b.start(2) + b.c[2]][-1] == item, 'it should be the last item of tab 2'
 assert item not in b.items[b.start(1):b.start(1) + b.c[1]], 'and gone from tab 1'
-print('a drag landing in another tab files the item there instead of swapping two items wrong')
+print('dropping on a tab button appends the item to that tab')
 
 # dragging into the untabbed block works the same way
 b = Bank(); b.items = list(range(12)); b.c[1] = 3; b.c[2] = 3
@@ -459,4 +483,40 @@ b.move_to(src, b.of_slot(0))
 b.check('drag into the untabbed block')
 assert b.c[2] == 2, f'tab 2 should have lost it: {b.c[1:3]}'
 assert b.items[b.untabbed() - 1] == item, 'it should be the last untabbed item'
-print('and dragging back into the untabbed block does the same in reverse')
+print('and dropping on the All button puts it back in the untabbed block')
+
+# The padding after a tab is a drop target aimed at that tab, not dead space. This is what "moving
+# items to the breaks doesn't work" actually was: those cells hit no slot, so the client sent no
+# packet at all and the drag looked ignored.
+b = Bank(); b.items = list(range(14))
+b.c[1] = 3; b.c[2] = 3          # untabbed 0-7 (one full row), tab1 8-10, tab2 11-13
+breaks = [b.start(t) for t in range(1, TABS + 1)]
+m = cellmap(0, -1, breaks)
+d = cellmap_drop(0, -1, breaks)
+pad = [c for c in range(CELLS) if m[c] < 0 and d[c] >= 0]
+assert pad, 'there should be padding cells after a ragged tab'
+for c in pad:
+    tab_of_pad = b.of_slot(d[c])
+    # the padding directly follows its own block, so its target is that block's last item
+    assert d[c] == max(x for x in m[:c] if x >= 0), f'cell {c} aims at {d[c]}, not the block above it'
+print(f'{len(pad)} padding cells are drop targets aimed at the tab they pad, not dead space')
+
+# and a real cell's drop target is still just itself
+real = [c for c in range(CELLS) if m[c] >= 0]
+assert all(d[c] == m[c] for c in real), 'a cell holding an item should drop onto itself'
+print('cells that hold an item still target themselves, so ordinary drags are unchanged')
+
+# A swap across a break trades BOTH the places and the tabs: the dragged item ends up in the target
+# tab and the one that was under the cursor comes back the other way. Briefly this was changed to
+# "file the dragged item into the target tab", which left the other item where it was, so both
+# ended up in the destination - and because the server then did something the client had not
+# already done to its own copy, the client showed a duplicate until the bank was reopened.
+b = Bank(); b.items = list(range(12)); b.c[1] = 3; b.c[2] = 3   # untabbed 0-5, tab1 6-8, tab2 9-11
+src, dst = b.start(1), b.start(2) + 1
+mine, theirs = b.items[src], b.items[dst]
+b.swap_drag(src, dst)
+b.check('cross-tab swap')
+assert b.c[1] == 3 and b.c[2] == 3, f'a swap must not resize either tab: {b.c[1:3]}'
+assert b.of_slot(b.items.index(mine)) == 2, 'the dragged item should now be in tab 2'
+assert b.of_slot(b.items.index(theirs)) == 1, 'and the other one should have come back to tab 1'
+print('a swap across a break trades the two items between tabs, both ways')

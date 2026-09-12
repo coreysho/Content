@@ -13,21 +13,20 @@ if(last_dragmode >= ^bank_drag_swap) {
     ~banktab_swap(add(divide($pair, 8), 1), add(modulo($pair, 8), 1));
 } else if(last_dragmode >= ^bank_drag_tab) {
     ~banktab_move_to(last_slot, sub(last_dragmode, ^bank_drag_tab));
-} else if(~banktab_of_slot(last_slot) ! ~banktab_of_slot(last_targetslot)) {
-    // Dropped in a DIFFERENT tab's block. Whatever the rearrange mode says, what the player meant
-    // is "put this in that tab" - so file it there rather than swapping it with whatever happened
-    // to be under the cursor, which left one item in each of the wrong tabs and read as the drag
-    // not working at all.
-    ~banktab_move_to(last_slot, ~banktab_of_slot(last_targetslot));
 } else if(%bankinsert = 1) {
-    // Within one tab, insert SHIFTS. It cannot cross a break any more (that is the branch above),
-    // but ~banktab_dragged stays because the untabbed block is a tab too and the shift can still
-    // run past its boundary.
+    // Insert SHIFTS, so an item crossing a break leaves one tab and joins another and the counts
+    // have to follow. Worked out before the shift, while the slot numbers still mean what they say.
     ~banktab_dragged(last_slot, last_targetslot);
     @insert_bank(last_slot, last_targetslot);
     ~banktab_refresh;
 } else {
-    // Within one tab, swap: two items trade places and the range keeps its length.
+    // Swap, and a swap across a break is a real swap: the two items trade places AND trade tabs,
+    // and every range keeps its length so no count moves at all.
+    //
+    // This was briefly changed to "file the dragged item into the target tab", which was the wrong
+    // reading - it left the item that had been under the cursor sitting in the same tab, so both
+    // ended up in the destination. It also made the server do something the client had not, and
+    // the client's optimistic swap then showed as a duplicate until the bank was reopened.
     inv_movetoslot(bank, bank, last_slot, last_targetslot);
     ~banktab_refresh;
 }
