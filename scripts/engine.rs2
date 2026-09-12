@@ -351,6 +351,11 @@
 // info: Eight slot numbers at which $component should start a fresh row while it is showing the
 // info: whole inv. 0 means no break. Used so the bank's "all items" view breaks between tabs.
 [command,if_setinvbreaks](component $component, int $b1, int $b2, int $b3, int $b4, int $b5, int $b6, int $b7, int $b8);
+// info: Replace one of an inv component's five right-click options ($op is 1-5). An empty string
+// info: clears it. Used by the bank so the left click reads "Withdraw 10" when 10 is the chosen
+// info: default quantity. Not sticky - the client rebuilds a component's options from the cache
+// info: whenever the interface loads, so set it again on open.
+[command,if_setinvop](component $component, int $op, string $text);
 // info: Give xp in a stat
 [command,stat_advance](stat $stat, int $exp)
 // info: Hurt a player

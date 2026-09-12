@@ -84,6 +84,12 @@ class Bank:
         s.compact()
 
     def swap_drag(s, a, bx):
+        # The rearrange mode only decides what happens WITHIN a tab. A drag that crosses a tab
+        # boundary is always a move: the player asked for the item to go there, not for whatever
+        # was there to come back. bank.rs2's [inv_buttond] makes the same test.
+        if s.of_slot(a) != s.of_slot(bx):
+            s.insert_drag(a, bx)
+            return
         s.items[a], s.items[bx] = s.items[bx], s.items[a]
         s.compact()
 
@@ -389,14 +395,23 @@ assert b.c[1] == 2 and b.c[2] == 4, f'counts did not follow the drag: {b.c[1:3]}
 assert b.of_slot(8) == 2
 print('an insert drag across a break moves the item between tabs and the counts follow')
 
-# a swap across a break changes nothing about the sizes
+# a swap WITHIN a tab changes nothing about the sizes
 b = Bank(); b.items = list(range(10)); b.c[1] = 3; b.c[2] = 3
 before = list(b.c)
-b.swap_drag(4, 8)
-b.check('swap across a break')
+b.swap_drag(4, 6)                   # both ends inside tab 1
+b.check('swap inside a tab')
 assert b.c == before, f'swap should not resize a tab: {b.c[1:3]}'
-assert b.items[4] == 8 and b.items[8] == 4
-print('a swap across a break trades two items and leaves every tab the same size')
+assert b.items[4] == 6 and b.items[6] == 4
+print('a swap inside one tab trades two items and leaves every tab the same size')
+
+# and in swap mode a drag ACROSS a break is a move, not a swap
+b = Bank(); b.items = list(range(10)); b.c[1] = 3; b.c[2] = 3
+b.swap_drag(4, 8)
+b.check('cross-tab drag in swap mode')
+assert b.c[1] == 2 and b.c[2] == 4, f'the counts did not follow the move: {b.c[1:3]}'
+assert b.items[8] == 4, 'the dragged item should have landed on the slot it was dropped on'
+assert 8 not in b.items[:5], 'nothing should have come back the other way'
+print('in swap mode a drag across a break moves the item rather than trading two')
 
 # dragging one tab onto another trades their contents, and leaves everything between alone
 b = Bank(); b.items = list(range(12))
@@ -506,17 +521,19 @@ real = [c for c in range(CELLS) if m[c] >= 0]
 assert all(d[c] == m[c] for c in real), 'a cell holding an item should drop onto itself'
 print('cells that hold an item still target themselves, so ordinary drags are unchanged')
 
-# A swap across a break trades BOTH the places and the tabs: the dragged item ends up in the target
-# tab and the one that was under the cursor comes back the other way. Briefly this was changed to
-# "file the dragged item into the target tab", which left the other item where it was, so both
-# ended up in the destination - and because the server then did something the client had not
-# already done to its own copy, the client showed a duplicate until the bank was reopened.
+# A drag across a break MOVES. This went back and forth twice before it settled. It was briefly
+# "file the dragged item into the target tab", which left the other item where it was so both ended
+# up in the destination; that was corrected to a true swap, which was wrong the other way - the item
+# under the cursor came back into the source tab, which is nothing the player asked for ("this isnt
+# supposed to be a swap feature, just a move to"). It is an insert: one tab loses an item, the other
+# gains one, and every other item keeps its neighbours.
 b = Bank(); b.items = list(range(12)); b.c[1] = 3; b.c[2] = 3   # untabbed 0-5, tab1 6-8, tab2 9-11
 src, dst = b.start(1), b.start(2) + 1
 mine, theirs = b.items[src], b.items[dst]
 b.swap_drag(src, dst)
-b.check('cross-tab swap')
-assert b.c[1] == 3 and b.c[2] == 3, f'a swap must not resize either tab: {b.c[1:3]}'
+b.check('cross-tab move')
+assert b.c[1] == 2 and b.c[2] == 4, f'the counts did not follow the move: {b.c[1:3]}'
 assert b.of_slot(b.items.index(mine)) == 2, 'the dragged item should now be in tab 2'
-assert b.of_slot(b.items.index(theirs)) == 1, 'and the other one should have come back to tab 1'
-print('a swap across a break trades the two items between tabs, both ways')
+assert b.of_slot(b.items.index(theirs)) == 2, 'and the one it was dropped on should have stayed put'
+assert b.items[dst] == mine, 'the dragged item should sit exactly where it was dropped'
+print('a drag across a break moves the item into the target tab and nothing comes back')

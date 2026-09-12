@@ -1,0 +1,145 @@
+// The bank's bottom button bar (Corey, 2026-09-12). See claude/bank-tabs.md.
+//
+// Twelve buttons across the bottom of the bank window, OSRS's own art on all of them:
+//   [Swap][Insert]  [Item][Note]  [1][5][10][X][All]  [Search]  [Dep inv][Dep worn]
+// The four on the left already existed as text-labelled radio pairs and still live in bank.rs2;
+// this file owns the eight new ones. tools/genbankbar.py draws the row.
+//
+// THE QUANTITY BUTTONS are radio buttons over one varp, exactly like Swap/Insert - buttontype=
+// select writes %bankquantity client side on click AND sends this if_button, so the highlight is
+// instant and the server still learns about it. What the server then does is rewrite the FIRST
+// right-click option of both grids with if_setinvop, so the left click reads "Withdraw 10" and
+// [inv_button1] withdraws ten. The other four options keep their fixed 1/5/10/All/X wording, the
+// way OSRS keeps its explicit entries underneath the default one.
+
+[if_button,bank_main:bankqty1] ~bank_setquantity(^bank_qty_1);
+[if_button,bank_main:bankqty5] ~bank_setquantity(^bank_qty_5);
+[if_button,bank_main:bankqty10] ~bank_setquantity(^bank_qty_10);
+[if_button,bank_main:bankqtyall] ~bank_setquantity(^bank_qty_all);
+
+[if_button,bank_main:bankqtyx]
+// The client has ALREADY flipped %bankquantity to X by the time this runs - buttontype=select
+// applies its own operand locally before sending. So a cancelled prompt has to put the varp back
+// rather than leave the bank sitting on an X of nothing.
+p_countdialog;
+if (last_int <= 0) {
+    ~bank_setquantity(^bank_qty_1);
+    return;
+}
+%bankquantity_x = last_int;
+~bank_setquantity(^bank_qty_x);
+
+[proc,bank_setquantity](int $quantity)
+%bankquantity = $quantity;
+~bank_apply_quantity;
+
+// Push the current choice into the two grids' left-click option and onto the X button's face.
+// Called on every change and once on open, because if_setinvop is not sticky: the client rebuilds
+// a component's options from the cache whenever the interface is loaded.
+[proc,bank_apply_quantity]
+def_string $label = ~bank_quantity_label;
+if_setinvop(bank_main:bank, 1, "Withdraw<$label>");
+if_setinvop(bank_side:inv, 1, "Deposit<$label>");
+if_settext(bank_main:bankqtyxtext, ~bank_quantity_xlabel);
+
+[proc,bank_quantity_amount]()(int)
+switch_int (%bankquantity) {
+    case ^bank_qty_5 : return(5);
+    case ^bank_qty_10 : return(10);
+    case ^bank_qty_all : return(^max_32bit_int);
+    case ^bank_qty_x :
+        // belt and braces: the X button never stores a non-positive amount, but a zero here would
+        // reach @bank_withdraw as "ask me" and pop a second amount prompt on every left click.
+        if (%bankquantity_x > 0) {
+            return(%bankquantity_x);
+        }
+        return(1);
+    case default : return(1);
+}
+
+[proc,bank_quantity_label]()(string)
+switch_int (%bankquantity) {
+    case ^bank_qty_5 : return(" 5");
+    case ^bank_qty_10 : return(" 10");
+    case ^bank_qty_all : return(" All");
+    case ^bank_qty_x :
+        if (%bankquantity_x > 0) {
+            return(" <tostring(%bankquantity_x)>");
+        }
+        return(" 1");
+    case default : return(" 1");
+}
+
+// OSRS puts the chosen amount on the button once it has been set, so the bar reads 1 5 10 250 All
+// rather than 1 5 10 X All. Before anything has been entered it is still an X.
+[proc,bank_quantity_xlabel]()(string)
+if (%bankquantity_x > 0) {
+    return(tostring(%bankquantity_x));
+}
+return("X");
+
+// ---- deposit inventory / deposit worn
+//
+// Both walk their source inv slot by slot and hand each obj to the same ~bank_deposit_request the
+// single-item deposit uses, so the f2p slot limit, the full-bank message, the session log and -
+// crucially - ~banktab_deposited all behave exactly as they do for one item at a time. Walking
+// FORWARD and re-reading each slot is safe because depositing an obj clears every stack of it:
+// slots already visited cannot refill, and slots ahead can only empty.
+
+[if_button,bank_main:bankdepinv] ~bank_deposit_inv;
+[if_button,bank_main:bankdepworn] ~bank_deposit_worn;
+
+[proc,bank_deposit_inv]
+def_int $slot = 0;
+while ($slot < inv_size(inv)) {
+    def_obj $obj = inv_getobj(inv, $slot);
+    if ($obj ! null) {
+        if (~bank_check_nobreak($obj) = false) {
+            ~bank_deposit_request(inv, $obj, inv_total(inv, $obj), $slot);
+        }
+    }
+    $slot = add($slot, 1);
+}
+
+[proc,bank_deposit_worn]
+// The weapon is read BEFORE anything moves: ~update_all wants whatever used to be in the right
+// hand so it can put the attack tab back to unarmed.
+def_obj $previous_weapon = inv_getobj(worn, ^wearpos_rhand);
+def_boolean $moved = false;
+def_int $slot = 0;
+while ($slot < inv_size(worn)) {
+    def_obj $obj = inv_getobj(worn, $slot);
+    if ($obj ! null & ~bank_worn_keep($obj) = false & ~bank_check_nobreak($obj) = false) {
+        ~bank_deposit_request(worn, $obj, inv_getnum(worn, $slot), $slot);
+        if (inv_getobj(worn, $slot) = null) {
+            $moved = true;
+            if (oc_param($obj, specwep) = ^true) {
+                %sa_attack = ^false;
+            }
+            ~on_unequip($obj);
+        }
+    }
+    $slot = add($slot, 1);
+}
+if ($moved = true) {
+    // once, at the end - ~update_all rebuilds appearance, bonuses and weight, and doing that per
+    // slot would send fourteen of each for one click
+    ~update_all($previous_weapon);
+}
+
+// The handful of things ~unequip refuses to take off. Same list, minus the duel arena check:
+// there is no bank inside a duel, so it can never come up here.
+[proc,bank_worn_keep](obj $obj)(boolean)
+if (~wguild_is_barrels($obj) = true) {
+    mes("You can't bank the kegs - put them down first.");
+    return(true);
+}
+if ($obj = ball_gnomeball_game & ~inzone_coord_pair_table(gnomeball_zones, coord) = true) {
+    mes("You feel it would be cheating to put the ball away whilst on the pitch.");
+    return(true);
+}
+if (($obj = castlewars_cloak_zamorak | $obj = castlewars_cloak_saradomin) & (~in_castlewars_game(coord) = true | ~in_castlewars_waitingroom(coord) = true)) {
+    mes("You can't remove your team's colours."); // osrs
+    return(true);
+}
+return(false);
