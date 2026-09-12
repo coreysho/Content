@@ -104,6 +104,16 @@
 // touch.** Verified against all twelve arrangements.
 ^rd_statue_reset = 0
 ^rd_statue_arrangements = 12
+// Where the answer is parked while the statues are back. The room was UNSOLVABLE without this:
+// the arrangement stayed live while the player was asked to touch the missing statue, and the
+// correct shell at a live arrangement is precisely the one holding nothing - no model, no op, so
+// the click never reaches a script. Every attempt fell through to ~rd_fail_room and ~rd_pass_room(2)
+// was dead code. Lady Table's own dialogue says what should happen ("Then I shall put it back"):
+// show the shuffle, restore all twelve, and keep the answer somewhere the multiloc cannot see.
+// Bits 21-26 of rd_rooms_tempvar2 are claimed by no varbit (0-20 are the fox/chicken/grain puzzle,
+// 27 is ^rd_bit_patience), so four of them hold the arrangement 1-12 and 0 means no puzzle running.
+^rd_bit_statue_lo = 21
+^rd_bit_statue_hi = 24
 
 // --- Sir Tinley ---
 // Eight seconds. p_delay is the whole mechanic: any click aborts the script, which is exactly the

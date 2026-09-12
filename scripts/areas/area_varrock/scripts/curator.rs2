@@ -4,7 +4,11 @@ if (inv_total(inv, digplainletter) > 0) @curator_stamp_letter;
 if (inv_total(inv, level1certificate) > 0) @curator_level_1;
 if (inv_total(inv, level2certificate) > 0) @curator_level_2;
 if (inv_total(inv, level3certificate) > 0) @curator_level_3;
-if(%phoenixgang = ^phoenixgang_joined | %blackarmgang = ^blackarmgang_joined) {
+// >= rather than =, which is what it used to be. At exactly _joined this whole block vanished the
+// moment either gang varp reached _complete, so a player who had finished could never hand a second
+// shield in - not even the one their partner still needed a certificate for, which is the very
+// thing the curator's own closing line tells them to arrange.
+if(%phoenixgang >= ^phoenixgang_joined | %blackarmgang >= ^blackarmgang_joined) {
     if(inv_total(inv, arravshield1) > 0 & inv_total(inv, arravshield2) > 0) { // mostly 1-1 with RSC
         ~chatplayer("<p,quiz>I have retrieved the shield of Arrav|and I would like to claim my reward.");
         ~chatnpc("<p,shock>The shield of Arrav?|Let me see that!");
@@ -22,9 +26,33 @@ if(%phoenixgang = ^phoenixgang_joined | %blackarmgang = ^blackarmgang_joined) {
         ~chatnpc("<p,happy>Take these to the king|and he'll pay you both handsomely.|Please tell your friend to speak to me|after giving him his certificate.");
         return;
     } else if(inv_total(inv, arravshield1) > 0 | inv_total(inv, arravshield2) > 0) {
+        // Half a shield now buys ONE certificate, where it used to buy a shrug.
+        //
+        // The two-half path above is authentic and is left exactly as it was - two players, two
+        // certificates, 600 coins each. The problem is that it is the ONLY path, and it cannot be
+        // walked alone: the gangs are mutually exclusive (katrine.rs2 refuses anyone who joined the
+        // Phoenix, straven.rs2 refuses anyone who joined the Black Arm) and each hideout door wants
+        // its own gang's varp, so one account can reach exactly one half of the shield, forever.
+        // On a server without a second player to trade with, the quest simply could not be finished.
+        //
+        // So: bring the half you can actually get, get the half reward the king already pays. The
+        // king's dialogue needs no change at all - he has always said "I see you are claiming half
+        // the reward" and always paid 600, because the certificate was only ever worth half.
         ~chatplayer("<p,quiz>I have half the shield of Arrav here.|Can I get a reward?");
-        ~chatnpc("<p,neutral>Well it might be worth a small reward.|The entire shield would be worth much more.");
-        ~chatplayer("<p,happy>Ok, I'll hang onto it.|And see if I can find the other half.");
+        ~chatnpc("<p,shock>Half of it? Let me see that!");
+        ~mesbox("The curator peers at the half shield.");
+        ~chatnpc("<p,shock>That shield has been missing for over twenty-five years!");
+        ~chatnpc("<p,neutral>Leave it here with me|and I'll write you out a certificate|for your half,|so that you can claim your share from the King.");
+        ~chatnpc("<p,neutral>If whoever holds the other half ever turns up,|they can do the same.");
+        ~mesbox("You hand over the half shield.");
+        if(inv_total(inv, arravshield1) > 0) {
+            inv_del(inv, arravshield1, 1);
+        } else {
+            inv_del(inv, arravshield2, 1);
+        }
+        inv_add(inv, arravcertificate, 1);
+        ~mesbox("The curator writes out a certificate.");
+        ~chatnpc("<p,happy>Take that to the king|and he'll pay you your share.");
         return;
     }
 }

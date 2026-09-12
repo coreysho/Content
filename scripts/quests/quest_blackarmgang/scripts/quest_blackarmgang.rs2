@@ -125,6 +125,10 @@ if(%phoenixgang = ^phoenixgang_joined) {
     %blackarmgang = ^blackarmgang_complete;
     session_log(^log_adventure, "Quest complete: Shield of Arrav (Black Arm Gang)");
 }
-~send_quest_complete(questlist:blackarmgang, coins, 250, ^blackarmgang_questpoints, "You have completed the\\nShield of Arrav Quest!", "600 Coins");
+// Pay first, celebrate second. ~send_quest_complete ends in if_openmain(inter_238), and these two
+// lines used to sit AFTER it - with the gang varp already flipped to _complete above. Anything that
+// dropped the script at the reward screen left the player flagged as having finished, still holding
+// the certificate, and 600 coins short, with the king refusing to look at them again.
 inv_del(inv, arravcertificate, 1);
 inv_add(inv, coins, 600);
+~send_quest_complete(questlist:blackarmgang, coins, 250, ^blackarmgang_questpoints, "You have completed the\\nShield of Arrav Quest!", "600 Coins");

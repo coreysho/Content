@@ -227,6 +227,24 @@ data=runesrequired,firerune,2,lawrune,2,null,null
 data=experience,680
 data=tele_coord,0_45_57_11_23
 
+// Teleport to Ape Atoll. Gated on Monkey Madness in @magic_teleport, which the quest can now
+// actually reach (mm_stage3.rs2 sets %mm_main = ^mm_complete). The banana it also eats is checked
+// and consumed there too: runesrequired is rune-shaped - check_spell_requirements builds its
+// failure message by stripping " Rune" off the obj name, which would read "You do not have enough
+// Ba to cast this spell" - and there is no column for a plain inventory cost.
+// Destination is the quest's own audited landing coord rather than OSRS's (roughly 2755,2784,
+// north-west of Marim): that one is known walkable and known to be on this island's map.
+[magic_spell_teleport_ape_atoll]
+table=magic_spell_table
+data=spell,^ape_atoll_teleport
+data=members,true
+data=levelrequired,64
+data=runesrequired,firerune,2,waterrune,2,lawrune,2
+data=experience,740
+// Literal, not ^mm_ape_atoll_arrive: no dbrow in this repo puts a constant in a coord column, and
+// this is not the round to find out whether the packer expands one. Same value as that constant.
+data=tele_coord,0_43_42_50_17
+
 // ============================================================
 // Ancient Magicks teleports (Corey, 2026-09-07)
 // ============================================================

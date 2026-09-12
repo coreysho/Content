@@ -66,6 +66,7 @@ if_sethide(bankpin_settings:com_237, true);
 [if_button,bankpin_main:j_button] ~bankpin_digit_pressed(%bankpin_map_j);
 
 [if_button,bankpin_main:cancel]
+sound_synth(PIN_cancel, 1, 0);
 // don't drop the player into the PIN settings screen if this keypad was opened by trying to
 // access the bank (rather than from the settings screen itself) - just close and let them
 // re-click the banker to try again.
@@ -170,6 +171,10 @@ return(%bankpin_1);
 
 // opens the keypad for a fresh entry. $flow is verify_change / verify_delete / enter_new.
 [proc,bankpin_start_entry](int $flow)
+// Opening the keypad. bank.rs2's access gate calls this proc directly rather than going through
+// [label,open_bank_pin_setting], so the one sound the flow already had never fired on the path a
+// player actually hits most - entering their PIN to open the bank.
+sound_synth(PIN_pending, 1, 0);
 %bankpin_flow = $flow;
 %bankpin_entry = 0;
 %bankpin_entry_count = 0;
@@ -245,6 +250,10 @@ switch_int (%bankpin_entry_count) {
 if (%bankpin_entry_count >= 4) {
     return;
 }
+// The keypad was completely silent. One beep here covers all ten buttons, which is why the digit
+// sounds live in this shared proc rather than in the ten [if_button] blocks above - same shape
+// the prayer book uses (~prayer_activate holds the sound, not each prayer's button).
+sound_synth(PIN_beep, 1, 0);
 %bankpin_entry = add(multiply(%bankpin_entry, 10), $digit);
 %bankpin_entry_count = add(%bankpin_entry_count, 1);
 switch_int (%bankpin_entry_count) {
@@ -278,6 +287,7 @@ def_int $entered = %bankpin_entry;
 switch_int (%bankpin_flow) {
     case ^bankpin_flow_verify_change :
         if (add(10000, $entered) = %bankpin) {
+            sound_synth(interface_select1, 1, 0);
             mes("That's correct. Now enter your new PIN.");
             %bankpin_flow = ^bankpin_flow_enter_new;
             %bankpin_entry = 0;
@@ -287,6 +297,7 @@ switch_int (%bankpin_flow) {
             if_settext(bankpin_main:instruction, "Please enter your new FOUR DIGIT PIN using the buttons below.");
             if_sethide(bankpin_main:forgotten, true);
         } else {
+            sound_synth(interface_wrong, 1, 0);
             mes("That is not your current PIN.");
             ~bankpin_clear_flow;
             if_close;
@@ -299,6 +310,7 @@ switch_int (%bankpin_flow) {
             ~bankpin_open_settings;
             if_sethide(bankpin_settings:com_237, false);
         } else {
+            sound_synth(interface_wrong, 1, 0);
             mes("That is not your current PIN.");
             ~bankpin_clear_flow;
             if_close;
@@ -309,11 +321,13 @@ switch_int (%bankpin_flow) {
     case ^bankpin_flow_confirm_new :
         if ($entered = %bankpin_pending_first) {
             %bankpin = add(10000, $entered);
+            sound_synth(interface_select1, 1, 0);
             mes("Your bank PIN has been set.");
             ~bankpin_clear_flow;
             if_close;
             ~bankpin_open_settings;
         } else {
+            sound_synth(interface_wrong, 1, 0);
             mes("The PINs you entered do not match. Please start again.");
             ~bankpin_clear_flow;
             if_close;
@@ -324,11 +338,13 @@ switch_int (%bankpin_flow) {
     // (no settings redirect, since the player was trying to bank, not manage their PIN).
     case ^bankpin_flow_verify_access :
         if (add(10000, $entered) = %bankpin) {
+            sound_synth(interface_select1, 1, 0);
             %bankpin_verified = 1;
             ~bankpin_clear_flow;
             if_close;
             ~bankpin_open_bank_real;
         } else {
+            sound_synth(interface_wrong, 1, 0);
             mes("That is not your current PIN.");
             ~bankpin_clear_flow;
             if_close;

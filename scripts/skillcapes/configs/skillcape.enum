@@ -130,9 +130,14 @@ val=20,farming_cape_t
 val=21,construction_cape_t
 val=22,hunter_cape_t
 
+// An enum with no default= encodes defaultInt 0, and a MISS returns 0 - not null. Seq 0 is
+// swarm_walk and spotanim 0 is triple_firebreath_attack, so without these two lines the emote
+// played dragonfire for anyone wearing a cape that is not a skillcape (the handler's only
+// "do you have one" test is the null check on this lookup).
 [skillcape_emote_seq]
 inputtype=obj
 outputtype=seq
+default=null
 val=attack_cape,skillcape_attack_emote
 val=attack_cape_t,skillcape_attack_emote
 val=strength_cape,skillcape_strength_emote
@@ -180,6 +185,7 @@ val=quest_point_cape,skillcape_quest_point_emote
 [skillcape_emote_spot]
 inputtype=obj
 outputtype=spotanim
+default=null
 val=attack_cape,skillcape_attack
 val=attack_cape_t,skillcape_attack
 val=strength_cape,skillcape_strength

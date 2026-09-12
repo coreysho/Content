@@ -26,7 +26,7 @@ if (%rd_room2_complete = 1) {
     ~chatnpc("<p,happy>Well spotted. The door is open - do go on.");
     return;
 }
-if (%rd_room_order > 0) {
+if (getbit_range(%rd_rooms_tempvar2, ^rd_bit_statue_lo, ^rd_bit_statue_hi) > ^rd_statue_reset) {
     ~chatnpc("<p,neutral>They are all back. Which one of them went away?");
     return;
 }
@@ -41,9 +41,20 @@ if ($option = 2) {
 ~chatplayer("<p,neutral>I've looked. Go ahead.");
 // The arrangement is set before the dialogue that describes it, because ~mesbox is abortable and a
 // player who clicks away would otherwise be left looking at twelve statues and no puzzle.
-%rd_room_order = calc(random(^rd_statue_arrangements) + 1);
+def_int $arrangement = calc(random(^rd_statue_arrangements) + 1);
+%rd_room_order = $arrangement;
+// The player sees the shuffled room, one statue short, for as long as this box is up.
 ~mesbox("Lady Table waves a hand. The statues shuffle where they stand, and one of them is not there any more.");
-~chatnpc("<p,neutral>There. Which is missing?");
+// Then she puts them back, exactly as she said she would. This is the half that was missing: while
+// the arrangement stays live the answer is the shell with nothing in it, and an empty shell carries
+// no op, so the correct statue was the one the player could not click. Restoring the room returns
+// all twelve to canonical order - shell N holding the Nth statue - and the arrangement moves to
+// scratch bits so the multiloc stops reading it.
+%rd_rooms_tempvar2 = setbit_range_toint(%rd_rooms_tempvar2, $arrangement, ^rd_bit_statue_lo, ^rd_bit_statue_hi);
+%rd_room_order = ^rd_statue_reset;
+// An aborted mesbox leaves the room shuffled with nothing stashed; talking to her again finds no
+// arrangement parked, runs the intro afresh and re-shuffles, so that state heals itself.
+~chatnpc("<p,neutral>There - all twelve are back. Which one of them went away?");
 
 // The triggers go on the SHELLS, not on the twelve statue children. OpLocHandler resolves a multi
 // far enough to check the option exists (OpLocHandler.ts:36-50) and then hands the engine the
@@ -51,9 +62,11 @@ if ($option = 2) {
 // declared on a child never fires. That is also what makes this room tidy: the shell number is the
 // answer, so nothing has to be worked out from coordinates.
 //
-// It falls out correctly at the empty shell too. When an arrangement leaves a shell with no
-// multiloc entry the type stays the shell, the shell carries no ops, and the click is rejected
-// before it reaches a script - you cannot touch a statue that is not there.
+// An empty shell carries no ops and its click is rejected before it reaches a script - you cannot
+// touch a statue that is not there. That was once described here as the room falling out
+// correctly; it is the opposite. While an arrangement is live the empty shell IS the answer, so
+// the room could not be passed at all. The arrangement is now cleared the moment the statues are
+// put back (see above), and by the time the player is touching anything all twelve are present.
 [oploc1,rd_statue_multi_1] @rd_statue_touch(1);
 [oploc1,rd_statue_multi_2] @rd_statue_touch(2);
 [oploc1,rd_statue_multi_3] @rd_statue_touch(3);
@@ -77,16 +90,17 @@ if (%rd_room2_complete = 1) {
     mes("The test is over. The door is open.");
     return;
 }
-if (%rd_room_order = ^rd_statue_reset) {
+def_int $arrangement = getbit_range(%rd_rooms_tempvar2, ^rd_bit_statue_lo, ^rd_bit_statue_hi);
+if ($arrangement = ^rd_statue_reset) {
     mes("Lady Table has not taken one away yet. You should speak to her first.");
     return;
 }
-if ($shell = ~rd_statue_answer(%rd_room_order)) {
-    %rd_room_order = ^rd_statue_reset;
+// One answer per shuffle, whichever way it goes.
+%rd_rooms_tempvar2 = clearbit_range(%rd_rooms_tempvar2, ^rd_bit_statue_lo, ^rd_bit_statue_hi);
+if ($shell = ~rd_statue_answer($arrangement)) {
     ~rd_pass_room(2);
     return;
 }
-%rd_room_order = ^rd_statue_reset;
 ~rd_fail_room("You touch the statue. Lady Table shakes her head - that one never left the room.");
 
 // The mapping read straight out of rd.loc's twelve multiloc tables: for each arrangement, the one

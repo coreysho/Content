@@ -94,6 +94,19 @@ queue(follower_login, 0, 0);
 // this a player who logged out as a monkey logs back in as a human still holding one, and every
 // guard on Ape Atoll reacts to that.
 ~mm_greegree_login;
+// The run toggle: option_run is scope=perm so the SAVED value comes back and lights the orb, but
+// the engine's run-mode is player state that is not saved. p_run is to option_run exactly what
+// p_transmogrify is to the worn greegree above - without this the orb says "run" while the player
+// walks, and the only way out is toggling run off and back on. p_run writes the varp itself, so
+// there is deliberately no varp assignment here.
+if (%option_run = ^player_run_on) {
+    if (runenergy < 100) {
+        // mirrors the guard on the run button (player_controls.rs2): no energy, no run
+        p_run(^player_run_off);
+    } else {
+        p_run(^player_run_on);
+    }
+}
 if (map_live = true) {
     if_openfull(inter_353, inter_313);
     if_settext(inter_353:com_1,"Did you know, all the weapon stats are listed on our new");

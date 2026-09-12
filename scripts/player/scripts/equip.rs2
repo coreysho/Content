@@ -148,6 +148,11 @@ if (p_finduid(uid) = true) {
         %sa_attack = ^false;
     }
     inv_moveitem(worn, inv, $obj, sub($count, $overflow));
+    // Taking something off was silent while putting it on was not. Same table as ~equip_sound -
+    // the cache has no separate remove_* synths, and OSRS reuses the equip sound both ways.
+    // Deliberately here and NOT in ~on_unequip: that proc also runs from ~try_equip when a swap
+    // pops the old item off, and the incoming item's own sound already plays for that.
+    ~equip_sound($obj);
     ~update_all($obj);
     ~on_unequip($obj);
 }

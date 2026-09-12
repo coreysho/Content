@@ -5,6 +5,7 @@
 [if_button,magic:ardougne_teleport] @magic_teleport(^ardougne_teleport);
 [if_button,magic:watchtower_teleport] @magic_teleport(^watchtower_teleport);
 [if_button,magic:trollheim_teleport] @magic_teleport(^trollheim_teleport);
+[if_button,magic:ape_atoll_teleport] @magic_teleport(^ape_atoll_teleport);
 
 // The eight Ancient Magicks teleports (Corey, 2026-09-07). Same label as the normal book - the
 // wilderness, quest and pre-tele checks are identical - and the destination comes from the same
@@ -44,6 +45,19 @@ if (p_finduid(uid) = true) {
         mes("You havn't learnt how to cast this spell yet.");
         return;
     }
+    // Ape Atoll: quest-gated like the two above, and it eats a banana on top of its runes.
+    // magic_spell_table has no column for a plain inventory cost - runesrequired is rune-shaped,
+    // and check_spell_requirements builds its failure message by stripping " Rune" off the obj
+    // name - so the banana is checked here, beside the other per-spell exceptions, and deleted
+    // below next to the runes.
+    if($spell = ^ape_atoll_teleport & %mm_main < ^mm_complete) {
+        mes("You must have completed Monkey Madness to use this spell.");
+        return;
+    }
+    if($spell = ^ape_atoll_teleport & inv_total(inv, banana) < 1) {
+        mes("You need a banana to cast this spell.");
+        return;
+    }
     if (~pre_tele_checks(coord) = false) {
         return;
     }
@@ -53,6 +67,9 @@ if (p_finduid(uid) = true) {
     }
     // delete runes and give xp
     ~delete_spell_runes($spell_data);
+    if($spell = ^ape_atoll_teleport) {
+        inv_del(inv, banana, 1);
+    }
     ~give_spell_xp($spell_data);
     // give additional affects
     // teleport player. Always a radius of 2

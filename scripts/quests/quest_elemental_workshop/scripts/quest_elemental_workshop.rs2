@@ -156,7 +156,19 @@ if(getbit_range(%elemental_workshop_bits, ^elemental_workshop_water_flowing, ^el
     mes("The bellows pump air down the pipe.");
     return;
 }
-mes("Nothing happens; the lever resets itself.");
+// "Nothing happens; the lever resets itself" named nothing, so repairing the bellows and then
+// pulling this lever read as the repair not having stuck - the reported bug. It had, and the
+// bellows bit is genuinely the same bit this lever reads; what was missing was the OTHER half of
+// the condition. This lever needs the wheel turning (^elemental_workshop_water_flowing) AND the
+// bellows repaired (^elemental_workshop_bellows_repaired).
+// The trap is the water lever: pulling it a second time stops the wheel and silently clears the
+// air bit with it, which is exactly how a player with fixed bellows ends up here.
+if(testbit(%elemental_workshop_bits, ^elemental_workshop_bellows_repaired) = ^false) {
+    mes("Nothing happens; the bellows are split and will not hold air.");
+    return;
+}
+mes("Nothing happens; the water wheel is not turning.");
+mes("The lever by the wheel downstairs drives these bellows.");
 
 [oplocu,elemental_workshop_trough]
 if(last_useitem = elemental_workshop_lava_bowl) {

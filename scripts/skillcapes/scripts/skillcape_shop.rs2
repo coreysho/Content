@@ -154,7 +154,12 @@ if ($seq = null) {
 if_close;
 p_stopaction;
 anim($seq, 0);
-spotanim_pl(enum(obj, spotanim, skillcape_emote_spot, $cape), 0, 0);
+// Looked up separately and guarded: the seq table and the spot table are two tables, and a cape
+// present in one but not the other used to emit spotanim 0 - the dragonfire breath.
+def_spotanim $spot = enum(obj, spotanim, skillcape_emote_spot, $cape);
+if ($spot ! null) {
+    spotanim_pl($spot, 0, 0);
+}
 
 // ---- masters who are new npcs, or existing npcs with no Talk-to until now ----
 
