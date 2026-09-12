@@ -94,7 +94,9 @@ def check(ok, what):
 print('the tables parsed out of the shipped files')
 check(GRID == 8, 'grid is %d' % GRID)
 check((N, E, S, W) == (1, 2, 4, 8), 'door bits in rotation order, got %s' % ((N, E, S, W),))
-check(len(ZONE) == len(DOORS) == len(NAME) == 15, 'fifteen room types in all three enums')
+COUNT = C['poh_room_count']
+check(len(ZONE) == len(DOORS) == len(NAME) == COUNT,
+      '^poh_room_count (%d) room types in all three enums' % COUNT)
 check(set(ZONE) == set(DOORS) == set(NAME), 'the same ids in all three')
 check(0 not in ZONE, 'type 0 is never a room')
 check(all(0 <= v < 64 for v in ZONE.values()), 'every zone packs into six bits')

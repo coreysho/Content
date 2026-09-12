@@ -185,7 +185,7 @@ print('12. pack ids are unique, and the new ones sit above what was there')
 # 1150-1152 are three debug varps that exist only in the laptop's working copy, so they are not
 # in this list and the check does not demand contiguity - see the note above.
 NEW = {'pack/varp.pack': list(range(876, 1150)) + [1153],
-       'pack/loc.pack': [15296, 15297], 'pack/npc.pack': [3920, 3921, 3922]}
+       'pack/loc.pack': [15296, 15297], 'pack/npc.pack': [3920, 3921, 3922, 3923]}
 for f in ['pack/varp.pack', 'pack/loc.pack', 'pack/npc.pack']:
     ids = [int(l.split('=', 1)[0]) for l in open(os.path.join(C, f)).read().split('\n') if '=' in l]
     check(len(set(ids)) == len(ids), '%s has no duplicate id' % os.path.basename(f))
@@ -538,7 +538,7 @@ for line in ENUMF.split('\n'):
         m = re.match(r'^val=(\d+),(.*)$', line)
         if m and cur: tables[cur][int(m.group(1))] = m.group(2)
 COUNT = const('poh_room_count')
-check(COUNT == 15, '^poh_room_count is %s' % COUNT)
+check(COUNT == 16, '^poh_room_count is %s' % COUNT)
 for t in ('poh_room_zone', 'poh_room_doors', 'poh_room_name', 'poh_room_cost', 'poh_room_level'):
     check(t in tables, '%s exists' % t)
     have = sorted(tables.get(t, {}))
@@ -971,7 +971,8 @@ room_model, room_zoom = table('poh_room_model'), table('poh_room_zoom')
 furn_model = {int(a): int(b) for a, b in re.findall(r'case (\d+) : return\((\d+)\);',
               clean[FILES[5]].split('[proc,poh_furn_model]')[1].split('\n[')[0])}
 furn_zoom = table('poh_furn_zoom')
-check(sorted(room_model) == list(range(1, 16)), '~poh_room_model answers for every room 1..15')
+check(sorted(room_model) == list(range(1, COUNT + 1)),
+      '~poh_room_model answers for every room 1..%d' % COUNT)
 check(sorted(room_zoom) == sorted(room_model), '~poh_room_zoom covers the same rooms')
 check(sorted(furn_zoom) == sorted(furn_model), '~poh_furn_zoom covers every item ~poh_furn_model does')
 
@@ -1619,6 +1620,122 @@ check('~poh_spawn_exit' not in pohrs + clean[FILES[3]],
 rmf = fu.split('[proc,poh_furn_remove]')[1].split('\n[')[0]
 check('^poh_furn_exit_portal' in rmf and '~poh_furn_count_item' in rmf,
       'the last exit portal cannot be taken out')
+
+print('48. the Stonemason, and the formal garden he supplies')
+SNPC = blocks(read('scripts/skill_construction/configs/poh_stone.npc'))
+SINV = read('scripts/skill_construction/configs/poh_stone.inv')
+SRS = read('scripts/skill_construction/scripts/poh_stone.rs2')
+mason = SNPC.get('poh_stonemason', {})
+check(bool(mason) and 'poh_stonemason' in NPCS, 'the Stonemason is a config and is in npc.pack')
+mods = [v for k, vs in mason.items() if re.match(r'^(model|head)\d+$', k) for v in vs]
+bad = [m for m in mods if m not in MODELS or m not in ON_DISK2]
+check(mods and not bad, 'all %d of his models are in model.pack and on disk: %s' % (len(mods), bad or 'yes'))
+check((mason.get('readyanim') or [''])[0].startswith('dwarf'),
+      'he animates as the dwarf he is (%s)' % (mason.get('readyanim') or ['?'])[0])
+ops = sorted(int(k[2:]) for k in mason if re.match(r'^op\d+$', k))
+trig = sorted(int(m) for m in re.findall(r'^\[opnpc(\d+),poh_stonemason\]', SRS, re.M))
+check(ops == trig, 'every op he has is wired: declares %s, triggers %s' % (ops, trig))
+check(len(re.findall(r'^\s*~openshop_activenpc;$', SRS, re.M)) == 2, 'both ways in open his store')
+prm = dict(v.split(',', 1) for v in mason.get('param', []))
+check(prm.get('owned_shop') == 'poh_stone_shop', 'he owns poh_stone_shop')
+check('poh_stone_shop' in INVS, 'poh_stone_shop has an id in inv.pack')
+check(prm.get('shop_sell_multiplier') == str(const('poh_stone_sell')),
+      'his selling multiplier is ^poh_stone_sell (%s)' % const('poh_stone_sell'))
+check(prm.get('shop_buy_multiplier') == str(const('poh_stone_buy')),
+      'his buying multiplier is ^poh_stone_buy (%s)' % const('poh_stone_buy'))
+check(prm.get('shop_delta') == '0', 'a fixed-price shop, like the Garden Centre')
+sstock = dict((m.group(2), (int(m.group(3)), int(m.group(4))))
+              for m in re.finditer(r'^stock(\d+)=(\w+),(\d+),(\d+)$', SINV, re.M))
+check(len(sstock) == 2, 'he stocks %d things' % len(sstock))
+bad = [k for k in sstock if k not in OBJS]
+check(not bad, 'every line of stock is a real obj: %s' % (bad or ', '.join(sstock)))
+# the OSRS prices again: their cache costs are exactly twice what he charges
+# Gold leaf and magic stone are his in OSRS and not here: 377's are unpriced placeholders and
+# nothing built today wants them. See the note in poh_stone.inv.
+SWIKI = {'limestonebrick': 10, 'poh_marble_block': 125000}
+ALLOBJ = dict(OBJCFG)
+ALLOBJ.update(blocks(read('scripts/skill_construction/configs/poh_formal_mats.obj')))
+ALLOBJ.update(blocks(read('scripts/_unpack/377/all.obj')))
+bad = []
+for k, want in SWIKI.items():
+    cost = int((ALLOBJ.get(k, {}).get('cost') or ['0'])[0])
+    got = cost * const('poh_stone_sell') // 1000
+    if got != want:
+        bad.append((k, cost, got, want))
+check(not bad, 'both come out at the OSRS price: %s' % (bad[:3] or '10 and 125,000 coins'))
+check(sorted(sstock) == sorted(SWIKI), 'and he stocks exactly those two')
+# OSRS's own quantities, and the same one-a-minute restock the Garden Centre uses
+SQTY = {'limestonebrick': 1000, 'poh_marble_block': 20}
+bad = [(k, v) for k, v in sstock.items() if v != (SQTY.get(k), 100)]
+check(not bad, 'a thousand bricks and twenty blocks, restocking a unit a minute: %s'
+      % (bad or 'both lines'))
+# where he stands: western Keldagrim, on nothing, with room around him
+KMAP = 'maps/m44_159.jm2'
+sec = None; spots = []; ksolid = set()
+for line in read(KMAP).split('\n'):
+    if line.startswith('===='):
+        sec = line.strip('= '); continue
+    if ':' not in line: continue
+    head, data = line.split(':', 1)
+    try: lv, x, z = (int(v) for v in head.split())
+    except ValueError: continue
+    if sec == 'NPC' and int(data) == NPCS['poh_stonemason']: spots.append((lv, x, z))
+    if sec == 'LOC' and lv == 0:
+        d = data.split()
+        if len(d) < 2 or int(d[1]) != 22: ksolid.add((x, z))
+check(len(spots) == 1, 'he is placed exactly once, got %d' % len(spots))
+if spots:
+    lv, x, z = spots[0]
+    ring = [(x + dx, z + dz) for dx in (-1, 0, 1) for dz in (-1, 0, 1) if (x + dx, z + dz) in ksolid]
+    check(lv == 0 and not ring, 'his tile (%d,%d) and the eight around it are clear: %s'
+          % (2816 + x, 10176 + z, ring or 'all nine'))
+
+print('49. the formal garden room, and what goes in it')
+FGFAMS = [f for f in FSPEC['families'] if f.get('room') == 'formal garden']
+check(len(FGFAMS) == 5, 'five formal garden families: %s' % [f['key'] for f in FGFAMS])
+FGHOT = {h for f in FGFAMS for h in f['hotspots']}
+check(FGHOT == {LOCS['loc474_15368']} | {LOCS['loc474_1537%d' % n] for n in (3, 4, 5, 6)},
+      'they claim the formal garden\'s centrepiece and its four flower spaces')
+# the room is real: its zone, its doors and its price
+check(const('poh_room_formal_garden') == 16 and COUNT == 16,
+      'the formal garden is room type %s of %s' % (const('poh_room_formal_garden'), COUNT))
+ZONE = enumtable(ROOMS, 'poh_room_zone'); DOORS = enumtable(ROOMS, 'poh_room_doors')
+check(int(ZONE[16]) == 2 * 8 + 1, 'its template zone is 2,1 (%s)' % ZONE[16])
+# the door mask, read out of all six template squares rather than believed
+DOORIDS = {LOCS['loc474_%d' % n] for n in range(15305, 15318)}
+sides = set()
+for sq, levels in (('m29_79', (0, 1, 2, 3)), ('m30_79', (0, 1))):
+    sec = None
+    for line in read('maps/%s.jm2' % sq).split('\n'):
+        if line.startswith('===='):
+            sec = line.strip('= '); continue
+        if sec != 'LOC' or ':' not in line: continue
+        head, data = line.split(':', 1)
+        lv, x, z = (int(v) for v in head.split())
+        if int(data.split()[0]) not in DOORIDS or lv not in levels: continue
+        if not (16 <= x < 24 and 8 <= z < 16): continue
+        lx, lz = x - 16, z - 8
+        sides.add(1 if lz == 7 else 2 if lx == 7 else 4 if lz == 0 else 8 if lx == 0 else 0)
+check(0 not in sides and sum(sides) == int(DOORS[16]),
+      'its door mask (%s) is the sides the six template squares actually have doors on (%s)'
+      % (DOORS[16], sum(sides)))
+check(int(enumtable(ROOMS, 'poh_room_level')[16]) == 55
+      and int(enumtable(ROOMS, 'poh_room_cost')[16]) == 75000,
+      'level 55 and 75,000 coins, as in OSRS')
+# the centrepiece: a way out at level 1, then the gazebo and the three fountains
+fc = next(f for f in FGFAMS if f['key'] == 'formalcentre')
+check(fc['pieces'][0]['loc'] == 'poh_exit_portal' and fc['pieces'][0]['level'] == 1,
+      'a formal garden can hold a way out too, at level 1')
+marble = [p for p in fc['pieces'] if any(m[0] == 'poh_marble_block' for m in p['mats'])]
+check(len(marble) == 3 and [len(p['mats']) for p in marble] == [1, 1, 1],
+      'the three fountains are the marble ones: %s' % [p['label'] for p in marble])
+check([m[1] for p in marble for m in p['mats']] == [1, 2, 3],
+      'one, two and three blocks, as OSRS charges')
+check('poh_exit_portal' in {k for k in FSPEC.get('loc_allowances', {}) if k != '_'},
+      'the portal being in two families is a named allowance, not an accident')
+# one removal trigger per loc, or it would not compile
+dup = [l for l in re.findall(r'^\[oploc5,(\w+)\]', fu, re.M)]
+check(len(dup) == len(set(dup)), 'no loc has two removal triggers: %d triggers' % len(dup))
 
 
 print()

@@ -1,0 +1,26 @@
+// The Stonemason in western Keldagrim, and the store he runs.
+//
+// A plain shop, like the Garden supplier: Talk-to offers the stock and Trade opens it, both through
+// ~openshop_activenpc, which reads his own npc params. The stock and the prices are in
+// poh_stone.inv and poh_stone.npc.
+//
+// He is where the formal garden's marble comes from. OSRS sells marble blocks here and nowhere else,
+// and this build had no source for them at all until the fountains needed some.
+
+[opnpc1,poh_stonemason]
+~chatnpc("<p,neutral>Aye? You'll be wanting stone, then.");
+def_int $option = ~p_choice3("What have you got?", 1, "What would I want marble for?", 2, "Nothing, thanks.", 3);
+if ($option = 1) {
+    ~chatplayer("<p,neutral>What have you got?");
+    ~openshop_activenpc;
+} else if ($option = 2) {
+    ~chatplayer("<p,quiz>What would I want marble for?");
+    ~chatnpc("<p,happy>Fountains! Nothing finishes a garden like water you paid too much for.");
+    ~chatnpc("<p,neutral>Limestone's cheaper, mind, and it'll build you a wall.");
+} else {
+    ~chatplayer("<p,neutral>Nothing, thanks.");
+    ~chatnpc("<p,neutral>Mind the dust.");
+}
+
+[opnpc3,poh_stonemason]
+~openshop_activenpc;

@@ -133,8 +133,12 @@ def width(s, font=None):
 def build():
     spec = json.load(open(SPEC))
     fams = spec['families']
-    global OVERRIDE
+    global OVERRIDE, SHARED
     OVERRIDE = {k: v for k, v in spec.get('labels', {}).items() if k != '_'}
+    # Locs that really are buildable in more than one hotspot. Only the exit portal so far: it is the
+    # level-1 centrepiece of BOTH gardens, as it is in OSRS, and the two centrepieces are otherwise
+    # completely different lists. Anything not named here and claimed twice is still an error.
+    SHARED = {k: v for k, v in spec.get('loc_allowances', {}).items() if k != '_'}
     P = cfg('scripts/skill_construction/configs/poh.loc')
     # The exit portal is a centrepiece like any other, and it lives in the portal round's own config.
     P.update(cfg('scripts/skill_construction/configs/poh_portal.loc'))
@@ -172,7 +176,7 @@ def build():
                     continue
                 if d.get('op5') != 'Remove':
                     err.append('%s: %s has no op5=Remove' % (f['key'], loc))
-                if loc in seen_loc:
+                if loc in seen_loc and loc not in SHARED:
                     err.append('%s used by both %s and %s' % (loc, seen_loc[loc], f['key']))
                 seen_loc[loc] = f['key']
                 mats = [(m[0], m[1]) for m in pc['mats']]
@@ -725,9 +729,11 @@ def emit_rs2_tail(fams, items, byfam):
     for f in fams:
         for h in f['hotspots']:
             o += ['[oploc5,%s]' % byid[h], '~poh_furn_click(^poh_fam_%s);' % f['key'], '']
-    o += ['// One per buildable thing: every piece keeps its own op5=Remove from poh.loc.', '']
-    for i in items:
-        o += ['[oploc5,%s]' % i['loc'], '~poh_furn_remove;', '']
+    o += ['// One per buildable LOC: every piece keeps its own op5=Remove from poh.loc. Per loc and not',
+          '// per piece, because a loc can be buildable in two hotspots (the exit portal is the',
+          '// centrepiece of both gardens) and a trigger declared twice does not compile.', '']
+    for loc in dict.fromkeys(i['loc'] for i in items):
+        o += ['[oploc5,%s]' % loc, '~poh_furn_remove;', '']
     return o
 
 OPS_HEAD = """// What the furniture DOES. One [oploc1] per piece, generated from the op1 block of each family in
