@@ -46,6 +46,14 @@ ROW_Y, ROW_H = 56, 27
 TAB_X0, TAB_W, TAB_PITCH = 37, 44, 47
 GRID_Y, GRID_H = 85, 199
 
+# The grid gains rows it did not need before. In the "all items" view each tab starts on a fresh
+# row, so eight ragged tabs can burn up to 7 padding cells each - 56 in total - and a 44-row grid
+# (8 x 44 = 352, exactly the inv size) would push the last 56 slots off the bottom where they
+# could not be scrolled to. 51 rows is 408 cells: 352 items plus the worst-case padding, exactly.
+# The extra cells sit past the end of the inv, draw nothing, and are rejected by the engine's
+# validSlot check if anyone manages to click one.
+GRID_ROWS = 51
+
 COL_OFF = '0x3E3529'         # unselected tab
 COL_ON  = '0x6F6250'         # selected tab - matches the window's lit chrome
 
@@ -112,14 +120,24 @@ def main():
     body = re.sub(re.escape(MARK_A) + r'.*?' + re.escape(MARK_B) + r'\n?', '', body, flags=re.S)
 
     # shrink + lower the grid layer, keeping its bottom edge where it was
-    m = re.search(r'\[com_92\]\ntype=layer\nx=37\ny=(\d+)\nwidth=427\nheight=(\d+)\n', body)
+    m = re.search(r'\[com_92\]\ntype=layer\nx=37\ny=(\d+)\nwidth=427\nheight=(\d+)\n(?:scroll=\d+\n)?', body)
     if not m:
         sys.exit('com_92 does not look the way this generator expects - refusing to guess')
     old_y, old_h = int(m.group(1)), int(m.group(2))
     if old_y + old_h != GRID_Y + GRID_H:
         sys.exit(f'grid bottom would move: {old_y}+{old_h} != {GRID_Y}+{GRID_H}')
+    # scroll is the layer's virtual content height. The client recomputes it per tab when it gets
+    # if_setinvwindow / if_setinvbreaks, but the static value has to cover the full grid so a client
+    # that has not been told anything yet can still scroll to the bottom.
+    scroll = GRID_ROWS * (6 + 32)
     body = body[:m.start()] + (f'[com_92]\ntype=layer\nx=37\ny={GRID_Y}\nwidth=427\n'
-                               f'height={GRID_H}\n') + body[m.end():]
+                               f'height={GRID_H}\nscroll={scroll}\n') + body[m.end():]
+
+    # and give the grid itself the extra rows
+    g = re.search(r'(\[bank\]\nlayer=com_92\n(?:.*\n)*?height=)(\d+)\n', body)
+    if not g:
+        sys.exit('the bank grid does not look the way this generator expects')
+    body = body[:g.start(2)] + str(GRID_ROWS) + body[g.end(2):]
 
     body = body.rstrip('\n') + '\n\n' + blocks()
     open(IF, 'w', encoding='utf-8', newline='').write(body.replace('\n', '\r\n') if crlf else body)
@@ -173,7 +191,9 @@ def main():
     open(PACK, 'w', encoding='utf-8', newline='').write('\n'.join(keep_pack) + '\n')
     open(ORDER, 'w', encoding='utf-8', newline='').write(
         ('\r\n' if order_crlf else '\n').join(order) + ('\r\n' if order_crlf else '\n'))
-    print(f'{len(names)} components, ids {nxt - len(names)}..{nxt - 1}; '
-          f'grid layer {old_y}+{old_h} -> {GRID_Y}+{GRID_H}')
+    mine = sorted(int(l.split('=', 1)[0]) for l in keep_pack
+                  if l.split('=', 1)[1].startswith('bank_main:banktab'))
+    print(f'{len(names)} components, ids {mine[0]}..{mine[-1]}; '
+          f'grid {GRID_ROWS} rows; layer {old_y}+{old_h} -> {GRID_Y}+{GRID_H}')
 
 main()

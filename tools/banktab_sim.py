@@ -129,3 +129,92 @@ assert b.c[1] == 4 and b.c[2] == 2, f'counts wrong: {b.c[1:3]}'
 assert b.items[:5] == [0, 1, 2, 5, 3], f'item landed wrong: {b.items[:6]}'
 print('leftward move across a boundary lands at the end of the destination tab')
 print('ALL PASS')
+
+# ===================================================================================================
+# The "all items" cell map
+# ===================================================================================================
+# Transcribed from Component.rebuildCellMap in the client. This is the half that can silently HIDE
+# an item: the breaks push everything down, and if the map ran off the end of the grid an item would
+# simply stop being drawn with nothing to say so.
+# 51 rows, not 44: the breaks need room for up to 56 padding cells on top of the 352 real slots.
+WIDTH, ROWS = 8, 51
+CELLS = WIDTH * ROWS
+SLOTS = 352
+
+def cellmap(first, count, breaks):
+    broken = any(b > 0 for b in breaks)
+    if count < 0 and not broken:
+        return None
+    m = [-1] * CELLS
+    first = first if count >= 0 else 0
+    count = count if count >= 0 else CELLS
+    cell = 0
+    slot = first
+    while slot < first + count and cell < CELLS:
+        if broken:
+            for b in breaks:
+                if b == slot and cell % WIDTH != 0:
+                    cell += WIDTH - cell % WIDTH
+        if cell >= CELLS:
+            break
+        m[cell] = slot
+        cell += 1
+        slot += 1
+    return m
+
+def all_view(b):
+    breaks = [b.start(t) for t in range(2, TABS + 1)] + [b.numbered_total()]
+    m = cellmap(0, -1, breaks)
+    # None is the client's "identity mapping" case - every break is 0, i.e. no tab is in use, so
+    # the all-items view is just the plain contiguous list. Spell it out rather than special-case
+    # it at every call site.
+    return (m if m is not None else list(range(CELLS))), breaks
+
+fail = 0
+for seed in range(400):
+    b = run(seed)
+    m, breaks = all_view(b)
+    shown = [s for s in m if s >= 0]
+    # every real item is reachable, in order. shown is slot NUMBERS, so the test is that the
+    # first len(items) of them are 0..n-1 - i.e. no item was skipped or reordered by the padding.
+    if shown[:len(b.items)] != list(range(len(b.items))):
+        print(f'seed {seed}: all-view order wrong'); fail += 1
+    # each tab starts on a fresh row
+    for t in range(1, TABS + 1):
+        if b.c[t] == 0:
+            continue
+        cell = m.index(b.start(t))
+        if cell % WIDTH != 0 and b.start(t) != 0:
+            print(f'seed {seed}: tab {t} starts mid-row at cell {cell}'); fail += 1
+    # nothing is dropped off the bottom at realistic sizes
+    if len(shown) < len(b.items):
+        print(f'seed {seed}: {len(b.items) - len(shown)} items pushed off the grid '
+              f'({len(b.items)} items, 8 tabs)'); fail += 1
+assert fail == 0, f'{fail} all-view failures'
+print('400 seeds: the all-items view shows every item, in order, each tab starting on a fresh row')
+
+# the worst case: eight tabs each holding one item wastes seven cells per tab
+b = Bank()
+b.items = list(range(16))
+for t in range(1, 9):
+    b.c[t] = 1
+m, breaks = all_view(b)
+shown = [s for s in m if s >= 0]
+assert shown[:16] == list(range(16)), 'worst case lost an item'
+for t in range(1, 9):
+    assert m.index(b.start(t)) % WIDTH == 0 or b.start(t) == 0
+print('worst case (8 tabs x 1 item): 8 rows of one, remainder starts on row 9, nothing lost')
+
+# and the capacity cost of the breaks at full tilt
+# the capacity question the extra rows exist to answer: a FULL bank, eight tabs each ragged
+# enough to waste the maximum 7 cells. Every one of the 352 slots must still be reachable.
+b = Bank(); b.items = list(range(SLOTS))
+for t in range(1, 9):
+    b.c[t] = 9          # 9 items = 2 rows, 7 cells wasted per tab, 56 wasted in total
+m, _ = all_view(b)
+shown = [s for s in m if s >= 0]
+assert shown[:SLOTS] == list(range(SLOTS)), \
+    f'full bank + worst-case padding loses items: only {len(shown)} of {SLOTS} reachable'
+print(f'full bank (352) with 8 maximally ragged tabs: all 352 reachable in {CELLS} cells '
+      f'({CELLS - SLOTS} spare)')
+print('ALL PASS')

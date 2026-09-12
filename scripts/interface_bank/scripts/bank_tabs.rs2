@@ -85,12 +85,23 @@ return(^bank_tab_all);
 // so a player who never touches a tab sees exactly the bank they had.
 [proc,banktab_show](int $tab)
 %banktab = $tab;
+~banktab_icons;
 if ($tab = ^bank_tab_all) {
+    // The "all items" view is the whole list, but it must not run the tabs together - OSRS starts
+    // each tab on a fresh row. The break list is where each tab begins: tab 1 starts at 0 and needs
+    // no break, so the eight values are the starts of tabs 2..8 and the start of the remainder.
+    // An empty tab makes two of them equal, which the client treats as one break, not two.
     if_setinvwindow(bank_main:bank, 0, inv_size(bank));
+    if_setinvbreaks(bank_main:bank, ~banktab_start(2), ~banktab_start(3), ~banktab_start(4),
+        ~banktab_start(5), ~banktab_start(6), ~banktab_start(7), ~banktab_start(8),
+        ~banktab_numbered_total(0));
     if_setscrollpos(bank_main:com_92, 0);
     return;
 }
+// A single tab is already contiguous, so it needs no breaks - and they have to be cleared, or the
+// last "all" view's boundaries would keep punching holes in it.
 if_setinvwindow(bank_main:bank, ~banktab_start($tab), ~banktab_count($tab));
+if_setinvbreaks(bank_main:bank, 0, 0, 0, 0, 0, 0, 0, 0);
 if_setscrollpos(bank_main:com_92, 0);
 
 // Repaint the current tab. Called after anything that changes the bank, because the window is
@@ -227,4 +238,57 @@ while ($tab > 0) {
         $total = $occupied;
     }
     $tab = sub($tab, 1);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Tab icons
+// ---------------------------------------------------------------------------------------------
+// OSRS shows the first item of a tab as that tab's icon. The icon sits in its own layer per tab
+// (banktabNicon) purely so it can be hidden - if_sethide does nothing on a model component, only
+// on a layer, so an empty tab could not otherwise be blanked.
+[proc,banktab_icons]
+def_int $tab = 1;
+while ($tab <= ^bank_tabs) {
+    ~banktab_icon($tab);
+    $tab = add($tab, 1);
+}
+
+[proc,banktab_icon](int $tab)
+def_obj $icon = null;
+if (~banktab_count($tab) > 0) {
+    $icon = inv_getobj(bank, ~banktab_start($tab));
+}
+switch_int ($tab) {
+    case 1 :
+        if ($icon = null) { if_sethide(bank_main:banktab1icon, true); return; }
+        if_sethide(bank_main:banktab1icon, false);
+        if_setobject(bank_main:banktab1obj, $icon, ^bank_tab_icon_scale);
+    case 2 :
+        if ($icon = null) { if_sethide(bank_main:banktab2icon, true); return; }
+        if_sethide(bank_main:banktab2icon, false);
+        if_setobject(bank_main:banktab2obj, $icon, ^bank_tab_icon_scale);
+    case 3 :
+        if ($icon = null) { if_sethide(bank_main:banktab3icon, true); return; }
+        if_sethide(bank_main:banktab3icon, false);
+        if_setobject(bank_main:banktab3obj, $icon, ^bank_tab_icon_scale);
+    case 4 :
+        if ($icon = null) { if_sethide(bank_main:banktab4icon, true); return; }
+        if_sethide(bank_main:banktab4icon, false);
+        if_setobject(bank_main:banktab4obj, $icon, ^bank_tab_icon_scale);
+    case 5 :
+        if ($icon = null) { if_sethide(bank_main:banktab5icon, true); return; }
+        if_sethide(bank_main:banktab5icon, false);
+        if_setobject(bank_main:banktab5obj, $icon, ^bank_tab_icon_scale);
+    case 6 :
+        if ($icon = null) { if_sethide(bank_main:banktab6icon, true); return; }
+        if_sethide(bank_main:banktab6icon, false);
+        if_setobject(bank_main:banktab6obj, $icon, ^bank_tab_icon_scale);
+    case 7 :
+        if ($icon = null) { if_sethide(bank_main:banktab7icon, true); return; }
+        if_sethide(bank_main:banktab7icon, false);
+        if_setobject(bank_main:banktab7obj, $icon, ^bank_tab_icon_scale);
+    case 8 :
+        if ($icon = null) { if_sethide(bank_main:banktab8icon, true); return; }
+        if_sethide(bank_main:banktab8icon, false);
+        if_setobject(bank_main:banktab8obj, $icon, ^bank_tab_icon_scale);
 }
