@@ -40,6 +40,7 @@ class Bank:
         if tab:
             s.c[tab] = max(0, s.c[tab] - 1)
         s.closegap(slot)
+        s.compact()
     def insert(s, frm, to):
         it = s.items.pop(frm)
         s.items.insert(to, it)
@@ -55,10 +56,23 @@ class Bank:
         s.insert(slot, dest)
         if tab:
             s.c[tab] += 1
+        s.compact()
     def deposit(s, obj, viewing):
         s.items.append(obj)
         if viewing:
             s.move_to(len(s.items) - 1, viewing)
+    def compact(s):
+        # tabs in use must be 1..n with no holes. Nothing MOVES - an empty tab occupies zero slots,
+        # so renumbering the tabs above it down leaves every item exactly where it was.
+        dst = 1
+        for src in range(1, TABS + 1):
+            if s.c[src] > 0:
+                s.c[dst] = s.c[src]
+                dst += 1
+        while dst <= TABS:
+            s.c[dst] = 0
+            dst += 1
+
     def validate(s):
         occupied = len(s.items)
         total = s.numbered_total()
@@ -73,6 +87,13 @@ class Bank:
 
     # ---- invariants
     def check(s, where):
+        # no holes in the tab numbering
+        seen_empty = False
+        for t in range(1, TABS + 1):
+            if s.c[t] == 0:
+                seen_empty = True
+            elif seen_empty:
+                raise AssertionError(f'{where}: tab {t} is in use but a lower tab is empty: {s.c[1:]}')
         assert all(x >= 0 for x in s.c), f'{where}: negative count {s.c}'
         assert s.numbered_total() <= len(s.items), \
             f'{where}: tabs claim {s.numbered_total()} of {len(s.items)} items -> a tab points past the end'
@@ -104,6 +125,7 @@ def run(seed):
             for _ in range(rnd.randrange(1, 4)):
                 if b.items: b.items.pop(rnd.randrange(len(b.items)))
             b.validate()
+            b.compact()
         b.check(f'seed {seed} step {step}')
     return b
 

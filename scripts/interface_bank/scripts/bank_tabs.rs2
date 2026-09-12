@@ -107,6 +107,13 @@ if_setscrollpos(bank_main:com_92, 0);
 // Repaint the current tab. Called after anything that changes the bank, because the window is
 // expressed in slot numbers and those move whenever the list shifts.
 [proc,banktab_refresh]
+~banktab_compact;
+// the tab being looked at may have just been emptied, or renumbered out from under the player
+if (%banktab ! ^bank_tab_all) {
+    if (~banktab_count(%banktab) = 0) {
+        %banktab = ^bank_tab_all;
+    }
+}
 ~banktab_show(%banktab);
 
 [if_button,bank_main:banktab0] ~banktab_show(0);
@@ -291,4 +298,34 @@ switch_int ($tab) {
         if ($icon = null) { if_sethide(bank_main:banktab8icon, true); return; }
         if_sethide(bank_main:banktab8icon, false);
         if_setobject(bank_main:banktab8obj, $icon, ^bank_tab_icon_scale);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Keeping the tab NUMBERS contiguous
+// ---------------------------------------------------------------------------------------------
+// The tabs in use must be 1..n with no holes, the way OSRS has them: All, then 1, 2, 3, 4. Without
+// this, emptying tab 2 leaves a gap and the row reads All _ 1 _ 3 4, which is what it did in game.
+//
+// Nothing moves. An empty tab occupies ZERO slots, so renumbering the tabs above it down by one
+// leaves every item exactly where it was - the counts are the only thing that changes. That is a
+// property of tabs-as-ranges, and it is the reason this is four lines rather than a repack.
+//
+// It also gives "drag onto any empty tab" the right behaviour for free: drop something on tab 7
+// while only tab 1 is in use and the compaction pulls it straight back to tab 2, so an empty tab
+// anywhere in the row acts as OSRS's "+" button.
+[proc,banktab_compact]
+def_int $dst = 1;
+def_int $src = 1;
+while ($src <= ^bank_tabs) {
+    def_int $count = ~banktab_count($src);
+    if ($count > 0) {
+        // $dst is never ahead of $src, so this only ever writes over a tab already read
+        ~banktab_setcount($dst, $count);
+        $dst = add($dst, 1);
+    }
+    $src = add($src, 1);
+}
+while ($dst <= ^bank_tabs) {
+    ~banktab_setcount($dst, 0);
+    $dst = add($dst, 1);
 }
