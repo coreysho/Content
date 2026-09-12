@@ -84,6 +84,9 @@ class Bank:
             else:
                 s.c[tab] -= excess; total = occupied
             tab -= 1
+        # validate runs on OPEN, and opening is when the player looks at the tab row - so it is
+        # where a hole left by an older filing, or punched by the clamp above, has to be closed.
+        s.compact()
 
     # ---- invariants
     def check(s, where):
@@ -125,7 +128,6 @@ def run(seed):
             for _ in range(rnd.randrange(1, 4)):
                 if b.items: b.items.pop(rnd.randrange(len(b.items)))
             b.validate()
-            b.compact()
         b.check(f'seed {seed} step {step}')
     return b
 
@@ -240,3 +242,12 @@ assert shown[:SLOTS] == list(range(SLOTS)), \
 print(f'full bank (352) with 8 maximally ragged tabs: all 352 reachable in {CELLS} cells '
       f'({CELLS - SLOTS} spare)')
 print('ALL PASS')
+
+# a filing that already has a hole in it - made before compaction existed - must be tidied by the
+# next OPEN, not left until the player happens to deposit something
+b = Bank(); b.items = list(range(4))
+b.c[1] = 1; b.c[2] = 0; b.c[3] = 1; b.c[4] = 1
+b.validate()
+assert b.c[1:5] == [1, 1, 1, 0], f'open did not close the hole: {b.c[1:5]}'
+b.check('hole closed on open')
+print('a tab row with a hole in it is tidied by opening the bank, not by the next deposit')

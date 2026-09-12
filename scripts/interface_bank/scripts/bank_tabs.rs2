@@ -224,6 +224,12 @@ if (%banktab = ^bank_tab_all) {
 // So before the window is built, clamp. Shrink the numbered tabs from the LAST one down until
 // they fit inside what is actually there. Losing the filing of the highest tabs is recoverable by
 // dragging; ranges pointing at nothing are not obviously wrong to a player, which is worse.
+//
+// It ends by compacting, and that is not belt-and-braces. Compaction otherwise only runs from
+// ~banktab_refresh, i.e. on a bank CHANGE - so a filing that already had a hole in it (made before
+// compaction existed, or by the clamp above emptying a tab in the middle) kept the hole through
+// every open until the player happened to deposit something. Opening the bank is exactly when a
+// player looks at the tab row, so it is exactly when the row has to be right.
 [proc,banktab_validate]
 def_int $occupied = sub(inv_size(bank), inv_freespace(bank));
 def_int $total = ~banktab_numbered_total(0);
@@ -246,6 +252,7 @@ while ($tab > 0) {
     }
     $tab = sub($tab, 1);
 }
+~banktab_compact;
 
 // ---------------------------------------------------------------------------------------------
 // Tab icons
