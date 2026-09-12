@@ -7,12 +7,23 @@
 // Dropped on a tab button rather than on another slot. The client cannot express that in the
 // packet's component/slot fields - both slots have to be valid slots of the SAME inv or the
 // engine rejects it - so it rides the mode byte instead. See claude/bank-tabs.md.
-if(last_dragmode >= ^bank_drag_tab) {
+if(last_dragmode >= ^bank_drag_swap) {
+    // one tab dragged onto another: swap them. The mode byte carries both tab numbers.
+    def_int $pair = sub(last_dragmode, ^bank_drag_swap);
+    ~banktab_swap(add(divide($pair, 8), 1), add(modulo($pair, 8), 1));
+} else if(last_dragmode >= ^bank_drag_tab) {
     ~banktab_move_to(last_slot, sub(last_dragmode, ^bank_drag_tab));
 } else if(%bankinsert = 1) {
+    // Insert SHIFTS, so a drag that crosses a break changes how many items sit on each side of it:
+    // the tab the item left is one shorter, the one it landed in one longer. Work both out BEFORE
+    // the shift, because afterwards the slot numbers mean something different.
+    ~banktab_dragged(last_slot, last_targetslot);
     @insert_bank(last_slot, last_targetslot);
     ~banktab_refresh;
 } else {
+    // Swap needs no bookkeeping: two items trade places, so every range keeps its length and the
+    // item simply belongs to whichever tab it landed in. That is why dragging across a break
+    // already worked in swap mode and quietly corrupted the counts in insert mode.
     inv_movetoslot(bank, bank, last_slot, last_targetslot);
     ~banktab_refresh;
 }

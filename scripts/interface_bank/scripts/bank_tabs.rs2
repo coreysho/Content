@@ -106,7 +106,12 @@ return(^bank_tab_all);
 // ---------------------------------------------------------------------------------------------
 // Tab 0 is the whole inv, which is also the state the window is in before any of this existed -
 // so a player who never touches a tab sees exactly the bank they had.
+// Filing something should not yank the view back to the top. Only a deliberate tab CHANGE resets
+// the scroll; a repaint after a deposit, a withdrawal or a drag leaves the player where they were.
 [proc,banktab_show](int $tab)
+~banktab_show2($tab, ^false);
+
+[proc,banktab_show2](int $tab, boolean $keepscroll)
 %banktab = $tab;
 ~banktab_icons;
 if ($tab = ^bank_tab_all) {
@@ -118,14 +123,18 @@ if ($tab = ^bank_tab_all) {
     if_setinvbreaks(bank_main:bank, ~banktab_start(1), ~banktab_start(2), ~banktab_start(3),
         ~banktab_start(4), ~banktab_start(5), ~banktab_start(6), ~banktab_start(7),
         ~banktab_start(8));
-    if_setscrollpos(bank_main:com_92, 0);
+    if ($keepscroll = ^false) {
+        if_setscrollpos(bank_main:com_92, 0);
+    }
     return;
 }
 // A single tab is already contiguous, so it needs no breaks - and they have to be cleared, or the
 // last "all" view's boundaries would keep punching holes in it.
 if_setinvwindow(bank_main:bank, ~banktab_start($tab), ~banktab_count($tab));
 if_setinvbreaks(bank_main:bank, 0, 0, 0, 0, 0, 0, 0, 0);
-if_setscrollpos(bank_main:com_92, 0);
+if ($keepscroll = ^false) {
+    if_setscrollpos(bank_main:com_92, 0);
+}
 
 // Repaint the current tab. Called after anything that changes the bank, because the window is
 // expressed in slot numbers and those move whenever the list shifts.
@@ -137,7 +146,7 @@ if (%banktab ! ^bank_tab_all) {
         %banktab = ^bank_tab_all;
     }
 }
-~banktab_show(%banktab);
+~banktab_show2(%banktab, ^true);
 
 [if_button,bank_main:banktab0] ~banktab_show(0);
 [if_button,bank_main:banktab1] ~banktab_show(1);
@@ -364,3 +373,76 @@ while ($dst <= ^bank_tabs) {
     ~banktab_setcount($dst, 0);
     $dst = add($dst, 1);
 }
+
+// An insert-mode drag from $from to $to. Insert shifts every item between them along by one, so an
+// item that crosses a break leaves one tab and joins another and the counts have to follow. Called
+// before the shift, while the slot numbers still mean what they say.
+[proc,banktab_dragged](int $from, int $to)
+def_int $from_tab = ~banktab_of_slot($from);
+def_int $to_tab = ~banktab_of_slot($to);
+if ($from_tab = $to_tab) {
+    return;
+}
+if ($from_tab ! ^bank_tab_all) {
+    ~banktab_setcount($from_tab, sub(~banktab_count($from_tab), 1));
+}
+if ($to_tab ! ^bank_tab_all) {
+    ~banktab_setcount($to_tab, add(~banktab_count($to_tab), 1));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Swapping two tabs
+// ---------------------------------------------------------------------------------------------
+// Dragging tab A onto tab B trades their contents. The items really do have to move, because a tab
+// IS its position in the list - swapping only the counts would hand each tab the wrong items.
+//
+// The trick is that inv_movetoslot SWAPS rather than overwrites (Player.invMoveToSlot writes each
+// slot's obj into the other), so reversing a run of slots costs half its length. And reversing the
+// three parts of [A][middle][B] and then reversing the whole span leaves [B][middle][A]:
+// reversing a concatenation of already-reversed parts puts the parts back in order, backwards.
+// The whole swap is therefore one pass over the span - a few hundred moves at the very worst -
+// rather than lifting items across one at a time.
+[proc,banktab_reverse](int $from, int $to)
+def_int $a = $from;
+def_int $b = $to;
+while ($a < $b) {
+    inv_movetoslot(bank, bank, $a, $b);
+    $a = add($a, 1);
+    $b = sub($b, 1);
+}
+
+[proc,banktab_swap](int $x, int $y)
+if ($x = $y) {
+    return;
+}
+if ($x < ^bank_tab_all | $y < ^bank_tab_all) {
+    return;
+}
+// order them so $lo is the one nearer the front of the list
+def_int $lo = $x;
+def_int $hi = $y;
+if ($lo > $hi) {
+    $lo = $y;
+    $hi = $x;
+}
+def_int $lo_start = ~banktab_start($lo);
+def_int $lo_count = ~banktab_count($lo);
+def_int $hi_start = ~banktab_start($hi);
+def_int $hi_count = ~banktab_count($hi);
+if ($lo_count = 0 & $hi_count = 0) {
+    return;
+}
+if ($lo_count > 0) {
+    ~banktab_reverse($lo_start, sub(add($lo_start, $lo_count), 1));
+}
+if ($hi_start > add($lo_start, $lo_count)) {
+    ~banktab_reverse(add($lo_start, $lo_count), sub($hi_start, 1));
+}
+if ($hi_count > 0) {
+    ~banktab_reverse($hi_start, sub(add($hi_start, $hi_count), 1));
+}
+~banktab_reverse($lo_start, sub(add($hi_start, $hi_count), 1));
+// the tabs between them keep their own counts and their order; only the two ends trade
+~banktab_setcount($lo, $hi_count);
+~banktab_setcount($hi, $lo_count);
+~banktab_refresh;

@@ -57,6 +57,55 @@ class Bank:
             return
         s.place(slot, tab, frm)
 
+    def dragged(s, frm, to):
+        # insert-mode drag: the shift moves the item across a break, so one tab loses an item and
+        # the other gains one. Worked out BEFORE the shift, while the slot numbers still mean what
+        # they say. Swap mode needs none of this - two items trade places and every range keeps
+        # its length.
+        ft, tt = s.of_slot(frm), s.of_slot(to)
+        if ft == tt:
+            return
+        if ft:
+            s.c[ft] -= 1
+        if tt:
+            s.c[tt] += 1
+
+    def insert_drag(s, frm, to):
+        s.dragged(frm, to)
+        s.insert(frm, to)
+        s.compact()
+
+    def swap_drag(s, a, bx):
+        s.items[a], s.items[bx] = s.items[bx], s.items[a]
+        s.compact()
+
+    def reverse(s, frm, to):
+        # inv_movetoslot SWAPS, so reversing a run costs half its length
+        a, bx = frm, to
+        while a < bx:
+            s.items[a], s.items[bx] = s.items[bx], s.items[a]
+            a += 1
+            bx -= 1
+
+    def swap_tabs(s, x, y):
+        # [A][middle][B] -> [B][middle][A]: reverse each part, then reverse the whole span.
+        if x == y or x < 0 or y < 0:
+            return
+        lo, hi = (x, y) if x < y else (y, x)
+        ls, lc = s.start(lo), s.c[lo]
+        hs, hc = s.start(hi), s.c[hi]
+        if lc == 0 and hc == 0:
+            return
+        if lc:
+            s.reverse(ls, ls + lc - 1)
+        if hs > ls + lc:
+            s.reverse(ls + lc, hs - 1)
+        if hc:
+            s.reverse(hs, hs + hc - 1)
+        s.reverse(ls, hs + hc - 1)
+        s.c[lo], s.c[hi] = hc, lc
+        s.compact()
+
     def place(s, slot, tab, in_tab):
         if in_tab > 0:
             s.c[in_tab] -= 1
@@ -139,8 +188,14 @@ def run(seed):
             b.deposit(nxt, rnd.choice([0] + list(range(1, TABS + 1)))); nxt += 1
         elif act < 0.6 and b.items:
             b.removed(rnd.randrange(len(b.items)))
-        elif act < 0.9 and b.items:
+        elif act < 0.75 and b.items:
             b.move_to(rnd.randrange(len(b.items)), rnd.randrange(0, TABS + 1))
+        elif act < 0.80 and len(b.items) > 1:
+            b.swap_tabs(rnd.randrange(1, TABS + 1), rnd.randrange(1, TABS + 1))
+        elif act < 0.85 and len(b.items) > 1:
+            b.insert_drag(rnd.randrange(len(b.items)), rnd.randrange(len(b.items)))
+        elif act < 0.9 and len(b.items) > 1:
+            b.swap_drag(rnd.randrange(len(b.items)), rnd.randrange(len(b.items)))
         else:
             # simulate items vanishing behind the bank's back (death, other scripts),
             # then the guard that runs on open
@@ -293,3 +348,43 @@ assert shown[:SLOTS] == list(range(SLOTS)), \
 print(f'full bank (352) with 8 maximally ragged tabs: all 352 reachable in {CELLS} cells '
       f'({CELLS - SLOTS} spare)')
 print('ALL PASS')
+
+# an insert-mode drag across a break moves the item between tabs and the counts follow
+b = Bank(); b.items = list(range(10)); b.c[1] = 3; b.c[2] = 3     # untabbed 0-3, tab1 4-6, tab2 7-9
+b.insert_drag(4, 8)                 # first of tab 1 -> inside tab 2
+b.check('insert across a break')
+assert b.c[1] == 2 and b.c[2] == 4, f'counts did not follow the drag: {b.c[1:3]}'
+assert b.of_slot(8) == 2
+print('an insert drag across a break moves the item between tabs and the counts follow')
+
+# a swap across a break changes nothing about the sizes
+b = Bank(); b.items = list(range(10)); b.c[1] = 3; b.c[2] = 3
+before = list(b.c)
+b.swap_drag(4, 8)
+b.check('swap across a break')
+assert b.c == before, f'swap should not resize a tab: {b.c[1:3]}'
+assert b.items[4] == 8 and b.items[8] == 4
+print('a swap across a break trades two items and leaves every tab the same size')
+
+# dragging one tab onto another trades their contents, and leaves everything between alone
+b = Bank(); b.items = list(range(12))
+b.c[1] = 2; b.c[2] = 3; b.c[3] = 1          # untabbed 0-5, tab1 6-7, tab2 8-10, tab3 11
+assert b.untabbed() == 6
+tab1 = b.items[b.start(1):b.start(1) + b.c[1]]
+tab2 = b.items[b.start(2):b.start(2) + b.c[2]]
+tab3 = b.items[b.start(3):b.start(3) + b.c[3]]
+untabbed = b.items[:b.untabbed()]
+b.swap_tabs(1, 3)
+b.check('tab swap')
+assert b.items[:b.untabbed()] == untabbed, 'the untabbed block should not move'
+assert b.items[b.start(1):b.start(1) + b.c[1]] == tab3, f'tab 1 should hold the old tab 3: {b.items}'
+assert b.items[b.start(3):b.start(3) + b.c[3]] == tab1, f'tab 3 should hold the old tab 1: {b.items}'
+assert b.items[b.start(2):b.start(2) + b.c[2]] == tab2, f'tab 2 should be untouched: {b.items}'
+print('swapping two tabs trades their contents and leaves the tabs between them alone')
+
+# swapping with an empty tab moves the contents across rather than doing nothing
+b = Bank(); b.items = list(range(8)); b.c[1] = 3
+b.swap_tabs(1, 2)
+b.check('swap with an empty tab')
+assert b.c[1] == 3, 'compaction should pull the contents back down to tab 1'
+print('swapping a tab with an empty one is a no-op after compaction, which is the sane answer')
