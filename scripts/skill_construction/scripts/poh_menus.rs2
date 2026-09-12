@@ -539,6 +539,36 @@ switch_int ($item) {
     case 236 : return(1923);   // poh_treasure_teak_chest_8
     case 237 : return(1923);   // fever_chestclosed_8
     case 238 : return(1923);   // poh_treasure_magic_chest_8
+    case 239 : return(4961);   // osrsloc_4525_8
+    case 240 : return(4228);   // loc_13406_8
+    case 241 : return(3331);   // loc_13407_8
+    case 242 : return(2721);   // loc_13408_8
+    case 243 : return(9176);   // loc_13411_8
+    case 244 : return(6011);   // loc_13412_8
+    case 245 : return(7629);   // loc_13413_8
+    case 246 : return(9122);   // loc_13414_8
+    case 247 : return(7474);   // loc_13415_8
+    case 248 : return(9628);   // loc_13416_8
+    case 249 : return(6308);   // loc_13417_8
+    case 250 : return(9176);   // loc_13411_8
+    case 251 : return(6011);   // loc_13412_8
+    case 252 : return(7629);   // loc_13413_8
+    case 253 : return(9122);   // loc_13414_8
+    case 254 : return(7474);   // loc_13415_8
+    case 255 : return(9628);   // loc_13416_8
+    case 256 : return(6308);   // loc_13417_8
+    case 257 : return(3178);   // loc_13425_8
+    case 258 : return(3470);   // loc_13426_8
+    case 259 : return(6930);   // loc_13427_8
+    case 260 : return(3132);   // loc_13428_8
+    case 261 : return(3415);   // loc_13429_8
+    case 262 : return(3892);   // loc_13430_8
+    case 263 : return(1939);   // loc_13431_8
+    case 264 : return(1873);   // loc_13432_8
+    case 265 : return(1793);   // loc_13433_8
+    case 266 : return(1688);   // loc_13434_8
+    case 267 : return(1682);   // loc_13435_8
+    case 268 : return(3696);   // loc_13436_8
     case default : return(1883);
 }
 
@@ -549,7 +579,7 @@ if ($item = 0) {
 }
 if_sethide(poh_furnmenu:slot0, false);
 def_int $state = ^poh_state_ready;
-if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int, poh_furn_planks, $item)) {
+if (~poh_furn_have($item) = false) {
     $state = ^poh_state_poor;
 }
 if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
@@ -560,7 +590,7 @@ if_setmodel(poh_furnmenu:s0model, ~poh_furn_model($item));
 if_setangle(poh_furnmenu:s0model, ~poh_furn_xan($fam), ~poh_furn_yan($fam), ~poh_furn_zoom($item));
 if_settext(poh_furnmenu:s0lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
 if_settext(poh_furnmenu:s0name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
-if_settext(poh_furnmenu:s0need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
+if_settext(poh_furnmenu:s0need, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_furn_need, $item)>");
 
 [proc,poh_furn_slot1](int $item)
 if ($item = 0) {
@@ -569,7 +599,7 @@ if ($item = 0) {
 }
 if_sethide(poh_furnmenu:slot1, false);
 def_int $state = ^poh_state_ready;
-if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int, poh_furn_planks, $item)) {
+if (~poh_furn_have($item) = false) {
     $state = ^poh_state_poor;
 }
 if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
@@ -580,7 +610,7 @@ if_setmodel(poh_furnmenu:s1model, ~poh_furn_model($item));
 if_setangle(poh_furnmenu:s1model, ~poh_furn_xan($fam), ~poh_furn_yan($fam), ~poh_furn_zoom($item));
 if_settext(poh_furnmenu:s1lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
 if_settext(poh_furnmenu:s1name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
-if_settext(poh_furnmenu:s1need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
+if_settext(poh_furnmenu:s1need, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_furn_need, $item)>");
 
 [proc,poh_furn_slot2](int $item)
 if ($item = 0) {
@@ -589,7 +619,7 @@ if ($item = 0) {
 }
 if_sethide(poh_furnmenu:slot2, false);
 def_int $state = ^poh_state_ready;
-if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int, poh_furn_planks, $item)) {
+if (~poh_furn_have($item) = false) {
     $state = ^poh_state_poor;
 }
 if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
@@ -600,7 +630,7 @@ if_setmodel(poh_furnmenu:s2model, ~poh_furn_model($item));
 if_setangle(poh_furnmenu:s2model, ~poh_furn_xan($fam), ~poh_furn_yan($fam), ~poh_furn_zoom($item));
 if_settext(poh_furnmenu:s2lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
 if_settext(poh_furnmenu:s2name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
-if_settext(poh_furnmenu:s2need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
+if_settext(poh_furnmenu:s2need, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_furn_need, $item)>");
 
 [proc,poh_furn_slot3](int $item)
 if ($item = 0) {
@@ -609,7 +639,7 @@ if ($item = 0) {
 }
 if_sethide(poh_furnmenu:slot3, false);
 def_int $state = ^poh_state_ready;
-if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int, poh_furn_planks, $item)) {
+if (~poh_furn_have($item) = false) {
     $state = ^poh_state_poor;
 }
 if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
@@ -620,7 +650,7 @@ if_setmodel(poh_furnmenu:s3model, ~poh_furn_model($item));
 if_setangle(poh_furnmenu:s3model, ~poh_furn_xan($fam), ~poh_furn_yan($fam), ~poh_furn_zoom($item));
 if_settext(poh_furnmenu:s3lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
 if_settext(poh_furnmenu:s3name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
-if_settext(poh_furnmenu:s3need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
+if_settext(poh_furnmenu:s3need, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_furn_need, $item)>");
 
 [proc,poh_furn_slot4](int $item)
 if ($item = 0) {
@@ -629,7 +659,7 @@ if ($item = 0) {
 }
 if_sethide(poh_furnmenu:slot4, false);
 def_int $state = ^poh_state_ready;
-if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int, poh_furn_planks, $item)) {
+if (~poh_furn_have($item) = false) {
     $state = ^poh_state_poor;
 }
 if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
@@ -640,7 +670,7 @@ if_setmodel(poh_furnmenu:s4model, ~poh_furn_model($item));
 if_setangle(poh_furnmenu:s4model, ~poh_furn_xan($fam), ~poh_furn_yan($fam), ~poh_furn_zoom($item));
 if_settext(poh_furnmenu:s4lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
 if_settext(poh_furnmenu:s4name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
-if_settext(poh_furnmenu:s4need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
+if_settext(poh_furnmenu:s4need, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_furn_need, $item)>");
 
 [proc,poh_furn_slot5](int $item)
 if ($item = 0) {
@@ -649,7 +679,7 @@ if ($item = 0) {
 }
 if_sethide(poh_furnmenu:slot5, false);
 def_int $state = ^poh_state_ready;
-if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int, poh_furn_planks, $item)) {
+if (~poh_furn_have($item) = false) {
     $state = ^poh_state_poor;
 }
 if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
@@ -660,7 +690,7 @@ if_setmodel(poh_furnmenu:s5model, ~poh_furn_model($item));
 if_setangle(poh_furnmenu:s5model, ~poh_furn_xan($fam), ~poh_furn_yan($fam), ~poh_furn_zoom($item));
 if_settext(poh_furnmenu:s5lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
 if_settext(poh_furnmenu:s5name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
-if_settext(poh_furnmenu:s5need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
+if_settext(poh_furnmenu:s5need, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_furn_need, $item)>");
 
 [proc,poh_furn_slot6](int $item)
 if ($item = 0) {
@@ -669,7 +699,7 @@ if ($item = 0) {
 }
 if_sethide(poh_furnmenu:slot6, false);
 def_int $state = ^poh_state_ready;
-if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int, poh_furn_planks, $item)) {
+if (~poh_furn_have($item) = false) {
     $state = ^poh_state_poor;
 }
 if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
@@ -680,7 +710,7 @@ if_setmodel(poh_furnmenu:s6model, ~poh_furn_model($item));
 if_setangle(poh_furnmenu:s6model, ~poh_furn_xan($fam), ~poh_furn_yan($fam), ~poh_furn_zoom($item));
 if_settext(poh_furnmenu:s6lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
 if_settext(poh_furnmenu:s6name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
-if_settext(poh_furnmenu:s6need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
+if_settext(poh_furnmenu:s6need, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_furn_need, $item)>");
 
 [proc,poh_furn_slot7](int $item)
 if ($item = 0) {
@@ -689,7 +719,7 @@ if ($item = 0) {
 }
 if_sethide(poh_furnmenu:slot7, false);
 def_int $state = ^poh_state_ready;
-if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int, poh_furn_planks, $item)) {
+if (~poh_furn_have($item) = false) {
     $state = ^poh_state_poor;
 }
 if (stat(construction) < enum(int, int, poh_furn_level, $item)) {
@@ -700,7 +730,7 @@ if_setmodel(poh_furnmenu:s7model, ~poh_furn_model($item));
 if_setangle(poh_furnmenu:s7model, ~poh_furn_xan($fam), ~poh_furn_yan($fam), ~poh_furn_zoom($item));
 if_settext(poh_furnmenu:s7lvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");
 if_settext(poh_furnmenu:s7name, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");
-if_settext(poh_furnmenu:s7need, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");
+if_settext(poh_furnmenu:s7need, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_furn_need, $item)>");
 
 // Eight slots is one more than the largest family has tiers, so the More button is dead
 // weight today and there anyway: the tables are data, and a family can grow.

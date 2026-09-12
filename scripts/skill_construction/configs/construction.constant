@@ -85,9 +85,9 @@
 //
 // How many pieces one house can hold, and how many buildable things there are.
 ^poh_furn_slots = 256
-^poh_furn_items = 238
+^poh_furn_items = 268
 
-// The bit layout of one packed piece. 23 bits, so it fits an int with room to spare.
+// The bit layout of one packed piece. 30 bits, so it fits an int with room to spare.
 ^poh_furn_bit_rx = 0
 ^poh_furn_bit_rz = 3
 ^poh_furn_bit_lx = 6
@@ -95,9 +95,10 @@
 ^poh_furn_bit_angle = 12
 ^poh_furn_bit_item = 14
 ^poh_furn_bit_lit = 22
+^poh_furn_bit_item_hi = 23
 
 // Construction experience per plank. OSRS's furniture xp is very nearly planks x this, so it
-// is one rule rather than 238 rows of remembered numbers - and it is the obvious thing to tune.
+// is one rule rather than 268 rows of remembered numbers - and it is the obvious thing to tune.
 ^poh_xp_plank = 29
 ^poh_xp_oak = 60
 ^poh_xp_teak = 90
@@ -166,6 +167,19 @@
 ^poh_fam_sword = 49
 ^poh_fam_map = 50
 ^poh_fam_treasurechest = 51
+^poh_fam_centrepiece = 52
+^poh_fam_bigtree = 53
+^poh_fam_tree = 54
+^poh_fam_bigplant1 = 55
+^poh_fam_bigplant2 = 56
+^poh_fam_smallplant1 = 57
+^poh_fam_smallplant2 = 58
+
+// The exit portal, as a piece of furniture. It is the garden's level-1 centrepiece, which
+// is where OSRS puts it, and ~poh_ensure_exit hands one out free to any house that has no
+// portal yet. ~poh_furn_remove will not take out the last one: that is the whole reason
+// this number is a constant rather than something the remove path works out.
+^poh_furn_exit_portal = 239
 
 // ---- the build windows (poh_roommenu.if, poh_furnmenu.if) ----
 // The camera the model icons are drawn with. The two angles are shared; the ZOOM is not, because
@@ -205,3 +219,20 @@
 // carried to the lectern in the first place. The buttons themselves - 1, 5, 10 - are in
 // tools/tabletspec.json, written into the window rather than into constants.
 ^poh_tab_qty_max = 28
+
+// ---- the garden (poh_garden.rs2) ----
+// HAND WRITTEN, and outside the generators' blocks on purpose: tools/genfurn.py rewrites
+// everything from "// ---- furniture" to the next marker, and gentablets.py the lectern block.
+//
+// Where the Centrepiece space sits inside a garden zone. Read out of all six template squares
+// (m29_79 levels 0-3 and m30_79 levels 0-1): every one of them has it at 3,3, one tile north of
+// where the player lands (^poh_spawn_x/z is 3,2). Battery check 46 reads the maps again.
+^poh_garden_cp_x = 3
+^poh_garden_cp_z = 3
+
+// What the Garden supplier charges and pays, as a multiple of an item's own cache cost out of
+// 1000 (~calc_shop_value). 400 is exactly the OSRS price for all ten bagged plants; 240 is the
+// 60%-of-selling ratio the other shops use. The same two numbers are literals in poh_garden.npc,
+// because a config param has no precedent for taking a ^constant - check 46 compares them.
+^poh_garden_sell = 400
+^poh_garden_buy = 240

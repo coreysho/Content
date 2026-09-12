@@ -1,0 +1,83 @@
+// The Garden supplier in Falador Park, and the Garden Centre she runs.
+//
+// She is a plain shop: Talk-to offers the stock and Trade opens it, the same two ways every other
+// shopkeeper in the build works (~openshop_activenpc reads her own npc params). The stock and the
+// prices are in poh_garden.inv and poh_garden.npc - nothing about them is in this file.
+//
+// What she sells is the garden's material. Planks build the inside of a house; a tree does not come
+// out of a plank, and OSRS sells bagged trees and plants instead, which is why the garden waited on
+// a shop before it could be built at all (claude/poh-garden.md).
+
+[opnpc1,poh_garden_supplier]
+~chatnpc("<p,happy>Hello! Looking for something for the garden?");
+def_int $option = ~p_choice3("What have you got?", 1, "What can I do with a bagged plant?", 2, "Nothing today, thanks.", 3);
+if ($option = 1) {
+    ~chatplayer("<p,neutral>What have you got?");
+    ~openshop_activenpc;
+} else if ($option = 2) {
+    ~chatplayer("<p,quiz>What can I do with a bagged plant?");
+    ~chatnpc("<p,happy>Plant it in your garden! Build it into one of the plant or tree spaces.");
+    ~chatnpc("<p,neutral>You'll want a house first, mind. The estate agent in Rimmington has those.");
+} else {
+    ~chatplayer("<p,neutral>Nothing today, thanks.");
+    ~chatnpc("<p,happy>Mind the flowers on your way out!");
+}
+
+[opnpc3,poh_garden_supplier]
+~openshop_activenpc;
+
+// =========================================================================== the way out
+
+// The exit portal is the garden's level-1 centrepiece (^poh_furn_exit_portal), so it is stored and
+// restored like any other piece of furniture. This is what puts the FIRST one in: a house that has
+// no portal anywhere gets one free, in its garden's Centrepiece space. That covers both a brand new
+// house and every house built before the portal became furniture.
+//
+// Free, and no Construction level: OSRS starts a house with its exit portal already built, and a
+// player who had to pay ten iron bars to get out of the first visit would simply be stuck.
+[proc,poh_ensure_exit]
+if (~poh_furn_count_item(^poh_furn_exit_portal) > 0) {
+    return;
+}
+def_int $slot = ~poh_garden_slot;
+if ($slot < 0) {
+    return;
+}
+def_int $rx = modulo($slot, ^poh_grid);
+def_int $rz = divide($slot, ^poh_grid);
+def_int $free = ~poh_furn_free;
+if ($free < 0) {
+    return;
+}
+if (~poh_furn_at($rx, $rz, ^poh_garden_cp_x, ^poh_garden_cp_z) ! -1) {
+    // something is already built on the centrepiece - a pond, say - so it is not the portal's any
+    // more and the player found their own way in here
+    return;
+}
+~poh_furn_set($free, ~poh_furn_pack($rx, $rz, ^poh_garden_cp_x, ^poh_garden_cp_z, ~poh_garden_cp_angle, ^poh_furn_exit_portal));
+
+// The first garden on the grid, or -1. The portal goes in a garden because that is the room with a
+// Centrepiece space and open ground around it.
+[proc,poh_garden_slot]()(int)
+def_int $rz = 0;
+while ($rz < ^poh_grid) {
+    def_int $rx = 0;
+    while ($rx < ^poh_grid) {
+        if (~poh_room_type($rx, $rz) = ^poh_room_garden) {
+            return(calc($rz * ^poh_grid + $rx));
+        }
+        $rx = calc($rx + 1);
+    }
+    $rz = calc($rz + 1);
+}
+return(-1);
+
+// Which way the Centrepiece space faces in this house's style. Read out of the six template squares
+// (battery check 46 reads them again and fails if this drifts): style 0's hotspot is turned a
+// quarter, the other five are not. It matters because a piece of furniture is placed at the angle
+// stored with it, and the granted portal has no click to take an angle from.
+[proc,poh_garden_cp_angle]()(int)
+if (%poh_style = 0) {
+    return(1);
+}
+return(0);

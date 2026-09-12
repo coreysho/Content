@@ -398,7 +398,7 @@ def rs2_furn(spec, cams, fams):
         o.append('}')
         o.append('if_sethide(poh_furnmenu:slot%d, false);' % i)
         o.append('def_int $state = ^poh_state_ready;')
-        o.append('if (~poh_furn_plank_total(enum(int, int, poh_furn_wood, $item)) < enum(int, int, poh_furn_planks, $item)) {')
+        o.append('if (~poh_furn_have($item) = false) {')
         o.append('    $state = ^poh_state_poor;')
         o.append('}')
         o.append('if (stat(construction) < enum(int, int, poh_furn_level, $item)) {')
@@ -409,7 +409,7 @@ def rs2_furn(spec, cams, fams):
         o.append('if_setangle(poh_furnmenu:s%dmodel, ~poh_furn_xan($fam), ~poh_furn_yan($fam), ~poh_furn_zoom($item));' % i)
         o.append('if_settext(poh_furnmenu:s%dlvl, "<enum(int, string, poh_tint_level, $state)>Level <tostring(enum(int, int, poh_furn_level, $item))>");' % i)
         o.append('if_settext(poh_furnmenu:s%dname, "<enum(int, string, poh_tint_name, $state)><enum(int, string, poh_furn_name, $item)>");' % i)
-        o.append('if_settext(poh_furnmenu:s%dneed, "<enum(int, string, poh_tint_need, $state)><tostring(enum(int, int, poh_furn_planks, $item))> <enum(int, string, poh_wood_name, $item)>");' % i)
+        o.append('if_settext(poh_furnmenu:s%dneed, "<enum(int, string, poh_tint_need, $state)><enum(int, string, poh_furn_need, $item)>");' % i)
         o.append('')
     o.append('// Eight slots is one more than the largest family has tiers, so the More button is dead')
     o.append('// weight today and there anyway: the tables are data, and a family can grow.')
@@ -769,7 +769,8 @@ if __name__ == '__main__':
     famof = {}
     n = 0
     for f in fams:
-        for _ in f['locs']:
+        # a plank family lists its locs; a garden family spells out every piece
+        for _ in f.get('locs', f.get('pieces', [])):
             n += 1
             famof[n] = f['key']
     XAN, YAN = default_camera()

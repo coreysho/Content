@@ -26,6 +26,9 @@ BIT = {k[len('poh_furn_bit_'):]: v for k, v in C.items() if k.startswith('poh_fu
 _edges = sorted(BIT.values()) + [31]
 WIDTH = {k: next(e for e in _edges if e > v) - v for k, v in BIT.items()}
 WIDTH['lit'] = 1
+# The TOP field cannot get its width from the next field's start - there is no next field - so it
+# comes out of the .rs2's own range instead.
+WIDTH['item_hi'] = int(re.search(r'\^poh_furn_bit_item_hi \+ (\d+)\)', rs2).group(1)) + 1
 
 def table(name):
     body = enums.split('[' + name + ']', 1)[1].split('\n[', 1)[0]
@@ -50,18 +53,44 @@ def getbit_range(num, start, end):
     a = 31 - end
     return ((num << a) & 0xFFFFFFFF) >> (start + a)
 
+# The item number is split across two ranges - the low byte at `item` and the high seven bits at
+# `item_hi`, above `lit` - so that widening it from 8 bits could not move anything an existing save
+# had already written. LO is read out of the .rs2's own modulo, not assumed.
+LO = int(re.search(r'setbit_range_toint\(\$v, modulo\(\$item, (\d+)\)', rs2).group(1))
+
 def pack(rx, rz, lx, lz, angle, item):                   # ~poh_furn_pack
     v = 0
     for k, val in (('rx', rx), ('rz', rz), ('lx', lx), ('lz', lz),
-                   ('angle', angle % 4), ('item', item)):
+                   ('angle', angle % 4), ('item', item % LO), ('item_hi', item // LO)):
         v = setbit_range_toint(v, val, BIT[k], BIT[k] + WIDTH[k] - 1)
     return v
 def field(v, k):                                         # ~poh_furn_field
+    if k == 'item':                                      # ~poh_furn_item
+        return (getbit_range(v, BIT['item'], BIT['item'] + WIDTH['item'] - 1)
+                + getbit_range(v, BIT['item_hi'], BIT['item_hi'] + WIDTH['item_hi'] - 1) * LO)
     return getbit_range(v, BIT[k], BIT[k] + WIDTH[k] - 1)
 
 print('1. the layout in the .rs2 is the layout here')
 # the packed value may itself hold a comma (modulo($angle, 4)), so match up to the field constant
 for k in WIDTH:
+    if k == 'item_hi':
+        m = re.search(r'setbit_range_toint\(\$v, divide\(\$item, %d\), \^poh_furn_bit_item_hi, calc\(\^poh_furn_bit_item_hi \+ (\d+)\)\)' % LO, rs2)
+        check(m is not None and int(m.group(1)) + 1 == WIDTH[k],
+              'the item high byte is %d bits wide in poh_furniture.rs2' % WIDTH[k])
+        check(re.search(r'\[proc,poh_furn_item\]\(int \$v\)\(int\)\nreturn\(calc\(~poh_furn_field\(\$v, \^poh_furn_bit_item, %d\) \+ ~poh_furn_field\(\$v, \^poh_furn_bit_item_hi, %d\) \* %d\)\);'
+                        % (WIDTH['item'], WIDTH['item_hi'], LO), rs2) is not None,
+              '~poh_furn_item reassembles the two halves, and every reader goes through it')
+        # Exactly four mentions of the two halves in the whole layer: the two writes in
+        # ~poh_furn_pack and the two reads in ~poh_furn_item. Anything else is a reader that would
+        # see only part of the number.
+        both = rs2 + ops
+        check(both.count('^poh_furn_bit_item,') == 2 and both.count('^poh_furn_bit_item_hi,') == 2,
+              'only ~poh_furn_pack and ~poh_furn_item touch the halves (%d + %d mentions)'
+              % (both.count('^poh_furn_bit_item,'), both.count('^poh_furn_bit_item_hi,')))
+        check((1 << (WIDTH['item'] + WIDTH['item_hi'])) > ITEMS,
+              '%d pieces fit the %d-bit item number (ceiling %d)'
+              % (ITEMS, WIDTH['item'] + WIDTH['item_hi'], (1 << (WIDTH['item'] + WIDTH['item_hi'])) - 1))
+        continue
     if k == 'lit':
         # not packed at build time - ~poh_furn_light sets it on a record that already exists
         m = re.search(r'setbit_range_toint\(\$v, 1, \^poh_furn_bit_lit, \^poh_furn_bit_lit\)', ops)
@@ -76,7 +105,9 @@ edges = sorted((BIT[k], BIT[k] + WIDTH[k]) for k in WIDTH)
 gapless = all(edges[i][1] == edges[i + 1][0] for i in range(len(edges) - 1)) and edges[0][0] == 0
 check(gapless, 'the fields run from bit 0 with no gap and no overlap: %s' % edges)
 check(edges[-1][1] <= 31, 'a piece fits an int (%d bits)' % edges[-1][1])
-check(ITEMS < (1 << WIDTH['item']), '%d items fit %d bits' % (ITEMS, WIDTH['item']))
+ITEM_BITS = WIDTH['item'] + WIDTH['item_hi']
+check(ITEMS < (1 << ITEM_BITS), '%d items fit the %d bits of the item number (%d low, %d high)'
+      % (ITEMS, ITEM_BITS, WIDTH['item'], WIDTH['item_hi']))
 check(SLOTS <= 256, '%d slots' % SLOTS)
 
 print('2. every value that can be packed comes back out unchanged')
@@ -102,20 +133,23 @@ check(not zeros, 'no real piece packs to 0, which is the empty marker: %s' % zer
 # already existed, because a save written before it existed has 0 in those bits. Decode a record
 # packed WITHOUT it and every old field has to come back unchanged, with lit reading as 0 - unlit,
 # which is what it was.
-OLD = {k: (BIT[k], WIDTH[k]) for k in WIDTH if k != 'lit'}
+OLD = {k: (BIT[k], WIDTH[k]) for k in WIDTH if k not in ('lit', 'item_hi')}
 oldtop = max(b + w for b, w in OLD.values())
 check('lit' in WIDTH and BIT['lit'] >= oldtop,
       'lit sits at bit %s, above the %d bits that existed before it' % (BIT.get('lit'), oldtop))
+check(BIT['item_hi'] > BIT['lit'],
+      'the item high byte sits at bit %d, above lit as well' % BIT['item_hi'])
 bad = []
-for rx, rz, lx, lz, angle, item in [(0,0,0,0,0,1), (7,7,7,7,3,ITEMS), (3,5,2,6,1,63), (1,2,3,4,2,127)]:
+for rx, rz, lx, lz, angle, item in [(0,0,0,0,0,1), (7,7,7,7,3,238), (3,5,2,6,1,63), (1,2,3,4,2,127),
+                                    (2,2,5,5,3,255)]:
     v = 0
     for k, (b, w) in OLD.items():
         v |= (dict(rx=rx, rz=rz, lx=lx, lz=lz, angle=angle, item=item)[k] & ((1 << w) - 1)) << b
     got = tuple(field(v, k) for k in ('rx', 'rz', 'lx', 'lz', 'angle', 'item', 'lit'))
     if got != (rx, rz, lx, lz, angle, item, 0):
         bad.append((rx, rz, lx, lz, angle, item, got))
-check(not bad, 'a record written before the lit bit existed still decodes: %s'
-      % (bad[:2] or '4 shapes checked, lit reads 0'))
+check(not bad, 'a record written before the lit bit and the item high byte existed still decodes: %s'
+      % (bad[:2] or '5 shapes checked, including item 255, lit reads 0'))
 
 print('3. the slot scan finds the right piece and nothing else')
 random.seed(4525)
@@ -163,15 +197,48 @@ for f, its in sorted(byfam.items()):
     check(lv == sorted(lv), 'family %d levels rise with the tier: %s' % (f, lv))
     wd = [WOOD[i] for i in its]
     check(wd == sorted(wd), 'family %d woods do not go backwards: %s' % (f, wd))
-# the script's plank and xp switches must cover the same four woods the table uses
-for proc, pat in (('poh_furn_plank_total', r'case (\d) : return\(inv_total'),
-                  ('poh_furn_plank_take', r'case (\d) : inv_del'),
-                  ('poh_furn_xp', r'case (\d) : return\(calc')):
-    body = rs2.split('[proc,%s]' % proc, 1)[1].split('\n[', 1)[0]
-    cases = sorted(int(m) for m in re.findall(pat, body))
-    check(cases == [2, 3, 4] and 'case default' in body,
-          '%s handles woods 2,3,4 with 1 as the default: %s' % (proc, cases))
-check(set(WOOD.values()) <= {1, 2, 3, 4}, 'the table only uses woods the script can pay for')
+# MATERIALS. The plank switches are gone: every piece carries what it costs (poh_furn_mat1/mat2) and
+# what it pays (poh_furn_xp), because the garden is built out of bagged plants and limestone rather
+# than planks and a rule that only knew about wood could not say that.
+MAT1, MAT1N = table('poh_furn_mat1'), {k: int(v) for k, v in table('poh_furn_mat1n').items()}
+MAT2, MAT2N = table('poh_furn_mat2'), {k: int(v) for k, v in table('poh_furn_mat2n').items()}
+XP = {k: int(v) for k, v in table('poh_furn_xp').items()}
+NEED = table('poh_furn_need')
+OBJS = {l.split('=', 1)[1] for l in read('pack/obj.pack').split('\n') if '=' in l}
+check(sorted(MAT1) == list(range(1, ITEMS + 1)), 'every piece has a first material: %d rows' % len(MAT1))
+check(sorted(MAT1N) == list(range(1, ITEMS + 1)), 'every piece says how much of it: %d rows' % len(MAT1N))
+bad = [i for i in MAT1 if MAT1[i] not in OBJS] + [i for i in MAT2 if MAT2[i] not in OBJS]
+check(not bad, 'every material is a real obj: %s' % (bad[:4] or 'all %d' % (len(MAT1) + len(MAT2))))
+bad = [i for i in MAT1N if MAT1N[i] < 1] + [i for i in MAT2N if MAT2N[i] < 1]
+check(not bad, 'nothing costs zero of a material: %s' % (bad[:4] or 'all positive'))
+check(sorted(MAT2) == sorted(MAT2N),
+      'the second material and its count go together: %d pieces need two' % len(MAT2))
+bad = [i for i in XP if XP[i] < 0]
+check(sorted(XP) == list(range(1, ITEMS + 1)) and not bad,
+      'every piece pays experience: %d rows, %d..%d' % (len(XP), min(XP.values()), max(XP.values())))
+# a plank family's row still IS the old rule - planks x the per-plank value - so the refactor did
+# not quietly retune 238 pieces that were already shipped
+PLANK_OBJ = {1: 'plank', 2: 'oak_plank', 3: 'teak_plank', 4: 'mahogany_plank'}
+XP_WOOD = {1: C['poh_xp_plank'], 2: C['poh_xp_oak'], 3: C['poh_xp_teak'], 4: C['poh_xp_mahogany']}
+bad = []
+for i in MAT1:
+    if not WOOD[i]:
+        continue                                    # the garden: its own numbers, checked below
+    if (MAT1[i], MAT1N[i], XP[i]) != (PLANK_OBJ[WOOD[i]], PLANKS[i], PLANKS[i] * XP_WOOD[WOOD[i]]):
+        bad.append((i, MAT1[i], MAT1N[i], XP[i]))
+check(not bad, 'every plank piece costs its own planks and pays planks x the per-plank value: %s'
+      % (bad[:3] or '%d pieces' % sum(1 for i in MAT1 if WOOD[i])))
+# and a garden piece's needs line names each of its materials with the right count
+bad = []
+for i in MAT1:
+    if WOOD[i]:
+        continue
+    want = [str(MAT1N[i])] + ([str(MAT2N[i])] if i in MAT2N else [])
+    if not all(w in NEED[i] for w in want):
+        bad.append((i, NEED[i]))
+check(not bad, 'every garden needs line names its counts: %s'
+      % (bad[:3] or '%d pieces' % sum(1 for i in MAT1 if not WOOD[i])))
+check(set(WOOD.values()) <= {0, 1, 2, 3, 4}, 'the wood column is a wood or 0 for the garden')
 
 print('6. the window lists a whole family whatever the level, and gates on the way out')
 # The level stopped being a filter when the window started dimming what you cannot reach: a tier you

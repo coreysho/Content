@@ -64,7 +64,7 @@ def furn_fill(fam, more, level=99, planks=10 ** 6):
     fm, fz = rs2table(FURN, 'poh_furn_model'), rs2table(MENUS, 'poh_furn_zoom')
     famof = enumtable(F, 'poh_furn_fam'); name = enumtable(F, 'poh_furn_name')
     lvl = enumtable(F, 'poh_furn_level'); plank = enumtable(F, 'poh_furn_planks')
-    wood = enumtable(F, 'poh_wood_name'); famname = enumtable(F, 'poh_fam_name')
+    need = enumtable(F, 'poh_furn_need'); famname = enumtable(F, 'poh_fam_name')
     items = [i for i in sorted(famof) if int(famof[i]) == fam]
     fill = {'title': {'text': famname[fam]},
             'subtitle': {'text': 'Select what you want to build'},
@@ -72,12 +72,12 @@ def furn_fill(fam, more, level=99, planks=10 ** 6):
     for s in range(8):
         if s < len(items):
             it = items[s]
-            st = state(int(lvl[it]), int(plank[it]), level, planks)
+            st = state(int(lvl[it]), int(plank[it]) or 1, level, planks)
             tn, tl, td = tint(st)
             fill['s%dmodel' % s] = {'model': fm[it], 'zoom': fz[it]}
             fill['s%dlvl' % s] = {'text': '%sLevel %s' % (tl, lvl[it])}
             fill['s%dname' % s] = {'text': '%s%s' % (tn, name[it])}
-            fill['s%dneed' % s] = {'text': '%s%s %s' % (td, plank[it], wood[it])}
+            fill['s%dneed' % s] = {'text': '%s%s' % (td, need[it])}
         else:
             fill['slot%d' % s] = {'hide': 'yes'}
     return fill
@@ -132,6 +132,10 @@ STATES = [
     ('The bed hotspot at 99 with nothing in the bank',
      'poh_furnmenu', furn_fill(10, False, level=99, planks=0)),
     ('The larder hotspot, all three affordable', 'poh_furnmenu', furn_fill(3, False)),
+    ('The garden centrepiece at level 12 with no materials: the exit portal, rock, pond and imp statue',
+     'poh_furnmenu', furn_fill(52, False, level=12, planks=0)),
+    ('The big tree space at 99 - seven bagged trees, and the widest needs lines in the garden',
+     'poh_furnmenu', furn_fill(53, False, level=99)),
     ('The mahogany demon lectern at Magic 60 with no nature runes: the widest strings there are',
      'poh_tabletmenu', tab_fill(7, magic=60,
                                 runes={'enchant_sapphire', 'enchant_emerald', 'enchant_ruby',

@@ -200,13 +200,10 @@ return(instance_setzone($dst, $from, ~poh_room_rot($rx, $rz)));
 
 // The way out, beside where the player lands. Re-run after any room change: if the room holding the
 // portal was the one removed, the only way out went with it.
-[proc,poh_spawn_exit](coord $base)
-def_int $slot = ~poh_entry_slot;
-if ($slot < 0) {
-    return;
-}
-def_coord $entry = ~poh_entry_coord($base, $slot);
-loc_add(movecoord($entry, calc(^poh_exit_portal_x - ^poh_spawn_x), 0, calc(^poh_exit_portal_z - ^poh_spawn_z)), poh_exit_portal, 0, centrepiece_straight, ^poh_loc_duration);
+// The way out used to be loc_added into the corner of the entry room on every visit. It is a piece
+// of FURNITURE now - the garden's level-1 centrepiece, which is where OSRS has it - so it is stored,
+// restored with everything else, and can be replaced by a pond once the player has another way out.
+// ~poh_ensure_exit (poh_garden.rs2) is what hands the first one out.
 
 // Lay the saved grid into a fresh instance. Returns its south-west corner, or null if no instance
 // slot was free.
@@ -297,6 +294,9 @@ if (%poh_owned = 0) {
 if (~poh_room_total = 0) {
     ~poh_grant_starter;
 }
+// A house with no way out is not enterable. Every house gets its exit portal here rather than in
+// ~poh_grant_starter, so the ones built before the portal was furniture get one too.
+~poh_ensure_exit;
 def_coord $base = ~poh_build($buildmode);
 if ($base = null) {
     mes("Every house slot is in use - try again in a moment.");
@@ -308,9 +308,6 @@ if ($slot < 0) {
     mes("Your house has no rooms in it.");
     return;
 }
-// The way out, in the room the player is about to land in. After ~poh_build, never before it: the
-// last instance_setzone purges its zone and would take this with it.
-~poh_spawn_exit($base);
 p_telejump(~poh_entry_coord($base, $slot));
 
 [proc,poh_leave]

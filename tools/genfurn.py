@@ -75,6 +75,12 @@ def packmap(p):
 
 WOOD = {1: 'Wooden', 2: 'Oak', 3: 'Teak', 4: 'Mahogany'}
 WOOD_PLANK = {1: 'planks', 2: 'oak planks', 3: 'teak planks', 4: 'mahogany planks'}
+# The plank obj behind each wood, and the experience one of them pays. Both were literals in two
+# places (a switch in the .rs2 and the constants) until the garden arrived needing materials that are
+# not planks at all; now every piece carries its materials and its experience as data, and these are
+# what the plank families' rows are built from.
+WOOD_OBJ = {1: 'plank', 2: 'oak_plank', 3: 'teak_plank', 4: 'mahogany_plank'}
+XP_WOOD = {1: 29, 2: 60, 3: 90, 4: 140}
 
 # The three sizes the first twelve families used. Kept verbatim: the wood decides the level and the
 # plank type, so changing a split would move items that are already standing in someone's house.
@@ -106,18 +112,21 @@ SHAPE_INDEX = ['centrepiece_straight', 'centrepiece_diagonal',
 
 # How wide a name may be, measured in the client's own font. Read out of the window rather than
 # typed, so moving the slot columns moves this with them.
-def _namebox():
+def _box(com):
     src = read('scripts/skill_construction/interfaces/poh_furnmenu.if')
-    b = src.split('[s0name]')[1].split('\n[')[0]
+    b = src.split('[%s]' % com)[1].split('\n[')[0]
     return (int(re.search(r'^width=(\d+)$', b, re.M).group(1)),
             re.search(r'^font=(\w+)$', b, re.M).group(1))
 
-NAME_PX, NAME_FONT = _namebox()
+NAME_PX, NAME_FONT = _box('s0name')
+# The needs column is a different width in a different font, so it needs its own measure - the
+# garden's "5 limestone, 5 soft clay" is the first materials line long enough to care.
+NEED_PX, NEED_FONT = _box('s0need')
 
-def width(s):
+def width(s, font=None):
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import ifrender
-    return ifrender.font(NAME_FONT).width(s)
+    return ifrender.font(font or NAME_FONT).width(s)
 
 # --------------------------------------------------------------------------- build the tables
 
@@ -127,6 +136,8 @@ def build():
     global OVERRIDE
     OVERRIDE = {k: v for k, v in spec.get('labels', {}).items() if k != '_'}
     P = cfg('scripts/skill_construction/configs/poh.loc')
+    # The exit portal is a centrepiece like any other, and it lives in the portal round's own config.
+    P.update(cfg('scripts/skill_construction/configs/poh_portal.loc'))
     T = cfg('scripts/skill_construction/configs/poh_templates.loc')
     LOCS = packmap('pack/loc.pack')
     byid = {v: k for k, v in LOCS.items()}
@@ -148,6 +159,49 @@ def build():
             if h in seen_hot:
                 err.append('hotspot %d claimed by both %s and %s' % (h, seen_hot[h], f['key']))
             seen_hot[h] = f['key']
+        if 'pieces' in f:
+            # A family whose pieces are not a wood ladder - the garden's trees and plants, where the
+            # material is a bagged plant and the level, the experience and the cost are OSRS's own
+            # per piece. Each row says exactly what it is; nothing here is derived.
+            OBJS = packmap('pack/obj.pack')
+            for t, pc in enumerate(f['pieces'], start=1):
+                loc = pc['loc']
+                d = P.get(loc)
+                if d is None:
+                    err.append('%s: %s is not in poh.loc' % (f['key'], loc))
+                    continue
+                if d.get('op5') != 'Remove':
+                    err.append('%s: %s has no op5=Remove' % (f['key'], loc))
+                if loc in seen_loc:
+                    err.append('%s used by both %s and %s' % (loc, seen_loc[loc], f['key']))
+                seen_loc[loc] = f['key']
+                mats = [(m[0], m[1]) for m in pc['mats']]
+                if not 1 <= len(mats) <= 2:
+                    err.append('%s/%s: %d materials, and the tables hold two'
+                               % (f['key'], loc, len(mats)))
+                for obj, n in mats:
+                    if obj not in OBJS:
+                        err.append('%s/%s: %s is not in obj.pack' % (f['key'], loc, obj))
+                    if n < 1:
+                        err.append('%s/%s: %s x%d' % (f['key'], loc, obj, n))
+                label = pc.get('label', OVERRIDE.get(loc, d.get('name', '?')))
+                if width(label) > NAME_PX:
+                    err.append('%s: "%s" is %dpx in the window\'s %dpx name column'
+                               % (f['key'], label, width(label), NAME_PX))
+                if width(pc['need'], NEED_FONT) > NEED_PX:
+                    err.append('%s: "%s" is %dpx in the window\'s %dpx needs column'
+                               % (f['key'], pc['need'], width(pc['need'], NEED_FONT), NEED_PX))
+                model = resolve_model(P[loc].get('model', '').split(',')[0], MODELS)
+                if model is None:
+                    err.append('%s: no model.pack entry for %s' % (f['key'], loc))
+                items.append(dict(n=len(items) + 1, fam=fi, famkey=f['key'], tier=t, loc=loc,
+                                  label=label, wood=0, level=pc['level'], planks=0,
+                                  xp=pc['xp'], mats=mats, need=pc['need'],
+                                  model=model, modelid=MODELS.get(model, 0)))
+            labels = [it['label'] for it in items if it['fam'] == fi]
+            if len(set(labels)) != len(labels):
+                err.append('%s: two pieces share a label: %s' % (f['key'], labels))
+            continue
         raw = []
         for t, loc in enumerate(f['locs'], start=1):
             d = P.get(loc)
@@ -193,6 +247,9 @@ def build():
                 err.append('%s: no model.pack entry for %s' % (f['key'], loc))
             items.append(dict(n=len(items) + 1, fam=fi, famkey=f['key'], tier=t, loc=loc,
                               label=label, wood=w, level=level, planks=f['planks'],
+                              xp=f['planks'] * XP_WOOD[w],
+                              mats=[(WOOD_OBJ[w], f['planks'])],
+                              need='%d %s' % (f['planks'], WOOD_PLANK[w]),
                               model=model, modelid=MODELS.get(model, 0)))
         labels = [it['label'] for it in items if it['fam'] == fi]
         if len(set(labels)) != len(labels):
@@ -201,17 +258,25 @@ def build():
             if width(l) > NAME_PX:
                 err.append('%s: "%s" is %dpx in the window\'s %dpx name column'
                            % (f['key'], l, width(l), NAME_PX))
-    if len(items) > 255:
-        err.append('%d items, but the item field is 8 bits - 255 is the ceiling' % len(items))
+    CEILING = (1 << (ITEM_LO + ITEM_HI)) - 1
+    if len(items) > CEILING:
+        err.append('%d items, but the item number is %d bits - %d is the ceiling'
+                   % (len(items), ITEM_LO + ITEM_HI, CEILING))
     if err:
         print('\n'.join('  ERROR ' + e for e in err))
         raise SystemExit('%d problems in furnspec.json; nothing written' % len(err))
     return fams, items
 
 def resolve_model(base, MODELS):
+    """The model.pack name behind a loc's `model=`. The loc packer registers a model under its own
+    name or under name_<suffix> (LocConfig.ts), so `osrsloc_4525` is in the pack as
+    `osrsloc_4525_8` - and the shortest suffixed name is the model itself, where a longer one is
+    the loc's SECOND model (`osrsloc_4525_2_8`). Exact name first, then the shortest suffix."""
     if not base:
         return None
-    c = sorted(n for n in MODELS if n == base or n.startswith(base + '_'))
+    if base in MODELS:
+        return base
+    c = sorted((n for n in MODELS if n.startswith(base + '_')), key=lambda n: (len(n), n))
     return c[0] if c else None
 
 # --------------------------------------------------------------------------- shapes vs the map
@@ -242,7 +307,15 @@ def map_shapes():
 # zero in it, so a new field at the top is free and a field inserted anywhere else would misread
 # every house that already exists. `lit` went in at 22 for exactly that reason - an old record reads
 # as unlit, which is what it was.
-BITS = [('rx', 3), ('rz', 3), ('lx', 3), ('lz', 3), ('angle', 2), ('item', 8), ('lit', 1)]
+BITS = [('rx', 3), ('rz', 3), ('lx', 3), ('lz', 3), ('angle', 2), ('item', 8), ('lit', 1),
+        ('item_hi', 7)]
+
+# `item` is the low byte and `item_hi` the high seven bits, which is why the item field is not one
+# range: 238 pieces filled 8 bits to within 17 and the garden needed sixty more. The high byte went
+# ABOVE `lit` rather than next to `item`, so a record written when items were 8 bits has 0 up there
+# and still decodes to the same piece. ~poh_furn_pack splits the value and ~poh_furn_item puts it
+# back together; nothing else ever reads the two halves separately.
+ITEM_LO, ITEM_HI = 8, 7
 
 def emit_enum(fams, items, path):
     o = ['// Everything that can be built into a furniture hotspot, one row per buildable thing.',
@@ -264,25 +337,51 @@ def emit_enum(fams, items, path):
          '//   planks - one count per family, the same at every tier, as OSRS mostly does',
          '// Experience is not a table at all: it is planks x the per-plank value in construction.constant.',
          '']
-    def table(name, out, rows, head=None):
+    def table(name, out, rows, head=None, default=None):
         if head:
             o.extend(head)
         o.append('[%s]' % name)
         o.append('inputtype=int')
         o.append('outputtype=%s' % out)
+        if default is not None:
+            o.append('default=%s' % default)
         o.extend('val=%s,%s' % r for r in rows)
         o.append('')
     table('poh_furn_fam', 'int', [(i['n'], i['fam']) for i in items])
     table('poh_furn_name', 'string', [(i['n'], i['label']) for i in items])
     table('poh_furn_level', 'int', [(i['n'], i['level']) for i in items])
     table('poh_furn_wood', 'int', [(i['n'], i['wood']) for i in items])
-    table('poh_furn_planks', 'int', [(i['n'], i['planks']) for i in items])
+    table('poh_furn_planks', 'int', [(i['n'], i['planks']) for i in items],
+          ['// How many planks a piece costs, or 0 for the garden, whose materials are not planks.',
+           '// What is actually spent is poh_furn_mat1/mat2 below; this is kept because the plank',
+           '// families\' own rule is worth being able to read back.'])
+    table('poh_furn_xp', 'int', [(i['n'], i['xp']) for i in items],
+          ['// The Construction experience for building one. For a plank family this is planks x the',
+           '// per-plank value; for the garden it is OSRS\'s own number for that piece. One table either',
+           '// way, so the click does not have to know which kind of family it is in.'])
+    table('poh_furn_mat1', 'namedobj', [(i['n'], i['mats'][0][0]) for i in items],
+          ['// WHAT A PIECE COSTS. Two materials are enough for everything the game asks for: planks for',
+           '// the inside of a house, a bagged plant for a tree, and the two-material centrepieces',
+           '// (5 limestone bricks and 5 soft clay for the imp statue). namedobj, not obj: inv_del wants',
+           '// a namedobj and namedobj widens to obj, so one table feeds inv_total and inv_del both.'])
+    table('poh_furn_mat1n', 'int', [(i['n'], i['mats'][0][1]) for i in items])
+    table('poh_furn_mat2', 'namedobj',
+          [(i['n'], i['mats'][1][0]) for i in items if len(i['mats']) > 1],
+          ['// The second material, for the few pieces that need one. Absent rows answer null, which is',
+           '// what ~poh_furn_have and ~poh_furn_take test for - so "one material" needs no flag.'],
+          default='null')
+    table('poh_furn_mat2n', 'int', [(i['n'], i['mats'][1][1]) for i in items if len(i['mats']) > 1])
+    table('poh_furn_need', 'string', [(i['n'], i['need']) for i in items],
+          ['// The materials as the window writes them, measured against its 126px column by the',
+           '// generator. "4 oak planks", "1 bagged yew tree", "5 limestone, 5 soft clay".'])
     table('poh_furn_tier', 'int', [(i['n'], i['tier']) for i in items],
           ['// Which step of its own family a piece is, 1-based. The altar reads it to work out what it',
            '// pays for a set of bones.'])
-    table('poh_wood_name', 'string', [(i['n'], WOOD_PLANK[i['wood']]) for i in items],
-          ['// What to ask for in the build window: the plank type this piece is made of, worded for a',
-           '// sentence ("4 oak planks").'])
+    table('poh_wood_name', 'string',
+          [(i['n'], WOOD_PLANK[i['wood']]) for i in items if i['wood']],
+          ['// The plank type a piece is made of, worded for a sentence ("4 oak planks"). The garden is',
+           '// not made of planks and has no row here; what the window actually prints is poh_furn_need.'],
+          default='null')
     table('poh_fam_name', 'string', [(n, f['label']) for n, f in enumerate(fams, 1)],
           ['// What the Furniture creation window calls each hotspot family, for its title bar.'])
     write(path, o)
@@ -295,8 +394,9 @@ def emit_varp(fams, items, slots, path):
           '//',
           '// One piece each, packed into %d bits: the room cell in the grid (%d+%d), the tile inside that'
           % (sum(w for _, w in BITS), BITS[0][1], BITS[1][1]),
-          '// room (%d+%d), the angle (%d) and which of the %d buildable things it is (%d).'
-          % (BITS[2][1], BITS[3][1], BITS[4][1], len(items), BITS[5][1]),
+          '// room (%d+%d), the angle (%d) and which of the %d buildable things it is (%d low bits plus %d'
+          % (BITS[2][1], BITS[3][1], BITS[4][1], len(items), ITEM_LO, ITEM_HI),
+          '// above the lit bit - see the note in tools/genfurn.py).',
           '//',
           '// %d of them, which is the ceiling on how much furniture one house can hold. The save writes' % slots,
           '// varps sparsely by id, so an unfurnished house costs nothing and only what is actually built',
@@ -366,6 +466,15 @@ def emit_constant(fams, items, slots, path='scripts/skill_construction/configs/c
               '// numbers are what is stored in a save.']
     for n, f in enumerate(fams, 1):
         block.append('^poh_fam_%s = %d' % (f['key'], n))
+    portal = next((i['n'] for i in items if i['loc'] == 'poh_exit_portal'), None)
+    if portal is None:
+        raise SystemExit('no piece is built from poh_exit_portal - the garden centrepiece needs one')
+    block += ['',
+              '// The exit portal, as a piece of furniture. It is the garden\'s level-1 centrepiece, which',
+              '// is where OSRS puts it, and ~poh_ensure_exit hands one out free to any house that has no',
+              '// portal yet. ~poh_furn_remove will not take out the last one: that is the whole reason',
+              '// this number is a constant rather than something the remove path works out.',
+              '^poh_furn_exit_portal = %d' % portal]
     block.append('')
     write(path, src[:a] + block + src[b:])
 
@@ -377,7 +486,7 @@ RS2_HEAD = '''// Furniture: building into a hotspot, and remembering what was bu
 // families were hand-checkable; fifty-one are not. Edit the spec, not this file.
 //
 // WHERE IT LIVES. {slots} perm varps, one piece each, packed into {bits} bits - the room cell (3+3), the
-// tile inside that room (3+3), the angle (2) and which of the {items} buildable things it is (8). The
+// tile inside that room (3+3), the angle (2) and which of the {items} buildable things it is (8+7). The
 // tile inside the zone is what identifies the hotspot, and it is exactly what loc_coord gives, so
 // nothing has to enumerate hotspots or number them. Same trick as the room grid: the save writes
 // varps sparsely by id, so an unfurnished house costs nothing. No engine change, no save bump.
@@ -419,12 +528,22 @@ def emit_rs2(fams, items, slots, path='scripts/skill_construction/scripts/poh_fu
         if name == 'angle':
             o.append('$v = setbit_range_toint($v, modulo($angle, 4), ^poh_furn_bit_angle, calc(^poh_furn_bit_angle + %d));' % (width - 1))
         elif name == 'item':
-            o.append('return(setbit_range_toint($v, $item, ^poh_furn_bit_item, calc(^poh_furn_bit_item + %d)));' % (width - 1))
+            o.append('// the item number is split: the low byte here, the high seven above the lit bit.')
+            o.append('$v = setbit_range_toint($v, modulo($item, %d), ^poh_furn_bit_item, calc(^poh_furn_bit_item + %d));'
+                     % (1 << ITEM_LO, width - 1))
+        elif name == 'item_hi':
+            o.append('return(setbit_range_toint($v, divide($item, %d), ^poh_furn_bit_item_hi, calc(^poh_furn_bit_item_hi + %d)));'
+                     % (1 << ITEM_LO, width - 1))
         else:
             o.append('$v = setbit_range_toint($v, $%s, ^poh_furn_bit_%s, calc(^poh_furn_bit_%s + %d));'
                      % (name, name, name, width - 1))
     o += ['', '[proc,poh_furn_field](int $v, int $bit, int $width)(int)',
           'return(getbit_range($v, $bit, calc($bit + $width - 1)));', '',
+          '// The item number, back out of its two halves. Every reader goes through this: a record from',
+          '// before the high byte existed has 0 there and comes back as the same piece it always was.',
+          '[proc,poh_furn_item](int $v)(int)',
+          'return(calc(~poh_furn_field($v, ^poh_furn_bit_item, %d) + ~poh_furn_field($v, ^poh_furn_bit_item_hi, %d) * %d));'
+          % (ITEM_LO, ITEM_HI, 1 << ITEM_LO), '',
           '// The slot holding the piece on this tile, or -1. A linear scan over %d is nothing - switch_int' % slots,
           '// is a jump table, not a chain of comparisons - and it is the only lookup this design needs.',
           '[proc,poh_furn_at](int $rx, int $rz, int $lx, int $lz)(int)',
@@ -439,27 +558,47 @@ def emit_rs2(fams, items, slots, path='scripts/skill_construction/scripts/poh_fu
           '[proc,poh_furn_free]()(int)', 'def_int $i = 0;',
           'while ($i < ^poh_furn_slots) {', '    if (~poh_furn_get($i) = 0) {', '        return($i);',
           '    }', '    $i = calc($i + 1);', '}', 'return(-1);', '',
+          '// How many of one piece the house holds. Used for the exit portal, which is the one piece a',
+          '// house must not run out of.',
+          '[proc,poh_furn_count_item](int $item)(int)', 'def_int $i = 0;', 'def_int $n = 0;',
+          'while ($i < ^poh_furn_slots) {',
+          '    def_int $v = ~poh_furn_get($i);',
+          '    if ($v ! 0) {',
+          '        if (~poh_furn_item($v) = $item) {', '            $n = calc($n + 1);', '        }',
+          '    }', '    $i = calc($i + 1);', '}', 'return($n);', '',
+          '// ...and how many of it are in one room, which is what build mode asks before it lets a room',
+          '// be taken out: the room goes with its furniture in it.',
+          '[proc,poh_furn_count_cell_item](int $rx, int $rz, int $item)(int)',
+          'def_int $i = 0;', 'def_int $n = 0;',
+          'while ($i < ^poh_furn_slots) {',
+          '    def_int $v = ~poh_furn_get($i);',
+          '    if ($v ! 0) {',
+          '        if (~poh_furn_field($v, ^poh_furn_bit_rx, 3) = $rx & ~poh_furn_field($v, ^poh_furn_bit_rz, 3) = $rz) {',
+          '            if (~poh_furn_item($v) = $item) {', '                $n = calc($n + 1);', '            }',
+          '        }', '    }', '    $i = calc($i + 1);', '}', 'return($n);', '',
           '// Everything in one room goes when the room does.',
           '[proc,poh_furn_clear_cell](int $rx, int $rz)', 'def_int $i = 0;',
           'while ($i < ^poh_furn_slots) {', '    def_int $v = ~poh_furn_get($i);', '    if ($v ! 0) {',
           '        if (~poh_furn_field($v, ^poh_furn_bit_rx, 3) = $rx & ~poh_furn_field($v, ^poh_furn_bit_rz, 3) = $rz) {',
           '            ~poh_furn_set($i, 0);', '        }', '    }', '    $i = calc($i + 1);', '}', '',
           '// =========================================================================== materials', '',
-          '[proc,poh_furn_plank_total](int $wood)(int)', 'switch_int ($wood) {',
-          '    case 2 : return(inv_total(inv, oak_plank));',
-          '    case 3 : return(inv_total(inv, teak_plank));',
-          '    case 4 : return(inv_total(inv, mahogany_plank));',
-          '    case default : return(inv_total(inv, plank));', '}', '',
-          '[proc,poh_furn_plank_take](int $wood, int $count)', 'switch_int ($wood) {',
-          '    case 2 : inv_del(inv, oak_plank, $count);',
-          '    case 3 : inv_del(inv, teak_plank, $count);',
-          '    case 4 : inv_del(inv, mahogany_plank, $count);',
-          '    case default : inv_del(inv, plank, $count);', '}', '',
-          '[proc,poh_furn_xp](int $wood, int $count)(int)', 'switch_int ($wood) {',
-          '    case 2 : return(calc($count * ^poh_xp_oak));',
-          '    case 3 : return(calc($count * ^poh_xp_teak));',
-          '    case 4 : return(calc($count * ^poh_xp_mahogany));',
-          '    case default : return(calc($count * ^poh_xp_plank));', '}', '',
+          '// What a piece costs is a pair of tables, not a switch over wood: the garden is built out of',
+          '// bagged plants and the two-material centrepieces out of limestone and clay, and a rule that',
+          '// only knew about planks could not say any of that. Every family goes through these two, so',
+          '// there is one place where materials are checked and one where they are spent.',
+          '[proc,poh_furn_have](int $item)(boolean)',
+          'if (inv_total(inv, enum(int, namedobj, poh_furn_mat1, $item)) < enum(int, int, poh_furn_mat1n, $item)) {',
+          '    return(false);', '}',
+          'def_namedobj $second = enum(int, namedobj, poh_furn_mat2, $item);',
+          'if ($second ! null) {',
+          '    if (inv_total(inv, $second) < enum(int, int, poh_furn_mat2n, $item)) {',
+          '        return(false);', '    }', '}',
+          'return(true);', '',
+          '[proc,poh_furn_take](int $item)',
+          'inv_del(inv, enum(int, namedobj, poh_furn_mat1, $item), enum(int, int, poh_furn_mat1n, $item));',
+          'def_namedobj $second = enum(int, namedobj, poh_furn_mat2, $item);',
+          'if ($second ! null) {',
+          '    inv_del(inv, $second, enum(int, int, poh_furn_mat2n, $item));', '}', '',
           '// =========================================================================== putting it there', '',
           '// One case per buildable thing. The loc AND its shape are literals here, so a piece can only ever',
           '// be placed as the shape its own hotspot was - there is no shape to store and none to get wrong.',
@@ -500,14 +639,13 @@ def emit_rs2_tail(fams, items, byfam):
          '            // its room is gone - so is it', '            ~poh_furn_set($i, 0);',
          '        } else {',
          '            def_coord $spot = movecoord($base, calc((^poh_grid_origin + $rx) * 8 + ~poh_furn_field($v, ^poh_furn_bit_lx, 3)), 0, calc((^poh_grid_origin + $rz) * 8 + ~poh_furn_field($v, ^poh_furn_bit_lz, 3)));',
-         '            ~poh_furn_show(~poh_furn_field($v, ^poh_furn_bit_item, 8), $spot, ~poh_furn_field($v, ^poh_furn_bit_angle, 2), ~poh_furn_field($v, ^poh_furn_bit_lit, 1));',
+         '            ~poh_furn_show(~poh_furn_item($v), $spot, ~poh_furn_field($v, ^poh_furn_bit_angle, 2), ~poh_furn_field($v, ^poh_furn_bit_lit, 1));',
          '        }', '    }', '    $i = calc($i + 1);', '}', '',
          '// Re-lay one room and put its furniture back. The template is the truth about what a hotspot was, so',
          '// taking something out is a re-lay rather than an attempt to reconstruct the hotspot by hand.',
          '[proc,poh_furn_relay](int $rx, int $rz)',
          '~poh_place_zone(%poh_instance, $rx, $rz);',
-         '~poh_furn_restore(%poh_instance);',
-         '~poh_spawn_exit(%poh_instance);', '',
+         '~poh_furn_restore(%poh_instance);', '',
          '// =========================================================================== the menu', '',
          '// The nth (0-based) piece in this family, whatever the player\'s level. The window shows the whole',
          '// family and dims the tiers above you - see ~poh_furn_slot0 - so the level is not a filter here.',
@@ -543,21 +681,22 @@ def emit_rs2_tail(fams, items, byfam):
           '    mes("Your house is as full of furniture as it will hold.");', '    return;', '}',
           'def_int $item = ~poh_furn_pick($fam);',
           'if ($item = 0) {', '    mes("There\'s nothing you can build here yet.");', '    return;', '}',
-          'def_int $wood = enum(int, int, poh_furn_wood, $item);',
-          'def_int $need = enum(int, int, poh_furn_planks, $item);',
-          'if (~poh_furn_plank_total($wood) < $need) {',
-          '    mes("You need <tostring($need)> <enum(int, string, poh_wood_name, $item)> to build that.");',
+          'if (~poh_furn_have($item) = false) {',
+          '    mes("You need <enum(int, string, poh_furn_need, $item)> to build that.");',
           '    return;', '}',
-          '// re-check after the menu: it suspends, and the slot or the planks can go while it is open',
+          '// re-check after the menu: it suspends, and the slot or the materials can go while it is open',
           'def_int $slot = ~poh_furn_free;',
           'if ($slot < 0 | ~poh_furn_at($rx, $rz, $lx, $lz) ! -1) {',
           '    mes("Something is in the way.");', '    return;', '}',
-          '~poh_furn_plank_take($wood, $need);',
+          'if (~poh_furn_have($item) = false) {',
+          '    mes("You need <enum(int, string, poh_furn_need, $item)> to build that.");',
+          '    return;', '}',
+          '~poh_furn_take($item);',
           '~poh_furn_set($slot, ~poh_furn_pack($rx, $rz, $lx, $lz, $angle, $item));',
           '~poh_furn_show($item, $spot, $angle, 0);',
-          'stat_advance(construction, ~poh_furn_xp($wood, $need));',
+          'stat_advance(construction, enum(int, int, poh_furn_xp, $item));',
           'mes("You build the <enum(int, string, poh_furn_name, $item)>.");', '',
-          '// Taking a piece out. No refund and no planks back, as in OSRS.',
+          '// Taking a piece out. No refund and no materials back, as in OSRS.',
           '[proc,poh_furn_remove]',
           'if (%poh_instance = null | instance_find(loc_coord) ! %poh_instance) {', '    return;', '}',
           'def_coord $spot = loc_coord;',
@@ -567,7 +706,13 @@ def emit_rs2_tail(fams, items, byfam):
           'def_int $rz = calc(divide($gz, 8) - ^poh_grid_origin);',
           'def_int $slot = ~poh_furn_at($rx, $rz, modulo($gx, 8), modulo($gz, 8));',
           'if ($slot < 0) {', '    mes("That isn\'t yours to take out.");', '    return;', '}',
-          'def_int $item = ~poh_furn_field(~poh_furn_get($slot), ^poh_furn_bit_item, 8);',
+          'def_int $item = ~poh_furn_item(~poh_furn_get($slot));',
+          '// The last way out of a house stays where it is. OSRS refuses this too, and here it would',
+          '// leave the player sealed in an instance with no portal and no door to Rimmington.',
+          'if ($item = ^poh_furn_exit_portal) {',
+          '    if (~poh_furn_count_item(^poh_furn_exit_portal) < 2) {',
+          '        mes("That is the only way out of your house - you had better leave it there.");',
+          '        return;', '    }', '}',
           'def_int $option = ~p_choice2("Take out the <enum(int, string, poh_furn_name, $item)>.", 1, "Leave it.", 2);',
           'if ($option ! 1) {', '    return;', '}',
           '~poh_furn_set($slot, 0);', '~poh_furn_relay($rx, $rz);',
@@ -625,7 +770,7 @@ def emit_ops(fams, items, byfam, path='scripts/skill_construction/scripts/poh_fu
           '~poh_furn_set($slot, setbit_range_toint($v, 1, ^poh_furn_bit_lit, ^poh_furn_bit_lit));',
           'anim(human_pickupfloor, 0);',
           'sound_synth(tinderbox_strike, 1, 0);',
-          '~poh_furn_show_lit(~poh_furn_field($v, ^poh_furn_bit_item, 8), $spot, ~poh_furn_field($v, ^poh_furn_bit_angle, 2));',
+          '~poh_furn_show_lit(~poh_furn_item($v), $spot, ~poh_furn_field($v, ^poh_furn_bit_angle, 2));',
           'mes($mes);', '',
           '// =========================================================================== the altar', '',
           '// What the altar pays for a set of bones, as a percentage of what burying them gives. OSRS pays',

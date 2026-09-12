@@ -155,6 +155,14 @@ if (~poh_joined_count($rx, $rz) > 1) {
     mes("Other rooms join through the <enum(int, string, poh_room_name, $type)>. Remove those first.");
     return;
 }
+// The room with the only exit portal in it stays: taking it out would take the portal with it
+// (~poh_furn_clear_cell) and leave the player in an instance with no way back to Rimmington.
+if (~poh_furn_count_cell_item($rx, $rz, ^poh_furn_exit_portal) > 0) {
+    if (~poh_furn_count_item(^poh_furn_exit_portal) < 2) {
+        mes("Your only way out of the house is in there - build another portal first.");
+        return;
+    }
+}
 def_int $option = ~p_choice2("Remove the <enum(int, string, poh_room_name, $type)>.", 1, "Leave it where it is.", 2);
 if ($option ! 1) {
     return;
@@ -162,7 +170,8 @@ if ($option ! 1) {
 ~poh_room_set($rx, $rz, 0, 0);
 ~poh_furn_clear_cell($rx, $rz);
 ~poh_place_zone(%poh_instance, $rx, $rz);
-~poh_spawn_exit(%poh_instance);
+// Re-lay the furniture: placing a zone purges it, and the exit portal is a piece of furniture now.
+~poh_furn_restore(%poh_instance);
 mes("You remove the <enum(int, string, poh_room_name, $type)>. You get nothing back for it.");
 
 // =========================================================================== the click
@@ -220,7 +229,7 @@ if (~poh_place_zone(%poh_instance, $tx, $tz) = false) {
     mes("Something went wrong building that room.");
     return;
 }
-~poh_spawn_exit(%poh_instance);
+~poh_furn_restore(%poh_instance);
 mes("You build the <enum(int, string, poh_room_name, $type)>.");
 
 // =========================================================================== triggers

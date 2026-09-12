@@ -185,7 +185,7 @@ print('12. pack ids are unique, and the new ones sit above what was there')
 # 1150-1152 are three debug varps that exist only in the laptop's working copy, so they are not
 # in this list and the check does not demand contiguity - see the note above.
 NEW = {'pack/varp.pack': list(range(876, 1150)) + [1153],
-       'pack/loc.pack': [15296, 15297], 'pack/npc.pack': [3920, 3921]}
+       'pack/loc.pack': [15296, 15297], 'pack/npc.pack': [3920, 3921, 3922]}
 for f in ['pack/varp.pack', 'pack/loc.pack', 'pack/npc.pack']:
     ids = [int(l.split('=', 1)[0]) for l in open(os.path.join(C, f)).read().split('\n') if '=' in l]
     check(len(set(ids)) == len(ids), '%s has no duplicate id' % os.path.basename(f))
@@ -563,13 +563,18 @@ click = bd.split('[proc,poh_hotspot_click]')[1].split('\n[')[0]
 check(click.index('inv_del') < click.index('~poh_room_set'), 'the coins go before the room does')
 check(click.index('~poh_room_rot_for') < click.index('inv_del'), 'the rotation is re-checked before charging')
 check(click.index('inv_total') < click.index('inv_del'), 'the purse is checked before it is emptied')
-check('~poh_spawn_exit' in click and click.index('~poh_place_zone') < click.index('~poh_spawn_exit'),
-      'the way out is re-spawned after the room changes')
+check('~poh_furn_restore' in click and click.index('~poh_place_zone') < click.index('~poh_furn_restore'),
+      'the furniture - the exit portal included - is re-laid after the room changes')
 rm = bd.split('[proc,poh_remove_room]')[1].split('\n[')[0]
 check('~poh_room_total <= 1' in rm, 'the last room cannot be removed')
 check('~poh_player_in_cell' in rm, 'you cannot remove the room you are standing in')
 check('~poh_joined_count' in rm and '> 1' in rm, 'only a leaf room can be removed')
-check('~poh_spawn_exit' in rm, 'the way out is re-spawned after a removal too')
+check('~poh_furn_restore' in rm, 'the furniture is re-laid after a removal too')
+# and the room holding the last way out cannot be taken out at all, or the portal goes with it
+check('~poh_furn_count_cell_item' in rm and '^poh_furn_exit_portal' in rm,
+      'the room with the only exit portal in it is refused')
+check(rm.index('~poh_furn_count_cell_item') < rm.index('~p_choice2'),
+      'that refusal comes before the player is asked to confirm')
 
 print('26. the sawmill: the items, the npc and where he stands')
 OBJCFG = blocks(read('scripts/skill_construction/configs/construction.obj'))
@@ -649,13 +654,29 @@ for line in FURN.split('\n'):
 N = const('poh_furn_items')
 SLOTS = const('poh_furn_slots')
 check(N and N > 0, '^poh_furn_items is %s' % N)
-for t in ('poh_furn_fam', 'poh_furn_name', 'poh_furn_level', 'poh_furn_wood', 'poh_furn_planks', 'poh_wood_name'):
+for t in ('poh_furn_fam', 'poh_furn_name', 'poh_furn_level', 'poh_furn_wood', 'poh_furn_planks',
+          'poh_furn_xp', 'poh_furn_mat1', 'poh_furn_mat1n', 'poh_furn_need'):
     check(sorted(ftab.get(t, {})) == list(range(1, N + 1)), '%s covers every item 1..%d' % (t, N))
 # aggregates, not a line each: %d items would bury everything else in the run
-bad = [(i, v) for i, v in ftab['poh_furn_wood'].items() if not 1 <= int(v) <= 4]
-check(not bad, 'every item has a wood the script can pay for: %s' % (bad[:3] or '1..4 throughout'))
-bad = [(i, v) for i, v in ftab['poh_furn_planks'].items() if int(v) <= 0]
-check(not bad, 'every item costs planks: %s' % (bad[:3] or 'all of them'))
+bad = [(i, v) for i, v in ftab['poh_furn_wood'].items() if not 0 <= int(v) <= 4]
+check(not bad, 'every item has a wood, or 0 for the garden: %s' % (bad[:3] or '0..4 throughout'))
+# A plank family costs planks and a garden family costs something else; what every piece has is a
+# first material, a count and an experience number.
+planky = {i for i, v in ftab['poh_furn_wood'].items() if int(v)}
+bad = [(i, v) for i, v in ftab['poh_furn_planks'].items() if i in planky and int(v) <= 0]
+check(not bad, 'every plank piece costs planks: %s' % (bad[:3] or '%d of them' % len(planky)))
+bad = [(i, v) for i, v in ftab['poh_furn_planks'].items() if i not in planky and int(v) != 0]
+check(not bad, 'a garden piece costs no planks: %s' % (bad[:3] or '%d of them' % (N - len(planky))))
+bad = [(i, v) for i, v in ftab['poh_furn_mat1n'].items() if int(v) <= 0]
+check(not bad, 'no piece costs zero of its material: %s' % (bad[:3] or 'all %d' % N))
+bad = [(i, v) for i, v in ftab['poh_furn_xp'].items() if int(v) <= 0]
+check(not bad, 'every piece pays experience: %s' % (bad[:3] or 'all %d' % N))
+bad = [(i, v) for i, v in ftab['poh_furn_mat1'].items() if v not in OBJS]
+bad += [(i, v) for i, v in ftab.get('poh_furn_mat2', {}).items() if v not in OBJS]
+check(not bad, 'every material is an obj that exists: %s' % (bad[:3] or 'all of them'))
+check(sorted(ftab.get('poh_furn_mat2', {})) == sorted(ftab.get('poh_furn_mat2n', {})),
+      'the second material and its count go together: %d pieces need two'
+      % len(ftab.get('poh_furn_mat2', {})))
 bad = [(i, v) for i, v in ftab['poh_furn_level'].items() if not 1 <= int(v) <= 99]
 check(not bad, 'every level is reachable: %s (highest %d)'
       % (bad[:3] or 'all 1..99', max(int(v) for v in ftab['poh_furn_level'].values())))
@@ -684,6 +705,8 @@ check(litcase and set(litcase) <= set(placed),
       '~poh_furn_show_lit covers %d of the %d pieces, all of them real items' % (len(litcase), N))
 # every loc it places is registered, and every one is a real furniture loc from poh.loc
 POHLOC = blocks(read('scripts/skill_construction/configs/poh.loc'))
+# The exit portal is the garden's level-1 centrepiece, and it lives in the portal round's config.
+POHLOC.update(blocks(read('scripts/skill_construction/configs/poh_portal.loc')))
 placements = re.findall(r'loc_add\(\$spot, (\w+), \$angle, (\w+),', fu)
 bad = [l for l, _ in placements if l not in LOCS]
 check(not bad, 'every placed loc is in loc.pack: %s' % (bad[:3] or '%d checked' % len(placements)))
@@ -746,16 +769,24 @@ for loc, fam in hot:
 check(not bad, 'every family is placed with its hotspots\' own shape: %s'
       % (bad[:3] or '%d hotspots checked' % len(hot)))
 
-# the bit layout has to be gapless and fit an int
+# the bit layout has to be gapless and fit an int. The item number is in TWO ranges: the low byte at
+# ^poh_furn_bit_item and the high seven above the lit bit, so that widening it from 8 bits could not
+# move a field any existing save had already written.
 bits = [(const('poh_furn_bit_rx'), 3), (const('poh_furn_bit_rz'), 3), (const('poh_furn_bit_lx'), 3),
-        (const('poh_furn_bit_lz'), 3), (const('poh_furn_bit_angle'), 2), (const('poh_furn_bit_item'), 8)]
+        (const('poh_furn_bit_lz'), 3), (const('poh_furn_bit_angle'), 2), (const('poh_furn_bit_item'), 8),
+        (const('poh_furn_bit_lit'), 1)]
+hi_w = int(re.search(r'\^poh_furn_bit_item_hi \+ (\d+)\)', src['scripts/skill_construction/scripts/poh_furniture.rs2']).group(1)) + 1
+bits.append((const('poh_furn_bit_item_hi'), hi_w))
 at = 0; ok = True
 for off, w in bits:
     if off != at: ok = False
     at = off + w
 check(ok, 'the packed fields are contiguous from bit 0: %s' % bits)
 check(at <= 31, 'a piece fits an int (%d bits)' % at)
-check(N < (1 << 8), '%d items fit the 8-bit item field' % N)
+check(N < (1 << (8 + hi_w)), '%d items fit the %d-bit item number (low byte plus %d above the lit bit)'
+      % (N, 8 + hi_w, hi_w))
+check(const('poh_furn_bit_item_hi') > const('poh_furn_bit_lit'),
+      'the item high byte is above the lit bit, so an old record reads 0 there')
 check(SLOTS and SLOTS <= 256, '^poh_furn_slots is %s' % SLOTS)
 varps = {l.split('=', 1)[1] for l in read('pack/varp.pack').split('\n') if '=' in l}
 missing = [i for i in range(SLOTS) if ('poh_furn_%d' % i) not in varps]
@@ -791,8 +822,9 @@ check(not dup_trig, 'no trigger is declared twice anywhere in the repo: %s'
 
 print('29. furniture: materials leave before the thing arrives, and a room takes its own with it')
 clickb = fu.split('[proc,poh_furn_click]')[1].split('\n[')[0]
-check(clickb.index('~poh_furn_plank_total') < clickb.index('~poh_furn_plank_take'), 'the planks are counted before they are taken')
-check(clickb.index('~poh_furn_plank_take') < clickb.index('~poh_furn_show'), 'the planks go before the furniture appears')
+check(clickb.index('~poh_furn_have') < clickb.index('~poh_furn_take'), 'the materials are counted before they are taken')
+check(clickb.index('~poh_furn_take') < clickb.index('~poh_furn_show'), 'the materials go before the furniture appears')
+check(clickb.count('~poh_furn_have') >= 2, 'the materials are re-checked after the menu suspends')
 check(clickb.index('~poh_furn_set') < clickb.index('stat_advance'), 'it is saved before the xp is paid')
 check('inv_total(inv, hammer)' in clickb and 'inv_total(inv, saw)' in clickb, 'a hammer and a saw are required')
 check('~poh_furn_free' in clickb and clickb.count('~poh_furn_free') >= 2, 'a free slot is re-checked after the menu suspends')
@@ -1030,6 +1062,7 @@ TABE = {t: enumtable(TABLE_, t) for t in
         ('poh_tab_obj', 'poh_tab_name', 'poh_tab_spell', 'poh_tab_level', 'poh_tab_need',
          'poh_lectern_name')}
 rname, rlvl, rcost = (enumtable(ROOMS, t) for t in ('poh_room_name', 'poh_room_level', 'poh_room_cost_text'))
+fneed = enumtable(FURNE, 'poh_furn_need')
 fname, flvl, fplank, fwood = (enumtable(FURNE, t) for t in
                               ('poh_furn_name', 'poh_furn_level', 'poh_furn_planks', 'poh_wood_name'))
 SHOWN = [
@@ -1037,7 +1070,7 @@ SHOWN = [
     ('poh_roommenu', 'r0cost', ['%s coins' % rcost[k] for k in rcost]),
     ('poh_furnmenu', 's0lvl',  ['Level %s' % flvl[k] for k in flvl]),
     ('poh_furnmenu', 's0name', [fname[k] for k in fname]),
-    ('poh_furnmenu', 's0need', ['%s %s' % (fplank[k], fwood[k]) for k in fplank]),
+    ('poh_furnmenu', 's0need', list(fneed.values())),
     ('poh_furnmenu', 'title',  list(FAMS.values())),
     ('poh_tabletmenu', 't0name', list(TABE['poh_tab_name'].values())),
     ('poh_tabletmenu', 't0need', list(TABE['poh_tab_need'].values())),
@@ -1435,6 +1468,157 @@ p12q = ifrender.font('b12_full')
 wide = max((p12q.width(str(n)) for n in list(QSTEPS) + [QMAX]))
 check(wide <= int(coms['qty1']['width']),
       'the widest number a quantity button can show is %dpx in a %spx box' % (wide, coms['qty1']['width']))
+
+def ftabn(loc):
+    """The item number of the piece built from this loc, out of ~poh_furn_show's own switch."""
+    m = re.search(r'case (\d+) : loc_add\(\$spot, %s, ' % loc, fu)
+    return int(m.group(1)) if m else None
+
+print('46. the garden: the supplier, her prices, and the way out')
+GNPC = blocks(read('scripts/skill_construction/configs/poh_garden.npc'))
+GINV = read('scripts/skill_construction/configs/poh_garden.inv')
+GRS = read('scripts/skill_construction/scripts/poh_garden.rs2')
+GOBJ = blocks(read('scripts/skill_construction/configs/poh_garden_mats.obj'))
+sup = GNPC.get('poh_garden_supplier', {})
+check(bool(sup) and 'poh_garden_supplier' in NPCS, 'the Garden supplier is a config and is in npc.pack')
+# her art, all the way to the files: a name in a pack is not a model on disk
+ON_DISK2 = set()
+for root, _, fs in os.walk(os.path.join(C, 'models')):
+    for fn in fs:
+        if fn.endswith('.ob2'): ON_DISK2.add(fn[:-4])
+mods = [v for k, vs in sup.items() if re.match(r'^(model|head)\d+$', k) for v in vs]
+check(len(mods) == 11, 'she has %d models and chatheads' % len(mods))
+bad = [m for m in mods if m not in MODELS]
+check(not bad, 'every one is in model.pack: %s' % (bad or 'all %d' % len(mods)))
+bad = [m for m in mods if m not in ON_DISK2]
+check(not bad, 'every one is a .ob2 on disk: %s' % (bad or 'all %d' % len(mods)))
+# no dead op, and no op without a trigger
+ops = sorted(int(k[2:]) for k in sup if re.match(r'^op\d+$', k))
+trig = sorted(int(m) for m in re.findall(r'^\[opnpc(\d+),poh_garden_supplier\]', GRS, re.M))
+check(ops == trig, 'every op she has is wired: declares %s, triggers %s' % (ops, trig))
+# the comment at the top of the file mentions it too, so count the calls rather than the mentions
+check(len(re.findall(r'^\s*~openshop_activenpc;$', GRS, re.M)) == 2,
+      'both ways in open her own shop through her npc params')
+# the shop: her params, the inv, and the prices
+check((sup.get('param') or []) and any(v == 'owned_shop,poh_garden_shop' for v in sup['param']),
+      'she owns poh_garden_shop')
+prm = dict(v.split(',', 1) for v in sup.get('param', []))
+check(prm.get('shop_sell_multiplier') == str(const('poh_garden_sell')),
+      'her selling multiplier is ^poh_garden_sell (%s)' % const('poh_garden_sell'))
+check(prm.get('shop_buy_multiplier') == str(const('poh_garden_buy')),
+      'her buying multiplier is ^poh_garden_buy (%s)' % const('poh_garden_buy'))
+check(prm.get('shop_delta') == '0', 'shop_delta is 0, so the price does not drift off the OSRS number')
+check('[poh_garden_shop]' in GINV and 'restock=yes' in GINV, 'poh_garden_shop restocks')
+# THE ONE THE BUILD CAUGHT: an inv needs an id in pack/inv.pack before an npc param can name it.
+# Without it the packer says "Invalid property value: param=owned_shop,..." and carries on, so the
+# shop simply would not open in game.
+INVS = set(packmap('pack/inv.pack'))
+check('poh_garden_shop' in INVS, 'poh_garden_shop has an id in inv.pack')
+stock = dict((m.group(2), (int(m.group(3)), int(m.group(4))))
+             for m in re.finditer(r'^stock(\d+)=(\w+),(\d+),(\d+)$', GINV, re.M))
+check(len(stock) == 10, 'she stocks %d things' % len(stock))
+bad = [k for k in stock if k not in GOBJ]
+check(not bad, 'every line of stock is one of the garden materials: %s' % (bad or 'all ten'))
+bad = [(k, v) for k, v in stock.items() if v != (20, 100)]
+check(not bad, 'twenty of each, restocking a unit a minute: %s' % (bad or 'all ten'))
+# THE PRICES ARE THE CACHE'S, at 40%: the wiki's numbers are knowledge, the costs are data, and the
+# multiplier is what ties them together. If they ever disagree, one of the three moved.
+WIKI = {'poh_bag_dead_tree': 400, 'poh_bag_nice_tree': 800, 'poh_bag_oak_tree': 2000,
+        'poh_bag_willow_tree': 4000, 'poh_bag_maple_tree': 6000, 'poh_bag_yew_tree': 8000,
+        'poh_bag_magic_tree': 20000, 'poh_bag_plant_1': 400, 'poh_bag_plant_2': 2000,
+        'poh_bag_plant_3': 4000}
+bad = []
+for k, want in WIKI.items():
+    cost = int((GOBJ.get(k, {}).get('cost') or ['0'])[0])
+    got = cost * const('poh_garden_sell') // 1000
+    if got != want:
+        bad.append((k, cost, got, want))
+check(not bad, 'every price comes out at the OSRS number: %s' % (bad[:3] or 'all ten, 400-20,000 coins'))
+# where she stands: once, on a tile with nothing solid on it
+GMAP = 'maps/m46_52.jm2'
+sec = None; spots = []; solid = {}
+for line in read(GMAP).split('\n'):
+    if line.startswith('===='):
+        sec = line.strip('= '); continue
+    if ':' not in line: continue
+    head, data = line.split(':', 1)
+    try: lv, x, z = (int(v) for v in head.split())
+    except ValueError: continue
+    if sec == 'NPC' and int(data) == NPCS['poh_garden_supplier']: spots.append((lv, x, z))
+    if sec == 'LOC':
+        d = data.split()
+        if (len(d) < 2 or int(d[1]) != 22) and lv == 0: solid.setdefault((x, z), []).append(int(d[0]))
+check(len(spots) == 1, 'she is placed exactly once, got %d' % len(spots))
+if spots:
+    lv, x, z = spots[0]
+    check(lv == 0 and (x, z) not in solid,
+          'her tile (local %d,%d = %d,%d) carries nothing solid' % (x, z, 2944 + x, 3328 + z))
+    ring = [(x + dx, z + dz) for dx in (-1, 0, 1) for dz in (-1, 0, 1) if (x + dx, z + dz) in solid]
+    check(not ring, 'and neither do the eight tiles around her: %s' % (ring or 'all clear'))
+
+print('47. the garden: the centrepiece, and the exit portal that lives in it')
+GFAMS = [f for f in FSPEC['families'] if f.get('room') == 'garden']
+check(len(GFAMS) == 7, 'seven garden families: %s' % [f['key'] for f in GFAMS])
+GHOT = {h for f in GFAMS for h in f['hotspots']}
+want = {LOCS['loc474_153%d' % n] for n in range(61, 68)}
+check(GHOT == want, 'they claim exactly the garden\'s seven hotspots')
+# every garden piece: a real material, a level and an experience number that rise with the tier
+for f in GFAMS:
+    lv = [p['level'] for p in f['pieces']]
+    xp = [p['xp'] for p in f['pieces']]
+    check(lv == sorted(lv), '%s: levels rise (%s)' % (f['key'], lv))
+    check(xp == sorted(xp), '%s: experience rises (%s)' % (f['key'], xp))
+    bad = [m for p in f['pieces'] for m in p['mats'] if m[0] not in OBJS]
+    check(not bad, '%s: every material exists (%s)' % (f['key'], bad or 'yes'))
+# the exit portal is the level-1 centrepiece, and the only piece that is
+cp = next(f for f in GFAMS if f['key'] == 'centrepiece')
+first = cp['pieces'][0]
+check(first['loc'] == 'poh_exit_portal' and first['level'] == 1,
+      'the exit portal is the centrepiece you can build at level 1')
+check(const('poh_furn_exit_portal') == ftabn('poh_exit_portal'),
+      '^poh_furn_exit_portal (%s) is that piece\'s own item number' % const('poh_furn_exit_portal'))
+check('Remove' in (POHLOC.get('poh_exit_portal', {}).get('op5') or []),
+      'the portal carries op5=Remove, so it can be replaced by a pond')
+# the tile it goes on, read out of all six template squares rather than remembered
+CPID = LOCS['loc474_15361']
+tiles, angles = set(), set()
+for sq, levels in (('m29_79', (0, 1, 2, 3)), ('m30_79', (0, 1))):
+    sec = None
+    for line in read('maps/%s.jm2' % sq).split('\n'):
+        if line.startswith('===='):
+            sec = line.strip('= '); continue
+        if sec != 'LOC' or ':' not in line: continue
+        head, data = line.split(':', 1)
+        lv, x, z = (int(v) for v in head.split())
+        d = data.split()
+        if int(d[0]) != CPID or lv not in levels or not (0 <= x < 8 and 8 <= z < 16): continue
+        tiles.add((x % 8, z % 8)); angles.add((sq, lv, int(d[2]) if len(d) > 2 else 0))
+check(tiles == {(const('poh_garden_cp_x'), const('poh_garden_cp_z'))},
+      'every style has its Centrepiece space at ^poh_garden_cp_x/z (%s)' % sorted(tiles))
+turned = {lv for sq, lv, a in angles if a and sq == 'm29_79'}
+check(turned == {0} and all(a == 0 for sq, lv, a in angles if (sq, lv) != ('m29_79', 0)),
+      'only style 0 has it turned, which is what ~poh_garden_cp_angle says')
+ang = GRS.split('[proc,poh_garden_cp_angle]')[1].split('\n[')[0]
+check('%poh_style = 0' in ang and 'return(1);' in ang and 'return(0);' in ang,
+      '~poh_garden_cp_angle answers 1 for style 0 and 0 for the rest')
+# the grant, and the guards around it
+ens = GRS.split('[proc,poh_ensure_exit]')[1].split('\n[')[0]
+check('~poh_furn_count_item(^poh_furn_exit_portal) > 0' in ens,
+      'a house that already has a portal is left alone')
+check('~poh_furn_at(' in ens, 'a centrepiece that is already built on is left alone')
+check('~poh_furn_pack(' in ens and '^poh_garden_cp_x' in ens,
+      'the portal is stored as furniture on the centrepiece tile')
+check('stat(construction)' not in ens and 'inv_del' not in ens,
+      'the first one is free and needs no level - OSRS starts a house with it built')
+pohrs = clean[FILES[0]]
+ent = pohrs.split('[proc,poh_enter]')[1].split('\n[')[0]
+check('~poh_ensure_exit' in ent and ent.index('~poh_ensure_exit') < ent.index('~poh_build'),
+      '~poh_enter makes sure of the portal before it builds the house')
+check('~poh_spawn_exit' not in pohrs + clean[FILES[3]],
+      'nothing loc_adds a loose portal any more')
+rmf = fu.split('[proc,poh_furn_remove]')[1].split('\n[')[0]
+check('^poh_furn_exit_portal' in rmf and '~poh_furn_count_item' in rmf,
+      'the last exit portal cannot be taken out')
 
 
 print()

@@ -140,12 +140,18 @@ def emit_objpack(spec):
     p = os.path.join(ROOT, 'pack/obj.pack')
     rows = [l for l in open(p, 'rb').read().decode('utf-8').split('\n') if l.strip()]
     mine = {t['obj'] for t in spec['tablets']}
+    have = {n: int(i) for i, n in (l.split('=', 1) for l in rows)}
     keep = [(int(i), n) for i, n in (l.split('=', 1) for l in rows) if n not in mine]
-    nxt = max(i for i, _ in keep) + 1
+    nxt = max(have.values()) + 1        # past EVERY id, not just the ones being kept
     out = dict(keep)
     for t in spec['tablets']:
-        out[nxt] = t['obj']
-        nxt += 1
+        # never renumber one that already exists: it is in somebody's bank, and anything imported
+        # after this round (the garden's bagged plants) sits above it
+        if t['obj'] in have:
+            out[have[t['obj']]] = t['obj']
+        else:
+            out[nxt] = t['obj']
+            nxt += 1
     body = '\n'.join('%d=%s' % (i, out[i]) for i in sorted(out)) + '\n'
     open(p, 'wb').write(body.encode('utf-8'))
     return {n: i for i, n in out.items() if n in mine}
