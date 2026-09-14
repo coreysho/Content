@@ -31,8 +31,13 @@ def_coord $event_coord = map_findsquare(coord, 1, 1, ^map_findsquare_lineofwalk)
 if ($event_coord = null) {
     return;
 }
-%macro_event = $event;
+// the same null, one call earlier: nothing may be marked as the active event if there is no npc
+// to be it, so the lookup comes BEFORE %macro_event is written.
 def_npc $event_npc = ~macro_event_npc($event);
+if ($event_npc = null) {
+    return;
+}
+%macro_event = $event;
 npc_add($event_coord, $event_npc, 1000);
 %macro_event_uid = npc_uid;
 session_log(^log_moderator, "Random event spawned: <nc_debugname(npc_type)>");
@@ -77,10 +82,20 @@ if (%macro_event > 0) {
 return(true);
 
 // called when the player logs in
+//
+// %macro_event is 0 when no random event was following at logout, which is almost every login, and
+// both event tables start at val=1 - so the lookup MISSES. Before enums were given default= it
+// answered npc 0, which is hans, and nc_param quietly said false. With default=null it answers null
+// and nc_param throws "An input for a Npc type was not valid to use. Input was -1." on every login.
+// The guard is the fix; the enum was never the bug, it just stopped hiding this one.
 [queue,macro_event_login]
 def_int $macro_event = %macro_event;
 %macro_event = 0;
-if (nc_param(~macro_event_npc($macro_event), follow_player_on_logout) = ^true) {
+def_npc $event_npc = ~macro_event_npc($macro_event);
+if ($event_npc = null) {
+    return;
+}
+if (nc_param($event_npc, follow_player_on_logout) = ^true) {
     ~macro_event_general_spawn($macro_event);
 }
 
