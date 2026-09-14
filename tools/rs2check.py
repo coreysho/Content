@@ -31,6 +31,7 @@ mistakes shipped with an off-by-one mistake, and only a probe file with a known 
 answer found it. There is a --selftest for that reason.
 """
 
+import io
 import os
 import re
 import sys
@@ -539,6 +540,50 @@ def check_config(path, T):
 
 # --------------------------------------------------------------------------- duplicate triggers
 
+def check_models():
+    """Rule 16: every .ob2 on disk is registered in model.pack, and every entry has a file.
+
+    A config's model= name is NOT the check here. Loc models get a shape suffix in the pack
+    (`model=100_bubbleb` in the .loc, `13670=100_bubbleb_8` in model.pack), so comparing config
+    names against pack names reports thousands of false positives. Filenames match pack names
+    exactly, in every one of the six model directories, so that is what is compared.
+
+    This exists because an importer wrote models/npc/npc_cave_horror_1.ob2 and a .npc that
+    references it and never touched model.pack. Nothing in the content tree catches that: it is
+    not a script, so no rule here looked at it, and the packer's message is
+    "Invalid property value: model1=npc_cave_horror_1", which reads like the config is wrong.
+    """
+    import glob
+    pack_path = os.path.join(CONTENT, "pack", "model.pack")
+    if not os.path.exists(pack_path):
+        return
+    names, ids = {}, {}
+    for n, line in enumerate(io.open(pack_path, encoding="utf-8", errors="replace"), 1):
+        line = line.strip()
+        if "=" not in line:
+            continue
+        i, nm = line.split("=", 1)
+        if nm in names:
+            report("ERROR", "pack/model.pack", n, 16, "duplicate model name %s" % nm)
+        if i in ids:
+            report("ERROR", "pack/model.pack", n, 16, "duplicate model id %s" % i)
+        names[nm] = n
+        ids[i] = n
+
+    for d in ("npc", "obj", "loc", "com", "idk", "spot"):
+        for f in sorted(glob.glob(os.path.join(CONTENT, "models", d, "*.ob2"))):
+            nm = os.path.basename(f)[:-4]
+            if nm not in names:
+                report("ERROR", "models/%s/%s.ob2" % (d, nm), 0, 16,
+                       "on disk but NOT in pack/model.pack - any config naming it fails the build")
+
+    on_disk = {os.path.basename(f)[:-4]
+               for f in glob.glob(os.path.join(CONTENT, "models", "*", "*.ob2"))}
+    for nm, n in sorted(names.items()):
+        if nm not in on_disk:
+            report("ERROR", "pack/model.pack", n, 16, "%s is registered but no .ob2 exists" % nm)
+
+
 def check_duplicates(T):
     for trig, places in sorted(T["triggers"].items()):
         if len(places) > 1:
@@ -617,6 +662,7 @@ def main(argv):
         check_config(p, T)
     if not targets:
         check_duplicates(T)
+        check_models()
 
     errors = [f for f in findings if f[0] == "ERROR"]
     checks = [f for f in findings if f[0] == "CHECK"]
