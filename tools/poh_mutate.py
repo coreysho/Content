@@ -256,6 +256,17 @@ MUTS = [
  ('scripts/skill_slayer/configs/superiors.enum',
   'outputtype=npc\ndefault=null', 'outputtype=npc',
   '17 an enum whose miss returns a real id 0 and has no default= (rs2check)'),
+ ('scripts/skill_construction/configs/poh_furniture.enum',
+  '[poh_furn_flat]\ninputtype=int\noutputtype=namedobj\ndefault=null',
+  '[poh_furn_flat]\ninputtype=int\noutputtype=namedobj',
+  '17 the flatpack join answering obj 0 instead of null (rs2check)'),
+ ('scripts/skill_construction/configs/poh_flatpacks.obj',
+  '[poh_flat_chair_1]', '[poh_flat_chair_0]',
+  '52 a flatpack obj that is not in obj.pack'),
+ ('scripts/skill_construction/configs/poh.loc',
+  '[loc_13704]\nname=Workbench\ndesc=You can make furniture here.\nmodel=loc_10673i2\nwidth=2\nop1=Work-at',
+  '[loc_13704]\nname=Workbench\ndesc=You can make furniture here.\nmodel=loc_10673i2\nwidth=2\nop1=Use',
+  '52 a Work-at trigger on a loc that no longer carries the op'),
 ]
 
 def checker_for(why):

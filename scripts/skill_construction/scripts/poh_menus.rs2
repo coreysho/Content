@@ -760,7 +760,7 @@ if_settext(poh_furnmenu:s7need, "<enum(int, string, poh_tint_need, $state)><enum
 //
 // Level is not a filter - the whole family is listed and the tiers above you are dimmed, so
 // the window is also where you find out what the next twenty levels are for.
-[proc,poh_furn_pick](int $fam)(int)
+[proc,poh_furn_pick](int $fam, string $sub)(int)
 def_int $page = 0;
 while ($page < 3) {
     def_int $a = ~poh_furn_nth($fam, calc($page * ^poh_menu_slots + 0));
@@ -776,7 +776,7 @@ while ($page < 3) {
         return(0);
     }
     if_settext(poh_furnmenu:title, "<enum(int, string, poh_fam_name, $fam)>");
-    if_settext(poh_furnmenu:subtitle, "Select what you want to build");
+    if_settext(poh_furnmenu:subtitle, $sub);
     ~poh_furn_slot0($a);
     ~poh_furn_slot1($b);
     ~poh_furn_slot2($c);

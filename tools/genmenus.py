@@ -420,7 +420,9 @@ def rs2_furn(spec, cams, fams):
     o.append('//')
     o.append('// Level is not a filter - the whole family is listed and the tiers above you are dimmed, so')
     o.append('// the window is also where you find out what the next twenty levels are for.')
-    o.append('[proc,poh_furn_pick](int $fam)(int)')
+    # $sub so the workbench can say "flatpack" where a hotspot says "build" - the window is the
+    # same, the wording is not. poh_flatpacks.rs2 is the other caller.
+    o.append('[proc,poh_furn_pick](int $fam, string $sub)(int)')
     o.append('def_int $page = 0;')
     o.append('while ($page < 3) {')
     lets = 'abcdefgh'
@@ -431,7 +433,7 @@ def rs2_furn(spec, cams, fams):
     o.append('        return(0);')
     o.append('    }')
     o.append('    if_settext(poh_furnmenu:title, "<enum(int, string, poh_fam_name, $fam)>");')
-    o.append('    if_settext(poh_furnmenu:subtitle, "Select what you want to build");')
+    o.append('    if_settext(poh_furnmenu:subtitle, $sub);')
     for i in range(FURN_SLOTS):
         o.append('    ~poh_furn_slot%d($%s);' % (i, lets[i]))
     o.append('    if ($more = 0) {')

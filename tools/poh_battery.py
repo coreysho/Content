@@ -1043,7 +1043,14 @@ kept2 = {f: open(os.path.join(C, f), 'rb').read() for f in [
     'scripts/skill_construction/configs/construction.varp',
     'scripts/skill_construction/configs/construction.constant',
     'scripts/skill_construction/scripts/poh_furniture.rs2',
+    'scripts/skill_construction/configs/poh_flatpacks.obj',
+    'pack/obj.pack',
     'pack/varp.pack']}
+# poh_flatpacks.obj and obj.pack belong in that list for a reason that cost an afternoon: this
+# group runs genfurn.py IN PLACE, so any generated file missing from kept2 is quietly rewritten
+# here and every later group reads the regenerated copy. Group 52's obj.pack check could not go
+# red because group 38 had already undone the break. A generated file that is not listed above
+# is not checked by anything - it is un-checkable.
 import subprocess as _sp
 r = _sp.run([sys.executable, os.path.join(C, 'tools/genfurn.py'), str(SLOTS)],
             capture_output=True, text=True, cwd=C)
@@ -1802,6 +1809,53 @@ check(all(sorted(byfam[f])[0] == int(ffirst[f]) for f in byfam),
       'first is the lowest piece id in the family')
 check(all(sorted(byfam[f])[-1] == int(flast[f]) for f in byfam),
       'last is the highest')
+
+# ============================================================================ 52
+print('52. flatpacks: 84 items on 15 shared models, and the enum that joins them')
+FLATOBJ = read('scripts/skill_construction/configs/poh_flatpacks.obj')
+import json as _json
+_spec = _json.load(open(os.path.join(C, 'tools/furnspec.json')))
+flatkeys = [f['key'] for f in _spec['families'] if f.get('flatpack')]
+check(len(flatkeys) == 15, '15 families are marked flatpackable (%d)' % len(flatkeys))
+
+flatblocks = re.findall(r'^\[(poh_flat_\w+)\]', FLATOBJ, re.M)
+check(len(flatblocks) == len(set(flatblocks)), 'no flatpack obj is declared twice')
+missing = [n for n in flatblocks if n not in OBJS]
+check(not missing, 'every flatpack obj is registered in obj.pack: %s' % missing[:4])
+
+# the enum is the join, and it must name exactly the blocks in the .obj - no more, no fewer
+flatenum = enumtable(FURNE, 'poh_furn_flat')
+check(sorted(flatenum.values()) == sorted(flatblocks),
+      'poh_furn_flat names exactly the %d objs in poh_flatpacks.obj' % len(flatblocks))
+check('default=null' in FURNE.split('[poh_furn_flat]', 1)[1].split('\n[', 1)[0],
+      'poh_furn_flat declares default=null - a namedobj enum answers obj 0 without it')
+
+# every piece of a flatpackable family has one, and no piece of any other family does
+ffam2 = enumtable(FURNE, 'poh_furn_fam')
+famname = enumtable(FURNE, 'poh_fam_name')
+famnum = {v: int(k) for k, v in famname.items()}
+speclabel = {f['key']: f['label'] for f in _spec['families']}
+want = {famnum[speclabel[k]] for k in flatkeys if speclabel[k] in famnum}
+should = {int(i) for i, f in ffam2.items() if int(f) in want}
+check(set(int(i) for i in flatenum) == should,
+      'exactly the %d pieces of those families have a flatpack (%d in the table)'
+      % (len(should), len(flatenum)))
+
+# the models: 15 files, all registered, all referenced
+mdl = sorted(set(re.findall(r'^model=(obj_poh_flat_\w+)', FLATOBJ, re.M)))
+check(len(mdl) == 15, '15 distinct models carry them (%d)' % len(mdl))
+check(all(m in MODELS for m in mdl), 'every one is in model.pack')
+check(all(os.path.exists(os.path.join(C, 'models/obj', m + '.ob2')) for m in mdl),
+      'and every one has an .ob2 on disk')
+
+# the workbench is not itself flatpackable, and the Work-at triggers exist for all five tiers
+check('workbench' not in flatkeys, 'a workbench cannot be flatpacked')
+FLATRS = read('scripts/skill_construction/scripts/poh_flatpacks.rs2')
+POHLOC = read('scripts/skill_construction/configs/poh.loc')
+for loc in ('loc_13704', 'loc_13705', 'loc_13706', 'loc_13707', 'loc_13708'):
+    blk = POHLOC.split('[%s]' % loc, 1)[1].split('\n[', 1)[0]
+    check('op1=Work-at' in blk, '%s carries op1=Work-at' % loc)
+    check('[oploc1,%s]' % loc in FLATRS, '%s has an oploc1 - a trigger on an op that is not there never fires' % loc)
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

@@ -1351,12 +1351,23 @@ if (~poh_furn_free < 0) {
     mes("Your house is as full of furniture as it will hold.");
     return;
 }
-def_int $item = ~poh_furn_pick($fam);
+def_int $item = ~poh_furn_pick($fam, "Select what you want to build");
 if ($item = 0) {
     mes("There's nothing you can build here yet.");
     return;
 }
-if (~poh_furn_have($item) = false) {
+// A flatpack is spent in place of the materials, and it is PREFERRED when you hold both -
+// it is the scarcer thing and the message says which was used. The experience does not
+// change either way: in OSRS the xp is paid for putting the furniture together, which is
+// what makes a flatpack worth buying, and making one at the workbench pays none.
+def_namedobj $flat = enum(int, namedobj, poh_furn_flat, $item);
+def_int $useflat = 0;
+if ($flat ! null) {
+    if (inv_total(inv, $flat) > 0) {
+        $useflat = 1;
+    }
+}
+if ($useflat = 0 & ~poh_furn_have($item) = false) {
     mes("You need <enum(int, string, poh_furn_need, $item)> to build that.");
     return;
 }
@@ -1366,15 +1377,28 @@ if ($slot < 0 | ~poh_furn_at($rx, $rz, $lx, $lz) ! -1) {
     mes("Something is in the way.");
     return;
 }
-if (~poh_furn_have($item) = false) {
+if ($useflat = 1) {
+    if (inv_total(inv, $flat) < 1) {
+        $useflat = 0;
+    }
+}
+if ($useflat = 0 & ~poh_furn_have($item) = false) {
     mes("You need <enum(int, string, poh_furn_need, $item)> to build that.");
     return;
 }
-~poh_furn_take($item);
+if ($useflat = 1) {
+    inv_del(inv, $flat, 1);
+} else {
+    ~poh_furn_take($item);
+}
 ~poh_furn_set($slot, ~poh_furn_pack($rx, $rz, $lx, $lz, $angle, $item));
 ~poh_furn_show($item, $spot, $angle, 0);
 stat_advance(construction, enum(int, int, poh_furn_xp, $item));
-mes("You build the <enum(int, string, poh_furn_name, $item)>.");
+if ($useflat = 1) {
+    mes("You assemble the <enum(int, string, poh_furn_name, $item)> from its flatpack.");
+} else {
+    mes("You build the <enum(int, string, poh_furn_name, $item)>.");
+}
 
 // Taking a piece out. No refund and no materials back, as in OSRS.
 [proc,poh_furn_remove]
