@@ -90,6 +90,64 @@ if (%bankquantity_x < 1000000) {
 }
 return("<tostring(divide(%bankquantity_x, 1000000))>M");
 
+// ---- placeholders
+//
+// A placeholder is the bank slot holding its obj with a count of ZERO - see inv_placeholder in
+// engine.rs2. It occupies its slot, so the tab arithmetic needs no changes at all: the ranges are
+// positional and a placeholder is a position. Two things fall out of the engine for free and are
+// worth knowing before changing any of this:
+//
+//   - DEPOSITING BACK LANDS IN THE STUB. Inventory.add finds an existing stack with getItemIndex,
+//     which matches on obj id and ignores the count, so the placeholder IS the existing stack and
+//     the deposit stacks into it. bank_deposit_request's occupied-count test then sees no new slot
+//     and calls ~banktab_refresh rather than ~banktab_deposited, so the item stays where it was
+//     filed. Nothing below had to arrange that.
+//   - ~banktab_removed RETURNS EARLY on an occupied slot, which is what lets bank_withdraw_request
+//     drop a stub in and then call it unchanged.
+//
+// Turning the padlock off deliberately leaves existing stubs alone, the way OSRS does. Release all
+// is the explicit way to be rid of them.
+
+[if_button,bank_main:banklock] %bankplaceholders = sub(1, %bankplaceholders);
+[if_button,bank_main:banklockrelease] ~bank_release_all;
+
+[proc,bank_is_placeholder](int $slot)(boolean)
+if (inv_getobj(bank, $slot) = null) {
+    return(false);
+}
+if (inv_getnum(bank, $slot) > 0) {
+    return(false);
+}
+return(true);
+
+[proc,bank_release](int $slot)
+if (~bank_is_placeholder($slot) = false) {
+    return;
+}
+inv_placeholder(bank, $slot, null);
+~banktab_removed($slot);
+~banktab_refresh;
+
+// Top down, because ~banktab_removed closes the gap by shifting everything ABOVE the slot down one.
+// Walking upwards would move slots this loop has not visited yet out from under it; walking
+// downwards only ever disturbs slots it has already passed.
+[proc,bank_release_all]
+def_int $slot = sub(inv_size(bank), 1);
+def_int $released = 0;
+while ($slot >= 0) {
+    if (~bank_is_placeholder($slot) = true) {
+        inv_placeholder(bank, $slot, null);
+        ~banktab_removed($slot);
+        $released = add($released, 1);
+    }
+    $slot = sub($slot, 1);
+}
+if ($released = 0) {
+    mes("You have no placeholders to release.");
+    return;
+}
+~banktab_refresh;
+
 // ---- deposit inventory / deposit worn
 //
 // Both walk their source inv slot by slot and hand each obj to the same ~bank_deposit_request the
@@ -105,7 +163,7 @@ return("<tostring(divide(%bankquantity_x, 1000000))>M");
 def_int $slot = 0;
 while ($slot < inv_size(inv)) {
     def_obj $obj = inv_getobj(inv, $slot);
-    if ($obj ! null) {
+    if ($obj ! null & inv_getnum(inv, $slot) > 0) {
         if (~bank_check_nobreak($obj) = false) {
             ~bank_deposit_request(inv, $obj, inv_total(inv, $obj), $slot);
         }

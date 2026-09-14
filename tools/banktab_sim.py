@@ -56,6 +56,16 @@ class Bank:
         if tab:
             s.c[tab] = max(0, s.c[tab] - 1)
         s.compact()
+    def removed_guarded(s, slot, occupied):
+        # ~banktab_removed in full: its first two lines return without doing anything if the slot
+        # still holds an obj. A PLACEHOLDER is an obj - the bank slot with a count of zero that
+        # ~bank_withdraw_request drops in when the padlock is on - so a withdrawal that left one
+        # behind reaches this and correctly changes nothing. Releasing the stub clears the slot
+        # first, so the same call then does the real work.
+        if occupied:
+            return
+        s.removed(slot)
+
     def insert(s, frm, to):
         it = s.items.pop(frm)
         s.items.insert(to, it)
@@ -542,6 +552,53 @@ assert b.of_slot(b.items.index(mine)) == 2, 'the dragged item should now be in t
 assert b.of_slot(b.items.index(theirs)) == 2, 'and the one it was dropped on should have stayed put'
 assert b.items[dst] == mine, 'the dragged item should sit exactly where it was dropped'
 print('a drag across a break moves the item into the target tab and nothing comes back')
+
+# ---------------------------------------------------------------------------------------------
+# Placeholders. The tab arithmetic needs no changes for them, and that is the claim worth pinning:
+# a placeholder OCCUPIES its slot, the ranges are positional, so a stub is just a position like
+# any other. What changes is whether ~banktab_removed does anything.
+# ---------------------------------------------------------------------------------------------
+
+# withdrawing the last of a stack with the padlock ON leaves a stub, so nothing leaves the list
+b = Bank(); b.items = list(range(12)); b.c[1] = 3; b.c[2] = 3   # untabbed 0-5, tab1 6-8, tab2 9-11
+items_before, counts_before = list(b.items), list(b.c)
+b.removed_guarded(b.start(1), True)                            # first item of tab 1, stub left
+b.check('withdraw with placeholders on')
+assert b.items == items_before, 'a stub keeps the list exactly as it was'
+assert b.c == counts_before, f'no tab should have shrunk: {b.c[1:3]}'
+print('withdrawing the last of a stack with the padlock on moves nothing and shrinks no tab')
+
+# and with it OFF the slot really empties, which is the behaviour that was there all along
+b = Bank(); b.items = list(range(12)); b.c[1] = 3; b.c[2] = 3
+gone = b.items[b.start(1)]
+b.removed_guarded(b.start(1), False)
+b.check('withdraw with placeholders off')
+assert gone not in b.items, 'the item should have left the list'
+assert b.c[1] == 2 and b.c[2] == 3, f'only the tab that owned it should shrink: {b.c[1:3]}'
+print('and with the padlock off it leaves, closing its gap and shrinking its own tab')
+
+# releasing one stub is the same operation, just deferred
+b = Bank(); b.items = list(range(12)); b.c[1] = 3; b.c[2] = 3
+stub = b.start(2) + 1                                          # a stub sitting inside tab 2
+held = b.items[stub]
+b.removed_guarded(stub, True)                                  # the withdrawal that made it
+b.removed_guarded(stub, False)                                 # ~bank_release clears it first
+b.check('release one')
+assert held not in b.items and b.c[2] == 2, f'tab 2 should be down to two: {b.c[1:3]}'
+print('releasing a stub takes it out of its tab exactly as a withdrawal without one would have')
+
+# release-all walks TOP DOWN, because closing a gap shifts everything above the slot down by one.
+# Walking upwards would move slots the loop had not reached yet out from under it.
+b = Bank(); b.items = list(range(16)); b.c[1] = 4; b.c[2] = 4   # untabbed 0-7, tab1 8-11, tab2 12-15
+stubs = {2, 5, 9, 10, 14}
+survivors = [x for i, x in enumerate(b.items) if i not in stubs]
+for slot in sorted(stubs, reverse=True):
+    b.removed_guarded(slot, False)
+b.check('release all')
+assert b.items == survivors, 'every non-stub should have kept its order'
+assert b.c[1] == 2, f'tab 1 held two stubs and should be down to two: {b.c[1]}'
+assert b.c[2] == 3, f'tab 2 held one stub and should be down to three: {b.c[2]}'
+print('releasing every stub top down leaves the survivors in order with the right tab sizes')
 
 # Dropping on the PADDING after a tab's items appends to that tab. The client aims a padding cell at
 # its block's LAST ITEM (that is what invCellDrop is for), and inserting AT that slot lands the

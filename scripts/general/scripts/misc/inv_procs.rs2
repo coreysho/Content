@@ -252,14 +252,18 @@ if ($space_needed > inv_freespace($to_inv)) {
 return(true);
 
 // reorganize all of the slots towards the left of the inv.
+// "Empty" here is an EMPTY SLOT, not a count of zero. Those were the same thing until the bank
+// grew placeholders - a slot holding an obj with a count of 0, which is spoken for and must not be
+// shuffled away. Testing inv_getobj is identical to testing inv_getnum for every inv that has no
+// placeholders, because a real item always has a count of at least one.
 [proc,reorganize_inv](inv $inv)
 def_int $size = inv_size($inv);
 def_int $count = 0;
 
 while ($count < $size) {
-    def_int $slot_count = inv_getnum($inv, $count);
+    def_obj $slot_obj = inv_getobj($inv, $count);
 
-    if ($slot_count = 0) {
+    if ($slot_obj = null) {
         def_int $peek_slot = ~inv_peek_next_available_obj_slot($inv, $count);
 
         if ($peek_slot = -1) {
@@ -281,8 +285,8 @@ def_int $count = $from_slot;
 def_int $slot = -1;
 
 while ($count < $size) {
-    def_int $slot_count = inv_getnum($inv, $count);
-    if ($slot_count = 0) {
+    def_obj $slot_obj = inv_getobj($inv, $count);
+    if ($slot_obj = null) {
         $count = add($count, 1);
     } else {
         $slot = $count;

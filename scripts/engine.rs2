@@ -356,6 +356,12 @@
 // info: default quantity. Not sticky - the client rebuilds a component's options from the cache
 // info: whenever the interface loads, so set it again on open.
 [command,if_setinvop](component $component, int $op, string $text);
+// info: Write a zero-count entry - a "placeholder" - into an inv slot, or clear the slot when
+// info: $obj is null. A placeholder occupies its slot (inv_freespace does not count it) but holds
+// info: none of the obj (inv_total ignores it), and adding that obj stacks straight back into it.
+// info: Nothing in the engine creates one on its own, so an inv has placeholders exactly if its
+// info: scripts put them there. Added for the bank - see claude/bank-tabs.md.
+[command,inv_placeholder](inv $inv, int $slot, obj $obj);
 // info: Give xp in a stat
 [command,stat_advance](stat $stat, int $exp)
 // info: Hurt a player

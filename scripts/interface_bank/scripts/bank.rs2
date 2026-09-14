@@ -48,8 +48,11 @@ if(last_dragmode >= ^bank_drag_swap) {
     inv_movetoslot(bank, bank, last_slot, last_targetslot);
     ~banktab_refresh;
 }
-[if_button,bank_main:com_94] %bankcert = 0;
-[if_button,bank_main:com_93] %bankcert = 1;
+// Withdraw-as is ONE button now rather than an Item/Note pair, so this mirrors a flip rather than
+// setting a value. buttontype=toggle means the client has already flipped its own copy by the time
+// this runs - both sides start from the same number and apply the same operation, so they land
+// together and no varp packet is needed to correct anything.
+[if_button,bank_main:com_93] %bankcert = sub(1, %bankcert);
 [if_button,bank_main:com_99] %bankinsert = 0;
 [if_button,bank_main:com_100] %bankinsert = 1;
 [if_close,bank_main] @closebank;
@@ -99,6 +102,12 @@ queue(reorganize_bank, 0, 0); // confirmed queued
 ~reorganize_inv(bank);
 
 [label,bank_withdraw](int $slot, int $requested_number)
+// A placeholder has nothing to withdraw, and the client offers "Release" on it instead of the five
+// Withdraw entries - but it rides op 1, so this is where it lands.
+if (~bank_is_placeholder($slot) = true) {
+    ~bank_release($slot);
+    return;
+}
 // Check if the slot was empty.
 def_obj $item = inv_getobj(bank, $slot);
 // How many did they want to withdraw?
@@ -149,6 +158,14 @@ if ($withdraw > 0) {
     // $slot has been a dead parameter since this proc was written; tabs give it a job. If the
     // withdrawal emptied the slot the list now has a hole in it, and a hole shifts every range
     // above it - so close it here and decrement whichever tab owned it.
+    //
+    // Unless placeholders are on, in which case the hole is filled with a stub of the same obj
+    // FIRST. ~banktab_removed then finds the slot occupied and returns without doing anything,
+    // which is exactly right: nothing has left the list, so no tab has got shorter and no range
+    // has moved. That early return is why this needs no branch of its own.
+    if (%bankplaceholders = 1 & inv_getobj(bank, $slot) = null) {
+        inv_placeholder(bank, $slot, $obj);
+    }
     ~banktab_removed($slot);
     ~banktab_refresh;
 }

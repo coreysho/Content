@@ -10,19 +10,28 @@ WHAT IT DRAWS
 
   A single 36px row of twelve OSRS-style buttons across the bottom of the bank window:
 
-    [Swap][Insert]  [Item][Note]  [1][5][10][X][All]  [Search]  [Dep inv][Dep worn]
+    [Swap][Insert]  [Note]  [1][5][10][X][All]  [Search][Lock]  [Dep inv][Dep worn]
 
-  The four toggles on the left are the components that were already there - com_99/com_100
-  (rearrange mode) and com_94/com_93 (withdraw as) - moved onto the row and restyled. They keep
-  their ids, their buttontype=select scripts and their existing [if_button] handlers; only their
-  geometry and their sprites change. Their six text labels (com_95..com_98, com_101, com_102)
-  are deleted: the icons say the same thing in a twelfth of the width.
+  x 38..470, which is all but five of the 437px the window has between its side frames (38..475).
+  THAT IS THE BUDGET: a thirteenth 36px button does not fit. OSRS has a smaller 31x32 button
+  background at 174/177 if the row ever has to grow.
+
+  Swap/Insert are two components that were already there - com_99 and com_100 - moved onto the row
+  and restyled. They keep their ids, their buttontype=select scripts and their [if_button]s.
+
+  WITHDRAW-AS IS ONE BUTTON, NOT TWO. It used to be a com_94 / com_93 radio pair with "Item" and
+  "Note" labels under them. Two states of one setting is a toggle, so it is now a single button
+  showing the note icon, lit while %bankcert is 1 - and com_94 is deleted along with the six text
+  labels the icons replace. buttontype=toggle plus script1op1=pushvar makes the CLIENT flip the
+  varp for itself (Client.java: `varps[v] = 1 - varps[v]` when scripts[0][0] == 5, which is what
+  pushvar packs to), so the highlight moves on the same frame as the click and the server's
+  [if_button] only has to mirror it.
 
   Every button is the same pair of sprites - bankbuttons,0 unlit and bankbuttons,1 lit - with a
   separate non-button graphic component drawn on top carrying the icon. That split is what makes
-  the highlight free: the background switches on a client-side varp comparison (buttontype=select
-  + script1op1=pushvar + script1=eq) and the icon never moves. The icon components are not
-  buttons, so they are skipped by the hit test and do not swallow the click.
+  the highlight free: the background switches on a client-side varp comparison and the icon never
+  moves. The icon components are not buttons, so they are skipped by the hit test and do not
+  swallow the click.
 
   The quantity buttons carry a text label rather than an icon. The X button's label is rewritten
   by the server with if_settext once a custom amount has been entered, so it reads "250" the way
@@ -32,8 +41,10 @@ WHAT IT DRAWS
   buttontype=normal means the client's handleInterfaceAction intercepts it, opens the search box
   and returns false, so no packet is sent. The filter is a view of an inv the client already has.
 
-SPRITE SHEET. sprites/bankbuttons.png is a 10-tile 36x36 strip built by tools/genbanksprites.py
-out of the OSRS cache. Index order is fixed by BG_OFF/BG_ON/ICON_* below.
+SPRITE SHEET. sprites/bankbuttons.png is a 10-tile 36x36 strip built by
+tools/models/genbanksprites.py out of the OSRS cache. Index order is fixed by BG_OFF/BG_ON/ICON_*
+below. Tile 4 (the "item" half of the old withdraw-as pair) is no longer drawn, but it stays in
+the sheet so every index after it keeps its number.
 """
 import os, re, sys
 
@@ -48,49 +59,40 @@ MARK_B = '// ---- end bank bottom bar ----'
 SHEET = 'bankbuttons'
 BG_OFF, BG_ON = 0, 1
 ICON_SWAP, ICON_INSERT, ICON_ITEM, ICON_NOTE = 2, 3, 4, 5
-ICON_SEARCH, ICON_DEPINV, ICON_DEPWORN = 6, 7, 8
+ICON_SEARCH, ICON_DEPINV, ICON_DEPWORN, ICON_LOCK = 6, 7, 8, 9
 
 ROW_Y, BTN = 288, 36
 X0, PITCH = 38, 36
+RIGHT_EDGE = 475          # the window's right-hand steel border starts here
 
-# The four existing toggles, in the order they sit on the row. Each is (component, slot index).
-# com_99 = Swap, com_100 = Insert, com_94 = Item, com_93 = Note - see bank.rs2's [if_button]s.
-TOGGLES = [('com_99', 0, ICON_SWAP, 'swap'),
-           ('com_100', 1, ICON_INSERT, 'insert'),
-           ('com_94', 2, ICON_ITEM, 'item'),
-           ('com_93', 3, ICON_NOTE, 'note')]
+# The existing components this generator restyles in place, as (name, slot, icon, suffix, kind).
+# 'select' keeps the component's own script1op1/script1 lines; 'toggle' is rewritten to flip.
+KEEP = [('com_99', 0, ICON_SWAP, 'swap', 'select'),
+        ('com_100', 1, ICON_INSERT, 'insert', 'select'),
+        ('com_93', 2, ICON_NOTE, 'note', 'toggle')]
 
-# The six text labels the icons replace.
-DEAD = ['com_95', 'com_96', 'com_97', 'com_98', 'com_101', 'com_102']
+# com_94 was the "Item" half of the withdraw-as pair; the rest are the six text labels.
+DEAD = ['com_94', 'com_95', 'com_96', 'com_97', 'com_98', 'com_101', 'com_102']
 
-QTY = [('bankqty1', 4, 0, '1', 'Withdraw 1 at a time'),
-       ('bankqty5', 5, 1, '5', 'Withdraw 5 at a time'),
-       ('bankqty10', 6, 2, '10', 'Withdraw 10 at a time'),
-       ('bankqtyx', 7, 3, 'X', 'Withdraw a custom amount'),
-       ('bankqtyall', 8, 4, 'All', 'Withdraw everything')]
+QTY = [('bankqty1', 3, 0, '1', 'Withdraw 1 at a time'),
+       ('bankqty5', 4, 1, '5', 'Withdraw 5 at a time'),
+       ('bankqty10', 5, 2, '10', 'Withdraw 10 at a time'),
+       ('bankqtyx', 6, 3, 'X', 'Withdraw a custom amount'),
+       ('bankqtyall', 7, 4, 'All', 'Withdraw everything')]
 
 SEARCH_CLIENTCODE = 221
+SEARCH_SLOT, LOCK_SLOT, DEPINV_SLOT, DEPWORN_SLOT = 8, 9, 10, 11
+SLOTS = 12
 
 
 def slot_x(i):
     return X0 + i * PITCH
 
 
-def toggle_block(com, i):
-    """The replacement body for one of the four existing toggle buttons, ids untouched."""
-    return [f'[{com}]',
-            'type=graphic',
-            f'x={slot_x(i)}',
-            f'y={ROW_Y}',
-            'buttontype=select',
-            f'width={BTN}',
-            f'height={BTN}']
-
-
 def blocks():
     out = [MARK_A, '']
-    # icon overlays for the four toggles that already exist above
-    for com, i, icon, name in TOGGLES:
+    # icon overlays for the three components that already exist above
+    for com, i, icon, name, kind in KEEP:
         out += [f'[bankicon_{name}]',
                 'type=graphic',
                 f'x={slot_x(i)}',
@@ -114,11 +116,46 @@ def blocks():
                 f'activegraphic={SHEET},{BG_ON}',
                 f'option={option}',
                 '']
-    # the three action buttons
+    # The placeholder padlock. A component carries exactly ONE option string (PackShared writes a
+    # single pjstr for it), so "Release all placeholders" gets its own invisible button stacked on
+    # the same rectangle - a type=graphic with no graphic= draws nothing but still hit-tests. It is
+    # emitted FIRST so the visible toggle, coming second, is the one the left click takes: the menu
+    # is built in child order and useMenuOption takes menuSize - 1.
+    out += ['[banklockrelease]',
+            'type=graphic',
+            f'x={slot_x(LOCK_SLOT)}',
+            f'y={ROW_Y}',
+            'buttontype=normal',
+            f'width={BTN}',
+            f'height={BTN}',
+            'option=Release all placeholders',
+            '']
+    out += ['[banklock]',
+            'type=graphic',
+            f'x={slot_x(LOCK_SLOT)}',
+            f'y={ROW_Y}',
+            'buttontype=toggle',
+            f'width={BTN}',
+            f'height={BTN}',
+            'script1op1=pushvar,bankplaceholders',
+            'script1=eq,1',
+            f'graphic={SHEET},{BG_OFF}',
+            f'activegraphic={SHEET},{BG_ON}',
+            'option=Always set placeholders',
+            '']
+    out += ['[banklockicon]',
+            'type=graphic',
+            f'x={slot_x(LOCK_SLOT)}',
+            f'y={ROW_Y}',
+            f'width={BTN}',
+            f'height={BTN}',
+            f'graphic={SHEET},{ICON_LOCK}',
+            '']
+    # the three plain action buttons
     for name, i, icon, option, clientcode in [
-            ('banksearch', 9, ICON_SEARCH, 'Search', SEARCH_CLIENTCODE),
-            ('bankdepinv', 10, ICON_DEPINV, 'Deposit inventory', None),
-            ('bankdepworn', 11, ICON_DEPWORN, 'Deposit worn items', None)]:
+            ('banksearch', SEARCH_SLOT, ICON_SEARCH, 'Search', SEARCH_CLIENTCODE),
+            ('bankdepinv', DEPINV_SLOT, ICON_DEPINV, 'Deposit inventory', None),
+            ('bankdepworn', DEPWORN_SLOT, ICON_DEPWORN, 'Deposit worn items', None)]:
         out += [f'[{name}]',
                 'type=graphic',
                 f'x={slot_x(i)}',
@@ -158,26 +195,42 @@ def blocks():
 
 
 def main():
+    right = slot_x(SLOTS - 1) + BTN
+    if right > RIGHT_EDGE:
+        sys.exit(f'the row ends at x={right}, past the window frame at {RIGHT_EDGE}')
+
     src = open(IF, encoding='utf-8', newline='').read()
     crlf = '\r\n' in src
     body = src.replace('\r\n', '\n')
 
     body = re.sub(re.escape(MARK_A) + r'.*?' + re.escape(MARK_B) + r'\n?', '', body, flags=re.S)
 
-    # restyle the four toggles in place - keep everything below their geometry (the select scripts)
-    for com, i, icon, name in TOGGLES:
+    # restyle the components that keep their ids
+    for com, i, icon, name, kind in KEEP:
         m = re.search(r'\[' + com + r'\]\n(?:[a-z0-9_]+=[^\n]*\n)+', body)
         if not m:
             sys.exit(f'{com} does not look the way this generator expects - refusing to guess')
-        keep = [l for l in m.group(0).strip().split('\n')[1:]
-                if l.split('=', 1)[0] in ('script1op1', 'script1')]
-        if len(keep) != 2:
-            sys.exit(f'{com} has lost its select script - refusing to guess')
-        block = toggle_block(com, i) + keep + [f'graphic={SHEET},{BG_OFF}',
-                                              f'activegraphic={SHEET},{BG_ON}']
+        existing = dict(l.split('=', 1) for l in m.group(0).strip().split('\n')[1:] if '=' in l)
+        if 'script1op1' not in existing:
+            sys.exit(f'{com} has lost its interface script - refusing to guess')
+        if kind == 'toggle':
+            # the comparator only decides which way round the sprite lights; the click itself is
+            # the client's own 1 - varp flip, which buttontype=toggle + pushvar is what triggers
+            script = [f"script1op1={existing['script1op1']}", 'script1=eq,1']
+        else:
+            script = [f"script1op1={existing['script1op1']}", f"script1={existing['script1']}"]
+        block = ([f'[{com}]',
+                  'type=graphic',
+                  f'x={slot_x(i)}',
+                  f'y={ROW_Y}',
+                  f'buttontype={kind}',
+                  f'width={BTN}',
+                  f'height={BTN}']
+                 + script
+                 + [f'graphic={SHEET},{BG_OFF}', f'activegraphic={SHEET},{BG_ON}'])
         body = body[:m.start()] + '\n'.join(block) + '\n' + body[m.end():]
 
-    # drop the six text labels the icons replace
+    # drop the components the icons and the toggle replace
     for com in DEAD:
         m = re.search(r'\[' + com + r'\]\n(?:[a-z0-9_]+=[^\n]*\n)+\n?', body)
         if m:
@@ -234,10 +287,9 @@ def main():
     open(PACK, 'w', encoding='utf-8', newline='').write('\n'.join(keep_pack) + '\n')
     open(ORDER, 'w', encoding='utf-8', newline='').write(
         ('\r\n' if order_crlf else '\n').join(order) + ('\r\n' if order_crlf else '\n'))
-    got = sorted(int(l.split('=', 1)[0]) for l in keep_pack
-                 if l.split('=', 1)[1] in mine)
+    got = sorted(int(l.split('=', 1)[0]) for l in keep_pack if l.split('=', 1)[1] in mine)
     print(f'{len(names)} components, ids {got[0]}..{got[-1]}; '
-          f'row y={ROW_Y}, x {slot_x(0)}..{slot_x(11) + BTN}; dropped {len(DEAD)} labels')
+          f'row y={ROW_Y}, x {slot_x(0)}..{right}; dropped {len(DEAD)}')
 
 
 main()
