@@ -250,6 +250,12 @@ MUTS = [
   '[poh_fam_first]\ninputtype=int\noutputtype=int\nval=1,1',
   '[poh_fam_first]\ninputtype=int\noutputtype=int\nval=1,2',
   '51 a family whose first piece is not its first piece'),
+ # Rule 17 shipped INERT the first time - it used the HEADER regex, which needs a comma, so it
+ # never matched a config block header and reported nothing at all when a default= was deleted.
+ # This mutation is here so that cannot happen twice.
+ ('scripts/skill_slayer/configs/superiors.enum',
+  'outputtype=npc\ndefault=null', 'outputtype=npc',
+  '17 an enum whose miss returns a real id 0 and has no default= (rs2check)'),
 ]
 
 def checker_for(why):

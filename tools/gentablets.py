@@ -177,14 +177,16 @@ def emit_enum(spec, rows, ids):
     tabs = spec['tablets']
     o = ENUM_HEAD.split('\n')
 
-    def table(name, outtype, vals, why):
+    def table(name, outtype, vals, why, default=None):
         out = ['// ' + l if l else '//' for l in why.split('\n')]
         out += ['[%s]' % name, 'inputtype=int', 'outputtype=%s' % outtype]
+        if default is not None:
+            out += ['default=%s' % default]
         out += ['val=%s,%s' % kv for kv in vals]
         return out + ['']
 
     o += table('poh_tab_obj', 'namedobj', [(n + 1, t['obj']) for n, t in enumerate(tabs)],
-               'Which obj each tablet is. namedobj and not obj: inv_add takes a namedobj, and an enum\ntyped obj will not pass to it ("Type mismatch: inv,obj,int was given but inv,namedobj,int\nwas expected"). namedobj passes everywhere obj does - if_setobject takes it fine - so this\nis the type that works in both places. The window draws it with if_setobject, which works\nthe icon camera out from the obj config, so there is no zoom table here.')
+               'Which obj each tablet is. namedobj and not obj: inv_add takes a namedobj, and an enum\ntyped obj will not pass to it ("Type mismatch: inv,obj,int was given but inv,namedobj,int\nwas expected"). namedobj passes everywhere obj does - if_setobject takes it fine - so this\nis the type that works in both places. The window draws it with if_setobject, which works\nthe icon camera out from the obj config, so there is no zoom table here.\ndefault=null because a namedobj enum with no default answers 0 on a miss, and obj 0 is\nmcannonremains - rs2check rule 17.', default='null')
     o += table('poh_tab_name', 'string',
                [(n + 1, t.get('label', t['name'])) for n, t in enumerate(tabs)],
                'The name as the WINDOW writes it, which is the obj\'s own name unless that name is wider\n'

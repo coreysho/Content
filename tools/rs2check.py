@@ -584,6 +584,59 @@ def check_models():
             report("ERROR", "pack/model.pack", n, 16, "%s is registered but no .ob2 exists" % nm)
 
 
+def check_enum_defaults():
+    """Rule 17: an enum whose outputtype has a REAL id 0 must declare default=.
+
+    EnumConfig only writes opcode 4 when a default= key is present, EnumType.defaultInt is 0, and
+    EnumOps pushes `value ?? defaultInt` - so a MISS RETURNS 0, NOT NULL. Id 0 is a real thing in
+    every one of these tables:
+
+        seq.pack:0      swarm_walk
+        spotanim.pack:0 triple_firebreath_attack
+        npc.pack:0      hans
+        obj.pack:0      mcannonremains
+        loc.pack:0      mcannoncrate
+
+    So a lookup that misses does not fail - it returns something plausible, and every `! null` guard
+    written against it passes. That is how the skillcape emote came to breathe dragonfire at anyone
+    in a plain cape (2026-09-12), and how `slayer_superior` was one 1/200 roll away from spawning
+    HANS as a superior slayer monster on any of the 69 tasks that have no superior (2026-09-14).
+
+    Only types where 0 is a real entry are flagged. An `int`- or `string`-typed enum returning 0 on
+    a miss is ordinary and frequently intended, and flagging those would put 96 findings in front of
+    the 61 that matter.
+    """
+    risky = ("namedobj", "npc", "obj", "seq", "loc", "spotanim", "component",
+             "interface", "synth", "category", "struct", "dbrow", "inv", "stat")
+    for path in walk({".enum"}):
+        cur = None
+        info = {}
+        order = []
+        for n, raw, _ in stripped_lines(text(path)):
+            # NOT the HEADER regex: that one requires a comma ("[opheld1,thing]"), and a config
+            # block header has none ("[superiors]"). Using it here made the whole rule a no-op -
+            # cur never got set, nothing was ever recorded, and deleting a default= to test it
+            # still printed 0 ERROR. Second time a rule in this file has shipped inert; test every
+            # new one by breaking the thing it is supposed to catch.
+            m = re.match(r"^\[([^\],]+)\]\s*$", raw.strip())
+            if m:
+                cur = m.group(1)
+                info[cur] = {"line": n, "default": False, "out": None}
+                order.append(cur)
+            elif cur:
+                t = raw.strip()
+                if t.startswith("default="):
+                    info[cur]["default"] = True
+                elif t.startswith("outputtype="):
+                    info[cur]["out"] = t.split("=", 1)[1].strip()
+        for k in order:
+            v = info[k]
+            if not v["default"] and v["out"] in risky:
+                report("ERROR", path, v["line"], 17,
+                       "[%s] outputs %s and has no default= - a miss returns id 0, which is a real %s"
+                       % (k, v["out"], v["out"]))
+
+
 def check_duplicates(T):
     for trig, places in sorted(T["triggers"].items()):
         if len(places) > 1:
@@ -663,6 +716,7 @@ def main(argv):
     if not targets:
         check_duplicates(T)
         check_models()
+        check_enum_defaults()
 
     errors = [f for f in findings if f[0] == "ERROR"]
     checks = [f for f in findings if f[0] == "CHECK"]

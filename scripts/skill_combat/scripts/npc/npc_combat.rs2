@@ -245,7 +245,12 @@ if(npc_type = ikov_firewarrior) { // can't attack with magic
     return (false);
 }
 if (npc_category = kolodion & enum(int, npc, mage_arena_bosses, %magearena) ! npc_type) {
-    if (%magearena > ^mage_arena_complete) {
+    // >= not >. mage_arena_bosses runs 0..5 and ^mage_arena_complete is 6, so the moment the demon
+    // dies this whole block was entered and fell past a > test into the "you must now fight him as"
+    // messages - which then indexed mage_arena_boss_names at 6 and missed as well. 7 and 8 (prayed
+    // at the statue, staff given) were handled correctly; only 6, the state every finisher sits in
+    // until they pray, was not.
+    if (%magearena >= ^mage_arena_complete) {
         mes("You have already proven yourself against Kolodion.");
         return(false);
     }

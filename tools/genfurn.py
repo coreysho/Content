@@ -367,7 +367,10 @@ def emit_enum(fams, items, path):
           ['// WHAT A PIECE COSTS. Two materials are enough for everything the game asks for: planks for',
            '// the inside of a house, a bagged plant for a tree, and the two-material centrepieces',
            '// (5 limestone bricks and 5 soft clay for the imp statue). namedobj, not obj: inv_del wants',
-           '// a namedobj and namedobj widens to obj, so one table feeds inv_total and inv_del both.'])
+           '// a namedobj and namedobj widens to obj, so one table feeds inv_total and inv_del both.',
+           '// default=null even though every piece has a row: a namedobj enum with no default answers',
+           '// 0 on a miss, and obj 0 is mcannonremains. rs2check rule 17.'],
+          default='null')
     table('poh_furn_mat1n', 'int', [(i['n'], i['mats'][0][1]) for i in items])
     table('poh_furn_mat2', 'namedobj',
           [(i['n'], i['mats'][1][0]) for i in items if len(i['mats']) > 1],
