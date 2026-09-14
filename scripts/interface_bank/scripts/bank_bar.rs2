@@ -72,11 +72,23 @@ switch_int (%bankquantity) {
 
 // OSRS puts the chosen amount on the button once it has been set, so the bar reads 1 5 10 250 All
 // rather than 1 5 10 X All. Before anything has been entered it is still an X.
+//
+// Abbreviated the way the game abbreviates a stack count, because the button is 36px wide and
+// p11_full renders "6000000" at 49px - it ran over its neighbours. The widest string this can now
+// produce is "2147M" at 29px. Switching to M at a million rather than at ten million (which is
+// where stack counts switch) is what keeps "9999K" - 35px, too wide - off the button. The exact
+// amount is never lost: it is spelled out in full on the left-click option, "Withdraw 6000000".
 [proc,bank_quantity_xlabel]()(string)
-if (%bankquantity_x > 0) {
+if (%bankquantity_x <= 0) {
+    return("X");
+}
+if (%bankquantity_x < 10000) {
     return(tostring(%bankquantity_x));
 }
-return("X");
+if (%bankquantity_x < 1000000) {
+    return("<tostring(divide(%bankquantity_x, 1000))>K");
+}
+return("<tostring(divide(%bankquantity_x, 1000000))>M");
 
 // ---- deposit inventory / deposit worn
 //

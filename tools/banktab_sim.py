@@ -65,6 +65,11 @@ class Bank:
             return
         s.place(slot, tab, frm)
 
+    def append(s, slot, tab):
+        # ~banktab_append - the drop-on-the-padding gesture. Same as move_to but with no early
+        # return, because appending within your own tab is a legitimate reorder.
+        s.place(slot, tab, s.of_slot(slot))
+
     def dragged(s, frm, to):
         # insert-mode drag: the shift moves the item across a break, so one tab loses an item and
         # the other gains one. Worked out BEFORE the shift, while the slot numbers still mean what
@@ -537,3 +542,27 @@ assert b.of_slot(b.items.index(mine)) == 2, 'the dragged item should now be in t
 assert b.of_slot(b.items.index(theirs)) == 2, 'and the one it was dropped on should have stayed put'
 assert b.items[dst] == mine, 'the dragged item should sit exactly where it was dropped'
 print('a drag across a break moves the item into the target tab and nothing comes back')
+
+# Dropping on the PADDING after a tab's items appends to that tab. The client aims a padding cell at
+# its block's LAST ITEM (that is what invCellDrop is for), and inserting AT that slot lands the
+# dragged obj one place short of the end - the item that was last stays last. Corey dragged d boots
+# onto the blank space after a seed box and expected them to end up after it: "the dboots should
+# just go after the seed box and everything should move one slot to refill the missing d boots".
+b = Bank(); b.items = list(range(12)); b.c[1] = 3; b.c[2] = 3   # untabbed 0-5, tab1 6-8, tab2 9-11
+mine = b.items[b.start(1)]                                     # first item of tab 1
+last_untabbed = b.items[b.untabbed() - 1]                      # what the padding cell aims at
+b.append(b.start(1), 0)                                        # dropped on the untabbed block's padding
+b.check('append onto the untabbed block')
+assert b.c[1] == 2 and b.c[2] == 3, f'only the source tab should shrink: {b.c[1:3]}'
+assert b.items[b.untabbed() - 1] == mine, 'the dragged item should be LAST in the block it joined'
+assert b.items[b.untabbed() - 2] == last_untabbed, 'and the item that was last should now be second to last'
+print('dropping on the padding after a block appends to it rather than landing one short')
+
+# and the same gesture aimed at a numbered tab
+b = Bank(); b.items = list(range(12)); b.c[1] = 3; b.c[2] = 3
+mine = b.items[0]
+b.append(0, 2)
+b.check('append onto tab 2')
+assert b.c[1] == 3 and b.c[2] == 4, f'tab 2 should have grown by one: {b.c[1:3]}'
+assert b.items[b.start(2) + b.c[2] - 1] == mine, 'the dragged item should be last in tab 2'
+print('and appending onto a numbered tab puts the item on the end of that tab')

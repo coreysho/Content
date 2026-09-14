@@ -263,6 +263,15 @@ if ($tab ! ^bank_tab_all) {
 // last numbered tab - never where it belongs. Untabbed, it goes to the end of the leading untabbed
 // block; with a tab open, OSRS files it into that tab, so it goes there. Either way it has to move,
 // which is why there is no early return for tab 0 here.
+// Put the item at $slot on the END of $tab, wherever it is now - including when it is already in
+// that tab, which is a legitimate reorder and the reason this does not reuse ~banktab_move_to's
+// early return. ~banktab_place does the counts, the move, the resend and the refresh.
+[proc,banktab_append](int $slot, int $tab)
+if (inv_getobj(bank, $slot) = null) {
+    return;
+}
+~banktab_place($slot, $tab, ~banktab_of_slot($slot));
+
 [proc,banktab_deposited](int $slot)
 ~banktab_place($slot, %banktab, ^bank_tab_none);
 

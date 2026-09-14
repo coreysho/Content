@@ -15,6 +15,12 @@ if(last_dragmode >= ^bank_drag_swap) {
     ~banktab_swap(add(divide($pair, 8), 1), add(modulo($pair, 8), 1));
 } else if(last_dragmode >= ^bank_drag_tab) {
     ~banktab_move_to(last_slot, sub(last_dragmode, ^bank_drag_tab));
+} else if(last_dragmode >= ^bank_drag_append) {
+    // Dropped on the blank space after a tab's items: append to whichever tab owns the slot the
+    // client aimed at (that tab's last item). Appending is a different answer from inserting at
+    // that last item, which would leave the dragged obj one place short of the end - "the dboots
+    // should just go after the seed box".
+    ~banktab_append(last_slot, ~banktab_of_slot(last_targetslot));
 } else if(%bankinsert = 1 | ~banktab_of_slot(last_slot) ! ~banktab_of_slot(last_targetslot)) {
     // INSERT, always, when the drag crosses a tab boundary - whatever the rearrange mode says.
     //
@@ -28,7 +34,7 @@ if(last_dragmode >= ^bank_drag_swap) {
     // ~banktab_dragged does the count arithmetic BEFORE the shift, while the slot numbers still
     // mean what they say.
     ~banktab_dragged(last_slot, last_targetslot);
-    @insert_bank(last_slot, last_targetslot);
+    ~insert_bank(last_slot, last_targetslot);
     // The client only inserts optimistically when ITS rearrange mode is insert. On a cross-tab
     // drag in swap mode it has already drawn a swap, so the grid it is showing is not the list
     // the server now holds - hence a full resend rather than a plain refresh. Without this the
@@ -206,7 +212,11 @@ switch_obj ($obj) {
     case default : return(false);
 }
 
-[label,insert_bank](int $start_slot, int $target_slot)
+// A PROC, not a label. It used to be [label,insert_bank] and the drag handler reached it with
+// @insert_bank(...) - and @ is a JUMP, not a call, so it never came back and every line after it
+// was dead. That is why a drag across a break left the client showing whatever it had guessed
+// until the bank was closed and reopened: neither ~banktab_refresh nor ~banktab_resend ever ran.
+[proc,insert_bank](int $start_slot, int $target_slot)
 def_int $src = $start_slot;
 def_int $dst = $target_slot;
 
