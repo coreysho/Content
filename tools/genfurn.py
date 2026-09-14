@@ -786,6 +786,12 @@ def emit_rs2_tail(fams, items, byfam):
     o += ['    case default : return(0);', '}', '',
           '// =========================================================================== the click', '',
           '[proc,poh_furn_click](int $fam)',
+          '~poh_furn_click_at($fam, -1, -1);', '',
+          '// A family with an ANCHOR is stored at a fixed tile of the room rather than at the tile that',
+          '// was clicked. Only a piece that covers more than one tile needs it: the combat ring has',
+          '// sixteen hotspots and one ring, so whichever you click it has to be stored, found and',
+          '// removed in the same place, and the anchor is a tile nothing is ever built on.',
+          '[proc,poh_furn_click_at](int $fam, int $ax, int $az)',
           'if (%poh_instance = null) {', '    mes("You can only build in your own house.");', '    return;', '}',
           'def_coord $spot = loc_coord;',
           'if (instance_find($spot) ! %poh_instance) {',
@@ -798,6 +804,9 @@ def emit_rs2_tail(fams, items, byfam):
           'def_int $rx = calc(divide($gx, 8) - ^poh_grid_origin);',
           'def_int $rz = calc(divide($gz, 8) - ^poh_grid_origin);',
           'def_int $lx = modulo($gx, 8);', 'def_int $lz = modulo($gz, 8);',
+          'if ($ax >= 0) {',
+          '    $spot = movecoord($spot, calc($ax - $lx), 0, calc($az - $lz));',
+          '    $lx = $ax;', '    $lz = $az;', '    $angle = 0;', '}',
           'if (~poh_furn_free < 0) {',
           '    mes("Your house is as full of furniture as it will hold.");', '    return;', '}',
           'def_int $item = ~poh_furn_pick($fam, "Select what you want to build");',
@@ -863,12 +872,19 @@ def emit_rs2_tail(fams, items, byfam):
     byid = {v: k for k, v in packmap('pack/loc.pack').items()}
     for f in fams:
         for h in f['hotspots']:
-            o += ['[oploc5,%s]' % byid[h], '~poh_furn_click(^poh_fam_%s);' % f['key'], '']
+            if f.get('anchor'):
+                o += ['[oploc5,%s]' % byid[h],
+                      '~poh_furn_click_at(^poh_fam_%s, %d, %d);' % (f['key'], *f['anchor']), '']
+            else:
+                o += ['[oploc5,%s]' % byid[h], '~poh_furn_click(^poh_fam_%s);' % f['key'], '']
     o += ['// One per buildable LOC: every piece keeps its own op5=Remove from poh.loc. Per loc and not',
           '// per piece, because a loc can be buildable in two hotspots (the exit portal is the',
           '// centrepiece of both gardens) and a trigger declared twice does not compile.', '']
-    for loc in dict.fromkeys(i['loc'] for i in items):
-        o += ['[oploc5,%s]' % loc, '~poh_furn_remove;', '']
+    # A family may name its OWN removal proc. The combat ring does: it stands on 36 tiles and is
+    # stored at the room's anchor rather than under the piece you clicked, so ~poh_furn_remove -
+    # which looks the slot up under the clicked tile - would never find it.
+    for loc, fam in dict((i['loc'], byfam[i['famkey']]) for i in items).items():
+        o += ['[oploc5,%s]' % loc, '~%s;' % fam.get('remove', 'poh_furn_remove'), '']
     return o
 
 OPS_HEAD = """// What the furniture DOES. One [oploc1] per piece, generated from the op1 block of each family in
@@ -1036,6 +1052,13 @@ if __name__ == '__main__':
     shapes = map_shapes()
     bad = []
     for f in fams:
+        # A family that hands its placement to a proc does not use its own shape for anything - the
+        # proc lays each tile with that tile's own. The combat ring's sixteen hotspots are walls,
+        # corners and ground decor all at once, so no single shape could be right here; what
+        # replaces this check for it is battery group 59, which reads every emitted loc_add back
+        # against the template and is the stronger test.
+        if f.get('show'):
+            continue
         for h in f['hotspots']:
             have = shapes.get(h, set())
             if f['shape'] not in have:

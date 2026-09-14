@@ -1,0 +1,77 @@
+// What the Combat room's ring does once it is built.
+//
+// The ring itself - which loc goes on which of its 36 tiles, and how that turns with the room - is
+// generated into poh_combat_ring.rs2 by tools/gencombatring.py. This file is the behaviour, which
+// is hand-written because none of it is table-shaped.
+//
+// THE HONEST PART. Everything OSRS does inside a combat ring needs a second player: you challenge
+// someone, the ring keeps you both in, and the loser walks out. There is nobody else in this world
+// yet, so these say so rather than doing nothing - the same answer the games room, the throne room
+// lever and the attack stone give (claude/poh-no-dead-clicks.md).
+//
+// Climbing in and out is real, though, and worth having on its own: the ring wall is a wall loc, so
+// without it the ring is a box you cannot get into.
+
+// =========================================================================== the ring wall
+
+[proc,poh_ring_climb]
+if (%poh_instance = null | instance_find(loc_coord) ! %poh_instance) {
+    return;
+}
+// Over the wall, not around it: the wall is between the tile the player is standing on and the one
+// on its other side, so the step is two squares in the direction the player is facing the wall from.
+def_coord $wall = loc_coord;
+def_coord $to = ~poh_ring_across($wall);
+if ($to = null) {
+    mes("You can't climb over from here.");
+    return;
+}
+anim(human_pickupfloor, 0);
+p_delay(1);
+p_teleport($to);
+mes("You climb over the ropes.");
+
+// The tile on the far side of a ring wall from where the player is standing. The wall sits on its
+// own tile's edge, so the player is on one side of it and the answer is the tile mirrored through
+// the wall - one step further in the direction they were already moving.
+[proc,poh_ring_across](coord $wall)(coord)
+def_int $dx = calc(coordx($wall) - coordx(coord));
+def_int $dz = calc(coordz($wall) - coordz(coord));
+if ($dx = 0 & $dz = 0) {
+    return(null);
+}
+if (abs($dx) > abs($dz)) {
+    if ($dx > 0) return(movecoord($wall, 1, 0, 0));
+    return(movecoord($wall, -1, 0, 0));
+}
+if ($dz > 0) return(movecoord($wall, 0, 0, 1));
+return(movecoord($wall, 0, 0, -1));
+
+// =========================================================================== the balance beam
+
+// Standing on the beam is a pose, not a state the engine holds - 377 has no way to keep a player
+// in an animation, which is the same wall the seated chairs ran into. So it is the emote and the
+// message, and Get-down answers for symmetry rather than being needed.
+[proc,poh_ring_beam_stand]
+if (%poh_instance = null | instance_find(loc_coord) ! %poh_instance) {
+    return;
+}
+p_walk(loc_coord);
+p_delay(1);
+if (~poh_ring_arrived(loc_coord) = false) {
+    return;
+}
+anim(human_pickupfloor, 0);
+mes("You balance on the beam. It would take another person to make a contest of it.");
+
+[proc,poh_ring_beam_down]
+mes("You step off the beam.");
+
+// p_walk does not block, so anything that has to happen ON the tile has to check it got there -
+// the same shape ~poh_furn_sit uses for the chairs.
+[proc,poh_ring_arrived](coord $spot)(boolean)
+if (coord = $spot) {
+    return(true);
+}
+mes("You can't reach that.");
+return(false);

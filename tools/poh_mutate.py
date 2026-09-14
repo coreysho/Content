@@ -410,6 +410,50 @@ if (inv_total(inv, coins) < $cost) {
   'case 289 : ~poh_portal_place($spot, $angle, 1);',
   'case 289 : loc_add($spot, poh_portal_teak_empty, $angle, centrepiece_straight, ^poh_loc_duration);',
   '29 a placed piece is removable / 58 Enter and Remove'),
+
+ # --- 59, the combat ring ---
+ # a rope one square out of the ring
+ ('scripts/skill_construction/scripts/poh_combat_ring.rs2',
+  '~poh_ring_wall($base, $rot, 2, 1, 1, poh_boxing_ringwall_white);',
+  '~poh_ring_wall($base, $rot, 2, 0, 1, poh_boxing_ringwall_white);',
+  '59 every tile laid is a template tile'),
+ # a mat laid on the wall layer, which leaves the hotspot standing in the same tile
+ ('scripts/skill_construction/scripts/poh_combat_ring.rs2',
+  '~poh_ring_mat($base, $rot, 2, 2, 0, poh_boxing_ring_mat_corner);',
+  '~poh_ring_wall($base, $rot, 2, 2, 0, poh_boxing_ring_mat_corner);',
+  '59 at its shape and its angle'),
+ # a tile dropped, so the ring has a hole in it
+ ('scripts/skill_construction/scripts/poh_combat_ring.rs2',
+  '~poh_ring_mat($base, $rot, 3, 3, 0, poh_combat_mat_middle);' + chr(10), '',
+  '59 combat covers 36 tiles'),
+ # the zone rotation drifting off the engine's, so a turned room lays its ring sideways
+ ('scripts/skill_construction/scripts/poh_combat_ring.rs2',
+  'case 1 : return(movecoord($base, $z, 0, calc(7 - $x)));',
+  'case 1 : return(movecoord($base, calc(7 - $x), 0, $z));',
+  '59 the zone rotation matches the engine'),
+ # the angle no longer turning with the room
+ ('scripts/skill_construction/scripts/poh_combat_ring.rs2',
+  'return(modulo(calc($angle + $rot), 4));', 'return($angle);', '59 and so does the angle'),
+ # removal looking under the clicked tile, which is never where the ring is stored
+ ('scripts/skill_construction/scripts/poh_combat_ring.rs2',
+  '~poh_furn_at($rx, $rz, 0, 0)', '~poh_furn_at($rx, $rz, 1, 1)',
+  '59 removal looks the slot up at the anchor'),
+ # a ring loc nobody can take out again
+ ('scripts/skill_construction/scripts/poh_combat_ring.rs2',
+  '[oploc5,poh_boxing_ring_mat_side] ~poh_combat_ring_remove;' + chr(10), '',
+  '59 all ring locs are wired'),
+ # wiring an empty-model hotspot, which is a click that cannot happen
+ ('tools/furnspec.json', '15098,', '15098,\n   15104,', '59 the family takes the 16 visible hotspots'),
+ # the anchor moved onto a tile the ring itself stands on
+ ('tools/furnspec.json', '"anchor": [\n    0,\n    0\n   ],', '"anchor": [\n    1,\n    1\n   ],',
+  '59 nothing in the Combat room template stands on (0,0)'),
+ # cloth that cannot be bought, so three of the four rings are unbuildable
+ ('scripts/skill_construction/scripts/sawmill.rs2',
+  '~sawmill_sell(bolt_of_cloth, ^sawmill_cost_cloth);', '~sawmill_sell(saw, ^sawmill_cost_cloth);',
+  '59 the sawmill operator sells it'),
+ # and the anchor path removed from the click, which loses the ring the moment it is stored
+ ('tools/genfurn.py', "'if ($ax >= 0) {',", "'if ($ax >= 99) {',",
+  '29 an anchor overrides the clicked tile'),
 ]
 
 def checker_for(why):

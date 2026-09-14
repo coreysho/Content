@@ -1,5 +1,6 @@
 """Symbol and signature battery for the two new .rs2 files, from claude/rs2-compile-traps.md."""
 import re, sys, os
+import json as _json
 C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FILES = ['scripts/skill_construction/scripts/poh.rs2', 'scripts/skill_construction/scripts/poh_test.rs2',
          'scripts/skill_construction/scripts/poh_portal.rs2', 'scripts/skill_construction/scripts/poh_build.rs2',
@@ -8,7 +9,9 @@ FILES = ['scripts/skill_construction/scripts/poh.rs2', 'scripts/skill_constructi
          'scripts/skill_construction/scripts/poh_menus.rs2',
          'scripts/skill_construction/scripts/poh_furn_ops.rs2',
          'scripts/skill_construction/scripts/poh_tablets.rs2',
-         'scripts/skill_construction/scripts/poh_portal_chamber.rs2']
+         'scripts/skill_construction/scripts/poh_portal_chamber.rs2',
+         'scripts/skill_construction/scripts/poh_combat_ring.rs2',
+         'scripts/skill_construction/scripts/poh_combat.rs2']
 fails = 0
 def check(ok, what):
     global fails
@@ -648,8 +651,11 @@ check(rm.index('~poh_furn_count_cell_item') < rm.index('~p_choice2'),
 print('26. the sawmill: the items, the npc and where he stands')
 OBJCFG = blocks(read('scripts/skill_construction/configs/construction.obj'))
 SAWNPC = blocks(read('scripts/skill_construction/configs/sawmill.npc'))
-check(sorted(OBJCFG) == ['mahogany_plank', 'oak_plank', 'plank', 'saw', 'teak_plank'],
+check(sorted(OBJCFG) == ['bolt_of_cloth', 'cert_bolt_of_cloth', 'mahogany_plank', 'oak_plank',
+                         'plank', 'saw', 'teak_plank'],
       'construction.obj defines %s' % sorted(OBJCFG))
+check((OBJCFG.get('bolt_of_cloth', {}).get('cost') or [''])[0] == str(const('sawmill_cost_cloth')),
+      'and the bolt of cloth is priced at what the sawmill charges for it')
 for n in OBJCFG:
     check(n in OBJS, '%s is in obj.pack' % n)
     for v in (OBJCFG[n].get('model') or []):
@@ -839,15 +845,59 @@ for mp in ('maps/m29_79.jm2', 'maps/m30_79.jm2'):
 # wrong shape and the check would still say every hotspot was verified.
 itemshape = dict((int(a), b) for a, b in
     re.findall(r'^    case (\d+) : loc_add\(\$spot, \w+, \$angle, (\w+),', fu, re.M))
+def _proc_body(name):
+    for f in FILES:
+        if '[proc,%s]' % name in clean[f]:
+            return clean[f].split('[proc,%s]' % name, 1)[1].split('\n[', 1)[0]
+    return ''
+def _shapes_reachable(name, seen=None):
+    """Every locshape a proc can place with, following the helpers it calls.
+
+    A hand-off proc does not have to carry a loc_add of its own: the combat ring lays 36 tiles of
+    three different shapes through ~poh_ring_wall / _corner / _mat, so the shapes are one level
+    down. Following the calls is what keeps this a real check rather than a skipped one."""
+    seen = seen if seen is not None else set()
+    if name in seen:
+        return set()
+    seen.add(name)
+    body = _proc_body(name)
+    out = set()
+    for m in re.finditer(r'loc_add\(', body):
+        args, depth, cur, i = [], 0, '', m.end()
+        while i < len(body):
+            ch = body[i]
+            if ch == '(':
+                depth += 1; cur += ch
+            elif ch == ')' and depth == 0:
+                args.append(cur); break
+            elif ch == ')':
+                depth -= 1; cur += ch
+            elif ch == ',' and depth == 0:
+                args.append(cur); cur = ''
+            else:
+                cur += ch
+            i += 1
+        if len(args) > 3:
+            out.add(args[3].strip())
+    for callee in set(re.findall(r'~(\w+)\(', body)):
+        out |= _shapes_reachable(callee, seen)
+    return out
+handoff = {}
 for a, proc in re.findall(r'^    case (\d+) : ~(\w+)\(\$spot, \$angle,', fu, re.M):
-    body = next((clean[f].split('[proc,%s]' % proc, 1)[1].split('\n[', 1)[0]
-                 for f in FILES if '[proc,%s]' % proc in clean[f]), '')
-    m = re.search(r'loc_add\(\$spot, \$?\w+, \$angle, (\w+),', body)
-    check(bool(m), '~%s places its piece with a shape this can read' % proc)
-    itemshape[int(a)] = m.group(1) if m else None
+    sh = _shapes_reachable(proc)
+    check(bool(sh), '~%s places its pieces with a shape this can read' % proc)
+    handoff.setdefault(proc, sh)
+    itemshape[int(a)] = sorted(sh)[0] if len(sh) == 1 else None
 famshape = {}
 for i, f in ftab['poh_furn_fam'].items():
     famshape.setdefault(int(f), set()).add(itemshape[i])
+# A family whose hand-off places more than one shape cannot be held to "one shape per family" -
+# it is held to group 59 instead, which reads every tile it lays back against the template.
+_spec = _json.load(open(os.path.join(C, 'tools/furnspec.json')))
+MULTISHAPE = {const('poh_fam_' + k['key']) for k in _spec['families']
+              if k.get('show') and len(_shapes_reachable(k['show'])) > 1}
+for f in MULTISHAPE:
+    famshape.pop(f, None)
 ALLOWED = {('chair', 15214), ('chair', 15215)}   # see shape_allowances in tools/furnspec.json
 bad = []
 for loc, fam in hot:
@@ -912,7 +962,12 @@ check(not dup_trig, 'no trigger is declared twice anywhere in the repo: %s'
       % (dup_trig[:2] or '%d checked' % len(seen_trig)))
 
 print('29. furniture: materials leave before the thing arrives, and a room takes its own with it')
-clickb = fu.split('[proc,poh_furn_click]')[1].split('\n[')[0]
+# The body lives in ~poh_furn_click_at now: ~poh_furn_click is the unanchored door into it, and
+# an anchored family (the combat ring) passes the tile its piece is stored at instead.
+clickb = fu.split('[proc,poh_furn_click_at]')[1].split('\n[')[0]
+check('~poh_furn_click_at($fam, -1, -1);' in fu.split('[proc,poh_furn_click]')[1].split('\n[')[0],
+      '~poh_furn_click still exists and is the unanchored door')
+check('if ($ax >= 0) {' in clickb, 'and an anchor overrides the clicked tile rather than adding a path')
 check(clickb.index('~poh_furn_have') < clickb.index('~poh_furn_take'), 'the materials are counted before they are taken')
 check(clickb.index('~poh_furn_take') < clickb.index('~poh_furn_show'), 'the materials go before the furniture appears')
 check(clickb.count('~poh_furn_have') >= 2, 'the materials are re-checked after the menu suspends')
@@ -933,7 +988,6 @@ print('39. what the furniture does: every trigger is on an op the loc really has
 # A trigger on an op the loc does not carry is not an error - it simply never fires, which is the
 # quietest kind of broken. The op TEXT has to match the kind too: [oploc1] on a "light" family must
 # be a loc whose op1 really says Light.
-import json as _json
 FSPEC = _json.load(open(os.path.join(C, 'tools/furnspec.json')))
 KINDOP = {'sit': 'Sit-on', 'light': 'Light', 'altar': 'Pray', 'jingle': 'Play',
           'observe': 'Observe', 'talk': 'Talk-to', 'preen': 'Preen',
@@ -2196,7 +2250,9 @@ OPFILES = [read('scripts/skill_construction/scripts/poh_furn_ops.rs2'), GAMES,
            read('scripts/skill_construction/scripts/poh_tablets.rs2'),
            read('scripts/skill_construction/scripts/poh_build.rs2'),
            read('scripts/skill_construction/scripts/poh_portal.rs2'),
-           read('scripts/skill_construction/scripts/poh_portal_chamber.rs2')]
+           read('scripts/skill_construction/scripts/poh_portal_chamber.rs2'),
+           read('scripts/skill_construction/scripts/poh_combat_ring.rs2'),
+           read('scripts/skill_construction/scripts/poh_combat.rs2')]
 TRIG = set()
 for t in OPFILES:
     TRIG |= set(re.findall(r'^\[oploc([1-5]),(\w+)\]', t, re.M))
@@ -2212,7 +2268,9 @@ for l in placed:
     cfg = LOCCFG2.get(l) or TEMPL2.get(l) or {}
     for k in cfg:
         m = re.match(r'^op([1-5])$', k)
-        if m and (m.group(1), l) not in TRIG:
+        # "hidden" is the cache's own word for an option slot that carries no menu entry. There is
+        # nothing to click, so there is nothing to answer.
+        if m and cfg[k][0] != 'hidden' and (m.group(1), l) not in TRIG:
             dead.append('%s %s=%s' % (l, k, cfg[k][0]))
 check(not dead, 'no op on a placed piece is a dead click: %s' % (dead[:6] or 'all %d answered' % len(TRIG)))
 
@@ -2471,6 +2529,121 @@ check(len(ENTER) == 21, 'all 21 directed portals answer Enter: %d' % len(ENTER))
 check(ENTER == REMOVE, 'and every one of them can be taken out again')
 check('~poh_portal_set(~poh_portal_index($spot), 0)' in PC,
       'taking the last piece out of a Portal space forgets where it led')
+
+
+print('59. the combat ring: 36 tiles under one piece, turned with the room')
+CR = read('scripts/skill_construction/scripts/poh_combat_ring.rs2')
+CB = read('scripts/skill_construction/scripts/poh_combat.rs2')
+
+# It is generated, so the first thing to check is that it is in step with the templates it is
+# generated from. Same shape as group 38: re-run in place, compare bytes, put the file back.
+_before = open(os.path.join(C, 'scripts/skill_construction/scripts/poh_combat_ring.rs2'), 'rb').read()
+r = _sp.run([sys.executable, os.path.join(C, 'tools/gencombatring.py')],
+            capture_output=True, text=True, cwd=C)
+check(r.returncode == 0, 'tools/gencombatring.py runs clean'
+      + ('' if r.returncode == 0 else ': ' + (r.stdout + r.stderr)[-400:]))
+_after = open(os.path.join(C, 'scripts/skill_construction/scripts/poh_combat_ring.rs2'), 'rb').read()
+if _after != _before:
+    open(os.path.join(C, 'scripts/skill_construction/scripts/poh_combat_ring.rs2'), 'wb').write(_before)
+check(_after == _before, 're-running it changes nothing: byte-identical'
+      if _after == _before else 're-running it CHANGES the file - it is out of step with the templates')
+
+# THE CHECK THAT MATTERS: every tile the ring lays is a tile the template really has a Combat ring
+# space on, at that shape and that angle. A rope one square out, or a mat placed as a wall, is
+# invisible to every other check here and obvious in game.
+TEMPLATE_RING = set()
+for _sq, _levels in (('m29_79', (0, 1, 2, 3)), ('m30_79', (0, 1))):
+    sec = None
+    for l in read('maps/%s.jm2' % _sq).split('\n'):
+        if l.startswith('===='):
+            sec = l.strip('= '); continue
+        if sec != 'LOC' or ':' not in l:
+            continue
+        head, rest = l.split(':', 1)
+        lv, x, z = (int(v) for v in head.split())
+        pp = rest.split()
+        nm = {v: k for k, v in LOCS.items()}.get(int(pp[0]))
+        shape = int(pp[1]) if len(pp) > 1 else 10
+        angle = int(pp[2]) if len(pp) > 2 else 0
+        if lv in _levels and (x // 8) * 8 + (z // 8) == 28 \
+                and (TEMPL2.get(nm, {}).get('name') or [''])[0] == 'Combat ring space':
+            TEMPLATE_RING.add((x % 8, z % 8, shape, angle))
+SHAPEOF = {'poh_ring_wall': 0, 'poh_ring_corner': 3, 'poh_ring_mat': 22}
+laid = {}
+for proc, x, z, angle, loc in re.findall(
+        r'~(poh_ring_wall|poh_ring_corner|poh_ring_mat)\(\$base, \$rot, (-?\d+), (-?\d+), (\d+), (\w+)\);', CR):
+    ring = CR[:CR.index('~%s($base, $rot, %s, %s, %s, %s);' % (proc, x, z, angle, loc))]
+    ring = ring.rsplit('[proc,poh_ring_', 1)[1].split(']', 1)[0]
+    laid.setdefault(ring, []).append((int(x), int(z), SHAPEOF[proc], int(angle), loc))
+bad = [(k, t[:4]) for k, v in laid.items() for t in v if t[:4] not in TEMPLATE_RING]
+check(not bad, 'every tile laid is a template tile, at its shape and its angle: %s'
+      % (bad[:3] or '%d placements over %d rings' % (sum(len(v) for v in laid.values()), len(laid))))
+for ring in ('boxing', 'fencing', 'combat'):
+    tiles = [(t[0], t[1], t[2]) for t in laid.get(ring, [])]
+    check(len(tiles) == 36 and len(set(tiles)) == 36,
+          '%s covers 36 tiles, each once: %d' % (ring, len(tiles)))
+check(len(laid.get('beam', [])) == 3, 'the balance beam is three tiles: %d' % len(laid.get('beam', [])))
+check(len({t[1] for t in laid.get('beam', [])}) == 1,
+      'and they are in one row, which is what a beam is')
+
+# the rotation is the engine's, not something close to it (GameMap.rotateZoneX/Z + newAngle)
+for want in ('case 1 : return(movecoord($base, $z, 0, calc(7 - $x)));',
+             'case 2 : return(movecoord($base, calc(7 - $x), 0, calc(7 - $z)));',
+             'case 3 : return(movecoord($base, calc(7 - $z), 0, $x));'):
+    check(want in CR, 'the zone rotation matches the engine: %s' % want.split(':')[0].strip())
+check('return(modulo(calc($angle + $rot), 4));' in CR, 'and so does the angle')
+
+# the anchor has to be a tile nothing else can ever occupy, or the ring and a chair fight over a slot
+anchored = [f for f in _spec['families'] if f.get('anchor')]
+check([f['key'] for f in anchored] == ['combat_ring'], 'the combat ring is the only anchored family')
+check(anchored and anchored[0]['anchor'] == [0, 0], 'and it anchors at the room\'s own (0,0)')
+check(not [t for t in TEMPLATE_RING if (t[0], t[1]) == (0, 0)],
+      'nothing in the Combat room template stands on (0,0)')
+check('~poh_furn_at($rx, $rz, 0, 0)' in CR,
+      'removal looks the slot up at the anchor, not under the tile that was clicked')
+
+# every loc the ring can put down can be taken out again, and by the ring's own remover
+RINGLOCS = sorted({t[4] for v in laid.values() for t in v})
+rm = set(re.findall(r'^\[oploc5,(\w+)\] ~poh_combat_ring_remove;', CR, re.M))
+rm |= set(re.findall(r'^\[oploc5,(\w+)\]\s*\n~poh_combat_ring_remove;', fu, re.M))
+check(sorted(rm) == RINGLOCS, 'all %d ring locs are wired to ~poh_combat_ring_remove: %s'
+      % (len(RINGLOCS), sorted(set(RINGLOCS) ^ rm) or 'every one'))
+check(not (set(re.findall(r'^\[oploc5,(\w+)\] ~poh_combat_ring_remove;', CR, re.M))
+           & set(re.findall(r'^\[oploc5,(\w+)\]\s*\n~poh_combat_ring_remove;', fu, re.M))),
+      'and no loc is wired in both files - a trigger declared twice does not compile')
+
+# the sixteen hotspots are the VISIBLE ones. Three of the nineteen are zero-length models: they
+# render nothing and cannot be clicked, so wiring them would be wiring a click that cannot happen.
+_fam = next(f for f in _spec['families'] if f['key'] == 'combat_ring')
+check(len(_fam['hotspots']) == 16, 'the family takes the 16 visible hotspots: %d' % len(_fam['hotspots']))
+_empty = 0
+for _n, _d in TEMPL2.items():
+    if (_d.get('name') or [''])[0] != 'Combat ring space':
+        continue
+    _m = (_d.get('model') or [''])[0].split(',')[0]
+    _sz = [os.path.getsize(os.path.join(C, 'models/loc', _f)) for _f in os.listdir(os.path.join(C, 'models/loc'))
+           if _f.startswith(_m + '_') and _f.endswith('.ob2')]
+    if _sz and max(_sz) <= 32:
+        _empty += 1
+        check(LOCS[_n] not in _fam['hotspots'],
+              '%s has an empty model and is not wired as a hotspot' % _n)
+check(_empty == 3, 'three of the nineteen are empty models - beam and pedestal tiles: %d' % _empty)
+
+# the cloth exists, is sold, and is what the rings are actually built out of
+check('bolt_of_cloth' in {l.split('=', 1)[1] for l in read('pack/obj.pack').split('\n') if '=' in l},
+      'bolt_of_cloth is in obj.pack')
+check('~sawmill_sell(bolt_of_cloth, ^sawmill_cost_cloth);' in read('scripts/skill_construction/scripts/sawmill.rs2'),
+      'and the sawmill operator sells it')
+_mats = {p['loc']: p['mats'] for p in _fam['pieces']}
+check(sum(1 for m in _mats.values() if any(x[0] == 'bolt_of_cloth' for x in m)) == 3,
+      'three of the four ring types are built out of it')
+
+# and the honest ops, which are the point of not leaving them dead
+for _p in ('poh_ring_climb', 'poh_ring_beam_stand', 'poh_ring_beam_down'):
+    check('[proc,%s]' % _p in CB, '%s is answered' % _p)
+_stand = CB.split('[proc,poh_ring_beam_stand]', 1)[1].split('\n[', 1)[0]
+check('p_walk(loc_coord)' in _stand and _stand.index('p_walk') < _stand.index('anim('),
+      'standing on the beam walks onto it before the pose plays, as the chairs do')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
