@@ -39,17 +39,30 @@ if (p_finduid(uid) = true) {
 // to find out that the OSRS portal is FIVE tiles wide and the ground west of the Rimmington road
 // drops about a tile and a half across those five. This drops the real thing at your feet so the
 // next tile can be chosen by looking at it. It stands for 3 minutes and then goes.
-// loc_add anchors at the south-west corner, so it runs 5 tiles EAST and 2 NORTH of where you stand.
+//
+// IT CENTRES ON YOU NOW. It used to anchor at your feet, because loc_add anchors at the south-west
+// corner - so the portal ran five tiles east of wherever you were standing and you were at a corner
+// of it, not in the middle. Standing where you want the MIDDLE and reading a corner coordinate off
+// the chat is how a placement ends up two tiles from where it was judged. The anchor is printed
+// below as well, because the anchor is what goes in the map.
+//
+// The 5-wide face is centred on you exactly. The 2-deep dimension cannot be - it is even - so your
+// tile is the near row and it runs one tile away from you; say if it wants to be the other one.
 [debugproc,pohportal](int $rot)
 if (p_finduid(uid) = true) {
     def_int $r = modulo($rot, 4);
-    loc_add(coord, poh_house_portal, $r, centrepiece_straight, ^poh_portal_probe_ticks);
-    mes("Portal at <tostring(divide(coordx(coord), 64))>_<tostring(divide(coordz(coord), 64))>_<tostring(modulo(coordx(coord), 64))>_<tostring(modulo(coordz(coord), 64))> (map_x, map_z, local_x, local_z), rotated <tostring($r)>.");
+    def_coord $anchor = movecoord(coord, -2, 0, 0);
+    if (modulo($r, 2) = 1) {
+        $anchor = movecoord(coord, 0, 0, -2);
+    }
+    loc_add($anchor, poh_house_portal, $r, centrepiece_straight, ^poh_portal_probe_ticks);
+    mes("Centred on <tostring(divide(coordx(coord), 64))>_<tostring(divide(coordz(coord), 64))>_<tostring(modulo(coordx(coord), 64))>_<tostring(modulo(coordz(coord), 64))>, rotated <tostring($r)>.");
+    mes("Anchor <tostring(divide(coordx($anchor), 64))>_<tostring(divide(coordz($anchor), 64))>_<tostring(modulo(coordx($anchor), 64))>_<tostring(modulo(coordz($anchor), 64))> - this is the number I need.");
     // width and length swap on an odd rotation, and loc_add anchors at the south-west corner
     if (modulo($r, 2) = 0) {
-        mes("It covers 5 tiles east and 2 north of here, and goes in 3 minutes.");
+        mes("5 wide east-west, 2 deep, running north from you. Goes in 3 minutes.");
     } else {
-        mes("It covers 2 tiles east and 5 north of here, and goes in 3 minutes.");
+        mes("5 wide north-south, 2 deep, running east from you. Goes in 3 minutes.");
     }
 }
 
