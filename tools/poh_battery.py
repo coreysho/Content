@@ -1857,6 +1857,50 @@ for loc in ('loc_13704', 'loc_13705', 'loc_13706', 'loc_13707', 'loc_13708'):
     check('op1=Work-at' in blk, '%s carries op1=Work-at' % loc)
     check('[oploc1,%s]' % loc in FLATRS, '%s has an oploc1 - a trigger on an op that is not there never fires' % loc)
 
+# ============================================================================ 53
+print('53. redecorating: six styles, six template levels, and prices that are OSRS\'s')
+STYLEE = read('scripts/skill_construction/configs/poh_styles.enum')
+stab = enumtable(STYLEE, 'poh_style_name')
+slvl = enumtable(STYLEE, 'poh_style_level')
+scost = enumtable(STYLEE, 'poh_style_cost')
+check(sorted(stab) == list(range(6)), 'poh_style_name covers 0-5 with no gaps')
+check(sorted(slvl) == list(range(6)), 'poh_style_level covers 0-5')
+check(sorted(scost) == list(range(6)), 'poh_style_cost covers 0-5')
+# A miss on any of these is a real answer without default=: style 0 is Basic wood, level 0 reads as
+# "no requirement" and cost 0 reads as free. That is rule 17's lesson in a table it does not cover.
+for t in ('poh_style_name', 'poh_style_level', 'poh_style_cost'):
+    blk = STYLEE.split('[%s]' % t, 1)[1].split('\n[', 1)[0]
+    check('default=null' in blk, '%s declares default=null - a miss must not answer style 0' % t)
+lv = [int(slvl[i]) for i in range(6)]
+cs = [int(scost[i]) for i in range(6)]
+check(lv == sorted(lv) and cs == sorted(cs), 'the ladder only ever goes up: %s at %s' % (lv, cs))
+check(lv == [1, 10, 20, 30, 40, 50], "the levels are OSRS's own: %s" % lv)
+check(cs == [5000, 5000, 7500, 10000, 15000, 25000], "and so are the prices: %s" % cs)
+
+# ~poh_style_origin has to answer a DIFFERENT template square/level for each of the six, or two
+# styles are the same house and one of the prices buys nothing.
+POHRS = read('scripts/skill_construction/scripts/poh.rs2')
+org = POHRS.split('[proc,poh_style_origin]', 1)[1].split('\n[', 1)[0]
+cases = re.findall(r'case (\d+|default) : return\(([^;]+)\);', org)
+check(len(cases) == 6, '~poh_style_origin answers all six styles (%d cases)' % len(cases))
+check(len({c[1].strip() for c in cases}) == 6,
+      'each style is cut from a different square and level: %d distinct origins' % len({c[1].strip() for c in cases}))
+check('^poh_templates_a' in org and '^poh_templates_b' in org, 'both template squares are used')
+
+# the dialogue: every style reachable, the charge taken once, and the level tested before the coins
+PORTRS = read('scripts/skill_construction/scripts/poh_portal.rs2')
+pick = PORTRS.split('[proc,poh_style_pick]', 1)[1].split('\n[', 1)[0]
+named = {int(m) for m in re.findall(r'poh_style_name, (\d)\)', pick)}
+check(named == set(range(6)), 'the two menu pages between them offer all six styles: %s' % sorted(named))
+check('while (true)' not in pick, 'the pager is a bounded loop - while (true) has no precedent here')
+do = PORTRS.split('[proc,poh_redecorate_to]', 1)[1].split('\n[', 1)[0]
+check(do.index('stat(construction)') < do.index('inv_del'), 'the level is tested before the coins are taken')
+check(do.count('inv_del(inv, coins') == 1, 'the coins come out exactly once')
+check(do.count('inv_total(inv, coins)') == 2,
+      'the purse is re-checked AFTER the confirm box - it is a suspend, and coins can leave during it')
+check(do.index('%poh_style = $style') > do.index('inv_del'), 'and the style only changes once it is paid for')
+check('$style = %poh_style' in do, 'buying the style you already have is refused')
+
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
 sys.exit(1 if fails else 0)

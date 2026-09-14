@@ -26,10 +26,13 @@
 [opnpc1,poh_estate_agent]
 if (%poh_owned = 1) {
     ~chatnpc("<p,happy>How are you finding the new place?");
-    def_int $owned = ~p_choice2("It's lovely, thanks.", 1, "Can I move house?", 2);
+    def_int $owned = ~p_choice3("It's lovely, thanks.", 1, "Can I redecorate?", 2, "Can I move house?", 3);
     if ($owned = 1) {
         ~chatplayer("<p,happy>It's lovely, thanks.");
         ~chatnpc("<p,happy>Glad to hear it. The portal is right outside.");
+    } else if ($owned = 2) {
+        ~chatplayer("<p,neutral>Can I redecorate?");
+        ~poh_redecorate;
     } else {
         ~chatplayer("<p,neutral>Can I move house?");
         ~chatnpc("<p,sad>Not yet, I'm afraid. Rimmington is all I have on my books.");
@@ -65,3 +68,83 @@ if (inv_total(inv, coins) < ^poh_house_cost) {
 inv_del(inv, coins, ^poh_house_cost);
 ~poh_grant_starter;
 ~chatnpc("<p,happy>Congratulations on your new home! Step through the portal whenever you like.");
+
+// =========================================================================== redecorating
+//
+// The style is the only thing about a house that is not stored per room: ~poh_style_origin turns
+// %poh_style into the template square and level the whole house is cut from, so changing the varp
+// changes every room at once and costs nothing but the next ~poh_build. The furniture is untouched -
+// it is stored per hotspot, in varps of its own - which is why OSRS can sell this as decoration.
+//
+// Nothing rebuilds here on purpose. The agent stands OUTSIDE the portal, so a player talking to him
+// is not in an instance to rebuild; the new walls are up the next time they walk through.
+
+[proc,poh_redecorate]
+~chatnpc("<p,neutral>Certainly. You have <enum(int, string, poh_style_name, %poh_style)> at the moment. What would you fancy?");
+def_int $pick = ~poh_style_pick;
+if ($pick < 0) {
+    return;
+}
+~poh_redecorate_to($pick);
+
+// Six styles will not fit in one chat menu - five options is the most p_choice takes - so this is two
+// pages with a way back, and it answers -1 for "changed my mind". The page counter is a bounded
+// while loop rather than while (true): four idioms have no precedent in this repo and that is one.
+[proc,poh_style_pick]()(int)
+def_int $turns = 0;
+while ($turns < 8) {
+    $turns = calc($turns + 1);
+    def_int $a = ~p_choice5(
+        "<enum(int, string, poh_style_name, 0)> - <tostring(enum(int, int, poh_style_cost, 0))> coins", 1,
+        "<enum(int, string, poh_style_name, 1)> - <tostring(enum(int, int, poh_style_cost, 1))> coins", 2,
+        "<enum(int, string, poh_style_name, 2)> - <tostring(enum(int, int, poh_style_cost, 2))> coins", 3,
+        "<enum(int, string, poh_style_name, 3)> - <tostring(enum(int, int, poh_style_cost, 3))> coins", 4,
+        "More styles...", 5);
+    if ($a < 5) {
+        return(calc($a - 1));
+    }
+    def_int $b = ~p_choice3(
+        "<enum(int, string, poh_style_name, 4)> - <tostring(enum(int, int, poh_style_cost, 4))> coins", 1,
+        "<enum(int, string, poh_style_name, 5)> - <tostring(enum(int, int, poh_style_cost, 5))> coins", 2,
+        "Back", 3);
+    if ($b < 3) {
+        return(calc($b + 3));
+    }
+}
+return(-1);
+
+[proc,poh_redecorate_to](int $style)
+if ($style = %poh_style) {
+    ~chatnpc("<p,neutral>That's what you have already. Save your coins.");
+    return;
+}
+def_int $level = enum(int, int, poh_style_level, $style);
+def_int $cost = enum(int, int, poh_style_cost, $style);
+if ($level = null | $cost = null) {
+    return;
+}
+if (stat(construction) < $level) {
+    ~chatnpc("<p,sad>That's a level <tostring($level)> Construction job, that is. Come back when you've the skill for it.");
+    return;
+}
+~chatnpc("<p,neutral><enum(int, string, poh_style_name, $style)>, then. That'll be <tostring($cost)> coins for the lot.");
+if (inv_total(inv, coins) < $cost) {
+    ~chatnpc("<p,sad>Come back when you have the money and the builders are yours.");
+    return;
+}
+def_int $yes = ~p_choice2("Here you are.", 1, "That's too much for me.", 2);
+if ($yes = 2) {
+    ~chatplayer("<p,neutral>That's too much for me.");
+    ~chatnpc("<p,neutral>Suit yourself. It's honest work at that price.");
+    return;
+}
+// re-check: the choice box gives the player a chance to drop or trade the coins away
+if (inv_total(inv, coins) < $cost) {
+    ~chatplayer("<p,sad>Actually, I don't have the money.");
+    ~chatnpc("<p,sad>Come back when you do.");
+    return;
+}
+~chatplayer("<p,happy>Here you are.");
+inv_del(inv, coins, $cost);
+%poh_style = $style;
+~chatnpc("<p,happy>The builders will be done before you are. Step through the portal and have a look.");

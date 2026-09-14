@@ -267,6 +267,33 @@ MUTS = [
   '[loc_13704]\nname=Workbench\ndesc=You can make furniture here.\nmodel=loc_10673i2\nwidth=2\nop1=Work-at',
   '[loc_13704]\nname=Workbench\ndesc=You can make furniture here.\nmodel=loc_10673i2\nwidth=2\nop1=Use',
   '52 a Work-at trigger on a loc that no longer carries the op'),
+ ('scripts/skill_construction/configs/poh_styles.enum',
+  '[poh_style_cost]\ninputtype=int\noutputtype=int\ndefault=null',
+  '[poh_style_cost]\ninputtype=int\noutputtype=int',
+  '53 a style price table whose miss answers free'),
+ ('scripts/skill_construction/configs/poh_styles.enum',
+  'val=3,10000', 'val=3,1000', '53 a price ladder that goes down'),
+ ('scripts/skill_construction/scripts/poh.rs2',
+  'case 5 : return(movecoord(^poh_templates_b, 0, 1, 0));',
+  'case 5 : return(^poh_templates_b);',
+  '53 two styles cut from the same template level'),
+ ('scripts/skill_construction/scripts/poh_portal.rs2',
+  'if (stat(construction) < $level) {', 'if (false) {',
+  '53 a redecoration with no level gate'),
+ ('scripts/skill_construction/scripts/poh_portal.rs2',
+  '''// re-check: the choice box gives the player a chance to drop or trade the coins away
+if (inv_total(inv, coins) < $cost) {
+    ~chatplayer("<p,sad>Actually, I don't have the money.");
+    ~chatnpc("<p,sad>Come back when you do.");
+    return;
+}
+~chatplayer("<p,happy>Here you are.");''',
+  '~chatplayer("<p,happy>Here you are.");',
+  '53 the purse not re-checked after the confirm box'),
+ ('scripts/skill_construction/scripts/poh_portal.rs2',
+  '"<enum(int, string, poh_style_name, 5)> - <tostring(enum(int, int, poh_style_cost, 5))> coins", 2,',
+  '"<enum(int, string, poh_style_name, 4)> - <tostring(enum(int, int, poh_style_cost, 4))> coins", 2,',
+  '53 a style no menu page can reach'),
 ]
 
 def checker_for(why):
