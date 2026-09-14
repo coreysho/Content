@@ -7,7 +7,8 @@ FILES = ['scripts/skill_construction/scripts/poh.rs2', 'scripts/skill_constructi
          'scripts/skill_construction/scripts/poh_furniture.rs2',
          'scripts/skill_construction/scripts/poh_menus.rs2',
          'scripts/skill_construction/scripts/poh_furn_ops.rs2',
-         'scripts/skill_construction/scripts/poh_tablets.rs2']
+         'scripts/skill_construction/scripts/poh_tablets.rs2',
+         'scripts/skill_construction/scripts/poh_portal_chamber.rs2']
 fails = 0
 def check(ok, what):
     global fails
@@ -763,7 +764,11 @@ def procbody(src, name):
     return src.split('[proc,%s]' % name, 1)[1].split('\n[', 1)[0]
 show = procbody(fu, 'poh_furn_show')
 showlit = procbody(fu, 'poh_furn_show_lit')
-placed = sorted(int(m) for m in re.findall(r'^    case (\d+) : loc_add\(', show, re.M))
+# A case is either a loc_add literal or a hand-off to a proc. The portal frames are the only
+# hand-offs so far: which loc a frame goes down as depends on where it has been directed, so the
+# answer is a runtime one (see poh_portal_chamber.rs2). Both forms count as placing the item -
+# what this check is for is that no item number is missing from the switch.
+placed = sorted(int(m) for m in re.findall(r'^    case (\d+) : (?:loc_add|~\w+)\(', show, re.M))
 check(placed == list(range(1, N + 1)), '~poh_furn_show places every item 1..%d' % N)
 # the lit twins are a SUBSET, and every one of them has to be an item that really can be lit
 litcase = sorted(int(m) for m in re.findall(r'^    case (\d+) : loc_add\(', showlit, re.M))
@@ -784,8 +789,15 @@ bad = [l for l, _ in placements if 'Remove' not in (POHLOC.get(l, {}).get('op5')
 check(not bad, 'every placed loc carries op5=Remove: %s' % (bad[:3] or 'all of them'))
 # a piece can only be taken out if its own op5 is wired
 # the lit twins are placed by poh_furniture.rs2 and taken out by poh_furn_ops.rs2, so both files
-rm = sorted(set(re.findall(r'^\[oploc5,(\w+)\]\s*\n~poh_furn_remove;', fu + '\n' + ops, re.M)))
-placed_locs = sorted({m.group(1) for m in re.finditer(r'loc_add\(\$spot, (\w+), \$angle,', fu)})
+# poh_portal_chamber.rs2 is a third source: the twenty-one directed portals are placed from
+# ~poh_portal_loc rather than from a loc_add literal in the show switch, and they are taken out
+# through ~poh_portal_remove, which clears the destination before handing over to ~poh_furn_remove.
+# Both sides have to be counted or the check reads a house-visible loc as unremovable.
+pc = clean['scripts/skill_construction/scripts/poh_portal_chamber.rs2']
+rm = sorted(set(re.findall(r'^\[oploc5,(\w+)\]\s*\n?~poh_furn_remove;', fu + '\n' + ops, re.M))
+            | set(re.findall(r'^\[oploc5,(\w+)\]\s*\n?~poh_portal_remove;', pc, re.M)))
+placed_locs = sorted({m.group(1) for m in re.finditer(r'loc_add\(\$spot, (\w+), \$angle,', fu)}
+                     | {m.group(1) for m in re.finditer(r'^    case \d+ : return\((\w+)\);', pc, re.M)})
 check(rm == placed_locs, 'every placeable piece has a Remove trigger: %d placed, %d wired'
       % (len(placed_locs), len(rm)))
 # and a lit twin nobody can take out is a piece of furniture welded to the floor
@@ -821,10 +833,21 @@ for mp in ('maps/m29_79.jm2', 'maps/m30_79.jm2'):
             continue
         d = (l.split(':', 1)[1].split() + ['10', '0'])[:3]
         mapshape.setdefault(int(d[0]), set()).add(SHAPES.get(int(d[1]), d[1]))
+# The shape a family is placed with, per item. Most cases carry it as a literal in the show
+# switch; a case that hands off to a proc carries it in that proc instead, so the proc is read
+# rather than the item being skipped - skipping it would let a hand-off family be placed with the
+# wrong shape and the check would still say every hotspot was verified.
+itemshape = dict((int(a), b) for a, b in
+    re.findall(r'^    case (\d+) : loc_add\(\$spot, \w+, \$angle, (\w+),', fu, re.M))
+for a, proc in re.findall(r'^    case (\d+) : ~(\w+)\(\$spot, \$angle,', fu, re.M):
+    body = next((clean[f].split('[proc,%s]' % proc, 1)[1].split('\n[', 1)[0]
+                 for f in FILES if '[proc,%s]' % proc in clean[f]), '')
+    m = re.search(r'loc_add\(\$spot, \$?\w+, \$angle, (\w+),', body)
+    check(bool(m), '~%s places its piece with a shape this can read' % proc)
+    itemshape[int(a)] = m.group(1) if m else None
 famshape = {}
 for i, f in ftab['poh_furn_fam'].items():
-    famshape.setdefault(int(f), set()).add(dict(placements and [(int(a), b) for a, b in
-        re.findall(r'^    case (\d+) : loc_add\(\$spot, \w+, \$angle, (\w+),', fu, re.M)])[i])
+    famshape.setdefault(int(f), set()).add(itemshape[i])
 ALLOWED = {('chair', 15214), ('chair', 15215)}   # see shape_allowances in tools/furnspec.json
 bad = []
 for loc, fam in hot:
@@ -924,7 +947,7 @@ check(not bad, 'every [oploc1] is on a loc that carries an op1: %s' % (bad[:3] o
 want = {}
 for f in FSPEC['families']:
     if 'op1' in f:
-        for n, l in enumerate(f['locs']):
+        for l in f.get('locs') or [pc['loc'] for pc in f.get('pieces', [])]:
             want[l] = (f['key'], f['op1']['kind'])
 bad = [(l, want[l][1], (POHLOC[l].get('op1') or ['?'])[0]) for l in fired
        if want[l][1] in KINDOP and (POHLOC[l].get('op1') or ['?'])[0] != KINDOP[want[l][1]]]
@@ -1240,6 +1263,22 @@ cases = {int(a): int(b) for a, b in re.findall(r'case (\d+) : return\((\d+)\);',
 check(sorted(cases) == list(range(1, N + 1)), '~poh_furn_model answers for every item 1..%d' % N)
 placer = clean[FILES[5]].split('[proc,poh_furn_show]')[1].split('\n[')[0]
 loc_of = {int(a): b for a, b in re.findall(r'case (\d+) : loc_add\(\$spot, (\w+),', placer)}
+# A hand-off case names a proc instead of a loc; the item's own loc is then the one the spec gave
+# it, which is what the menu icon has to be whoever ends up placing it.
+_spec_loc = {}
+for _f in _json.load(open(os.path.join(C, 'tools/furnspec.json')))['families']:
+    for _i, _l in enumerate(_f.get('locs') or [_p['loc'] for _p in _f.get('pieces', [])]):
+        _spec_loc.setdefault(_f['key'], []).append(_l)
+_byitem = {}
+for _i, _fam in ftab['poh_furn_fam'].items():
+    _byitem.setdefault(int(_fam), []).append(_i)
+for _famnum, _items in _byitem.items():
+    _key = next((k for k in _spec_loc if const('poh_fam_' + k) == _famnum), None)
+    if _key is None:
+        continue
+    for _n, _item in enumerate(sorted(_items)):
+        if _item not in loc_of and _n < len(_spec_loc[_key]):
+            loc_of[_item] = _spec_loc[_key][_n]
 wrong = []
 for item, mid in sorted(cases.items()):
     loc = loc_of.get(item)
@@ -2156,7 +2195,8 @@ OPFILES = [read('scripts/skill_construction/scripts/poh_furn_ops.rs2'), GAMES,
            read('scripts/skill_construction/scripts/poh_furniture.rs2'),
            read('scripts/skill_construction/scripts/poh_tablets.rs2'),
            read('scripts/skill_construction/scripts/poh_build.rs2'),
-           read('scripts/skill_construction/scripts/poh_portal.rs2')]
+           read('scripts/skill_construction/scripts/poh_portal.rs2'),
+           read('scripts/skill_construction/scripts/poh_portal_chamber.rs2')]
 TRIG = set()
 for t in OPFILES:
     TRIG |= set(re.findall(r'^\[oploc([1-5]),(\w+)\]', t, re.M))
@@ -2273,6 +2313,164 @@ check('facesquare' in SIT, 'and turns to face the way the chair faces')
 check(SIT.index('p_walk') < SIT.index('anim('), 'before the pose plays, not after')
 check(len(re.findall(r'~poh_furn_sit\(', read('scripts/skill_construction/scripts/poh_furn_ops.rs2'))) == 24,
       'all 24 seats go through it')
+
+
+print('58. the portal chamber: three portals, seven destinations, and where they lead')
+PC = read('scripts/skill_construction/scripts/poh_portal_chamber.rs2')
+DESTS = ['varrock', 'lumbridge', 'falador', 'camelot', 'ardougne', 'yanille', 'trollheim']
+
+# The four tables. EVERY ONE needs a default, because 0 - undirected - is a value all of them are
+# genuinely read with: it is what a frame nobody has pointed anywhere holds, and what every save
+# written before %poh_portals existed reads. An enum with no default returns 0 on a miss, and
+# coord 0 is a real tile in the far south-west of the map.
+DENUM = {}
+for b in re.split(r'\n(?=\[)', read('scripts/skill_construction/configs/poh_portal_dest.enum')):
+    m = re.match(r'\[(\w+)\]', b)
+    if not m:
+        continue
+    d = {'val': {}}
+    for l in b.split('\n')[1:]:
+        if l.startswith('val='):
+            k, v = l[4:].split(',', 1)
+            d['val'][int(k)] = v
+        elif '=' in l:
+            k, v = l.split('=', 1)
+            d.setdefault(k, v)
+    DENUM[m.group(1)] = d
+for t in ('poh_portal_name', 'poh_portal_level', 'poh_portal_coord', 'poh_portal_cost'):
+    check(t in DENUM, '%s exists' % t)
+    check(DENUM.get(t, {}).get('default') is not None,
+          '%s has a default - 0 is a value it is really read with' % t)
+    check(sorted(DENUM.get(t, {}).get('val', {})) == list(range(1, 8)),
+          '%s covers all seven destinations with no gap' % t)
+
+# the constants are 1..7 and the three portal indices are 0..2, because both index bit ranges
+for n, d in enumerate(DESTS, start=1):
+    check(const('poh_portal_' + d) == n, '^poh_portal_%s is %d' % (d, n))
+check([const('poh_portal_' + k) for k in ('north', 'east', 'west')] == [0, 1, 2],
+      'the three portal spaces are 0, 1, 2 - they index %poh_portals three bits at a time')
+
+# THE CHECK THAT MATTERS: the level and the coord are the matching teleport spell's own, not new
+# numbers. A portal is that spell made permanent, so if the two ever disagree the portal is either
+# easier than the spell or lands somewhere the spell does not.
+SPELLS = {}
+cur = None
+for l in read('scripts/skill_magic/configs/magic_spells.dbrow').split('\n'):
+    l = l.strip()
+    m = re.match(r'^\[magic_spell_teleport_(\w+)\]$', l)
+    if m:
+        cur = m.group(1); SPELLS[cur] = {}
+    elif cur and l.startswith('data='):
+        k, v = l[5:].split(',', 1)
+        SPELLS[cur].setdefault(k, v)
+SPELLNAME = {'yanille': 'watchtower'}
+bad = []
+for n, d in enumerate(DESTS, start=1):
+    sp = SPELLS.get(SPELLNAME.get(d, d), {})
+    if sp.get('levelrequired') != DENUM['poh_portal_level']['val'].get(n):
+        bad.append((d, 'level', sp.get('levelrequired'), DENUM['poh_portal_level']['val'].get(n)))
+    if sp.get('tele_coord') != DENUM['poh_portal_coord']['val'].get(n):
+        bad.append((d, 'coord', sp.get('tele_coord'), DENUM['poh_portal_coord']['val'].get(n)))
+check(not bad, 'every level and landing coord is its own teleport spell\'s: %s'
+      % (bad[:3] or 'all seven, both columns'))
+
+# ~poh_portal_loc is 3 tiers x 8 states with no gap, and - the check worth having - each case
+# returns the loc for the destination its index claims. A table that merely EXISTS would let a
+# marble portal to Camelot come up as the teak one to Falador and nothing would notice.
+LOCCASE = {int(a): b for a, b in re.findall(r'^    case (\d+) : return\((\w+)\);', PC, re.M)}
+check(sorted(LOCCASE) == list(range(8, 32)),
+      'the loc table is three tiers of eight with no gap: %d cases' % len(LOCCASE))
+TIERWORD = {1: 'teak', 2: 'mag', 3: 'marble'}
+bad = []
+for tier in (1, 2, 3):
+    for dest in range(8):
+        loc = LOCCASE.get(tier * 8 + dest)
+        if loc is None:
+            continue
+        want = 'empty' if dest == 0 else DESTS[dest - 1]
+        # Trollheim's three came into the cache under fairy-ring names; their display name is what
+        # says which they are, so that is what is checked rather than the symbol
+        if want == 'trollheim':
+            ok = (POHLOC2.get(loc, {}).get('name') or [''])[0] == 'Trollheim Portal'
+        else:
+            ok = loc.startswith('poh_portal_%s_' % TIERWORD[tier]) and loc.endswith('_' + want)
+        if not ok:
+            bad.append((tier, want, loc))
+check(not bad, 'and every one is its own tier\'s loc for its own destination: %s'
+      % (bad[:3] or '24 checked'))
+
+# the three offsets from the focus are the template's own, not remembered
+SPOTS = {}
+for sq, zone in (('m29_79', 12),):
+    sec = None
+    for l in read('maps/%s.jm2' % sq).split('\n'):
+        if l.startswith('===='):
+            sec = l.strip('= '); continue
+        if sec != 'LOC' or ':' not in l:
+            continue
+        head, rest = l.split(':', 1)
+        lv, x, z = (int(v) for v in head.split())
+        nm = {v: k for k, v in LOCS.items()}.get(int(rest.split()[0]))
+        if lv == 0 and (x // 8) * 8 + (z // 8) == zone and nm in TEMPL2:
+            got = (TEMPL2[nm].get('name') or [''])[0]
+            if got in ('Portal space', 'Centrepiece space'):
+                SPOTS.setdefault(got, []).append((x % 8, z % 8))
+check(sorted(SPOTS.get('Portal space', [])) == [(0, 3), (3, 7), (7, 3)],
+      'the three Portal spaces are where ~poh_portal_spot thinks: %s' % sorted(SPOTS.get('Portal space', [])))
+check(SPOTS.get('Centrepiece space') == [(3, 3)],
+      'and the focus is at (3,3), which is what the offsets are measured from: %s' % SPOTS.get('Centrepiece space'))
+for want, expr in ((0, 3), (3, 7), (7, 3)) and [((0, 3), 'movecoord($focus, -3, 0, 0)'),
+                                               ((3, 7), 'movecoord($focus, 0, 0, 4)'),
+                                               ((7, 3), 'movecoord($focus, 4, 0, 0)')]:
+    check(expr in PC, '%s is reached as %s' % (want, expr))
+
+# the runes are checked and taken in the same amounts. Taking more than was checked is a silent
+# theft; taking less is a free portal.
+def runes(proc, pat):
+    body = PC.split('[proc,%s]' % proc, 1)[1].split('\n[', 1)[0]
+    out, cur = {}, None
+    for l in body.split('\n'):
+        m = re.match(r'\s*case \^poh_portal_(\w+) :', l)
+        if m:
+            cur = m.group(1); out[cur] = []
+        for r, n in re.findall(pat, l):
+            if cur:
+                out[cur].append((r, int(n)))
+    return {k: sorted(v) for k, v in out.items()}
+have = runes('poh_portal_runes_have', r'inv_total\(inv, (\w+)\) >= (\d+)')
+take = runes('poh_portal_runes_take', r'inv_del\(inv, (\w+), (\d+)\)')
+check(sorted(have) == sorted(DESTS) and have == take,
+      'every destination checks exactly the runes it takes: %s'
+      % ([d for d in set(have) | set(take) if have.get(d) != take.get(d)] or 'all seven agree'))
+# and the printed cost says the same thing the code does
+bad = []
+for n, d in enumerate(DESTS, start=1):
+    txt = DENUM['poh_portal_cost']['val'].get(n, '')
+    for rune, qty in have.get(d, []):
+        if '%d %s' % (qty, rune.replace('rune', '')) not in txt:
+            bad.append((d, rune, qty, txt))
+check(not bad, 'and the message names the same runes and amounts: %s' % (bad[:3] or 'all seven'))
+
+# %poh_portals is written in one place, the way %poh_window is
+writers = [f for f in ('scripts/skill_construction/scripts/poh_portal_chamber.rs2',
+                       'scripts/skill_construction/scripts/poh.rs2',
+                       'scripts/skill_construction/scripts/poh_furniture.rs2',
+                       'scripts/skill_construction/scripts/poh_portal.rs2')
+           if '%poh_portals =' in read(f)]
+check(writers == ['scripts/skill_construction/scripts/poh_portal_chamber.rs2'],
+      'only ~poh_portal_set writes %%poh_portals: %s' % writers)
+check(len(re.findall(r'%poh_portals = ', PC)) == 1, 'and it writes it once')
+check('scope=perm' in read('scripts/skill_construction/configs/construction.varp')
+      .split('[poh_portals]', 1)[1].split('[', 1)[0],
+      '%poh_portals is perm - a directed portal has to still be directed next login')
+
+# every directed portal can be taken out again, and taking it out forgets where it led
+ENTER = sorted(set(re.findall(r'^\[oploc1,(\w+)\] ~poh_portal_enter\(', PC, re.M)))
+REMOVE = sorted(set(re.findall(r'^\[oploc5,(\w+)\] ~poh_portal_remove;', PC, re.M)))
+check(len(ENTER) == 21, 'all 21 directed portals answer Enter: %d' % len(ENTER))
+check(ENTER == REMOVE, 'and every one of them can be taken out again')
+check('~poh_portal_set(~poh_portal_index($spot), 0)' in PC,
+      'taking the last piece out of a Portal space forgets where it led')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

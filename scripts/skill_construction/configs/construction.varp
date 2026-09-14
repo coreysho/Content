@@ -93,10 +93,21 @@ scope=perm
 [poh_tab_qty]
 
 
+// Where the three portals in a Portal chamber lead: three bits each, indexed by which side of
+// the room the portal stands on (^poh_portal_north/east/west). 0 is undirected.
+//
+// Its own varp rather than a field in the furniture record because that record is 30 bits of 32
+// already (tools/genfurn.py BITS) and this needs nine. The cost is that two Portal chambers in
+// one house share their three destinations - OSRS keeps them apart.
+//
+// Perm, and a save written before it existed reads 0, which is three undirected frames.
+[poh_portals]
+scope=perm
+
 // ---- furniture (skill_construction/scripts/poh_furniture.rs2) ----
 //
 // One piece each, packed into 30 bits: the room cell in the grid (3+3), the tile inside that
-// room (3+3), the angle (2) and which of the 285 buildable things it is (8 low bits plus 7
+// room (3+3), the angle (2) and which of the 291 buildable things it is (8 low bits plus 7
 // above the lit bit - see the note in tools/genfurn.py).
 //
 // 256 of them, which is the ceiling on how much furniture one house can hold. The save writes

@@ -375,6 +375,41 @@ if (inv_total(inv, coins) < $cost) {
  ('scripts/skill_construction/scripts/poh_portal.rs2',
   'if ($mine ! null & loc_coord ! $mine) {', 'if (false) {',
   '54 every portal in the world opening your house'),
+
+ # --- 58, the portal chamber ---
+ # a level that is no longer the spell's own - the whole point of copying them
+ ('scripts/skill_construction/configs/poh_portal_dest.enum',
+  'val=6,58', 'val=6,50', '58 level and coord are the spell\'s own'),
+ # a landing coord that drifts off the spell's
+ ('scripts/skill_construction/configs/poh_portal_dest.enum',
+  'val=7,0_45_57_11_23', 'val=7,0_45_57_11_24', '58 level and coord are the spell\'s own'),
+ # the table that would let a marble portal to Camelot come up as a teak one somewhere else
+ ('scripts/skill_construction/scripts/poh_portal_chamber.rs2',
+  'case 28 : return(poh_portal_marble_camelot);', 'case 28 : return(poh_portal_teak_falador);',
+  '58 every loc is its own tier\'s and its own destination\'s'),
+ # a gap in the loc table - a frame with no case comes up as the default teak frame forever
+ ('scripts/skill_construction/scripts/poh_portal_chamber.rs2',
+  'case 24 : return(poh_portal_marble_empty);' + chr(10), '', '58 the loc table has no gap'),
+ # taking more runes than were checked for
+ ('scripts/skill_construction/scripts/poh_portal_chamber.rs2',
+  'inv_del(inv, airrune, 500); inv_del(inv, lawrune, 100);',
+  'inv_del(inv, airrune, 600); inv_del(inv, lawrune, 100);',
+  '58 checks exactly the runes it takes'),
+ # the default that stops an undirected frame reading as Varrock, or coord 0
+ ('scripts/skill_construction/configs/poh_portal_dest.enum',
+  'outputtype=coord' + chr(10) + 'default=null', 'outputtype=coord', '58 every table has a default'),
+ # a portal offset that no longer matches the template
+ ('scripts/skill_construction/scripts/poh_portal_chamber.rs2',
+  'movecoord($focus, 4, 0, 0)', 'movecoord($focus, 5, 0, 0)', '58 the offsets are the template\'s'),
+ # a directed portal nobody can take out again
+ ('scripts/skill_construction/scripts/poh_portal_chamber.rs2',
+  '[oploc5,poh_portal_marble_yanille] ~poh_portal_remove;' + chr(10), '',
+  '58 every directed portal can be taken out'),
+ # and the piece itself going down as a fixed loc again, which loses the destination
+ ('scripts/skill_construction/scripts/poh_furniture.rs2',
+  'case 289 : ~poh_portal_place($spot, $angle, 1);',
+  'case 289 : loc_add($spot, poh_portal_teak_empty, $angle, centrepiece_straight, ^poh_loc_duration);',
+  '29 a placed piece is removable / 58 Enter and Remove'),
 ]
 
 def checker_for(why):

@@ -1,0 +1,63 @@
+// Where a house portal can be directed, and what it costs. One row per ^poh_portal_* destination.
+//
+// EVERY ONE OF THESE HAS A DEFAULT, because 0 means "not directed yet" and every table here is
+// read with 0 in it - a frame nobody has pointed anywhere, and every frame in every save written
+// before %poh_portals existed. An enum with no default= returns 0 on a miss rather than null
+// (EnumConfig only writes opcode 4 when a default key is present), and coord 0 is a real tile in
+// the far south-west of the map.
+//
+// The levels are the matching teleport spell's own levelrequired out of magic_spells.dbrow, and
+// the coords are that spell's own tele_coord, copied rather than invented: a portal is that spell
+// made permanent, so it asks the same and lands in the same place. Yanille is the Watchtower
+// teleport, which is on level 2 - the top of the tower, and correct.
+
+[poh_portal_name]
+inputtype=int
+outputtype=string
+default=nowhere
+val=1,Varrock
+val=2,Lumbridge
+val=3,Falador
+val=4,Camelot
+val=5,Ardougne
+val=6,Yanille
+val=7,Trollheim
+
+[poh_portal_level]
+inputtype=int
+outputtype=int
+default=99
+val=1,25
+val=2,31
+val=3,37
+val=4,45
+val=5,51
+val=6,58
+val=7,61
+
+[poh_portal_coord]
+inputtype=int
+outputtype=coord
+default=null
+val=1,0_50_53_13_32
+val=2,0_50_50_21_18
+val=3,0_46_52_21_50
+val=4,0_43_54_5_22
+val=5,0_41_51_37_37
+val=6,2_45_73_53_41
+val=7,0_45_57_11_23
+
+// What directing a portal there costs, written out for the message. OSRS charges one hundred
+// times the rune cost of casting that teleport, which is what these are - and they are large on
+// purpose: a portal is a teleport you never have to carry runes for again.
+[poh_portal_cost]
+inputtype=int
+outputtype=string
+default=nothing
+val=1,300 air, 100 fire, 100 law
+val=2,300 air, 100 earth, 100 law
+val=3,300 air, 100 water, 100 law
+val=4,500 air, 100 law
+val=5,200 water, 200 law
+val=6,200 earth, 200 law
+val=7,200 fire, 200 law

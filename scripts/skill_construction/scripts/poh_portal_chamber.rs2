@@ -1,0 +1,272 @@
+// The Portal chamber: three portals and the focus that points them somewhere.
+//
+// Until this round the room was the most expensive in the house - 100,000 coins and 50
+// Construction - and contained four hotspots that did nothing at all. Clicking any of them fell
+// through to the engine's "Nothing interesting happens."
+//
+// HOW A PORTAL WORKS HERE, and why it is not one buildable piece per destination. What you build
+// into a Portal space is a FRAME: teak, mahogany or marble, and that is all the furniture record
+// knows. Where it leads is decided afterwards, at the teleport focus, and costs runes rather than
+// planks. So a directed portal is the same built piece wearing a different loc, which is why the
+// frame's placement goes through ~poh_portal_place instead of a loc_add literal in
+// ~poh_furn_show. The "show" key in tools/furnspec.json is what routes it here.
+//
+// WHERE THE DESTINATION IS KEPT. Not in the furniture record: that word is 30 bits of 32 already
+// (tools/genfurn.py BITS), and three destinations need nine. %poh_portals is its own perm varp,
+// three bits per portal, and the portal is identified by WHICH TILE OF THE ROOM it stands on -
+// the template puts the three spaces at fixed offsets (0,3), (3,7) and (7,3), so the coord names
+// the portal without anything having to be stored alongside it.
+//
+// The consequence, and it is a real one: two portal chambers in the same house share their three
+// destinations. OSRS keeps them separate. Storing per-room would need the record, and the record
+// is full.
+//
+// THE RUNE COSTS ARE OSRS'S: one hundred times the cost of casting that teleport, which is what
+// the wiki's portal cost table is. They are large on purpose - a portal is a permanent teleport.
+
+// =========================================================================== the destinations
+
+// The name, the Magic level, the landing coord and the printed rune cost are all in
+// poh_portal_dest.enum, keyed by the ^poh_portal_* destination. Every one of those tables carries
+// a default, because 0 - undirected - is a value they are all genuinely read with.
+
+// The runes, checked and then taken. Two procs rather than one table because a destination costs
+// two or three different runes and there is no shape in this repo for a list of that.
+[proc,poh_portal_runes_have](int $dest)(boolean)
+switch_int ($dest) {
+    case ^poh_portal_varrock :
+        if (inv_total(inv, airrune) >= 300 & inv_total(inv, firerune) >= 100 & inv_total(inv, lawrune) >= 100) return(true);
+    case ^poh_portal_lumbridge :
+        if (inv_total(inv, airrune) >= 300 & inv_total(inv, earthrune) >= 100 & inv_total(inv, lawrune) >= 100) return(true);
+    case ^poh_portal_falador :
+        if (inv_total(inv, airrune) >= 300 & inv_total(inv, waterrune) >= 100 & inv_total(inv, lawrune) >= 100) return(true);
+    case ^poh_portal_camelot :
+        if (inv_total(inv, airrune) >= 500 & inv_total(inv, lawrune) >= 100) return(true);
+    case ^poh_portal_ardougne :
+        if (inv_total(inv, waterrune) >= 200 & inv_total(inv, lawrune) >= 200) return(true);
+    case ^poh_portal_yanille :
+        if (inv_total(inv, earthrune) >= 200 & inv_total(inv, lawrune) >= 200) return(true);
+    case ^poh_portal_trollheim :
+        if (inv_total(inv, firerune) >= 200 & inv_total(inv, lawrune) >= 200) return(true);
+}
+return(false);
+
+[proc,poh_portal_runes_take](int $dest)
+switch_int ($dest) {
+    case ^poh_portal_varrock :
+        inv_del(inv, airrune, 300); inv_del(inv, firerune, 100); inv_del(inv, lawrune, 100);
+    case ^poh_portal_lumbridge :
+        inv_del(inv, airrune, 300); inv_del(inv, earthrune, 100); inv_del(inv, lawrune, 100);
+    case ^poh_portal_falador :
+        inv_del(inv, airrune, 300); inv_del(inv, waterrune, 100); inv_del(inv, lawrune, 100);
+    case ^poh_portal_camelot :
+        inv_del(inv, airrune, 500); inv_del(inv, lawrune, 100);
+    case ^poh_portal_ardougne :
+        inv_del(inv, waterrune, 200); inv_del(inv, lawrune, 200);
+    case ^poh_portal_yanille :
+        inv_del(inv, earthrune, 200); inv_del(inv, lawrune, 200);
+    case ^poh_portal_trollheim :
+        inv_del(inv, firerune, 200); inv_del(inv, lawrune, 200);
+}
+
+// =========================================================================== which portal is this
+
+// The three Portal spaces sit at fixed offsets inside the room's 8x8 zone, read out of the
+// template squares rather than assumed: (0,3), (3,7) and (7,3). That is what identifies a portal,
+// so nothing has to be stored to tell them apart.
+[proc,poh_portal_index](coord $spot)(int)
+def_int $lx = modulo(coordx($spot), 8);
+def_int $lz = modulo(coordz($spot), 8);
+if ($lx = 0) return(^poh_portal_west);
+if ($lz = 7) return(^poh_portal_north);
+return(^poh_portal_east);
+
+[proc,poh_portal_get](int $index)(int)
+return(getbit_range(%poh_portals, calc($index * 3), calc($index * 3 + 2)));
+
+[proc,poh_portal_set](int $index, int $dest)
+%poh_portals = setbit_range_toint(%poh_portals, $dest, calc($index * 3), calc($index * 3 + 2));
+
+// =========================================================================== putting one down
+
+// Called from ~poh_furn_show for items 289-291 - the three frames - instead of a loc_add literal.
+// A frame with no destination goes down as itself; one with a destination goes down wearing it.
+[proc,poh_portal_place](coord $spot, int $angle, int $tier)
+def_loc $loc = ~poh_portal_loc($tier, ~poh_portal_get(~poh_portal_index($spot)));
+loc_add($spot, $loc, $angle, centrepiece_straight, ^poh_loc_duration);
+
+// Three frames times seven destinations, plus the undirected frame itself. Written out because
+// every one of these is a different model in the cache and there is no rule connecting them.
+[proc,poh_portal_loc](int $tier, int $dest)(loc)
+switch_int (calc($tier * 8 + $dest)) {
+    case 8 : return(poh_portal_teak_empty);
+    case 9 : return(poh_portal_teak_varrock);
+    case 10 : return(poh_portal_teak_lumbridge);
+    case 11 : return(poh_portal_teak_falador);
+    case 12 : return(poh_portal_teak_camelot);
+    case 13 : return(poh_portal_teak_ardougne);
+    case 14 : return(poh_portal_teak_yanille);
+    case 15 : return(poh_fairy_ring_last_ais);
+    case 16 : return(poh_portal_mag_empty);
+    case 17 : return(poh_portal_mag_varrock);
+    case 18 : return(poh_portal_mag_lumbridge);
+    case 19 : return(poh_portal_mag_falador);
+    case 20 : return(poh_portal_mag_camelot);
+    case 21 : return(poh_portal_mag_ardougne);
+    case 22 : return(poh_portal_mag_yanille);
+    case 23 : return(poh_fairy_ring_last_air);
+    case 24 : return(poh_portal_marble_empty);
+    case 25 : return(poh_portal_marble_varrock);
+    case 26 : return(poh_portal_marble_lumbridge);
+    case 27 : return(poh_portal_marble_falador);
+    case 28 : return(poh_portal_marble_camelot);
+    case 29 : return(poh_portal_marble_ardougne);
+    case 30 : return(poh_portal_marble_yanille);
+    case 31 : return(poh_fairy_ring_last_aiq);
+    case default : return(poh_portal_teak_empty);
+}
+
+// =========================================================================== directing one
+
+// Where the three portals stand relative to the focus. The focus is at local (3,3) of the room's
+// zone and the portals at (0,3), (3,7) and (7,3), so the focus can reach all three without
+// searching for them - and the offsets are the template's, read out of the map squares.
+[proc,poh_portal_spot](coord $focus, int $index)(coord)
+switch_int ($index) {
+    case ^poh_portal_north : return(movecoord($focus, 0, 0, 4));
+    case ^poh_portal_east : return(movecoord($focus, 4, 0, 0));
+    case default : return(movecoord($focus, -3, 0, 0));
+}
+
+// The furniture slot standing on a tile, or -1. Same arithmetic as ~poh_furn_remove and
+// ~poh_furn_light, which is the only way to get from a coord back to a piece.
+[proc,poh_portal_slot](coord $spot)(int)
+if (%poh_instance = null) {
+    return(-1);
+}
+def_int $gx = calc(coordx($spot) - coordx(%poh_instance));
+def_int $gz = calc(coordz($spot) - coordz(%poh_instance));
+return(~poh_furn_at(calc(divide($gx, 8) - ^poh_grid_origin), calc(divide($gz, 8) - ^poh_grid_origin), modulo($gx, 8), modulo($gz, 8)));
+
+// The focus's Direct-portal. Which portal first, then where to: the three spaces are named by the
+// side of the room they stand on, because that is how a player tells them apart from the middle
+// of the room.
+[proc,poh_portal_direct]
+if (%poh_instance = null | instance_find(loc_coord) ! %poh_instance) {
+    mes("You can only direct portals inside your own house.");
+    return;
+}
+def_coord $focus = loc_coord;
+def_int $index = ~p_choice3("The north portal.", ^poh_portal_north, "The east portal.", ^poh_portal_east, "The west portal.", ^poh_portal_west);
+def_coord $spot = ~poh_portal_spot($focus, $index);
+def_int $slot = ~poh_portal_slot($spot);
+if ($slot < 0) {
+    mes("You have not built a portal in that space yet.");
+    return;
+}
+def_int $dest = ~poh_portal_pick;
+if ($dest = 0) {
+    return;
+}
+if (~poh_portal_get($index) = $dest) {
+    mes("That portal already leads to <enum(int, string, poh_portal_name, $dest)>.");
+    return;
+}
+if (stat(magic) < enum(int, int, poh_portal_level, $dest)) {
+    mes("You need a Magic level of <tostring(enum(int, int, poh_portal_level, $dest))> to direct a portal to <enum(int, string, poh_portal_name, $dest)>.");
+    return;
+}
+if (~poh_portal_runes_have($dest) = false) {
+    mes("Directing a portal to <enum(int, string, poh_portal_name, $dest)> takes <enum(int, string, poh_portal_cost, $dest)> runes.");
+    return;
+}
+~poh_portal_runes_take($dest);
+~poh_portal_set($index, $dest);
+// Redrawn the same way a lit torch is: loc_add over the tile replaces what is standing on it,
+// because both locs are on the same layer. No re-lay, and nothing else in the room moves.
+def_int $v = ~poh_furn_get($slot);
+~poh_portal_place($spot, ~poh_furn_field($v, ^poh_furn_bit_angle, 2), enum(int, int, poh_furn_tier, ~poh_furn_item($v)));
+mes("The portal now leads to <enum(int, string, poh_portal_name, $dest)>.");
+
+// Seven destinations over two pages, because a chat menu holds five.
+[proc,poh_portal_pick]()(int)
+def_int $choice = ~p_choice5_header("Varrock", ^poh_portal_varrock, "Lumbridge", ^poh_portal_lumbridge, "Falador", ^poh_portal_falador, "Camelot", ^poh_portal_camelot, "More options...", 99, "Direct the portal where?");
+if ($choice ! 99) {
+    return($choice);
+}
+return(~p_choice4_header("Ardougne", ^poh_portal_ardougne, "Yanille", ^poh_portal_yanille, "Trollheim", ^poh_portal_trollheim, "Never mind.", 0, "Direct the portal where?"));
+
+// =========================================================================== using one
+
+[proc,poh_portal_enter](int $dest)
+if (enum(int, coord, poh_portal_coord, $dest) = null) {
+    mes("That portal does not lead anywhere yet.");
+    return;
+}
+mes("You step through the portal.");
+anim(human_pickupfloor, 0);
+p_delay(1);
+p_teleport(enum(int, coord, poh_portal_coord, $dest));
+
+// Taking one out. The destination goes with it - a frame rebuilt in the same space starts
+// undirected, which is what a player who paid the runes once would expect to have to do again.
+[proc,poh_portal_remove]
+def_coord $spot = loc_coord;
+~poh_furn_remove;
+if (~poh_portal_slot($spot) < 0) {
+    ~poh_portal_set(~poh_portal_index($spot), 0);
+}
+
+// =========================================================================== the triggers
+
+[oploc1,poh_portal_teak_varrock] ~poh_portal_enter(^poh_portal_varrock);
+[oploc1,poh_portal_teak_lumbridge] ~poh_portal_enter(^poh_portal_lumbridge);
+[oploc1,poh_portal_teak_falador] ~poh_portal_enter(^poh_portal_falador);
+[oploc1,poh_portal_teak_camelot] ~poh_portal_enter(^poh_portal_camelot);
+[oploc1,poh_portal_teak_ardougne] ~poh_portal_enter(^poh_portal_ardougne);
+[oploc1,poh_portal_teak_yanille] ~poh_portal_enter(^poh_portal_yanille);
+[oploc1,poh_fairy_ring_last_ais] ~poh_portal_enter(^poh_portal_trollheim);
+[oploc1,poh_portal_mag_varrock] ~poh_portal_enter(^poh_portal_varrock);
+[oploc1,poh_portal_mag_lumbridge] ~poh_portal_enter(^poh_portal_lumbridge);
+[oploc1,poh_portal_mag_falador] ~poh_portal_enter(^poh_portal_falador);
+[oploc1,poh_portal_mag_camelot] ~poh_portal_enter(^poh_portal_camelot);
+[oploc1,poh_portal_mag_ardougne] ~poh_portal_enter(^poh_portal_ardougne);
+[oploc1,poh_portal_mag_yanille] ~poh_portal_enter(^poh_portal_yanille);
+[oploc1,poh_fairy_ring_last_air] ~poh_portal_enter(^poh_portal_trollheim);
+[oploc1,poh_portal_marble_varrock] ~poh_portal_enter(^poh_portal_varrock);
+[oploc1,poh_portal_marble_lumbridge] ~poh_portal_enter(^poh_portal_lumbridge);
+[oploc1,poh_portal_marble_falador] ~poh_portal_enter(^poh_portal_falador);
+[oploc1,poh_portal_marble_camelot] ~poh_portal_enter(^poh_portal_camelot);
+[oploc1,poh_portal_marble_ardougne] ~poh_portal_enter(^poh_portal_ardougne);
+[oploc1,poh_portal_marble_yanille] ~poh_portal_enter(^poh_portal_yanille);
+[oploc1,poh_fairy_ring_last_aiq] ~poh_portal_enter(^poh_portal_trollheim);
+
+[oploc5,poh_portal_teak_varrock] ~poh_portal_remove;
+[oploc5,poh_portal_teak_lumbridge] ~poh_portal_remove;
+[oploc5,poh_portal_teak_falador] ~poh_portal_remove;
+[oploc5,poh_portal_teak_camelot] ~poh_portal_remove;
+[oploc5,poh_portal_teak_ardougne] ~poh_portal_remove;
+[oploc5,poh_portal_teak_yanille] ~poh_portal_remove;
+[oploc5,poh_fairy_ring_last_ais] ~poh_portal_remove;
+[oploc5,poh_portal_mag_varrock] ~poh_portal_remove;
+[oploc5,poh_portal_mag_lumbridge] ~poh_portal_remove;
+[oploc5,poh_portal_mag_falador] ~poh_portal_remove;
+[oploc5,poh_portal_mag_camelot] ~poh_portal_remove;
+[oploc5,poh_portal_mag_ardougne] ~poh_portal_remove;
+[oploc5,poh_portal_mag_yanille] ~poh_portal_remove;
+[oploc5,poh_fairy_ring_last_air] ~poh_portal_remove;
+[oploc5,poh_portal_marble_varrock] ~poh_portal_remove;
+[oploc5,poh_portal_marble_lumbridge] ~poh_portal_remove;
+[oploc5,poh_portal_marble_falador] ~poh_portal_remove;
+[oploc5,poh_portal_marble_camelot] ~poh_portal_remove;
+[oploc5,poh_portal_marble_ardougne] ~poh_portal_remove;
+[oploc5,poh_portal_marble_yanille] ~poh_portal_remove;
+[oploc5,poh_fairy_ring_last_aiq] ~poh_portal_remove;
+
+// Scry. OSRS shows you the destination through the pool; 377 has no way to move the camera to
+// somewhere the player is not standing in, so it reads the three portals out instead - which is
+// the thing a player actually wants to know when they are standing over the pool.
+[oploc2,poh_scrying_pool]
+mes("North: <enum(int, string, poh_portal_name, ~poh_portal_get(^poh_portal_north))>.");
+mes("East: <enum(int, string, poh_portal_name, ~poh_portal_get(^poh_portal_east))>.");
+mes("West: <enum(int, string, poh_portal_name, ~poh_portal_get(^poh_portal_west))>.");

@@ -722,8 +722,16 @@ def emit_rs2(fams, items, slots, path='scripts/skill_construction/scripts/poh_fu
           '}',
           'switch_int ($item) {']
     for i in items:
-        o.append('    case %d : loc_add($spot, %s, $angle, %s, ^poh_loc_duration);'
-                 % (i['n'], i['loc'], byfam[i['famkey']]['shape']))
+        f = byfam[i['famkey']]
+        # A family with "show" does not go down as a fixed loc. The portal frames are the only
+        # ones so far: a directed portal is the same built piece wearing its destination, so which
+        # loc lands is a runtime question and the proc is the one that answers it. The TIER is
+        # passed because that is what the three frames differ by.
+        if f.get('show'):
+            o.append('    case %d : ~%s($spot, $angle, %d);' % (i['n'], f['show'], i['tier']))
+        else:
+            o.append('    case %d : loc_add($spot, %s, $angle, %s, ^poh_loc_duration);'
+                     % (i['n'], i['loc'], f['shape']))
     o += ['    case default : return;', '}', '',
           '// The lit twin of anything that can be lit, and false for everything else.',
           '[proc,poh_furn_show_lit](int $item, coord $spot, int $angle)(boolean)',
@@ -1000,6 +1008,8 @@ def emit_ops(fams, items, byfam, path='scripts/skill_construction/scripts/poh_fu
             body = ['anim(%s, 0);' % op['seq'], 'mes(%s);' % q(op['mes'])]
         elif k == 'mes':
             body = ['mes(%s);' % q(l) for l in op['lines']]
+        elif k == 'direct':
+            body = ['~poh_portal_direct;']
         elif k == 'wardrobe':
             body = ['~poh_wardrobe;']
         elif k == 'costume':
