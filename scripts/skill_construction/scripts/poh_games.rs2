@@ -1,0 +1,206 @@
+// The last of the ops. After this file, EVERY op any piece of house furniture advertises does
+// something - battery group 56 walks poh.loc and fails if one of them is a dead click again.
+//
+// Two of them are real activities. The rest are honest: a click that says why it cannot work beats a
+// click that does nothing, and it is the difference between "not built" and "broken".
+//
+// WHAT IS MISSING IS ALWAYS THE SAME TWO THINGS. Either the house is empty - the games room, the
+// combat room and the throne room lever are all things OSRS plays against another person - or the
+// items do not exist in a 2006 cache. The clockmaker's bench makes nine clockwork toys and not one
+// of toy_horsey, wooden_cat, toy_soldier, toy_doll, clockwork_suit, toy_mouse or clockwork_cat is in
+// obj.pack; the heraldry stand makes steel heraldic helmets, kiteshields and banners, and none of
+// those are there either. The fifteen heraldic kiteshields that DO exist are treasure trail rewards
+// and making them at a stand would undercut the clue they come from.
+
+// =========================================================================== the archery target
+
+// Requires a bow and arrows: a worn right-hand weapon with attackrange greater than 1 is a ranged
+// weapon, which is the same test tut_giant_rat uses, rather than a list of bows to fall behind.
+[oploc1,poh_archery_target1] ~poh_archery;
+[oploc1,poh_archery_target2] ~poh_archery;
+
+[proc,poh_archery]
+if (~poh_in_own_house = false) {
+    return;
+}
+if (oc_param(inv_getobj(worn, ^wearpos_rhand), attackrange) <= 1) {
+    mes("You need a bow to shoot at the target.");
+    return;
+}
+def_int $ammo = ~poh_range_find(^poh_arrow_first, ^poh_arrow_last);
+if ($ammo < 0) {
+    mes("You have no arrows.");
+    return;
+}
+~poh_range_shoot($ammo, human_bow, "Your arrow misses the target.", "Your arrow hits the target.");
+
+// =========================================================================== the dartboard
+
+// Darts are thrown, so there is nothing to be holding. OSRS plays this against another person and
+// keeps score; on your own it is target practice, which is what the score line says.
+[oploc1,poh_dartboard1] ~poh_darts;
+[oploc1,poh_dartboard2] ~poh_darts;
+
+[proc,poh_darts]
+if (~poh_in_own_house = false) {
+    return;
+}
+def_int $ammo = ~poh_range_find(^poh_dart_first, ^poh_dart_last);
+if ($ammo < 0) {
+    mes("You have no darts to throw.");
+    return;
+}
+~poh_range_shoot($ammo, human_throw_dart1, "Your dart misses the board.", "Your dart hits the board.");
+
+// The best ammunition the player is carrying between two indices, or -1. Best rather than first: a
+// quiver with bronze at the bottom should not spend the bronze.
+[proc,poh_range_find](int $first, int $last)(int)
+def_int $i = $last;
+while ($i >= $first) {
+    if (inv_total(inv, enum(int, namedobj, poh_range_ammo, $i)) > 0) {
+        return($i);
+    }
+    $i = calc($i - 1);
+}
+return(-1);
+
+// One shot. The ammunition is spent whether or not it lands, which is what makes a miss cost
+// something; the experience is only paid for a hit.
+//
+// Where it lands is a straight roll against Ranged level - 1 in 10 at level 1, about 1 in 2 at 99 -
+// with a bullseye a tenth as likely as a hit. Nothing here is cache data; see ^poh_range_xp.
+[proc,poh_range_shoot](int $ammo, seq $anim, string $miss, string $hit)
+def_namedobj $obj = enum(int, namedobj, poh_range_ammo, $ammo);
+if ($obj = null) {
+    return;
+}
+inv_del(inv, $obj, 1);
+anim($anim, 0);
+spotanim_map(enum(int, spotanim, poh_range_fx, $ammo), loc_coord, 0, 0);
+p_delay(2);
+def_int $roll = random(100);
+def_int $skill = calc(10 + stat(ranged) / 2);
+if ($roll >= $skill) {
+    mes($miss);
+    return;
+}
+if ($roll < calc($skill / 10)) {
+    stat_advance(ranged, calc(^poh_range_xp * 3));
+    mes("Bullseye!");
+    return;
+}
+stat_advance(ranged, ^poh_range_xp);
+mes($hit);
+
+// =========================================================================== the wall chart
+
+// A star chart in a study. It reads, like the clock does, and that is all OSRS's is for either.
+[oploc1,poh_wallchart_1] ~poh_wallchart;
+[oploc1,poh_wallchart_2] ~poh_wallchart;
+[oploc1,poh_wallchart_3] ~poh_wallchart;
+
+[proc,poh_wallchart]
+mes("The chart maps the stars over Gielinor. Someone has pencilled a note in the margin.");
+mes("It reads: 'The telescope is wrong about the third one along.'");
+
+// =========================================================================== the empty house
+//
+// Everything below needs a second person in the house. Saying so is the point: these are the ops
+// that used to be dead clicks, and a dead click is indistinguishable from a bug.
+
+[oploc1,poh_lever_oak_4] ~poh_lever_pull;
+[oploc1,poh_lever_teak_4] ~poh_lever_pull;
+[oploc1,poh_lever_mag_4] ~poh_lever_pull;
+
+// In OSRS this drops the floor out of the throne room into the oubliette below. There is no second
+// level in this build - the grid is one storey - so there is nothing under the house to open.
+[proc,poh_lever_pull]
+if (~poh_in_own_house = false) {
+    return;
+}
+mes("You pull the lever. Somewhere below the house, nothing happens.");
+mes("There is no dungeon under this house to open.");
+
+[oploc2,poh_lever_oak_4] ~poh_needs_company("You need someone else in the house to challenge to the dungeon.");
+[oploc2,poh_lever_teak_4] ~poh_needs_company("You need someone else in the house to challenge to the dungeon.");
+[oploc2,poh_lever_mag_4] ~poh_needs_company("You need someone else in the house to challenge to the dungeon.");
+
+[oploc1,poh_hangman_chest] ~poh_needs_company("You need someone else in the house to play hangman.");
+[oploc1,poh_mime_jester] ~poh_needs_company("You need someone else in the house to put on a show for.");
+[oploc1,poh_elemental_orb_1] ~poh_needs_company("You need someone else in the house to play the elemental balance.");
+[oploc1,poh_elemental_orb_2] ~poh_needs_company("You need someone else in the house to play the elemental balance.");
+[oploc1,poh_elemental_orb_3] ~poh_needs_company("You need someone else in the house to play the elemental balance.");
+[oploc1,poh_tbt_clay_new] ~poh_needs_company("You need someone else in the house to set up a fight with.");
+[oploc1,poh_tbt_limestone_new] ~poh_needs_company("You need someone else in the house to set up a fight with.");
+[oploc1,poh_tbt_marble_new] ~poh_needs_company("You need someone else in the house to set up a fight with.");
+
+// The whole line, not a fragment: interpolating a string VARIABLE (<$var>) is one of the four
+// idioms this repo has no precedent for, and battery check 24 enforces that.
+[proc,poh_needs_company](string $line)
+if (~poh_in_own_house = false) {
+    return;
+}
+mes($line);
+
+// The prize chest holds what the games room games pay out, and none of those games can be played
+// yet, so it holds nothing. It is not the costume room chest - that one is real (poh_costume.rs2).
+[oploc1,poh_prize_chest_oak_closed] ~poh_prize_chest;
+[oploc1,poh_prize_chest_teak_closed] ~poh_prize_chest;
+[oploc1,poh_prize_chest_mag_closed] ~poh_prize_chest;
+
+[proc,poh_prize_chest]
+if (~poh_in_own_house = false) {
+    return;
+}
+mes("The chest is empty. Nothing has been won in this room yet.");
+
+// =========================================================================== the missing items
+
+[oploc1,loc_13709] ~poh_no_parts("The clockwork toys this bench makes do not exist in this world yet.");
+[oploc1,loc_13710] ~poh_no_parts("The clockwork toys this bench makes do not exist in this world yet.");
+[oploc1,loc_13711] ~poh_no_parts("The clockwork toys this bench makes do not exist in this world yet.");
+[oploc1,loc_13712] ~poh_no_parts("The clockwork toys this bench makes do not exist in this world yet.");
+[oploc4,loc_13709] ~poh_no_parts("The clockwork toys this bench makes do not exist in this world yet.");
+[oploc4,loc_13710] ~poh_no_parts("The clockwork toys this bench makes do not exist in this world yet.");
+[oploc4,loc_13711] ~poh_no_parts("The clockwork toys this bench makes do not exist in this world yet.");
+[oploc1,loc_13716] ~poh_no_parts("The heraldic helmets this stand makes do not exist in this world yet.");
+[oploc1,loc_13717] ~poh_no_parts("The heraldic shields this easel makes do not exist in this world yet.");
+[oploc1,loc_13718] ~poh_no_parts("The heraldic banners this easel makes do not exist in this world yet.");
+
+[proc,poh_no_parts](string $line)
+if (~poh_in_own_house = false) {
+    return;
+}
+mes("You have nothing to work with.");
+mes($line);
+
+// =========================================================================== Upgrade
+//
+// OSRS upgrades a tool store or a workbench in place. This build does not work that way: every piece
+// of furniture is built from its hotspot and removed back to it, so "upgrade" here is remove and
+// build the next one - which costs the same materials either way, because OSRS charges for the new
+// one too. Saying so is the whole of what this op can honestly do until the build menu learns to
+// take a piece out and put the next one in as one action.
+[oploc4,loc_13699] ~poh_upgrade;
+[oploc4,loc_13700] ~poh_upgrade;
+[oploc4,loc_13701] ~poh_upgrade;
+[oploc4,loc_13702] ~poh_upgrade;
+[oploc4,loc_13706] ~poh_upgrade;
+[oploc4,loc_13707] ~poh_upgrade;
+
+[proc,poh_upgrade]
+if (~poh_in_own_house = false) {
+    return;
+}
+mes("Remove it first, then build the better one from the hotspot underneath.");
+
+// =========================================================================== shared
+
+// Every op in this file is on a piece of furniture inside an instance, and none of them should
+// answer a click on one standing somewhere else.
+[proc,poh_in_own_house]()(boolean)
+if (%poh_instance = null | instance_find(loc_coord) ! %poh_instance) {
+    mes("You can only use that in your own house.");
+    return(false);
+}
+return(true);

@@ -2137,6 +2137,82 @@ tel = AOGCODE.split('[proc,glory_teleport]', 1)[1].split('\n[', 1)[0]
 check('inv_setslot' in lab and 'inv_setslot' not in tel,
       'the charge is eaten by the LABEL - a loc trigger has no last_slot worth writing to')
 
+# ============================================================================ 56
+print('56. every op a piece of house furniture advertises is answered by something')
+# THE POINT OF THE LAST ROUND. A trigger on an op a loc does not carry never fires, which check 39
+# has covered since the furniture round - this is the other direction, and it is the one that was
+# never checked: an op the loc DOES carry with no trigger anywhere is a click that does nothing,
+# and a click that does nothing is indistinguishable from a bug.
+#
+# Not every op has to be an activity. Several of these answer "you need someone else in the house"
+# or "those items do not exist in this world yet" - which is the honest answer and still an answer.
+GAMES = read('scripts/skill_construction/scripts/poh_games.rs2')
+LOCCFG2 = blocks(read('scripts/skill_construction/configs/poh.loc'))
+TEMPL2 = blocks(read('scripts/skill_construction/configs/poh_templates.loc'))
+OPFILES = [read('scripts/skill_construction/scripts/poh_furn_ops.rs2'), GAMES,
+           read('scripts/skill_construction/scripts/poh_costume.rs2'),
+           read('scripts/skill_construction/scripts/poh_glory.rs2'),
+           read('scripts/skill_construction/scripts/poh_flatpacks.rs2'),
+           read('scripts/skill_construction/scripts/poh_furniture.rs2'),
+           read('scripts/skill_construction/scripts/poh_tablets.rs2'),
+           read('scripts/skill_construction/scripts/poh_build.rs2'),
+           read('scripts/skill_construction/scripts/poh_portal.rs2')]
+TRIG = set()
+for t in OPFILES:
+    TRIG |= set(re.findall(r'^\[oploc([1-5]),(\w+)\]', t, re.M))
+
+# only the locs the furniture actually places - poh.loc also holds hotspots and scenery
+FAM = _json.load(open(os.path.join(C, 'tools/furnspec.json')))['families']
+# the spec carries a family's pieces either as a flat "locs" list or as "pieces" objects
+placed = sorted({l for f in FAM for l in
+                 (f.get('locs') or [p['loc'] for p in f.get('pieces', [])])})
+check(len(placed) > 200, 'the spec places %d locs' % len(placed))
+dead = []
+for l in placed:
+    cfg = LOCCFG2.get(l) or TEMPL2.get(l) or {}
+    for k in cfg:
+        m = re.match(r'^op([1-5])$', k)
+        if m and (m.group(1), l) not in TRIG:
+            dead.append('%s %s=%s' % (l, k, cfg[k][0]))
+check(not dead, 'no op on a placed piece is a dead click: %s' % (dead[:6] or 'all %d answered' % len(TRIG)))
+
+# the two that are real activities
+check(len(re.findall(r'^\[oploc1,poh_archery_target', GAMES, re.M)) == 2, 'both archery targets shoot')
+check(len(re.findall(r'^\[oploc1,poh_dartboard', GAMES, re.M)) == 2, 'both dartboards throw')
+shoot = GAMES.split('[proc,poh_range_shoot]', 1)[1].split('\n[', 1)[0]
+check(shoot.index('inv_del') < shoot.index('random(100)'),
+      'the ammunition is spent before the roll - a miss has to cost something')
+check(shoot.count('stat_advance(ranged') == 2, 'and the experience is only paid on a hit or a bullseye')
+arch = GAMES.split('[proc,poh_archery]', 1)[1].split('\n[', 1)[0]
+check('attackrange' in arch, 'the target asks for a bow by attackrange, not by a list of bows')
+
+AMMO = read('scripts/skill_construction/configs/poh_games.enum')
+ammo = enumtable(AMMO, 'poh_range_ammo')
+fx = enumtable(AMMO, 'poh_range_fx')
+check(sorted(ammo) == sorted(fx), 'every piece of ammunition has a launch effect')
+check(all(o in OBJS for o in ammo.values()), 'every one is in obj.pack')
+SPOT = set(packmap('pack/spotanim.pack'))
+check(all(v in SPOT for v in fx.values()), 'every launch effect is in spotanim.pack: %s'
+      % ([v for v in fx.values() if v not in SPOT][:3] or 'all %d' % len(fx)))
+# and it is the RIGHT one. Every launch spotanim in the cache is its ammunition's name with _launch
+# on the end, so the two tables can be checked against each other rather than just for existence -
+# without this, a dart that launches an arrow passes everything.
+wrongfx = sorted(ammo[i] for i in ammo if fx.get(i) != ammo[i] + '_launch')
+check(not wrongfx, 'and it is the effect for that ammunition: %s' % (wrongfx[:3] or 'all %d match' % len(fx)))
+AF = int(re.search(r'^\^poh_arrow_first\s*=\s*(\d+)', CONSTF, re.M).group(1))
+AL = int(re.search(r'^\^poh_arrow_last\s*=\s*(\d+)', CONSTF, re.M).group(1))
+DF = int(re.search(r'^\^poh_dart_first\s*=\s*(\d+)', CONSTF, re.M).group(1))
+DL = int(re.search(r'^\^poh_dart_last\s*=\s*(\d+)', CONSTF, re.M).group(1))
+check(AL + 1 == DF and DL == max(ammo), 'the arrow and dart ranges tile the table with no gap')
+check(all(ammo[i].endswith('_arrow') for i in range(AF, AL + 1)), 'the arrow range really is arrows')
+check(all(ammo[i].endswith('_dart') for i in range(DF, DL + 1)), 'and the dart range really is darts')
+
+# every one of these is inside somebody's house
+for proc in ('poh_archery', 'poh_darts', 'poh_lever_pull', 'poh_needs_company', 'poh_no_parts',
+             'poh_prize_chest'):
+    body = GAMES.split('[proc,%s]' % proc, 1)[1].split('\n[', 1)[0]
+    check('~poh_in_own_house' in body, '%s checks you are in your own house' % proc)
+
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
 sys.exit(1 if fails else 0)
