@@ -4,9 +4,14 @@
 [opheld4,amulet_of_glory_1] @amulet_of_glory_interface("You use your amulet's last charge.");
 [opheld4,amulet_of_glory] mes("The amulet has lost its charge.");
 
-[label,amulet_of_glory_interface](string $message)
-def_obj $item = last_item;
-def_int $slot = last_slot;
+// THE CHOICE AND THE TELEPORT ARE A PROC, and the charge is eaten by the caller. The mounted glory
+// in a quest hall (skill_construction/scripts/poh_costume.rs2's neighbour, poh_tablets.rs2) is the
+// same four destinations with nothing to charge, and it cannot call a label that ends by writing to
+// last_slot - that slot belongs to whatever the player happens to be holding.
+//
+// $message is printed immediately before the teleport: the charge count for an amulet, and
+// something else entirely for the one on the wall.
+[proc,glory_teleport](string $message)(boolean)
 // https://youtu.be/Zv7Wh3TIDOc
 mes("You rub the amulet...");
 // Space after "to" is intentional. Based off of this screenshot: https://storage.googleapis.com/tannerdino/images/rstransport9.gif
@@ -14,16 +19,16 @@ def_int $choice = ~p_choice5_header("Edgeville.", 1, "Karamja.", 2, "Draynor Vil
 // https://i.imgur.com/HsKKBnr.png
 if ($choice = 5) {
     mes("You remain where you were.");
-    return;
+    return(false);
 }
 if (~wilderness_level(coord) > 30) {
     // osrs
     mes("A mysterious force blocks your teleport.");
     mes("You can't use this teleport after level 30 wilderness.");
-    return;
+    return(false);
 }
 if (~pre_tele_checks(coord) = false) {
-    return;
+    return(false);
 }
 mes($message);
 switch_int($choice) {
@@ -31,5 +36,13 @@ switch_int($choice) {
     case 2 : ~player_teleport_normal(0_45_49_38_40);
     case 3 : ~player_teleport_normal(0_48_50_33_51);
     case 4 : ~player_teleport_normal(0_51_49_29_27);
+}
+return(true);
+
+[label,amulet_of_glory_interface](string $message)
+def_obj $item = last_item;
+def_int $slot = last_slot;
+if (~glory_teleport($message) = false) {
+    return;
 }
 inv_setslot(inv, $slot, oc_param($item, next_obj_stage), 1);

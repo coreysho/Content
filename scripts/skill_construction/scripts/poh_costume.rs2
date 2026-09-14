@@ -1,0 +1,218 @@
+// The two pieces of furniture that are about what you wear: the costume room's treasure chest and
+// the bedroom wardrobe.
+//
+// THE CHEST IS OSRS'S COSTUME STORAGE, done the way this repo already does storage - a perm inv and
+// a chat menu, no new interface. The herb sack, the seed box and the looting bag all work like this
+// (storage_items/scripts/storage_items.rs2), and it is the reason this is a small round rather than
+// an interface round.
+//
+//   Store    every treasure trail reward item you are carrying that the chest has room for, one of
+//            each, because a costume is one of each
+//   Check    what is in it, by set
+//   Take out a whole set at a time - which is how OSRS withdraws from costume storage, and also the
+//            only way to pick one of 72 items out of a chat menu without eleven pages of it
+//
+// The list of 72 and the 16 sets are in configs/poh_costume.enum, derived from the clue reward
+// tables. Battery group 55 re-derives them on every run.
+
+// =========================================================================== the chest
+
+// $item is the piece that was clicked - the generated trigger passes it, the same way the altar's
+// offer trigger does - and its tier is what decides the capacity.
+[proc,poh_costume_open](int $item)
+if (%poh_instance = null | instance_find(loc_coord) ! %poh_instance) {
+    mes("You can only use that in your own house.");
+    return;
+}
+def_int $cap = enum(int, int, poh_costume_cap, enum(int, int, poh_furn_tier, $item));
+if ($cap = null) {
+    return;
+}
+def_int $have = ~poh_costume_count;
+mes("The chest holds <tostring($have)> of <tostring($cap)> pieces.");
+def_int $pick = ~p_choice4("Store what I'm carrying.", 1, "See what's in it.", 2,
+                           "Take out a set.", 3, "Nothing.", 4);
+if ($pick = 1) {
+    ~poh_costume_store($cap);
+} else if ($pick = 2) {
+    ~poh_costume_check;
+} else if ($pick = 3) {
+    ~poh_costume_take;
+}
+
+[proc,poh_costume_count]()(int)
+def_int $i = 0;
+def_int $n = 0;
+while ($i < ^poh_costume_items) {
+    if (inv_total(poh_costume_store, enum(int, namedobj, poh_costume_item, $i)) > 0) {
+        $n = calc($n + 1);
+    }
+    $i = calc($i + 1);
+}
+return($n);
+
+// One of each: a second gold-trimmed platebody is not part of a costume, so it stays in your pack.
+// The capacity is checked per item rather than up front, so a nearly-full chest still takes what it
+// can instead of refusing the lot.
+[proc,poh_costume_store](int $cap)
+def_int $i = 0;
+def_int $moved = 0;
+def_int $full = 0;
+def_int $held = ~poh_costume_count;
+while ($i < ^poh_costume_items) {
+    def_namedobj $item = enum(int, namedobj, poh_costume_item, $i);
+    if (inv_total(inv, $item) > 0 & inv_total(poh_costume_store, $item) = 0) {
+        if ($held < $cap) {
+            inv_moveitem(inv, poh_costume_store, $item, 1);
+            $held = calc($held + 1);
+            $moved = calc($moved + 1);
+        } else {
+            $full = 1;
+        }
+    }
+    $i = calc($i + 1);
+}
+if ($moved = 0 & $full = 0) {
+    mes("You aren't carrying anything the chest will take.");
+    return;
+}
+if ($moved > 0) {
+    mes("You put <tostring($moved)> piece(s) into the chest.");
+}
+if ($full = 1) {
+    mes("The chest is full. A better one would hold more.");
+}
+
+[proc,poh_costume_check]
+def_int $s = 0;
+def_int $named = 0;
+while ($s < ^poh_costume_sets) {
+    def_int $in = ~poh_costume_set_count($s);
+    if ($in > 0) {
+        mes("<enum(int, string, poh_costume_set_name, $s)>: <tostring($in)> of <tostring(calc(enum(int, int, poh_costume_set_last, $s) - enum(int, int, poh_costume_set_first, $s) + 1))>.");
+        $named = calc($named + 1);
+    }
+    $s = calc($s + 1);
+}
+if ($named = 0) {
+    mes("The chest is empty.");
+}
+
+[proc,poh_costume_set_count](int $set)(int)
+def_int $i = enum(int, int, poh_costume_set_first, $set);
+def_int $last = enum(int, int, poh_costume_set_last, $set);
+def_int $n = 0;
+while ($i <= $last) {
+    if (inv_total(poh_costume_store, enum(int, namedobj, poh_costume_item, $i)) > 0) {
+        $n = calc($n + 1);
+    }
+    $i = calc($i + 1);
+}
+return($n);
+
+// Only the sets that are actually in there are offered, four at a time, so the menu is short in
+// practice even though there are sixteen of them. The page counter is a bounded loop: while (true)
+// has no precedent in this repo.
+[proc,poh_costume_take]
+def_int $from = 0;
+def_int $turns = 0;
+while ($turns < 8) {
+    $turns = calc($turns + 1);
+    def_int $a = ~poh_costume_nth($from, 0);
+    if ($a < 0) {
+        if ($from = 0) {
+            mes("The chest is empty.");
+        }
+        return;
+    }
+    def_int $b = ~poh_costume_nth($from, 1);
+    def_int $c = ~poh_costume_nth($from, 2);
+    def_int $d = ~poh_costume_nth($from, 3);
+    def_int $pick = ~p_choice5(
+        "<enum(int, string, poh_costume_set_name, $a)>", 1,
+        "<enum(int, string, poh_costume_set_name, max($b, 0))>", 2,
+        "<enum(int, string, poh_costume_set_name, max($c, 0))>", 3,
+        "<enum(int, string, poh_costume_set_name, max($d, 0))>", 4,
+        "More sets...", 5);
+    if ($pick = 1) {
+        ~poh_costume_withdraw($a);
+        return;
+    }
+    if ($pick = 2 & $b >= 0) {
+        ~poh_costume_withdraw($b);
+        return;
+    }
+    if ($pick = 3 & $c >= 0) {
+        ~poh_costume_withdraw($c);
+        return;
+    }
+    if ($pick = 4 & $d >= 0) {
+        ~poh_costume_withdraw($d);
+        return;
+    }
+    if ($pick ! 5) {
+        return;
+    }
+    if ($d < 0) {
+        $from = 0;
+    } else {
+        $from = calc($d + 1);
+    }
+}
+
+// The $skip-th set at or after $from that has anything in it, or -1 if there is no such set.
+[proc,poh_costume_nth](int $from, int $skip)(int)
+def_int $s = $from;
+def_int $seen = 0;
+while ($s < ^poh_costume_sets) {
+    if (~poh_costume_set_count($s) > 0) {
+        if ($seen = $skip) {
+            return($s);
+        }
+        $seen = calc($seen + 1);
+    }
+    $s = calc($s + 1);
+}
+return(-1);
+
+[proc,poh_costume_withdraw](int $set)
+def_int $i = enum(int, int, poh_costume_set_first, $set);
+def_int $last = enum(int, int, poh_costume_set_last, $set);
+def_int $moved = 0;
+def_int $left = 0;
+while ($i <= $last) {
+    def_namedobj $item = enum(int, namedobj, poh_costume_item, $i);
+    if (inv_total(poh_costume_store, $item) > 0) {
+        if (inv_freespace(inv) > 0) {
+            inv_moveitem(poh_costume_store, inv, $item, 1);
+            $moved = calc($moved + 1);
+        } else {
+            $left = 1;
+        }
+    }
+    $i = calc($i + 1);
+}
+if ($moved > 0) {
+    mes("You take the <enum(int, string, poh_costume_set_name, $set)> pieces out of the chest.");
+}
+if ($left = 1) {
+    mes("You can't carry any more; the rest is still in the chest.");
+}
+
+// =========================================================================== the wardrobe
+
+// OSRS opens the character-appearance screen. The engine gates that behind allowdesign, and the
+// screen already exists - the tutorial designs a character with it.
+//
+// THE CLOSE HANDLER IS SHARED WITH THE TUTORIAL and it used to set %tutorial unconditionally, so
+// opening this from a wardrobe would have knocked a finished player's tutorial state backwards.
+// tutorial.rs2's queue now only advances a player who is still in the tutorial; it always turns
+// allowdesign back off, which is the part this needs.
+[proc,poh_wardrobe]
+if (%poh_instance = null | instance_find(loc_coord) ! %poh_instance) {
+    mes("You can only use that in your own house.");
+    return;
+}
+mes("You open the wardrobe.");
+allowdesign(true);
+if_openmain(player_kit);

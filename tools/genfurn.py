@@ -971,6 +971,12 @@ def emit_ops(fams, items, byfam, path='scripts/skill_construction/scripts/poh_fu
             body = ['anim(%s, 0);' % op['seq'], 'mes(%s);' % q(op['mes'])]
         elif k == 'mes':
             body = ['mes(%s);' % q(l) for l in op['lines']]
+        elif k == 'wardrobe':
+            body = ['~poh_wardrobe;']
+        elif k == 'costume':
+            # the piece is passed in so its tier can set the capacity, the same way the altar's
+            # offer trigger passes the piece it is standing on
+            body = ['~poh_costume_open(%d);' % i['n']]
         elif k == 'study':
             # The lectern window, and the only op1 whose body depends on WHICH piece it is: a
             # lectern's tier is which of the seven it is, and that is what decides its tablet list.

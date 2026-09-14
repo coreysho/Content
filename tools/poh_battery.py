@@ -913,7 +913,8 @@ print('39. what the furniture does: every trigger is on an op the loc really has
 import json as _json
 FSPEC = _json.load(open(os.path.join(C, 'tools/furnspec.json')))
 KINDOP = {'sit': 'Sit-on', 'light': 'Light', 'altar': 'Pray', 'jingle': 'Play',
-          'observe': 'Observe', 'talk': 'Talk-to', 'preen': 'Preen'}
+          'observe': 'Observe', 'talk': 'Talk-to', 'preen': 'Preen',
+          'wardrobe': 'Change-clothes', 'costume': 'Open'}
 
 
 OPSRC = src['scripts/skill_construction/scripts/poh_furn_ops.rs2']
@@ -2018,6 +2019,123 @@ ec = POHRS2.split('[proc,poh_exit_coord]', 1)[1].split('\n[', 1)[0]
 check('poh_loc_exit' in ec and '^poh_exit' in ec,
       'the exit reads the table and falls back to the constant if it answers null')
 check(POHRS2.count('~poh_exit_coord') >= 2, 'both leaving and logging in use it')
+
+# ============================================================================ 55
+print('55. the costume chest, the wardrobe and the mounted glory')
+COST = read('scripts/skill_construction/configs/poh_costume.enum')
+citem = enumtable(COST, 'poh_costume_item')
+csetn = enumtable(COST, 'poh_costume_set_name')
+cfirst = enumtable(COST, 'poh_costume_set_first')
+clast = enumtable(COST, 'poh_costume_set_last')
+NITEM = int(re.search(r'^\^poh_costume_items\s*=\s*(\d+)', CONSTF, re.M).group(1))
+NSET = int(re.search(r'^\^poh_costume_sets\s*=\s*(\d+)', CONSTF, re.M).group(1))
+check(sorted(citem) == list(range(NITEM)), 'poh_costume_item is 0..%d with no gaps' % (NITEM - 1))
+check(sorted(csetn) == list(range(NSET)), 'poh_costume_set_name covers all %d sets' % NSET)
+check(len(set(citem.values())) == NITEM, 'no item is listed twice')
+check(all(o in OBJS for o in citem.values()), 'every one is in obj.pack: %s'
+      % ([o for o in citem.values() if o not in OBJS][:3] or 'all %d' % NITEM))
+
+# THE LIST IS DERIVED, AND THIS IS WHERE IT IS RE-DERIVED. Everything in the chest has to be a clue
+# reward, and every clue reward that is a god/trimmed/gold/heraldic VARIANT has to be in the chest -
+# otherwise a reward added to the tables later is quietly unstorable and nobody finds out.
+rewards = set()
+for f in sorted(os.listdir(os.path.join(C, 'scripts/minigames/game_trail/scripts'))):
+    d = os.path.join(C, 'scripts/minigames/game_trail/scripts', f)
+    if not os.path.isdir(d):
+        continue
+    for g in sorted(os.listdir(d)):
+        if not g.endswith('_reward.rs2'):
+            continue
+        txt = '\n'.join(l.split('//')[0] for l in
+                        open(os.path.join(d, g), newline='').read().replace('\r\n', '\n').split('\n'))
+        rewards |= set(re.findall(r'inv_add\(trail_rewardinv,\s*([a-z0-9_]+)', txt))
+check(len(rewards) > 100, 'the three clue reward tables were found and parsed (%d objs)' % len(rewards))
+notreward = [o for o in citem.values() if o not in rewards]
+check(not notreward, 'everything in the chest is a treasure trail reward: %s' % (notreward[:3] or 'all of them'))
+variant = {o for o in rewards if re.search(r'_(trim|gold|guthix|saradomin|zamorak)$|heraldic', o)}
+missing = sorted(variant - set(citem.values()))
+check(not missing, 'and every god/trimmed/gold/heraldic reward is in it: %s' % (missing or 'all %d' % len(variant)))
+# The other half of the rule, and the one that covers the seventeen costume pieces no name pattern
+# can describe: a costume is something clues are the ONLY source of. If a shop stocks it, it is
+# ordinary kit and the chest is not where it belongs - that is what keeps this from drifting into a
+# second bank one plausible-looking item at a time.
+stocked = set()
+for root, _, files in os.walk(os.path.join(C, 'scripts')):
+    for g in files:
+        if not g.endswith('.inv'):
+            continue
+        for line in open(os.path.join(root, g), newline='').read().replace('\r\n', '\n').split('\n'):
+            m = re.match(r'^stock\d*=([a-z0-9_]+)', line.strip())
+            if m:
+                stocked.add(m.group(1))
+check(len(stocked) > 500, 'the shop stock lists were found (%d objs)' % len(stocked))
+sold = sorted(o for o in citem.values() if o in stocked)
+check(not sold, 'and nothing in the chest is something a shop sells: %s' % (sold[:3] or 'none of the %d' % NITEM))
+
+# the set windows have to tile the item list exactly, or a set silently holds the wrong pieces
+spans = [(int(cfirst[i]), int(clast[i])) for i in range(NSET)]
+check(spans[0][0] == 0, 'the first set starts at item 0')
+check(spans[-1][1] == NITEM - 1, 'the last set ends at item %d' % (NITEM - 1))
+check(all(a <= b for a, b in spans), 'no set ends before it starts')
+check(all(spans[i + 1][0] == spans[i][1] + 1 for i in range(NSET - 1)),
+      'the sets are consecutive and leave no item out: %s' % spans[:3])
+
+INV = read('scripts/skill_construction/configs/poh_costume.inv')
+blk = INV.split('[poh_costume_store]', 1)[1]
+check('scope=perm' in blk, 'poh_costume_store is scope=perm - the whole point is that it survives logout')
+check('size=%d' % NITEM in blk, 'and it has exactly one slot per item (size=%d)' % NITEM)
+check('poh_costume_store' in {l.split('=', 1)[1] for l in read('pack/inv.pack').split('\n') if '=' in l},
+      'it is registered in inv.pack')
+ccap = enumtable(COST, 'poh_costume_cap')
+caps = [int(ccap[t]) for t in sorted(ccap)]
+check(sorted(ccap) == [1, 2, 3, 4], 'every chest tier has a capacity')
+check(caps == sorted(caps) and caps[-1] == NITEM,
+      'the capacities only go up and the best chest holds the lot: %s' % caps)
+
+COSTRS = read('scripts/skill_construction/scripts/poh_costume.rs2')
+# comments stripped: both these files TALK about the things they must not contain
+COSTCODE = '\n'.join(l.split('//')[0] for l in COSTRS.split('\n'))
+check('while (true)' not in COSTCODE, 'the set pager is a bounded loop')
+st = COSTRS.split('[proc,poh_costume_store]', 1)[1].split('\n[', 1)[0]
+check('inv_total(poh_costume_store, $item) = 0' in st,
+      'storing puts ONE of each in - a second gold-trimmed platebody is not part of a costume')
+check('$held < $cap' in st, 'and it stops at the capacity of the chest that was clicked')
+wd = COSTRS.split('[proc,poh_costume_withdraw]', 1)[1].split('\n[', 1)[0]
+check('inv_freespace(inv) > 0' in wd, 'withdrawing checks for room and leaves the rest in the chest')
+
+# the wardrobe, and the tutorial handler it has to share
+WARD = COSTRS.split('[proc,poh_wardrobe]', 1)[1].split('\n[', 1)[0]
+check('allowdesign(true)' in WARD and 'if_openmain(player_kit)' in WARD,
+      'the wardrobe opens the character-design screen')
+TUT = read('scripts/tutorial/scripts/tutorial.rs2')
+q = TUT.split('[queue,tutorial_designed_character]', 1)[1].split('\n[', 1)[0]
+check('if (%tutorial = ^newbie_basics_instructor_start)' in q,
+      'the shared close handler only advances a player who is still IN the tutorial - a wardrobe '
+      'must not reset a finished one')
+check('allowdesign(false)' in q and q.index('allowdesign(false)') > q.index('}'),
+      'and it always turns allowdesign back off, guarded or not')
+TUTCODE = '\n'.join(l.split('//')[0] for l in TUT.split('\n'))
+check(TUTCODE.count('[if_close,player_kit]') == 1,
+      'there is exactly one close handler in the repo - two is a build error')
+
+# the mounted glory
+GLORY = read('scripts/skill_construction/scripts/poh_glory.rs2')
+check('[oploc1,poh_trophy_amuletofglory_4]' in GLORY, 'the glory trigger is on the amulet trophy')
+TROPHY = blocks(read('scripts/skill_construction/configs/poh.loc'))
+check((TROPHY.get('poh_trophy_amuletofglory_4', {}).get('op1') or [''])[0] == 'Rub',
+      'which is the only one of the three trophies that carries op1=Rub')
+for n in ('poh_trophy_antidragonbreath_4', 'poh_trophy_legendscape_4'):
+    check(not (TROPHY.get(n, {}).get('op1') or []), '%s really has no op1' % n)
+for n in ('poh_trophy_antidragonbreath_4', 'poh_trophy_legendscape_4'):
+    check(n not in GLORY, '%s has no op1, so it gets no trigger' % n)
+check('~poh_free' in GLORY, 'and the instance is freed on the way out, or it holds a slot until logout')
+AOG = read('scripts/general/scripts/enchanted_jewellry/amulet_of_glory.rs2')
+check('[proc,glory_teleport]' in AOG, 'the choice and the teleport are a proc now')
+AOGCODE = '\n'.join(l.split('//')[0] for l in AOG.split('\n'))
+lab = AOGCODE.split('[label,amulet_of_glory_interface]', 1)[1].split('\n[', 1)[0]
+tel = AOGCODE.split('[proc,glory_teleport]', 1)[1].split('\n[', 1)[0]
+check('inv_setslot' in lab and 'inv_setslot' not in tel,
+      'the charge is eaten by the LABEL - a loc trigger has no last_slot worth writing to')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

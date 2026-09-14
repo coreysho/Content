@@ -136,8 +136,16 @@ if_close;
 [if_close,player_kit]
 queue(tutorial_designed_character, 0, 0);
 
+// The character-design screen is no longer only the tutorial's: the POH wardrobe opens it too
+// (skill_construction/scripts/poh_costume.rs2), and this is the only close handler there can be -
+// a second [if_close,player_kit] is a hard build error. It used to set %tutorial unconditionally,
+// which would have knocked a finished player's tutorial state all the way back to 1 the first time
+// they opened a wardrobe. Only a player who is still at the start of the tutorial advances now;
+// turning allowdesign back off is what every caller needs and still always happens.
 [queue,tutorial_designed_character]
-%tutorial = ^newbie_basics_instructor_designed_character;
+if (%tutorial = ^newbie_basics_instructor_start) {
+    %tutorial = ^newbie_basics_instructor_designed_character;
+}
 allowdesign(false);
 
 [tutorial,_]
