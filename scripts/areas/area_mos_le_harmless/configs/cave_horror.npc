@@ -1,10 +1,30 @@
 // Cave horror - imported from the rev 474 cache (npc 4353) by tools/models/importnpc474.py.
-// Models copied byte-for-byte; the 474 cache carries no combat stats, so
-// TODO by hand: hitpoints, attack/strength/defence, param= bonuses, huntmode, drops.
+// Models are copied byte-for-byte; the cache carries the art and nothing else.
+//
+// THE COMBAT NUMBERS are the OSRS record's own six-value stats array, read in the order this
+// repo's importers use (attack, defence, strength, hitpoints, ranged, magic). They are not
+// remembered wiki values. Hitpoints reading lower than the combat level is normal for this
+// monster - it hits hard and dies quickly, which is the whole shape of a cave horror.
+//
+// strengthbonus is the one number with no source anywhere, so it is SOLVED rather than guessed.
+// npc_melee_maxhit is (strength + 9) * (bonus + 64) + 320, all over 640; the dust devil's
+// committed bonus of 62 reproduces its OSRS max hit of 16 exactly, so the same method is used
+// here. 50 is the bonus that turns strength 77 into a max hit of 15, which is what a cave
+// horror hits for. attackbonus is left unset, as the dust devil's is.
+//
+// huntmode=cowardly is the standard aggressive-but-not-to-the-strong mode every comparable
+// slayer monster here uses. It matters more than usual because of the screech: the npc's own
+// hunt puts it in opplayer2, and ai_opplayer2 bounces it straight back to applayer2 when the
+// player has no witchwood icon on. See area_mos_le_harmless/scripts/cave_horror.rs2.
+//
+// THE ANIMATIONS. Only readyanim and walkanim come from the cache. The other five seqs on the
+// same rig were recovered with tools/models/seqfind474.py (4231-4237, skeleton 974) and assigned
+// by frame count and last-frame delay - see the commit that imported them. attack/defend/death
+// are an INFERENCE: if they look wrong in game, swap two names here and nothing else changes.
 
 [cave_horror]
 name=Cave horror
-desc=Cave horror.
+desc=A horrific creature from the caves of Mos Le'Harmless.
 model1=npc_cave_horror_1
 model2=npc_cave_horror_2
 size=2
@@ -12,3 +32,21 @@ readyanim=cave_horror_ready
 walkanim=cave_horror_walk
 op2=Attack
 vislevel=80
+wanderrange=5
+maxrange=8
+respawnrate=30
+huntrange=4
+huntmode=cowardly
+attack=80
+defence=62
+strength=77
+hitpoints=55
+ranged=1
+magic=80
+param=strengthbonus,50
+param=damagetype,^stab_style
+param=attack_anim,cave_horror_attack
+param=defend_anim,cave_horror_defend
+param=death_anim,cave_horror_death
+param=death_drop,null
+param=slayer_category,^slayer_cavehorror

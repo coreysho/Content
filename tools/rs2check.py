@@ -430,6 +430,52 @@ def check_script(path, T):
                 if known and sym not in known:
                     report("ERROR", path, n, 14, "%s(%s) - no such %s" % (cmd, sym, pack))
 
+        # 14b: an obj, npc, loc or inv NAME that does not exist. Same idea as 14 but the name is
+        # not the first argument, so the call has to be split properly - nested calls and
+        # coordinates both contain commas. Only BARE names are checked: $vars, ^constants,
+        # enum(...) and arithmetic all resolve elsewhere and are skipped.
+        #
+        # This is the check that would have caught a drop table written from memory instead of
+        # from pack/obj.pack: bigbones, grimy_ranarr, grimy_irit, grimy_avantoe and adamant_bolts
+        # are all plausible, all wrong, and none of them is a compile error until the packer runs.
+        for cmd, pack, idx in (("obj_add", "obj", 1), ("inv_add", "obj", 1), ("inv_del", "obj", 1),
+                               ("inv_total", "obj", 1), ("inv_getnum", "obj", 1),
+                               ("inv_setslot", "obj", 2), ("inv_placeholder", "obj", 2),
+                               ("oc_name", "obj", 0), ("oc_param", "obj", 0),
+                               ("npc_add", "npc", 1), ("loc_add", "loc", 4),
+                               ("inv_total", "inv", 0), ("inv_add", "inv", 0),
+                               ("inv_del", "inv", 0), ("inv_getobj", "inv", 0)):
+            known = T["packs"].get(pack)
+            if not known:
+                continue
+            for m in re.finditer(r"(?<![a-zA-Z_0-9.$^~@%])" + cmd + r"\s*\(", s):
+                args, depth, cur, i = [], 0, "", m.end()
+                while i < len(s):
+                    ch = s[i]
+                    if ch in "([":
+                        depth += 1; cur += ch
+                    elif ch == ")" and depth == 0:
+                        args.append(cur); break
+                    elif ch in ")]":
+                        depth -= 1; cur += ch
+                    elif ch == "," and depth == 0:
+                        args.append(cur); cur = ""
+                    else:
+                        cur += ch
+                    i += 1
+                if idx >= len(args):
+                    continue
+                sym = args[idx].strip()
+                # engine-supplied bare words, not config names: these read an obj id out of
+                # the current context (ScriptOpcodePointers) and resolve no pack at all
+                if sym in ("null", "last_useitem", "last_item", "last_usedobj", "obj_type"):
+                    continue
+                if not re.fullmatch(r"[a-zA-Z_][a-zA-Z_0-9]*", sym):
+                    continue
+                if sym not in known:
+                    report("ERROR", path, n, 14, "%s(...) argument %d is %s - no such %s"
+                           % (cmd, idx + 1, sym, pack))
+
         # 5: unresolved references
         for m in re.finditer(r"~([a-zA-Z_0-9]+)", s):
             if m.group(1) not in T["procs"]:

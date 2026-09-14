@@ -1,0 +1,159 @@
+// Cave horrors, and the caves under Mos Le'Harmless they live in.
+//
+// The island's WEST half was already in this build (m57_46, full of Cabin Fever pirates). The east
+// half and the whole cave were not, and were imported from the 474 cache - which has the XTEA keys
+// the OSRS cache does not, so its map squares can actually be read. See claude/cave-horrors.md.
+//
+// The two ends of the staircase are the cache's own locs and they line up on their own: the Cave
+// entrance sits at (3748, 2973) on the surface and the Cave exit at (3749, 9373) below it, which
+// is where RuneScape put them. Only the landing tiles are ours: the cave side is (36,30), one
+// west of the exit, because everything east of the staircase is clipped in the cache; the island
+// side is (37,29), one east of the entrance. The locs on both landing tiles are shape 22 ground
+// decor with no active=yes, which the engine never adds to collision.
+
+[oploc1,loc474_15767] @cave_horror_enter; // Cave entrance, "Enter" - like the exit, two
+[oploc1,loc474_15768] @cave_horror_enter; // halves of one staircase, so both carry the op
+
+[oploc1,loc474_15811] @cave_horror_leave; // Cave, "Exit" - two halves of one opening,
+[oploc1,loc474_15812] @cave_horror_leave; // so both carry the op
+
+[label,cave_horror_enter]
+if (p_finduid(uid) = false) {
+    return;
+}
+mes("You climb down into the darkness.");
+p_delay(1);
+p_teleport(0_58_146_36_30);
+
+[label,cave_horror_leave]
+if (p_finduid(uid) = false) {
+    return;
+}
+mes("You climb back up into the light.");
+p_delay(1);
+p_teleport(0_58_46_37_29);
+
+// ---------------------------------------------------------------------------------------------
+// The screech
+// ---------------------------------------------------------------------------------------------
+// Same shape as the banshee's (skill_slayer/scripts/npcs/banshee.rs2) and for the same reason: a
+// monster that will not fight you normally until you are wearing the thing that blocks it. The
+// npc flips between applayer2 and opplayer2 depending on what is in your amulet slot, so putting
+// the icon on mid-fight makes it start actually attacking, and taking it off makes it stop.
+//
+// The DIFFERENCE from the banshee is what protects you. Earmuffs and the slayer helmet stop a
+// banshee; neither does anything here. Only the witchwood icon works, and it has no combat
+// bonuses at all - so the cost of coming down here is your amulet slot for the whole trip.
+
+[ai_queue1,cave_horror] gosub(npc_default_retaliate_ap);
+
+[ai_applayer2,cave_horror]
+if (inv_total(worn, witchwood_icon) < 1) {
+    ~cave_horror_screech;
+    return;
+}
+npc_setmode(opplayer2);
+
+[ai_opplayer2,cave_horror]
+if (inv_total(worn, witchwood_icon) < 1) {
+    npc_setmode(applayer2);
+    return;
+}
+gosub(npc_default_attack);
+
+[proc,cave_horror_screech]
+if (%death = ^true) {
+    npc_setmode(null);
+    return;
+}
+if (%npc_action_delay > map_clock) return;
+if (~npc_check_notcombat = false) {
+    npc_setmode(null);
+    return;
+}
+if (~npc_check_notcombat_self = false) {
+    return;
+}
+// Static damage that ignores defence, like the banshee's, because there is nothing to defend
+// against - protecting from melee still stops it.
+def_int $damage;
+if (~check_protect_prayer(^melee_style) = true) {
+    $damage = 0;
+} else {
+    $damage = calc(stat_base(hitpoints) / 10);
+}
+stat_drain(attack, 0, 20);
+stat_drain(strength, 0, 20);
+stat_drain(ranged, 0, 20);
+stat_drain(magic, 0, 20);
+stat_drain(defence, 0, 10);
+npc_anim(cave_horror_screech, 0);
+if_close;
+~npc_set_attack_vars;
+%npc_action_delay = add(map_clock, 4);
+queue(combat_damage_player, 0, $damage);
+queue*(playerhit_n_retaliate, 0)(npc_uid);
+
+// ---------------------------------------------------------------------------------------------
+// Drops
+// ---------------------------------------------------------------------------------------------
+// The black mask is the reason this monster exists here: it is the item's only source in the game
+// and had none before. 1/512, as OSRS, and broadcast like the other uniques in drop_tables.
+
+[ai_queue3,cave_horror]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+~cave_horror_drop_table_loot; // a proc, not a label, so the cave abomination can
+                             // reuse it whole when someone imports one
+
+[proc,cave_horror_drop_table_loot]
+~trail_hardcluedrop(^trail_hard_droprate, npc_coord);
+
+// The unique first, on its own roll, so the common table can never crowd it out.
+if (random(512) = 0) {
+    obj_add(npc_coord, black_mask, 1, ^lootdrop_duration);
+    broadcast_mes(append(append(displayname(), " received a rare drop: "), oc_name(black_mask)));
+}
+
+def_int $roll = random(128);
+if ($roll < 30) {
+    obj_add(npc_coord, coins, ~random_range(60, 400), ^lootdrop_duration);
+} else if ($roll < 44) {
+    obj_add(npc_coord, big_bones, 1, ^lootdrop_duration);
+} else if ($roll < 52) {
+    obj_add(npc_coord, cert_iron_ore, 5, ^lootdrop_duration);
+} else if ($roll < 60) {
+    obj_add(npc_coord, cert_coal, 8, ^lootdrop_duration);
+} else if ($roll < 66) {
+    obj_add(npc_coord, adamant_arrow, ~random_range(20, 50), ^lootdrop_duration);
+} else if ($roll < 72) {
+    obj_add(npc_coord, cert_tuna, 4, ^lootdrop_duration);
+} else if ($roll < 78) {
+    obj_add(npc_coord, steel_platelegs, 1, ^lootdrop_duration);
+} else if ($roll < 83) {
+    obj_add(npc_coord, mithril_axe, 1, ^lootdrop_duration);
+} else if ($roll < 88) {
+    obj_add(npc_coord, deathrune, ~random_range(4, 12), ^lootdrop_duration);
+} else if ($roll < 93) {
+    obj_add(npc_coord, bloodrune, ~random_range(3, 8), ^lootdrop_duration);
+} else if ($roll < 97) {
+    obj_add(npc_coord, lawrune, ~random_range(3, 6), ^lootdrop_duration);
+} else if ($roll < 101) {
+    obj_add(npc_coord, adamant_kiteshield, 1, ^lootdrop_duration);
+} else if ($roll < 105) {
+    obj_add(npc_coord, cert_swordfish, 3, ^lootdrop_duration);
+} else if ($roll < 109) {
+    obj_add(npc_coord, rune_dagger, 1, ^lootdrop_duration);
+} else if ($roll < 113) {
+    obj_add(npc_coord, cert_mithril_ore, 5, ^lootdrop_duration);
+} else if ($roll < 117) {
+    obj_add(npc_coord, unidentified_ranarr, 1, ^lootdrop_duration);
+} else if ($roll < 121) {
+    obj_add(npc_coord, unidentified_irit, 1, ^lootdrop_duration);
+} else if ($roll < 125) {
+    obj_add(npc_coord, unidentified_avantoe, 1, ^lootdrop_duration);
+} else {
+    obj_add(npc_coord, ~randomjewel, ^lootdrop_duration);
+}
