@@ -2213,6 +2213,67 @@ for proc in ('poh_archery', 'poh_darts', 'poh_lever_pull', 'poh_needs_company', 
     body = GAMES.split('[proc,%s]' % proc, 1)[1].split('\n[', 1)[0]
     check('~poh_in_own_house' in body, '%s checks you are in your own house' % proc)
 
+# ============================================================================ 57
+print('57. the windows resolve, in all six styles')
+# THE BUG THIS EARNED. poh_dynamic_window shipped as a single loc whose model is a wall with a
+# window-shaped HOLE in it and whose desc read "This should have resolved!". There are 116 of them
+# per style in the templates, so every house had 116 holes in its walls.
+#
+# A multiloc shell with no entry at the current value renders nothing and carries no ops, so the
+# table has to be COMPLETE - all 6 styles times 9 kinds - and each child has to be the window for
+# the style its index claims, or a stone house grows wooden windows.
+WSTYLE = ['rimmington', 'lumbridge', 'pollnivneach', 'rellekka', 'brimhaven', 'yanille']
+WKIND = ['shutters', 'bob', 'saradomin', 'guthix', 'zamorak',
+         'bob2', 'saradomin2', 'guthix2', 'zamorak2']
+NKIND = int(re.search(r'^\^poh_window_kinds\s*=\s*(\d+)', CONSTF, re.M).group(1))
+check(NKIND == len(WKIND), '^poh_window_kinds is %d' % NKIND)
+wblk = read('scripts/skill_construction/configs/poh.loc').split('[poh_dynamic_window]', 1)[1].split('\n[', 1)[0]
+check('multivar=poh_window_state' in wblk, 'it is a multiloc over poh_window_state')
+kids = {int(m.group(1)): m.group(2) for m in re.finditer(r'^multiloc=(\d+),(\w+)$', wblk, re.M)}
+check(sorted(kids) == list(range(6 * NKIND)),
+      'all %d states are listed with no gap (%d found)' % (6 * NKIND, len(kids)))
+wrong = [(i, kids[i], 'poh_%s_window_%s' % (WSTYLE[i // NKIND], WKIND[i % NKIND]))
+         for i in sorted(kids) if kids[i] != 'poh_%s_window_%s' % (WSTYLE[i // NKIND], WKIND[i % NKIND])]
+check(not wrong, 'each child is the window for its own style and kind: %s' % (wrong[:2] or 'all %d' % len(kids)))
+check(all(k in LOCS for k in kids.values()), 'every child is in loc.pack: %s'
+      % ([k for k in kids.values() if k not in LOCS][:3] or 'all of them'))
+check('This should have resolved' not in wblk, 'and the placeholder description is gone')
+
+# the varp, the varbit, and the one proc that writes them
+VB = read('scripts/skill_construction/configs/construction.varbit').split('[poh_window_state]', 1)[1]
+check('basevar=poh_window' in VB, 'poh_window_state reads %poh_window')
+bits = (int(re.search(r'endbit=(\d+)', VB).group(1)) - int(re.search(r'startbit=(\d+)', VB).group(1)) + 1)
+check(2 ** bits > 6 * NKIND - 1, 'and it is %d bits, enough for %d states' % (bits, 6 * NKIND))
+check('poh_window' in {l.split('=', 1)[1] for l in read('pack/varp.pack').split('\n') if '=' in l},
+      '%poh_window is in varp.pack')
+check('poh_window_state' in {l.split('=', 1)[1] for l in read('pack/varbit.pack').split('\n') if '=' in l},
+      'poh_window_state is in varbit.pack')
+vwin = read('scripts/skill_construction/configs/construction.varp').split('[poh_window]', 1)[1].split('\n[', 1)[0]
+check('scope=perm' in vwin, 'and it is perm - a house does not reglaze itself on logout')
+POHRS3 = read('scripts/skill_construction/scripts/poh.rs2')
+ref = POHRS3.split('[proc,poh_window_refresh]', 1)[1].split('\n[', 1)[0]
+check('%poh_style * ^poh_window_kinds' in ref, 'the refresh is style * kinds + choice')
+writers = [f for f in ('scripts/skill_construction/scripts/poh.rs2',
+                       'scripts/skill_construction/scripts/poh_portal.rs2',
+                       'scripts/skill_construction/scripts/poh_test.rs2',
+                       'scripts/skill_construction/scripts/poh_menus.rs2',
+                       'scripts/skill_construction/scripts/poh_furniture.rs2')
+           if '%poh_window =' in read(f)]
+check(writers == ['scripts/skill_construction/scripts/poh.rs2'],
+      'and it is the ONLY thing that writes %%poh_window: %s' % writers)
+for f, why in (('scripts/skill_construction/scripts/poh_portal.rs2', 'redecorating'),
+               ('scripts/skill_construction/scripts/poh.rs2', 'buying a house'),
+               ('scripts/skill_construction/scripts/poh_test.rs2', '::~pohstyle')):
+    check('~poh_window_refresh' in read(f), '%s calls it - the windows are part of the style' % why)
+
+# the sit, which was playing beside the chair rather than on it
+SIT = read('scripts/skill_construction/scripts/poh_furn_ops.rs2').split('[proc,poh_furn_sit]', 1)[1].split('\n[', 1)[0]
+check('p_walk($seat)' in SIT, 'sitting walks onto the chair - an oploc1 click only gets you adjacent')
+check('facesquare' in SIT, 'and turns to face the way the chair faces')
+check(SIT.index('p_walk') < SIT.index('anim('), 'before the pose plays, not after')
+check(len(re.findall(r'~poh_furn_sit\(', read('scripts/skill_construction/scripts/poh_furn_ops.rs2'))) == 24,
+      'all 24 seats go through it')
+
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
 sys.exit(1 if fails else 0)

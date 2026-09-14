@@ -187,6 +187,17 @@ return(false);
 
 // =========================================================================== building
 
+// EVERY WINDOW IN THE HOUSE FOLLOWS THE STYLE. poh_dynamic_window is a multiloc over
+// poh_window_state, and %poh_window is the one number that feeds it: style * 9 + the glazing you
+// have fitted. This is the only thing that writes it, and it has to run whenever either half
+// changes - which today means buying a house and redecorating one.
+//
+// The choice is recovered from the old value rather than stored twice: modulo 9 is the glazing, and
+// dividing by 9 was the old style.
+[proc,poh_window_refresh]
+def_int $choice = modulo(%poh_window, ^poh_window_kinds);
+%poh_window = calc(%poh_style * ^poh_window_kinds + $choice);
+
 // The square and level a house style is cut from. Six styles: m29_79 levels 0-3, m30_79 levels 0-1.
 [proc,poh_style_origin](int $style)(coord)
 switch_int ($style) {
@@ -294,6 +305,8 @@ def_int $mid = divide(^poh_grid, 2);
 ~poh_room_set($mid, $mid, ^poh_room_garden, 0);
 ~poh_room_set(calc($mid + 1), $mid, ^poh_room_parlour, 0);
 %poh_owned = 1;
+// a house with no window state renders 116 holes in its walls
+~poh_window_refresh;
 
 // =========================================================================== entering and leaving
 

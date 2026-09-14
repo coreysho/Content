@@ -938,6 +938,31 @@ def emit_ops(fams, items, byfam, path='scripts/skill_construction/scripts/poh_fu
           'sound_synth(prayer_recharge, 1, 0);',
           'stat_advance(prayer, calc(oc_param($bone, bone_exp) * $pct / 100));',
           'mes("You offer the bones. The gods are pleased.");', '',
+          '// =========================================================================== sitting', '',
+          '// 377 HAS NO SEATED STATE, so this is a pose and not something the engine holds: the seq',
+          '// plays once and the player stands back up. What it can do is play in the right PLACE.',
+          '// An oploc1 click walks the player adjacent to the loc, which is why Sit-on used to leave',
+          '// them standing beside an empty chair; p_walk puts them on the tile and facesquare turns',
+          '// them the way the chair faces.',
+          '//',
+          '// human_sitting_chair is the right animation and always was - four npcs in all.npc carry',
+          '// it as their readyanim, which is a seated idle by definition.',
+          '[proc,poh_furn_sit](seq $seq, string $mes)',
+          'if (%poh_instance = null | instance_find(loc_coord) ! %poh_instance) {',
+          '    mes("You can only use that in your own house.");', '    return;', '}',
+          'def_coord $seat = loc_coord;',
+          'def_int $angle = loc_angle;',
+          'p_walk($seat);',
+          'p_arrivedelay;',
+          '// the tile the chair looks at: angle 0 is north, and the cycle is N E S W',
+          'switch_int ($angle) {',
+          '    case 0 : facesquare(movecoord($seat, 0, 0, 1));',
+          '    case 1 : facesquare(movecoord($seat, 1, 0, 0));',
+          '    case 2 : facesquare(movecoord($seat, 0, 0, -1));',
+          '    case default : facesquare(movecoord($seat, -1, 0, 0));',
+          '}',
+          'anim($seq, 0);',
+          'mes($mes);', '',
           '// =========================================================================== the triggers', '']
 
     KIND = {}
@@ -950,7 +975,11 @@ def emit_ops(fams, items, byfam, path='scripts/skill_construction/scripts/poh_fu
             continue
         k = op['kind']
         if k == 'sit':
-            body = ['anim(%s, 0);' % op['seq'], 'mes(%s);' % q(op['mes'])]
+            # ON the chair, not beside it. An oploc1 click walks the player ADJACENT to the loc, so
+            # the seated pose used to play with the player standing next to an empty chair, which is
+            # what it looked like in game. ~poh_furn_sit walks onto the tile and turns to face the
+            # way the chair faces first.
+            body = ['~poh_furn_sit(%s, %s);' % (op['seq'], q(op['mes']))]
         elif k == 'light':
             body = ['~poh_furn_light(%s);' % q(op['mes'])]
         elif k == 'altar':
