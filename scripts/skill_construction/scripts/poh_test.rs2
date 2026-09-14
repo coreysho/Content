@@ -11,8 +11,7 @@
 //   ::~pohwipe                    empty the grid, then hand out the starter house again
 //   ::~pohstyle <0-5>             change which of the six house styles it is built from
 //   ::~pohlist                    print the saved layout
-//   ::~pohtown <0-5>              jump to the candidate portal site in each of the six towns, so
-//                                 ::~pohportal can be dropped there and looked at
+//   ::~pohtown <0-5>              jump to the house portal in each of the six towns
 //
 // Room types are in poh_rooms.enum: 1 garden, 2 parlour, 3 kitchen, 4 dining room, 5 bedroom,
 // 6 workshop, 7 chapel, 8 study, 9 throne room, 10 portal chamber, 11 combat room, 12 games room,
@@ -123,23 +122,20 @@ if (p_finduid(uid) = true) {
     }
 }
 
-// The five towns Relocate will need a portal in, at the best site tools/portalsite.py could find:
-// level ground, clear of anything solid, off the dirt road and next to the town's own path. What the
-// tool cannot answer is whether it LOOKS right, and that has already cost five placements once
-// (claude/poh-portal-placement.md) - so this puts you on each one, and ::~pohportal <rot> puts a
-// real portal at your feet for three minutes.
-//
-// The anchor for each search was the OSRS portal's own tile. Taverley's is inside a building in the
-// 377 map and Brimhaven's is in jungle, so those two moved; the other three are within a few tiles.
+// Lands you on the tile you come out of each of the six real portals onto. The five new ones were
+// sited by tools/portalsite.py proposing and Corey looking: the tool can say a footprint is level,
+// clear and off the road, but not whether a five-tile portal LOOKS right on a given slope, and
+// getting that wrong cost five shipped placements the first time round.
 [debugproc,pohtown](int $town)
 if (p_finduid(uid) = true) {
     switch_int ($town) {
-        case 0 : p_telejump(0_46_50_9_24);   mes("Rimmington - the portal that is already there.");
-        case 1 : p_telejump(0_45_53_17_57);  mes("Taverley - 2897,3449, east of the town on the path. Try ::~pohportal 0.");
-        case 2 : p_telejump(0_52_46_12_59);  mes("Pollnivneach - 3340,3003, the OSRS tile itself. Try ::~pohportal 0.");
-        case 3 : p_telejump(0_41_56_45_52);  mes("Rellekka - 2669,3636, six north of the OSRS tile. Try ::~pohportal 0.");
-        case 4 : p_telejump(0_43_49_9_49);   mes("Brimhaven - 2761,3185, north east of the OSRS tile. Try ::~pohportal 0.");
-        case 5 : p_telejump(0_39_48_44_22);  mes("Yanille - 2540,3094, four west of the OSRS tile. Try ::~pohportal 1.");
+        case 0 : p_telejump(0_46_50_9_24);   mes("Rimmington - level 1, 5000 coins.");
+        case 1 : p_telejump(0_45_53_9_61);   mes("Taverley - level 10, 5000 coins.");
+        case 2 : p_telejump(0_52_46_12_58);  mes("Pollnivneach - level 20, 7500 coins.");
+        case 3 : p_telejump(0_41_56_43_47);  mes("Rellekka - level 30, 10000 coins.");
+        case 4 : p_telejump(0_43_49_6_42);   mes("Brimhaven - level 40, 15000 coins.");
+        case 5 : p_telejump(0_39_48_47_29);  mes("Yanille - level 50, 25000 coins.");
         case default : mes("Towns are 0 Rimmington, 1 Taverley, 2 Pollnivneach, 3 Rellekka, 4 Brimhaven, 5 Yanille.");
     }
+    mes("Your house is in <enum(int, string, poh_loc_name, %poh_location)>.");
 }

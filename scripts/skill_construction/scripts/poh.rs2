@@ -324,9 +324,19 @@ if ($slot < 0) {
 }
 p_telejump(~poh_entry_coord($base, $slot));
 
+// The way out lands at the player's OWN portal, which is not always Rimmington's any more.
+// poh_loc_exit has default=null, so a %poh_location that somehow answers nothing still lands
+// somewhere real rather than at coord 0.
 [proc,poh_leave]
-p_telejump(^poh_exit);
+p_telejump(~poh_exit_coord);
 ~poh_free;
+
+[proc,poh_exit_coord]()(coord)
+def_coord $exit = enum(int, coord, poh_loc_exit, %poh_location);
+if ($exit = null) {
+    return(^poh_exit);
+}
+return($exit);
 
 [proc,poh_free]
 if (%poh_instance ! null) {
@@ -342,5 +352,5 @@ if (%poh_instance ! null) {
 
 [proc,poh_login]
 if (coordx(coord) >= 6400 & coordz(coord) >= 6400 & instance_find(coord) = null) {
-    p_telejump(^poh_exit);
+    p_telejump(~poh_exit_coord);
 }

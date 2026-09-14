@@ -1,0 +1,75 @@
+// The six places a house can stand, and what the estate agent charges to move it there.
+//
+// Each one is a real house portal in the world - a 5x2 loc with an estate agent beside it - and
+// %poh_location says which of them is yours. The other five still stand; they just tell you where
+// your house actually is.
+//
+// EVERY ONE OF THESE TILES WAS CHOSEN IN GAME, not computed. tools/portalsite.py narrows a map
+// square down to the footprints that are level, clear of anything solid, off the dirt road and
+// beside the town's own path - but whether a five-tile portal LOOKS right on a given slope is not
+// something a checker can answer, and the first one cost five shipped placements before it did.
+// So the tool proposed, ::~pohtown put the player on each candidate, ::~pohportal dropped a real
+// portal at his feet, and these are the anchors and facings he read back. See
+// claude/poh-relocate.md for the spreads under each footprint and which ones are steep.
+//
+// The levels and prices are OSRS's own, and the order is that ladder.
+
+[poh_loc_name]
+inputtype=int
+outputtype=string
+default=null
+val=0,Rimmington
+val=1,Taverley
+val=2,Pollnivneach
+val=3,Rellekka
+val=4,Brimhaven
+val=5,Yanille
+
+[poh_loc_level]
+inputtype=int
+outputtype=int
+default=null
+val=0,1
+val=1,10
+val=2,20
+val=3,30
+val=4,40
+val=5,50
+
+[poh_loc_cost]
+inputtype=int
+outputtype=int
+default=null
+val=0,5000
+val=1,5000
+val=2,7500
+val=3,10000
+val=4,15000
+val=5,25000
+
+// Where the player lands coming out of the house, and where ~poh_login puts anyone who logged out
+// in instance space. One tile off the portal, on the side its wide face looks at, at a height
+// within 12 of the portal's own anchor tile.
+[poh_loc_exit]
+inputtype=int
+outputtype=coord
+default=null
+val=0,0_46_50_9_24
+val=1,0_45_53_9_61
+val=2,0_52_46_12_58
+val=3,0_41_56_43_47
+val=4,0_43_49_6_42
+val=5,0_39_48_47_29
+
+// The portal loc's own tile in each town - its south-west anchor, exactly as it is placed in the
+// .jm2 - so a click can be told from a click on somebody else's. loc_coord answers the anchor.
+[poh_loc_portal]
+inputtype=int
+outputtype=coord
+default=null
+val=0,0_46_50_7_23
+val=1,0_45_53_10_59
+val=2,0_52_46_10_59
+val=3,0_41_56_43_48
+val=4,0_43_49_7_40
+val=5,0_39_48_45_27

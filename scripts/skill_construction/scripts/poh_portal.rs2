@@ -12,11 +12,22 @@
 // instance_setzone purges its zone - anything added before the last setzone would be gone - and
 // instance_delete purges every templated zone, so it dies with the house rather than outliving it.
 
+// There are six of these standing in the world now and only one of them is yours. loc_coord answers
+// the loc's own south-west anchor, which is exactly what poh_loc_portal stores, so the click can be
+// told apart without a trigger per town.
 [oploc1,poh_house_portal]
-~poh_enter(false);
+~poh_portal_click(false);
 
 [oploc2,poh_house_portal]
-~poh_enter(true);
+~poh_portal_click(true);
+
+[proc,poh_portal_click](boolean $buildmode)
+def_coord $mine = enum(int, coord, poh_loc_portal, %poh_location);
+if ($mine ! null & loc_coord ! $mine) {
+    mes("This isn't your portal. Your house is in <enum(int, string, poh_loc_name, %poh_location)>.");
+    return;
+}
+~poh_enter($buildmode);
 
 [oploc1,poh_exit_portal]
 ~poh_leave;
@@ -35,7 +46,7 @@ if (%poh_owned = 1) {
         ~poh_redecorate;
     } else {
         ~chatplayer("<p,neutral>Can I move house?");
-        ~chatnpc("<p,sad>Not yet, I'm afraid. Rimmington is all I have on my books.");
+        ~poh_relocate;
     }
     return;
 }
@@ -148,3 +159,86 @@ if (inv_total(inv, coins) < $cost) {
 inv_del(inv, coins, $cost);
 %poh_style = $style;
 ~chatnpc("<p,happy>The builders will be done before you are. Step through the portal and have a look.");
+
+// =========================================================================== moving house
+//
+// Relocating changes WHERE THE DOOR IS and nothing else. The rooms, the furniture and the style are
+// all stored in varps of their own and the house itself is built into an instance from a template,
+// so there is nothing on the ground in Rimmington to pack up - %poh_location only says which of the
+// six portals opens it and where ~poh_leave puts you down.
+//
+// The other five portals stay where they are and say so. That is what OSRS does, and it is also the
+// only honest thing for a loc that is in the map whether or not it is yours.
+
+[proc,poh_relocate]
+~chatnpc("<p,neutral>Moving, are we? Your place is in <enum(int, string, poh_loc_name, %poh_location)> just now. Where were you thinking?");
+def_int $pick = ~poh_location_pick;
+if ($pick < 0) {
+    return;
+}
+~poh_relocate_to($pick);
+
+// Six towns, five options to a chat menu: two pages and a way back, answering -1 for "changed my
+// mind". The same shape as ~poh_style_pick, and a bounded loop for the same reason.
+[proc,poh_location_pick]()(int)
+def_int $turns = 0;
+while ($turns < 8) {
+    $turns = calc($turns + 1);
+    def_int $a = ~p_choice5(
+        "<enum(int, string, poh_loc_name, 0)> - <tostring(enum(int, int, poh_loc_cost, 0))> coins", 1,
+        "<enum(int, string, poh_loc_name, 1)> - <tostring(enum(int, int, poh_loc_cost, 1))> coins", 2,
+        "<enum(int, string, poh_loc_name, 2)> - <tostring(enum(int, int, poh_loc_cost, 2))> coins", 3,
+        "<enum(int, string, poh_loc_name, 3)> - <tostring(enum(int, int, poh_loc_cost, 3))> coins", 4,
+        "More places...", 5);
+    if ($a < 5) {
+        return(calc($a - 1));
+    }
+    def_int $b = ~p_choice3(
+        "<enum(int, string, poh_loc_name, 4)> - <tostring(enum(int, int, poh_loc_cost, 4))> coins", 1,
+        "<enum(int, string, poh_loc_name, 5)> - <tostring(enum(int, int, poh_loc_cost, 5))> coins", 2,
+        "Back", 3);
+    if ($b < 3) {
+        return(calc($b + 3));
+    }
+}
+return(-1);
+
+[proc,poh_relocate_to](int $town)
+if ($town = %poh_location) {
+    ~chatnpc("<p,neutral>That's where it is already. Save your coins.");
+    return;
+}
+def_int $level = enum(int, int, poh_loc_level, $town);
+def_int $cost = enum(int, int, poh_loc_cost, $town);
+if ($level = null | $cost = null) {
+    return;
+}
+if (stat(construction) < $level) {
+    ~chatnpc("<p,sad>They only sell to level <tostring($level)> Construction out there. Come back when you've the skill.");
+    return;
+}
+~chatnpc("<p,neutral><enum(int, string, poh_loc_name, $town)> it is, then. <tostring($cost)> coins for the move.");
+if (inv_total(inv, coins) < $cost) {
+    ~chatnpc("<p,sad>Come back when you have the money and I'll see it done.");
+    return;
+}
+def_int $yes = ~p_choice2("Here you are.", 1, "That's too much for me.", 2);
+if ($yes = 2) {
+    ~chatplayer("<p,neutral>That's too much for me.");
+    ~chatnpc("<p,neutral>Removals are never cheap. Suit yourself.");
+    return;
+}
+// re-check: the choice box gives the player a chance to drop or trade the coins away
+if (inv_total(inv, coins) < $cost) {
+    ~chatplayer("<p,sad>Actually, I don't have the money.");
+    ~chatnpc("<p,sad>Come back when you do.");
+    return;
+}
+~chatplayer("<p,happy>Here you are.");
+inv_del(inv, coins, $cost);
+// The house is inside an instance, and %poh_location decides which portal opens it and where
+// ~poh_leave lands. Anyone standing in their house while this happens would come out of the wrong
+// door, so it is freed - the layout is in varps and nothing is lost.
+~poh_free;
+%poh_location = $town;
+~chatnpc("<p,happy>Done. Your door is in <enum(int, string, poh_loc_name, $town)> from now on.");

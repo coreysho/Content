@@ -258,61 +258,88 @@ objs_used = set(re.findall(r'inv_(?:total|del|add)\(\s*\w+\s*,\s*(\w+)\s*[,)]', 
 for o in sorted(objs_used):
     check(o in OBJS, 'obj %s is in obj.pack' % o)
 
-print('15. Rimmington: the portal is on the map, on free tiles, next to where leaving lands you')
-MAPF = 'maps/m46_50.jm2'
-mlines = read(MAPF).split('\n')
-sec, land, mlocs, mnpcs = None, {}, {}, {}
-for line in mlines:
-    if line.startswith('===='):
-        sec = line.strip('= ')
-        continue
-    if ':' not in line:
-        continue
-    head, data = line.split(':', 1)
-    lv, x, z = (int(v) for v in head.split())
-    d = data.split()
-    if sec == 'LOC':
-        parts = [int(v) for v in d]
-        shape = parts[1] if len(parts) > 1 else 10
-        angle = parts[2] if len(parts) > 2 else 0
-        mlocs.setdefault((lv, x, z), []).append((parts[0], shape, angle))
-    elif sec == 'NPC':
-        mnpcs.setdefault((lv, x, z), []).append(int(d[0]))
-    elif sec == 'MAP':
-        land[(lv, x, z)] = d
+CONSTF = read('scripts/skill_construction/configs/construction.constant')
+print('15. six towns: a portal on the map in each, on free tiles, next to where leaving lands you')
+# There were five more of these as of the Relocate round, and the thing that makes them checkable is
+# that the SAME anchor is written down twice - once in the .jm2 and once in poh_loc_portal, which is
+# what the click test compares loc_coord against. If those two ever disagree, the portal in that town
+# stops opening anybody's house and nothing else notices.
+LOCENUM = read('scripts/skill_construction/configs/poh_locations.enum')
 
-placed = [(k, e) for k, es in mlocs.items() for e in es if e[0] == LOCS['poh_house_portal']]
-check(len(placed) == 1, 'the house portal is placed exactly once, got %d' % len(placed))
-agent = [k for k, ids in mnpcs.items() for i in ids if i == NPCS['poh_estate_agent']]
-check(len(agent) == 1, 'the estate agent is placed exactly once, got %d' % len(agent))
-check(LOCS['poh_exit_portal'] not in [e[0] for es in mlocs.values() for e in es],
-      'the exit portal is NOT on the map - it is spawned inside the house')
+def coordtable(txt, name):
+    b = txt.split('[%s]' % name)[1].split('\n[')[0]
+    out = {}
+    for m in re.finditer(r'^val=(\d+),(\d+)_(\d+)_(\d+)_(\d+)_(\d+)$', b, re.M):
+        out[int(m.group(1))] = tuple(int(g) for g in m.groups()[1:])
+    return out
 
-if len(placed) == 1:
-    (plv, px, pz), (_, pshape, pangle) = placed[0]
-    width = int(LOCCFG['poh_house_portal'].get('width', ['1'])[0])
-    length = int(LOCCFG['poh_house_portal'].get('length', ['1'])[0])
-    if pangle % 2 == 1:
-        width, length = length, width
-    covered = {(plv, px + dx, pz + dz) for dx in range(width) for dz in range(length)}
-    check(pshape == 10, 'it is centrepiece_straight (shape %d)' % pshape)
+PORTAL_AT = coordtable(LOCENUM, 'poh_loc_portal')
+EXIT_AT = coordtable(LOCENUM, 'poh_loc_exit')
+NTOWN = int(re.search(r'^\^poh_location_count\s*=\s*(\d+)', CONSTF, re.M).group(1))
+check(sorted(PORTAL_AT) == list(range(NTOWN)), 'poh_loc_portal covers all %d towns' % NTOWN)
+check(sorted(EXIT_AT) == list(range(NTOWN)), 'poh_loc_exit covers all %d towns' % NTOWN)
+check(len(set(PORTAL_AT.values())) == NTOWN, 'no two towns share a portal tile')
+check(len(set(EXIT_AT.values())) == NTOWN, 'no two towns share a landing tile')
+
+def readmap(mx, mz):
+    sec, land, mlocs, mnpcs = None, {}, {}, {}
+    for line in read('maps/m%d_%d.jm2' % (mx, mz)).split('\n'):
+        if line.startswith('===='):
+            sec = line.strip('= ').strip(); continue
+        if ':' not in line:
+            continue
+        head, data = line.split(':', 1)
+        parts = head.split()
+        if len(parts) != 3:
+            continue
+        lv, x, z = (int(v) for v in parts)
+        d = data.split()
+        if sec == 'LOC':
+            v = [int(t) for t in d]
+            mlocs.setdefault((lv, x, z), []).append((v[0], v[1] if len(v) > 1 else 10, v[2] if len(v) > 2 else 0))
+        elif sec == 'NPC':
+            mnpcs.setdefault((lv, x, z), []).append(int(d[0]))
+        elif sec == 'MAP':
+            land[(lv, x, z)] = d
+    return land, mlocs, mnpcs
+
+PW = int(LOCCFG['poh_house_portal'].get('width', ['1'])[0])
+PL = int(LOCCFG['poh_house_portal'].get('length', ['1'])[0])
+TOWNS = []          # (town, mx, mz, anchor, angle, covered, land, mlocs, mnpcs)
+for town in sorted(PORTAL_AT):
+    lv, mx, mz, lx, lz = PORTAL_AT[town]
+    land, mlocs, mnpcs = readmap(mx, mz)
+    hits = [(k, e) for k, es in mlocs.items() for e in es if e[0] == LOCS['poh_house_portal']]
+    check(len(hits) == 1, 'town %d (m%d_%d) has exactly one house portal on the map, got %d'
+          % (town, mx, mz, len(hits)))
+    if len(hits) != 1:
+        continue
+    (plv, px, pz), (_, pshape, pangle) = hits[0]
+    check((plv, px, pz) == (lv, lx, lz),
+          'town %d: the map and poh_loc_portal name the same tile (%s vs %s)'
+          % (town, (plv, px, pz), (lv, lx, lz)))
+    check(pshape == 10, 'town %d: it is centrepiece_straight (shape %d)' % (town, pshape))
+    w, l = (PL, PW) if pangle % 2 else (PW, PL)
+    covered = {(plv, px + dx, pz + dz) for dx in range(w) for dz in range(l)}
     for t in sorted(covered):
         others = [e for e in mlocs.get(t, []) if e[0] != LOCS['poh_house_portal'] and e[1] != 22]
-        check(not others, 'tile %s carries nothing else that blocks: %s' % (t[1:], others))
-        check(t in land, 'tile %s is real ground' % (t[1:],))
-    # ^poh_exit is level_mx_mz_lx_lz
-    exitc = re.search(r'^\^poh_exit\s*=\s*(\d+)_(\d+)_(\d+)_(\d+)_(\d+)',
-                      read('scripts/skill_construction/configs/construction.constant'), re.M)
-    check(exitc is not None, '^poh_exit parses')
-    if exitc:
-        elv, emx, emz, ex, ez = (int(g) for g in exitc.groups())
-        check((emx, emz) == (46, 50), '^poh_exit is in the square the portal is on (m%d_%d)' % (emx, emz))
-        check((elv, ex, ez) not in covered, 'leaving does not land you inside the portal')
-        check(any(abs(ex - x) + abs(ez - z) == 1 for (_, x, z) in covered),
-              'leaving lands you next to the portal, at %d,%d' % (ex, ez))
-        check((elv, ex, ez) in land, 'the landing tile is real ground')
-    for t in agent:
-        check(t not in covered, 'the estate agent does not stand inside the portal')
+        check(not others, 'town %d: tile %s carries nothing else that blocks: %s' % (town, t[1:], others))
+        check(t in land, 'town %d: tile %s is real ground' % (town, t[1:]))
+    elv, emx, emz, ex, ez = EXIT_AT[town]
+    check((emx, emz) == (mx, mz), 'town %d: the landing tile is on the portal\'s own square' % town)
+    check((elv, ex, ez) not in covered, 'town %d: leaving does not land you inside the portal' % town)
+    check(any(abs(ex - x) + abs(ez - z) == 1 for (_, x, z) in covered),
+          'town %d: leaving lands you next to the portal, at %d,%d' % (town, ex, ez))
+    check((elv, ex, ez) in land, 'town %d: the landing tile is real ground' % town)
+    agents = [k for k, ids in mnpcs.items() for i in ids if i == NPCS['poh_estate_agent']]
+    check(len(agents) == 1, 'town %d: exactly one estate agent stands there, got %d' % (town, len(agents)))
+    for t in agents:
+        check(t not in covered, 'town %d: the estate agent does not stand inside the portal' % town)
+    TOWNS.append((town, mx, mz, (plv, px, pz), pangle, covered, land, mlocs, agents))
+
+check(LOCS['poh_exit_portal'] not in
+      [e[0] for _, _, _, _, _, _, _, ml, _ in TOWNS for es in ml.values() for e in es],
+      'the exit portal is NOT on any map - it is spawned inside the house')
 
 print('16. inside the house: the exit portal fits in a garden')
 CONST = read('scripts/skill_construction/configs/construction.constant')
@@ -441,82 +468,109 @@ for f in ['pack/model.pack', 'pack/anim.pack', 'pack/animset.pack', 'pack/base.p
     check(len(set(ids)) == len(ids), '%s has no duplicate id' % os.path.basename(f))
     check(len(set(nms)) == len(nms), '%s has no duplicate name' % os.path.basename(f))
 
-print('21. the ground under the portal is level')
-# THE CHECK THIS ROUND EARNED. The OSRS house portal is five tiles wide - every variant in the cache
-# is, so there is no smaller one to fall back to - and a 377 loc sits at ONE height taken from its
-# footprint, with the ground running through it. The first placements put it across the bank west of
-# the Rimmington road, where the ground falls h35 to h12 over the five tiles it needs: its west end
-# was buried and its east end floated. Nothing in the pipeline had ever looked at terrain.
+print('21. the ground under each of the six portals is what was signed off in game')
+# THE CHECK THE FIRST PORTAL EARNED, now generalised. The OSRS house portal is five tiles wide -
+# every variant in the cache is - and a 377 loc sits at ONE height with the ground running through
+# it. The first Rimmington placements sat across a bank falling h35 to h12: buried at one end,
+# floating at the other.
 #
-# A tile with no explicit h in the .jm2 is NOT unknown: the client generates it (World.method32), and
-# tools/terrain377.py is that function transcribed, so every tile has a height here. Validated
-# against the map itself - at the 801 places an explicit tile borders a generated one the two agree
-# to a mean of 2.3, against 9.1 for the same noise sampled 37 tiles away.
+# A tile with no explicit h in the .jm2 is NOT unknown: the client generates it (World.method32) and
+# tools/terrain377.py is that function transcribed, so every tile here has a height. Validated
+# against the map itself - where an explicit tile borders a generated one the two agree closely.
+#
+# IT IS NO LONGER A THRESHOLD. The Rimmington round set the limit at a spread of 4 and that turned
+# out to be one town's answer, not a law: Corey stood on all six of these in game and accepted
+# spreads up to 32, because the portal model carries a chunky rock base that sits on a slope
+# convincingly. What a number CAN do is notice a placement drifting onto ground nobody looked at, so
+# each town records the spread that was actually judged and the check is that it has not moved.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from terrain377 import height_of
 
-EXPLICIT = {}
-sec = None
-for line in read(MAPF).split('\n'):
-    if line.startswith('===='):
-        sec = line.strip('= '); continue
-    if sec != 'MAP' or ':' not in line:
-        continue
-    head, data = line.split(':', 1)
-    lv, x, z = (int(v) for v in head.split())
-    if lv != 0:
-        continue
-    m = re.search(r'(?:^| )h(\d+)', data)
-    EXPLICIT[(x, z)] = int(m.group(1)) if m else None
+# town -> the height spread under the footprint as approved in game, 2026-09-14.
+APPROVED_SPREAD = {0: 4, 1: 32, 2: 4, 3: 17, 4: 3, 5: 10}
 
-MSQ = re.match(r'maps/m(\d+)_(\d+)\.jm2', MAPF)
-MX, MZ = int(MSQ.group(1)), int(MSQ.group(2))
-def ground(x, z):
-    h = EXPLICIT.get((x, z))
-    return h if h is not None else height_of(MX * 64 + x, MZ * 64 + z)
+def groundfn(land, mx, mz):
+    def g(lv, x, z):
+        d = land.get((lv, x, z))
+        if d:
+            for tok in d:
+                if tok.startswith('h') and tok[1:].isdigit():
+                    return int(tok[1:])
+        return height_of(mx * 64 + x, mz * 64 + z)
+    return g
 
-# the transcription has to be right, or every number below is decoration
-seams = []
-for (x, z), h in EXPLICIT.items():
-    if h is None: continue
-    for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-        n = (x + dx, z + dz)
-        if n in EXPLICIT and EXPLICIT[n] is None:
-            seams.append(abs(h - height_of(MX * 64 + n[0], MZ * 64 + n[1])))
+# The transcription has to be right, or every number below is decoration. Measured where an explicit
+# tile borders a generated one, against the same noise sampled 37 tiles away as a control.
+#
+# IT IS NOT EQUALLY GOOD EVERYWHERE, and that is worth knowing rather than averaging away.
+# Rimmington - the square it was validated on - comes out at a ratio near 4. Yanille and Brimhaven
+# are nearer 1.2, because those squares are so heavily hand-edited that most explicit/generated
+# seams fall on a wall or a cliff where the two genuinely differ. Eight of Yanille's ten portal
+# tiles are generated, so its spread below is the softest number here - which is exactly why these
+# placements were judged by eye in game and the spread is recorded rather than thresholded.
+seams, ctrl, ratios = [], [], []
+for town, mx, mz, anchor, pangle, covered, land, mlocs, agents in TOWNS:
+    exp = {}
+    for (lv, x, z), d in land.items():
+        if lv != 0:
+            continue
+        h = next((int(t[1:]) for t in d if t.startswith('h') and t[1:].isdigit()), None)
+        exp[(x, z)] = h
+    ss, cc = [], []
+    for (x, z), h in exp.items():
+        if h is None:
+            continue
+        for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            n = (x + dx, z + dz)
+            if n in exp and exp[n] is None:
+                ss.append(abs(h - height_of(mx * 64 + n[0], mz * 64 + n[1])))
+                cc.append(abs(h - height_of(mx * 64 + n[0] + 37, mz * 64 + n[1] + 37)))
+    if ss:
+        ratios.append((town, len(ss), sum(ss) / len(ss), sum(cc) / len(cc)))
+    seams += ss; ctrl += cc
+for town, n, m1, m2 in ratios:
+    print('       town %d: %5d seams, mean %.2f vs %.2f shifted (x%.2f)' % (town, n, m1, m2, m2 / m1))
+rim = [r for r in ratios if r[0] == 0]
+if rim:
+    check(rim[0][2] < rim[0][3] / 2,
+          'terrain377 still tracks the square it was validated on: Rimmington %.2f vs %.2f'
+          % (rim[0][2], rim[0][3]))
 mean = sum(seams) / len(seams) if seams else 99
-ctrl = []
-for (x, z), h in EXPLICIT.items():
-    if h is None: continue
-    for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-        n = (x + dx, z + dz)
-        if n in EXPLICIT and EXPLICIT[n] is None:
-            ctrl.append(abs(h - height_of(MX * 64 + n[0] + 37, MZ * 64 + n[1] + 37)))
 cmean = sum(ctrl) / len(ctrl) if ctrl else 0
-check(mean < cmean / 2, 'terrain377 tracks the map: %d seams, mean |diff| %.2f vs %.2f for shifted noise'
+check(mean < cmean * 0.6, 'and beats shifted noise across all six: %d seams, mean %.2f vs %.2f'
       % (len(seams), mean, cmean))
 
-MAX_SPREAD = 4          # ~0.25 of a tile of elevation across the whole footprint
-if len(placed) == 1:
-    hs = [ground(x, z) for lv, x, z in sorted(covered)]
-    check(max(hs) - min(hs) <= MAX_SPREAD,
-          'the footprint is level: heights %d..%d, spread %d (max %d)' % (min(hs), max(hs), max(hs) - min(hs), MAX_SPREAD))
-    if exitc:
-        eh = ground(ex, ez)
-        check(abs(eh - min(hs)) <= 12, 'the landing tile is at a sane height next to it (h%d vs h%d)' % (eh, min(hs)))
-    for lv, x, z in agent:
-        check(abs(ground(x, z) - min(hs)) <= 12, 'the estate agent stands at a sane height (h%d vs h%d)' % (ground(x, z), min(hs)))
+for town, mx, mz, anchor, pangle, covered, land, mlocs, agents in TOWNS:
+    g = groundfn(land, mx, mz)
+    hs = [g(*t) for t in sorted(covered)]
+    spread = max(hs) - min(hs)
+    want = APPROVED_SPREAD.get(town)
+    check(spread == want, 'town %d: the footprint spread is the %s that was looked at (got %d, h%d..%d)'
+          % (town, want, spread, min(hs), max(hs)))
+    ah = g(*anchor)
+    elv, emx, emz, ex, ez = EXIT_AT[town]
+    check(abs(g(elv, ex, ez) - ah) <= 12,
+          'town %d: the landing tile is within 12 of the portal\'s own tile (h%d vs h%d)'
+          % (town, g(elv, ex, ez), ah))
+    for t in agents:
+        check(abs(g(*t) - ah) <= 12, 'town %d: the estate agent stands within 12 of it (h%d vs h%d)'
+              % (town, g(*t), ah))
 
-print('22. the portal is rotated so it faces the road')
-# Placed at angle 3 with width 5 and length 2: an odd rotation swaps them, so the five-tile face runs
-# NORTH-SOUTH and the portal looks east, down the bank at the Rimmington road. Check 15 already reads
-# the footprint from the config with that swap applied; this is the intent, written down.
-if len(placed) == 1:
-    check(pangle in (1, 3), 'it is on an odd rotation (angle %d), so its wide face runs north-south' % pangle)
-    w = int(LOCCFG['poh_house_portal'].get('width', ['1'])[0])
-    l = int(LOCCFG['poh_house_portal'].get('length', ['1'])[0])
+print('22. each portal is turned the way it was turned in game')
+# Angle is FACING, and which angle faces which way was settled by looking, not by reading the model:
+# rotation 0 is north, 1 east, 2 south, 3 west. (claude/poh-portal-placement.md had it 180 out - it
+# reasoned from the swirl sitting south of the frame's centre in model space.) The footprint swaps
+# width and length on an odd angle, which is what makes the wide face run north-south.
+APPROVED_ANGLE = {0: 3, 1: 3, 2: 2, 3: 2, 4: 3, 5: 0}
+FACING = {0: 'north', 1: 'east', 2: 'south', 3: 'west'}
+for town, mx, mz, anchor, pangle, covered, land, mlocs, agents in TOWNS:
+    check(pangle == APPROVED_ANGLE.get(town),
+          'town %d: angle %d, facing %s - the one that was approved (%s)'
+          % (town, pangle, FACING[pangle], APPROVED_ANGLE.get(town)))
     xs = {x for lv, x, z in covered}; zs = {z for lv, x, z in covered}
-    check(len(xs) == l and len(zs) == w,
-          'the footprint is %d wide by %d deep on the ground (config %dx%d)' % (len(xs), len(zs), w, l))
+    w, l = (PL, PW) if pangle % 2 else (PW, PL)
+    check(len(xs) == w and len(zs) == l,
+          'town %d: the footprint really is %d by %d on the ground' % (town, w, l))
 
 print('23. build mode: every door hotspot has a trigger, and nothing else does')
 # The click has to resolve to a grid cell and a side, and only a door hotspot carries both. A
@@ -1900,6 +1954,61 @@ check(do.count('inv_total(inv, coins)') == 2,
       'the purse is re-checked AFTER the confirm box - it is a suspend, and coins can leave during it')
 check(do.index('%poh_style = $style') > do.index('inv_del'), 'and the style only changes once it is paid for')
 check('$style = %poh_style' in do, 'buying the style you already have is refused')
+
+# ============================================================================ 54
+print('54. relocating: six towns, one of them yours, and five that say so')
+lname = enumtable(LOCENUM, 'poh_loc_name')
+llvl = enumtable(LOCENUM, 'poh_loc_level')
+lcost = enumtable(LOCENUM, 'poh_loc_cost')
+check(sorted(lname) == list(range(6)), 'poh_loc_name covers 0-5')
+for t in ('poh_loc_name', 'poh_loc_level', 'poh_loc_cost', 'poh_loc_exit', 'poh_loc_portal'):
+    blk = LOCENUM.split('[%s]' % t, 1)[1].split('\n[', 1)[0]
+    check('default=null' in blk, '%s declares default=null - a miss must not answer town 0' % t)
+lv = [int(llvl[i]) for i in range(6)]
+cs = [int(lcost[i]) for i in range(6)]
+check(lv == [1, 10, 20, 30, 40, 50], "the levels are OSRS's own: %s" % lv)
+check(cs == [5000, 5000, 7500, 10000, 15000, 25000], "and so are the prices: %s" % cs)
+check(lname[0] == 'Rimmington', 'town 0 is Rimmington - a save written before %poh_location existed reads 0')
+
+# the varp has to be perm and registered, or every house moves back on logout
+VARPF = read('scripts/skill_construction/configs/construction.varp')
+vblk = VARPF.split('[poh_location]', 1)[1].split('\n[', 1)[0]
+check('scope=perm' in vblk, '%poh_location is scope=perm')
+check(VARPF.index('[poh_location]') < VARPF.index('// ---- furniture'),
+      'and it sits ABOVE the furniture marker - genfurn.py truncates the file there')
+check('poh_location' in {l.split('=', 1)[1] for l in read('pack/varp.pack').split('\n') if '=' in l},
+      'it is registered in varp.pack')
+
+# the click: five portals that are not yours must not open your house
+PORTRS2 = read('scripts/skill_construction/scripts/poh_portal.rs2')
+clk = PORTRS2.split('[proc,poh_portal_click]', 1)[1].split('\n[', 1)[0]
+check('loc_coord' in clk and 'poh_loc_portal' in clk,
+      'the click compares loc_coord against poh_loc_portal')
+check(clk.index('mes(') < clk.index('~poh_enter'),
+      'and refuses before it enters, rather than entering and then complaining')
+check('[oploc1,poh_house_portal]' in PORTRS2 and '~poh_enter' not in
+      PORTRS2.split('[oploc1,poh_house_portal]', 1)[1].split('\n\n', 1)[0],
+      'the trigger goes through the check, not straight to ~poh_enter')
+
+# the move itself
+mv = PORTRS2.split('[proc,poh_relocate_to]', 1)[1].split('\n[', 1)[0]
+check(mv.index('stat(construction)') < mv.index('inv_del'), 'the level is tested before the coins are taken')
+check(mv.count('inv_del(inv, coins') == 1, 'the coins come out exactly once')
+check(mv.count('inv_total(inv, coins)') == 2, 'the purse is re-checked after the confirm box')
+check(mv.index('~poh_free') < mv.index('%poh_location = $town'),
+      'the instance is freed BEFORE the move - someone standing in their house would come out the wrong door')
+check('$town = %poh_location' in mv, 'moving to where you already are is refused')
+pick = PORTRS2.split('[proc,poh_location_pick]', 1)[1].split('\n[', 1)[0]
+named = {int(m) for m in re.findall(r'poh_loc_name, (\d)\)', pick)}
+check(named == set(range(6)), 'the two menu pages between them offer all six towns: %s' % sorted(named))
+
+# leaving has to follow the house, and the fallback has to be a real place
+POHRS2 = read('scripts/skill_construction/scripts/poh.rs2')
+check('p_telejump(^poh_exit)' not in POHRS2, 'nothing teleports to the hardcoded Rimmington exit any more')
+ec = POHRS2.split('[proc,poh_exit_coord]', 1)[1].split('\n[', 1)[0]
+check('poh_loc_exit' in ec and '^poh_exit' in ec,
+      'the exit reads the table and falls back to the constant if it answers null')
+check(POHRS2.count('~poh_exit_coord') >= 2, 'both leaving and logging in use it')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
