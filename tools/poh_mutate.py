@@ -300,7 +300,7 @@ if (inv_total(inv, coins) < $cost) {
   '21 a portal that drifted onto ground nobody looked at'),
  ('maps/m41_56.jm2', '0 42 48: 3920', '0 47 48: 3920',
   '15 an estate agent standing inside the portal'),
- ('maps/m45_53.jm2', '0 10 59: 15296 10 3', '0 10 58: 15296 10 3',
+ ('maps/m45_53.jm2', '0 17 57: 15296 10 2', '0 17 56: 15296 10 2',
   '15 the map and poh_loc_portal naming different tiles'),
  ('scripts/skill_construction/configs/poh_locations.enum',
   'val=5,0_39_48_47_29', 'val=5,0_39_48_52_29',

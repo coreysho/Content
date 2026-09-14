@@ -487,7 +487,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from terrain377 import height_of
 
 # town -> the height spread under the footprint as approved in game, 2026-09-14.
-APPROVED_SPREAD = {0: 4, 1: 32, 2: 4, 3: 17, 4: 3, 5: 10}
+APPROVED_SPREAD = {0: 4, 1: 0, 2: 4, 3: 17, 4: 3, 5: 10}
 
 def groundfn(land, mx, mz):
     def g(lv, x, z):
@@ -561,7 +561,7 @@ print('22. each portal is turned the way it was turned in game')
 # rotation 0 is north, 1 east, 2 south, 3 west. (claude/poh-portal-placement.md had it 180 out - it
 # reasoned from the swirl sitting south of the frame's centre in model space.) The footprint swaps
 # width and length on an odd angle, which is what makes the wide face run north-south.
-APPROVED_ANGLE = {0: 3, 1: 3, 2: 2, 3: 2, 4: 3, 5: 0}
+APPROVED_ANGLE = {0: 3, 1: 2, 2: 2, 3: 2, 4: 3, 5: 0}
 FACING = {0: 'north', 1: 'east', 2: 'south', 3: 'west'}
 for town, mx, mz, anchor, pangle, covered, land, mlocs, agents in TOWNS:
     check(pangle == APPROVED_ANGLE.get(town),
