@@ -325,6 +325,15 @@ for town in sorted(PORTAL_AT):
         others = [e for e in mlocs.get(t, []) if e[0] != LOCS['poh_house_portal'] and e[1] != 22]
         check(not others, 'town %d: tile %s carries nothing else that blocks: %s' % (town, t[1:], others))
         check(t in land, 'town %d: tile %s is real ground' % (town, t[1:]))
+        # Flag bit 4 is the client's remove-roofs flag - it marks every tile under a roof, and it is
+        # the only thing in the map that says INDOORS. "No solid loc on the footprint" does not:
+        # walls sit on tile boundaries, so the inside of a house reads as ten free tiles, and the
+        # Taverley portal was placed in the middle of somebody's kitchen on exactly that reasoning.
+        flags = 0
+        for tok in land.get(t, []):
+            if tok.startswith('f') and tok[1:].isdigit():
+                flags = int(tok[1:])
+        check(not flags & 4, 'town %d: tile %s is outdoors (flag %d)' % (town, t[1:], flags))
     elv, emx, emz, ex, ez = EXIT_AT[town]
     check((emx, emz) == (mx, mz), 'town %d: the landing tile is on the portal\'s own square' % town)
     check((elv, ex, ez) not in covered, 'town %d: leaving does not land you inside the portal' % town)
@@ -487,7 +496,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from terrain377 import height_of
 
 # town -> the height spread under the footprint as approved in game, 2026-09-14.
-APPROVED_SPREAD = {0: 4, 1: 0, 2: 4, 3: 17, 4: 3, 5: 10}
+APPROVED_SPREAD = {0: 4, 1: 5, 2: 4, 3: 17, 4: 3, 5: 10}
 
 def groundfn(land, mx, mz):
     def g(lv, x, z):
@@ -561,7 +570,7 @@ print('22. each portal is turned the way it was turned in game')
 # rotation 0 is north, 1 east, 2 south, 3 west. (claude/poh-portal-placement.md had it 180 out - it
 # reasoned from the swirl sitting south of the frame's centre in model space.) The footprint swaps
 # width and length on an odd angle, which is what makes the wide face run north-south.
-APPROVED_ANGLE = {0: 3, 1: 2, 2: 2, 3: 2, 4: 3, 5: 0}
+APPROVED_ANGLE = {0: 3, 1: 3, 2: 2, 3: 2, 4: 3, 5: 0}
 FACING = {0: 'north', 1: 'east', 2: 'south', 3: 'west'}
 for town, mx, mz, anchor, pangle, covered, land, mlocs, agents in TOWNS:
     check(pangle == APPROVED_ANGLE.get(town),

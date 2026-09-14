@@ -112,6 +112,12 @@ def sites(mx, mz, ax, az, paths, radius=14):
                     continue
                 if any(flag(a, b) & 1 for a, b in fp):
                     continue
+                # Flag bit 4 is the client's remove-roofs flag: it marks every tile UNDER A ROOF,
+                # which is the only thing in the map that says "indoors". Without this the search
+                # happily proposed the middle of a Taverley house - level ground, no solid loc on
+                # any of the ten tiles, because the walls sit on the tile boundaries around them.
+                if any(flag(a, b) & 4 for a, b in fp):
+                    continue
                 if any(overlay(a, b) in NEVER_ON for a, b in fp):
                     continue      # a five-wide loc across the dirt road severs the path
                 hs = [ground(a, b) for a, b in fp]
