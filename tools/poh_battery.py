@@ -12,7 +12,8 @@ FILES = ['scripts/skill_construction/scripts/poh.rs2', 'scripts/skill_constructi
          'scripts/skill_construction/scripts/poh_portal_chamber.rs2',
          'scripts/skill_construction/scripts/poh_combat_ring.rs2',
          'scripts/skill_construction/scripts/poh_combat.rs2',
-         'scripts/skill_construction/scripts/poh_rug.rs2']
+         'scripts/skill_construction/scripts/poh_rug.rs2',
+         'scripts/skill_construction/scripts/poh_decor.rs2']
 fails = 0
 def check(ok, what):
     global fails
@@ -1863,10 +1864,13 @@ if spots:
 
 print('49. the formal garden room, and what goes in it')
 FGFAMS = [f for f in FSPEC['families'] if f.get('room') == 'formal garden']
-check(len(FGFAMS) == 5, 'five formal garden families: %s' % [f['key'] for f in FGFAMS])
+check(len(FGFAMS) == 6, 'six formal garden families: %s' % [f['key'] for f in FGFAMS])
 FGHOT = {h for f in FGFAMS for h in f['hotspots']}
-check(FGHOT == {LOCS['loc474_15368']} | {LOCS['loc474_1537%d' % n] for n in (3, 4, 5, 6)},
-      'they claim the formal garden\'s centrepiece and its four flower spaces')
+# the fencing joined the centrepiece and the four flower spaces; the three Hedging hotspots are
+# still unclaimed, and they need seven bagged hedges that are not objs in this cache yet
+check(FGHOT == {LOCS['loc474_15368'], LOCS['loc474_15369']}
+              | {LOCS['loc474_1537%d' % n] for n in (3, 4, 5, 6)},
+      'they claim the centrepiece, the four flower spaces and the fencing')
 # the room is real: its zone, its doors and its price
 check(const('poh_room_formal_garden') == 16 and COUNT == 16,
       'the formal garden is room type %s of %s' % (const('poh_room_formal_garden'), COUNT))
@@ -2614,7 +2618,7 @@ for _sq, _levels in (('m29_79', (0, 1, 2, 3)), ('m30_79', (0, 1))):
         if _lv in _levels and (TEMPL2.get(_n, {}).get('category') or [''])[0] == 'poh_hotspot':
             _famroomhot.setdefault((_x // 8) * 8 + (_z // 8), set()).add((_x % 8, _z % 8))
 anchored = [f for f in _spec['families'] if f.get('anchor')]
-check(sorted(f['key'] for f in anchored) == ['combat_ring', 'rug'],
+check(sorted(f['key'] for f in anchored) == ['chapelwindow', 'combat_ring', 'fence', 'rug', 'thronefloor'],
       'the anchored families are %s' % sorted(f['key'] for f in anchored))
 _zoneof = {}
 for _l in read('scripts/skill_construction/configs/poh_rooms.enum').split('\n'):
@@ -2816,6 +2820,124 @@ _gold = [p['label'] for f in _spec['families'] for p in f.get('pieces', [])
          if any(m[0] == 'gold_leaf' for m in p['mats'])]
 check(sorted(_gold) == ['Gilded decoration', 'Opulent rug'],
       'gold leaf is what the gilded pieces are made of: %s' % sorted(_gold))
+
+
+print('61. the fence, the throne room floor, the chapel windows - and every multiloc\'s ops')
+DC = read('scripts/skill_construction/scripts/poh_decor.rs2')
+
+_before = open(os.path.join(C, 'scripts/skill_construction/scripts/poh_decor.rs2'), 'rb').read()
+r = _sp.run([sys.executable, os.path.join(C, 'tools/gendecor.py')], capture_output=True, text=True, cwd=C)
+check(r.returncode == 0, 'tools/gendecor.py runs clean'
+      + ('' if r.returncode == 0 else ': ' + (r.stdout + r.stderr)[-400:]))
+_after = open(os.path.join(C, 'scripts/skill_construction/scripts/poh_decor.rs2'), 'rb').read()
+if _after != _before:
+    open(os.path.join(C, 'scripts/skill_construction/scripts/poh_decor.rs2'), 'wb').write(_before)
+check(_after == _before, 're-running it changes nothing: byte-identical' if _after == _before
+      else 're-running it CHANGES the file - it is out of step with the templates')
+
+# THE CLASS THIS ROUND FOUND. A multiloc shell shows its ACTIVE CHILD's options, so a child with
+# op5=Remove gives the shell a Remove - and poh_dynamic_window is placed 116 times in every house.
+# Nothing answered it, so every window in every house has been printing the engine's "Nothing
+# interesting happens". Check 56 could not see it: it sweeps the locs the SPEC places, and a shell
+# the template places is not one of those.
+_shells = {}
+for _n, _d in POHLOC2.items():
+    _kids = [v.split(',', 1)[1] for v in (_d.get('multiloc') or [])]
+    if _kids:
+        _shells[_n] = _kids
+check(len(_shells) >= 1, 'poh.loc has %d multiloc shells' % len(_shells))
+_placed_ids = set()
+for _sq, _levels in (('m29_79', (0, 1, 2, 3)), ('m30_79', (0, 1))):
+    _sec = None
+    for _l in read('maps/%s.jm2' % _sq).split('\n'):
+        if _l.startswith('===='):
+            _sec = _l.strip('= '); continue
+        if _sec == 'LOC' and ':' in _l:
+            _placed_ids.add(int(_l.split(':', 1)[1].split()[0]))
+_dead = []
+for _n, _kids in _shells.items():
+    if LOCS.get(_n) not in _placed_ids:
+        continue
+    _ops = set()
+    for _k in _kids:
+        for _key, _v in (POHLOC2.get(_k) or {}).items():
+            _m = re.match(r'^op([1-5])$', _key)
+            if _m and _v[0] != 'hidden':
+                _ops.add((_m.group(1), _v[0]))
+    for _num, _label in sorted(_ops):
+        if (_num, _n) not in TRIG and not any((_num, _k) in TRIG for _k in _kids):
+            _dead.append('%s op%s=%s (from a child)' % (_n, _num, _label))
+check(not _dead, 'every op a placed multiloc shows through its children is answered: %s'
+      % (_dead[:4] or '%d shells checked' % len([n for n in _shells if LOCS.get(n) in _placed_ids])))
+check('[oploc5,poh_dynamic_window]' in DC, 'and the house windows answer their own Remove')
+
+# the three new pieces, back against the templates
+def _tilesof(name, room):
+    out = {}
+    for _sq, _levels in (('m29_79', (0, 1, 2, 3)), ('m30_79', (0, 1))):
+        _sec = None
+        for _l in read('maps/%s.jm2' % _sq).split('\n'):
+            if _l.startswith('===='):
+                _sec = _l.strip('= '); continue
+            if _sec != 'LOC' or ':' not in _l:
+                continue
+            _h, _r = _l.split(':', 1)
+            _lv, _x, _z = (int(v) for v in _h.split())
+            _p = _r.split()
+            _n = {v: k for k, v in LOCS.items()}.get(int(_p[0]))
+            if _lv in _levels and (TEMPL2.get(_n, {}).get('name') or [''])[0] == name:
+                out[(_x % 8, _z % 8)] = (int(_p[1]) if len(_p) > 1 else 10,
+                                         int(_p[2]) if len(_p) > 2 else 0)
+    return out
+SH = {'poh_fence_wall': 0, 'poh_fence_corner': 2, 'poh_thronefloor_mat': 22, 'poh_window_pane': 0}
+for _proc, _name, _want in (('poh_fence_wall|poh_fence_corner', 'Fencing', 20),
+                            ('poh_thronefloor_mat', 'Floor space', 4),
+                            ('poh_window_pane', 'Window space', 6)):
+    _t = _tilesof(_name, {'Fencing': 'Formal garden', 'Floor space': 'Throne room',
+                          'Window space': 'Chapel'}[_name])
+    _calls = re.findall(r'~(' + _proc + r')\(\$base, \$rot, (\d+), (\d+), (\d+)', DC)
+    check(len(_calls) == _want, '%s lays %d tiles: %d' % (_name, _want, len(_calls)))
+    _bad = []
+    for _p, _x, _z, _a in _calls:
+        _k = (int(_x), int(_z))
+        if _k not in _t:
+            _bad.append((_k, 'not a template tile')); continue
+        if _t[_k][1] != int(_a):
+            _bad.append((_k, 'angle %s, template says %d' % (_a, _t[_k][1]))); continue
+        if SH[_p] != _t[_k][0]:
+            _bad.append((_k, '%s, template shape %d' % (_p, _t[_k][0])))
+    check(not _bad, 'and every one is the template\'s tile, shape and angle: %s' % (_bad[:3] or 'all of them'))
+
+# the window table is the shell's own child order, or building one picks a different window
+_wl = dict((int(a), b) for a, b in re.findall(r'^    case (\d+) : return\((poh_\w+_window_\w+)\);', DC, re.M))
+_kids = [v.split(',', 1)[1] for v in (POHLOC2['poh_dynamic_window'].get('multiloc') or [])]
+check(len(_wl) == 54 and [_wl.get(i) for i in range(54)] == _kids,
+      'the 54-window table is poh_dynamic_window\'s own child order: %s'
+      % ('yes' if [_wl.get(i) for i in range(54)] == _kids else 'NO'))
+check('%poh_window = calc(%poh_style * ^poh_window_kinds + $choice);' in DC,
+      'building a chapel window reglazes the whole house')
+
+# the throne floor art is one per style, named after the same six towns the windows are
+_fl = dict((int(a), b) for a, b in re.findall(r'^    case (\d+) : return\((poh_floordecor_\w+)\);', DC, re.M))
+check(len(_fl) == 6 and all(_fl[i] == 'poh_floordecor_' + t for i, t in enumerate(
+    ['rimmington', 'lumbridge', 'pollnivneach', 'rellekka', 'brimhaven', 'yanille'])),
+    'the throne room floor has one piece per house style, in %%poh_style order: %s' % _fl)
+
+# every loc the three can put down comes out again, by its own remover, and none twice
+for _key, _proc, _n in (('fence', 'poh_fence_remove', 7), ('thronefloor', 'poh_thronefloor_remove', 6),
+                        ('chapelwindow', 'poh_window_remove', 54)):
+    _here = set(re.findall(r'^\[oploc5,(\w+)\] ~%s;' % _proc, DC, re.M))
+    _there = set(re.findall(r'^\[oploc5,(\w+)\]\s*\n~%s;' % _proc, fu, re.M))
+    check(len(_here | _there) == _n, '%s: all %d locs are removable: %d' % (_key, _n, len(_here | _there)))
+    check(not (_here & _there), '%s: none of them is wired in both files' % _key)
+
+# the anchors are the spec's, written into the generated file from there and nowhere else
+for _key, _proc in (('fence', 'poh_fence_place'), ('thronefloor', 'poh_thronefloor_place'),
+                    ('chapelwindow', 'poh_window_place')):
+    _a = next(f for f in _spec['families'] if f['key'] == _key)['anchor']
+    check('movecoord($spot, %d, 0, %d);' % (-_a[0], -_a[1]) in
+          DC.split('[proc,%s]' % _proc, 1)[1].split('\n[', 1)[0],
+          '%s steps back from the spec\'s own anchor %s' % (_key, tuple(_a)))
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

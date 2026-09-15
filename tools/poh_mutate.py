@@ -498,6 +498,42 @@ if (inv_total(inv, coins) < $cost) {
  # and the stonemason no longer stocking it, which makes two pieces unbuildable
  ('scripts/skill_construction/configs/poh_stone.inv',
   'stock3=gold_leaf,20,100' + chr(10), '', '26 he stocks three things'),
+
+ # --- 61, the fence, the throne floor, the windows and the multiloc sweep ---
+ # the check that would have caught the dead Remove on every window in the house
+ ('scripts/skill_construction/scripts/poh_decor.rs2',
+  '[oploc5,poh_dynamic_window]' + chr(10)
+  + 'mes("The windows are part of the house itself.");' + chr(10)
+  + 'mes("Build a window in a chapel to change them, or ask the estate agent to redecorate.");' + chr(10),
+  '', '61 every op a placed multiloc shows is answered'),
+ # a fence post one square off the perimeter
+ ('scripts/skill_construction/scripts/poh_decor.rs2',
+  '~poh_fence_wall($base, $rot, 0, 1, 0, $tier);', '~poh_fence_wall($base, $rot, 1, 1, 0, $tier);',
+  '61 Fencing every one is the template\'s tile'),
+ # a fence corner laid on the straight-wall layer, which leaves the hotspot standing in it
+ ('scripts/skill_construction/scripts/poh_decor.rs2',
+  '~poh_fence_corner($base, $rot, 0, 0, 3, $tier);', '~poh_fence_wall($base, $rot, 0, 0, 3, $tier);',
+  '61 Fencing tile, shape and angle'),
+ # the window table reordered, so building Saradomin glass gives you Guthix
+ ('scripts/skill_construction/scripts/poh_decor.rs2',
+  'case 2 : return(poh_rimmington_window_saradomin);', 'case 2 : return(poh_rimmington_window_guthix);',
+  '61 the 54-window table is the shell\'s child order'),
+ # a chapel window that no longer reglazes the house, so the six panes disagree with the other 110
+ ('scripts/skill_construction/scripts/poh_decor.rs2',
+  '%poh_window = calc(%poh_style * ^poh_window_kinds + $choice);' + chr(10), '',
+  '61 building a chapel window reglazes the house'),
+ # the throne floor wearing another style's art
+ ('scripts/skill_construction/scripts/poh_decor.rs2',
+  'case 3 : return(poh_floordecor_rellekka);', 'case 3 : return(poh_floordecor_yanille);',
+  '61 one piece per house style'),
+ # a window nobody can take out again
+ ('scripts/skill_construction/scripts/poh_decor.rs2',
+  '[oploc5,poh_yanille_window_zamorak2] ~poh_window_remove;' + chr(10), '',
+  '61 chapelwindow all 54 locs are removable'),
+ # the anchor written into the generated file drifting from the spec's
+ ('scripts/skill_construction/scripts/poh_decor.rs2',
+  'def_coord $base = movecoord($spot, -1, 0, -3);', 'def_coord $base = movecoord($spot, -1, 0, -4);',
+  '61 fence steps back from the spec\'s own anchor'),
 ]
 
 def checker_for(why):
