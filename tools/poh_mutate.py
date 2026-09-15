@@ -781,20 +781,20 @@ if (inv_total(inv, coins) < $cost) {
   '65 none of them fires on correct code'),
  # ---- 66: the slayer imbues ----
  # an imbued item that quietly stops inheriting the plain one's melee bonus
- ('scripts/skill_slayer/scripts/black_mask.rs2',
-  'if ($hat = black_mask | $hat = slayer_helm | $hat = black_mask_i | $hat = slayer_helm_i) {',
-  'if ($hat = black_mask | $hat = slayer_helm) {',
-  '66 the melee bonus door knows all four'),
+ ('scripts/skill_slayer/configs/black_mask.obj',
+  'param=slayer_headgear,yes\nparam=slayer_imbued,yes',
+  'param=slayer_imbued,yes',
+  '66 every piece declares exactly what it is'),
  # ...or the earmuffs, nose peg and facemask, which is eight call sites at once
  ('scripts/skill_slayer/scripts/slayer_helm.rs2',
-  'if (inv_total(worn, slayer_helm) > 0 | inv_total(worn, slayer_helm_i) > 0) {',
-  'if (inv_total(worn, slayer_helm) > 0) {',
-  '66 and the protections door knows both helmets'),
+  'if (oc_param($hat, slayer_helmet) = true) {',
+  'if (oc_param($hat, slayer_headgear) = true) {',
+  '66 and the protections door does the same'),
  # the plain mask giving the imbued bonus, which would make the imbue worthless
- ('scripts/skill_slayer/scripts/black_mask.rs2',
-  'if ($hat = black_mask_i | $hat = slayer_helm_i) {\n    return(true);\n}\nreturn(false);',
-  'if ($hat = black_mask_i | $hat = slayer_helm_i | $hat = black_mask) {\n    return(true);\n}\nreturn(false);',
-  '66 and answers true for the imbued pair only'),
+ ('scripts/general/configs/osrs_items.obj',
+  'param=slayer_headgear,yes\nparam=slayer_helmet,yes\n\n[dragon_pickaxe]',
+  'param=slayer_headgear,yes\nparam=slayer_helmet,yes\nparam=slayer_imbued,yes\n\n[dragon_pickaxe]',
+  '66 neither plain item claims to be imbued'),
  # the two doors drifting apart - the ranged boost applying off task
  ('scripts/skill_slayer/scripts/black_mask.rs2',
   '[proc,black_mask_imbued_on_task]()(boolean)\nif (~black_mask_on_task = false) {\n    return(false);\n}',
@@ -850,6 +850,52 @@ if (inv_total(inv, coins) < $cost) {
   'param=magicattack,3\nparam=rangeattack,3\nparam=stabdefence,30',
   'param=magicattack,3\nparam=rangeattack,3\nparam=stabdefence,31',
   '66 slayer_helm_i keeps the plain item\'s defences exactly'),
+ # ---- 67: the recoloured helmets ----
+ # a recolour pair that matches no face on the model - the helmet comes out black with a smear and
+ # the config gives no error at all, because the engine just finds nothing to replace
+ ('tools/slayerhelmspec.json', '"dark": 3170', '"dark": 3171',
+  '67 both recolour sources really are colours the helmet model paints'),
+ # a colour that is not the plain helmet underneath - here, one that quietly loses a wear position,
+ # which in game means it stops hiding the player's hair and the helmet grows a fringe
+ ('tools/genslayerhelm.py',
+  "                if line.startswith('param=slayer_'):",
+  "                if line.startswith('param=slayer_') or line.startswith('wearpos2='):",
+  '67 each is the plain helmet plus two recolour pairs'),
+ # a recolour anyone can do without the unlock they paid for
+ ('scripts/skill_slayer/scripts/slayer_helm_colours.rs2',
+  'if (~slayer_has_unlock(5) = false) {\n    mes("You need the Unholy Helmet unlock from a Slayer master to do that.");\n    return;\n}\n',
+  '',
+  '67 red needs its unlock (bit 5)'),
+ # ...or one that does not use up the head
+ ('scripts/skill_slayer/scripts/slayer_helm_colours.rs2',
+  'inv_del(inv, abyssal_head, 1);' + chr(10), '',
+  '67 and uses up the abyssal_head'),
+ # an imbued helmet losing its imbue when recoloured - the player paid for that
+ ('scripts/skill_slayer/scripts/slayer_helm_colours.rs2',
+  'def_namedobj $into = slayer_helm_red;\nif (inv_total(inv, slayer_helm_i) > 0) {\n    $into = slayer_helm_red_i;\n}',
+  'def_namedobj $into = slayer_helm_red;',
+  '67 and an imbued helmet stays imbued through it'),
+ # a drop rate that is not OSRS's
+ ('scripts/drop_tables/scripts/abyssal_demon.rs2',
+  'if (random(6000) = 0) {', 'if (random(600) = 0) {',
+  '67 abyssal_head drops at 1/6000'),
+ # the menu and the switch disagreeing about a price, which is how a player pays 1,000 for nothing
+ ('scripts/skill_slayer/scripts/slayer_rewards.rs2',
+  'case 8 : $bit = 5; $cost = 1000;', 'case 8 : $bit = 5; $cost = 500;',
+  '67 Unholy Helmet is 1000 points in the menu AND in the switch'),
+ # two unlocks sharing a bit, so buying one gives both
+ ('tools/slayerhelmspec.json', '"bit": 6', '"bit": 5',
+  '67 on unlock bits nothing else uses'),
+ # a coloured helmet that forgets it is a helmet - eight protections lost at once
+ ('tools/genslayerhelm.py',
+  "'param=slayer_headgear,yes', 'param=slayer_helmet,yes']",
+  "'param=slayer_headgear,yes']",
+  '67 every piece declares exactly what it is'),
+ # a door going back to naming items, which is what stops a new colour working
+ ('scripts/skill_slayer/scripts/black_mask.rs2',
+  'if (oc_param($hat, slayer_headgear) = true) {',
+  'if ($hat = black_mask | $hat = slayer_helm) {',
+  '67 black_mask_on_task reads slayer_headgear'),
 ]
 
 def checker_for(why):

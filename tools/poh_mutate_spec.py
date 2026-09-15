@@ -29,7 +29,8 @@ import poh_mutate as M
 
 C = M.C
 W = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'poh_mutate_spec_work')
-GENERATORS = ('tools/genfurn.py', 'tools/genmenus.py', 'tools/genhedge.py')
+GENERATORS = ('tools/genfurn.py', 'tools/genmenus.py', 'tools/genhedge.py',
+              'tools/genstores.py', 'tools/genslayerhelm.py')
 
 
 def fresh():

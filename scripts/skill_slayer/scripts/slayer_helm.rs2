@@ -102,7 +102,14 @@ mes("You disassemble your slayer helmet.");
 
 // The earmuffs / nose peg / facemask checks all go through this, so a slayer helmet counts as each.
 [proc,slayer_helm_worn]()(boolean)
-if (inv_total(worn, slayer_helm) > 0 | inv_total(worn, slayer_helm_i) > 0) {
+// slayer_helmet, not slayer_headgear: a bare black mask has no earmuffs, nose peg or facemask in
+// it, so it must NOT answer true here even though it does for the melee bonus. Every recoloured
+// helmet does, without being named.
+def_obj $hat = inv_getobj(worn, ^wearpos_hat);
+if ($hat = null) {
+    return(false);
+}
+if (oc_param($hat, slayer_helmet) = true) {
     return(true);
 }
 return(false);

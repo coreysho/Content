@@ -60,7 +60,11 @@ def_int $cost = 0;
 def_string $what = "";
 def_int $pick = ~p_choice5(~slayer_unlock_label("Bigger and Badder", 4, 50), 5, ~slayer_unlock_label("Gargoyle Smasher", 0, 120), 1, ~slayer_unlock_label("Slug Salter", 1, 10), 2, ~slayer_unlock_label("Reptile Freezer", 2, 10), 3, "More...", 6);
 if ($pick = 6) {
-    $pick = ~p_choice2(~slayer_unlock_label("Ring Bling", 3, 150), 4, "Never mind.", 7);
+    // The two helmet recolours are here, at OSRS's own 1,000 points each - unlike the imbue
+    // price, this one did not have to be invented, because OSRS charges Slayer points for it too.
+    $pick = ~p_choice4(~slayer_unlock_label("Ring Bling", 3, 150), 4,
+                       ~slayer_unlock_label("Unholy Helmet", 5, 1000), 8,
+                       ~slayer_unlock_label("Kalphite Khat", 6, 1000), 9, "Never mind.", 7);
 }
 switch_int ($pick) {
     case 5 : $bit = 4; $cost = 50; $what = "On task, monsters with a superior form have a 1/200 chance of summoning it when they die.";
@@ -68,6 +72,8 @@ switch_int ($pick) {
     case 2 : $bit = 1; $cost = 10; $what = "Rockslugs you beat are salted automatically if you carry a bag of salt.";
     case 3 : $bit = 2; $cost = 10; $what = "Desert lizards you beat are frozen automatically if you carry icy water.";
     case 4 : $bit = 3; $cost = 150; $what = "Craft Slayer rings: use an enchanted gem on a furnace with a gold bar and ring mould (75 Crafting).";
+    case 8 : $bit = 5; $cost = 1000; $what = "Use an abyssal head on a slayer helmet to make it red. Abyssal demons drop the head.";
+    case 9 : $bit = 6; $cost = 1000; $what = "Use a Kq head on a slayer helmet to make it green. The Kalphite Queen drops the head.";
     case default : return;
 }
 if (~slayer_has_unlock($bit) = true) {

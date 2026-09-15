@@ -22,10 +22,16 @@ if (%slayer_target <= 0 | %slayer_count <= 0) {
 if (npc_param(slayer_category) ! %slayer_target) {
     return(false);
 }
+// THE ITEM SAYS WHAT IT IS. This used to be a list of names, and the list grew by two every time
+// a colour was added - four when the imbues arrived, eight with the red and green recolours, and
+// ten more waiting behind the bosses OSRS recolours from. slayer_headgear is on both masks and
+// every helmet (configs/slayer_helm.param, written by tools/genslayerhelm.py), so a new colour
+// needs no edit here at all.
 def_obj $hat = inv_getobj(worn, ^wearpos_hat);
-// The slayer helmet inherits the mask (skill_slayer/scripts/slayer_helm.rs2), and each imbued
-// twin inherits from its plain self. FOUR items, one door: every caller is unchanged.
-if ($hat = black_mask | $hat = slayer_helm | $hat = black_mask_i | $hat = slayer_helm_i) {
+if ($hat = null) {
+    return(false);
+}
+if (oc_param($hat, slayer_headgear) = true) {
     return(true);
 }
 return(false);
@@ -40,7 +46,10 @@ if (~black_mask_on_task = false) {
     return(false);
 }
 def_obj $hat = inv_getobj(worn, ^wearpos_hat);
-if ($hat = black_mask_i | $hat = slayer_helm_i) {
+if ($hat = null) {
+    return(false);
+}
+if (oc_param($hat, slayer_imbued) = true) {
     return(true);
 }
 return(false);
