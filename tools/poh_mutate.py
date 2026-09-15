@@ -779,6 +779,77 @@ if (inv_total(inv, coins) < $cost) {
   'if T["player_varps"].get(v, False) and v not in T["other_vars"]:',
   'if True:',
   '65 none of them fires on correct code'),
+ # ---- 66: the slayer imbues ----
+ # an imbued item that quietly stops inheriting the plain one's melee bonus
+ ('scripts/skill_slayer/scripts/black_mask.rs2',
+  'if ($hat = black_mask | $hat = slayer_helm | $hat = black_mask_i | $hat = slayer_helm_i) {',
+  'if ($hat = black_mask | $hat = slayer_helm) {',
+  '66 the melee bonus door knows all four'),
+ # ...or the earmuffs, nose peg and facemask, which is eight call sites at once
+ ('scripts/skill_slayer/scripts/slayer_helm.rs2',
+  'if (inv_total(worn, slayer_helm) > 0 | inv_total(worn, slayer_helm_i) > 0) {',
+  'if (inv_total(worn, slayer_helm) > 0) {',
+  '66 and the protections door knows both helmets'),
+ # the plain mask giving the imbued bonus, which would make the imbue worthless
+ ('scripts/skill_slayer/scripts/black_mask.rs2',
+  'if ($hat = black_mask_i | $hat = slayer_helm_i) {\n    return(true);\n}\nreturn(false);',
+  'if ($hat = black_mask_i | $hat = slayer_helm_i | $hat = black_mask) {\n    return(true);\n}\nreturn(false);',
+  '66 and answers true for the imbued pair only'),
+ # the two doors drifting apart - the ranged boost applying off task
+ ('scripts/skill_slayer/scripts/black_mask.rs2',
+  '[proc,black_mask_imbued_on_task]()(boolean)\nif (~black_mask_on_task = false) {\n    return(false);\n}',
+  '[proc,black_mask_imbued_on_task]()(boolean)',
+  '66 the ranged/magic door reuses the melee door'),
+ # the boost on the accuracy roll but not the damage
+ ('scripts/skill_combat/scripts/player/player_ranged.rs2',
+  '    $maxhit = scale($mask_num, $mask_div, $maxhit);' + chr(10), '',
+  '66 and on the max hit too (ranged)'),
+ # ...or on one roll in a file but not the other
+ ('scripts/skill_combat/scripts/player/player_magic.rs2',
+  'if (~player_npc_hit_roll_boosted(^magic_style, $mask_num, $mask_div) = true) {\n    def_int $maxhit = scale($mask_num, $mask_div, ~magic_spell_maxhit($spell_data));',
+  'if (~player_npc_hit_roll(^magic_style) = true) {\n    def_int $maxhit = ~magic_spell_maxhit($spell_data);',
+  '66 on every roll in the file, not some of them (magic)'),
+ # the wrong percentage
+ ('scripts/skill_combat/scripts/player/player_ranged.rs2',
+  '    $mask_num = 23;\n    $mask_div = 20;', '    $mask_num = 7;\n    $mask_div = 6;',
+  '66 at 23/20, which is the 15% OSRS gives (ranged)'),
+ # THE MISTAKE ACTUALLY MADE WRITING THIS: a block reading a local another block declared
+ ('scripts/skill_combat/scripts/player/player_magic.rs2',
+  '// Its own lookup: this is a different proc from the single-target cast above, so that one\'s\n// $mask_num is not in scope here. Each extra target of a multi-target spell rolls separately, so\n// the mask has to be asked again for each of them anyway.\ndef_int $mask_num = 1;\ndef_int $mask_div = 1;\nif (~black_mask_imbued_on_task = true) {\n    $mask_num = 23;\n    $mask_div = 20;\n}\n',
+  '',
+  '66 every block that reads $mask_num declares it'),
+ # the imbue's price written into the script instead of read from the constant
+ ('scripts/skill_slayer/scripts/slayer_rewards.rs2',
+  '%slayer_points = sub(%slayer_points, ^slayer_imbue_cost);',
+  '%slayer_points = sub(%slayer_points, 1250);',
+  '66 the purchase spends that constant, never a copy of its value'),
+ # assembling an imbued mask into a PLAIN helmet, silently spending what the player paid for
+ ('scripts/skill_slayer/scripts/slayer_helm.rs2',
+  'def_namedobj $helm = slayer_helm;\nif ($mask = black_mask_i) {\n    $helm = slayer_helm_i;\n}',
+  'def_namedobj $helm = slayer_helm;',
+  '66 and an imbued mask makes an imbued helmet'),
+ # ...and the same on the way out
+ ('scripts/skill_slayer/scripts/slayer_helm.rs2',
+  '[opheld4,slayer_helm_i] @slayer_helm_split(black_mask_i);',
+  '[opheld4,slayer_helm_i] @slayer_helm_split(black_mask);',
+  '66 and disassembly hands back the mask that went in'),
+ # NO MUTATION FOR "the sweep finds a real source for both imbued items", ON PURPOSE.
+ #
+ # Two were tried. Swapping the HELMET's line strands nothing - you can still imbue a mask and
+ # assemble it, so the check was right and the mutation was wrong. Swapping the MASK's line does
+ # strand both in the game, but not in tools/obtainable.py: the mask is still passed as a label
+ # argument by @slayer_helm_split(black_mask_i), and the sweep counts a bare mention in a file that
+ # gives items out, deliberately, because following every call is what it does not attempt. Its own
+ # docstring says so and splits its output into two lists for exactly this reason.
+ #
+ # So that check catches the common case - an item nothing references at all, which is the shape all
+ # 47 skilling outfit pieces were in - and cannot catch a circular one. Writing a mutation that
+ # passes by breaking something else would be worse than admitting the gap.
+ # the stats copied rather than compared - a defence quietly different from the plain item
+ ('scripts/general/configs/osrs_items.obj',
+  'param=magicattack,3\nparam=rangeattack,3\nparam=stabdefence,30',
+  'param=magicattack,3\nparam=rangeattack,3\nparam=stabdefence,31',
+  '66 slayer_helm_i keeps the plain item\'s defences exactly'),
 ]
 
 def checker_for(why):

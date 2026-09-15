@@ -1,8 +1,12 @@
-// Black mask (and slayer helmet) - the on-task combat bonus.
+// Black mask (and slayer helmet) - the on-task combat bonus, plain and imbued.
 //
 // 7/6 (16.67%) to both the melee accuracy roll and max hit against monsters on the player's
-// current slayer task. Melee only: the mask does nothing for ranged or magic, which is correct
-// for the item in every revision.
+// current slayer task. Melee only for the PLAIN mask: it does nothing for ranged or magic, which
+// is correct for the item in every revision.
+//
+// THE IMBUED PAIR ADD RANGED AND MAGIC, 23/20 (15%) to accuracy and damage alike, and that is the
+// entire reason to buy the imbue. Melee is unchanged at 7/6 - the imbue does not stack on top of
+// the melee bonus, it extends the same idea to the other two styles, which is what OSRS does.
 //
 // "On task" is npc_param(slayer_category) = %slayer_target with %slayer_count still above zero -
 // deliberately the SAME pair of values npc_death.rs2 passes to ~check_progress_task, so the set of
@@ -19,7 +23,24 @@ if (npc_param(slayer_category) ! %slayer_target) {
     return(false);
 }
 def_obj $hat = inv_getobj(worn, ^wearpos_hat);
-if ($hat = black_mask | $hat = slayer_helm) { // slayer helmet inherits the mask - skill_slayer/scripts/slayer_helm.rs2
+// The slayer helmet inherits the mask (skill_slayer/scripts/slayer_helm.rs2), and each imbued
+// twin inherits from its plain self. FOUR items, one door: every caller is unchanged.
+if ($hat = black_mask | $hat = slayer_helm | $hat = black_mask_i | $hat = slayer_helm_i) {
+    return(true);
+}
+return(false);
+
+// The imbued half. Same "on task" test - it calls the proc above rather than repeating it, so the
+// set of monsters the ranged and magic boost applies to can never drift from the melee one - and
+// then asks whether what is worn is one of the two imbued pieces.
+//
+// Read by player_ranged.rs2 and player_magic.rs2, which used the unboosted hit roll until now.
+[proc,black_mask_imbued_on_task]()(boolean)
+if (~black_mask_on_task = false) {
+    return(false);
+}
+def_obj $hat = inv_getobj(worn, ^wearpos_hat);
+if ($hat = black_mask_i | $hat = slayer_helm_i) {
     return(true);
 }
 return(false);

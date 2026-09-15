@@ -3549,8 +3549,13 @@ _st = _sp.run([sys.executable, os.path.join(C, 'tools/rs2check.py'), '--selftest
 _last = [l for l in _st.stdout.strip().split('\n') if l.startswith('selftest:')]
 check(_st.returncode == 0, 'rs2check --selftest: %s'
       % (_last[0][10:] if _last else (_st.stdout + _st.stderr)[-200:]))
+# The count comes from the tool's own ALL_RULES rather than a number written here, so adding a
+# rule does not need this edited - and a rule quietly disappearing still fails, because the two
+# have to agree.
+_declared = len(re.findall(r'^    (?:\d+|"\w+"):\s+\("', read('tools/rs2check.py'), re.M))
 _fired = re.findall(r'^  rule (\S+)\s+fired', _st.stdout, re.M)
-check(len(_fired) == 16, 'all sixteen rules fired: %d' % len(_fired))
+check(_declared > 0 and len(_fired) == _declared,
+      'every rule rs2check declares fired: %d of %d' % (len(_fired), _declared))
 check('DID NOT FIRE' not in _st.stdout, 'and none of them is inert')
 check('FALSE POSITIVE' not in _st.stdout, 'and none of them fires on correct code')
 
@@ -3579,6 +3584,133 @@ finally:
 check(_g.returncode != 0 and 'synth.pack is missing or empty' in (_g.stdout + _g.stderr),
       'with synth.pack taken away it STOPS rather than printing 0 ERROR: %s'
       % ((_g.stdout + _g.stderr).strip().split(chr(10))[-1][:70] or 'no output'))
+
+
+print('66. the slayer imbues')
+
+# The imbued pair are the plain pair with one thing changed, so every check here is a COMPARISON
+# against the plain item rather than a number written down twice. The exception is the price, which
+# is not derivable from anything - OSRS charges 1,250,000 Nightmare Zone points and there is no
+# Nightmare Zone - so it is a constant, and the check is that it is a constant.
+_SL = read('scripts/skill_slayer/scripts/black_mask.rs2')
+_HL = read('scripts/skill_slayer/scripts/slayer_helm.rs2')
+_RW = read('scripts/skill_slayer/scripts/slayer_rewards.rs2')
+_IOBJ = blocks(read('scripts/skill_slayer/configs/black_mask.obj'))
+_IOBJ.update(blocks(read('scripts/general/configs/osrs_items.obj')))
+
+for _a, _b in (('black_mask', 'black_mask_i'), ('slayer_helm', 'slayer_helm_i')):
+    check(_b in OBJS, '%s has an id in obj.pack' % _b)
+    _p, _i = _IOBJ.get(_a, {}), _IOBJ.get(_b, {})
+    check(_p.get('model') == _i.get('model') and _p.get('manwear') == _i.get('manwear'),
+          '%s uses the plain item\'s models - the imbued one looks identical in OSRS' % _b)
+    _pd = {k: v for k, v in _p.items() if k == 'param'}
+    _defs = lambda d: sorted(x for x in (d.get('param') or []) if 'defence' in x)
+    check(_defs(_p) == _defs(_i), '%s keeps the plain item\'s defences exactly: %s'
+          % (_b, _defs(_i) if _defs(_i) == _defs(_p) else (_defs(_p), _defs(_i))))
+
+# the two stat differences, both read off the wiki rather than assumed
+_atk = lambda n: sorted(x for x in (_IOBJ.get(n, {}).get('param') or []) if 'attack' in x)
+check(_atk('black_mask') == ['magicattack,-3', 'rangeattack,-1'] and _atk('black_mask_i') == [],
+      'the imbue REMOVES the mask\'s attack penalties (plain %s, imbued %s)'
+      % (_atk('black_mask'), _atk('black_mask_i')))
+check(_atk('slayer_helm') == [] and _atk('slayer_helm_i') == ['magicattack,3', 'rangeattack,3'],
+      'and ADDS +3 magic and +3 ranged attack to the helmet: %s' % _atk('slayer_helm_i'))
+
+# ONE DOOR PER INHERITANCE, and both of them know all four items - which is what makes the eight
+# call sites elsewhere in the repo need no edit at all.
+_door = _SL.split('[proc,black_mask_on_task]', 1)[1].split('\n[', 1)[0]
+check(all(o in _door for o in ('black_mask', 'slayer_helm', 'black_mask_i', 'slayer_helm_i')),
+      'the melee bonus door knows all four')
+_worn = _HL.split('[proc,slayer_helm_worn]', 1)[1].split('\n[', 1)[0]
+check('slayer_helm' in _worn and 'slayer_helm_i' in _worn,
+      'and the protections door knows both helmets')
+_users = 0
+for _root, _dirs, _fs in os.walk(os.path.join(C, 'scripts')):
+    for _fn in _fs:
+        if _fn.endswith('.rs2'):
+            _users += len(re.findall(r'~slayer_helm_worn', read(os.path.join(_root, _fn)[len(C) + 1:])))
+check(_users >= 8, 'and %d call sites inherit it without naming an item themselves' % _users)
+
+# the imbued-only proc shares the on-task test rather than repeating it
+_imb = _SL.split('[proc,black_mask_imbued_on_task]', 1)[1].split('\n[', 1)[0]
+check('~black_mask_on_task' in _imb,
+      'the ranged/magic door reuses the melee door\'s on-task test, so they cannot drift')
+# Read the SET it compares against, not a substring of the text. The first version asked whether
+# "black_mask " appeared and a mutation that added "| $hat = black_mask)" walked past it, because
+# the trailing character was a bracket.
+_cmp = set(re.findall(r'\$hat = (\w+)', _imb)) - {'inv_getobj'}   # the def_obj line, not a comparison
+check(_cmp == {'black_mask_i', 'slayer_helm_i'},
+      'and answers true for the imbued pair ONLY: %s' % sorted(_cmp))
+
+# 15% = 23/20, in both combat paths, on the roll AND the max hit
+for _f, _label in (('scripts/skill_combat/scripts/player/player_ranged.rs2', 'ranged'),
+                   ('scripts/skill_combat/scripts/player/player_magic.rs2', 'magic')):
+    _t = read(_f)
+    check('~black_mask_imbued_on_task' in _t, 'the %s path asks about the imbue' % _label)
+    check('$mask_num = 23;' in _t and '$mask_div = 20;' in _t,
+          '...at 23/20, which is the 15%% OSRS gives (%s)' % _label)
+    check('~player_npc_hit_roll_boosted(' in _t and '~player_npc_hit_roll(' not in _t,
+          '...on every roll in the file, not some of them (%s)' % _label)
+    check('scale($mask_num, $mask_div,' in _t, '...and on the max hit too (%s)' % _label)
+# every block that reads $mask_num declares it - the mistake made writing this round, where a
+# multi-target proc read the single-target cast's local
+# Written first with an `or True` on the end, which made it unfailable - the exact thing group 65
+# exists to stop, committed forty lines under a comment about it. Counted properly now: every
+# block that READS $mask_num must also DECLARE it, which is what the cross-proc mistake broke.
+_bad66 = []
+for _f66 in ('scripts/skill_combat/scripts/player/player_magic.rs2',
+             'scripts/skill_combat/scripts/player/player_ranged.rs2',
+             'scripts/skill_combat/scripts/player/player_melee.rs2'):
+    for _blk in re.split(r'\n(?=\[)', read(_f66)):
+        if '$mask_num' in _blk and 'def_int $mask_num' not in _blk:
+            _bad66.append((_f66.split('/')[-1], _blk.split(chr(10))[0][:40]))
+check(not _bad66, 'every block that reads $mask_num declares it: %s'
+      % (_bad66 or 'all four'))
+check(_sp.run([sys.executable, os.path.join(C, 'tools/rs2check.py')],
+              capture_output=True, text=True,
+              cwd=os.path.join(C, 'scripts')).returncode == 0,
+      '...which rule 18 is what proves, and it is green')
+
+# the price is a constant, not a number in a script
+_SC = read('scripts/skill_slayer/configs/slayer.constant')
+_m66 = re.search(r'^\^slayer_imbue_cost\s*=\s*(\d+)\s*$', _SC, re.M)
+check(_m66 and 'tostring(^slayer_imbue_cost)' in _RW,
+      'the price is ^slayer_imbue_cost (%s) and the menu prints it from there'
+      % (_m66.group(1) if _m66 else 'NOT DECLARED'))
+# The imbue block spends the constant and contains no number of its own - a price written twice
+# drifts, which is how the Stonemason came to sell at his own buying rate.
+_imbblk = _RW.split('[label,slayer_imbue]', 1)[1].split('\n[', 1)[0]
+# ...and the price's VALUE never appears as a literal in it. Not "no numbers at all" - ~objbox
+# takes a zoom of 250 like every other reward does - but the 1250 itself, which is the thing that
+# drifts when a price is written in two places.
+check('sub(%slayer_points, ^slayer_imbue_cost)' in _imbblk
+      and (not _m66 or not re.search(r'\b%s\b' % _m66.group(1), _imbblk)),
+      'and the purchase spends that constant, never a copy of its value')
+
+# assembly carries the imbue in both directions - a helmet built from an imbued mask is imbued,
+# and taking it apart gives the imbued mask back rather than spending what was paid for
+check('[proc,slayer_helm_mask]' in _HL and 'inv_del(inv, $mask, 1);' in _HL,
+      'assembly uses whichever mask is in the pack')
+check('$helm = slayer_helm_i;' in _HL, '...and an imbued mask makes an imbued helmet')
+check('[opheld4,slayer_helm_i] @slayer_helm_split(black_mask_i);' in _HL
+      and '[opheld4,slayer_helm] @slayer_helm_split(black_mask);' in _HL,
+      'and disassembly hands back the mask that went in')
+check(_HL.count('[label,slayer_helm_split]') == 1 and _HL.count('[label,slayer_helm_check]') == 1,
+      'both helmets share one Check and one Disassemble body')
+
+# and the sweep agrees they can be got
+_sw66 = _sp.run([sys.executable, os.path.join(C, 'tools/obtainable.py')],
+                capture_output=True, text=True, cwd=C)
+# BOTH of the sweep's lists. The first version read only "nothing anywhere mentions these", and an
+# item that stopped being given out but was still named by its own config and its own triggers
+# lands in the OTHER list - which is the softer, easier-to-miss half, and exactly what a broken
+# imbue would look like.
+_both66 = _sw66.stdout.split('NOTHING ANYWHERE MENTIONS THESE', 1)[-1]
+# NOTE: this rides on the sweep's loose half and has no mutation in poh_mutate.py - see the note
+# there. It catches an item nothing references at all, which is the shape the 47 skilling outfit
+# pieces were in; it cannot catch a circular source, because the sweep does not follow calls.
+check(not re.search(r'\bblack_mask_i\b|\bslayer_helm_i\b', _both66),
+      'tools/obtainable.py finds a real source for both imbued items, not just a mention')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

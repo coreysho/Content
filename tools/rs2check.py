@@ -517,6 +517,50 @@ def check_script(path, T):
                     report("CHECK", path, n, 5, "%%%s does not resolve to a var" % v)
 
 
+def check_locals(path):
+    """Rule 18: a $local read in a block that never declares it.
+
+    A proc's locals do not reach the next proc, and the compiler says so - but nothing here did,
+    so the mistake survived a full rs2check run. It was made writing the black mask imbue: the
+    single-target magic cast set up $mask_num and the multi-target proc two blocks down read it,
+    which reads fine and does not compile.
+
+    Deliberately ORDER-BLIND. A declaration anywhere in the block counts, so this does not try to
+    catch use-before-declare - that is a different mistake, and checking it would need to model the
+    if/else nesting that RuneScript does not scope by anyway. What it catches is the one that
+    matters: a name that block never declares at all.
+    """
+    src = text(path)
+    blocks = []
+    cur = None
+    for n, raw, s in stripped_lines(src):
+        m = SIG.match(raw) or HEADER.match(raw)
+        if m and raw.startswith("["):
+            # ANY block header can carry a signature, not just proc/label/command:
+            # [debugproc,clearinv](inv $inv), [queue,x](int $n), [timer,y](...) and so on. SIG only
+            # matches three of them, and using it here made this rule report 93 findings in a repo
+            # that compiles - which is the failure mode three other rules in this file have had.
+            head = raw.split("]", 1)
+            params = re.findall(r"\$([a-zA-Z_0-9]+)", head[1]) if len(head) > 1 else []
+            cur = {"name": raw.split("]")[0] + "]", "line": n, "declared": set(params), "used": []}
+            blocks.append(cur)
+            continue
+        if cur is None:
+            continue
+        for d in re.finditer(r"\bdef_[a-z_0-9]+\s+\$([a-zA-Z_0-9]+)", s):
+            cur["declared"].add(d.group(1))
+        for u in re.finditer(r"\$([a-zA-Z_0-9]+)", s):
+            cur["used"].append((u.group(1), n))
+    for b in blocks:
+        seen = set()
+        for name, n in b["used"]:
+            if name in b["declared"] or name in seen:
+                continue
+            seen.add(name)
+            report("ERROR", path, n, 18,
+                   "$%s is read in %s but that block never declares it" % (name, b["name"]))
+
+
 def check_config(path, T):
     raw_bytes = read(path)
     if b"\r\r" in raw_bytes:
@@ -700,6 +744,7 @@ inv_total(inv, probe_no_such_obj);
 %probe_packonly_varp = 1;
 ~probe_wants_int(enum(int, namedobj, probe_enum, 0));
 ~probe_no_such_proc(1);
+~probe_wants_int($probe_undeclared);
 @probe_no_such_label;
 mes("<tostring(^probe_no_such_const)>");
 %probe_no_such_var = 1;
@@ -733,8 +778,8 @@ if (1 = 1) {
     # that all compile, rule 13 flagged a load-bearing comma, rule 1 could not read a block comment.
     # Every idiom below is one that a previous version of some rule got wrong.
     "probe_clean.rs2": """
-[proc,probe_clean]
-def_int $n = calc(1 + 1);
+[proc,probe_clean](int $given)
+def_int $n = calc(1 + $given);
 mes("<tostring(^probe_const)> and a @dbl@ colour code, which is not a jump");
 ~probe_two(1, 2);
 if ($n = 2) {
@@ -757,6 +802,10 @@ if (p_finduid(uid) = true) {
 [opheld3,probe_obj]
 %probe_unprotected_varp = 1;
 def_obj $o = inv_getobj(inv, 0);
+// declared in THIS block. The first draft of this fixture read $n from the proc above, which is
+// the exact mistake rule 18 exists for - the clean file caught the rule's own author.
+def_int $n = 2;
+~probe_wants_int($n);
 sound_synth(probe_synth, 1, 0);
 inv_add(inv, probe_obj, 1);
 """,
@@ -790,6 +839,9 @@ FIXTURE_MODEL = "models/loc/probe_orphan.ob2"
 # that only asked "did rule 11 appear?" would have passed on it. Asking where is what turns this
 # from a smoke test into a test.
 ALL_RULES = {
+    # 18 is the newest: a $local read in a block that never declares it. Made while writing the
+    # black mask imbue - the single-target magic cast set up $mask_num and a proc two blocks down
+    # read it - and nothing in this file noticed, because there was no rule for it.
     1:    ("probe_brace.rs2", 0),     # an imbalance has no single line; 0 is the file itself
     2:    ("probe_dup_a.rs2", 2),
     3:    ("probe.rs2", 12),
@@ -800,6 +852,7 @@ ALL_RULES = {
     7:    ("probe.rs2", 14),
     "7b": ("probe.rs2", 15),
     11:   ("probe.rs2", 3),
+    18:   ("probe.rs2", 21),
     12:   ("probe_crlf.rs2", 2),
     13:   ("probe.dbrow", 4),
     14:   ("probe.rs2", 16),
@@ -851,6 +904,7 @@ def selftest():
         T["player_varps"]["probe_unprotected_varp"] = False
         for p in sorted(walk({".rs2"})):
             check_script(p, T)
+            check_locals(p)
         for p in sorted(walk({".dbrow", ".constant", ".obj", ".npc", ".loc", ".inv",
                               ".varp", ".varbit"})):
             check_config(p, T)
@@ -913,6 +967,7 @@ def main(argv):
         configs = list(walk({".dbrow", ".constant", ".obj", ".npc", ".loc", ".inv", ".varp", ".varbit"}))
     for p in scripts:
         check_script(p, T)
+        check_locals(p)
     for p in configs:
         check_config(p, T)
     if not targets:

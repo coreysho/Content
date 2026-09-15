@@ -78,12 +78,23 @@ if (~pvm_debuff_allowed($spell_data) = false) {
     return;
 }
 def_int $duration = ~pvm_spell_cast($spell_data);
+// Black mask (i) / slayer helmet (i): 15% to the accuracy roll and the max hit against monsters on
+// the player's current slayer task. The PLAIN mask gives nothing here - only the imbued pair do,
+// which is the whole reason to buy the imbue. ~black_mask_imbued_on_task is in
+// skill_slayer/scripts/black_mask.rs2 and shares its "on task" test with the melee bonus.
+def_int $mask_num = 1;
+def_int $mask_div = 1;
+if (~black_mask_imbued_on_task = true) {
+    $mask_num = 23;
+    $mask_div = 20;
+}
 // if player DOESNT splash:
-if (~player_npc_hit_roll(^magic_style) = true) {
+if (~player_npc_hit_roll_boosted(^magic_style, $mask_num, $mask_div) = true) {
     def_int $maxhit = ~magic_spell_maxhit($spell_data);
     if (npc_type = count_draynor & inv_total(inv, garlic) > 0) {
         $maxhit = add($maxhit, 1);
     }
+    $maxhit = scale($mask_num, $mask_div, $maxhit);
     if((npc_param(slayer_category) = ^slayer_kurask | npc_param(slayer_category) = ^slayer_turoth) & $spell ! ^magic_dart) {
         $maxhit = 0;
     }    
@@ -164,8 +175,17 @@ if (npc_finduid($target) = false) {
 if (~npc_is_attackable = false) {
     return;
 }
-if (~player_npc_hit_roll(^magic_style) = true) {
-    def_int $maxhit = ~magic_spell_maxhit($spell_data);
+// Its own lookup: this is a different proc from the single-target cast above, so that one's
+// $mask_num is not in scope here. Each extra target of a multi-target spell rolls separately, so
+// the mask has to be asked again for each of them anyway.
+def_int $mask_num = 1;
+def_int $mask_div = 1;
+if (~black_mask_imbued_on_task = true) {
+    $mask_num = 23;
+    $mask_div = 20;
+}
+if (~player_npc_hit_roll_boosted(^magic_style, $mask_num, $mask_div) = true) {
+    def_int $maxhit = scale($mask_num, $mask_div, ~magic_spell_maxhit($spell_data));
     ~pvm_spell_success($spell_data, $maxhit, $duration);
     ~pvm_stat_change_effect($spell_data);
     // an already-frozen secondary target is left alone rather than having its freeze refreshed

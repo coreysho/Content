@@ -170,10 +170,13 @@ if (~slayer_has_extend($index) = false) {
 [label,slayer_rewards_buy]
 def_namedobj $item = null;
 def_int $cost = 0;
-switch_int (~p_choice4("Slayer ring (8) - 75 points", 1, "Herb sack - 750 points", 2, "Looting bag - 10 points", 3, "Never mind.", 4)) {
+switch_int (~p_choice5("Slayer ring (8) - 75 points", 1, "Herb sack - 750 points", 2,
+                       "Looting bag - 10 points", 3, "Imbue a black mask or helmet - <tostring(^slayer_imbue_cost)> points", 4,
+                       "Never mind.", 5)) {
     case 1 : $item = slayer_ring_8; $cost = 75;
     case 2 : $item = herb_sack; $cost = 750;
     case 3 : $item = looting_bag; $cost = 10;
+    case 4 : @slayer_imbue;
     case default : return;
 }
 if (~slayer_can_afford($cost) = false) {
@@ -186,6 +189,43 @@ if (inv_freespace(inv) < 1) {
 %slayer_points = sub(%slayer_points, $cost);
 inv_add(inv, $item, 1);
 ~objbox($item, "You spend <tostring($cost)> Slayer points on <~add_article(lowercase(oc_name($item)))>.", 250, 0, 0);
+
+// ---- the imbue ----
+//
+// OSRS imbues a black mask in the Nightmare Zone for 1,250,000 NMZ points, at Soul Wars for 500
+// Zeal tokens, or in Emir's Arena with a Scroll of Imbuing. None of those three exists in a 2006
+// build, so THIS IS A SLAYER MASTER SERVICE INSTEAD and the price is the one invented number in
+// the round: ^slayer_imbue_cost, 1,250 points. It echoes OSRS's 1,250,000 at a thousandth and
+// sits just above the 1,000 that OSRS charges for a helmet recolour unlock, which is the nearest
+// thing to a comparable in the same currency. Corey chose slayer points over a shop or a new
+// token; nothing about the number is derivable and it is meant to be tuned.
+//
+// The imbue is a property of the MASK. A helmet is imbued by imbuing its mask, or directly if it
+// is already assembled - either way, taking a helmet apart hands back whichever mask went in.
+
+[label,slayer_imbue]
+def_namedobj $from = null;
+def_namedobj $to = null;
+if (inv_total(inv, black_mask) > 0) {
+    $from = black_mask;
+    $to = black_mask_i;
+} else if (inv_total(inv, slayer_helm) > 0) {
+    $from = slayer_helm;
+    $to = slayer_helm_i;
+} else {
+    ~chatnpc("<p,neutral>Bring me a black mask or a slayer helmet and I'll imbue it for you.");
+    return;
+}
+if (inv_total(inv, $to) > 0) {
+    ~chatnpc("<p,neutral>You've already got one of those imbued.");
+}
+if (~slayer_can_afford(^slayer_imbue_cost) = false) {
+    return;
+}
+%slayer_points = sub(%slayer_points, ^slayer_imbue_cost);
+inv_del(inv, $from, 1);
+inv_add(inv, $to, 1);
+~objbox($to, "You spend <tostring(^slayer_imbue_cost)> Slayer points imbuing your <lowercase(oc_name($from))>.", 250, 0, 0);
 
 // ---- automatic finishing blows (called from each monster's ai_queue3) ----
 

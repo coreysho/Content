@@ -32,7 +32,17 @@ if ($ammo = null) {
 
 // check hit, give combat xp
 def_int $damage = 0;
-if (~player_npc_hit_roll(%damagetype) = true) {
+// Black mask (i) / slayer helmet (i): 15% to the accuracy roll and the max hit against monsters on
+// the player's current slayer task. The PLAIN mask gives nothing here - only the imbued pair do,
+// which is the whole reason to buy the imbue. ~black_mask_imbued_on_task is in
+// skill_slayer/scripts/black_mask.rs2 and shares its "on task" test with the melee bonus.
+def_int $mask_num = 1;
+def_int $mask_div = 1;
+if (~black_mask_imbued_on_task = true) {
+    $mask_num = 23;
+    $mask_div = 20;
+}
+if (~player_npc_hit_roll_boosted(%damagetype, $mask_num, $mask_div) = true) {
     def_int $maxhit = %com_maxhit;
     if (npc_type = count_draynor & inv_total(inv, garlic) > 0) {
         $maxhit = add($maxhit, 1);
@@ -48,6 +58,9 @@ if (~player_npc_hit_roll(%damagetype) = true) {
             $maxhit = 0;
         }
     }
+    // After the branches that assign from %com_maxhit and would otherwise discard this, and
+    // before the ones that zero $maxhit outright - the same position player_melee.rs2 uses.
+    $maxhit = scale($mask_num, $mask_div, $maxhit);
     if((npc_param(slayer_category) = ^slayer_kurask | npc_param(slayer_category) = ^slayer_turoth)
         & oc_category($rhand) ! weapon_bow & inv_total(worn, slayer_broad_arrows) = 0) {
         $maxhit = 0;
