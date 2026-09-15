@@ -3598,11 +3598,19 @@ _RW = read('scripts/skill_slayer/scripts/slayer_rewards.rs2')
 _IOBJ = blocks(read('scripts/skill_slayer/configs/black_mask.obj'))
 _IOBJ.update(blocks(read('scripts/general/configs/osrs_items.obj')))
 
-for _a, _b in (('black_mask', 'black_mask_i'), ('slayer_helm', 'slayer_helm_i')):
+# WHICH IMBUED TWIN SHARES ITS PARENT'S ART IS NOT A RULE - it is two different answers, and the
+# cache is the authority. OSRS's Black mask (i), obj 11784, is model 15615, the same as the plain
+# mask; its Slayer helmet (i), obj 11865, is model 42702 where the plain one is 42707 - a grey eye
+# instead of a red one. This check shipped asserting the first answer for both, which is how the
+# imbued helmet spent a round wearing the wrong model.
+for _a, _b, _shares in (('black_mask', 'black_mask_i', True),
+                        ('slayer_helm', 'slayer_helm_i', False)):
     check(_b in OBJS, '%s has an id in obj.pack' % _b)
     _p, _i = _IOBJ.get(_a, {}), _IOBJ.get(_b, {})
-    check(_p.get('model') == _i.get('model') and _p.get('manwear') == _i.get('manwear'),
-          '%s uses the plain item\'s models - the imbued one looks identical in OSRS' % _b)
+    _same = (_p.get('model') == _i.get('model') and _p.get('manwear') == _i.get('manwear'))
+    check(_same == _shares,
+          '%s %s the plain item\'s models, which is what the OSRS cache does'
+          % (_b, 'reuses' if _shares else 'has its own, not'))
     _pd = {k: v for k, v in _p.items() if k == 'param'}
     _defs = lambda d: sorted(x for x in (d.get('param') or []) if 'defence' in x)
     check(_defs(_p) == _defs(_i), '%s keeps the plain item\'s defences exactly: %s'
@@ -3726,19 +3734,21 @@ check(not re.search(r'\bblack_mask_i\b|\bslayer_helm_i\b', _both66),
       'tools/obtainable.py finds a real source for both imbued items, not just a mention')
 
 
-print('67. the recoloured slayer helmets')
+print('67. every slayer helmet colour, with OSRS\'s own art')
 
-# Four more helmets today and ten more waiting behind bosses OSRS recolours from, each one the same
-# helmet with two recolour pairs and a different name. Everything here is a COMPARISON against the
-# plain helmet or a re-derivation from the spec; the only numbers written down are OSRS's own
-# drop rates and its own 1,000-point unlock price.
+# Fourteen colours, each in a plain and an imbued form. The FIRST version of this round made a
+# colour by putting two recolour pairs on the plain helmet's model, which only repainted the mask
+# and the strap; OSRS's variants are separately authored meshes. So the checks below are about
+# ART IDENTITY - that each colour really carries its own imported models and not the plain
+# helmet's - and about everything that is NOT art still being inherited unchanged.
 
 import subprocess as _sp67
 _HSPEC = _json.load(open(os.path.join(C, 'tools/slayerhelmspec.json')))
 _kept67 = {f: open(os.path.join(C, f), 'rb').read() for f in (
     'scripts/skill_slayer/configs/slayer_helm_colours.obj',
     'scripts/skill_slayer/configs/slayer_helm.param',
-    'scripts/skill_slayer/scripts/slayer_helm_colours.rs2')}
+    'scripts/skill_slayer/scripts/slayer_helm_colours.rs2',
+    'pack/obj.pack')}
 _r67 = _sp67.run([sys.executable, os.path.join(C, 'tools/genslayerhelm.py')],
                  capture_output=True, text=True, cwd=C)
 check(_r67.returncode == 0, 'tools/genslayerhelm.py runs clean'
@@ -3746,15 +3756,24 @@ check(_r67.returncode == 0, 'tools/genslayerhelm.py runs clean'
 _moved67 = [f for f in _kept67 if open(os.path.join(C, f), 'rb').read() != _kept67[f]]
 for f in _moved67:
     open(os.path.join(C, f), 'wb').write(_kept67[f])
-check(not _moved67, 're-running it changes nothing: %s' % (_moved67 or 'byte-identical'))
+check(not _moved67, 're-running it changes nothing, obj.pack included: %s'
+      % (_moved67 or 'byte-identical'))
 
 _HOBJ = blocks(read('scripts/skill_slayer/configs/slayer_helm_colours.obj'))
 _PLAIN = blocks(read('scripts/general/configs/osrs_items.obj'))
 _COL = _HSPEC['colours']
-_SRC = _HSPEC['source']
-check(len(_HOBJ) == len(_COL) * 2, '%d helmets: one plain and one imbued per colour' % len(_HOBJ))
+_WITH = [c for c in _COL if 'source' in c]
+_WITHOUT = [c for c in _COL if 'source' not in c]
+_names67 = lambda c: ['slayer_helm_%s' % c['key'], 'slayer_helm_%s_i' % c['key']]
+check(len(_HOBJ) == len(_COL) * 2 == 28,
+      '%d helmets: one plain and one imbued for each of %d colours' % (len(_HOBJ), len(_COL)))
+check(len(_WITH) == 2 and sorted(c['key'] for c in _WITH) == ['green', 'red'],
+      'two of them can be obtained - %s - and %d cannot'
+      % (', '.join(sorted(c['key'] for c in _WITH)), len(_WITHOUT)))
 
-# every colour is the plain helmet, unchanged, plus a recolour and a name
+# ---- everything that is not art is the plain helmet's, unchanged
+_ART = ('model', 'manwear', 'womanwear', 'manhead', 'womanhead',
+        '2dzoom', '2dxan', '2dyan', '2dxof', '2dyof', 'name', 'desc')
 _bad = []
 for _c in _COL:
     for _imb in (False, True):
@@ -3765,39 +3784,130 @@ for _c in _COL:
             _bad.append((_k, 'missing')); continue
         if _k not in OBJS:
             _bad.append((_k, 'no id in obj.pack'))
-        for _f in ('model', 'manwear', 'womanwear', 'manhead', 'womanhead',
-                   'wearpos', 'wearpos2', 'wearpos3', 'weight', 'cost'):
+        for _f in ('wearpos', 'wearpos2', 'wearpos3', 'weight', 'cost',
+                   'members', 'tradeable', 'category', 'iop2', 'iop3', 'iop4'):
             if _d.get(_f) != _p.get(_f):
                 _bad.append((_k, '%s differs from the plain helmet' % _f))
-        if sorted(x for x in (_d.get('param') or []) if 'defence' in x) \
-                != sorted(x for x in (_p.get('param') or []) if 'defence' in x):
-            _bad.append((_k, 'defences differ from the plain helmet'))
-        if (_d.get('recol1s') or [''])[0] != str(_SRC['dark']) \
-                or (_d.get('recol2s') or [''])[0] != str(_SRC['light']):
-            _bad.append((_k, 'recolours a colour the helmet is not made of'))
-        if (_d.get('recol1d') or [''])[0] != str(_c['dark']) \
-                or (_d.get('recol2d') or [''])[0] != str(_c['light']):
-            _bad.append((_k, 'not the spec\'s colour'))
-check(not _bad, 'each is the plain helmet plus two recolour pairs: %s' % (_bad[:3] or 'all four'))
+        _dp = sorted(x for x in (_d.get('param') or []) if not x.startswith('slayer_'))
+        _pp = sorted(x for x in (_p.get('param') or []) if not x.startswith('slayer_'))
+        if _dp != _pp:
+            _bad.append((_k, 'combat params differ from the plain helmet'))
+check(not _bad, 'each inherits every stat, op and gate from the plain helmet: %s'
+      % (_bad[:3] or 'all 28'))
 
-# THE RECOLOUR SOURCES ARE THE MODEL'S OWN. A pair that matches no face leaves the helmet black,
-# and the config gives no error - the engine converts rgb15 to hsl16 and simply finds nothing.
+# ---- and the ART is its own. This is the check the recolour version could not have passed.
+_bad = []
+_plainmodels = set(_PLAIN['slayer_helm'].get('model') or [])
+for _c in _COL:
+    _stem = 'obj_slayer_helm_%s' % _c['models']
+    for _k in _names67(_c):
+        _d = _HOBJ[_k]
+        if _d.get('model') != [_stem]:
+            _bad.append((_k, 'model is %s, not %s' % (_d.get('model'), _stem)))
+        if set(_d.get('model') or []) & _plainmodels:
+            _bad.append((_k, 'still wearing the plain helmet\'s model'))
+        for _f, _want in (('manwear', '%s_manwear,0' % _stem),
+                          ('womanwear', '%s_womanwear,0' % _stem),
+                          ('manhead', '%s_manhead' % _stem),
+                          ('womanhead', '%s_womanhead' % _stem)):
+            if _d.get(_f) != [_want]:
+                _bad.append((_k, '%s is %s, not %s' % (_f, _d.get(_f), _want)))
+check(not _bad, 'every colour carries its OWN five models, not the plain helmet\'s: %s'
+      % (_bad[:3] or 'all 14 sets'))
+
+# the model files exist, are registered, and parse
 sys.path.insert(0, os.path.join(C, 'tools'))
 from ob2render import Model as _M67, rgb15_to_hsl16 as _r15
-_mdl = _M67(os.path.join(C, 'models/obj/obj_slayer_helm.ob2'))
-_faces = set(int(x) for x in _mdl.colour)
-check(_r15(_SRC['dark']) in _faces and _r15(_SRC['light']) in _faces,
-      'both recolour sources really are colours the helmet model paints with')
-check(_r15(_SRC['dark']) in set(int(x) for x in
-      _M67(os.path.join(C, 'models/obj/obj_black_mask.ob2')).colour),
-      '...and they are the mask\'s own colours, which is the part OSRS recolours')
+_MODELS = set(packmap('pack/model.pack'))
+_bad, _geom = [], {}
+for _c in _COL:
+    for _suf in ('', '_manwear', '_womanwear', '_manhead', '_womanhead'):
+        _nm = 'obj_slayer_helm_%s%s' % (_c['models'], _suf)
+        _path = os.path.join(C, 'models/obj/%s.ob2' % _nm)
+        if _nm not in _MODELS:
+            _bad.append((_nm, 'not in pack/model.pack')); continue
+        if not os.path.exists(_path):
+            _bad.append((_nm, 'no file on disk')); continue
+        try:
+            _m = _M67(_path)
+            if len(_m.colour) == 0:
+                _bad.append((_nm, 'no faces'))
+            _geom.setdefault(_c['models'], {})[_suf] = (len(_m.colour), open(_path, 'rb').read())
+        except Exception as _e:
+            _bad.append((_nm, 'will not parse: %s' % _e))
+check(not _bad, 'all %d model files are packed, present and parse: %s'
+      % (len(_COL) * 5, _bad[:3] or 'yes'))
 
-# membership is the three params, and nothing names an item
+# THE GEOMETRY IS THE ANCHOR. Everything above compares the config against the spec, so a colour
+# pointed at the WRONG model set would be self-consistent and nothing would notice - the OSRS cache
+# that would settle it is not on this machine. slayerhelmspec.json records each colour's vertex and
+# face counts as they came out of the importer; this measures the shipped files against them.
+_bad = []
+for _c in _COL:
+    for _suf, _lbl in (('', 'inv'), ('_manwear', 'manwear'),
+                       ('_womanwear', 'womanwear'), ('_manhead', 'manhead')):
+        _m = _M67(os.path.join(C, 'models/obj/obj_slayer_helm_%s%s.ob2' % (_c['models'], _suf)))
+        _want = _c['geom'][_lbl]
+        if [int(_m.vcount), int(_m.fcount)] != _want:
+            _bad.append((_c['key'], _lbl, [int(_m.vcount), int(_m.fcount)], _want))
+check(not _bad, 'every model is the shape the import recorded for it: %s' % (_bad[:3] or 'all 56'))
+_fp = {}
+for _c in _COL:
+    _fp.setdefault(tuple(tuple(v) for v in _c['geom'].values()), []).append(_c['key'])
+_twins = sorted(v for v in _fp.values() if len(v) > 1)
+check(_twins == [['oathplate', 'radiant']],
+      'and no two colours are secretly the same mesh, bar the one that is: %s' % _twins)
+
+# DIFFERENT MESHES, not the same one renamed. The bytes are the source here, not the spec.
+_sets = {k: v.get('', (0, b''))[1] for k, v in _geom.items()}
+_plainbytes = open(os.path.join(C, 'models/obj/obj_slayer_helm.ob2'), 'rb').read()
+_dupe = [k for k, b in _sets.items() if b == _plainbytes]
+check(not _dupe, 'no colour is the plain helmet\'s mesh under another name: %s' % (_dupe or 'none'))
+_seen67 = {}
+for _k, _b in sorted(_sets.items()):
+    _seen67.setdefault(_b, []).append(_k)
+_shared = [v for v in _seen67.values() if len(v) > 1]
+check(not _shared, 'and no two model SETS are identical: %s' % (_shared or 'all %d differ' % len(_sets)))
+# radiant is declared as a repaint of oathplate and must stay one
+_rad = next((c for c in _COL if c['key'] == 'radiant'), None)
+check(_rad is not None and _rad['models'] == 'oathplate' and len(_rad['recol']) == 10,
+      'radiant is a ten-pair repaint of the oathplate model, which is what OSRS does too')
+
+# ---- recolour pairs: only where OSRS itself has them, and every source hits a real face
+_bad, _npairs = [], 0
+for _c in _COL:
+    _d = _HOBJ['slayer_helm_%s' % _c['key']]
+    _got = [(int((_d.get('recol%ds' % _n) or [0])[0]), int((_d.get('recol%dd' % _n) or [0])[0]))
+            for _n in range(1, len(_c['recol']) + 1)]
+    if _got != [tuple(x) for x in _c['recol']]:
+        _bad.append((_c['key'], 'pairs do not match the spec'))
+    if _d.get('recol%ds' % (len(_c['recol']) + 1)):
+        _bad.append((_c['key'], 'more pairs in the config than in the spec'))
+    _npairs += len(_c['recol'])
+    # A SOURCE THAT MATCHES NO FACE DOES NOTHING, SILENTLY - the bug that made the first version of
+    # this round render three identical helmets. The model's own face colours are the check.
+    _faces = set()
+    for _suf in ('', '_manwear', '_womanwear', '_manhead'):
+        _faces |= set(int(x) for x in
+                      _M67(os.path.join(C, 'models/obj/obj_slayer_helm_%s%s.ob2'
+                                        % (_c['models'], _suf))).colour)
+    for _s, _dst in _c['recol']:
+        if _r15(_s) not in _faces:
+            _bad.append((_c['key'], 'recolour source %d paints no face of its own model' % _s))
+check(not _bad, '%d recolour pairs, all hitting real faces: %s' % (_npairs, _bad[:3] or 'yes'))
+check(sorted(c['key'] for c in _COL if c['recol']) == ['oathplate', 'radiant', 'twisted'],
+      'and only the three OSRS recolours carry any: oathplate, radiant, twisted')
+
+# the plain imbued helmet got its own model too, which it did not have before
+check(_PLAIN['slayer_helm_i'].get('model') == ['obj_slayer_helm_i']
+      and _PLAIN['slayer_helm_i'].get('model') != _PLAIN['slayer_helm'].get('model'),
+      'the plain imbued helmet is OSRS obj 11865\'s own model, not the plain one renamed')
+
+# ---- membership is the three params, and nothing names an item
 _PARAM = blocks(read('scripts/skill_slayer/configs/slayer_helm.param'))
 check(sorted(_PARAM) == ['slayer_headgear', 'slayer_helmet', 'slayer_imbued'],
       'three params: %s' % sorted(_PARAM))
 _MASKS = blocks(read('scripts/skill_slayer/configs/black_mask.obj'))
-_has = lambda d, p: ('param=%s,yes' % p) in ['param=' + v for v in (d.get('param') or [])]
 _bad = []
 for _k, _want in [('black_mask', ('slayer_headgear',)),
                   ('black_mask_i', ('slayer_headgear', 'slayer_imbued')),
@@ -3815,8 +3925,7 @@ for _c in _COL:
                             if v.startswith('slayer_')))
         if _got != tuple(sorted(_want)):
             _bad.append((_k, _got, tuple(sorted(_want))))
-check(not _bad, 'every piece declares exactly what it is: %s' % (_bad[:2] or 'all eight'))
-# a bare mask must NOT claim the helmet's protections
+check(not _bad, 'every piece declares exactly what it is: %s' % (_bad[:2] or 'all 32'))
 check('slayer_helmet' not in str(_MASKS['black_mask'].get('param')),
       'and a bare black mask is not a helmet - no earmuffs in it')
 
@@ -3833,63 +3942,101 @@ for _proc, _src, _param in (('black_mask_on_task', _BM67, 'slayer_headgear'),
           and 'inv_total(worn, slayer_helm' not in _body,
           '...and names no item, so a new colour needs no edit here')
 
-# a recolour needs its unlock AND its head, and the head is consumed
+# ---- the two that can be made: unlock, head, and the imbue surviving
 _RC67 = read('scripts/skill_slayer/scripts/slayer_helm_colours.rs2')
-for _c in _COL:
+for _c in _WITH:
+    _s = _c['source']
     _b = _RC67.split('[label,slayer_recolour_%s]' % _c['key'], 1)[1].split('\n[', 1)[0]
-    check('~slayer_has_unlock(%d)' % _c['bit'] in _b,
-          '%s needs its unlock (bit %d)' % (_c['key'], _c['bit']))
-    check('inv_del(inv, %s, 1);' % _c['head'] in _b, '...and uses up the %s' % _c['head'])
+    check('~slayer_has_unlock(%d)' % _s['bit'] in _b,
+          '%s needs its unlock (bit %d)' % (_c['key'], _s['bit']))
+    check('inv_del(inv, %s, 1);' % _s['head'] in _b, '...and uses up the %s' % _s['head'])
     check('$into = slayer_helm_%s_i;' % _c['key'] in _b,
           '...and an imbued helmet stays imbued through it')
-# ONE trigger per colour: [opheldu,X] normalises the direction, so a second is a duplicate and a
-# duplicate trigger does not compile. The generator emitted three per colour on its first run.
-check(len(re.findall(r'^\[opheldu,', _RC67, re.M)) == len(_COL),
-      'one [opheldu] per colour, on the head: %d' % len(re.findall(r'^\[opheldu,', _RC67, re.M)))
+# ONE trigger per OBTAINABLE colour, and none at all for the rest: [opheldu,X] normalises the
+# direction, so a second is a duplicate, and a duplicate trigger does not compile.
+_trig = re.findall(r'^\[opheldu,(\w+)\]', _RC67, re.M)
+check(sorted(_trig) == sorted(c['source']['head'] for c in _WITH),
+      'one [opheldu] per obtainable colour and no others: %s' % _trig)
+check(not [c for c in _WITHOUT if 'slayer_recolour_%s]' % c['key'] in _RC67],
+      'nothing pretends the other %d can be made' % len(_WITHOUT))
 
-# the drops are OSRS's own rates, on the right monsters
-for _c, _file, _rate in ((_COL[0], 'scripts/drop_tables/scripts/abyssal_demon.rs2', 6000),
-                         (_COL[1], 'scripts/drop_tables/scripts/kalphite_queen.rs2', 128)):
+# disassembly hands back what went in - six things for a colour with a head, five for one without
+for _c in _WITH:
+    check('@slayer_helm_split_coloured(black_mask, %s)' % _c['source']['head'] in _RC67
+          and '@slayer_helm_split_coloured(black_mask_i, %s)' % _c['source']['head'] in _RC67,
+          '%s disassembles back into its parts AND its head' % _c['key'])
+# PER ITEM, not per colour. Reading the colour name out of the trigger and comparing SETS let a
+# black helmet route to the head version while its imbued twin routed to the headless one - the set
+# still said 'black' and the check still passed. Every one of the 28 is named here.
+_want4 = {}
+for _c in _COL:
+    for _k in _names67(_c):
+        _mask = 'black_mask_i' if _k.endswith('_i') else 'black_mask'
+        _want4[_k] = ('@slayer_helm_split_coloured(%s, %s);' % (_mask, _c['source']['head'])
+                      if 'source' in _c else '@slayer_helm_split_headless(%s);' % _mask)
+_bad = [k for k, v in _want4.items() if ('[opheld4,%s] %s' % (k, v)) not in _RC67]
+check(not _bad, 'all %d disassemble into exactly what went into them, the %d with no head giving '
+      'back five things rather than six: %s' % (len(_want4), len(_WITHOUT) * 2, _bad[:3] or 'yes'))
+check('inv_freespace(inv) < 5' in _RC67 and 'inv_freespace(inv) < 4' in _RC67,
+      '...and each asks for the right amount of room first')
+
+# ---- the drops are OSRS's own rates, on the right monsters
+for _c, _file, _rate in ((next(c for c in _COL if c['key'] == 'red'),
+                          'scripts/drop_tables/scripts/abyssal_demon.rs2', 6000),
+                         (next(c for c in _COL if c['key'] == 'green'),
+                          'scripts/drop_tables/scripts/kalphite_queen.rs2', 128)):
     _t = read(_file)
-    check('random(%d) = 0' % _rate in _t and _c['head'] in _t,
-          '%s drops at 1/%d, which is OSRS\'s own rate' % (_c['head'], _rate))
+    check('random(%d) = 0' % _rate in _t and _c['source']['head'] in _t,
+          '%s drops at 1/%d, which is OSRS\'s own rate' % (_c['source']['head'], _rate))
 
 # the unlocks cost what OSRS charges, and the menu and the switch agree
 _RW67 = read('scripts/skill_slayer/scripts/slayer_rewards.rs2')
 # The chat menu that held these is gone: the Cosmetics tab reads them out of three parallel
 # tables, so the name, the bit and the price can no longer be written in two places and drift.
+# Only the colours with a source are unlockable - the other twelve are ::give only and have no row.
 _CN = dict(re.findall(r'^val=(\d+),(.*)$',
            _RE.split('[slayer_cosmetic_name]', 1)[1].split('\n[', 1)[0], re.M))
 _CB = dict(re.findall(r'^val=(\d+),(-?\d+)$',
            _RE.split('[slayer_cosmetic_bit]', 1)[1].split('\n[', 1)[0], re.M))
 _CC = dict(re.findall(r'^val=(\d+),(-?\d+)$',
            _RE.split('[slayer_cosmetic_cost]', 1)[1].split('\n[', 1)[0], re.M))
-for _c in _COL:
-    _row = [k for k, v in _CN.items() if v.strip() == _c['unlock']]
-    check(len(_row) == 1, '%s is one row of the Cosmetics tab' % _c['unlock'])
+check(len(_CN) == len(_WITH),
+      'the Cosmetics tab is exactly the colours you can unlock: %d rows, %d with a source'
+      % (len(_CN), len(_WITH)))
+for _c in _WITH:
+    _s = _c['source']
+    _row = [k for k, v in _CN.items() if v.strip() == _s['unlock']]
+    check(len(_row) == 1, '%s is one row of the Cosmetics tab' % _s['unlock'])
     if len(_row) == 1:
-        check(int(_CB[_row[0]]) == _c['bit'] and int(_CC[_row[0]]) == _c['cost'],
+        check(int(_CB[_row[0]]) == _s['bit'] and int(_CC[_row[0]]) == _s['cost'],
               '...on bit %d for %d points, the numbers the recolour itself reads'
-              % (_c['bit'], _c['cost']))
+              % (_s['bit'], _s['cost']))
 check('enum(int, int, slayer_cosmetic_cost, $i)' in _RW67
       and 'enum(int, int, slayer_cosmetic_bit, $i)' in _RW67,
       'and buying one spends and sets whatever those tables say, never a copy')
-check(all(_c['cost'] == 1000 for _c in _COL),
+check(all(_c['source']['cost'] == 1000 for _c in _WITH),
       'both at OSRS\'s own 1,000 - this price did not have to be invented')
-_bits = [_c['bit'] for _c in _COL]
+_bits = [_c['source']['bit'] for _c in _WITH]
 check(len(set(_bits)) == len(_bits) and all(b not in (0, 1, 2, 3, 4) for b in _bits),
       'on unlock bits nothing else uses: %s' % _bits)
 
-# and every new obj can actually be got
+# ---- and the sweep agrees about which ones you can get. RUN IT, do not read it.
 _sw67 = _sp67.run([sys.executable, os.path.join(C, 'tools/obtainable.py')],
                   capture_output=True, text=True, cwd=C)
-_all67 = _sw67.stdout.split('NOTHING ANYWHERE MENTIONS THESE', 1)[-1]
-_new67 = [c['head'] for c in _COL] + ['slayer_helm_%s%s' % (c['key'], s)
-                                      for c in _COL for s in ('', '_i')]
-_orph = [n for n in _new67 if re.search(r'\b%s\b' % n, _all67)]
-check(not _orph, 'tools/obtainable.py finds a source for all %d new objs: %s'
-      % (len(_new67), _orph or 'heads and helmets alike'))
-
+_out67 = _sw67.stdout
+_hard67 = _out67.split('NOTHING ANYWHERE MENTIONS THESE', 1)[-1]
+_design67 = _out67.split('BUILT WITH NO SOURCE ON PURPOSE', 1)[-1].split('====')[1]
+_gettable = [c['source']['head'] for c in _WITH] + [n for c in _WITH for n in _names67(c)]
+_orph = [n for n in _gettable if re.search(r'\b%s\b' % n, _hard67)]
+check(not _orph, 'the sweep finds a source for all %d obtainable objs: %s'
+      % (len(_gettable), _orph or 'heads and both colours'))
+_expect67 = sorted(n for c in _WITHOUT for n in _names67(c))
+_listed67 = sorted(re.findall(r'\b(slayer_helm_\w+)', _design67))
+check(_listed67 == _expect67,
+      'and names the other %d as deliberate, by name: %s'
+      % (len(_expect67), 'yes' if _listed67 == _expect67 else set(_expect67) ^ set(_listed67)))
+check('WARNING:' not in _design67,
+      'with no disagreement between the spec and what the game can actually give out')
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
 sys.exit(1 if fails else 0)

@@ -15,6 +15,12 @@ AN OBJ IS OBTAINABLE if any of these names it:
   a multiloc-ish  an obj built out of another by a recipe the script names (covered by the script
                   rule above - this is not a separate case, just a reminder that inv_add is it)
 
+ONE THING IS DELIBERATELY UNOBTAINABLE and says so: twelve of the fourteen slayer helmet colours
+exist only to be looked at with ::give, because the monsters that drop their heads are not in this
+era. They are read out of tools/slayerhelmspec.json - the colours with no "source" block - and
+printed in their own section rather than being filtered out, so the list stays honest and so the
+day black gets a source, this tool notices the spec disagrees with the game.
+
 Everything else is reported, grouped, so the interesting ones can be told from the noise. MOST OF
 THE OUTPUT IS NOISE and that is expected: a 377 cache carries thousands of objs this server has no
 content for. What matters is the objs THIS REPO went to the trouble of defining - the ones in
@@ -23,7 +29,7 @@ scripts/**/configs/*.obj rather than scripts/_unpack - because somebody meant th
     python3 tools/obtainable.py              # the summary and the repo-defined orphans
     python3 tools/obtainable.py --all        # every orphan, including the cache's own
 """
-import os, re, sys, io, collections
+import os, re, sys, io, json, collections
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -60,6 +66,32 @@ def configs(pattern):
                     k, v = l.split('=', 1)
                     out[cur].setdefault(k, v)
     return out, where
+
+
+def byexception(given):
+    """The objs this repo built on purpose with nothing to give them out.
+
+    Read from tools/slayerhelmspec.json rather than listed here, so a colour added to the spec is
+    covered without touching this file and - more to the point - so a colour that GAINS a source
+    cannot sit in an exception list forever. If the game can give you one, that is reported as a
+    disagreement instead of quietly excusing it.
+    """
+    spec_path = os.path.join(ROOT, 'tools', 'slayerhelmspec.json')
+    if not os.path.exists(spec_path):
+        return set(), []
+    spec = json.loads(read('tools/slayerhelmspec.json'))
+    names, wrong = set(), []
+    for c in spec['colours']:
+        pair = ('slayer_helm_%s' % c['key'], 'slayer_helm_%s_i' % c['key'])
+        if 'source' in c:
+            continue
+        for nm in pair:
+            if nm in given:
+                wrong.append('%s has no "source" in slayerhelmspec.json, but something in the game '
+                             'gives you one - update the spec' % nm)
+            else:
+                names.add(nm)
+    return names, wrong
 
 
 def main():
@@ -245,12 +277,28 @@ def main():
 
     repo = [o for o in orphan if o[3] and '_unpack' not in o[3]]
     cache = [o for o in orphan if not o[3] or '_unpack' in o[3]]
+    # Deliberately sourceless, declared in a spec rather than in a list here, so it cannot drift
+    # away from what the generator actually built.
+    bydesign, mismatch = byexception(given)
+    onpurpose = [o for o in repo if o[1] in bydesign]
+    repo = [o for o in repo if o[1] not in bydesign]
     hard = [o for o in repo if o[1] not in loose]
     soft = [o for o in repo if o[1] in loose]
     print('%d objs in obj.pack; %d have a source; %d do not' % (len(objs), len(given), len(orphan)))
     print('  %d of those are defined by a config in this repo' % len(repo))
     print('  %d are the 377 cache\'s own, which this server has no content for' % len(cache))
     print()
+    if onpurpose or mismatch:
+        print('==== BUILT WITH NO SOURCE ON PURPOSE (%d) ====' % len(onpurpose))
+        print('Declared in tools/slayerhelmspec.json as colours with no "source" block. The monsters')
+        print('that drop their heads are not in this era; the helmets exist so they can be looked at')
+        print('with ::give. Not a bug list - but not hidden either.')
+        print()
+        for i, name, disp, src in sorted(onpurpose):
+            print('    %5d  %-38s %s' % (i, name, disp))
+        for m in mismatch:
+            print('    WARNING: %s' % m)
+        print()
     print('==== NOTHING ANYWHERE MENTIONS THESE (%d) ====' % len(hard))
     print('No script, table, shop, map or param names them. Nothing can give you one and nothing')
     print('can use one. These are the real ones.')

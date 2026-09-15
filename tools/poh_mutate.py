@@ -850,17 +850,27 @@ if (inv_total(inv, coins) < $cost) {
   'param=magicattack,3\nparam=rangeattack,3\nparam=stabdefence,30',
   'param=magicattack,3\nparam=rangeattack,3\nparam=stabdefence,31',
   '66 slayer_helm_i keeps the plain item\'s defences exactly'),
- # ---- 67: the recoloured helmets ----
- # a recolour pair that matches no face on the model - the helmet comes out black with a smear and
- # the config gives no error at all, because the engine just finds nothing to replace
- ('tools/slayerhelmspec.json', '"dark": 3170', '"dark": 3171',
-  '67 both recolour sources really are colours the helmet model paints'),
- # a colour that is not the plain helmet underneath - here, one that quietly loses a wear position,
- # which in game means it stops hiding the player's hair and the helmet grows a fringe
- ('tools/genslayerhelm.py',
-  "                if line.startswith('param=slayer_'):",
-  "                if line.startswith('param=slayer_') or line.startswith('wearpos2='):",
-  '67 each is the plain helmet plus two recolour pairs'),
+ # ---- 67: every slayer helmet colour ----
+ # a colour wearing the plain helmet's model again, which is the whole bug this round fixed: the
+ # first version repainted two colours on the plain mesh and three helmets came out looking alike
+ ('scripts/skill_slayer/configs/slayer_helm_colours.obj',
+  'model=obj_slayer_helm_red\nmanwear=obj_slayer_helm_red_manwear,0',
+  'model=obj_slayer_helm\nmanwear=obj_slayer_helm_manwear,0',
+  "67 every colour carries its OWN five models, not the plain helmet's"),
+ # a colour quietly pointed at another colour's art - the config and the spec would agree with each
+ # other and only the recorded geometry notices
+ ('tools/slayerhelmspec.json',
+  '"models": "purple"', '"models": "hydra"',
+  '67 every model is the shape the import recorded for it'),
+ # a recolour source that matches no face - the helmet comes out unchanged and nothing errors
+ ('scripts/skill_slayer/configs/slayer_helm_colours.obj',
+  'recol1s=29695', 'recol1s=29694',
+  '67 recolour pairs, all hitting real faces'),
+ # a colour that is not the plain helmet underneath - here one that loses a wear position, which in
+ # game means it stops hiding the player's hair and the helmet grows a fringe
+ ('scripts/skill_slayer/configs/slayer_helm_colours.obj',
+  '[slayer_helm_black]', '[slayer_helm_black]\nwearpos2=head\n',
+  '67 each inherits every stat, op and gate from the plain helmet'),
  # a recolour anyone can do without the unlock they paid for
  ('scripts/skill_slayer/scripts/slayer_helm_colours.rs2',
   'if (~slayer_has_unlock(5) = false) {\n    mes("You need the Unholy Helmet unlock from a Slayer master to do that.");\n    return;\n}\n',
@@ -869,34 +879,52 @@ if (inv_total(inv, coins) < $cost) {
  # ...or one that does not use up the head
  ('scripts/skill_slayer/scripts/slayer_helm_colours.rs2',
   'inv_del(inv, abyssal_head, 1);' + chr(10), '',
-  '67 and uses up the abyssal_head'),
+  '67 ...and uses up the abyssal_head'),
  # an imbued helmet losing its imbue when recoloured - the player paid for that
  ('scripts/skill_slayer/scripts/slayer_helm_colours.rs2',
   'def_namedobj $into = slayer_helm_red;\nif (inv_total(inv, slayer_helm_i) > 0) {\n    $into = slayer_helm_red_i;\n}',
   'def_namedobj $into = slayer_helm_red;',
-  '67 and an imbued helmet stays imbued through it'),
+  '67 ...and an imbued helmet stays imbued through it'),
+ # a colour nothing can make pretending it can - a disassemble that hands back a head that does not
+ # exist in any inventory, out of an item there is no way to have obtained honestly
+ ('scripts/skill_slayer/scripts/slayer_helm_colours.rs2',
+  '[opheld4,slayer_helm_black] @slayer_helm_split_headless(black_mask);',
+  '[opheld4,slayer_helm_black] @slayer_helm_split_coloured(black_mask, abyssal_head);',
+  '67 all 28 disassemble into exactly what went into them'),
  # a drop rate that is not OSRS's
  ('scripts/drop_tables/scripts/abyssal_demon.rs2',
   'if (random(6000) = 0) {', 'if (random(600) = 0) {',
-  '67 abyssal_head drops at 1/6000'),
- # the menu and the switch disagreeing about a price, which is how a player pays 1,000 for nothing
- ('scripts/skill_slayer/scripts/slayer_rewards.rs2',
-  'case 8 : $bit = 5; $cost = 1000;', 'case 8 : $bit = 5; $cost = 500;',
-  '67 Unholy Helmet is 1000 points in the menu AND in the switch'),
+  "67 abyssal_head drops at 1/6000, which is OSRS's own rate"),
+ # The chat menu that held this switch is gone - the Cosmetics tab of the rewards window reads the
+ # price out of a table now, so the drift to guard against is that table against the spec.
+ ('scripts/skill_slayer/configs/slayer_rewards.enum',
+  '[slayer_cosmetic_cost]\ninputtype=int\noutputtype=int\ndefault=0\nval=0,1000',
+  '[slayer_cosmetic_cost]\ninputtype=int\noutputtype=int\ndefault=0\nval=0,500',
+  '67 ...on bit 5 for 1000 points, the numbers the recolour itself reads'),
+ # a colour with no source turning up in the tab, which would sell an unlock that unlocks nothing
+ ('scripts/skill_slayer/configs/slayer_rewards.enum',
+  'val=1,Kalphite Khat\n', 'val=1,Kalphite Khat\nval=2,Tzkal Helmet\n',
+  '67 the Cosmetics tab is exactly the colours you can unlock'),
  # two unlocks sharing a bit, so buying one gives both
  ('tools/slayerhelmspec.json', '"bit": 6', '"bit": 5',
   '67 on unlock bits nothing else uses'),
- # a coloured helmet that forgets it is a helmet - eight protections lost at once
- ('tools/genslayerhelm.py',
-  "'param=slayer_headgear,yes', 'param=slayer_helmet,yes']",
-  "'param=slayer_headgear,yes']",
+ # a colour that forgets it is a helmet - eight protections lost at once
+ ('scripts/skill_slayer/configs/slayer_helm_colours.obj',
+  '[slayer_helm_tzkal]\nname=Tzkal slayer helmet', '[slayer_helm_tzkal]\nname=Tzkal slayer helmet\nparam=slayer_imbued,yes',
   '67 every piece declares exactly what it is'),
  # a door going back to naming items, which is what stops a new colour working
  ('scripts/skill_slayer/scripts/black_mask.rs2',
   'if (oc_param($hat, slayer_headgear) = true) {',
   'if ($hat = black_mask | $hat = slayer_helm) {',
-  '67 black_mask_on_task reads slayer_headgear'),
-]
+  '67 ~black_mask_on_task reads slayer_headgear'),
+ # the sweep quietly dropping the deliberate ones instead of naming them, which is what an
+ # exception list turns into: twelve colours would vanish from the report rather than be accounted
+ # for, and the day one of them gets a source nothing would say the spec is out of date
+ ('tools/obtainable.py',
+  '    spec = json.loads(read(\'tools/slayerhelmspec.json\'))',
+  '    return set(), []\n    spec = json.loads(read(\'tools/slayerhelmspec.json\'))',
+  '67 and names the other 24 as deliberate, by name'),
+ ]
 
 def checker_for(why):
     if why.endswith('(rs2check)'):
@@ -913,8 +941,16 @@ def main():
     if os.path.exists(W):
         shutil.rmtree(W)
     shutil.copytree(C, W, ignore=shutil.ignore_patterns('.git', '__pycache__'))
+    # A FULL RUN TAKES OVER AN HOUR now that the battery drives five generators. An argument
+    # filters by the why string, which is how one round's entries get run on their own:
+    #     python3 tools/poh_mutate.py 67
+    only = sys.argv[1] if len(sys.argv) > 1 else None
+    muts = [m for m in MUTS if not only or only in m[3]]
+    if only:
+        print('running %d of %d mutations matching %r' % (len(muts), len(MUTS), only))
     fails = 0
-    for path, find, repl, why in MUTS:
+    loose = 0
+    for path, find, repl, why in muts:
         p = os.path.join(W, path)
         original = open(p, 'rb').read()
         raw = original.decode('utf-8')
@@ -933,11 +969,26 @@ def main():
                            text=True, cwd=cwd)
         open(p, 'wb').write(original)
         ok = r.returncode != 0
-        print('  %-5s %-46s %-20s %s' % ('red' if ok else 'GREEN', why,
-              os.path.basename(checker), 'caught' if ok else 'NOT CAUGHT'))
+        # WHICH check went red matters. A mutation that trips some OTHER check still exits
+        # non-zero, so counting exit codes alone proves only that something noticed - not that
+        # the check this mutation was written for is doing anything. The why string carries the
+        # text of that check after its group number; if a FAIL line contains it, say so.
+        named = why.split(' ', 1)[1] if why[:1].isdigit() else why
+        fired = [l.strip()[5:].strip() for l in r.stdout.split('\n') if l.strip().startswith('FAIL')]
+        onpoint = any(named in f for f in fired)
         if not ok:
+            state, note = 'GREEN', 'NOT CAUGHT'
             fails += 1
-    print('\n%s' % ('every mutation was caught' if not fails else '%d MUTATIONS SURVIVED' % fails))
+        elif onpoint:
+            state, note = 'red', 'caught by its own check'
+        else:
+            state, note = 'red', 'caught, but by: %s' % (fired[0][:60] if fired else 'a non-zero exit')
+            loose += 1
+        print('  %-5s %-46s %-20s %s' % (state, why, os.path.basename(checker), note))
+    print()
+    if loose:
+        print('%d caught by a check other than the one named - see the note beside each' % loose)
+    print('%s' % ('every mutation was caught' if not fails else '%d MUTATIONS SURVIVED' % fails))
     return 1 if fails else 0
 
 if __name__ == '__main__':
