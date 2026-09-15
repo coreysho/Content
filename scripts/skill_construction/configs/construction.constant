@@ -16,6 +16,19 @@
 // for every one of the 6 * 9 combinations.
 ^poh_window_kinds = 9
 
+// ---- rugs (poh_rug.rs2, 2026-09-15) ----
+// Which piece of the rug a tile takes. The rug is one piece of furniture over a rectangle of
+// floor, and these index ~poh_rug_loc three at a time, so they must stay 0, 1, 2.
+^poh_rug_corner = 0
+^poh_rug_side = 1
+^poh_rug_middle = 2
+
+// The room tile a rug is STORED at. Not a tile the rug covers: an anchored piece needs one slot
+// key per room whichever of its hotspots was clicked, and (7,7) is the only tile that carries no
+// hotspot in any of the five rooms that have a Rug space - so a rug and a statue can never want
+// the same slot. Battery group 60 is what keeps that true.
+^poh_rug_anchor = 7
+
 // ---- the portal chamber (poh_portal_chamber.rs2, 2026-09-14) ----
 // Which of the three Portal spaces, named by the side of the room it stands on. These index
 // %poh_portals three bits at a time, so they must stay 0, 1, 2.
@@ -133,7 +146,7 @@
 //
 // How many pieces one house can hold, and how many buildable things there are.
 ^poh_furn_slots = 256
-^poh_furn_items = 296
+^poh_furn_items = 305
 
 // The bit layout of one packed piece. 30 bits, so it fits an int with room to spare.
 ^poh_furn_bit_rx = 0
@@ -146,7 +159,7 @@
 ^poh_furn_bit_item_hi = 23
 
 // Construction experience per plank. OSRS's furniture xp is very nearly planks x this, so it
-// is one rule rather than 296 rows of remembered numbers - and it is the obvious thing to tune.
+// is one rule rather than 305 rows of remembered numbers - and it is the obvious thing to tune.
 ^poh_xp_plank = 29
 ^poh_xp_oak = 60
 ^poh_xp_teak = 90
@@ -231,6 +244,9 @@
 ^poh_fam_portal = 65
 ^poh_fam_combat_ring = 66
 ^poh_fam_combat_storage = 67
+^poh_fam_rug = 68
+^poh_fam_curtain = 69
+^poh_fam_walldecor = 70
 
 // The exit portal, as a piece of furniture. It is the garden's level-1 centrepiece, which
 // is where OSRS puts it, and ~poh_ensure_exit hands one out free to any house that has no

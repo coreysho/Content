@@ -11,7 +11,8 @@ FILES = ['scripts/skill_construction/scripts/poh.rs2', 'scripts/skill_constructi
          'scripts/skill_construction/scripts/poh_tablets.rs2',
          'scripts/skill_construction/scripts/poh_portal_chamber.rs2',
          'scripts/skill_construction/scripts/poh_combat_ring.rs2',
-         'scripts/skill_construction/scripts/poh_combat.rs2']
+         'scripts/skill_construction/scripts/poh_combat.rs2',
+         'scripts/skill_construction/scripts/poh_rug.rs2']
 fails = 0
 def check(ok, what):
     global fails
@@ -1815,13 +1816,14 @@ check(prm.get('shop_buy_multiplier') == str(const('poh_stone_buy')),
 check(prm.get('shop_delta') == '0', 'a fixed-price shop, like the Garden Centre')
 sstock = dict((m.group(2), (int(m.group(3)), int(m.group(4))))
               for m in re.finditer(r'^stock(\d+)=(\w+),(\d+),(\d+)$', SINV, re.M))
-check(len(sstock) == 2, 'he stocks %d things' % len(sstock))
+check(len(sstock) == 3, 'he stocks %d things' % len(sstock))
 bad = [k for k in sstock if k not in OBJS]
 check(not bad, 'every line of stock is a real obj: %s' % (bad or ', '.join(sstock)))
 # the OSRS prices again: their cache costs are exactly twice what he charges
-# Gold leaf and magic stone are his in OSRS and not here: 377's are unpriced placeholders and
-# nothing built today wants them. See the note in poh_stone.inv.
-SWIKI = {'limestonebrick': 10, 'poh_marble_block': 125000}
+# Gold leaf joined them when the gilded furniture arrived - the opulent rug and the gilded wall
+# decoration are made of it, and it is priced the same way, coming out at OSRS's own 130,000.
+# Magic stone is still not stocked: 377's is an unpriced placeholder and nothing asks for one.
+SWIKI = {'limestonebrick': 10, 'poh_marble_block': 125000, 'gold_leaf': 130000}
 ALLOBJ = dict(OBJCFG)
 ALLOBJ.update(blocks(read('scripts/skill_construction/configs/poh_formal_mats.obj')))
 ALLOBJ.update(blocks(read('scripts/_unpack/377/all.obj')))
@@ -1831,13 +1833,13 @@ for k, want in SWIKI.items():
     got = cost * const('poh_stone_sell') // 1000
     if got != want:
         bad.append((k, cost, got, want))
-check(not bad, 'both come out at the OSRS price: %s' % (bad[:3] or '10 and 125,000 coins'))
-check(sorted(sstock) == sorted(SWIKI), 'and he stocks exactly those two')
+check(not bad, 'all three come out at the OSRS price: %s' % (bad[:3] or '10, 125,000 and 130,000 coins'))
+check(sorted(sstock) == sorted(SWIKI), 'and he stocks exactly those three')
 # OSRS's own quantities, and the same one-a-minute restock the Garden Centre uses
-SQTY = {'limestonebrick': 1000, 'poh_marble_block': 20}
+SQTY = {'limestonebrick': 1000, 'poh_marble_block': 20, 'gold_leaf': 20}
 bad = [(k, v) for k, v in sstock.items() if v != (SQTY.get(k), 100)]
-check(not bad, 'a thousand bricks and twenty blocks, restocking a unit a minute: %s'
-      % (bad or 'both lines'))
+check(not bad, 'a thousand bricks, twenty blocks and twenty leaves, a unit a minute: %s'
+      % (bad or 'all three lines'))
 # where he stands: western Keldagrim, on nothing, with room around him
 KMAP = 'maps/m44_159.jm2'
 sec = None; spots = []; ksolid = set()
@@ -2594,11 +2596,53 @@ for want in ('case 1 : return(movecoord($base, $z, 0, calc(7 - $x)));',
 check('return(modulo(calc($angle + $rot), 4));' in CR, 'and so does the angle')
 
 # the anchor has to be a tile nothing else can ever occupy, or the ring and a chair fight over a slot
+# THE ANCHOR RULE, for every anchored family rather than just this one. An anchored piece takes
+# one furniture slot per room, keyed by a fixed tile, so that tile must carry no hotspot in any
+# room the family appears in - otherwise two pieces want the same slot and one of them silently
+# cannot be built. It is checked here against the templates, not asserted.
+_famroomhot = {}
+for _sq, _levels in (('m29_79', (0, 1, 2, 3)), ('m30_79', (0, 1))):
+    _sec = None
+    for _l in read('maps/%s.jm2' % _sq).split('\n'):
+        if _l.startswith('===='):
+            _sec = _l.strip('= '); continue
+        if _sec != 'LOC' or ':' not in _l:
+            continue
+        _h, _r = _l.split(':', 1)
+        _lv, _x, _z = (int(v) for v in _h.split())
+        _n = {v: k for k, v in LOCS.items()}.get(int(_r.split()[0]))
+        if _lv in _levels and (TEMPL2.get(_n, {}).get('category') or [''])[0] == 'poh_hotspot':
+            _famroomhot.setdefault((_x // 8) * 8 + (_z // 8), set()).add((_x % 8, _z % 8))
 anchored = [f for f in _spec['families'] if f.get('anchor')]
-check([f['key'] for f in anchored] == ['combat_ring'], 'the combat ring is the only anchored family')
-check(anchored and anchored[0]['anchor'] == [0, 0], 'and it anchors at the room\'s own (0,0)')
-check(not [t for t in TEMPLATE_RING if (t[0], t[1]) == (0, 0)],
-      'nothing in the Combat room template stands on (0,0)')
+check(sorted(f['key'] for f in anchored) == ['combat_ring', 'rug'],
+      'the anchored families are %s' % sorted(f['key'] for f in anchored))
+_zoneof = {}
+for _l in read('scripts/skill_construction/configs/poh_rooms.enum').split('\n'):
+    pass
+for _f in anchored:
+    _zones = set()
+    for _sq, _levels in (('m29_79', (0, 1, 2, 3)), ('m30_79', (0, 1))):
+        _sec = None
+        for _l in read('maps/%s.jm2' % _sq).split('\n'):
+            if _l.startswith('===='):
+                _sec = _l.strip('= '); continue
+            if _sec != 'LOC' or ':' not in _l:
+                continue
+            _h, _r = _l.split(':', 1)
+            _lv, _x, _z = (int(v) for v in _h.split())
+            if _lv in _levels and int(_r.split()[0]) in _f['hotspots']:
+                _zones.add((_x // 8) * 8 + (_z // 8))
+    _clash = [z for z in _zones if tuple(_f['anchor']) in _famroomhot.get(z, set())]
+    check(not _clash,
+          '%s anchors at %s, and no hotspot stands there in any of its %d rooms: %s'
+          % (_f['key'], tuple(_f['anchor']), len(_zones), _clash or 'clear'))
+# An anchored family has the tile in TWO places: furnspec.json, where the click reads it, and a
+# constant, where the removal proc reads it. If those two ever drift the piece is stored at one
+# tile and looked for at another, and it simply cannot be taken out again - which nothing else
+# here would notice, because both halves are internally consistent.
+check(const('poh_rug_anchor') == 7 and next(f for f in _spec['families'] if f['key'] == 'rug')['anchor'] == [7, 7],
+      '^poh_rug_anchor and the spec\'s anchor are the same tile: %d vs %s'
+      % (const('poh_rug_anchor'), next(f for f in _spec['families'] if f['key'] == 'rug')['anchor']))
 check('~poh_furn_at($rx, $rz, 0, 0)' in CR,
       'removal looks the slot up at the anchor, not under the tile that was clicked')
 
@@ -2644,6 +2688,134 @@ for _p in ('poh_ring_climb', 'poh_ring_beam_stand', 'poh_ring_beam_down'):
 _stand = CB.split('[proc,poh_ring_beam_stand]', 1)[1].split('\n[', 1)[0]
 check('p_walk(loc_coord)' in _stand and _stand.index('p_walk') < _stand.index('anim('),
       'standing on the beam walks onto it before the pose plays, as the chairs do')
+
+
+print('60. rugs, curtains and wall decoration - and the gold leaf they are made of')
+RG = read('scripts/skill_construction/scripts/poh_rug.rs2')
+
+# generated, so first: is it in step with the templates it came from
+_before = open(os.path.join(C, 'scripts/skill_construction/scripts/poh_rug.rs2'), 'rb').read()
+r = _sp.run([sys.executable, os.path.join(C, 'tools/genrugs.py')], capture_output=True, text=True, cwd=C)
+check(r.returncode == 0, 'tools/genrugs.py runs clean'
+      + ('' if r.returncode == 0 else ': ' + (r.stdout + r.stderr)[-400:]))
+_after = open(os.path.join(C, 'scripts/skill_construction/scripts/poh_rug.rs2'), 'rb').read()
+if _after != _before:
+    open(os.path.join(C, 'scripts/skill_construction/scripts/poh_rug.rs2'), 'wb').write(_before)
+check(_after == _before, 're-running it changes nothing: byte-identical' if _after == _before
+      else 're-running it CHANGES the file - it is out of step with the templates')
+
+# the three hotspot ghosts, and the claim that tier one's pieces ARE them. That is what names
+# corner, side and middle; without it the kinds are a guess and a rug comes up inside out.
+def _geo(model):
+    d = os.path.join(C, 'models/loc')
+    fs = [f for f in os.listdir(d) if f.startswith(model + '_') and f.endswith('.ob2')]
+    if not fs:
+        return None
+    b = open(os.path.join(d, sorted(fs)[0]), 'rb').read()
+    return _struct.unpack_from('>HHB', b, len(b) - 18)[:2] if len(b) >= 18 else None
+import struct as _struct
+_hot = {n: _geo((d.get('model') or [''])[0].split(',')[0])
+        for n, d in TEMPL2.items() if (d.get('name') or [''])[0] == 'Rug space'}
+_kinds = {g for g in _hot.values() if g and g != (0, 0)}
+check(len(_kinds) == 3, 'the rug hotspots come in three geometries: %s' % sorted(_kinds))
+_t1 = [_geo((POHLOC2[l].get('model') or [''])[0].split(',')[0])
+       for l in ('loc_13588', 'loc_13589', 'loc_13590')]
+check(sorted(x for x in _t1 if x) == sorted(_kinds),
+      'and the first tier IS those three models, vertex for vertex: %s' % _t1)
+KG = dict(zip(('corner', 'side', 'middle'), _t1))
+
+# every tile the rug lays is a template Rug space tile, at that tile's own angle, and the kind it
+# is given is the kind the rectangle and the ghost both say
+TEMPLATE_RUG = {}
+for _sq, _levels in (('m29_79', (0, 1, 2, 3)), ('m30_79', (0, 1))):
+    _sec = None
+    for _l in read('maps/%s.jm2' % _sq).split('\n'):
+        if _l.startswith('===='):
+            _sec = _l.strip('= '); continue
+        if _sec != 'LOC' or ':' not in _l:
+            continue
+        _h, _r = _l.split(':', 1)
+        _lv, _x, _z = (int(v) for v in _h.split())
+        _p = _r.split()
+        _n = {v: k for k, v in LOCS.items()}.get(int(_p[0]))
+        if _lv in _levels and (TEMPL2.get(_n, {}).get('name') or [''])[0] == 'Rug space':
+            _zone = (_x // 8) * 8 + (_z // 8)
+            TEMPLATE_RUG.setdefault(_zone, {})[(_x % 8, _z % 8)] = (_n, int(_p[2]) if len(_p) > 2 else 0)
+_zoneroom = {}
+_sec = None
+for _l in read('scripts/skill_construction/configs/poh_rooms.enum').split('\n'):
+    _l = _l.strip()
+    if _l.startswith('['):
+        _sec = _l[1:-1]; continue
+    if _l.startswith('val=') and _sec == 'poh_room_zone':
+        _a, _b = _l[4:].split(',', 1)
+        _zoneroom[int(_a)] = int(_b)
+KINDNUM = {'^poh_rug_corner': 'corner', '^poh_rug_side': 'side', '^poh_rug_middle': 'middle'}
+bad, total = [], 0
+for _m in re.finditer(r'\[proc,poh_rug_(\w+)\]\(coord \$base, int \$rot, int \$tier\)\n((?:~poh_rug_lay[^\n]*\n)+)', RG):
+    _room = _m.group(1)
+    _rt = next((t for t, nm in
+                ((t, v) for t, v in
+                 ((int(a), b) for a, b in re.findall(r'^val=(\d+),(.+)$',
+                  read('scripts/skill_construction/configs/poh_rooms.enum'), re.M)))
+                if re.sub(r'\W+', '_', nm.lower()) == _room), None)
+    if _rt is None or _rt not in _zoneroom:
+        continue
+    _tiles = TEMPLATE_RUG.get(_zoneroom[_rt], {})
+    _xs = [t[0] for t in _tiles]; _zs = [t[1] for t in _tiles]
+    _x0, _x1, _z0, _z1 = min(_xs), max(_xs), min(_zs), max(_zs)
+    check(len(_tiles) == (_x1 - _x0 + 1) * (_z1 - _z0 + 1),
+          '%s: its %d rug tiles are the whole %dx%d rectangle' % (_room, len(_tiles), _x1 - _x0 + 1, _z1 - _z0 + 1))
+    for _x, _z, _a, _k in re.findall(r'~poh_rug_lay\(\$base, \$rot, (\d+), (\d+), (\d+), \$tier, (\^\w+)\);', _m.group(2)):
+        _x, _z, _a = int(_x), int(_z), int(_a)
+        total += 1
+        if (_x, _z) not in _tiles:
+            bad.append((_room, _x, _z, 'not a rug tile')); continue
+        _n, _ang = _tiles[(_x, _z)]
+        if _ang != _a:
+            bad.append((_room, _x, _z, 'angle %d, template says %d' % (_a, _ang))); continue
+        _want = 'corner' if (_x in (_x0, _x1) and _z in (_z0, _z1)) else \
+                ('side' if (_x in (_x0, _x1) or _z in (_z0, _z1)) else 'middle')
+        if KINDNUM.get(_k) != _want:
+            bad.append((_room, _x, _z, '%s, rectangle says %s' % (_k, _want))); continue
+        _g = _hot.get(_n)
+        if _g and _g != (0, 0) and _g != KG[_want]:
+            bad.append((_room, _x, _z, 'ghost %s, kind %s' % (_g, _want)))
+check(not bad, 'every rug tile is the template\'s, at its angle and its kind: %s'
+      % (bad[:3] or '%d tiles over five rooms' % total))
+check(total == 122, 'and that is all 122 of them: %d' % total)
+
+# the piece table: three tiers of three, each returning its own tier's loc
+_rl = dict((int(a), b) for a, b in re.findall(r'^    case (\d+) : return\((\w+)\);', RG, re.M))
+check(sorted(_rl) == [4, 5, 6, 8, 9, 10, 12, 13, 14],
+      'the rug table is three tiers of three with no gap: %s' % sorted(_rl))
+TIERLOC = {1: ('loc_13588', 'loc_13589', 'loc_13590'), 2: ('loc_13591', 'loc_13592', 'loc_13593'),
+           3: ('loc_13594', 'loc_13595', 'loc_13596')}
+bad = [(k, v) for k, v in _rl.items() if v != TIERLOC[k // 4][k % 4]]
+check(not bad, 'and every case is its own tier\'s piece for its own kind: %s' % (bad or '9 checked'))
+
+# all nine can be taken out again, and none twice
+_rm = set(re.findall(r'^\[oploc5,(\w+)\] ~poh_rug_remove;', RG, re.M))
+_rmf = set(re.findall(r'^\[oploc5,(\w+)\]\s*\n~poh_rug_remove;', fu, re.M))
+check(sorted(_rm | _rmf) == sorted(l for v in TIERLOC.values() for l in v),
+      'all nine rug locs are wired to ~poh_rug_remove: %s' % sorted((_rm | _rmf)))
+check(not (_rm & _rmf), 'and none of them is wired in both files')
+check('~poh_furn_at($rx, $rz, ^poh_rug_anchor, ^poh_rug_anchor)' in RG,
+      'removal looks the slot up at the anchor, not under the tile that was clicked')
+check('movecoord($spot, calc(0 - ^poh_rug_anchor), 0, calc(0 - ^poh_rug_anchor))' in RG,
+      'and the anchor is stepped back to the zone corner before the table is read')
+
+# curtains and wall decoration: plain ladders, but their materials have to be real and their
+# hotspots have to be ones nothing else already owns
+for _key, _n in (('curtain', 3), ('walldecor', 2), ('rug', 13)):
+    _f = next(f for f in _spec['families'] if f['key'] == _key)
+    check(len(_f['hotspots']) == _n, '%s takes %d hotspots: %d' % (_key, _n, len(_f['hotspots'])))
+    _bad = [m[0] for p in _f['pieces'] for m in p['mats'] if m[0] not in OBJS]
+    check(not _bad, '%s is built out of real objs: %s' % (_key, _bad or 'all of them'))
+_gold = [p['label'] for f in _spec['families'] for p in f.get('pieces', [])
+         if any(m[0] == 'gold_leaf' for m in p['mats'])]
+check(sorted(_gold) == ['Gilded decoration', 'Opulent rug'],
+      'gold leaf is what the gilded pieces are made of: %s' % sorted(_gold))
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

@@ -454,6 +454,50 @@ if (inv_total(inv, coins) < $cost) {
  # and the anchor path removed from the click, which loses the ring the moment it is stored
  ('tools/genfurn.py', "'if ($ax >= 0) {',", "'if ($ax >= 99) {',",
   '29 an anchor overrides the clicked tile'),
+
+ # --- 60, rugs and the gilded pieces ---
+ # a rug tile one square out of the rectangle
+ ('scripts/skill_construction/scripts/poh_rug.rs2',
+  '~poh_rug_lay($base, $rot, 3, 0, 3, $tier, ^poh_rug_corner);',
+  '~poh_rug_lay($base, $rot, 3, 7, 3, $tier, ^poh_rug_corner);',
+  '60 every rug tile is the template\'s'),
+ # a corner laid as a middle, which is a carpet with no fringe on two edges
+ ('scripts/skill_construction/scripts/poh_rug.rs2',
+  '~poh_rug_lay($base, $rot, 1, 1, 3, $tier, ^poh_rug_corner);',
+  '~poh_rug_lay($base, $rot, 1, 1, 3, $tier, ^poh_rug_middle);',
+  '60 at its angle and its kind'),
+ # an angle that no longer turns the fringe outward
+ ('scripts/skill_construction/scripts/poh_rug.rs2',
+  '~poh_rug_lay($base, $rot, 1, 2, 3, $tier, ^poh_rug_side);',
+  '~poh_rug_lay($base, $rot, 1, 2, 0, $tier, ^poh_rug_side);',
+  '60 at its angle and its kind'),
+ # a tier wearing another tier's piece
+ ('scripts/skill_construction/scripts/poh_rug.rs2',
+  'case 12 : return(loc_13594);', 'case 12 : return(loc_13588);',
+  '60 every case is its own tier\'s piece'),
+ # a gap in the piece table, so a rug comes up as null
+ ('scripts/skill_construction/scripts/poh_rug.rs2',
+  '    case 9 : return(loc_13592);   // plain side' + chr(10), '', '60 the rug table has no gap'),
+ # removal looking under the clicked tile rather than at the anchor
+ ('scripts/skill_construction/scripts/poh_rug.rs2',
+  '~poh_furn_at($rx, $rz, ^poh_rug_anchor, ^poh_rug_anchor)', '~poh_furn_at($rx, $rz, 0, 0)',
+  '60 removal looks the slot up at the anchor'),
+ # the step back from the anchor dropped, so every table reads from seven tiles out
+ ('scripts/skill_construction/scripts/poh_rug.rs2',
+  'movecoord($spot, calc(0 - ^poh_rug_anchor), 0, calc(0 - ^poh_rug_anchor))', '$spot',
+  '60 the anchor is stepped back to the zone corner'),
+ # a rug loc nobody can take out again
+ ('scripts/skill_construction/scripts/poh_rug.rs2',
+  '[oploc5,loc_13592] ~poh_rug_remove;' + chr(10), '', '60 all nine rug locs are wired'),
+ # the anchor moved onto a tile that IS a hotspot in one of the five rooms
+ ('scripts/skill_construction/configs/construction.constant',
+  '^poh_rug_anchor = 7', '^poh_rug_anchor = 1', '60 the constant and the spec are the same tile'),
+ # gold leaf priced at something other than what OSRS charges
+ ('scripts/skill_construction/configs/poh_formal_mats.obj',
+  'cost=260000', 'cost=200000', '26 all three come out at the OSRS price'),
+ # and the stonemason no longer stocking it, which makes two pieces unbuildable
+ ('scripts/skill_construction/configs/poh_stone.inv',
+  'stock3=gold_leaf,20,100' + chr(10), '', '26 he stocks three things'),
 ]
 
 def checker_for(why):
