@@ -13,7 +13,8 @@ FILES = ['scripts/skill_construction/scripts/poh.rs2', 'scripts/skill_constructi
          'scripts/skill_construction/scripts/poh_combat_ring.rs2',
          'scripts/skill_construction/scripts/poh_combat.rs2',
          'scripts/skill_construction/scripts/poh_rug.rs2',
-         'scripts/skill_construction/scripts/poh_decor.rs2']
+         'scripts/skill_construction/scripts/poh_decor.rs2',
+         'scripts/skill_construction/scripts/poh_stores.rs2']
 fails = 0
 def check(ok, what):
     global fails
@@ -788,6 +789,8 @@ check(litcase and set(litcase) <= set(placed),
 POHLOC = blocks(read('scripts/skill_construction/configs/poh.loc'))
 # The exit portal is the garden's level-1 centrepiece, and it lives in the portal round's config.
 POHLOC.update(blocks(read('scripts/skill_construction/configs/poh_portal.loc')))
+# ...and the costume room's five storage spaces are a rev-474 import with its own config too.
+POHLOC.update(blocks(read('scripts/skill_construction/configs/poh_costume_storage.loc')))
 placements = re.findall(r'loc_add\(\$spot, (\w+), \$angle, (\w+),', fu)
 bad = [l for l, _ in placements if l not in LOCS]
 check(not bad, 'every placed loc is in loc.pack: %s' % (bad[:3] or '%d checked' % len(placements)))
@@ -810,6 +813,7 @@ check(rm == placed_locs, 'every placeable piece has a Remove trigger: %d placed,
       % (len(placed_locs), len(rm)))
 # and a lit twin nobody can take out is a piece of furniture welded to the floor
 POHLOC2 = blocks(read('scripts/skill_construction/configs/poh.loc'))
+POHLOC2.update(blocks(read('scripts/skill_construction/configs/poh_costume_storage.loc')))
 bad = [l for l in {m.group(1) for m in re.finditer(r'loc_add\(\$spot, (\w+), \$angle,', showlit)}
        if 'Remove' not in (POHLOC2.get(l, {}).get('op5') or [])]
 check(not bad, 'every lit twin carries op5=Remove: %s' % (bad[:3] or 'all of them'))
@@ -1186,6 +1190,7 @@ kept2 = {f: open(os.path.join(C, f), 'rb').read() for f in [
     'scripts/skill_construction/configs/construction.varp',
     'scripts/skill_construction/configs/construction.constant',
     'scripts/skill_construction/scripts/poh_furniture.rs2',
+    'scripts/skill_construction/scripts/poh_furn_ops.rs2',
     'scripts/skill_construction/configs/poh_flatpacks.obj',
     'pack/obj.pack',
     'pack/varp.pack']}
@@ -1194,6 +1199,10 @@ kept2 = {f: open(os.path.join(C, f), 'rb').read() for f in [
 # here and every later group reads the regenerated copy. Group 52's obj.pack check could not go
 # red because group 38 had already undone the break. A generated file that is not listed above
 # is not checked by anything - it is un-checkable.
+#
+# poh_furn_ops.rs2 joined them the same way, and it had been missing since the day it was split
+# out: a mutation that rewired a cape rack to open the magic wardrobe's storage was regenerated
+# away here and the battery came out green. Every trigger in the build lives in that file.
 import subprocess as _sp
 r = _sp.run([sys.executable, os.path.join(C, 'tools/genfurn.py'), str(SLOTS)],
             capture_output=True, text=True, cwd=C)
@@ -1833,14 +1842,17 @@ check(prm.get('shop_buy_multiplier') == str(const('poh_stone_buy')),
 check(prm.get('shop_delta') == '0', 'a fixed-price shop, like the Garden Centre')
 sstock = dict((m.group(2), (int(m.group(3)), int(m.group(4))))
               for m in re.finditer(r'^stock(\d+)=(\w+),(\d+),(\d+)$', SINV, re.M))
-check(len(sstock) == 3, 'he stocks %d things' % len(sstock))
+check(len(sstock) == 4, 'he stocks %d things' % len(sstock))
 bad = [k for k in sstock if k not in OBJS]
 check(not bad, 'every line of stock is a real obj: %s' % (bad or ', '.join(sstock)))
 # the OSRS prices again: their cache costs are exactly twice what he charges
 # Gold leaf joined them when the gilded furniture arrived - the opulent rug and the gilded wall
 # decoration are made of it, and it is priced the same way, coming out at OSRS's own 130,000.
-# Magic stone is still not stocked: 377's is an unpriced placeholder and nothing asks for one.
-SWIKI = {'limestonebrick': 10, 'poh_marble_block': 125000, 'gold_leaf': 130000}
+# MAGIC STONE joined them for the costume room's cape rack, whose top tier is one magic stone at
+# level 99 - the same thing it is for in OSRS. It is its own obj rather than 377's unpriced
+# placeholder, and it is priced by the same arithmetic: OSRS's own 4,000,000.
+SWIKI = {'limestonebrick': 10, 'poh_marble_block': 125000, 'gold_leaf': 130000,
+         'magic_stone': 4000000}
 ALLOBJ = dict(OBJCFG)
 ALLOBJ.update(blocks(read('scripts/skill_construction/configs/poh_formal_mats.obj')))
 ALLOBJ.update(blocks(read('scripts/_unpack/377/all.obj')))
@@ -1850,13 +1862,16 @@ for k, want in SWIKI.items():
     got = cost * const('poh_stone_sell') // 1000
     if got != want:
         bad.append((k, cost, got, want))
-check(not bad, 'all three come out at the OSRS price: %s' % (bad[:3] or '10, 125,000 and 130,000 coins'))
-check(sorted(sstock) == sorted(SWIKI), 'and he stocks exactly those three')
-# OSRS's own quantities, and the same one-a-minute restock the Garden Centre uses
-SQTY = {'limestonebrick': 1000, 'poh_marble_block': 20, 'gold_leaf': 20}
-bad = [(k, v) for k, v in sstock.items() if v != (SQTY.get(k), 100)]
-check(not bad, 'a thousand bricks, twenty blocks and twenty leaves, a unit a minute: %s'
-      % (bad or 'all three lines'))
+check(not bad, 'all four come out at the OSRS price: %s'
+      % (bad[:3] or '10, 125,000, 130,000 and 4,000,000 coins'))
+check(sorted(sstock) == sorted(SWIKI), 'and he stocks exactly those four')
+# OSRS's own quantities. The first three restock a unit a minute, like the Garden Centre; a magic
+# stone is a 4,000,000gp item and restocks a tenth as fast.
+SQTY = {'limestonebrick': (1000, 100), 'poh_marble_block': (20, 100),
+        'gold_leaf': (20, 100), 'magic_stone': (5, 1000)}
+bad = [(k, v) for k, v in sstock.items() if v != SQTY.get(k)]
+check(not bad, 'a thousand bricks, twenty blocks, twenty leaves and five stones: %s'
+      % (bad or 'all four lines'))
 # where he stands: western Keldagrim, on nothing, with room around him
 KMAP = 'maps/m44_159.jm2'
 sec = None; spots = []; ksolid = set()
@@ -2834,7 +2849,7 @@ for _key, _n in (('curtain', 3), ('walldecor', 2), ('rug', 13)):
     check(not _bad, '%s is built out of real objs: %s' % (_key, _bad or 'all of them'))
 _gold = [p['label'] for f in _spec['families'] for p in f.get('pieces', [])
          if any(m[0] == 'gold_leaf' for m in p['mats'])]
-check(sorted(_gold) == ['Gilded decoration', 'Opulent rug'],
+check(sorted(_gold) == ['Gilded cape rack', 'Gilded decoration', 'Gilded wardrobe', 'Opulent rug'],
       'gold leaf is what the gilded pieces are made of: %s' % sorted(_gold))
 
 
@@ -2954,6 +2969,222 @@ for _key, _proc in (('fence', 'poh_fence_place'), ('thronefloor', 'poh_throneflo
     check('movecoord($spot, %d, 0, %d);' % (-_a[0], -_a[1]) in
           DC.split('[proc,%s]' % _proc, 1)[1].split('\n[', 1)[0],
           '%s steps back from the spec\'s own anchor %s' % (_key, tuple(_a)))
+
+
+print('62. the costume room\'s five storage spaces')
+
+# One mechanism, five spaces, and everything about them is generated from two spec files. What this
+# group is for is the seams between them: the item list against the objs that exist, against the
+# treasure chest's own list and against itself; the windows into that list against each other; the
+# capacities against the furniture; and the furniture against the art it was imported with.
+
+import subprocess as _sp62
+_ST = 'scripts/skill_construction/configs/poh_store.enum'
+_SI = 'scripts/skill_construction/configs/poh_store.inv'
+_kept62 = {f: open(os.path.join(C, f), 'rb').read() for f in (_ST, _SI)}
+_r62 = _sp62.run([sys.executable, os.path.join(C, 'tools/genstores.py')],
+                 capture_output=True, text=True, cwd=C)
+check(_r62.returncode == 0, 'tools/genstores.py runs clean'
+      + ('' if _r62.returncode == 0 else ': ' + _r62.stderr[-400:]))
+_moved62 = [f for f in _kept62 if open(os.path.join(C, f), 'rb').read() != _kept62[f]]
+for f in _moved62:
+    open(os.path.join(C, f), 'wb').write(_kept62[f])
+check(not _moved62, 're-running it changes nothing: %s' % (_moved62 or 'byte-identical'))
+
+_STORE = read(_ST)
+_items = enumtable(_STORE, 'poh_store_item')
+_sname = enumtable(_STORE, 'poh_store_name')
+_sfirst = {k: int(v) for k, v in enumtable(_STORE, 'poh_store_first').items()}
+_slast = {k: int(v) for k, v in enumtable(_STORE, 'poh_store_last').items()}
+_setfirst = {k: int(v) for k, v in enumtable(_STORE, 'poh_store_setfirst').items()}
+_setlast = {k: int(v) for k, v in enumtable(_STORE, 'poh_store_setlast').items()}
+_setname = enumtable(_STORE, 'poh_store_set_name')
+_sf = {k: int(v) for k, v in enumtable(_STORE, 'poh_store_set_first').items()}
+_sl = {k: int(v) for k, v in enumtable(_STORE, 'poh_store_set_last').items()}
+_cap = {k: int(v) for k, v in enumtable(_STORE, 'poh_store_cap').items()}
+_N62 = len(_items)
+
+check(sorted(_items) == list(range(_N62)), 'poh_store_item is %d rows with no gap' % _N62)
+_bad = [o for o in _items.values() if o not in OBJS]
+check(not _bad, 'every one of them is a real obj: %s' % (_bad[:3] or 'all %d' % _N62))
+_dupe = sorted({o for o in _items.values() if list(_items.values()).count(o) > 1})
+check(not _dupe, 'and none of them is in two stores: %s' % (_dupe[:3] or 'all distinct'))
+
+# The treasure chest is the OTHER storage in this room, and an item in both would be storable twice
+# and lost once - the fancy dress box gave up the three berets and the highwayman mask for this.
+_chest = set(enumtable(read('scripts/skill_construction/configs/poh_costume.enum'),
+                       'poh_costume_item').values())
+_both = sorted(set(_items.values()) & _chest)
+check(not _both, 'nothing is in both a storage space and the treasure chest: %s'
+      % (_both[:3] or 'the two lists are disjoint'))
+
+# The five stores tile the item list exactly: no gap (an item nothing can reach) and no overlap
+# (an item two spaces both claim).
+_nst = len(_sname)
+check(sorted(_sfirst) == sorted(_slast) == sorted(_sname) == list(range(_nst)),
+      'all %d stores have a name and a window' % _nst)
+_tile = [(_sfirst[i], _slast[i]) for i in range(_nst)]
+check(_tile[0][0] == 0 and _tile[-1][1] == _N62 - 1
+      and all(_tile[i][1] + 1 == _tile[i + 1][0] for i in range(_nst - 1)),
+      'the five windows tile poh_store_item with no gap and no overlap: %s' % _tile)
+_stile = [(_setfirst[i], _setlast[i]) for i in range(_nst)]
+check(_stile[0][0] == 0 and _stile[-1][1] == len(_setname) - 1
+      and all(_stile[i][1] + 1 == _stile[i + 1][0] for i in range(_nst - 1)),
+      'and the set windows tile the %d sets the same way: %s' % (len(_setname), _stile))
+
+# ...and inside each store, the sets tile that store's run. A set that straddles two stores would
+# let "take out a set" hand you the wardrobe's robes from the cape rack.
+_bad = []
+for _i in range(_nst):
+    _runs = [(_sf[j], _sl[j]) for j in range(_setfirst[_i], _setlast[_i] + 1)]
+    if (not _runs or _runs[0][0] != _sfirst[_i] or _runs[-1][1] != _slast[_i]
+            or any(_runs[k][1] + 1 != _runs[k + 1][0] for k in range(len(_runs) - 1))
+            or any(a > b for a, b in _runs)):
+        _bad.append((_sname[_i], _runs))
+check(not _bad, 'every store\'s sets tile its own run and nothing else: %s'
+      % (_bad or 'all %d sets' % len(_setname)))
+
+# The inv is one slot per item, perm, and has an id - the three ways it could be right in the config
+# and still do nothing in game.
+_inv = blocks(read(_SI))['poh_store_inv']
+check(int(_inv['size'][0]) == _N62, 'poh_store_inv holds one of each: size=%s' % _inv['size'][0])
+check(_inv['scope'][0] == 'perm', 'and it is scope=perm, so it survives a logout')
+check('poh_store_inv' in INVS, 'and it has an id in inv.pack')
+
+# Capacity is keyed store x 8 + tier, and what makes it right is the furniture: a row per tier that
+# exists, none for a tier that does not, rising, and the top tier holding the whole list.
+_spec62 = _json.load(open(os.path.join(C, 'tools/furnspec.json')))['families']
+_sspec = _json.load(open(os.path.join(C, 'tools/storespec.json')))['stores']
+check(len(_sspec) == _nst, 'storespec has all %d stores' % _nst)
+_bad = []
+for _i, _st in enumerate(_sspec):
+    _f = next((f for f in _spec62 if f['key'] == _st['family']), None)
+    _nt = len(_f['pieces']) if _f else 0
+    _want = list(range(1, _nt + 1))
+    _got = sorted(t - _i * 8 for t in _cap if t // 8 == _i)
+    _n = _slast[_i] - _sfirst[_i] + 1
+    if _got != _want:
+        _bad.append((_st['key'], 'tiers %s vs %s' % (_got, _want)))
+    elif _cap[_i * 8 + _nt] != _n:
+        _bad.append((_st['key'], 'top tier holds %d of %d' % (_cap[_i * 8 + _nt], _n)))
+    elif any(_cap[_i * 8 + t] > _cap[_i * 8 + t + 1] for t in range(1, _nt)):
+        _bad.append((_st['key'], 'capacity falls'))
+check(not _bad, 'every tier of every space has a capacity, rising to the whole list: %s'
+      % (_bad or [(_sname[i], [_cap[i * 8 + t] for t in sorted(x - i * 8 for x in _cap if x // 8 == i)])
+                  for i in range(_nst)]))
+
+# The furniture itself: the art came out of the rev-474 cache in its own config, and a piece whose
+# footprint disagrees with its hotspot's stands through a wall.
+_SL = blocks(read('scripts/skill_construction/configs/poh_costume_storage.loc'))
+_TL = blocks(read('scripts/skill_construction/configs/poh_templates.loc'))
+_byid = {v: k for k, v in LOCS.items()}
+_bad, _nloc = [], 0
+for _i, _st in enumerate(_sspec):
+    _f = next(f for f in _spec62 if f['key'] == _st['family'])
+    _hot = _SL.get(_byid.get(_f['hotspots'][0])) or _TL.get(_byid.get(_f['hotspots'][0]))
+    for _pc in _f['pieces']:
+        _nloc += 1
+        _d = _SL.get(_pc['loc'])
+        if _d is None:
+            _bad.append((_pc['loc'], 'not in poh_costume_storage.loc'))
+            continue
+        if 'op1' not in _d:
+            _bad.append((_pc['loc'], 'no op1 - it would be a dead click'))
+        if 'Remove' not in (_d.get('op5') or []):
+            _bad.append((_pc['loc'], 'no op5=Remove'))
+        if _pc['loc'] not in LOCS:
+            _bad.append((_pc['loc'], 'no id in loc.pack'))
+        for _k in ('width', 'length'):
+            if (_d.get(_k) or ['1'])[0] != (_hot.get(_k) or ['1'])[0]:
+                _bad.append((_pc['loc'], '%s %s, but its hotspot is %s'
+                             % (_k, (_d.get(_k) or ['1'])[0], (_hot.get(_k) or ['1'])[0])))
+check(not _bad, 'all %d pieces are real, clickable, removable and hotspot-shaped: %s'
+      % (_nloc, _bad[:3] or 'all of them'))
+
+# The hotspots are the costume room's own six minus the chest's, each used once.
+_hot62 = [f['hotspots'][0] for f in _spec62 if f['key'] in {s['family'] for s in _sspec}]
+check(len(set(_hot62)) == _nst, 'the five spaces take five different hotspots: %s' % sorted(_hot62))
+_chesthot = next(f['hotspots'] for f in _spec62 if f['key'] == 'treasurechest')
+check(not (set(_hot62) & set(_chesthot)), 'and none of them is the treasure chest\'s')
+_rooms = {f['room'] for f in _spec62 if f['key'] in {s['family'] for s in _sspec}}
+check(_rooms == {'costume room'}, 'all five are in the costume room: %s' % sorted(_rooms))
+
+# APPEND-ONLY. A family's position in the spec is its id and an item's position is the number
+# written into a player's saved furniture, so these five had to go on the END however they read -
+# inserting them beside the treasure chest, where they belong, renumbered 292 existing items and
+# quietly rearranged every house already standing.
+_keys62 = [f['key'] for f in _spec62]
+check(_keys62[-_nst:] == [s['family'] for s in _sspec],
+      'the five families are the last five in the spec, so no existing item number moved')
+
+# Every trigger the generator emitted points at the right store. This is the seam that would fail
+# silently: a cape rack wired to store 1 opens, works, and holds robes.
+_fo = read('scripts/skill_construction/scripts/poh_furn_ops.rs2')
+_ITEMN = {}
+_n62 = 0
+for _f in _spec62:
+    for _pc in (_f.get('pieces') or _f.get('locs')):
+        _n62 += 1
+        _ITEMN[_pc['loc'] if isinstance(_pc, dict) else _pc] = _n62
+_bad = []
+for _i, _st in enumerate(_sspec):
+    _f = next(f for f in _spec62 if f['key'] == _st['family'])
+    for _pc in _f['pieces']:
+        _m = re.search(r'^\[oploc1,%s\]\s*\n~poh_store_open\((\d+), (\d+)\);$' % _pc['loc'],
+                       _fo, re.M)
+        if not _m:
+            _bad.append((_pc['loc'], 'no ~poh_store_open trigger'))
+        elif (int(_m.group(1)), int(_m.group(2))) != (_i, _ITEMN[_pc['loc']]):
+            _bad.append((_pc['loc'], 'opens store %s item %s, wanted %d %d'
+                         % (_m.group(1), _m.group(2), _i, _ITEMN[_pc['loc']])))
+check(not _bad, 'every piece opens its own store at its own item number: %s'
+      % (_bad[:3] or 'all %d' % _nloc))
+check(len(re.findall(r'~poh_store_open\(', _fo)) == _nloc,
+      'and nothing else calls ~poh_store_open')
+
+# The store bound inside the paging proc. Without it, a full cape rack's "More sets..." walks
+# straight on into the magic wardrobe's sets, because they are one flat table.
+_STS = src['scripts/skill_construction/scripts/poh_stores.rs2']
+_nth = _STS.split('[proc,poh_store_nth]', 1)[1].split('\n[', 1)[0]
+check('poh_store_setlast' in _nth,
+      '~poh_store_nth stops at its own store\'s last set, not at the end of the table')
+_take = _STS.split('[proc,poh_store_take]', 1)[1].split('\n[', 1)[0]
+check('poh_store_setfirst' in _take and re.findall(r'def_int \$home = ([^;]+);', _take) == ['$from'],
+      'and "More sets..." wraps to its own store\'s first set, not to set 0')
+for _proc, _tbl in (('poh_store_count', 'poh_store_first'), ('poh_store_put', 'poh_store_first'),
+                    ('poh_store_check', 'poh_store_setfirst')):
+    _b = _STS.split('[proc,%s]' % _proc, 1)[1].split('\n[', 1)[0]
+    check(_tbl in _b and 'poh_store_' + _tbl.split('_')[-1].replace('first', 'last') in _b,
+          '~%s only ever looks inside its own store' % _proc)
+
+# The magic stone exists because the level-99 cape rack does, and nothing else uses one.
+check('magic_stone' in OBJS, 'magic_stone has an id in obj.pack')
+check('cert_magic_stone' in OBJS, 'and so does its noted twin')
+_uses = [(f['key'], p['label']) for f in _spec62 for p in f.get('pieces', [])
+         if any(m[0] == 'magic_stone' for m in p['mats'])]
+check(_uses == [('caperack', 'Magic cape rack')],
+      'one magic stone, for the level-99 cape rack: %s' % _uses)
+_top = next(p for p in next(f for f in _spec62 if f['key'] == 'caperack')['pieces']
+            if p['label'] == 'Magic cape rack')
+check(_top['level'] == 99 and _top['mats'] == [['magic_stone', 1]],
+      'level 99, one stone: %s, %s' % (_top['level'], _top['mats']))
+
+# Levels: OSRS's own, and rising within each space.
+_OSRS = {'caperack': [54, 63, 72, 81, 90, 99], 'magicwardrobe': [42, 51, 60, 69, 78, 87, 96],
+         'armourcase': [46, 64, 82], 'toybox': [50, 68, 86], 'fancydress': [44, 62, 80]}
+_bad = [(k, [p['level'] for p in next(f for f in _spec62 if f['key'] == k)['pieces']], v)
+        for k, v in _OSRS.items()
+        if [p['level'] for p in next(f for f in _spec62 if f['key'] == k)['pieces']] != v]
+check(not _bad, 'the build levels are OSRS\'s own: %s' % (_bad or '54-99, 42-96, 46-82, 50-86, 44-80'))
+
+# ...and the experience is the repo's one rule, planks x the wood, for every piece made of planks.
+_XP = {'oak_plank': const('poh_xp_oak'), 'teak_plank': const('poh_xp_teak'),
+       'mahogany_plank': const('poh_xp_mahogany'), 'plank': const('poh_xp_plank')}
+_bad = [(f['key'], p['label'], p['xp'], p['mats'][0][1] * _XP[p['mats'][0][0]])
+        for f in _spec62 if f['key'] in _OSRS for p in f['pieces']
+        if p['mats'][0][0] in _XP and p['xp'] != p['mats'][0][1] * _XP[p['mats'][0][0]]]
+check(not _bad, 'and the experience is planks x the wood, as everywhere else: %s'
+      % (_bad[:3] or 'every plank piece'))
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

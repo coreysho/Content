@@ -142,6 +142,8 @@ def build():
     P = cfg('scripts/skill_construction/configs/poh.loc')
     # The exit portal is a centrepiece like any other, and it lives in the portal round's own config.
     P.update(cfg('scripts/skill_construction/configs/poh_portal.loc'))
+    # ...and so do the costume room's five storage spaces, imported from rev 474 in their own round.
+    P.update(cfg('scripts/skill_construction/configs/poh_costume_storage.loc'))
     T = cfg('scripts/skill_construction/configs/poh_templates.loc')
     LOCS = packmap('pack/loc.pack')
     byid = {v: k for k, v in LOCS.items()}
@@ -1028,6 +1030,11 @@ def emit_ops(fams, items, byfam, path='scripts/skill_construction/scripts/poh_fu
             body = ['~poh_portal_direct;']
         elif k == 'wardrobe':
             body = ['~poh_wardrobe;']
+        elif k == 'store':
+            # The five costume-room storage spaces. They all go through one set of procs; which
+            # store this is decides the window into poh_store_item, and the piece decides the
+            # capacity the same way the treasure chest's does.
+            body = ['~poh_store_open(%d, %d);' % (op['store'], i['n'])]
         elif k == 'costume':
             # the piece is passed in so its tier can set the capacity, the same way the altar's
             # offer trigger passes the piece it is standing on

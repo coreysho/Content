@@ -541,6 +541,83 @@ if (inv_total(inv, coins) < $cost) {
   "text = nl.join(rs2).replace('\\r\\n', '\\n').rstrip('\\n')",
   "text = nl.join(rs2).rstrip('\\r\\n')",
   '35 a generated file with two kinds of line ending'),
+ # ---- 62: the costume room's five storage spaces ----
+ # an item in a storage space that the treasure chest also holds: storable twice, lost once
+ ('tools/storespec.json',
+  '"macro_frog_mask",', '"macro_frog_mask",\n     "piratehat",',
+  '62 nothing is in both a storage space and the treasure chest'),
+ # the same item in two stores
+ ('tools/storespec.json',
+  '"spinning_plate",', '"spinning_plate",\n     "santa_hat",',
+  '62 none of them is in two stores'),
+ # an obj name that does not exist - the mistake that shipped five wrong names in a drop table
+ ('tools/storespec.json',
+  '"rubber_chicken",', '"rubber_chicken_deluxe",',
+  '62 every one of them is a real obj'),
+ # the generated enum out of step with the spec it came from
+ ('scripts/skill_construction/configs/poh_store.enum',
+  'val=0,attack_cape', 'val=0,defence_cape',
+  '62 re-running genstores changes nothing'),
+ # an inv one slot short: the last item in the last store can never be put away
+ ('scripts/skill_construction/configs/poh_store.inv', 'size=307', 'size=306',
+  '62 poh_store_inv holds one of each'),
+ # storage that empties on logout, which is the one thing storage must not do
+ ('scripts/skill_construction/configs/poh_store.inv', '\nscope=perm', '\nscope=temp',
+  '62 it is scope=perm'),
+ # the store windows overlapping: two spaces claiming the same item
+ ('scripts/skill_construction/configs/poh_store.enum',
+  '[poh_store_first]\ninputtype=int\noutputtype=int\ndefault=null\nval=0,0\nval=1,87',
+  '[poh_store_first]\ninputtype=int\noutputtype=int\ndefault=null\nval=0,0\nval=1,86',
+  '62 the five windows tile poh_store_item'),
+ # a set straddling two stores, so the cape rack hands you the wardrobe's robes
+ ('scripts/skill_construction/configs/poh_store.enum',
+  '[poh_store_set_last]\ninputtype=int\noutputtype=int\ndefault=null\nval=0,23',
+  '[poh_store_set_last]\ninputtype=int\noutputtype=int\ndefault=null\nval=0,24',
+  '62 every store\'s sets tile its own run'),
+ # a top tier that cannot hold the list it is the top tier of
+ ('scripts/skill_construction/configs/poh_store.enum',
+  'val=6,87', 'val=6,80', '62 every tier has a capacity rising to the whole list'),
+ # a cape rack wired to the magic wardrobe: it opens, it works, it holds the wrong things
+ ('scripts/skill_construction/scripts/poh_furn_ops.rs2',
+  '~poh_store_open(0, 323);', '~poh_store_open(1, 323);',
+  '62 every piece opens its own store'),
+ # the paging proc losing its store bound - "More sets..." walks on into the next space
+ ('scripts/skill_construction/scripts/poh_stores.rs2',
+  'def_int $last = enum(int, int, poh_store_setlast, $store);\ndef_int $seen = 0;',
+  'def_int $last = enum(int, int, poh_store_last, $store);\ndef_int $seen = 0;',
+  '62 poh_store_nth stops at its own store\'s last set'),
+ # ...and wrapping to set 0 rather than to its own first set
+ ('scripts/skill_construction/scripts/poh_stores.rs2',
+  'def_int $home = $from;', 'def_int $home = 0;',
+  '62 More sets wraps to its own store\'s first set'),
+ # a piece nobody can take out again
+ ('scripts/skill_construction/configs/poh_costume_storage.loc',
+  'name=Marble cape rack\nmodel=loc474_18770\nambient=20\nop1=Search\nop5=Remove',
+  'name=Marble cape rack\nmodel=loc474_18770\nambient=20\nop1=Search',
+  '62 all 22 pieces are removable'),
+ # a footprint that disagrees with its hotspot, so the wardrobe stands through a wall
+ ('scripts/skill_construction/configs/poh_costume_storage.loc',
+  'name=Magic wardrobe\nmodel=loc474_18784\nlength=3', 'name=Magic wardrobe\nmodel=loc474_18784\nlength=2',
+  '62 hotspot-shaped'),
+ # the five families inserted where they read best, renumbering every item above them
+ ('tools/furnspec.json', '"key": "caperack",', '"key": "caperack_moved",',
+  '62 the five families are the last five in the spec'),
+ # the level-99 cape rack made of planks after all, so the magic stone has no reason to exist
+ ('tools/furnspec.json', '"magic_stone",\n       1', '"mahogany_plank",\n       4',
+  '62 one magic stone, for the level-99 cape rack'),
+ # a build level off OSRS's own
+ ('tools/furnspec.json', '"label": "Oak cape rack",\n     "level": 54',
+  '"label": "Oak cape rack",\n     "level": 52', '62 the build levels are OSRS\'s own'),
+ # experience that is not planks x the wood
+ ('tools/furnspec.json', '"label": "Oak toy box",\n     "level": 50,\n     "xp": 240',
+  '"label": "Oak toy box",\n     "level": 50,\n     "xp": 300',
+  '62 the experience is planks x the wood'),
+ # the Stonemason no longer stocking the one thing a level-99 cape rack needs
+ ('scripts/skill_construction/configs/poh_stone.inv', 'stock4=magic_stone,5,1000' + chr(10), '',
+  '62 he stocks 4 things'),
+ # ...or stocking it at the wrong price
+ ('scripts/skill_construction/configs/poh_formal_mats.obj', 'cost=8000000', 'cost=4000000',
+  '62 all four come out at the OSRS price'),
 ]
 
 def checker_for(why):
