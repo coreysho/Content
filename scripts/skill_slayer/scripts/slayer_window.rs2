@@ -1,0 +1,241 @@
+// The Slayer Rewards window: what the rows say, and what a click does.
+//
+// The window itself and the code that paints its rows are generated - interfaces/slayer_rewards.if
+// and scripts/slayer_ui.rs2, both from tools/genslayerui.py. This file is the part worth reading by
+// hand: one set of procs answering "what is in row $i of tab $tab" and one loop turning clicks into
+// the effects, which still live where they always did (slayer_rewards.rs2, slayer_points.rs2).
+//
+// The Cosmetics tab holds the two helmet recolour unlocks, which arrived in the chat menu this
+// window replaced and belong in a tab of their own - that is where OSRS keeps them.
+//
+// IT REPLACED A CHAT MENU. Points used to be spent through nested p_choice lists, which could not
+// show a price list and was not what Old School does. OSRS interface 426 is a tab strip, a list, a
+// description and a Back / Confirm pair - select, read, confirm - and that is the flow here.
+
+// =========================================================================== what a row says
+
+[proc,slayer_ui_count](int $tab)(int)
+switch_int ($tab) {
+    case ^slayer_tab_unlock : return(enum_getoutputcount(slayer_unlock_name));
+    case ^slayer_tab_extend : return(enum_getoutputcount(slayer_extend_name));
+    case ^slayer_tab_buy : return(enum_getoutputcount(slayer_buy_cost));
+    case ^slayer_tab_tasks : return(^slayer_task_rows);
+    case ^slayer_tab_cosmetics : return(enum_getoutputcount(slayer_cosmetic_name));
+}
+return(0);
+
+[proc,slayer_ui_name](int $tab, int $i)(string)
+switch_int ($tab) {
+    case ^slayer_tab_unlock : return(enum(int, string, slayer_unlock_name, $i));
+    case ^slayer_tab_extend : return(enum(int, string, slayer_extend_name, $i));
+    case ^slayer_tab_buy : return(~slayer_ui_buy_name($i));
+    case ^slayer_tab_tasks : return(~slayer_ui_task_name($i));
+    case ^slayer_tab_cosmetics : return(enum(int, string, slayer_cosmetic_name, $i));
+}
+return("");
+
+// A thing you buy is named by the obj; the imbue is a service and is named by a table.
+[proc,slayer_ui_buy_name](int $i)(string)
+if ($i = ^slayer_buy_imbue) {
+    return(enum(int, string, slayer_buy_name, $i));
+}
+return(oc_name(enum(int, namedobj, slayer_buy_obj, $i)));
+
+// The Tasks tab: cancel, block, then one row per block slot. A slot shows what is in it, or that it
+// is empty, or how many quest points would open it - ~slayer_block_name already words all three.
+[proc,slayer_ui_task_name](int $i)(string)
+if ($i = 0) {
+    return("Cancel my current task");
+}
+if ($i = 1) {
+    return("Block my current task");
+}
+return("Unblock: <~slayer_block_name(sub($i, 1), ~slayer_ui_block_target(sub($i, 1)))>");
+
+[proc,slayer_ui_block_target](int $slot)(int)
+switch_int ($slot) {
+    case 1 : return(%slayer_block1);
+    case 2 : return(%slayer_block2);
+    case 3 : return(%slayer_block3);
+    case 4 : return(%slayer_block4);
+}
+return(0);
+
+[proc,slayer_ui_cost](int $tab, int $i)(int)
+switch_int ($tab) {
+    case ^slayer_tab_unlock : return(enum(int, int, slayer_unlock_cost, $i));
+    case ^slayer_tab_extend : return(enum(int, int, slayer_extend_cost, $i));
+    case ^slayer_tab_buy : return(enum(int, int, slayer_buy_cost, $i));
+    case ^slayer_tab_tasks : return(~slayer_ui_task_cost($i));
+    case ^slayer_tab_cosmetics : return(enum(int, int, slayer_cosmetic_cost, $i));
+}
+return(0);
+
+[proc,slayer_ui_task_cost](int $i)(int)
+if ($i = 0) {
+    return(^slayer_cancel_cost);
+}
+if ($i = 1) {
+    return(^slayer_block_cost);
+}
+return(0);
+
+// Already have it? Unlocks and extends are bits; a thing you buy can always be bought again, and a
+// task row is an action rather than a thing to own.
+[proc,slayer_ui_owned](int $tab, int $i)(boolean)
+if ($tab = ^slayer_tab_unlock) {
+    return(~slayer_has_unlock(enum(int, int, slayer_unlock_bit, $i)));
+}
+if ($tab = ^slayer_tab_extend) {
+    return(~slayer_has_extend($i));
+}
+if ($tab = ^slayer_tab_cosmetics) {
+    return(~slayer_has_unlock(enum(int, int, slayer_cosmetic_bit, $i)));
+}
+return(false);
+
+// The right-hand column: what it costs, or that you already have it.
+[proc,slayer_ui_cost_text](int $tab, int $i)(string)
+if (~slayer_ui_owned($tab, $i) = true) {
+    return("unlocked");
+}
+def_int $cost = ~slayer_ui_cost($tab, $i);
+if ($cost = 0) {
+    return("free");
+}
+// slayer_cost_text, not tostring: the engine cannot group digits and "1000 points" reads as noise.
+return("<enum(int, string, slayer_cost_text, $cost)> points");
+
+// Green for what you have, white for what you can afford, red for what you cannot. There is no grey
+// in PixFont.evaluateTag, so red does the work of both "too expensive" and "not available yet".
+[proc,slayer_ui_tint](int $tab, int $i)(string)
+if (~slayer_ui_owned($tab, $i) = true) {
+    return("@gre@");
+}
+if (%slayer_points < ~slayer_ui_cost($tab, $i)) {
+    return("@red@");
+}
+return("@whi@");
+
+// The two fills. if_setcolour takes a 24-bit RGB, and these four constants are the only colours
+// the script paints - everything else is in the interface.
+[proc,slayer_ui_row_fill](int $sel, int $i)(int)
+if ($sel = $i) {
+    return(^slayer_ui_row_on);
+}
+return(^slayer_ui_row_off);
+
+[proc,slayer_ui_tab_fill](int $tab, int $which)(int)
+if ($tab = $which) {
+    return(^slayer_ui_tab_on);
+}
+return(^slayer_ui_tab_off);
+
+[proc,slayer_ui_tabtint](int $tab, int $which)(string)
+if ($tab = $which) {
+    return("@whi@");
+}
+return("@or1@");
+
+[proc,slayer_ui_points_text]()(string)
+return("@or1@<tostring(%slayer_points)>@whi@ Slayer reward points, task streak @or1@<tostring(%slayer_streak)>");
+
+// The description panel. Line 0 and 1 come from the tab's own table; the extends and the task rows
+// describe themselves, because theirs are made of numbers rather than of sentences.
+[proc,slayer_ui_desc](int $tab, int $sel, int $line)(string)
+if ($sel < 0) {
+    if ($line = 0) {
+        return("@or1@Select something to see what it does.");
+    }
+    return("");
+}
+if ($line >= ^slayer_desc_lines) {
+    return("");
+}
+switch_int ($tab) {
+    case ^slayer_tab_unlock : return(enum(int, string, slayer_unlock_desc, calc($sel * 3 + $line)));
+    case ^slayer_tab_buy : return(enum(int, string, slayer_buy_desc, calc($sel * 3 + $line)));
+    case ^slayer_tab_extend : return(~slayer_ui_extend_desc($sel, $line));
+    case ^slayer_tab_tasks : return(~slayer_ui_task_desc($sel, $line));
+    case ^slayer_tab_cosmetics : return(enum(int, string, slayer_cosmetic_desc, calc($sel * 3 + $line)));
+}
+return("");
+
+[proc,slayer_ui_extend_desc](int $sel, int $line)(string)
+if ($line ! 0) {
+    return("");
+}
+return("Longer <enum(int, string, slayer_extend_monster, $sel)> tasks: <tostring(enum(int, int, slayer_extend_min, $sel))> to <tostring(enum(int, int, slayer_extend_max, $sel))> of them.");
+
+[proc,slayer_ui_task_desc](int $sel, int $line)(string)
+if ($line ! 0) {
+    return("");
+}
+if ($sel = 0) {
+    return("Forget this task and keep your streak. You can ask for another.");
+}
+if ($sel = 1) {
+    return("Forget this task and never be given it again until you unblock it.");
+}
+return("Free the slot so that task can be assigned to you again.");
+
+// =========================================================================== the window
+
+// One opening of the window. The loop is bounded rather than while(true) for two reasons: a menu
+// that cannot end would hang the player script, and the engine spends one opcode budget on the
+// whole session - see ^slayer_ui_clicks.
+[proc,slayer_rewards_window]
+def_int $tab = ^slayer_tab_unlock;
+def_int $sel = -1;
+def_int $clicks = 0;
+while ($clicks < ^slayer_ui_clicks) {
+    ~slayer_ui_draw($tab, $sel);
+    if_openmain(slayer_rewards);
+    ~slayer_ui_buttons($tab);
+    p_pausebutton;
+    $clicks = calc($clicks + 1);
+    def_int $clicked_tab = ~slayer_ui_clicked_tab;
+    if ($clicked_tab >= 0) {
+        $tab = $clicked_tab;
+        $sel = -1;
+    } else {
+        def_int $row = ~slayer_ui_clicked_row;
+        if ($row >= 0) {
+            $sel = $row;
+        } else if (last_com = slayer_rewards:confirm) {
+            if (~slayer_ui_take($tab, $sel) = true) {
+                $sel = -1;
+            }
+        } else {
+            if_close;
+            return;
+        }
+    }
+}
+if_close;
+
+// Confirm. Returns true when something happened, so the window can clear its selection. Every
+// branch ends in the proc that owns that effect - there is one implementation of each, and the
+// window is a different way in rather than a second copy.
+[proc,slayer_ui_take](int $tab, int $sel)(boolean)
+if ($sel < 0) {
+    mes("Select something first.");
+    return(false);
+}
+if (~slayer_ui_owned($tab, $sel) = true) {
+    mes("You already have that.");
+    return(false);
+}
+def_int $cost = ~slayer_ui_cost($tab, $sel);
+if (%slayer_points < $cost) {
+    mes("That costs <tostring($cost)> points, and you have <tostring(%slayer_points)>.");
+    return(false);
+}
+switch_int ($tab) {
+    case ^slayer_tab_unlock : return(~slayer_buy_unlock($sel));
+    case ^slayer_tab_extend : return(~slayer_buy_extend($sel));
+    case ^slayer_tab_buy : return(~slayer_buy_item($sel));
+    case ^slayer_tab_tasks : return(~slayer_do_task($sel));
+    case ^slayer_tab_cosmetics : return(~slayer_buy_cosmetic($sel));
+}
+return(false);

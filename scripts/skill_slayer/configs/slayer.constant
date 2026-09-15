@@ -95,3 +95,47 @@
 // For scale: the top masters pay 15 points a task, so this is around eighty tasks.
 ^slayer_imbue_cost = 1250
 
+// ---- the Slayer Rewards window (slayer_window.rs2, interface by tools/genslayerui.py) ----
+// The five tabs, in OSRS's own order. Cosmetics is empty until the slayer helmet recolours land.
+^slayer_tab_unlock = 0
+^slayer_tab_extend = 1
+^slayer_tab_buy = 2
+^slayer_tab_tasks = 3
+^slayer_tab_cosmetics = 4
+^slayer_tab_count = 5
+
+// Rows the Tasks tab shows: cancel, block, and one per block slot.
+^slayer_task_rows = 6
+
+// Which row of the Buy tab is the imbue. It is a service and not an item, so it has no obj in
+// slayer_buy_obj and ~slayer_buy_item hands it to ~slayer_do_imbue instead.
+^slayer_buy_imbue = 3
+
+// Every description in the window is two lines (battery group 4 proves it), so the third line of
+// the panel is always blank and nothing needs a table of line counts.
+^slayer_desc_lines = 2
+
+// How many clicks one opening of the window will answer before it closes itself, and what a click
+// costs.
+//
+// The engine gives a SCRIPT 500,000 opcodes and does not reset the count when it suspends on
+// p_pausebutton, so every click in one window session comes out of one budget - that is what threw
+// "Too many instructions" out of the Construction window (claude/poh-menu-opcount.md). Both numbers
+// below are MEASURED, not guessed: the compiled script.pack was run through the engine's own opcode
+// table (the harness in that doc, extended to strings and the if_ ops), and the worst click - the
+// Extend tab, eleven rows, one selected - is a 2,229-opcode redraw plus 269 for its resume buttons.
+//
+// 128 x 2,498 is 319,744, or 64% of the budget: more clicks than anyone spends in one visit, and
+// impossible to run out of. Battery group 6 multiplies these two and fails if the product climbs
+// past 400,000, so raising either one means measuring again - 200 clicks would be 99% of it.
+^slayer_ui_clicks = 128
+^slayer_ui_click_ops = 2498
+
+// The bright halves of the two browns the window paints with if_setcolour: the row you have
+// selected, and the tab that is open. Their dark halves are in tools/genslayerui.py, because they
+// are what the interface is written with; these two are what the script sets. Battery group 5
+// checks the pair against the file.
+^slayer_ui_row_on = 0x8C7F63
+^slayer_ui_row_off = 0x4A3F31
+^slayer_ui_tab_on = 0x6F6250
+^slayer_ui_tab_off = 0x3E3529

@@ -1,46 +1,23 @@
-// Slayer point rewards, spent through any master's "I'd like to spend my Slayer points."
-// (slayer_points.rs2 has the points themselves and cancel/block/unblock). Names and prices follow
-// the OSRS Slayer Rewards page, limited to what exists in this build:
-//   Unlocks  Bigger and Badder 50 (superiors.rs2), Gargoyle Smasher 120, Slug Salter 10,
-//            Reptile Freezer 10, Ring Bling 150
-//   Extends  eleven tasks (configs/slayer_rewards.enum) - longer tasks from Chaeldar and Duradel
-//   Buy      Slayer ring (8) 75, Herb sack 750, Looting bag 10
-// Not here because the thing they work on is missing: 'Shroom Sprayer (zygomite tasks never assigned), Broader Fletching, the boss/TzHaar/lizardman
-// task unlocks. Malevolent Masquerade and Seeing Red are left out on purpose: slayer helmets and red
-// dragon tasks were never locked here, and selling them back would take them away.
-
-[label,slayer_master_rewards]
-~chatplayer("<p,quiz>I'd like to spend my Slayer points.");
-~chatnpc("<p,neutral>You have <tostring(%slayer_points)> Slayer points and have finished <tostring(%slayer_streak)> tasks in a row. What would you like?");
-switch_int (~p_choice5("Unlock something.", 1, "Make my tasks longer.", 2, "Buy something.", 3, "Cancel or block my task.", 4, "Nothing, thanks.", 5)) {
-    case 1 : @slayer_rewards_unlocks;
-    case 2 : @slayer_rewards_extends(0);
-    case 3 : @slayer_rewards_buy;
-    case 4 :
-        switch_int (~p_choice4("Cancel my task. (<tostring(^slayer_cancel_cost)> points)", 1, "Block my task for good. (<tostring(^slayer_block_cost)> points)", 2, "Unblock a task.", 3, "Never mind.", 4)) {
-            case 1 : @slayer_rewards_cancel;
-            case 2 : @slayer_rewards_block;
-            case 3 : @slayer_rewards_unblock;
-        }
-    case default : ~chatplayer("<p,neutral>Nothing, thanks.");
-}
-
-// ---- spending ----
-
-[proc,slayer_can_afford](int $cost)(boolean)
-if (%slayer_points >= $cost) {
-    return(true);
-}
-~chatnpc("<p,neutral>That costs <tostring($cost)> points, and you've only got <tostring(%slayer_points)>.");
-return(false);
-
-[proc,slayer_confirm](string $what, int $cost)(boolean)
-if (~p_choice2_header("Yes, spend <tostring($cost)> points.", 1, "No.", 2, $what) = 1) {
-    return(true);
-}
-return(false);
-
-// ---- unlocks ----
+// Slayer point rewards, spent through the Slayer Rewards WINDOW (slayer_window.rs2 and the
+// generated slayer_ui.rs2 / slayer_rewards.if). This file holds what each reward costs and what
+// buying one does; the window is only a way in.
+//
+// Names and prices follow the OSRS Slayer Rewards page, limited to what exists in this build:
+//   Unlock     Bigger and Badder 50 (superiors.rs2), Gargoyle Smasher 120, Slug Salter 10,
+//              Reptile Freezer 10, Ring Bling 150
+//   Extend     eleven tasks (configs/slayer_rewards.enum) - longer tasks from Chaeldar and Duradel
+//   Buy        Slayer ring (8) 75, Herb sack 750, Looting bag 10, and the imbue at
+//              ^slayer_imbue_cost, which is a service rather than an item
+//   Tasks      cancel 30, block 100, unblock free (slayer_points.rs2)
+//   Cosmetics  Unholy Helmet 1,000 and Kalphite Khat 1,000 - the helmet recolours, which OSRS also
+//              keeps in a tab of their own (slayer_helm_colours.rs2 reads their bits)
+// Not here because the thing they work on is missing: 'Shroom Sprayer (zygomite tasks are never
+// assigned), Broader Fletching, the boss/TzHaar/lizardman task unlocks, broad bolts and arrows, and
+// the rune pouch. Seeing Red is left out on purpose: red dragon tasks were never locked here, and
+// selling that back would take them away.
+//
+// NOTHING HERE PRINTS A DIALOGUE. The window is on screen while these run, so they report with
+// mes() - an npc talking over the top of its own window is what the chat menu used to do.
 
 [proc,slayer_has_unlock](int $bit)(boolean)
 if (testbit(%slayer_unlocks, $bit) = ^true) {
@@ -48,112 +25,81 @@ if (testbit(%slayer_unlocks, $bit) = ^true) {
 }
 return(false);
 
-[proc,slayer_unlock_label](string $name, int $bit, int $cost)(string)
-if (~slayer_has_unlock($bit) = true) {
-    return("<$name> (unlocked)");
-}
-return("<$name> (<tostring($cost)>)");
-
-[label,slayer_rewards_unlocks]
-def_int $bit = -1;
-def_int $cost = 0;
-def_string $what = "";
-def_int $pick = ~p_choice5(~slayer_unlock_label("Bigger and Badder", 4, 50), 5, ~slayer_unlock_label("Gargoyle Smasher", 0, 120), 1, ~slayer_unlock_label("Slug Salter", 1, 10), 2, ~slayer_unlock_label("Reptile Freezer", 2, 10), 3, "More...", 6);
-if ($pick = 6) {
-    // The two helmet recolours are here, at OSRS's own 1,000 points each - unlike the imbue
-    // price, this one did not have to be invented, because OSRS charges Slayer points for it too.
-    $pick = ~p_choice4(~slayer_unlock_label("Ring Bling", 3, 150), 4,
-                       ~slayer_unlock_label("Unholy Helmet", 5, 1000), 8,
-                       ~slayer_unlock_label("Kalphite Khat", 6, 1000), 9, "Never mind.", 7);
-}
-switch_int ($pick) {
-    case 5 : $bit = 4; $cost = 50; $what = "On task, monsters with a superior form have a 1/200 chance of summoning it when they die.";
-    case 1 : $bit = 0; $cost = 120; $what = "Gargoyles you beat are smashed automatically if you carry a rock hammer.";
-    case 2 : $bit = 1; $cost = 10; $what = "Rockslugs you beat are salted automatically if you carry a bag of salt.";
-    case 3 : $bit = 2; $cost = 10; $what = "Desert lizards you beat are frozen automatically if you carry icy water.";
-    case 4 : $bit = 3; $cost = 150; $what = "Craft Slayer rings: use an enchanted gem on a furnace with a gold bar and ring mould (75 Crafting).";
-    case 8 : $bit = 5; $cost = 1000; $what = "Use an abyssal head on a slayer helmet to make it red. Abyssal demons drop the head.";
-    case 9 : $bit = 6; $cost = 1000; $what = "Use a Kq head on a slayer helmet to make it green. The Kalphite Queen drops the head.";
-    case default : return;
-}
-if (~slayer_has_unlock($bit) = true) {
-    ~chatnpc("<p,neutral>You've already learned that one.");
-    return;
-}
-if (~slayer_can_afford($cost) = false) {
-    return;
-}
-if (~slayer_confirm($what, $cost) = false) {
-    return;
-}
-%slayer_points = sub(%slayer_points, $cost);
-%slayer_unlocks = setbit(%slayer_unlocks, $bit);
-~chatnpc("<p,happy>There you go. You have <tostring(%slayer_points)> points left.");
-
-// ---- extends ----
-
 [proc,slayer_has_extend](int $index)(boolean)
 if (testbit(%slayer_extends, $index) = ^true) {
     return(true);
 }
 return(false);
 
-[proc,slayer_extend_label](int $index)(string)
-if (~slayer_has_extend($index) = true) {
-    return("<enum(int, string, slayer_extend_name, $index)> (unlocked)");
-}
-return("<enum(int, string, slayer_extend_name, $index)> (<tostring(enum(int, int, slayer_extend_cost, $index))>)");
+// Buying. Each of these is reached only through ~slayer_ui_take, which has already checked that the
+// row is not owned and that the points are there - so each one spends and does the thing.
+[proc,slayer_buy_unlock](int $i)(boolean)
+%slayer_points = sub(%slayer_points, enum(int, int, slayer_unlock_cost, $i));
+%slayer_unlocks = setbit(%slayer_unlocks, enum(int, int, slayer_unlock_bit, $i));
+mes("You unlock <enum(int, string, slayer_unlock_name, $i)>. <tostring(%slayer_points)> points left.");
+return(true);
 
-// Four extends a page; $page 0, 1, 2 (eleven in all).
-[label,slayer_rewards_extends](int $page)
-def_int $first = multiply($page, 4);
-def_int $count = enum_getoutputcount(slayer_extend_name);
-def_int $left = sub($count, $first);
-def_int $pick = -1;
-if ($left > 4) {
-    $pick = ~p_choice5(~slayer_extend_label($first), 0, ~slayer_extend_label(add($first, 1)), 1, ~slayer_extend_label(add($first, 2)), 2, ~slayer_extend_label(add($first, 3)), 3, "More...", 4);
-    if ($pick = 4) {
-        @slayer_rewards_extends(add($page, 1));
-    }
-} else if ($left = 4) {
-    $pick = ~p_choice5(~slayer_extend_label($first), 0, ~slayer_extend_label(add($first, 1)), 1, ~slayer_extend_label(add($first, 2)), 2, ~slayer_extend_label(add($first, 3)), 3, "Back to the start.", 4);
-    if ($pick = 4) {
-        @slayer_rewards_extends(0);
-    }
-} else if ($left = 3) {
-    $pick = ~p_choice4(~slayer_extend_label($first), 0, ~slayer_extend_label(add($first, 1)), 1, ~slayer_extend_label(add($first, 2)), 2, "Back to the start.", 4);
-    if ($pick = 4) {
-        @slayer_rewards_extends(0);
-    }
-} else if ($left = 2) {
-    $pick = ~p_choice3(~slayer_extend_label($first), 0, ~slayer_extend_label(add($first, 1)), 1, "Back to the start.", 4);
-    if ($pick = 4) {
-        @slayer_rewards_extends(0);
-    }
+// The Cosmetics tab is unlocks too - same bits, same currency, different tab, because that is where
+// OSRS keeps the helmet recolours. What the unlock then lets you do is in slayer_helm_colours.rs2.
+[proc,slayer_buy_cosmetic](int $i)(boolean)
+%slayer_points = sub(%slayer_points, enum(int, int, slayer_cosmetic_cost, $i));
+%slayer_unlocks = setbit(%slayer_unlocks, enum(int, int, slayer_cosmetic_bit, $i));
+mes("You unlock <enum(int, string, slayer_cosmetic_name, $i)>. <tostring(%slayer_points)> points left.");
+return(true);
+
+[proc,slayer_buy_extend](int $i)(boolean)
+%slayer_points = sub(%slayer_points, enum(int, int, slayer_extend_cost, $i));
+%slayer_extends = setbit(%slayer_extends, $i);
+mes("Your <enum(int, string, slayer_extend_monster, $i)> tasks will be longer from now on. <tostring(%slayer_points)> points left.");
+return(true);
+
+// The Buy tab. Row 3 is the imbue, which hands over no item and so has no obj: ^slayer_buy_imbue is
+// the row it sits in.
+[proc,slayer_buy_item](int $i)(boolean)
+if ($i = ^slayer_buy_imbue) {
+    return(~slayer_do_imbue);
+}
+def_namedobj $item = enum(int, namedobj, slayer_buy_obj, $i);
+if (inv_freespace(inv) < 1) {
+    mes("You need a free inventory space for that.");
+    return(false);
+}
+%slayer_points = sub(%slayer_points, enum(int, int, slayer_buy_cost, $i));
+inv_add(inv, $item, 1);
+mes("You buy <~add_article(lowercase(oc_name($item)))>. <tostring(%slayer_points)> points left.");
+return(true);
+
+// THE IMBUE, as a proc rather than the label it was.
+//
+// OSRS imbues a black mask in the Nightmare Zone for 1,250,000 NMZ points, at Soul Wars for 500
+// Zeal tokens, or in Emir's Arena with a Scroll of Imbuing. None of those three exists in a 2006
+// build, so this is a slayer master service and ^slayer_imbue_cost is the one invented number in
+// it - see the note beside the constant.
+//
+// The imbue is a property of the MASK: a helmet is imbued by imbuing its mask, or directly if it is
+// already assembled, and taking a helmet apart hands back whichever mask went in.
+//
+// A SECOND IMBUE IS ALLOWED, as in OSRS. The chat version warned "you've already got one of those
+// imbued" and then imbued and charged anyway - the branch had no return - so the message only ever
+// misled. Carrying a second plain mask and paying again is a fair thing to want, so it is silent.
+[proc,slayer_do_imbue]()(boolean)
+def_namedobj $from = null;
+def_namedobj $to = null;
+if (inv_total(inv, black_mask) > 0) {
+    $from = black_mask;
+    $to = black_mask_i;
+} else if (inv_total(inv, slayer_helm) > 0) {
+    $from = slayer_helm;
+    $to = slayer_helm_i;
 } else {
-    $pick = ~p_choice2(~slayer_extend_label($first), 0, "Back to the start.", 4);
-    if ($pick = 4) {
-        @slayer_rewards_extends(0);
-    }
+    mes("You need a black mask or a slayer helmet with you to imbue.");
+    return(false);
 }
-if ($pick < 0 | $pick > 3) {
-    return;
-}
-def_int $index = add($first, $pick);
-if (~slayer_has_extend($index) = true) {
-    ~chatnpc("<p,neutral>You've already got that one.");
-    return;
-}
-def_int $cost = enum(int, int, slayer_extend_cost, $index);
-if (~slayer_can_afford($cost) = false) {
-    return;
-}
-if (~slayer_confirm("<enum(int, string, slayer_extend_monster, $index)> tasks from Chaeldar or Duradel become <tostring(enum(int, int, slayer_extend_min, $index))>-<tostring(enum(int, int, slayer_extend_max, $index))> kills.", $cost) = false) {
-    return;
-}
-%slayer_points = sub(%slayer_points, $cost);
-%slayer_extends = setbit(%slayer_extends, $index);
-~chatnpc("<p,happy>Done - your <enum(int, string, slayer_extend_monster, $index)> tasks from now on will be longer. You have <tostring(%slayer_points)> points left.");
+%slayer_points = sub(%slayer_points, ^slayer_imbue_cost);
+inv_del(inv, $from, 1);
+inv_add(inv, $to, 1);
+mes("You imbue your <lowercase(oc_name($from))>. <tostring(%slayer_points)> points left.");
+return(true);
 
 // Called after every assignment (slayer_task.rs2). Only Chaeldar and Duradel give extended tasks,
 // as their lengths are what the OSRS ranges are written against.
@@ -170,68 +116,6 @@ if (~slayer_has_extend($index) = false) {
     return;
 }
 %slayer_count = ~random_range(enum(int, int, slayer_extend_min, $index), enum(int, int, slayer_extend_max, $index));
-
-// ---- buying ----
-
-[label,slayer_rewards_buy]
-def_namedobj $item = null;
-def_int $cost = 0;
-switch_int (~p_choice5("Slayer ring (8) - 75 points", 1, "Herb sack - 750 points", 2,
-                       "Looting bag - 10 points", 3, "Imbue a black mask or helmet - <tostring(^slayer_imbue_cost)> points", 4,
-                       "Never mind.", 5)) {
-    case 1 : $item = slayer_ring_8; $cost = 75;
-    case 2 : $item = herb_sack; $cost = 750;
-    case 3 : $item = looting_bag; $cost = 10;
-    case 4 : @slayer_imbue;
-    case default : return;
-}
-if (~slayer_can_afford($cost) = false) {
-    return;
-}
-if (inv_freespace(inv) < 1) {
-    ~chatnpc("<p,neutral>You'll need a free space in your inventory for that.");
-    return;
-}
-%slayer_points = sub(%slayer_points, $cost);
-inv_add(inv, $item, 1);
-~objbox($item, "You spend <tostring($cost)> Slayer points on <~add_article(lowercase(oc_name($item)))>.", 250, 0, 0);
-
-// ---- the imbue ----
-//
-// OSRS imbues a black mask in the Nightmare Zone for 1,250,000 NMZ points, at Soul Wars for 500
-// Zeal tokens, or in Emir's Arena with a Scroll of Imbuing. None of those three exists in a 2006
-// build, so THIS IS A SLAYER MASTER SERVICE INSTEAD and the price is the one invented number in
-// the round: ^slayer_imbue_cost, 1,250 points. It echoes OSRS's 1,250,000 at a thousandth and
-// sits just above the 1,000 that OSRS charges for a helmet recolour unlock, which is the nearest
-// thing to a comparable in the same currency. Corey chose slayer points over a shop or a new
-// token; nothing about the number is derivable and it is meant to be tuned.
-//
-// The imbue is a property of the MASK. A helmet is imbued by imbuing its mask, or directly if it
-// is already assembled - either way, taking a helmet apart hands back whichever mask went in.
-
-[label,slayer_imbue]
-def_namedobj $from = null;
-def_namedobj $to = null;
-if (inv_total(inv, black_mask) > 0) {
-    $from = black_mask;
-    $to = black_mask_i;
-} else if (inv_total(inv, slayer_helm) > 0) {
-    $from = slayer_helm;
-    $to = slayer_helm_i;
-} else {
-    ~chatnpc("<p,neutral>Bring me a black mask or a slayer helmet and I'll imbue it for you.");
-    return;
-}
-if (inv_total(inv, $to) > 0) {
-    ~chatnpc("<p,neutral>You've already got one of those imbued.");
-}
-if (~slayer_can_afford(^slayer_imbue_cost) = false) {
-    return;
-}
-%slayer_points = sub(%slayer_points, ^slayer_imbue_cost);
-inv_del(inv, $from, 1);
-inv_add(inv, $to, 1);
-~objbox($to, "You spend <tostring(^slayer_imbue_cost)> Slayer points imbuing your <lowercase(oc_name($from))>.", 250, 0, 0);
 
 // ---- automatic finishing blows (called from each monster's ai_queue3) ----
 

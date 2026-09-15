@@ -3680,12 +3680,19 @@ check(_sp.run([sys.executable, os.path.join(C, 'tools/rs2check.py')],
 # the price is a constant, not a number in a script
 _SC = read('scripts/skill_slayer/configs/slayer.constant')
 _m66 = re.search(r'^\^slayer_imbue_cost\s*=\s*(\d+)\s*$', _SC, re.M)
-check(_m66 and 'tostring(^slayer_imbue_cost)' in _RW,
-      'the price is ^slayer_imbue_cost (%s) and the menu prints it from there'
+# The window replaced the chat menu, so the price is no longer printed by this file: the Buy tab
+# reads it out of slayer_buy_cost and slayer_battery group 9 is what holds that row equal to the
+# constant. What stays this group's business is that the constant exists and the SPEND uses it.
+_RE = read('scripts/skill_slayer/configs/slayer_rewards.enum')
+_brow = re.search(r'^\^slayer_buy_imbue\s*=\s*(\d+)\s*$', _SC, re.M)
+_bcost = dict(re.findall(r'^val=(\d+),(-?\d+)$',
+              _RE.split('[slayer_buy_cost]', 1)[1].split('\n[', 1)[0], re.M))
+check(_m66 and _brow and _bcost.get(_brow.group(1)) == _m66.group(1),
+      'the price is ^slayer_imbue_cost (%s) and the Buy tab\'s row shows that same number'
       % (_m66.group(1) if _m66 else 'NOT DECLARED'))
 # The imbue block spends the constant and contains no number of its own - a price written twice
 # drifts, which is how the Stonemason came to sell at his own buying rate.
-_imbblk = _RW.split('[label,slayer_imbue]', 1)[1].split('\n[', 1)[0]
+_imbblk = _RW.split('[proc,slayer_do_imbue]', 1)[1].split('\n[', 1)[0]
 # ...and the price's VALUE never appears as a literal in it. Not "no numbers at all" - ~objbox
 # takes a zoom of 250 like every other reward does - but the 1250 itself, which is the thing that
 # drifts when a price is written in two places.
@@ -3849,10 +3856,24 @@ for _c, _file, _rate in ((_COL[0], 'scripts/drop_tables/scripts/abyssal_demon.rs
 
 # the unlocks cost what OSRS charges, and the menu and the switch agree
 _RW67 = read('scripts/skill_slayer/scripts/slayer_rewards.rs2')
+# The chat menu that held these is gone: the Cosmetics tab reads them out of three parallel
+# tables, so the name, the bit and the price can no longer be written in two places and drift.
+_CN = dict(re.findall(r'^val=(\d+),(.*)$',
+           _RE.split('[slayer_cosmetic_name]', 1)[1].split('\n[', 1)[0], re.M))
+_CB = dict(re.findall(r'^val=(\d+),(-?\d+)$',
+           _RE.split('[slayer_cosmetic_bit]', 1)[1].split('\n[', 1)[0], re.M))
+_CC = dict(re.findall(r'^val=(\d+),(-?\d+)$',
+           _RE.split('[slayer_cosmetic_cost]', 1)[1].split('\n[', 1)[0], re.M))
 for _c in _COL:
-    check('~slayer_unlock_label("%s", %d, %d)' % (_c['unlock'], _c['bit'], _c['cost']) in _RW67
-          and '$bit = %d; $cost = %d;' % (_c['bit'], _c['cost']) in _RW67,
-          '%s is %d points in the menu AND in the switch' % (_c['unlock'], _c['cost']))
+    _row = [k for k, v in _CN.items() if v.strip() == _c['unlock']]
+    check(len(_row) == 1, '%s is one row of the Cosmetics tab' % _c['unlock'])
+    if len(_row) == 1:
+        check(int(_CB[_row[0]]) == _c['bit'] and int(_CC[_row[0]]) == _c['cost'],
+              '...on bit %d for %d points, the numbers the recolour itself reads'
+              % (_c['bit'], _c['cost']))
+check('enum(int, int, slayer_cosmetic_cost, $i)' in _RW67
+      and 'enum(int, int, slayer_cosmetic_bit, $i)' in _RW67,
+      'and buying one spends and sets whatever those tables say, never a copy')
 check(all(_c['cost'] == 1000 for _c in _COL),
       'both at OSRS\'s own 1,000 - this price did not have to be invented')
 _bits = [_c['bit'] for _c in _COL]
