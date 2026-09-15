@@ -700,6 +700,58 @@ if (inv_total(inv, coins) < $cost) {
  ('tools/furnspec.json', '"hotspots": [\n    15174,\n    15175,\n    15176\n   ],',
   '"hotspots": [\n    15174,\n    15175\n   ],',
   '49 they claim the centrepiece, the four flower spaces, the fencing and the hedging'),
+ # ---- 64: the skilling outfits ----
+ # THE ONE THE SWEEP FOUND: a piece with no way to get it. Take it out of the drop table and the
+ # end-to-end check asks tools/obtainable.py, which says so.
+ ('scripts/skilling_outfits/configs/outfits.enum',
+  'val=24,carpenters_helm' + chr(10), '',
+  '64 outfit_piece is 28 rows with no gap'),
+ # a skilling script going round the funnel - neither the bonus nor the roll reaches it
+ ('scripts/areas/area_abyss/scripts/abyss_outer.rs2',
+  '~mining_xp(250);', 'stat_advance(mining, 250);',
+  '64 nothing outside a quest awards these seven directly'),
+ # ...and the same for the one that made the carpenter's outfit possible at all
+ ('tools/genfurn.py',
+  "'~construction_xp(enum(int, int, poh_furn_xp, $item));',",
+  "'stat_advance(construction, enum(int, int, poh_furn_xp, $item));',",
+  '64 genfurn.py is what writes it'),
+ # an outfit rolling for its neighbour, which would quietly hand a miner angler boots
+ ('scripts/skilling_outfits/scripts/outfit_xp.rs2',
+  '~outfit_roll(^outfit_prospector, $xp);', '~outfit_roll(^outfit_angler, $xp);',
+  '64 all seven experience procs roll for their own outfit'),
+ # a proc that stopped rolling at all
+ ('scripts/skilling_outfits/scripts/outfit_xp.rs2',
+  '~outfit_roll(^outfit_eye, $xp);' + chr(10), '',
+  '64 seven rolls, one per proc'),
+ # the roll paid on the post-bonus xp, so three pieces make the fourth come faster
+ ('scripts/skilling_outfits/scripts/outfit_xp.rs2',
+  '~outfit_roll(^outfit_smiths, $xp);', '~outfit_roll(^outfit_smiths, calc($xp + $extra));',
+  '64 all seven experience procs roll for their own outfit'),
+ # the table reordered, so the bonus proc reads a hat out of the legs slot
+ ('scripts/skilling_outfits/configs/outfits.enum',
+  'val=4,angler_hat\nval=5,angler_top', 'val=4,angler_top\nval=5,angler_hat',
+  '64 each outfit is its own four, in hat/torso/legs/feet order'),
+ # the Smiths' gloves swapped for a piece that is already in another outfit
+ ('scripts/skilling_outfits/configs/outfits.enum',
+  'val=20,smiths_gloves', 'val=20,prospector_helm',
+  '64 and no piece is in two outfits'),
+ # a piece the player already banked being given again
+ ('scripts/skilling_outfits/scripts/outfit_drop.rs2',
+  'if ($piece ! null & ~obj_gettotal($piece) = 0) {\n        $n = calc($n + 1);',
+  'if ($piece ! null & inv_total(inv, $piece) = 0) {\n        $n = calc($n + 1);',
+  '64 outfit_missing counts what you own everywhere'),
+ # ...and a piece found with full hands going nowhere at all
+ ('scripts/skilling_outfits/scripts/outfit_drop.rs2',
+  'obj_add(coord, $piece, 1, ^lootdrop_duration);', 'mes("Your hands are full.");',
+  '64 a piece found with a full inventory goes on the floor'),
+ # the rate written into the script instead of the constant
+ ('scripts/skilling_outfits/scripts/outfit_drop.rs2',
+  'if (random(^outfit_roll_xp) >= $xp) {', 'if (random(250000) >= $xp) {',
+  '64 no bare number in the roll'),
+ # an outfit index that no longer lines up with the table it keys
+ ('scripts/skilling_outfits/configs/outfits.constant',
+  '^outfit_carpenters = 6', '^outfit_carpenters = 7',
+  '64 the seven outfits are 0..6 with no gap'),
 ]
 
 def checker_for(why):

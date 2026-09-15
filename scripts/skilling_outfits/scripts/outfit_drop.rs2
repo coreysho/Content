@@ -1,0 +1,77 @@
+// Where the skilling outfits come from.
+//
+// All forty-seven pieces were imported, six of the outfits had their experience bonus wired in
+// outfit_xp.rs2, and NOT ONE PIECE COULD BE OBTAINED BY ANY MEANS - no shop, no drop, no reward,
+// nothing. tools/obtainable.py found it by asking the same question of every obj in the game that
+// battery group 63 asks of Construction materials. This is the answer for seven of the eleven.
+//
+// THEY ARE NOT OSRS'S SOURCES, and cannot be. OSRS earns these in Motherlode Mine, the Fishing
+// Trawler, Temple Trekking, Wintertodt, Guardians of the Rift, the Giants' Foundry and Mahogany
+// Homes; none of those exists here and most are a whole minigame each. So a piece is found while
+// TRAINING THE SKILL ITSELF, which is the nearest honest thing and needs no new content.
+//
+// THE ROLL RIDES ON THE EXPERIENCE PROC. Every repeatable action in these seven skills already
+// routes its experience through ~mining_xp, ~fishing_xp and the rest so the outfit's own bonus can
+// be applied - so that proc is the one place that sees every action, already, with the amount it
+// was worth. One line in each is the whole hook. Nothing else had to be touched to make every
+// rock, fish, log, fire, rune, bar and piece of furniture roll.
+//
+// The chance is proportional to the experience: random(^outfit_roll_xp) < $xp. A magic log rolls
+// twenty times as often as a normal one because it is worth twenty times as much, which is the
+// behaviour you want; a flat chance per action would pay best for the fastest, worst action.
+//
+// Quest lump sums do NOT roll, and should not - they go straight to stat_advance and always did.
+// Finishing Heroes' Quest is not twenty hours of mining.
+
+// $xp is what the action was worth BEFORE the outfit bonus, so wearing three pieces does not make
+// the fourth come faster.
+[proc,outfit_roll](int $outfit, int $xp)
+if ($xp <= 0) {
+    return;
+}
+if (random(^outfit_roll_xp) >= $xp) {
+    return;
+}
+def_int $missing = ~outfit_missing($outfit);
+if ($missing = 0) {
+    return;
+}
+// Pick one of the pieces they do not have, rather than always the hat: walk the four again and
+// stop at the $pick-th missing one.
+def_int $pick = random($missing);
+def_int $slot = 0;
+def_int $seen = 0;
+while ($slot < ^outfit_pieces) {
+    def_namedobj $piece = enum(int, namedobj, outfit_piece, calc($outfit * ^outfit_pieces + $slot));
+    if ($piece ! null & ~obj_gettotal($piece) = 0) {
+        if ($seen = $pick) {
+            ~outfit_give($outfit, $piece);
+            return;
+        }
+        $seen = calc($seen + 1);
+    }
+    $slot = calc($slot + 1);
+}
+
+// How many of the four they do not already have, anywhere - carried, worn or banked. A piece in
+// the bank still counts as owned, or a player who banked the set would be given it all again.
+[proc,outfit_missing](int $outfit)(int)
+def_int $slot = 0;
+def_int $n = 0;
+while ($slot < ^outfit_pieces) {
+    def_namedobj $piece = enum(int, namedobj, outfit_piece, calc($outfit * ^outfit_pieces + $slot));
+    if ($piece ! null & ~obj_gettotal($piece) = 0) {
+        $n = calc($n + 1);
+    }
+    $slot = calc($slot + 1);
+}
+return($n);
+
+// Full hands do not lose it: it goes on the floor, the way a flatpack does.
+[proc,outfit_give](int $outfit, namedobj $piece)
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, $piece, 1);
+} else {
+    obj_add(coord, $piece, 1, ^lootdrop_duration);
+}
+mes("You find a piece of the <enum(int, string, outfit_name, $outfit)> outfit!");

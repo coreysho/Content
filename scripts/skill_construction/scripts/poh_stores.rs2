@@ -7,11 +7,17 @@
 // than five near-identical copies of poh_costume.rs2 there is one copy here and an $store index
 // that picks which run of the item list a click is allowed to see.
 //
-// WHY AN INDEX RATHER THAN FIVE INVS: an inv cannot be handed to a proc. No script in this repo
-// takes one as a parameter and the engine's own commands are where the type appears, so all five
-// share poh_store_inv and each store owns a contiguous run of it. poh_store_first/_last are that
-// run; poh_store_setfirst/_setlast are the sets inside it. The index into poh_store_item is also
-// the slot, so nothing has to search.
+// WHY AN INDEX RATHER THAN FIVE INVS: all five share poh_store_inv and each store owns a
+// contiguous run of it. poh_store_first/_last are that run; poh_store_setfirst/_setlast are the
+// sets inside it. The index into poh_store_item is also the slot, so nothing has to search.
+//
+// THE REASON ORIGINALLY GIVEN HERE WAS WRONG. It said an inv cannot be handed to a proc and that
+// nothing in the repo does it. ~inv_slotspace(inv $from_inv, inv $to_inv, enum $slots) in
+// general/scripts/misc/inv_procs.rs2 takes two, and has for as long as that file has existed - so
+// five invs and one set of procs was available all along and was not considered. The shape here
+// still stands on its own: the item list has to be flat either way, because "take out a set" needs
+// first/last windows into it, and one 307-slot perm inv is no worse than five adding up to 307.
+// But it stands on that, not on a limitation that does not exist.
 //
 //   Store    every item this space takes that you are carrying, one of each
 //   Check    what is in it, by set

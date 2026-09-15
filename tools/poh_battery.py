@@ -978,7 +978,10 @@ check('if ($ax >= 0) {' in clickb, 'and an anchor overrides the clicked tile rat
 check(clickb.index('~poh_furn_have') < clickb.index('~poh_furn_take'), 'the materials are counted before they are taken')
 check(clickb.index('~poh_furn_take') < clickb.index('~poh_furn_show'), 'the materials go before the furniture appears')
 check(clickb.count('~poh_furn_have') >= 2, 'the materials are re-checked after the menu suspends')
-check(clickb.index('~poh_furn_set') < clickb.index('stat_advance'), 'it is saved before the xp is paid')
+# The xp used to be a bare stat_advance; it goes through ~construction_xp now so the carpenter's
+# outfit gets its bonus and can turn up. What matters here is unchanged: the piece is saved first.
+check(clickb.index('~poh_furn_set') < clickb.index('~construction_xp'),
+      'it is saved before the xp is paid')
 check('inv_total(inv, hammer)' in clickb and 'inv_total(inv, saw)' in clickb, 'a hammer and a saw are required')
 check('~poh_furn_free' in clickb and clickb.count('~poh_furn_free') >= 2, 'a free slot is re-checked after the menu suspends')
 rmb = fu.split('[proc,poh_furn_remove]')[1].split('\n[')[0]
@@ -3391,6 +3394,142 @@ check(_hfam['anchor'] != _fencea,
       'and it is not the fence\'s %s, so a garden can store one of each' % (tuple(_fencea),))
 check(tuple(_hfam['anchor']) not in _famroomhot.get(int(enumtable(ROOMS, 'poh_room_zone')[16]), set()),
       'and nothing is ever built on it')
+
+
+print('64. the skilling outfits, and the funnel they are found through')
+
+# All 47 pieces were imported, six outfits had their experience bonus wired, and not one piece
+# could be obtained by any means - tools/obtainable.py found it. Seven have a source now: a roll
+# inside the same proc that applies the outfit's own bonus, so every repeatable action in those
+# skills rolls, at a chance proportional to what the action was worth.
+
+OUTFITS = ['prospector', 'angler', 'lumberjack', 'pyromancer', 'eye', 'smiths', 'carpenters']
+XPPROC = {'prospector': ('mining_xp', 'mining'), 'angler': ('fishing_xp', 'fishing'),
+          'lumberjack': ('woodcutting_xp', 'woodcutting'), 'pyromancer': ('firemaking_xp', 'firemaking'),
+          'eye': ('runecraft_xp', 'runecraft'), 'smiths': ('smithing_xp', 'smithing'),
+          'carpenters': ('construction_xp', 'construction')}
+OX = read('scripts/skilling_outfits/scripts/outfit_xp.rs2')
+OD = read('scripts/skilling_outfits/scripts/outfit_drop.rs2')
+OE = read('scripts/skilling_outfits/configs/outfits.enum')
+OC = read('scripts/skilling_outfits/configs/outfits.constant')
+OOBJ = blocks(read('scripts/skilling_outfits/configs/outfits.obj'))
+OOBJ.update(blocks(read('scripts/general/configs/gear_474.obj')))
+
+def _oconst(n):
+    m = re.search(r'^\^%s\s*=\s*(-?\d+)\s*$' % n, OC, re.M)
+    return int(m.group(1)) if m else None
+
+check([_oconst('outfit_' + o) for o in OUTFITS] == list(range(7)),
+      'the seven outfits are 0..6 with no gap: %s' % [_oconst('outfit_' + o) for o in OUTFITS])
+check(_oconst('outfit_count') == 7 and _oconst('outfit_pieces') == 4,
+      '^outfit_count is %s and ^outfit_pieces is %s' % (_oconst('outfit_count'), _oconst('outfit_pieces')))
+
+PIECE = enumtable(OE, 'outfit_piece')
+ONAME = enumtable(OE, 'outfit_name')
+check(sorted(PIECE) == list(range(28)), 'outfit_piece is 28 rows with no gap: %d' % len(PIECE))
+check(sorted(ONAME) == list(range(7)), 'and every outfit has a name for the message')
+_bad = [v for v in PIECE.values() if v not in OBJS]
+check(not _bad, 'every piece is a real obj: %s' % (_bad or 'all 28'))
+check(len(set(PIECE.values())) == 28, 'and no piece is in two outfits')
+
+# the table is grouped four at a time, in the order the bonus proc reads the slots
+_SLOTS = ['hat', 'torso', 'legs', 'feet']
+_bad = []
+for oi, o in enumerate(OUTFITS):
+    want = _SLOTS if o != 'smiths' else ['hands', 'torso', 'legs', 'feet']
+    for si in range(4):
+        piece = PIECE[oi * 4 + si]
+        got = (OOBJ.get(piece, {}).get('wearpos') or ['?'])[0]
+        if got != want[si]:
+            _bad.append((piece, got, want[si]))
+        if not piece.startswith(o.rstrip('s') if o == 'carpenters' else o):
+            if not piece.startswith(o):
+                _bad.append((piece, 'not a %s piece' % o, ''))
+check(not _bad, 'each outfit is its own four, in hat/torso/legs/feet order: %s'
+      % (_bad[:3] or 'all seven'))
+# ...and the Smiths' uniform really is the odd one - gloves where a hat would be
+check((OOBJ.get(PIECE[_oconst('outfit_smiths') * 4], {}).get('wearpos') or [''])[0] == 'hands',
+      "the Smiths' uniform has gloves in the head slot, which is what its bonus proc reads")
+
+# every xp proc rolls for its own outfit, and rolls on the PRE-bonus xp
+_bad = []
+for o in OUTFITS:
+    proc, stat = XPPROC[o]
+    m = re.search(r'\[proc,%s\]\(int \$xp\)\n(.*?)(?=\n\[|\Z)' % proc, OX, re.S)
+    if not m:
+        _bad.append((proc, 'no such proc')); continue
+    body = m.group(1)
+    if '~outfit_roll(^outfit_%s, $xp);' % o not in body:
+        _bad.append((proc, 'does not roll for %s on the pre-bonus xp' % o))
+    if 'stat_advance(%s, calc($xp + $extra));' % stat not in body:
+        _bad.append((proc, 'does not award %s' % stat))
+check(not _bad, 'all seven experience procs roll for their own outfit: %s' % (_bad[:3] or 'all seven'))
+check(len(re.findall(r'~outfit_roll\(', OX)) == 7, 'seven rolls, one per proc: %d'
+      % len(re.findall(r'~outfit_roll\(', OX)))
+
+# THE FUNNEL. A skilling script that calls stat_advance directly gets neither the bonus nor a roll,
+# which is how the carpenter's outfit could have been wired and still never turn up. Every direct
+# call for these seven skills has to be a quest lump sum - finishing Heroes' Quest is not twenty
+# hours of mining - and the four that are not in scripts/quests are named here with the reason.
+DIRECT_OK = {
+    'scripts/areas/area_ardougne_east/scripts/caroline.rs2': 'the Fishing Contest reward',
+}
+_direct = []
+for _root, _dirs, _fs in os.walk(os.path.join(C, 'scripts')):
+    for _fn in _fs:
+        if not _fn.endswith('.rs2'):
+            continue
+        _rel = os.path.join(_root, _fn)[len(C) + 1:].replace('\\', '/')
+        if _rel.endswith('outfit_xp.rs2') or _rel == 'scripts/engine.rs2':
+            continue
+        for _m in re.finditer(r'stat_advance\((mining|fishing|woodcutting|firemaking|runecraft|'
+                              r'smithing|construction),', read(_rel)):
+            if _rel.startswith('scripts/quests/') or _rel in DIRECT_OK:
+                continue
+            _direct.append((_rel, _m.group(1)))
+check(not _direct, 'nothing outside a quest awards these seven directly: %s'
+      % (sorted(set(_direct))[:3] or 'every repeatable action goes through the procs'))
+
+# the construction one is the newest and the whole reason the carpenter's outfit works
+check('~construction_xp(' in read('scripts/skill_construction/scripts/poh_furniture.rs2'),
+      'building furniture goes through ~construction_xp')
+check("'~construction_xp(enum(int, int, poh_furn_xp, $item));'," in read('tools/genfurn.py'),
+      '...and genfurn.py is what writes it, so a regenerate keeps it')
+
+# a piece you already own is never given again - in the pack, worn OR banked
+for _proc in ('outfit_missing', 'outfit_roll'):
+    _b = OD.split('[proc,%s]' % _proc, 1)[1].split('\n[', 1)[0]
+    check('~obj_gettotal(' in _b, '~%s counts what you own everywhere, not just your pack' % _proc)
+check('inv_total(bank,' in read('scripts/general/scripts/misc/inv_procs.rs2')
+      .split('[proc,obj_gettotal]', 1)[1].split('\n[', 1)[0],
+      '...and ~obj_gettotal really does read the bank')
+# full hands do not lose it
+check('obj_add(coord,' in OD.split('[proc,outfit_give]', 1)[1].split('\n[', 1)[0],
+      'a piece found with a full inventory goes on the floor rather than nowhere')
+
+# the rate is one number and it is a constant
+check(_oconst('outfit_roll_xp') and 'random(^outfit_roll_xp)' in OD,
+      'the chance is xp/^outfit_roll_xp (%s), and that is the only number in it'
+      % _oconst('outfit_roll_xp'))
+check(not re.search(r'random\((\d+)\)', OD.split('[proc,outfit_roll]', 1)[1].split('\n[', 1)[0]),
+      'no bare number in the roll')
+
+# ---- AND THE END-TO-END ONE: ask the sweep, not the code
+_sw = _sp.run([sys.executable, os.path.join(C, 'tools/obtainable.py')],
+              capture_output=True, text=True, cwd=C)
+check(_sw.returncode == 0, 'tools/obtainable.py runs clean'
+      + ('' if _sw.returncode == 0 else ': ' + _sw.stderr[-300:]))
+_hard = _sw.stdout.split('NOTHING ANYWHERE MENTIONS THESE', 1)[-1].split('MENTIONED, BUT', 1)[0]
+_stillorphan = [p for p in PIECE.values() if re.search(r'\b%s\b' % re.escape(p), _hard)]
+check(not _stillorphan, 'and it agrees all 28 are obtainable now: %s'
+      % (_stillorphan[:4] or 'every piece of all seven'))
+# the four that are still not, on purpose, so wiring one is a reminder to update this
+_LEFT = ['graceful', 'rogue', 'zealots', 'hunter']
+_left_now = sorted({w.split('_')[0] for w in re.findall(r'\b(\w+)_\w+\b', _hard)
+                    if w.split('_')[0] in _LEFT})
+check(_left_now == sorted(_LEFT),
+      'the four left without a source are still exactly graceful, rogue, zealot\'s and guild hunter: %s'
+      % _left_now)
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

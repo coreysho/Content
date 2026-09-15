@@ -11,8 +11,11 @@ THEY ARE ALL ONE MECHANISM. The treasure chest that shipped with the costume roo
 storage the way this repo does storage - a perm inv, a flat item enum, and first/last windows that
 make a set addressable without an enum per set. These five are the same thing five more times, so
 rather than five copies of poh_costume.rs2 there is ONE set of procs in poh_stores.rs2 and the
-store index picks the window. An inv cannot be passed to a proc - no script in the repo takes one -
-so all five share a single perm inv and each store owns a contiguous run of it.
+store index picks the window. All five share a single perm inv and each store owns a contiguous run
+of it, because the item list has to be flat either way - "take out a set" needs first/last windows
+into it. (The first version of this file said an inv cannot be passed to a proc and that nothing in
+the repo takes one. Both are false: ~inv_slotspace in general/scripts/misc/inv_procs.rs2 takes two.
+The shape here still stands; the reason given for it did not.)
 
 WHAT GOES IN EACH ONE is the part worth arguing about, and the rule here is: it has to already
 exist in this repo, it has to be something you WEAR rather than something you use, and it must not
@@ -134,9 +137,8 @@ def main():
         '//',
         '// The shape is the treasure chest\'s, one level up. poh_costume_item is a flat list of 72',
         '// with first/last windows per set; this is a flat list of %d with first/last windows per' % len(items),
-        '// SET and per STORE, because five stores share one inv. An inv cannot be passed to a proc -',
-        '// nothing in the repo does it - so the store index is what picks the window, and',
-        '// poh_stores.rs2 has one copy of the store/check/take procs rather than five.',
+        '// SET and per STORE, because five stores share one inv and the store index picks the',
+        '// window, so poh_stores.rs2 has one copy of the store/check/take procs rather than five.',
         '//',
         '// %d items in %d sets across %d stores.' % (len(items), len(sets), len(stores)),
         '',

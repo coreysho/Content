@@ -840,7 +840,9 @@ def emit_rs2_tail(fams, items, byfam):
           '}',
           '~poh_furn_set($slot, ~poh_furn_pack($rx, $rz, $lx, $lz, $angle, $item));',
           '~poh_furn_show($item, $spot, $angle, 0);',
-          'stat_advance(construction, enum(int, int, poh_furn_xp, $item));',
+          # Through ~construction_xp, not stat_advance, so the carpenter's outfit pays its bonus
+          # and a piece of it can turn up - the same funnel the other six skilling outfits ride on.
+          '~construction_xp(enum(int, int, poh_furn_xp, $item));',
           'if ($useflat = 1) {',
           '    mes("You assemble the <enum(int, string, poh_furn_name, $item)> from its flatpack.");',
           '} else {',
