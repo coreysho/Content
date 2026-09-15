@@ -42,6 +42,9 @@ CONTENT = os.path.abspath(os.path.join(SCRIPTS, ".."))
 PACK = os.path.join(CONTENT, "pack")
 
 findings = []
+# The selftest builds its own tiny pack directory, so the missing-pack guard below has to know it
+# is being exercised rather than run in anger.
+SELFTEST_RUNNING = False
 
 
 def report(sev, path, line, rule, msg):
@@ -240,6 +243,18 @@ def build_tables():
                     if "=" in raw:
                         names.add(raw.split("=", 1)[1].strip())
             t["packs"][f[:-5]] = names
+
+    # A MISSING PACK IS A SILENTLY DISABLED RULE. Rules 14 and 14b both read
+    # `known = T["packs"].get(pack)` and then `if known and ...` - so if synth.pack is absent or
+    # empty, every sound_synth in the repo goes unchecked and the tool still prints 0 ERROR. That
+    # is the same shape as running this from the wrong directory, which build_tables refuses to do
+    # quietly a few lines above, and it is how the selftest first came out green on a fixture with
+    # no packs in it at all. Loud, not quiet.
+    NEEDED = ("synth", "seq", "spotanim", "obj", "npc", "loc", "inv", "varp")
+    empty = [k for k in NEEDED if not t["packs"].get(k)]
+    if empty and not SELFTEST_RUNNING:
+        sys.exit("rs2check: pack/%s.pack is missing or empty - rules 14 and 14b would check "
+                 "nothing and this tool would still print 0 ERROR" % ".pack, pack/".join(empty))
     return t
 
 
@@ -645,8 +660,27 @@ def check_duplicates(T):
 
 
 # --------------------------------------------------------------------------- selftest
+#
+# EVERY RULE HAS TO BE ABLE TO GO RED, and this is what proves it. Two rules in this file have
+# shipped INERT - doing nothing, reporting nothing, and counting as coverage:
+#
+#   * check 11 read the stripped-line variable one statement before it was assigned, so it reported
+#     every hit one line late. The tool written to catch off-by-one mistakes shipped with one.
+#   * check 17 matched a block header with a pattern a header never satisfies, so the whole rule was
+#     a no-op and the repo still printed 0 ERROR.
+#
+# The old selftest covered eight of the sixteen rules. The other eight were 1, 2, 5, 12, 13, 15, 16
+# and 17 - which is to say BOTH rules that shipped inert were in the uncovered half, and both stayed
+# inert until something else found them.
+#
+# So this builds a whole miniature content tree - scripts, configs, a pack, a models directory -
+# breaks one thing per rule in it, points the tool at it and runs the real code path end to end.
+# build_tables walks the fixture and every check function runs against it, so a rule that cannot
+# fire shows up as a missing id rather than as silence.
 
-SELFTEST = r'''
+FIXTURE = {
+    # rules 3, 4, 5, 5b, 6, 7, 7b, 11, 14, 15
+    "probe.rs2": """
 [proc,probe_p]
 @probe_label;
 
@@ -662,38 +696,206 @@ npc_finduid(npc_uid);
 def_int $u = npc_uid;
 ~probe_two(1);
 sound_synth(probe_no_such_synth, 1, 0);
+inv_total(inv, probe_no_such_obj);
 %probe_packonly_varp = 1;
+~probe_wants_int(enum(int, namedobj, probe_enum, 0));
+~probe_no_such_proc(1);
+@probe_no_such_label;
+mes("<tostring(^probe_no_such_const)>");
+%probe_no_such_var = 1;
 // a real block comment with an unmatched ( inside, which must not unbalance anything
 /* ( ( ( */
 // and a line comment holding https://web.archive.org/web/*/http://x - the /* here is not a block
 
 [proc,probe_two](int $a, int $b)
 mes("y");
-'''
+
+[proc,probe_wants_int](int $a)
+mes("z");
+""",
+    # rule 1, on its own file: an imbalance swallows everything after it
+    "probe_brace.rs2": """
+[proc,probe_unbalanced]
+if (1 = 1) {
+    mes("the closing brace and paren are both missing";
+""",
+    # rule 2: the same trigger in two files
+    "probe_dup_a.rs2": "\n[opheld2,probe_obj]\nmes(\"a\");\n",
+    "probe_dup_b.rs2": "\n[opheld2,probe_obj]\nmes(\"b\");\n",
+    # rule 13: a prose comma in a one-value column
+    "probe.dbtable": "\n[probe_table]\ncolumn=probe_text,string\n",
+    "probe.dbrow": "\n[probe_row]\ntable=probe_table\ndata=probe_text,one, two\n",
+    # rule 17: a namedobj enum with no default, where a miss returns obj 0 rather than null
+    "probe.enum": "\n[probe_enum]\ninputtype=int\noutputtype=namedobj\nval=0,probe_obj\n",
+    # AND THE OTHER HALF: a file that is entirely correct and must produce NOTHING. A rule that
+    # fires on everything is no more use than one that fires on nothing, and three rules in this
+    # file were wrong in exactly that direction on their first version - rule 4 flagged 31 files
+    # that all compile, rule 13 flagged a load-bearing comma, rule 1 could not read a block comment.
+    # Every idiom below is one that a previous version of some rule got wrong.
+    "probe_clean.rs2": """
+[proc,probe_clean]
+def_int $n = calc(1 + 1);
+mes("<tostring(^probe_const)> and a @dbl@ colour code, which is not a jump");
+~probe_two(1, 2);
+if ($n = 2) {
+    mes("balanced");
+}
+/* a block comment with ) ) ) unmatched inside it */
+// and a url with /* in it: https://web.archive.org/web/*/http://example.com
+~probe_wants_int(enum(int, int, probe_int_enum, 0));
+
+[ai_queue4,probe_npc]
+if (p_finduid(uid) = true) {
+    %probe_protected_varp = 2;
+}
+
+// the shape rule 4's first version got wrong: an ai_ trigger with no p_finduid at all, writing a
+// varp that is NOT protected. 31 files look like this and every one of them compiles.
+[ai_queue5,probe_npc]
+%probe_unprotected_varp = 3;
+
+[opheld3,probe_obj]
+%probe_unprotected_varp = 1;
+def_obj $o = inv_getobj(inv, 0);
+sound_synth(probe_synth, 1, 0);
+inv_add(inv, probe_obj, 1);
+""",
+    "probe_clean.dbrow": "\n[probe_clean_row]\ntable=probe_table\ndata=probe_text,\"one, two\"\n",
+    "probe_clean.enum": "\n[probe_int_enum]\ninputtype=int\noutputtype=int\nval=0,1\n",
+}
+# rule 12 is bytes, not text: \r\r is what a line-ending pass applied twice leaves behind
+FIXTURE_BYTES = {
+    "probe_crlf.rs2": b"\r\n[proc,probe_crlf]\r\r\nmes(\"x\");\r\n",
+    "probe_crlf.obj": b"\r\n[probe_crlf_obj]\r\rname=Probe\r\n",
+}
+# rule 16, three ways: a name twice, an id twice, an entry with no file - plus a file with no entry
+FIXTURE_PACK = "0=probe_model\n1=probe_model\n1=probe_other\n2=probe_phantom\n"
+# ...and the packs rules 14 and 14b read. They have to be REAL files in the fixture, not entries
+# poked into the table afterwards, because "the pack was not there" is the failure being guarded
+# against and poking the table would hide it.
+FIXTURE_PACKS = {
+    "synth.pack": "0=probe_synth\n",
+    "seq.pack": "0=probe_seq\n",
+    "spotanim.pack": "0=probe_spotanim\n",
+    "obj.pack": "0=probe_obj\n",
+    "npc.pack": "0=probe_npc\n",
+    "loc.pack": "0=probe_loc\n",
+    "inv.pack": "0=inv\n",
+    "varp.pack": "0=probe_packonly_varp\n",
+}
+FIXTURE_MODEL = "models/loc/probe_orphan.ob2"
+
+# Every rule id this file can report, AND THE EXACT LINE it must report it on. The line matters as
+# much as the rule: check 11's inert version DID fire, on every hit, one line late - so a selftest
+# that only asked "did rule 11 appear?" would have passed on it. Asking where is what turns this
+# from a smoke test into a test.
+ALL_RULES = {
+    1:    ("probe_brace.rs2", 0),     # an imbalance has no single line; 0 is the file itself
+    2:    ("probe_dup_a.rs2", 2),
+    3:    ("probe.rs2", 12),
+    4:    ("probe.rs2", 9),
+    5:    ("probe.rs2", 20),
+    "5b": ("probe.rs2", 18),
+    6:    ("probe.rs2", 13),
+    7:    ("probe.rs2", 14),
+    "7b": ("probe.rs2", 15),
+    11:   ("probe.rs2", 3),
+    12:   ("probe_crlf.rs2", 2),
+    13:   ("probe.dbrow", 4),
+    14:   ("probe.rs2", 16),
+    15:   ("probe.rs2", 19),
+    16:   ("model.pack", 2),
+    17:   ("probe.enum", 2),
+}
 
 
 def selftest():
+    global SCRIPTS, CONTENT, PACK, SELFTEST_RUNNING
+    SELFTEST_RUNNING = True
+    import shutil
     import tempfile
-    d = tempfile.mkdtemp()
-    p = os.path.join(d, "probe.rs2")
-    with open(p, "wb") as f:
-        f.write(SELFTEST.encode())
-    T = build_tables()
-    T["procs"]["probe_p"] = ([], [], p, 2)
-    T["procs"]["probe_two"] = (["int", "int"], [], p, 20)
-    T["labels"]["probe_label"] = (["int"], [], p, 5)
-    T["constants"].add("probe_const")
-    T["player_varps"]["probe_protected_varp"] = True
-    T["packs"].setdefault("varp", set()).add("probe_packonly_varp")
-    del findings[:]
-    check_script(p, T)
-    want = {11, 4, 3, 6, 7, "7b", 14, "5b"}
-    got = set(r[3] for r in findings if r[0] == "ERROR")
-    for f in sorted(findings, key=lambda x: x[2]):
-        print("  %-5s line %-3s rule %-3s %s" % (f[0], f[2], f[3], f[4]))
-    missing = want - got
-    print("selftest:", "PASS" if not missing else "FAIL, missed rules %s" % sorted(map(str, missing)))
-    return 0 if not missing else 1
+    real_scripts = SCRIPTS
+    real_content = CONTENT
+    real_pack = PACK
+    d = tempfile.mkdtemp(prefix="rs2check_selftest_")
+    try:
+        root = os.path.join(d, "content")
+        sdir = os.path.join(root, "scripts")
+        os.makedirs(os.path.join(root, "pack"))
+        os.makedirs(os.path.join(root, "models", "loc"))
+        os.makedirs(sdir)
+        # the real command signatures: without them rules 6, 7, 7b and 15 check nothing, which is
+        # the silent half-run build_tables refuses to do in anger and must not do here either
+        shutil.copyfile(os.path.join(real_scripts, "engine.rs2"), os.path.join(sdir, "engine.rs2"))
+        for name, body in FIXTURE.items():
+            with open(os.path.join(sdir, name), "wb") as f:
+                f.write(body.encode())
+        for name, body in FIXTURE_BYTES.items():
+            with open(os.path.join(sdir, name), "wb") as f:
+                f.write(body)
+        with open(os.path.join(root, "pack", "model.pack"), "w") as f:
+            f.write(FIXTURE_PACK)
+        for name, body in FIXTURE_PACKS.items():
+            with open(os.path.join(root, "pack", name), "w") as f:
+                f.write(body)
+        open(os.path.join(root, FIXTURE_MODEL), "wb").close()
+
+        SCRIPTS, CONTENT, PACK = sdir, root, os.path.join(root, "pack")
+        del findings[:]
+        T = build_tables()
+        # symbols the probe leans on that no fixture file declares: a constant, a protected player
+        # varp, and a varp that is in a pack with no config block behind it (rule 5b)
+        T["constants"].add("probe_const")
+        T["player_varps"]["probe_protected_varp"] = True
+        T["packs"].setdefault("varp", set()).add("probe_packonly_varp")
+        T["player_varps"]["probe_unprotected_varp"] = False
+        for p in sorted(walk({".rs2"})):
+            check_script(p, T)
+        for p in sorted(walk({".dbrow", ".constant", ".obj", ".npc", ".loc", ".inv",
+                              ".varp", ".varbit"})):
+            check_config(p, T)
+        check_duplicates(T)
+        check_models()
+        check_enum_defaults()
+        got = {}
+        for sev, path, line, rule, msg in findings:
+            got.setdefault(rule, []).append((sev, path, line, msg))
+    finally:
+        SCRIPTS, CONTENT, PACK = real_scripts, real_content, real_pack
+        shutil.rmtree(d, ignore_errors=True)
+
+    bad = []
+    for rule in sorted(ALL_RULES, key=str):
+        want_file, want_line = ALL_RULES[rule]
+        hits = got.get(rule, [])
+        if not hits:
+            print("  rule %-3s DID NOT FIRE - it cannot go red, so it is not coverage" % rule)
+            bad.append("%s never fired" % rule)
+            continue
+        where = [(os.path.basename(h[1]), h[2]) for h in hits]
+        if (want_file, want_line) not in where:
+            print("  rule %-3s fired on %s, wanted %s:%s - off by %s"
+                  % (rule, where[:2], want_file, want_line,
+                     (where[0][1] - want_line) if where[0][0] == want_file else "the wrong file"))
+            bad.append("%s fired in the wrong place" % rule)
+            continue
+        sev, path, line, msg = [h for h in hits if (os.path.basename(h[1]), h[2])
+                                == (want_file, want_line)][0]
+        print("  rule %-3s fired  %-5s %s:%-3s %s"
+              % (rule, sev, os.path.basename(path), line, msg[:58]))
+
+    # nothing may fire on the clean half
+    noise = sorted({(os.path.basename(h[1]), h[2], r, h[3][:50])
+                    for r, hs in got.items() for h in hs if "clean" in os.path.basename(h[1])})
+    for f in noise:
+        print("  FALSE POSITIVE on the clean fixture: %s:%s rule %s  %s" % f)
+        bad.append("rule %s fires on correct code" % f[2])
+    extra = sorted((set(got) - set(ALL_RULES)), key=str)
+    if extra:
+        print("  (also fired, not in ALL_RULES: %s - add them or tighten the fixture)" % extra)
+    print("selftest: %s" % ("PASS, all %d rules go red in the right place and none on clean code"
+                            % len(ALL_RULES) if not bad else "FAIL - " + "; ".join(bad)))
+    return 0 if not bad else 1
 
 
 # --------------------------------------------------------------------------- main

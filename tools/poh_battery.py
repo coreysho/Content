@@ -3531,6 +3531,55 @@ check(_left_now == sorted(_LEFT),
       'the four left without a source are still exactly graceful, rogue, zealot\'s and guild hunter: %s'
       % _left_now)
 
+
+print('65. the checkers can go red')
+
+# A CHECK THAT CANNOT FAIL IS WORSE THAN NO CHECK: it reads as coverage and is not. Two rules in
+# rs2check.py have shipped inert - check 11 read its line variable one statement early and reported
+# every hit one line late, and check 17 matched a block header with a pattern a header never
+# satisfies - and the repo printed 0 ERROR through both. The same week, group 48's magic stone
+# price check compared the price against the number I had written down, and group 62's "More
+# sets..." check passed on a proc that wrapped to the wrong set.
+#
+# rs2check --selftest now builds a miniature content tree, breaks one thing per rule, and asserts
+# every rule fires ON THE RIGHT LINE and none fires on correct code. This runs it, so it cannot be
+# forgotten - and so "0 ERROR" means sixteen rules looked, not that sixteen rules exist.
+_st = _sp.run([sys.executable, os.path.join(C, 'tools/rs2check.py'), '--selftest'],
+              capture_output=True, text=True, cwd=os.path.join(C, 'scripts'))
+_last = [l for l in _st.stdout.strip().split('\n') if l.startswith('selftest:')]
+check(_st.returncode == 0, 'rs2check --selftest: %s'
+      % (_last[0][10:] if _last else (_st.stdout + _st.stderr)[-200:]))
+_fired = re.findall(r'^  rule (\S+)\s+fired', _st.stdout, re.M)
+check(len(_fired) == 16, 'all sixteen rules fired: %d' % len(_fired))
+check('DID NOT FIRE' not in _st.stdout, 'and none of them is inert')
+check('FALSE POSITIVE' not in _st.stdout, 'and none of them fires on correct code')
+
+# the guard that makes a missing pack loud rather than silent. Rules 14 and 14b read
+# `known = T["packs"].get(pack)` and then `if known and ...`, so an absent synth.pack disables
+# every sound_synth check in the repo and the tool still prints 0 ERROR.
+# Checked by RUNNING it with a pack taken away, not by reading the source for the message - the
+# first version of this check read the text, and a mutation that turned the guard off without
+# touching the message walked straight past it.
+import tempfile as _tf, shutil as _sh
+_gd = _tf.mkdtemp(prefix='rs2check_packguard_')
+try:
+    _sh.copytree(os.path.join(C, 'scripts'), os.path.join(_gd, 'scripts'),
+                 ignore=_sh.ignore_patterns('*.rs2', '*.dbrow', '*.obj', '*.npc', '*.loc',
+                                            '*.inv', '*.varp', '*.varbit', '*.constant'))
+    _sh.copyfile(os.path.join(C, 'scripts/engine.rs2'), os.path.join(_gd, 'scripts/engine.rs2'))
+    os.makedirs(os.path.join(_gd, 'pack'))
+    for _f in os.listdir(os.path.join(C, 'pack')):
+        if _f.endswith('.pack') and _f != 'synth.pack':
+            _sh.copyfile(os.path.join(C, 'pack', _f), os.path.join(_gd, 'pack', _f))
+    _sh.copyfile(os.path.join(C, 'tools/rs2check.py'), os.path.join(_gd, 'rs2check.py'))
+    _g = _sp.run([sys.executable, os.path.join(_gd, 'rs2check.py')],
+                 capture_output=True, text=True, cwd=os.path.join(_gd, 'scripts'))
+finally:
+    _sh.rmtree(_gd, ignore_errors=True)
+check(_g.returncode != 0 and 'synth.pack is missing or empty' in (_g.stdout + _g.stderr),
+      'with synth.pack taken away it STOPS rather than printing 0 ERROR: %s'
+      % ((_g.stdout + _g.stderr).strip().split(chr(10))[-1][:70] or 'no output'))
+
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
 sys.exit(1 if fails else 0)

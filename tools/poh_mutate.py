@@ -752,6 +752,33 @@ if (inv_total(inv, coins) < $cost) {
  ('scripts/skilling_outfits/configs/outfits.constant',
   '^outfit_carpenters = 6', '^outfit_carpenters = 7',
   '64 the seven outfits are 0..6 with no gap'),
+ # ---- 65: the checkers can go red ----
+ # BOTH HISTORICAL INERT RULES, recreated. Each one shipped, did nothing, and the repo printed
+ # 0 ERROR through it. The selftest exists so that cannot happen again, so the selftest has to be
+ # shown catching them.
+ #
+ # check 11 read its line variable one statement before it was assigned and reported every hit one
+ # line late. A selftest that only asked "did rule 11 appear?" would have passed on this - which is
+ # why ALL_RULES pins the line as well as the rule.
+ ('tools/rs2check.py',
+  '            for m in re.finditer(r"@([a-zA-Z_0-9]+)\\s*[;(]", s):\n                report("ERROR", path, n, 11,',
+  '            for m in re.finditer(r"@([a-zA-Z_0-9]+)\\s*[;(]", s):\n                report("ERROR", path, n + 1, 11,',
+  '65 rs2check --selftest'),
+ # check 17 matched the block header with a pattern a header never satisfies, so the rule was a
+ # no-op from the day it was written
+ ('tools/rs2check.py',
+  'm = re.match(r"^\\[([^\\],]+)\\]\\s*$", raw.strip())',
+  'm = re.match(r"^\\[([^\\],]+),([^\\]]+)\\]\\s*$", raw.strip())',
+  '65 rs2check --selftest'),
+ # and the one this round found: a missing pack turning rules 14 and 14b off without a word
+ ('tools/rs2check.py',
+  'if empty and not SELFTEST_RUNNING:', 'if False:',
+  '65 a missing pack stops the tool'),
+ # a rule that fires on everything is no better than one that fires on nothing
+ ('tools/rs2check.py',
+  'if T["player_varps"].get(v, False) and v not in T["other_vars"]:',
+  'if True:',
+  '65 none of them fires on correct code'),
 ]
 
 def checker_for(why):
