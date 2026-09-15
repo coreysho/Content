@@ -1,0 +1,31 @@
+// The elder chaos druid: a caster and nothing else.
+//
+// The ordinary chaos druid (npc/scripts/chaos_druid.rs2) mixes Bind and Confuse into its punching;
+// this one has no melee attack in OSRS at all, so both the ap and the op trigger cast. The spell
+// row is Fire blast, borrowed for its animation, graphic and projectile only - the damage is the
+// npc's own ^elder_chaos_maxhit, passed to ~npc_spell_success, and the 4-tick speed comes from the
+// npc's attackrate param so the config stays the one place that says how fast it is.
+
+[ai_queue1,elder_chaos_druid] ~npc_default_retaliate_ap;
+
+[ai_applayer2,elder_chaos_druid]
+if (~npc_combat_spell_checks = false) {
+    return;
+}
+~elder_chaos_blast;
+
+[ai_opplayer2,elder_chaos_druid]
+if (~npc_combat_spell_checks = false) {
+    return;
+}
+~elder_chaos_blast;
+
+[proc,elder_chaos_blast]
+def_dbrow $spell_data = ~get_spell_data(^fire_blast);
+def_int $duration = ~npc_spell_cast($spell_data, npc_param(attackrate));
+if (~npc_player_hit_roll(^magic_style) = true & ~check_protect_prayer(^magic_style) = false) {
+    ~npc_spell_success($spell_data, ^elder_chaos_maxhit, $duration);
+} else {
+    ~npc_spell_fail($spell_data, $duration);
+}
+~npc_set_attack_vars;

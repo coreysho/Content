@@ -34,7 +34,12 @@ if ($mine ! null & loc_coord ! $mine) {
 
 // =========================================================================== the estate agent
 
+// The estate agent sells the Construction cape, as OSRS has him do. ~skillcape_offer returns true
+// when it took the conversation over, which only happens at 99 Construction.
 [opnpc1,poh_estate_agent]
+if (~skillcape_offer(construction) = true) {
+    return;
+}
 if (%poh_owned = 1) {
     ~chatnpc("<p,happy>How are you finding the new place?");
     def_int $owned = ~p_choice3("It's lovely, thanks.", 1, "Can I redecorate?", 2, "Can I move house?", 3);

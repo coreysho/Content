@@ -852,5 +852,15 @@ if __name__ == '__main__':
     rs2 = rs2_room(rooms, None) + rs2_furn(furn, cams, fams) + [''] + rs2_tab(TAB_SCALE, tspec['quantities']['steps'])
     path = os.path.join(ROOT, 'scripts/skill_construction/scripts/poh_menus.rs2')
     nl = '\r\n' if _crlf(os.path.join(ROOT, 'scripts/skill_construction/scripts/poh_build.rs2')) else '\n'
-    open(path, 'wb').write((nl.join(rs2).rstrip('\r\n') + nl).encode('utf-8'))
+    # JOIN ON \n AND CONVERT ONCE. HEAD is a single entry of rs2 holding forty lines of its own, so
+    # joining straight onto nl leaves those forty newlines LF while every other line gets CRLF, and
+    # the file goes out mixed. Nothing notices on Linux, where nl is \n anyway. On Windows it fails
+    # in a way that looks like a content change and is not: git stores the blob normalised, so any
+    # checkout makes the working copy uniformly CRLF, and battery group 35 then compares uniform
+    # bytes against mixed ones and reports poh_menus.rs2 as changed with an empty git diff. Found
+    # 2026-09-15, the first day the laptop had a Python to run the battery with.
+    text = nl.join(rs2).replace('\r\n', '\n').rstrip('\n')
+    if nl == '\r\n':
+        text = text.replace('\n', '\r\n')
+    open(path, 'wb').write((text + nl).encode('utf-8'))
     print('poh_menus.rs2  %d lines' % len(rs2))

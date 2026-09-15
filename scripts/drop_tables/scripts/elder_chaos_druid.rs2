@@ -1,0 +1,92 @@
+// The elder chaos druid's drops, from oldschool.runescape.wiki/w/Elder_chaos_druid.
+//
+// OSRS rolls this table out of 129, which is why the slot counts below look arbitrary and are not:
+// 7 in 129 law runes, 55 in 129 the herb table, 1 in 129 the robe table, and so on. The shape is
+// the wiki's; the three places it could not be followed exactly are marked TAKEN FROM HERE.
+//
+// The robes are the point of the monster and their rate is the number worth getting right: the
+// robe table is reached 1 kill in 129 and holds eleven slots, three of which are an elder chaos
+// piece, so each piece is 1 in 1,419 - OSRS's own figure.
+
+[ai_queue3,elder_chaos_druid]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones, from the npc's death_drop param.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+def_int $random = random(^elder_chaos_table);
+
+if ($random < 7) {
+    obj_add(npc_coord, lawrune, 6, ^lootdrop_duration);
+} else if ($random < 13) {
+    // TAKEN FROM HERE: OSRS drops 8-28 mithril bolts. 377 has one kind of bolt and no mithril
+    // ones, so these are Bolts in the same quantity.
+    obj_add(npc_coord, bolt, calc(8 + random(21)), ^lootdrop_duration);
+} else if ($random < 18) {
+    obj_add(npc_coord, airrune, 56, ^lootdrop_duration);
+} else if ($random < 23) {
+    obj_add(npc_coord, bodyrune, 19, ^lootdrop_duration);
+} else if ($random < 28) {
+    obj_add(npc_coord, chaosrune, 7, ^lootdrop_duration);
+} else if ($random < 33) {
+    obj_add(npc_coord, earthrune, 19, ^lootdrop_duration);
+} else if ($random < 38) {
+    obj_add(npc_coord, mindrune, 22, ^lootdrop_duration);
+} else if ($random < 39) {
+    obj_add(npc_coord, naturerune, 12, ^lootdrop_duration);
+} else if ($random < 94) {
+    // The herb table, 55 slots of the 129. TAKEN FROM HERE: OSRS gives 1-4 herbs an access with a
+    // separate chance on each; this gives one, a second on a third of them and a third on a ninth,
+    // which lands in the same place without pretending to a table the wiki does not print.
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+    if (random(3) = 0) {
+        obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+    }
+    if (random(9) = 0) {
+        obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+    }
+} else if ($random < 95) {
+    ~elder_chaos_robe_table;
+} else if ($random < 96) {
+    obj_add(npc_coord, ~randomjewel, ^lootdrop_duration);
+} else if ($random < 106) {
+    // TAKEN FROM HERE: the wiki lists coins between 1 and 10 slots in 129 without saying how many
+    // coins. These three tiers are scaled to a level 129 monster and to the 1,958gp the wiki gives
+    // as the average kill, most of which is the herbs and the robes rather than the coins.
+    obj_add(npc_coord, coins, 120, ^lootdrop_duration);
+} else if ($random < 109) {
+    obj_add(npc_coord, coins, 300, ^lootdrop_duration);
+} else if ($random < 111) {
+    obj_add(npc_coord, coins, 900, ^lootdrop_duration);
+} else if ($random < 121) {
+    obj_add(npc_coord, vial_water, 1, ^lootdrop_duration);
+} else if ($random < 126) {
+    obj_add(npc_coord, fishing_bait, 12, ^lootdrop_duration);
+} else if ($random < 127) {
+    obj_add(npc_coord, steel_longsword, 1, ^lootdrop_duration);
+} else if ($random < 128) {
+    obj_add(npc_coord, snape_grass, 1, ^lootdrop_duration);
+} else if (%itgronigen >= ^itgronigen_complete) {
+    obj_add(npc_coord, unholy_symbol_mould, 1, ^lootdrop_duration);
+}
+
+// Eleven slots: four Zamorak monk tops, four bottoms and one each of the three elder chaos pieces.
+// TAKEN FROM HERE: the Zamorak-coloured monk robes are a 2015 item and are not in this cache, so
+// those eight slots hand out the plain monk robes this era does have. The three that matter are
+// untouched, one slot each, which is the 1 in 1,419 OSRS gives them.
+[proc,elder_chaos_robe_table]
+def_int $slot = random(^elder_chaos_slots);
+if ($slot < 4) {
+    obj_add(npc_coord, monkrobetop, 1, ^lootdrop_duration);
+} else if ($slot < 8) {
+    obj_add(npc_coord, monkrobebottom, 1, ^lootdrop_duration);
+} else if ($slot < 9) {
+    obj_add(npc_coord, elder_chaos_hood, 1, ^lootdrop_duration);
+} else if ($slot < 10) {
+    obj_add(npc_coord, elder_chaos_robe, 1, ^lootdrop_duration);
+} else {
+    obj_add(npc_coord, elder_chaos_top, 1, ^lootdrop_duration);
+}

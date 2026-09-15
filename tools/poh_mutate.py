@@ -534,6 +534,13 @@ if (inv_total(inv, coins) < $cost) {
  ('scripts/skill_construction/scripts/poh_decor.rs2',
   'def_coord $base = movecoord($spot, -1, 0, -3);', 'def_coord $base = movecoord($spot, -1, 0, -4);',
   '61 fence steps back from the spec\'s own anchor'),
+ # The writer that keeps a generated file's line endings uniform. Reverting it is invisible on
+ # Linux - the file is all LF either way - so the mutation has to be caught by the SOURCE check
+ # in group 35, not by the byte comparison. See the note there.
+ ('tools/genmenus.py',
+  "text = nl.join(rs2).replace('\\r\\n', '\\n').rstrip('\\n')",
+  "text = nl.join(rs2).rstrip('\\r\\n')",
+  '35 a generated file with two kinds of line ending'),
 ]
 
 def checker_for(why):

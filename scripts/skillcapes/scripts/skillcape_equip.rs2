@@ -14,10 +14,22 @@ if ($level < 99) {
 }
 ~equip($slot);
 
-// Construction and Hunter do not exist on this server yet, so their capes are imported but cannot
-// be worn. Replace these with a real skillcape_require call when the skill lands.
+// Hunter does not exist on this server, so its cape is imported but cannot be worn. Construction
+// used to be here too and no longer is - the skill landed, so the cape did. Replace this with a
+// real skillcape_require call if Hunter ever arrives, and add it to the stats enum in the same
+// breath: the Max cape's requirement and Mac's price are both counted out of that enum.
 [label,skillcape_unavailable](string $what)
 mes("<$what> is not available on this server yet, so this cape cannot be worn.");
+
+// THE MAX CAPE: level 99 in every skill there is. "Every skill there is" is the stats enum - 22 of
+// them, Construction included since the houses landed, Hunter excluded because this server has no
+// Hunter - so the gate is a count rather than a list of names and follows the enum on its own.
+[opheld2,max_cape]
+if (~skillcape_count_99s < enum_getoutputcount(stats)) {
+    mes("You need level 99 in all <tostring(enum_getoutputcount(stats))> skills to wear the Max cape.");
+    return;
+}
+~equip(last_slot);
 
 [opheld2,attack_cape] @skillcape_require(stat_base(attack), "Attack", last_slot);
 [opheld2,attack_cape_t] @skillcape_require(stat_base(attack), "Attack", last_slot);
@@ -47,8 +59,8 @@ mes("<$what> is not available on this server yet, so this cape cannot be worn.")
 [opheld2,fletching_cape_t] @skillcape_require(stat_base(fletching), "Fletching", last_slot);
 [opheld2,slayer_cape] @skillcape_require(stat_base(slayer), "Slayer", last_slot);
 [opheld2,slayer_cape_t] @skillcape_require(stat_base(slayer), "Slayer", last_slot);
-[opheld2,construction_cape] @skillcape_unavailable("Construction");
-[opheld2,construction_cape_t] @skillcape_unavailable("Construction");
+[opheld2,construction_cape] @skillcape_require(stat_base(construction), "Construction", last_slot);
+[opheld2,construction_cape_t] @skillcape_require(stat_base(construction), "Construction", last_slot);
 [opheld2,mining_cape] @skillcape_require(stat_base(mining), "Mining", last_slot);
 [opheld2,mining_cape_t] @skillcape_require(stat_base(mining), "Mining", last_slot);
 [opheld2,smithing_cape] @skillcape_require(stat_base(smithing), "Smithing", last_slot);

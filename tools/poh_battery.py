@@ -1298,10 +1298,26 @@ if os.path.exists(spec):
     r = subprocess.run([sys.executable, os.path.join(C, 'tools/genmenus.py'), spec],
                        capture_output=True, text=True, cwd=C)
     check(r.returncode == 0, 'tools/genmenus.py runs clean' + ('' if r.returncode == 0 else ': ' + r.stderr[-400:]))
-    same = [f for f in kept if open(os.path.join(C, f), 'rb').read() != kept[f]]
+    fresh = {f: open(os.path.join(C, f), 'rb').read() for f in kept}
+    same = [f for f in kept if fresh[f] != kept[f]]
     for f in same:
         open(os.path.join(C, f), 'wb').write(kept[f])
     check(not same, 're-running it changes nothing: %s' % (same or 'byte-identical'))
+    # ONE KIND OF LINE ENDING PER FILE, and the writer has to be what guarantees it.
+    #
+    # HEAD is a single entry of the rs2 line list holding forty lines of its own, so a writer that
+    # joins straight onto nl leaves those forty as LF while every other line becomes CRLF. Mixed
+    # output is invisible here on Linux (nl is \n either way) and invisible to git anywhere, because
+    # git stores the blob normalised - so the check above went red on Windows only, with an EMPTY
+    # git diff, on 2026-09-15, the first day the laptop had a Python to run this with. Two checks
+    # because one of them cannot fire on Linux: the bytes, and the writer that produces them.
+    mixed = [os.path.basename(f) for f, b in fresh.items()
+             if b.count(b'\r\n') and b.count(b'\n') - b.count(b'\r\n')]
+    check(not mixed, 'and every file it writes has one kind of line ending: %s'
+          % (mixed or 'all %d uniform' % len(fresh)))
+    writer = read('tools/genmenus.py').split("rs2 = rs2_room(", 1)[1]
+    check("text = nl.join(rs2).replace('\\r\\n', '\\n')" in writer,
+          'the rs2 writer normalises before it converts, which is what keeps that true')
 else:
     check(False, 'tools/menuspec.json is missing, so the generator cannot be re-run')
 

@@ -143,6 +143,15 @@ if (p_finduid(uid) = false) {
     return;
 }
 def_obj $cape = inv_getobj(worn, ^wearpos_back);
+// THE MAX CAPE HAS NO EMOTE OF ITS OWN HERE. OSRS's is a 2015 animation - the skill icons circling
+// overhead - and it is not the 24-wide block of skillcape emotes this build imported, so there is
+// nothing to look up and nothing worth guessing at (claude/black-mask-slayer-helm-ma2.md is what
+// guessing at an unseen asset costs). The cape that stands for all 22 skills performs one of their
+// emotes instead, picked at random each time. Every skill in the stats enum has a cape with both an
+// emote and a graphic - battery check 8 holds that - so the pick can never come up empty.
+if ($cape = max_cape) {
+    $cape = enum(stat, namedobj, skillcape_cape, enum(int, stat, stats, calc(random(enum_getoutputcount(stats)) + 1)));
+}
 def_seq $seq = null;
 if ($cape ! null) {
     $seq = enum(obj, seq, skillcape_emote_seq, $cape);
@@ -227,3 +236,100 @@ if (~skillcape_offer(hitpoints) = true) {
     return;
 }
 @healer_talk;
+// ============================================================================ the Max cape
+//
+// Mac sells it, and his price is OSRS's: 99,000 a skill, which comes to 2,376,000 there for 24
+// skills and to ^skillcape_price x the stats enum here. Counted rather than written down, so a
+// skill added to that enum raises the price and the requirement together - the same reason
+// ~maxcape_ready counts instead of naming: this server has no Hunter, and the enum is the only
+// place that knows which skills exist.
+//
+// A lost cape or hood is replaced free, as in OSRS. %maxcape_bought remembers only that you once
+// bought one; what happened to it is not Mac's business.
+
+[proc,maxcape_price]()(int)
+return(calc(^skillcape_price * enum_getoutputcount(stats)));
+
+[proc,maxcape_ready]()(boolean)
+if (~skillcape_count_99s >= enum_getoutputcount(stats)) {
+    return(true);
+}
+return(false);
+
+// How many of the two pieces the player does not have anywhere - inventory, bank or worn. A player
+// who lost only the hood gets a hood, and needs one free slot rather than two.
+[proc,maxcape_missing]()(int)
+def_int $missing = 0;
+if (~obj_gettotal(max_cape) = 0) {
+    $missing = add($missing, 1);
+}
+if (~obj_gettotal(max_hood) = 0) {
+    $missing = add($missing, 1);
+}
+return($missing);
+
+[opnpc1,skillcape_mac]
+~chatnpc("<p,happy>Hello there. I'm Mac. I keep an eye on the ones who have finished the lot.");
+if (~maxcape_ready = false) {
+    ~chatnpc("<p,neutral>The Max cape is for those who have reached level 99 in all <tostring(enum_getoutputcount(stats))> skills. You have <tostring(~skillcape_count_99s)> of them.");
+    ~chatnpc("<p,happy>Come back when you've got the rest and I'll sell you one for <tostring(~maxcape_price)> coins.");
+    return;
+}
+if (%maxcape_bought = 1) {
+    if (~maxcape_missing = 0) {
+        ~chatnpc("<p,happy>You've got yours already. Wear it with pride.");
+        return;
+    }
+    if (~p_choice2("I've lost my Max cape.", 1, "Something else.", 2) ! 1) {
+        return;
+    }
+    ~chatplayer("<p,sad>I've lost my Max cape.");
+    ~chatnpc("<p,neutral>Careless. Here, you've earned it once - you don't have to earn it twice.");
+    ~maxcape_give;
+    return;
+}
+if (~p_choice2("Can I buy a Max cape?", 1, "Something else.", 2) ! 1) {
+    return;
+}
+~chatplayer("<p,quiz>Can I buy a Max cape?");
+~chatnpc("<p,happy>All <tostring(enum_getoutputcount(stats))> skills mastered - not many manage that. <tostring(~maxcape_price)> coins and it's yours, hood and all.");
+if (~p_choice2("Okay, here you go.", 1, "No thanks.", 2) ! 1) {
+    ~chatplayer("<p,neutral>No thanks.");
+    ~chatnpc("<p,neutral>Come back if you change your mind.");
+    return;
+}
+~chatplayer("<p,happy>Okay, here you go.");
+if (inv_total(inv, coins) < ~maxcape_price) {
+    ~chatplayer("<p,sad>But, unfortunately, I don't have enough money with me.");
+    ~chatnpc("<p,neutral>Well, come back and see me when you do.");
+    return;
+}
+// the coins' slot counts towards the room needed if all of them go
+def_int $space = inv_freespace(inv);
+if (inv_total(inv, coins) = ~maxcape_price) {
+    $space = add($space, 1);
+}
+if ($space < 2) {
+    ~chatnpc("<p,neutral>You'll want room for the cape and the hood both. Come back with two free spaces.");
+    return;
+}
+inv_del(inv, coins, ~maxcape_price);
+%maxcape_bought = 1;
+inv_add(inv, max_cape, 1);
+inv_add(inv, max_hood, 1);
+~doubleobjbox(max_cape, max_hood, "You hand over <tostring(~maxcape_price)> coins and receive a Max cape and its hood.", 200);
+~chatnpc("<p,happy>There you go. Every skill in the game on one back.");
+
+// The replacement path: only the pieces that are missing, and only if there is room for them.
+[proc,maxcape_give]
+def_int $missing = ~maxcape_missing;
+if (inv_freespace(inv) < $missing) {
+    ~chatnpc("<p,neutral>You haven't the room. Come back with <tostring($missing)> free space.");
+    return;
+}
+if (~obj_gettotal(max_cape) = 0) {
+    inv_add(inv, max_cape, 1);
+}
+if (~obj_gettotal(max_hood) = 0) {
+    inv_add(inv, max_hood, 1);
+}

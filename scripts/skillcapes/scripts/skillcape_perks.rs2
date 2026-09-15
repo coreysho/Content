@@ -33,6 +33,14 @@ def_obj $back = inv_getobj(worn, ^wearpos_back);
 if ($back = null) {
     return(false);
 }
+// THE MAX CAPE IS EVERY CAPE. Every passive in this file is asked through this one proc - the hook
+// sites all read ~skillcape_worn(<their skill>) - so answering true here for any stat is the whole
+// of "the Max cape inherits all skillcape perks", and a perk added later inherits automatically
+// with no line to change. The ops are a different matter and are listed further down: an item can
+// only carry so many, so they are gathered into two menus.
+if ($back = max_cape) {
+    return(true);
+}
 if ($back = enum(stat, namedobj, skillcape_cape, $stat) | $back = enum(stat, namedobj, skillcape_cape_t, $stat)) {
     return(true);
 }
@@ -60,6 +68,33 @@ if (~pre_tele_checks(coord) = false) {
     return;
 }
 ~player_teleport_normal($dest);
+
+// ---- Construction: teleport home ----
+//
+// OSRS's Construction cape teleports you into your own house, unlimited. ~poh_enter is that
+// teleport - it is what the house teleport tablet calls (poh_tablets.rs2) and it refuses politely
+// when you do not own a house yet - so this is the tablet's ending with the tablet's guards and
+// the ordinary teleport animation in front of it.
+[opheld3,construction_cape] @skillcape_teleport_house;
+[opheld3,construction_cape_t] @skillcape_teleport_house;
+
+[label,skillcape_teleport_house]
+if (~wilderness_level(coord) > 20) {
+    mes("A mysterious force blocks your teleport.");
+    mes("You can't use this teleport after level 20 wilderness.");
+    return;
+}
+if (~pre_tele_checks(coord) = false) {
+    return;
+}
+if_close;
+p_stopaction;
+sound_synth(teleport_all, 1, 0);
+anim(human_castteleport, 0);
+spotanim_pl(teleport_casting, 92, 0);
+p_delay(2);
+anim(null, 0);
+~poh_enter(false);
 
 // ---- Defence: ring of life toggle ----
 
@@ -137,6 +172,36 @@ if (%spellbook = 1) {
 %spellbook = 1;
 if_settab(ancient_magic, ^tab_magic);
 mes("You switch to Ancient Magicks. (<tostring(sub(5, %skillcape_magic_uses))> changes left today.)");
+
+// ---- the Max cape's own two menus ----
+//
+// The cape has every passive above (~skillcape_worn), which leaves the seven capes with an op of
+// their own: four teleports, the Defence toggle, the Agility boost and the Magic spellbook swap.
+// Seven ops will not fit on one item - opheld5 is Drop - so they are gathered into the two menus
+// OSRS itself uses, with the Features list in the cache's own order (Ring of Life, Stamina Boost,
+// then the spellbook, which OSRS gives an op of its own and this build has no room for).
+//
+// Each entry ends in exactly the label the single cape uses, so there is one implementation of
+// every perk and no second copy to drift: the Max cape is a different way in, not a different
+// effect. The one exception is the house, whose label is above.
+
+[opheld3,max_cape]
+def_int $where = ~p_choice5_header("Warriors' Guild.", 1, "Crafting Guild.", 2, "Fishing Guild.", 3, "Your house.", 4, "Nowhere.", 5, "Where would you like to teleport to?");
+switch_int ($where) {
+    case 1 : @skillcape_teleport(0_44_55_54_25);
+    case 2 : @skillcape_teleport(0_45_51_53_20);
+    case 3 : @skillcape_teleport(0_40_53_50_3);
+    case 4 : @skillcape_teleport_house;
+    case default : mes("You remain where you were.");
+}
+
+[opheld4,max_cape]
+def_int $what = ~p_choice4_header("Ring of Life.", 1, "Stamina Boost.", 2, "Spellbook.", 3, "Nothing.", 4, "Which of your cape's features?");
+switch_int ($what) {
+    case 1 : @skillcape_toggle_rol;
+    case 2 : @skillcape_agility_boost;
+    case 3 : @skillcape_spellbook;
+}
 
 // ---- small helpers the skill scripts call ----
 
