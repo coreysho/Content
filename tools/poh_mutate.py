@@ -9,6 +9,12 @@ or one the 377 client fails silently on.
 Naming the checker is half the point: a mutation caught by the wrong script means a check is
 testing something other than what it says.
 
+A MUTATION TO A SPEC FILE CANNOT BE RUN HERE and be worth anything. The battery re-runs the
+generators in place, so any edit to tools/furnspec.json trips group 38 - "the generator still
+produces what is checked in" - before the check under test can fire. Those entries go through
+tools/poh_mutate_spec.py, which edits the spec, regenerates, and only then runs the battery, which
+is the sequence a person would actually produce. They are still listed below so there is one list.
+
     python3 tools/poh_mutate.py
 """
 import os, shutil, subprocess, sys
@@ -165,7 +171,7 @@ MUTS = [
   '~poh_furn_show(~poh_furn_field($v, ^poh_furn_bit_item, 8), $spot',
   '28 a reader that sees only the low byte of the item number (furn sim)'),
  ('scripts/skill_construction/configs/construction.constant',
-  '^poh_garden_sell = 400', '^poh_garden_sell = 500',
+  '^poh_garden_sell = 1000', '^poh_garden_sell = 900',
   '46 a shop price that is not the OSRS one'),
  ('scripts/skill_construction/configs/poh_garden.npc',
   'param=shop_delta,0', 'param=shop_delta,1',
@@ -194,7 +200,7 @@ MUTS = [
   '"loc": "poh_exit_portal",\n     "label": "Exit portal",\n     "level": 5,',
   '47 an exit portal you cannot build at level 1'),
  ('scripts/skill_construction/configs/construction.constant',
-  '^poh_stone_sell = 500', '^poh_stone_sell = 400',
+  '^poh_stone_sell = 1300', '^poh_stone_sell = 1200',
   '48 a marble price that is not the OSRS one'),
  ('scripts/skill_construction/configs/poh_stone.inv',
   'stock2=poh_marble_block,20,100', 'stock2=poh_marble_block,20,5',
@@ -494,7 +500,7 @@ if (inv_total(inv, coins) < $cost) {
   '^poh_rug_anchor = 7', '^poh_rug_anchor = 1', '60 the constant and the spec are the same tile'),
  # gold leaf priced at something other than what OSRS charges
  ('scripts/skill_construction/configs/poh_formal_mats.obj',
-  'cost=260000', 'cost=200000', '26 all three come out at the OSRS price'),
+  'cost=100000', 'cost=200000', '26 all three come out at the OSRS price'),
  # and the stonemason no longer stocking it, which makes two pieces unbuildable
  ('scripts/skill_construction/configs/poh_stone.inv',
   'stock3=gold_leaf,20,100' + chr(10), '', '26 he stocks three things'),
@@ -613,11 +619,87 @@ if (inv_total(inv, coins) < $cost) {
   '"label": "Oak toy box",\n     "level": 50,\n     "xp": 300',
   '62 the experience is planks x the wood'),
  # the Stonemason no longer stocking the one thing a level-99 cape rack needs
- ('scripts/skill_construction/configs/poh_stone.inv', 'stock4=magic_stone,5,1000' + chr(10), '',
+ ('scripts/skill_construction/configs/poh_stone.inv', 'stock4=magic_stone,10,100' + chr(10), '',
   '62 he stocks 4 things'),
  # ...or stocking it at the wrong price
- ('scripts/skill_construction/configs/poh_formal_mats.obj', 'cost=8000000', 'cost=4000000',
+ ('scripts/skill_construction/configs/poh_formal_mats.obj', 'cost=750000', 'cost=4000000',
   '62 all four come out at the OSRS price'),
+ # ---- 63: hedging, and the shop prices ----
+ # THE ORPHAN CHECK ON ITS OWN. The two mutations below pull a line out of the shop, which trips
+ # the stock COUNT first - a real failure, but not this one. This one leaves the shop alone and
+ # points a flowerbed at a real obj that no shop sells and no script makes, which is exactly the
+ # shape the bagged flower bug had.
+ ('tools/furnspec.json', '"poh_bag_sunflower",', '"granite_maul",',
+  '63 every material is bought somewhere or made somewhere'),
+ # THE ONE THAT WAS LIVE FOR A WEEK: a material nothing sells. Take the bagged flower back out of
+ # the Garden Centre and six flowerbeds become unbuildable again.
+ ('scripts/skill_construction/configs/poh_garden.inv',
+  'stock11=poh_bag_flower,20,100' + chr(10), '',
+  '63 every material is bought somewhere or made somewhere'),
+ # ...and the same for a hedge
+ ('scripts/skill_construction/configs/poh_garden.inv',
+  'stock17=poh_bag_thorny_hedge,20,100' + chr(10), '',
+  '63 every material is bought somewhere or made somewhere'),
+ # a plank the sawmill no longer mills - the "made" half of the same check
+ ('scripts/skill_construction/scripts/sawmill.rs2', 'mahogany_plank', 'mahogany_plank_DISABLED',
+  '63 every "made" one is really named by the script that makes it'),
+ # the mistake this round is fixing: the shop's SELLING multiplier set to its buying ratio
+ ('scripts/skill_construction/configs/construction.constant',
+  '^poh_garden_sell = 1000', '^poh_garden_sell = 400',
+  '63 every price comes out at the OSRS number'),
+ ('scripts/skill_construction/configs/construction.constant',
+  '^poh_stone_sell = 1300', '^poh_stone_sell = 500',
+  '48 all four come out at the OSRS price'),
+ # ...and an item's cost inflated to hide it, which is how it survived the first time
+ ('scripts/skill_construction/configs/poh_formal_mats.obj', 'cost=750000', 'cost=8000000',
+  '48 all four come out at the OSRS price'),
+ # the npc param drifting from the constant - two places, one number
+ ('scripts/skill_construction/configs/poh_stone.npc',
+  'param=shop_sell_multiplier,1300', 'param=shop_sell_multiplier,500',
+  '48 his selling multiplier is ^poh_stone_sell'),
+ # the magic stone stocked at the wrong depth
+ ('scripts/skill_construction/configs/poh_stone.inv',
+  'stock4=magic_stone,10,100', 'stock4=magic_stone,5,100',
+  '48 a thousand bricks, twenty blocks, twenty leaves and ten stones'),
+ # a hedge tier at a level OSRS does not use
+ ('tools/furnspec.json', '"label": "Thorny hedge",\n     "level": 56',
+  '"label": "Thorny hedge",\n     "level": 55', '63 at OSRS\'s levels'),
+ # ...or the wrong experience
+ ('tools/furnspec.json', '"label": "Tall box hedge",\n     "level": 80,\n     "xp": 316',
+  '"label": "Tall box hedge",\n     "level": 80,\n     "xp": 300', '63 and OSRS\'s experience'),
+ # the kind order swapped, so corners get a straight piece and the hedge has gaps in it
+ ('tools/genhedge.py', "    ('thorny',     ['loc_13456', 'loc_13457', 'loc_13458']),",
+  "    ('thorny',     ['loc_13457', 'loc_13456', 'loc_13458']),",
+  '63 the thorny hedge IS the three ghosts'),
+ # a tile laid at the wrong angle, so one hedge in the run faces out of the garden
+ ('scripts/skill_construction/scripts/poh_hedge.rs2',
+  '~poh_hedge_lay($base, $rot, 0, 1, 3, $tier, ^poh_hedge_b);',
+  '~poh_hedge_lay($base, $rot, 0, 1, 1, $tier, ^poh_hedge_b);',
+  '63 each at the template\'s own tile and angle'),
+ # a tile laid on the wall layer, where the fence already is
+ ('tools/genhedge.py', "centrepiece_straight, ^poh_loc_duration);", "wall_straight, ^poh_loc_duration);",
+  '63 re-running genhedge changes nothing'),
+ # a hedge nobody can take out again
+ ('scripts/skill_construction/scripts/poh_hedge.rs2',
+  '[oploc5,loc_13476] ~poh_hedge_remove;' + chr(10), '',
+  '63 all 21 are removable, none twice'),
+ # ...or one wired in both files, which does not compile
+ ('scripts/skill_construction/scripts/poh_hedge.rs2',
+  '[oploc5,loc_13457] ~poh_hedge_remove;',
+  '[oploc5,loc_13457] ~poh_hedge_remove;\n[oploc5,loc_13456] ~poh_hedge_remove;',
+  '63 all 21 are removable, none twice'),
+ # the hedge sharing the fence's anchor, so building one takes the other's slot
+ ('tools/furnspec.json', '"key": "hedge",', '"key": "hedge_x",',
+  '63 tools/genhedge.py runs clean'),
+ # the anchor drifting from the spec, which is the mistake the rug round left open
+ ('scripts/skill_construction/scripts/poh_hedge.rs2',
+  'def_coord $base = movecoord($spot, -1, 0, -4);',
+  'def_coord $base = movecoord($spot, -1, 0, -3);',
+  '63 it steps back from the spec\'s own anchor'),
+ # a formal garden hotspot left unclaimed again
+ ('tools/furnspec.json', '"hotspots": [\n    15174,\n    15175,\n    15176\n   ],',
+  '"hotspots": [\n    15174,\n    15175\n   ],',
+  '49 they claim the centrepiece, the four flower spaces, the fencing and the hedging'),
 ]
 
 def checker_for(why):

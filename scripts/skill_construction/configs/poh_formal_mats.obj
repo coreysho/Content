@@ -105,8 +105,12 @@ members=yes
 // over from In Search of the Myreque. This is its own obj on the same model and recolour so that
 // the quest's copy stays the quest's.
 //
-// cost is 260,000 because a shop charges cost x multiplier / 1000 and ^poh_stone_sell is 500 -
-// the same arithmetic that makes the marble block come out at exactly OSRS's 125,000.
+// cost is 100,000 because that is the item's VALUE in OSRS, and the Stonemason sells at 130% of
+// value: 130,000, which is what he charges in the live game.
+//
+// It was 260,000 until 2026-09-15, fitted to make a wrong multiplier give the right answer -
+// ^poh_stone_sell was 500, his BUYING ratio, and 260,000 x 0.5 is also 130,000. Gold leaf was the
+// only one of his four that came out right that way, which is exactly why nothing noticed.
 [gold_leaf]
 name=Gold leaf
 desc=Very delicate thin pressed gold.
@@ -116,7 +120,7 @@ recol1d=29539
 2dzoom=940
 2dyan=112
 2dxan=248
-cost=260000
+cost=100000
 members=yes
 weight=20g
 
@@ -124,9 +128,14 @@ weight=20g
 certlink=gold_leaf
 certtemplate=template_for_cert
 
-// Magic stone. The Stonemason sells it in OSRS for 4,000,000 and this shop now does too; cost is
-// 8,000,000 because a shop charges cost x multiplier / 1000 and ^poh_stone_sell is 500, the same
-// arithmetic as the marble block and the gold leaf above.
+// Magic stone. Value 750,000, which is what the cost is; the Stonemason sells it for 975,000 and
+// buys it back for 375,000, ten in stock.
+//
+// THE FIRST VERSION OF THIS OBJ SAID 4,000,000 AND THAT NUMBER WAS INVENTED. It went in with the
+// costume room's cape rack on 2026-09-15, written from memory rather than read off the shop row,
+// and then repeated in the commit message, the project doc and a battery check that compared it
+// against itself. The wiki row is "10 | 1m | 975,000 | 375,000" and it took one fetch to get.
+// Battery 48 now reads the sell column.
 //
 // The only thing in the build that asks for one is the level-99 magic cape rack, which is what it
 // is for in OSRS as well. There is no rev-474 model for it in this cache, so it is the marble
@@ -142,10 +151,95 @@ model=obj_poh_marble_block
 2dyof=-41
 recol1s=11488
 recol1d=6684
-cost=8000000
+cost=750000
 members=yes
 weight=13607g
 
 [cert_magic_stone]
 certlink=magic_stone
 certtemplate=template_for_cert
+
+// The seven bagged hedges the formal garden's Hedging hotspot is built from - one bag per
+// hedge, which is the whole cost in OSRS as well. The Garden Centre sells them at their value
+// (5,000 to 100,000) and buys back at 40%, the same as the ten bagged plants it already stocks.
+//
+// They are the SAME MODEL as everything else in a sack: OSRS ships all of them on obj 12307 and
+// tells them apart by name, which is why the ten trees collapsed onto obj_poh_bagged and these
+// seven do too. Nothing new was imported for this - the art that was missing was never the bag.
+
+[poh_bag_thorny_hedge]
+name=Thorny hedge (bagged)
+desc=You can plant this in your garden.
+model=obj_poh_bagged
+2dzoom=919
+2dxan=249
+2dyof=-100
+weight=10000g
+cost=5000
+members=yes
+
+[poh_bag_nice_hedge]
+name=Nice hedge (bagged)
+desc=You can plant this in your garden.
+model=obj_poh_bagged
+2dzoom=919
+2dxan=249
+2dyof=-100
+weight=10000g
+cost=10000
+members=yes
+
+[poh_bag_small_box_hedge]
+name=Small box hedge (bagged)
+desc=You can plant this in your garden.
+model=obj_poh_bagged
+2dzoom=919
+2dxan=249
+2dyof=-100
+weight=10000g
+cost=15000
+members=yes
+
+[poh_bag_topiary_hedge]
+name=Topiary hedge (bagged)
+desc=You can plant this in your garden.
+model=obj_poh_bagged
+2dzoom=919
+2dxan=249
+2dyof=-100
+weight=10000g
+cost=20000
+members=yes
+
+[poh_bag_fancy_hedge]
+name=Fancy hedge (bagged)
+desc=You can plant this in your garden.
+model=obj_poh_bagged
+2dzoom=919
+2dxan=249
+2dyof=-100
+weight=10000g
+cost=25000
+members=yes
+
+[poh_bag_tall_fancy_hedge]
+name=Tall fancy hedge (bagged)
+desc=You can plant this in your garden.
+model=obj_poh_bagged
+2dzoom=919
+2dxan=249
+2dyof=-100
+weight=10000g
+cost=50000
+members=yes
+
+[poh_bag_tall_box_hedge]
+name=Tall box hedge (bagged)
+desc=You can plant this in your garden.
+model=obj_poh_bagged
+2dzoom=919
+2dxan=249
+2dyof=-100
+weight=10000g
+cost=100000
+members=yes

@@ -1,5 +1,5 @@
 """Symbol and signature battery for the two new .rs2 files, from claude/rs2-compile-traps.md."""
-import re, sys, os
+import struct, re, sys, os
 import json as _json
 C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FILES = ['scripts/skill_construction/scripts/poh.rs2', 'scripts/skill_construction/scripts/poh_test.rs2',
@@ -14,7 +14,8 @@ FILES = ['scripts/skill_construction/scripts/poh.rs2', 'scripts/skill_constructi
          'scripts/skill_construction/scripts/poh_combat.rs2',
          'scripts/skill_construction/scripts/poh_rug.rs2',
          'scripts/skill_construction/scripts/poh_decor.rs2',
-         'scripts/skill_construction/scripts/poh_stores.rs2']
+         'scripts/skill_construction/scripts/poh_stores.rs2',
+         'scripts/skill_construction/scripts/poh_hedge.rs2']
 fails = 0
 def check(ok, what):
     global fails
@@ -1713,24 +1714,41 @@ INVS = set(packmap('pack/inv.pack'))
 check('poh_garden_shop' in INVS, 'poh_garden_shop has an id in inv.pack')
 stock = dict((m.group(2), (int(m.group(3)), int(m.group(4))))
              for m in re.finditer(r'^stock(\d+)=(\w+),(\d+),(\d+)$', GINV, re.M))
-check(len(stock) == 10, 'she stocks %d things' % len(stock))
+check(len(stock) == 23, 'she stocks %d things' % len(stock))
+GOBJ.update(blocks(read('scripts/skill_construction/configs/poh_formal_mats.obj')))
 bad = [k for k in stock if k not in GOBJ]
-check(not bad, 'every line of stock is one of the garden materials: %s' % (bad or 'all ten'))
+check(not bad, 'every line of stock is one of the garden materials: %s' % (bad or 'all 23'))
 bad = [(k, v) for k, v in stock.items() if v != (20, 100)]
-check(not bad, 'twenty of each, restocking a unit a minute: %s' % (bad or 'all ten'))
-# THE PRICES ARE THE CACHE'S, at 40%: the wiki's numbers are knowledge, the costs are data, and the
+check(not bad, 'twenty of each, restocking a unit a minute: %s' % (bad or 'all 23'))
+# THE PRICES ARE THE CACHE'S: the wiki's numbers are knowledge, the costs are data, and the
 # multiplier is what ties them together. If they ever disagree, one of the three moved.
-WIKI = {'poh_bag_dead_tree': 400, 'poh_bag_nice_tree': 800, 'poh_bag_oak_tree': 2000,
-        'poh_bag_willow_tree': 4000, 'poh_bag_maple_tree': 6000, 'poh_bag_yew_tree': 8000,
-        'poh_bag_magic_tree': 20000, 'poh_bag_plant_1': 400, 'poh_bag_plant_2': 2000,
-        'poh_bag_plant_3': 4000}
+#
+# THESE WERE THE BUY COLUMN UNTIL 2026-09-15 - 400 for a bagged dead tree, which is what the shop
+# pays FOR one, not what it charges. The constant, the npc param and this table all said the same
+# wrong thing, so all three agreed and the check passed. Every number below is now the sell column
+# of the item's own shop row, and the Garden Centre's sell column is simply the item's value.
+WIKI = {'poh_bag_dead_tree': 1000, 'poh_bag_nice_tree': 2000, 'poh_bag_oak_tree': 5000,
+        'poh_bag_willow_tree': 10000, 'poh_bag_maple_tree': 15000, 'poh_bag_yew_tree': 20000,
+        'poh_bag_magic_tree': 50000, 'poh_bag_plant_1': 1000, 'poh_bag_plant_2': 5000,
+        'poh_bag_plant_3': 10000,
+        # the six flowers, which were buildable and unobtainable until this round
+        'poh_bag_flower': 5000, 'poh_bag_daffodils': 10000, 'poh_bag_bluebells': 15000,
+        'poh_bag_sunflower': 5000, 'poh_bag_marigolds': 10000, 'poh_bag_roses': 15000,
+        # and the seven hedges
+        'poh_bag_thorny_hedge': 5000, 'poh_bag_nice_hedge': 10000,
+        'poh_bag_small_box_hedge': 15000, 'poh_bag_topiary_hedge': 20000,
+        'poh_bag_fancy_hedge': 25000, 'poh_bag_tall_fancy_hedge': 50000,
+        'poh_bag_tall_box_hedge': 100000}
+check(sorted(WIKI) == sorted(stock), 'and the table below covers exactly what she stocks')
 bad = []
 for k, want in WIKI.items():
     cost = int((GOBJ.get(k, {}).get('cost') or ['0'])[0])
     got = cost * const('poh_garden_sell') // 1000
-    if got != want:
+    buy = cost * const('poh_garden_buy') // 1000
+    if got != want or buy != want * 2 // 5:
         bad.append((k, cost, got, want))
-check(not bad, 'every price comes out at the OSRS number: %s' % (bad[:3] or 'all ten, 400-20,000 coins'))
+check(not bad, 'every price comes out at the OSRS number, and the buy-back at 40%% of it: %s'
+      % (bad[:3] or 'all 23, 1,000-100,000 coins'))
 # where she stands: once, on a tile with nothing solid on it
 GMAP = 'maps/m46_52.jm2'
 sec = None; spots = []; solid = {}
@@ -1851,8 +1869,8 @@ check(not bad, 'every line of stock is a real obj: %s' % (bad or ', '.join(sstoc
 # MAGIC STONE joined them for the costume room's cape rack, whose top tier is one magic stone at
 # level 99 - the same thing it is for in OSRS. It is its own obj rather than 377's unpriced
 # placeholder, and it is priced by the same arithmetic: OSRS's own 4,000,000.
-SWIKI = {'limestonebrick': 10, 'poh_marble_block': 125000, 'gold_leaf': 130000,
-         'magic_stone': 4000000}
+SWIKI = {'limestonebrick': 26, 'poh_marble_block': 325000, 'gold_leaf': 130000,
+         'magic_stone': 975000}
 ALLOBJ = dict(OBJCFG)
 ALLOBJ.update(blocks(read('scripts/skill_construction/configs/poh_formal_mats.obj')))
 ALLOBJ.update(blocks(read('scripts/_unpack/377/all.obj')))
@@ -1863,14 +1881,14 @@ for k, want in SWIKI.items():
     if got != want:
         bad.append((k, cost, got, want))
 check(not bad, 'all four come out at the OSRS price: %s'
-      % (bad[:3] or '10, 125,000, 130,000 and 4,000,000 coins'))
+      % (bad[:3] or '26, 325,000, 130,000 and 975,000 coins'))
 check(sorted(sstock) == sorted(SWIKI), 'and he stocks exactly those four')
 # OSRS's own quantities. The first three restock a unit a minute, like the Garden Centre; a magic
 # stone is a 4,000,000gp item and restocks a tenth as fast.
 SQTY = {'limestonebrick': (1000, 100), 'poh_marble_block': (20, 100),
-        'gold_leaf': (20, 100), 'magic_stone': (5, 1000)}
+        'gold_leaf': (20, 100), 'magic_stone': (10, 100)}
 bad = [(k, v) for k, v in sstock.items() if v != SQTY.get(k)]
-check(not bad, 'a thousand bricks, twenty blocks, twenty leaves and five stones: %s'
+check(not bad, 'a thousand bricks, twenty blocks, twenty leaves and ten stones: %s'
       % (bad or 'all four lines'))
 # where he stands: western Keldagrim, on nothing, with room around him
 KMAP = 'maps/m44_159.jm2'
@@ -1895,13 +1913,18 @@ if spots:
 
 print('49. the formal garden room, and what goes in it')
 FGFAMS = [f for f in FSPEC['families'] if f.get('room') == 'formal garden']
-check(len(FGFAMS) == 6, 'six formal garden families: %s' % [f['key'] for f in FGFAMS])
+check(len(FGFAMS) == 7, 'seven formal garden families: %s' % [f['key'] for f in FGFAMS])
 FGHOT = {h for f in FGFAMS for h in f['hotspots']}
-# the fencing joined the centrepiece and the four flower spaces; the three Hedging hotspots are
-# still unclaimed, and they need seven bagged hedges that are not objs in this cache yet
+# Every hotspot the room places is claimed now: the centrepiece, the four flower spaces, the
+# fencing and the three Hedging tiles. The hedge was the last of them, and it was waiting on seven
+# bagged hedges - which turned out to need no import at all, because every bagged anything in OSRS
+# is the same sack model this repo already has.
 check(FGHOT == {LOCS['loc474_15368'], LOCS['loc474_15369']}
-              | {LOCS['loc474_1537%d' % n] for n in (3, 4, 5, 6)},
-      'they claim the centrepiece, the four flower spaces and the fencing')
+              | {LOCS['loc474_1537%d' % n] for n in (0, 1, 2, 3, 4, 5, 6)},
+      'they claim the centrepiece, the four flower spaces, the fencing and the hedging')
+check(all((TEMPL.get({v: k for k, v in LOCS.items()}[h], {}).get('category') or [''])[0]
+          == 'poh_hotspot' for h in FGHOT),
+      'and every one of them really is a hotspot loc')
 # the room is real: its zone, its doors and its price
 check(const('poh_room_formal_garden') == 16 and COUNT == 16,
       'the formal garden is room type %s of %s' % (const('poh_room_formal_garden'), COUNT))
@@ -2649,7 +2672,8 @@ for _sq, _levels in (('m29_79', (0, 1, 2, 3)), ('m30_79', (0, 1))):
         if _lv in _levels and (TEMPL2.get(_n, {}).get('category') or [''])[0] == 'poh_hotspot':
             _famroomhot.setdefault((_x // 8) * 8 + (_z // 8), set()).add((_x % 8, _z % 8))
 anchored = [f for f in _spec['families'] if f.get('anchor')]
-check(sorted(f['key'] for f in anchored) == ['chapelwindow', 'combat_ring', 'fence', 'rug', 'thronefloor'],
+check(sorted(f['key'] for f in anchored)
+      == ['chapelwindow', 'combat_ring', 'fence', 'hedge', 'rug', 'thronefloor'],
       'the anchored families are %s' % sorted(f['key'] for f in anchored))
 _zoneof = {}
 for _l in read('scripts/skill_construction/configs/poh_rooms.enum').split('\n'):
@@ -3114,8 +3138,13 @@ check(_rooms == {'costume room'}, 'all five are in the costume room: %s' % sorte
 # inserting them beside the treasure chest, where they belong, renumbered 292 existing items and
 # quietly rearranged every house already standing.
 _keys62 = [f['key'] for f in _spec62]
-check(_keys62[-_nst:] == [s['family'] for s in _sspec],
-      'the five families are the last five in the spec, so no existing item number moved')
+# The five were the last five when they shipped; the hedge has been appended since, which is fine -
+# appending is the rule. What must never change is WHERE they are, because a family's position is
+# its id and an item's position is the number in a player's save. 74 to 78 are literals on purpose:
+# they are the baseline, and a family inserted anywhere before them moves all five and fires this.
+check([_keys62.index(s['family']) + 1 for s in _sspec] == [74, 75, 76, 77, 78],
+      'the five families are still ids 74-78: %s'
+      % [_keys62.index(s['family']) + 1 for s in _sspec])
 
 # Every trigger the generator emitted points at the right store. This is the seam that would fail
 # silently: a cape rack wired to store 1 opens, works, and holds robes.
@@ -3185,6 +3214,183 @@ _bad = [(f['key'], p['label'], p['xp'], p['mats'][0][1] * _XP[p['mats'][0][0]])
         if p['mats'][0][0] in _XP and p['xp'] != p['mats'][0][1] * _XP[p['mats'][0][0]]]
 check(not _bad, 'and the experience is planks x the wood, as everywhere else: %s'
       % (_bad[:3] or 'every plank piece'))
+
+def _tiles63(name, room):
+    """Every placement of a named hotspot in a named room, per style square, as template tiles."""
+    _byid = {v: k for k, v in LOCS.items()}
+    _z2r, _rn, _sec = {}, {}, None
+    for l in read('scripts/skill_construction/configs/poh_rooms.enum').split('\n'):
+        l = l.strip()
+        if l.startswith('['):
+            _sec = l[1:-1]; continue
+        if l.startswith('val='):
+            a, b = l[4:].split(',', 1)
+            if _sec == 'poh_room_zone':
+                _z2r[int(b)] = int(a)
+            if _sec == 'poh_room_name':
+                _rn[int(a)] = b
+    per = {}
+    for sq, levels in (('m29_79', (0, 1, 2, 3)), ('m30_79', (0, 1))):
+        sec = None
+        for l in read('maps/%s.jm2' % sq).split('\n'):
+            if l.startswith('===='):
+                sec = l.strip('= '); continue
+            if sec != 'LOC' or ':' not in l:
+                continue
+            head, rest = l.split(':', 1)
+            lv, x, z = (int(v) for v in head.split())
+            p = rest.split()
+            n = _byid.get(int(p[0]))
+            if lv not in levels or _rn.get(_z2r.get((x // 8) * 8 + (z // 8))) != room:
+                continue
+            if (TEMPL.get(n, {}).get('name') or [''])[0] != name:
+                continue
+            per.setdefault((sq, lv), {})[(x % 8, z % 8)] = (
+                int(p[1]) if len(p) > 1 else 10, int(p[2]) if len(p) > 2 else 0)
+    sigs = {k: sorted(v.items()) for k, v in per.items()}
+    first = sorted(sigs)[0]
+    return sorted(per[first].items()), [k for k, v in sigs.items() if v != sigs[first]]
+
+
+
+print('63. hedging, and nothing buildable out of something you cannot get')
+
+# ---------------------------------------------------------------- nothing unobtainable
+#
+# THE CHECK THIS GROUP EXISTS FOR. The formal garden shipped with six flowerbeds that cost a bagged
+# flower, and NOTHING IN THE GAME SOLD ONE - the six objs were imported, priced and left out of the
+# shop, and the comment in poh_garden.inv explaining why they were left out had gone stale the day
+# the formal garden round wired the hotspots. Six buildable things, unbuildable, for a week, and
+# every other check in this file passed the whole time.
+#
+# So: every obj any family names as a material is either stocked by a shop in this repo, or is in
+# the table below with the script that makes it - and that script has to actually mention it. The
+# table is not an allowlist; a plank nobody mills goes red the same as a flower nobody sells.
+MADE = {
+    'plank':          'skill_construction/scripts/sawmill.rs2',
+    'oak_plank':      'skill_construction/scripts/sawmill.rs2',
+    'teak_plank':     'skill_construction/scripts/sawmill.rs2',
+    'mahogany_plank': 'skill_construction/scripts/sawmill.rs2',
+    'bolt_of_cloth':  'skill_construction/scripts/sawmill.rs2',
+    'molten_glass':   'skill_crafting/scripts/glass/glass.rs2',
+    'softclay':       'skill_crafting/scripts/pottery/pottery.rs2',
+    'steel_bar':      'skill_smithing/scripts/smelting/smelting.rs2',
+}
+_stocked = {}
+for _root, _dirs, _fs in os.walk(os.path.join(C, 'scripts')):
+    for _fn in _fs:
+        if not _fn.endswith('.inv'):
+            continue
+        for _m in re.finditer(r'^stock\d+=(\w+),', read(os.path.join(_root, _fn)[len(C) + 1:]), re.M):
+            _stocked.setdefault(_m.group(1), set()).add(_fn)
+_mats = sorted({m[0] for f in _spec['families'] for p in f.get('pieces', [])
+                for m in p['mats']}
+               | {WOOD_OBJ for WOOD_OBJ in ('plank', 'oak_plank', 'teak_plank', 'mahogany_plank')})
+_orphan = [m for m in _mats if m not in _stocked and m not in MADE]
+check(not _orphan, 'every material is bought somewhere or made somewhere: %s'
+      % (_orphan or '%d of them' % len(_mats)))
+_notmade = [(m, f) for m, f in MADE.items()
+            if m in _mats and not re.search(r'\b%s\b' % re.escape(m), read('scripts/' + f))]
+check(not _notmade, 'and every "made" one is really named by the script that makes it: %s'
+      % (_notmade or 'all %d' % len([m for m in MADE if m in _mats])))
+_bought = [m for m in _mats if m in _stocked]
+check(len(_bought) == 29, '%d of them come off a shop shelf' % len(_bought))
+# ...and the six that started this are among them
+_flowers = ['poh_bag_flower', 'poh_bag_daffodils', 'poh_bag_bluebells',
+            'poh_bag_sunflower', 'poh_bag_marigolds', 'poh_bag_roses']
+check(all(f in _stocked for f in _flowers),
+      'the six formal-garden flowers are buyable: %s'
+      % sorted({s for f in _flowers for s in _stocked.get(f, ['NOWHERE'])}))
+
+# ---------------------------------------------------------------- the hedge itself
+_kept63 = {f: open(os.path.join(C, f), 'rb').read()
+           for f in ['scripts/skill_construction/scripts/poh_hedge.rs2']}
+_r63 = _sp.run([sys.executable, os.path.join(C, 'tools/genhedge.py')],
+               capture_output=True, text=True, cwd=C)
+check(_r63.returncode == 0, 'tools/genhedge.py runs clean'
+      + ('' if _r63.returncode == 0 else ': ' + (_r63.stdout + _r63.stderr)[-400:]))
+_moved63 = [f for f in _kept63 if open(os.path.join(C, f), 'rb').read() != _kept63[f]]
+for f in _moved63:
+    open(os.path.join(C, f), 'wb').write(_kept63[f])
+check(not _moved63, 're-running it changes nothing: %s' % (_moved63 or 'byte-identical'))
+
+HG = clean['scripts/skill_construction/scripts/poh_hedge.rs2']
+_hfam = next(f for f in _spec['families'] if f['key'] == 'hedge')
+check(len(_hfam['pieces']) == 7, 'seven tiers: %d' % len(_hfam['pieces']))
+check([p['level'] for p in _hfam['pieces']] == [56, 60, 64, 68, 72, 76, 80],
+      'at OSRS\'s levels: %s' % [p['level'] for p in _hfam['pieces']])
+check([p['xp'] for p in _hfam['pieces']] == [70, 100, 122, 141, 158, 223, 316],
+      'and OSRS\'s experience: %s' % [p['xp'] for p in _hfam['pieces']])
+check(all(len(p['mats']) == 1 and p['mats'][0][1] == 1 for p in _hfam['pieces']),
+      'one bag each, which is the whole cost in OSRS too')
+
+# the twenty tiles, re-derived from the templates the same way the generator does
+_ht, _hbad = _tiles63('Hedging', 'Formal garden')
+check(not _hbad, 'the hedge is laid the same in every style square: %s' % (_hbad or 'all six'))
+check(len(_ht) == 20, 'twenty perimeter tiles: %d' % len(_ht))
+_ft, _ = _tiles63('Fencing', 'Formal garden')
+check({t for t, _ in _ht} == {t for t, _ in _ft},
+      'the same twenty the fence uses - two hotspots per tile, on two layers')
+check(all(sh == 10 for _, (sh, _a) in _ht), 'all of them on the ground layer, not the wall')
+check(all(sh in (0, 2) for _, (sh, _a) in _ft), 'and the fence on the wall layer, which is why both fit')
+
+# every tile the generator emitted is one of those twenty, at its own angle and kind
+_laid = re.findall(r'^~poh_hedge_lay\(\$base, \$rot, (\d+), (\d+), (\d+), \$tier, \^poh_hedge_(\w+)\);$',
+                   HG, re.M)
+check(len(_laid) == 20, '~poh_hedge_place lays twenty: %d' % len(_laid))
+_want = {t: a for t, (sh, a) in _ht}
+_bad = [(int(x), int(z)) for x, z, a, k in _laid
+        if (int(x), int(z)) not in _want or _want[(int(x), int(z))] != int(a)]
+check(not _bad, 'each at the template\'s own tile and angle: %s' % (_bad[:3] or 'all twenty'))
+check(sum(1 for _x, _z, _a, k in _laid if k == 'corner') == 4,
+      'four of them corners: %d' % sum(1 for _x, _z, _a, k in _laid if k == 'corner'))
+
+# THE KINDS ARE THE GHOSTS'. The thorny hedge's three models are the three hotspot models, so the
+# order of a tier's triple in poh.loc is named rather than assumed - and the kind a tile takes is
+# whichever Hedging hotspot the template put there.
+_POHLOC63 = blocks(read('scripts/skill_construction/configs/poh.loc'))
+def _geo63(model):
+    d = os.path.join(C, 'models/loc')
+    fs = [f for f in os.listdir(d) if f.startswith(model + '_') and f.endswith('.ob2')]
+    if not fs:
+        return None
+    b = open(os.path.join(d, sorted(fs)[0]), 'rb').read()
+    return struct.unpack_from('>HHB', b, len(b) - 18)[:2] if len(b) >= 18 else None
+_ghost63 = [_geo63((TEMPL['loc474_%d' % n].get('model') or [''])[0].split(',')[0])
+            for n in (15370, 15372, 15371)]
+_t1 = [_geo63((_POHLOC63['loc_%d' % n].get('model') or [''])[0].split(',')[0])
+       for n in (13456, 13457, 13458)]
+check(_t1 == _ghost63 and None not in _t1,
+      'the thorny hedge IS the three ghosts, which is what names the kinds: %s vs %s'
+      % (_t1, _ghost63))
+
+# the table is 7 x 3 with no gap, and every loc in it is a real removable Hedge
+_tbl = re.findall(r'^    case (\d+) : return\((\w+)\);', HG.split('[proc,poh_hedge_loc]', 1)[1]
+                  .split('\n[', 1)[0], re.M)
+check([int(a) for a, _ in _tbl] == list(range(21)), '~poh_hedge_loc is 21 cases with no gap')
+_bad = [l for _, l in _tbl if 'Remove' not in (_POHLOC63.get(l, {}).get('op5') or [])
+        or (_POHLOC63.get(l, {}).get('name') or [''])[0] != 'Hedge']
+check(not _bad, 'all 21 are removable Hedge locs in poh.loc: %s' % (_bad[:3] or 'all of them'))
+check(len({l for _, l in _tbl}) == 21, 'and no loc is used by two tiers')
+
+# removal is split between the two generators and declared exactly once each - a duplicate trigger
+# is a hard build error, and a missing one is a dead Remove on a hedge you cannot take out.
+_here = set(re.findall(r'^\[oploc5,(\w+)\] ~poh_hedge_remove;$', HG, re.M))
+_there = set(re.findall(r'^\[oploc5,(\w+)\]\s*\n~poh_hedge_remove;$', fu, re.M))
+check(len(_here | _there) == 21 and not (_here & _there),
+      'all 21 are removable, none twice: %d here, %d in poh_furn_ops' % (len(_here), len(_there)))
+check(_there == {p['loc'] for p in _hfam['pieces']},
+      'poh_furn_ops owns exactly the seven the spec names')
+
+# the anchor is the spec's, and it is NOT the fence's - both can stand in one garden
+check('movecoord($spot, %d, 0, %d);' % (-_hfam['anchor'][0], -_hfam['anchor'][1])
+      in HG.split('[proc,poh_hedge_place]', 1)[1].split('\n[', 1)[0],
+      'it steps back from the spec\'s own anchor %s' % (tuple(_hfam['anchor']),))
+_fencea = next(f for f in _spec['families'] if f['key'] == 'fence')['anchor']
+check(_hfam['anchor'] != _fencea,
+      'and it is not the fence\'s %s, so a garden can store one of each' % (tuple(_fencea),))
+check(tuple(_hfam['anchor']) not in _famroomhot.get(int(enumtable(ROOMS, 'poh_room_zone')[16]), set()),
+      'and nothing is ever built on it')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

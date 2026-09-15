@@ -16,6 +16,14 @@
 // for every one of the 6 * 9 combinations.
 ^poh_window_kinds = 9
 
+// ---- hedging (poh_hedge.rs2, 2026-09-15) ----
+// Which piece of the hedge a tile takes: two straights and a corner. These index ~poh_hedge_loc
+// three at a time, so they must stay 0, 1, 2 - and the order is the one the three hotspot ghosts
+// name, which tools/genhedge.py re-derives from the models before it writes anything.
+^poh_hedge_a = 0
+^poh_hedge_corner = 1
+^poh_hedge_b = 2
+
 // ---- rugs (poh_rug.rs2, 2026-09-15) ----
 // Which piece of the rug a tile takes. The rug is one piece of furniture over a rectangle of
 // floor, and these index ~poh_rug_loc three at a time, so they must stay 0, 1, 2.
@@ -146,7 +154,7 @@
 //
 // How many pieces one house can hold, and how many buildable things there are.
 ^poh_furn_slots = 256
-^poh_furn_items = 344
+^poh_furn_items = 351
 
 // The bit layout of one packed piece. 30 bits, so it fits an int with room to spare.
 ^poh_furn_bit_rx = 0
@@ -159,7 +167,7 @@
 ^poh_furn_bit_item_hi = 23
 
 // Construction experience per plank. OSRS's furniture xp is very nearly planks x this, so it
-// is one rule rather than 344 rows of remembered numbers - and it is the obvious thing to tune.
+// is one rule rather than 351 rows of remembered numbers - and it is the obvious thing to tune.
 ^poh_xp_plank = 29
 ^poh_xp_oak = 60
 ^poh_xp_teak = 90
@@ -255,6 +263,7 @@
 ^poh_fam_armourcase = 76
 ^poh_fam_toybox = 77
 ^poh_fam_fancydress = 78
+^poh_fam_hedge = 79
 
 // The exit portal, as a piece of furniture. It is the garden's level-1 centrepiece, which
 // is where OSRS puts it, and ~poh_ensure_exit hands one out free to any house that has no
@@ -312,17 +321,31 @@
 ^poh_garden_cp_z = 3
 
 // What the Garden supplier charges and pays, as a multiple of an item's own cache cost out of
-// 1000 (~calc_shop_value). 400 is exactly the OSRS price for all ten bagged plants; 240 is the
-// 60%-of-selling ratio the other shops use. The same two numbers are literals in poh_garden.npc,
-// because a config param has no precedent for taking a ^constant - check 46 compares them.
-^poh_garden_sell = 400
-^poh_garden_buy = 240
+// 1000 (~calc_shop_value). The Garden Centre sells at an item's VALUE and buys back at 40% of it -
+// a bagged dead tree is 1,000 and 400, a bagged tall box hedge is 100,000 and 40,000 - so the two
+// numbers are 1000 and 400. The same two are literals in poh_garden.npc, because a config param
+// has no precedent for taking a ^constant; check 46 compares them.
+//
+// THESE WERE BOTH WRONG UNTIL 2026-09-15. 400 is the ratio OSRS BUYS at, and it was here as the
+// selling multiplier, so the Garden Centre sold every bagged plant at 40% of the real price. The
+// comment that used to be here said 400 "is exactly the OSRS price for all ten bagged plants",
+// and battery 46 agreed with it, because the wiki table it was read from has a sell column and a
+// buy column and the buy column was the one that got written down. Read the row, not the number.
+^poh_garden_sell = 1000
+^poh_garden_buy = 400
 
-// And what the Stonemason charges and pays, the same way: the cache costs of a limestone brick, a
-// marble block, gold leaf and a magic stone are exactly twice the OSRS prices, so 500 is the number
-// and it is not a fitted one. Battery 48 checks all four against the shop's own list.
-^poh_stone_sell = 500
-^poh_stone_buy = 300
+// And what the Stonemason charges and pays. He is not the Garden Centre: he sells at 130% of an
+// item's value and buys back at 50%, consistently across all four things he stocks - a limestone
+// brick is 26 and 10 on a value of 20, a marble block 325,000 and 125,000 on 250,000, gold leaf
+// 130,000 and 50,000 on 100,000, a magic stone 975,000 and 375,000 on 750,000.
+//
+// SAME MISTAKE, SAME DAY: 500 is his buying ratio and it was here as his selling one, so a marble
+// block cost 125,000 instead of 325,000 and a limestone brick 10 instead of 26. Gold leaf came out
+// right by coincidence - its cost had been inflated to 260,000 to make the wrong multiplier give
+// the right answer, and 260,000 x 0.5 is the same 130,000 as 100,000 x 1.3. The costs are the
+// cache's own values again now. Battery 48 checks all four against the shop's own list.
+^poh_stone_sell = 1300
+^poh_stone_buy = 500
 
 // ---- the instruction budget (poh.rs2, poh_build.rs2, 2026-09-12) ----
 // HAND WRITTEN, behind its own marker for the same reason as the block above.
