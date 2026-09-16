@@ -41,9 +41,9 @@ concurrency:
 
 jobs:
   pack:
-    name: rs2check and a full build
+    name: rs2check, a full build, and the checks that need one
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
     - uses: actions/checkout@v4
@@ -110,6 +110,24 @@ jobs:
       working-directory: content
       run: python tools/pouchpacked.py
 
+    # AND SO DOES poh_battery, since group 64b landed. It reads the engine's Player.ts for the
+    # Graceful energy bonus and runs tools/objpacked.py against data/pack/server/obj.dat, so a
+    # content-only runner fails it - which is what happened: three pushes red on
+    # "poh_battery.py: Process completed with exit code 1" while the other seven batteries passed.
+    # It lives here rather than in the matrix because this is the only job with both an engine and
+    # a built cache, and duplicating the build to keep it in the matrix costs more than it saves.
+    - name: Install the renderers poh_battery imports
+      run: pip install pillow numpy
+
+    - name: poh_battery
+      working-directory: content
+      run: python tools/poh_battery.py
+
+    # tools/mutate_labels.py BELONGS HERE and is not added yet, deliberately. It fails today on
+    # poh_mutate's 130 unlabelled mutations, which are still being measured - and a step added
+    # while it is red would either turn CI red on purpose or need continue-on-error, which is a
+    # check that cannot fail. It goes in when it passes.
+
   batteries:
     name: ${{ matrix.script }}
     runs-on: ubuntu-latest
@@ -118,7 +136,8 @@ jobs:
       fail-fast: false
       matrix:
         script:
-        - poh_battery.py
+        # poh_battery.py is NOT here: it needs the engine and a built cache, so it runs in the
+        # pack job above. See the note beside it there.
         - pet_battery.py
         - pouch_battery.py
         - compost_battery.py
