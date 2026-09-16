@@ -1,28 +1,76 @@
+# Verification for this fork's content, on GitHub's runners instead of a laptop.
+#
+# The inherited version of this file checked out LostCityRS/Engine-TS - UPSTREAM's engine, not this
+# fork's - and ran the pack and nothing else. Two things were wrong with that. The engine it built
+# against does not have this fork's patches, so content that depends on them was being verified
+# against an engine that cannot run it. And BUILD_VERIFY, which is on by default, compares the
+# packed output against the ORIGINAL 377 checksums; this content is not original 377, so the build
+# threw '.seq checksum mismatch!' before it got anywhere. Every push has been red for that reason,
+# which is the same as having no CI at all.
+#
+# What runs now, on every push:
+#   pack       - rs2check, then a full build against THIS fork's engine, then a check that the
+#                packed interfaces really do count the rune pouch's runes
+#   batteries  - the eight check batteries, one runner each so a failure names itself
+#
+# What runs when asked (Actions -> Verify Content -> Run workflow):
+#   mutations  - the mutation harnesses, one runner each. These are the ones that take over an
+#                hour on a laptop and have never once finished there.
+
 name: Verify Content
 
 on:
-  pull_request:
   push:
-    paths:
-    - '.github/workflows/content.yml'
-    - '**'
+  pull_request:
   workflow_dispatch:
+    inputs:
+      mutations:
+        description: 'Also run the mutation harnesses (slow - the poh sweep alone is over an hour)'
+        type: boolean
+        default: false
+      filter:
+        description: 'Only mutations whose label contains this, e.g. 64 for one round'
+        type: string
+        default: ''
 
+# A new push supersedes the run it interrupted - but never a mutation run, which is why the event
+# is part of the key.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
 
 jobs:
   pack:
+    name: rs2check and a full build
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
     - uses: actions/checkout@v4
       with:
         path: content
 
+    # THIS fork's engine, not upstream's. BUILD_SRC_DIR defaults to ../content, which is why the
+    # two are checked out as siblings.
     - uses: actions/checkout@v4
       with:
-        repository: LostCityRS/Engine-TS
+        repository: coreysho/Engine-TS
         ref: 377-wip
         path: engine
+        # If Engine-TS is private, a plain checkout cannot reach it: GITHUB_TOKEN is scoped to this
+        # repository only. Make a PAT with read access to it, save it as the ENGINE_TOKEN secret,
+        # and uncomment the next line.
+        # token: ${{ secrets.ENGINE_TOKEN }}
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    # First, because it is seconds and its errors are the readable ones. It takes the script root
+    # as the current directory and refuses to run anywhere else.
+    - name: rs2check
+      working-directory: content/scripts
+      run: python ../tools/rs2check.py
 
     - uses: oven-sh/setup-bun@v2
       with:
@@ -33,9 +81,96 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - working-directory: engine
+    - name: Install
+      working-directory: engine
       run: bun install
+
+    # deploy.sh clears these so a stale pack cannot make a broken config look fine. A fresh
+    # checkout has whatever was committed, which is exactly the stale case.
+    - name: Clear the generated packs, the way deploy.sh does
+      working-directory: content
+      run: |
+        rm -f pack/script.pack pack/param.pack pack/category.pack pack/enum.pack pack/struct.pack \
+              pack/mesanim.pack pack/dbtable.pack pack/dbrow.pack pack/hunt.pack pack/varn.pack \
+              pack/vars.pack
 
     - name: Pack
       working-directory: engine
-      run: bun run build
+      env:
+        # Off for the same reason deploy.sh turns it off: it checks the output against original
+        # 377's checksums, and this content is not original 377.
+        BUILD_VERIFY: 'false'
+      run: |
+        rm -f data/pack/server/script.dat data/pack/client/config
+        bun run build
+
+    # Needs the build to have run - it decodes the packed archive the way the client's
+    # Component.decode does, and asserts no packed script counts a pouch rune without a pouch twin.
+    - name: The packed interfaces count the pouch runes
+      working-directory: content
+      run: python tools/pouchpacked.py
+
+  batteries:
+    name: ${{ matrix.script }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        script:
+        - poh_battery.py
+        - pet_battery.py
+        - pouch_battery.py
+        - compost_battery.py
+        - bossart_battery.py
+        - slayer_battery.py
+        - maxcape_battery.py
+        - certcheck.py
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    # The renderers the batteries import for their model and interface checks.
+    - name: Install
+      run: pip install pillow numpy
+
+    - run: python tools/${{ matrix.script }}
+
+  mutations:
+    name: ${{ matrix.script }}
+    if: github.event_name == 'workflow_dispatch' && inputs.mutations
+    runs-on: ubuntu-latest
+    # The poh sweep is 242 mutations and each one re-runs a battery that drives five generators.
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        script:
+        - poh_mutate.py
+        - pet_mutate.py
+        - pouch_mutate.py
+        - compost_mutate.py
+        - bossart_mutate.py
+        - slayer_mutate.py
+        - maxcape_mutate.py
+        - cert_mutate.py
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install
+      run: pip install pillow numpy
+
+    # Through the environment rather than into the command line, so a filter with a space or a
+    # quote in it cannot become part of the command. Empty means every mutation.
+    - env:
+        FILTER: ${{ inputs.filter }}
+      run: python tools/${{ matrix.script }} $FILTER
