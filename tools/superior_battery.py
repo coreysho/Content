@@ -74,6 +74,76 @@ def vertex_labels(path):
     if f_vlabel != 1: return None
     return collections.Counter(b[lab_at:lab_at+vc])
 
+def all_scripts():
+    """Every .rs2 in the tree, concatenated once - group 7 asks whether ANY of them handles a loc."""
+    out = []
+    for root, _, fs in os.walk(os.path.join(C, 'scripts')):
+        for f in sorted(fs):
+            if f.endswith('.rs2'):
+                out.append(open(os.path.join(root, f), newline='', errors='replace').read())
+    return '\n'.join(out).replace('\r\n', '\n')
+
+def jm2_read(sq):
+    """(land, locs, npcs) out of one maps/m<sq>.jm2 - the text format, sections MAP / LOC / NPC.
+
+    A square with no file comes back EMPTY rather than raising: a check that names a square is
+    allowed to be wrong about it, and a crash reads as a catch without naming a check."""
+    land, locs, npcs = {}, [], []
+    path = os.path.join(C, 'maps', 'm%s.jm2' % sq)
+    if not os.path.exists(path): return land, locs, npcs
+    sec = None
+    for l in open(path, newline='', errors='replace'):
+        l = l.rstrip('\r\n')
+        if not l: continue
+        if l.startswith('===='): sec = l.strip('= ').strip(); continue
+        m = re.match(r'(\d) (\d+) (\d+): ?(.*)', l)
+        if not m: continue
+        lv, x, z, rest = int(m.group(1)), int(m.group(2)), int(m.group(3)), m.group(4)
+        if sec == 'MAP':
+            fl = re.search(r'\bf(\d+)', rest)
+            land[(lv, x, z)] = int(fl.group(1)) if fl else 0
+        elif sec == 'LOC':
+            p = [int(v) for v in rest.split()]
+            locs.append((p[0], lv, x, z, p[1] if len(p) > 1 else 10))
+        elif sec == 'NPC':
+            npcs.append((int(rest), lv, x, z))
+    return land, locs, npcs
+
+def npc_spawns(sq, name):
+    """Where one npc is spawned in a square. The .jm2 stores npc IDS, not names - grepping the
+    name finds nothing and reads as "no spawns anywhere", which is how this was got wrong once."""
+    want = NPCP.get(name)
+    return [(lv, x, z) for (i, lv, x, z) in jm2_read(sq)[2] if i == want]
+
+# loc shapes that clip, per the cave horror round: 0-3, 9, 10 and 11. Shape 22 is ground decor and
+# the engine only clips it when the loc sets active=yes.
+BLOCK_SHAPES = {0, 1, 2, 3, 9, 10, 11}
+
+def flood_pocket(squares, start):
+    """Flood out from one tile across squares stitched west to east on level 0.
+    -> (tiles, the names of every loc standing in them)."""
+    LOCNAME = {v: k for k, v in pack('loc.pack').items()}
+    blocked = set(); locs = []
+    for n, sq in enumerate(squares):
+        land, ls, _ = jm2_read(sq)
+        off = n * 64
+        for (lv, x, z), fl in land.items():
+            if fl & 1: blocked.add((lv, x + off, z))
+        for (oid, lv, x, z, shape) in ls:
+            locs.append((oid, lv, x + off, z))
+            if shape in BLOCK_SHAPES: blocked.add((lv, x + off, z))
+    s = (start[0], start[1] + (len(squares) - 1) * 64, start[2])
+    seen = {s}; q = [s]
+    W = 64 * len(squares)
+    while q:
+        lv, x, z = q.pop()
+        for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            nn = (lv, x + dx, z + dz)
+            if not (0 <= nn[1] < W and 0 <= nn[2] < 64): continue
+            if nn in seen or nn in blocked: continue
+            seen.add(nn); q.append(nn)
+    return seen, sorted({LOCNAME.get(oid, '?%d' % oid) for (oid, lv, x, z) in locs if (lv, x, z) in seen})
+
 SPEC = json.loads(read('tools/superiorspec.json'))
 SUPS = SPEC['superiors']
 NPCB = blocks(read('scripts/skill_slayer/configs/superiors.npc'))
@@ -260,6 +330,95 @@ check('[proc,cave_horror_drop_table_loot]' in HORROR,
       '...which still lives in area_mos_le_harmless and is still a proc')
 check(REQLEVEL.get('^slayer_cavehorror') == 58,
       'and the unique roll reads its 58 Slayer out of slayer_req.enum')
+
+# ============================================================================ 7
+print('7. the two newest, and whether anything can actually meet them')
+TASK = read('scripts/skill_slayer/scripts/slayer_task.rs2')
+DTPYR = read('scripts/quests/quest_deserttreasure/scripts/dt_pyramid.rs2')
+DTCONST = read('scripts/quests/quest_deserttreasure/configs/quest_deserttreasure.constant')
+ALLNPC = read('scripts/_unpack/377/all.npc')
+DARKSEQ = read('scripts/skill_slayer/configs/dark_beast.seq')
+
+def taskcase(task):
+    """The body of slayer_taskallowed's case for one task, up to the next case."""
+    m = re.search(r'(?ms)^\s*case %s\s*:(.*?)(?=^\s*case |^\}\s*$)' % re.escape(task), TASK)
+    return m.group(1) if m else ''
+
+# --- the choke devil: one stale line was all that stood in the way
+DUST = taskcase('^slayer_dustdevil')
+check('%deserttreasure' in DUST and '^deserttreasure_complete' in DUST,
+      'the dust devil task reads the Desert Treasure var instead of refusing outright')
+check('return (true)' in DUST, '...and can therefore be given out at all')
+check('%deserttreasure = ^deserttreasure_complete' in DTPYR,
+      '...to a quest this build can actually finish')
+# and the monster is where that quest's own constant says the dungeon is
+m = re.search(r'\^dt_smoke_dungeon_sw = \d+_(\d+_\d+)_', DTCONST)
+check(m is not None, 'the smoke dungeon square is named by ^dt_smoke_dungeon_sw')
+if m:
+    check(len(npc_spawns(m.group(1), 'slayer_dustdevil')) > 0,
+          '...and dust devils are spawned in it: %d' % len(npc_spawns(m.group(1), 'slayer_dustdevil')))
+
+# --- the night beast: unreachable, and pinned as unreachable so it cannot stay half-done quietly
+DARK = taskcase('^slayer_darkbeast')
+check('return (false)' in DARK and '%mourning' not in DARK,
+      'the dark beast task is still refused outright')
+check(not any(f.endswith('.rs2') for _, _, fs in os.walk(os.path.join(C, 'scripts/quests/quest_mourning2'))
+              for f in fs),
+      '...because Mourning\'s End Part II has no scripts at all, so its requirement cannot be read')
+beasts = npc_spawns('31_72', 'mourning_dark_beast')
+check(len(beasts) == 11, 'the 11 dark beasts that exist are spawned in m31_72: %d' % len(beasts))
+pocket, pocket_locs = flood_pocket(('30_72', '31_72'), beasts[0])
+check(len(pocket) > 1000, '...in one pocket of the Part I slave mines: %d tiles' % len(pocket))
+# m31_72 is the SECOND square in the stitch, so its own x needs the same 64 the flood's start got
+shifted = [(lv, x + 64, z) for lv, x, z in beasts]
+check(all(b in pocket for b in shifted), '...which holds every one of them')
+SCR = all_scripts()
+handled = sorted(n for n in pocket_locs if re.search(r'\[oploc\d,%s\]' % re.escape(n), SCR))
+check(not handled,
+      '...and no script gives any loc in it an option, so there is no way in: %s'
+      % (', '.join(handled) or 'none'))
+
+# --- the dark beast's art, which is OSRS's now and not the 377 slayer-guide mesh
+DB = blocks(ALLNPC).get('mourning_dark_beast', {})
+check(DB.get('model1', [''])[0] == 'npc_mourning_dark_beast_1',
+      'the dark beast wears the OSRS mesh rather than the slayer guide\'s')
+check(not any(k.startswith('recol') for k in DB) and 'resizeh' not in DB and 'resizev' not in DB,
+      '...with the recolours and the 165 percent resize gone along with the mesh they were for')
+five = seqs_of(DB)
+check(len(five) == 5, '...and all five animations named, where there used to be two: %d' % len(five))
+check(all(s.startswith('osrs_seq_') for s in five),
+      '...every one of them OSRS\'s, converted into dark_beast.seq')
+# What used to be here: "every one present in dark_beast.seq" and "none of the shifted 377 names
+# left behind". Both only restate the line above - five names all starting osrs_seq_ cannot contain
+# a dark_beast_update_ one, and group 5 already proves the night beast's five are real [seq] blocks,
+# which are these same five. A check that cannot fail alone is a check that steals attribution from
+# the one it shadows, which is exactly what the mutation run said.
+check(DB.get('magic', ['1'])[0] == '160',
+      'and its magic level is the cache\'s 160, not the default of 1 behind magicdefence 90')
+# the night beast shares that rig, which is the cache's own statement rather than a guess
+NB = NPCB.get('superior_night_beast', {})
+converted = sorted(re.findall(r'(?m)^\[(osrs_seq_\d+)\]$', DARKSEQ))
+check(sorted(seqs_of(NB)) == converted and len(converted) == 5,
+      'the night beast borrows exactly the five in dark_beast.seq, as its npc record does')
+CHOKE = NPCB.get('superior_choke_devil', {})
+check(all(s.startswith('dustdevil_') for s in seqs_of(CHOKE)),
+      'and the choke devil borrows the dust devil\'s five, which are the OSRS ones already')
+
+# --- the two tables the newest pair share, and the one line that must NOT be shared
+check('case superior_choke_devil : ~slayer_dustdevil_drop_table_loot;' in LOOT,
+      'the choke devil rolls the dust devil\'s own table')
+check('case superior_night_beast : ~mourning_dark_beast_drop_table_loot;' in LOOT,
+      '...and the night beast the dark beast\'s')
+# A superior rolls its cousin's table three times. The automatic bone drop is not part of the
+# table - it is one per corpse - so it has to stay in the LABEL, above the proc call. Both of
+# these tables had it inline before they were split, which would have dropped three lots.
+for f, lbl in (('scripts/drop_tables/scripts/dust_devil.rs2', 'slayer_dustdevil_drop_table'),
+               ('scripts/drop_tables/scripts/dark_beast.rs2', 'mourning_dark_beast_drop_table')):
+    src = read(f)
+    # that the proc exists at all is group 4's job, from the other end
+    head, _, rest = src.partition('[proc,%s_loot]' % lbl)
+    check('npc_param(death_drop)' in head and 'npc_param(death_drop)' not in rest,
+          '...with its bone drop left above the split, so three rolls drop one lot of bones')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

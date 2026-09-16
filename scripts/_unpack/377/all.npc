@@ -60533,31 +60533,41 @@ param=death_drop,null
 // Levels and bonuses read off the OSRS wiki page for Dark beast (level 182), the same source this repo's drop
 // tables already cite. Anything the wiki does not supply is omitted so the engine default
 // applies (attackrate 4, respawnrate 100, the generic human attack/defend/death anims).
+// THE ART AND ALL FIVE ANIMATIONS ARE OSRS's, from npc 4005 (tools/models/importosrsnpc.py).
+// What was here before was the 377 slayer-guide mesh at resizeh/resizev 165 with four recolours,
+// and TWO animations out of five - no attack, no defend, no death at all, on a level-182 monster.
+//
+// The 377 animation set is not the OSRS one and its names are shifted: dark_beast_update_walk is a
+// SINGLE static frame (an idle), dark_beast_update_attack is an eight-frame walk cycle, and the
+// config used both correctly in spite of their names. Against OSRS's 16/16/16/17/38 frames they
+// are a different, cruder set, which is why the whole five come across rather than three.
+// Attack and defend are OSRS seqs 2731 and 2732 - both priority 6, so the delays cannot tell them
+// apart, and they were rendered on this mesh to decide: 2731 rears up and slams, 2732 hunches and
+// recoils. 2733 is the death on its own evidence, priority 10 with a 100-tick hold at the end.
+//
+// magic=160 is new and is the cache's own: the old block left it at the default of 1 while
+// carrying param=magicdefence,90, so the monster was defending with a magic level of one.
+// The recolours and the resize are gone with the mesh they were for.
 [mourning_dark_beast]
-name=Dark Beast
+name=Dark beast
 desc=From a darker dimension.
-model1=obj_slayerguide_dark_beast
-recol1s=32765
-recol1d=5251
-recol2s=32767
-recol2d=5251
-recol3s=15648
-recol3d=11488
-recol4s=8192
-recol4d=20513
+model1=npc_mourning_dark_beast_1
 size=3
-walkanim=dark_beast_update_attack
-readyanim=dark_beast_update_walk
+walkanim=osrs_seq_2729
+readyanim=osrs_seq_2730
 op2=Attack
-resizeh=165
-resizev=165
 vislevel=182
 param=slayer_category,^slayer_darkbeast
 param=death_drop,big_bones
+param=attack_anim,osrs_seq_2731
+param=defend_anim,osrs_seq_2732
+param=death_anim,osrs_seq_2733
 hitpoints=220
 attack=140
 strength=160
 defence=120
+magic=160
+ranged=1
 param=stabdefence,30
 param=slashdefence,40
 param=crushdefence,100

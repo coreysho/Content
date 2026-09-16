@@ -127,9 +127,24 @@ switch_int($target) {
         return (true);
     case ^slayer_elf : // regicide
         return (false);
-    case ^slayer_dustdevil : // dt
-        return (false);
-    case ^slayer_darkbeast : // mep2
+    // FIXED 2026-09-16: this was a bare refusal, written when Desert Treasure was not implemented.
+    // It is now - dt_pyramid.rs2 sets %deserttreasure = ^deserttreasure_complete and hands out the
+    // Ancient Magicks - and the 19 dust devils live in that quest's own smoke dungeon, m50_146,
+    // which ^dt_smoke_dungeon_sw names. So the task was refused even to players who had finished
+    // the quest that opens the only place the monster exists. Same shape as the Horror from the
+    // Deep case above, which is what this should always have been.
+    case ^slayer_dustdevil :
+        if(%deserttreasure < ^deserttreasure_complete) {
+            return (false);
+        }
+        return (true);
+    // STILL REFUSED, and for two reasons rather than one. Mourning's End Part II is not
+    // implemented (scripts/quests/quest_mourning2 is a single .loc and nothing else), so the
+    // requirement cannot be expressed; and the 11 dark beasts that ARE spawned sit in a 2084-tile
+    // pocket across m30_72 and m31_72 - the Part I slave mines - whose 22 locs carry no script
+    // handler at all, so there is no way in. Opening this would hand out a task nobody can start.
+    // tools/superior_battery.py group 7 holds both facts, because the Night beast waits on them.
+    case ^slayer_darkbeast : // mep2, and no way into the mines
         return (false);
     case ^slayer_mogre : // skippy miniquest
         return (false);

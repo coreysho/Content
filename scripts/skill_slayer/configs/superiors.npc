@@ -337,6 +337,40 @@ param=slayer_category,^slayer_aberrantspecter
 // the base monster's gear rule and attack AI hang off this category (skill_slayer/scripts/npcs)
 category=slayer_aberrant_specter
 
+[superior_choke_devil]
+// OSRS npc 7404. The dust devil's own animations, and they are the OSRS ones already: all five of
+// 377's dustdevil_* match OSRS seqs 1554-1558 frame for frame on count, priority and final delay
+// (8 walk, 10 ready, 12 attack at priority 6, 6 defend, 6 death at priority 10 holding 20000), so
+// nothing needed converting. The whole rig is five seqs and this mesh is the only thing that is new.
+//
+// damagetype is the base's ^ranged_style, as every superior takes its style from the monster it
+// replaces. strengthbonus and rangebonus are left unset, as they are on the other fifteen - the
+// dust devil solves its 62 backwards from a known max hit and there is no figure here to solve
+// against that does not come from memory. Its strength of 230 against the devil's 70 carries it.
+//
+// NO FACEMASK GATE, because the dust devil in this build has none either - nothing outside Desert
+// Treasure's own smoke dungeon reads slayer_facemask. A superior that demanded one when its cousin
+// did not would be this build inventing a rule.
+name=Choke devil
+desc=A superior dust devil. It looks far tougher than the others.
+model1=npc_superior_choke_devil_1
+size=2
+readyanim=dustdevil_ready
+walkanim=dustdevil_walk
+vislevel=264
+attack=260
+defence=120
+strength=230
+hitpoints=300
+ranged=1
+magic=1
+op2=Attack
+param=damagetype,^ranged_style
+param=attack_anim,dustdevil_attack
+param=defend_anim,dustdevil_defend
+param=death_anim,dustdevil_death
+param=slayer_category,^slayer_dustdevil
+
 [superior_king_kurask]
 name=King kurask
 desc=A superior kurask. It looks far tougher than the others.
@@ -459,6 +493,45 @@ param=death_sound,abyssal_death
 param=demonbane_vulnerable,^true
 param=slayer_category,^slayer_abyssaldemon
 param=death_drop,ashes
+
+[superior_night_beast]
+// OSRS npc 7409, and the cache says it shares the dark beast's rig: its npc record names the same
+// ready and walk seqs, 2730 and 2729. Those are the five in skill_slayer/configs/dark_beast.seq,
+// converted from OSRS with the dark beast's own art - see mourning_dark_beast in
+// scripts/_unpack/377/all.npc for why that monster stopped using its 377 set.
+//
+// THE NIGHT BEAST CANNOT BE MET YET, and that is recorded rather than hidden: a superior only
+// appears on an ON-TASK kill, the dark beast's task is refused because Mourning's End Part II is
+// not implemented, and the dark beast has no spawn in any map square. Group 7 of
+// tools/superior_battery.py pins all three of those facts, so giving dark beasts a home has to
+// walk past a red check rather than quietly leave this half-done.
+//
+// The five defence bonuses and the crush style are the base's own, as with the other superiors.
+name=Night beast
+desc=A superior dark beast. It looks far tougher than the others.
+model1=npc_superior_night_beast_1
+size=4
+readyanim=osrs_seq_2730
+walkanim=osrs_seq_2729
+vislevel=374
+attack=270
+defence=220
+strength=290
+hitpoints=550
+ranged=1
+magic=300
+op2=Attack
+param=stabdefence,30
+param=slashdefence,40
+param=crushdefence,100
+param=magicdefence,90
+param=rangedefence,100
+param=damagetype,^crush_style
+param=attack_anim,osrs_seq_2731
+param=defend_anim,osrs_seq_2732
+param=death_anim,osrs_seq_2733
+param=death_drop,big_bones
+param=slayer_category,^slayer_darkbeast
 
 // Chaotic death spawns, three at a time from the Nechryarch (superior_specials.rs2): one per combat
 // style. Death spawn models recoloured per style; OSRS stats (level 215, 50 hp, max hit 7, 3 ticks).

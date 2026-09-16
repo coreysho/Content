@@ -17,6 +17,13 @@ HORROR = 'scripts/areas/area_mos_le_harmless/scripts/cave_horror.rs2'
 REQ = 'scripts/skill_slayer/configs/slayer_req.enum'
 SPEC = 'tools/superiorspec.json'
 NPCPACK = 'pack/npc.pack'
+TASK = 'scripts/skill_slayer/scripts/slayer_task.rs2'
+DTPYR = 'scripts/quests/quest_deserttreasure/scripts/dt_pyramid.rs2'
+DTCONST = 'scripts/quests/quest_deserttreasure/configs/quest_deserttreasure.constant'
+ALLNPC = 'scripts/_unpack/377/all.npc'
+DARKSEQ = 'scripts/skill_slayer/configs/dark_beast.seq'
+DUSTTAB = 'scripts/drop_tables/scripts/dust_devil.rs2'
+DARKTAB = 'scripts/drop_tables/scripts/dark_beast.rs2'
 
 MUTS = [
  # 1 - art that is not the art the spec measured
@@ -110,6 +117,65 @@ if (inv_total(worn, witchwood_icon) < 1 & inv_total(worn, slayer_earmuffs) < 1) 
   '6 it rolls the cave horror\'s own table, the proc that was split out for it'),
  (REQ, 'val=^slayer_cavehorror,58', 'val=^slayer_cavehorror,57',
   '6 and the unique roll reads its 58 Slayer out of slayer_req.enum'),
+
+ # 7 - the choke devil, and the one stale line that used to stand in its way
+ (TASK, '''    case ^slayer_dustdevil :
+        if(%deserttreasure < ^deserttreasure_complete) {
+            return (false);
+        }
+        return (true);''', '''    case ^slayer_dustdevil :
+        return (true);''',
+  '7 the dust devil task reads the Desert Treasure var instead of refusing outright'),
+ (TASK, '''        if(%deserttreasure < ^deserttreasure_complete) {
+            return (false);
+        }
+        return (true);''', '''        if(%deserttreasure < ^deserttreasure_complete) {
+            return (false);
+        }
+        return (%deserttreasure);''',
+  '7 ...and can therefore be given out at all'),
+ (DTPYR, '%deserttreasure = ^deserttreasure_complete;', '%deserttreasure = ^dt_azzanadra_found;',
+  '7 ...to a quest this build can actually finish'),
+ (DTCONST, '^dt_smoke_dungeon_sw = 0_50_146_0_0', '^dt_smoke_dungeon_sw = 0_50_147_0_0',
+  '7 ...and dust devils are spawned in it'),
+ # the night beast quietly opened while nothing can be met
+ (TASK, '''    case ^slayer_darkbeast : // mep2, and no way into the mines
+        return (false);''', '''    case ^slayer_darkbeast : // mep2, and no way into the mines
+        return (true);''',
+  '7 the dark beast task is still refused outright'),
+ # a way into the mines added and the task left refused - the half-done state this pins
+ (DARKTAB, '// Dark Beast - https://oldschool.runescape.wiki/w/Dark_Beast',
+           '// Dark Beast - https://oldschool.runescape.wiki/w/Dark_Beast\n\n[oploc1,rockslide6] ~displaymessage(^dm_default);',
+  '7 ...and no script gives any loc in it an option, so there is no way in'),
+ # the dark beast's art going back to what it was
+ (ALLNPC, 'model1=npc_mourning_dark_beast_1', 'model1=obj_slayerguide_dark_beast',
+  '7 the dark beast wears the OSRS mesh rather than the slayer guide\'s'),
+ (ALLNPC, 'name=Dark beast\ndesc=From a darker dimension.',
+          'name=Dark beast\ndesc=From a darker dimension.\nresizeh=165',
+  '7 ...with the recolours and the 165 percent resize gone along with the mesh they were for'),
+ (ALLNPC, 'param=death_anim,osrs_seq_2733\n', '',
+  '7 ...and all five animations named, where there used to be two'),
+ (ALLNPC, 'defence=120\nmagic=160', 'defence=120\nmagic=1',
+  '7 and its magic level is the cache\'s 160, not the default of 1 behind magicdefence 90'),
+ (NPC, 'readyanim=osrs_seq_2730\nwalkanim=osrs_seq_2729', 'readyanim=dustdevil_ready\nwalkanim=osrs_seq_2729',
+  '7 the night beast borrows exactly the five in dark_beast.seq, as its npc record does'),
+ (NPC, 'readyanim=dustdevil_ready\nwalkanim=dustdevil_walk', 'readyanim=osrs_seq_2730\nwalkanim=dustdevil_walk',
+  '7 and the choke devil borrows the dust devil\'s five, which are the OSRS ones already'),
+ # the two shared tables, and the bone drop that must not ride the proc
+ (RS2, 'case superior_choke_devil : ~slayer_dustdevil_drop_table_loot;',
+       'case superior_choke_devil : ~slayer_jelly_loot;',
+  '7 the choke devil rolls the dust devil\'s own table'),
+ (RS2, 'case superior_night_beast : ~mourning_dark_beast_drop_table_loot;',
+       'case superior_night_beast : ~slayer_jelly_loot;',
+  '7 ...and the night beast the dark beast\'s'),
+ (DARKTAB, '''obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+~mourning_dark_beast_drop_table_loot; // the rolls themselves, so a superior can take three (skill_slayer/scripts/superiors.rs2)
+
+[proc,mourning_dark_beast_drop_table_loot]''', '''~mourning_dark_beast_drop_table_loot; // the rolls themselves, so a superior can take three (skill_slayer/scripts/superiors.rs2)
+
+[proc,mourning_dark_beast_drop_table_loot]
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);''',
+  '7 ...with its bone drop left above the split, so three rolls drop one lot of bones'),
 ]
 
 def main():
