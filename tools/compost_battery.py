@@ -142,30 +142,55 @@ check('tradeable' not in objblock('bottomless_bucket'),
       'and an empty one trades, as in OSRS')
 
 # ============================================================================ 6
-print('6. it is not obtainable yet, and that is recorded rather than forgotten')
+print('6. where it comes from, now that it comes from somewhere')
 import json, subprocess
-spec = json.loads(read('tools/nosourcespec.json'))['objs']
-check('bottomless_bucket' in spec, 'the bucket is declared sourceless in tools/nosourcespec.json')
-entry = spec.get('bottomless_bucket', {})
-check('bottomless_bucket_filled' in entry.get('also', []), '...and so is its filled half')
-check('Hespori' in entry.get('osrs_source', ''), '...with what OSRS uses written down')
-ign = entry.get('ignore', [])
-check(ign == ['compost_bucket.rs2:proc,compost_bucket_restyle'],
-      'the only add excused is the icon swap, named by its script: %s' % ign)
-check(all(':' in i for i in ign),
-      'the exemption is script-grained, not a whole file - a real source added to '
-      'compost_bucket.rs2 later must still be caught')
+# IT USED TO BE ::give-ONLY and this group used to check that was written down. OSRS drops it from
+# the Hespori, a Farming Guild boss with no content here, so it is found while farming instead -
+# which is the part of the OSRS source that carries over: a Farming reward for Farming.
+FARM = read('scripts/skill_farming/scripts/farming_actions.rs2')
+roll = code(block(BUCKET, 'proc,compost_bucket_roll'))
+check('~compost_bucket_roll(' in code(block(FARM, 'proc,farming_xp')),
+      'the roll rides ~farming_xp, the one proc every Farming award already goes through')
+check(FARM.count('~compost_bucket_roll(') == 1,
+      'and only that one place rolls, so there is no second rate to drift: %s calls'
+      % FARM.count('~compost_bucket_roll('))
+check('~compost_bucket_roll($amount);' in FARM
+      and FARM.index('~compost_bucket_roll($amount);') < FARM.index('stat_advance(farming,'),
+      'on the PRE-BONUS amount, so the farmer\'s outfit does not make its own successor arrive '
+      'sooner')
+check('random(^bottomless_roll_xp) >= $xp' in roll,
+      'the chance is proportional to what the action was worth, not flat per action')
+check('stat_base(farming) < ^bottomless_roll_level' in roll,
+      'and it is gated on a Farming level rather than open from level 1')
+for c in ('bottomless_roll_xp', 'bottomless_roll_level'):
+    check(re.search(r'^\^%s\s*=\s*\d+' % c, CONST, re.M),
+          '^%s is a constant rather than a number in the script' % c)
+check(not re.search(r'random\(\d+\)', roll) and not re.search(r'< \d+\)', roll),
+      'with no bare number anywhere in the roll')
+check('~obj_gettotal(bottomless_bucket)' in roll and '~obj_gettotal(bottomless_bucket_filled)' in roll,
+      'a player holding either half anywhere - pack, worn or bank - never rolls a second one')
+check('obj_add(coord, bottomless_bucket' in roll,
+      'and full hands put it on the floor rather than losing it')
 
 r = subprocess.run([sys.executable, os.path.join(C, 'tools/obtainable.py')],
                    capture_output=True, text=True, cwd=C)
 check(r.returncode == 0, 'tools/obtainable.py runs clean')
 bydesign = r.stdout.split('BUILT WITH NO SOURCE ON PURPOSE', 1)[-1] \
                    .split('NOTHING ANYWHERE MENTIONS', 1)[0]
-check('bottomless_bucket ' in bydesign and 'bottomless_bucket_filled ' in bydesign,
-      'the sweep lists both halves as unobtainable by design - OSRS drops it from the Hespori, '
-      'which this server has no content for, and no source has been invented')
+check('bottomless_bucket ' not in bydesign,
+      'and the sweep no longer lists it as built-with-no-source, because it has one')
+# THE SWAP STILL MUST NOT COUNT AS THE SOURCE. It was excused by the spec's per-obj "ignore" while
+# the bucket was sourceless; an obj with a source cannot carry one, so it moved to the top-level
+# not_a_source section. Without that, deleting the farming roll would leave the restyle looking
+# like the source and the sweep would go on calling the bucket obtainable.
+nas = json.loads(read('tools/nosourcespec.json')).get('not_a_source', {})
+check(nas.get('bottomless_bucket') == ['compost_bucket.rs2:proc,compost_bucket_restyle'],
+      'the icon swap is still named as not-a-source, at script grain: %s'
+      % nas.get('bottomless_bucket'))
+check('bottomless_bucket' not in json.loads(read('tools/nosourcespec.json'))['objs'],
+      'and the bucket is out of the sourceless list entirely rather than in both')
 check('WARNING' not in r.stdout,
-      'and it does not disagree with the spec: %s'
+      'and the sweep does not disagree with the spec: %s'
       % ('; '.join(l.strip() for l in r.stdout.split(chr(10)) if 'WARNING' in l) or 'no warnings'))
 
 # The icon swap is only allowed to stop counting because it IS a swap. If either half of it were

@@ -25,8 +25,17 @@ MAGICIF = 'scripts/skill_magic/interfaces/magic.if'
 STAFFIF = 'scripts/skill_combat/interfaces/magic/staff_spells.if'
 SPEC = 'tools/nosourcespec.json'
 
+TRAIL = 'scripts/minigames/game_trail/scripts/hard/trail_clue_hard_reward.rs2'
+
 MUTS = [
- # ---- 6, the recipe's real second ingredient
+ # ---- 6, where the thread comes from now that it comes from somewhere
+ (TRAIL, '    case 33 : inv_add(trail_rewardinv, thread_of_elidinis, 1);\n', '',
+  '6 the Thread of Elidinis is a rare reward from a hard clue'),
+ (TRAIL, 'def_int $random = random(34);', 'def_int $random = random(33);',
+  "6 and the rare table's cases run 0..n-1 against its own random bound"),
+ (SPEC, '"thread_of_elidinis": [\n   "rune_pouch.rs2:opheld4,divine_rune_pouch"\n  ]',
+        '"thread_of_elidinis": [\n   "rune_pouch.rs2"\n  ]',
+  '6 and Revert is still named as not-a-source, at script grain'), # ---- 6, the recipe's real second ingredient
  (POUCH, 'inv_del(inv, thread_of_elidinis, 1);', 'inv_del(inv, thread, 1);',
   '6 it spends a Thread of Elidinis'),
  (POUCH, 'if (inv_total(inv, thread_of_elidinis) < 1) {', 'if (inv_total(inv, thread) < 1) {',

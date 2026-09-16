@@ -8,6 +8,34 @@
 // "one type at a time" is a consequence of there being one slot rather than a rule anyone
 // enforces. Check is then just ~storage_check, and spending a use is one inv_del.
 
+// ------------------------------------------------------------------ where it comes from
+// Called from ~farming_xp, which every Farming award already goes through. See the note beside
+// ^bottomless_roll_xp in compost_bucket.constant for why it is proportional to the experience and
+// why the number is steeper than a skilling outfit's.
+//
+// ~obj_gettotal counts pack, worn AND bank, and both the empty and the filled bucket count: a
+// player who has one anywhere never rolls another, and filling it does not make it findable again.
+[proc,compost_bucket_roll](int $xp)
+if ($xp <= 0) {
+    return;
+}
+if (stat_base(farming) < ^bottomless_roll_level) {
+    return;
+}
+if (random(^bottomless_roll_xp) >= $xp) {
+    return;
+}
+if (~obj_gettotal(bottomless_bucket) > 0 | ~obj_gettotal(bottomless_bucket_filled) > 0) {
+    return;
+}
+// Full hands put it on the floor rather than losing it, the same as a skilling outfit piece.
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, bottomless_bucket, 1);
+} else {
+    obj_add(coord, bottomless_bucket, 1, ^lootdrop_duration);
+}
+mes("You unearth a bucket with no bottom to it.");
+
 [proc,compost_bucket_tier]()(obj)
 return(inv_getobj(compost_bucket_store, 0));
 

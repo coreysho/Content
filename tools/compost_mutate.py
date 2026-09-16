@@ -20,8 +20,26 @@ CONST = 'scripts/skill_farming/configs/compost_bucket.constant'
 SPEC = 'tools/nosourcespec.json'
 ALLOBJ = 'scripts/_unpack/377/all.obj'
 
+FARM = 'scripts/skill_farming/scripts/farming_actions.rs2'
+
 MUTS = [
- # ---- 7, noted compost and the buckets that do not come back
+ # ---- 6, where it comes from now that it comes from somewhere
+ (FARM, '~compost_bucket_roll($amount);\n', '',
+  '6 the roll rides ~farming_xp, the one proc every Farming award already goes through'),
+ (FARM, '~compost_bucket_roll($amount);\nstat_advance(farming, calc($amount + $extra));',
+        'stat_advance(farming, calc($amount + $extra));\n~compost_bucket_roll(calc($amount + $extra));',
+  "6 on the PRE-BONUS amount, so the farmer's outfit does not make its own successor arrive sooner"),
+ (BUCKET, 'if (random(^bottomless_roll_xp) >= $xp) {', 'if (random(3000) = 0) {',
+  '6 the chance is proportional to what the action was worth, not flat per action'),
+ (BUCKET, 'if (stat_base(farming) < ^bottomless_roll_level) {\n    return;\n}\n', '',
+  '6 and it is gated on a Farming level rather than open from level 1'),
+ (BUCKET, 'if (~obj_gettotal(bottomless_bucket) > 0 | ~obj_gettotal(bottomless_bucket_filled) > 0) {',
+          'if (inv_total(inv, bottomless_bucket) > 0) {',
+  '6 a player holding either half anywhere - pack, worn or bank - never rolls a second one'),
+ (BUCKET, 'obj_add(coord, bottomless_bucket, 1, ^lootdrop_duration);', 'return;',
+  '6 and full hands put it on the floor rather than losing it'),
+ (SPEC, '"compost_bucket.rs2:proc,compost_bucket_restyle"', '"compost_bucket.rs2"',
+  '6 the icon swap is still named as not-a-source, at script grain'), # ---- 7, noted compost and the buckets that do not come back
  (BUCKET, 'inv_add(compost_bucket_store, $want, calc($took * ^compost_bucket_per_bucket));',
           'inv_add(compost_bucket_store, $want, calc($took * ^compost_bucket_per_bucket));\n'
           'inv_add(inv, bucket_empty, $took);',
@@ -163,15 +181,16 @@ MUTS = [
   '5 and an empty one trades, as in OSRS'),
 
  # 6 - the sourcelessness, and the one exemption that makes it work
- (SPEC, '"bottomless_bucket": {', '"bottomless_bucket_typo": {',
-  '6 the bucket is declared sourceless in tools/nosourcespec.json'),
- (SPEC, '"compost_bucket.rs2:proc,compost_bucket_restyle"', '"compost_bucket.rs2"',
-  '6 the exemption is script-grained, not a whole file'),
  # The point of the whole exemption: an add OUTSIDE the swap is a real source and must be reported
  # even though the file it lives in is named in the spec.
- (BUCKET, '[opheld2,bottomless_bucket] ~compost_bucket_check;',
-          '[opheld2,bottomless_bucket] inv_add(inv, bottomless_bucket, 1);',
-  '6 and it does not disagree with the spec'),
+ # A DISAGREEMENT IS THE SPEC AND THE GAME CONTRADICTING EACH OTHER: an obj the spec calls
+ # sourceless that something hands out. This used to be made by deleting the bucket's op, back
+ # when the spec called the bucket sourceless; the bucket has a source now, so the mistake to
+ # simulate is the spec claiming otherwise.
+ (BUCKET, '[proc,compost_bucket_tier]()(obj)',
+          '[proc,compost_bucket_never_called]\ninv_add(inv, macro_mime_mask, 1);\n\n'
+          '[proc,compost_bucket_tier]()(obj)',
+  '6 and the sweep does not disagree with the spec'),
 ]
 
 

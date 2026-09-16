@@ -5,15 +5,28 @@ if ($axe = null) {
 }
 
 def_namedobj $axe_head = oc_param($axe, axe_head);
+// AN EVENT THAT CANNOT PUT THE TOOL BACK TOGETHER MUST NOT TAKE IT APART. obj_add returns
+// silently on a null obj, so an axe with no axe_head param was deleted and nothing dropped - the
+// axe simply ceased to exist, with no error and no trace. Every axe has the param today; this
+// guard is here so the next one added does not have to remember.
+if ($axe_head = null) {
+    return;
+}
+// The dragon axe has its own handle art. Anything without an axe_handle param gets the plain one,
+// which is every other axe in the game.
+def_namedobj $handle = oc_param($axe, axe_handle);
+if ($handle = null) {
+    $handle = macro_hatchethandle;
+}
 
 // todo: use inv_changeslot?
 if (inv_total(worn, $axe) > 0) {
     inv_del(worn, $axe, 1);
-    inv_setslot(worn, ^wearpos_rhand, macro_hatchethandle, 1);
+    inv_setslot(worn, ^wearpos_rhand, $handle, 1);
     ~update_all($axe);
 } else if (inv_total(inv, $axe) > 0) {
     inv_del(inv, $axe, 1);
-    inv_add(inv, macro_hatchethandle, 1);
+    inv_add(inv, $handle, 1);
 }
 def_coord $axe_coord = map_findsquare(coord, 1, 7, ^map_findsquare_lineofwalk);
 anim(human_woodcutting_axe_handle, 0);
@@ -30,17 +43,34 @@ session_log(^log_adventure, "Lost their <oc_name($axe)> head");
 
 [label,reattach_axe](obj $axe_head)
 def_namedobj $axe = oc_param($axe_head, fixed);
-if (inv_total(inv, macro_hatchethandle) > 0 & inv_total(inv, $axe_head) > 0) {
-    inv_del(inv, macro_hatchethandle, 1);
+// The handle this head belongs to, which for a dragon axe is not the plain one. Asked of the axe
+// rather than the head so there is one table, and the head only has to name its axe.
+def_namedobj $handle = oc_param($axe, axe_handle);
+if ($handle = null) {
+    $handle = macro_hatchethandle;
+}
+if (inv_total(inv, $handle) > 0 & inv_total(inv, $axe_head) > 0) {
+    inv_del(inv, $handle, 1);
     inv_del(inv, $axe_head, 1);
     inv_add(inv, $axe, 1);
     sound_synth(attach_handle, 1, 0);
     mes("You carefully attach the two pieces together."); // https://youtu.be/tev6FR2iowQ?t=34
 }
 
+// BOTH HANDLES ACCEPT ANY HEAD, and reattach_axe decides whether they match by asking the head's
+// own axe which handle it wants - so using a dragon head on a plain handle fails on the count
+// check rather than on a missing case. macro_dragon_hatchethead was in neither list before, which
+// meant the head of a lost dragon axe could not be reattached by any means: a 55,000gp axe
+// destroyed by a random event, in silence.
 [opheldu,macro_hatchethandle]
 switch_obj(last_useitem) {
-    case macro_bronze_hatchethead, macro_iron_hatchethead, macro_steel_hatchethead, macro_black_hatchethead, macro_mithril_hatchethead, macro_adamant_hatchethead, macro_rune_hatchethead : @reattach_axe(last_useitem);
+    case macro_bronze_hatchethead, macro_iron_hatchethead, macro_steel_hatchethead, macro_black_hatchethead, macro_mithril_hatchethead, macro_adamant_hatchethead, macro_rune_hatchethead, macro_dragon_hatchethead : @reattach_axe(last_useitem);
+    case default : ~displaymessage(^dm_default);
+}
+
+[opheldu,macro_hatchethandle_dragon]
+switch_obj(last_useitem) {
+    case macro_bronze_hatchethead, macro_iron_hatchethead, macro_steel_hatchethead, macro_black_hatchethead, macro_mithril_hatchethead, macro_adamant_hatchethead, macro_rune_hatchethead, macro_dragon_hatchethead : @reattach_axe(last_useitem);
     case default : ~displaymessage(^dm_default);
 }
 
@@ -51,9 +81,10 @@ switch_obj(last_useitem) {
 [opheldu,macro_mithril_hatchethead] @check_axe_head;
 [opheldu,macro_adamant_hatchethead] @check_axe_head;
 [opheldu,macro_rune_hatchethead] @check_axe_head;
+[opheldu,macro_dragon_hatchethead] @check_axe_head;
 
 [label,check_axe_head]
-if (last_useitem = macro_hatchethandle) {
+if (last_useitem = macro_hatchethandle | last_useitem = macro_hatchethandle_dragon) {
     @reattach_axe(last_item);
 } else {
     ~displaymessage(^dm_default);

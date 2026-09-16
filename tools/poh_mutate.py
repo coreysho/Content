@@ -795,10 +795,18 @@ if (inv_total(inv, coins) < $cost) {
  # A STORAGE LIST IS NOT A MENTION. Excluding the costume room from `given` was not enough - it
  # still counted as a mention, which demoted seventeen unobtainable objs out of the real list and
  # into "worth a glance", including two Graceful pieces.
+ # The check this is written for probes without_storage_lists with an input of its own now, so
+ # the mutation breaks the function rather than the data: skip the block and it strips nothing.
+ ('tools/obtainable.py',
+  "            skip = s[1:-1] in STORAGE_LISTS",
+  "            skip = False",
+  '64 the mention scan drops a name that only a costume room storage list names'),
+ # And the OTHER half of that pair: the function can be perfect and still not be called. This is
+ # the mutation the original entry was, kept because unwiring it and breaking it are two faults.
  ('tools/obtainable.py',
   "for w in set(re.findall(r'([a-z][a-z0-9_+]{2,})', without_storage_lists(read(rel)))):",
   "for w in set(re.findall(r'([a-z][a-z0-9_+]{2,})', read(rel))):",
-  '64 an obj mentioned only by the costume room storage list still counts as unobtainable'),
+  '64 with the stripping wired into the mention scan itself'),
  # ---- 65: the checkers can go red ----
  # BOTH HISTORICAL INERT RULES, recreated. Each one shipped, did nothing, and the repo printed
  # 0 ERROR through it. The selftest exists so that cannot happen again, so the selftest has to be
@@ -1036,6 +1044,47 @@ MUTS += [
   "'def_boolean $saved = ~zealots_saves;',",
   "'def_boolean $saved = false;',",
   '64b genfurn.py is what writes the altar call'),
+]
+
+
+# ---- 68: every obj can be got, or says why not -----------------------------------------------
+MUTS += [
+ ('tools/nosourcespec.json', '"macro_mime_mask": {', '"macro_mime_mask_GONE": {',
+  '68 no obj in the game is unobtainable without a reason recorded for it'),
+ ('tools/nosourcespec.json',
+  '"why": "the Mime is not one of the 26 random events this build implements',
+  '"why": "x", "_why": "the Mime is not one of the 26 random events this build implements',
+  '68 and every entry that excuses one says why'),
+ ('tools/nosourcespec.json', '"osrs_source": "the Mime random event, seven completions',
+  '"_osrs_source": "the Mime random event, seven completions',
+  '68 and what OSRS does instead'),
+ ('scripts/skill_farming/scripts/farming_actions.rs2',
+  'if (inv_total(inv, fairy_enchanted_secateurs) > 0) {',
+  'if (inv_total(inv, magic_secateurs) > 0) {',
+  '68 nothing in the game wires the duplicate magic secateurs'),
+ ('scripts/macro events/scripts/woodcutting/macro_event_lost_axe.rs2',
+  'if ($axe_head = null) {\n    return;\n}\n', '',
+  '68 the lost-axe event leaves the axe alone when it has no head to drop'),
+ ('scripts/macro events/scripts/mining/macro_event_lost_pickaxe.rs2',
+  'if ($pickaxe_head = null) {\n    return;\n}\n', '',
+  '68 and the lost-pickaxe event does the same'),
+ ('scripts/skill_woodcutting/configs/axes/axes.obj',
+  'param=axe_head,macro_dragon_hatchethead\n', '',
+  '68 every axe the woodcutting checker can hand back names an axe_head'),
+ ('scripts/skill_woodcutting/configs/axes/axes.obj',
+  'param=axe_handle,macro_hatchethandle_dragon\n', '',
+  '68 the dragon axe names its own handle'),
+ ('scripts/macro events/scripts/woodcutting/macro_event_lost_axe.rs2',
+  '[opheldu,macro_dragon_hatchethead] @check_axe_head;\n', '',
+  '68 and the dragon head is accepted by both handles and by its own opheldu'),
+ # One occurrence, so the plain handle's switch loses a head and the dragon handle's keeps it -
+ # which is exactly the hole the whole-file version of this check could not see.
+ ('scripts/macro events/scripts/woodcutting/macro_event_lost_axe.rs2',
+  'macro_black_hatchethead, ', '',
+  '68 and every axe head in the game is accepted by BOTH handles'),
+ ('tools/nosourcespec.json', 'KNOWN GAP IN IMPLEMENTED CONTENT, not a missing item. Monkey Madness stage 3 is built',
+  'KNOWN GAP IN IMPLEMENTED CONTENT, not a missing item. That quest is around somewhere',
+  '68 the seven unmade greegrees are recorded as a gap in built content'),
 ]
 
 

@@ -177,13 +177,32 @@ check('~rune_pouch_kinds_used > oc_param(rune_pouch, pouch_slots)' in rev,
       'Revert refuses while a fourth kind is inside rather than dropping it')
 check('inv_add(inv, thread_of_elidinis, 1);' in rev,
       'and hands the Thread of Elidinis back, which is the one OSRS returns')
-# The refund is why the sweep has to be told about it: an inv_add of a sourceless obj looks like
-# a source. It is exempted at script grain in nosourcespec.json, not by file.
-spec = json.loads(read('tools/nosourcespec.json'))['objs']['thread_of_elidinis']
-check(spec['ignore'] == ['rune_pouch.rs2:opheld4,divine_rune_pouch'],
-      '...and only that one script is excused from the obtainability sweep: %s' % spec['ignore'])
-check('osrs_source' in spec and 'Amascut' in spec['osrs_source'],
-      '...with where OSRS gets it written down')
+# WHERE THE THREAD COMES FROM. OSRS puts it in Tombs of Amascut, a raid with no content here, so
+# it is a rare out of the top clue tier - there is no elite tier in this build, hard is the top.
+TRAIL = read('scripts/minigames/game_trail/scripts/hard/trail_clue_hard_reward.rs2')
+rare = code(block(TRAIL, 'proc,trail_clue_hard_rare'))
+check('inv_add(trail_rewardinv, thread_of_elidinis, 1);' in rare,
+      'the Thread of Elidinis is a rare reward from a hard clue')
+check(TRAIL.count('thread_of_elidinis') == 1,
+      'in exactly one place, so there is no second chance at it: %s'
+      % TRAIL.count('thread_of_elidinis'))
+# The case list and the random() bound have to agree or the last case is unreachable - which is
+# how a reward gets added and never rolls. Counted, not assumed.
+cases = [int(m.group(1)) for m in re.finditer(r'^\s*case (\d+) :', rare, re.M)]
+bound = int(re.search(r'random\((\d+)\)', rare).group(1))
+check(cases == list(range(bound)),
+      'and the rare table\'s cases run 0..n-1 against its own random bound, so the thread\'s case '
+      'can actually come up: %d cases against random(%d)' % (len(cases), bound))
+# The REFUND still must not count as the source. It was excused by the spec's per-obj "ignore"
+# while the thread was sourceless; an obj with a source cannot carry one, so it moved to the
+# top-level not_a_source section - otherwise deleting the clue row would leave Revert looking
+# like the source and the sweep would go on calling the thread obtainable.
+nas = json.loads(read('tools/nosourcespec.json')).get('not_a_source', {})
+check(nas.get('thread_of_elidinis') == ['rune_pouch.rs2:opheld4,divine_rune_pouch'],
+      'and Revert is still named as not-a-source, at script grain: %s'
+      % nas.get('thread_of_elidinis'))
+check('thread_of_elidinis' not in json.loads(read('tools/nosourcespec.json'))['objs'],
+      'with the thread out of the sourceless list entirely rather than in both')
 check(objblock('divine_rune_pouch').get('iop4') == 'Revert', 'the divine pouch advertises Revert')
 check('iop4' not in objblock('rune_pouch'), 'and the plain one has nothing to revert')
 

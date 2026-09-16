@@ -115,21 +115,33 @@ def apply_ignores(given, detail):
 
     A source is only dropped when EVERY add it covers is named, so a REAL source added to an
     already-named file still counts and is still reported as a disagreement with the spec.
+
+    Two places say this: an "ignore" inside an objs entry, for an obj with no source at all, and
+    the top-level "not_a_source", for an obj that HAS one. The bucket and the Thread of Elidinis
+    moved from the first to the second the day they were given real sources, and the reason the
+    second exists is that without it their swap and their refund would have become the source.
     """
     path = os.path.join(ROOT, 'tools', 'nosourcespec.json')
     if not os.path.exists(path):
         return
-    for nm, d in json.loads(read('tools/nosourcespec.json'))['objs'].items():
-        ignore = set(d.get('ignore', []))
+    spec = json.loads(read('tools/nosourcespec.json'))
+    # An obj that HAS a source can still be added by something that is not one - a swap, a refund.
+    # Those live in their own section, because the per-obj "ignore" below only travels with a
+    # sourceless obj and both of the current ones stopped being sourceless. Without this, a
+    # refund quietly becomes the source and deleting the real one goes unnoticed.
+    pairs = [(obj, set(tags)) for obj, tags in spec.get('not_a_source', {}).items()]
+    pairs += [(obj, set(d.get('ignore', [])))
+              for nm, d in spec['objs'].items() if d.get('ignore')
+              for obj in [nm] + d.get('also', [])]
+    for obj, ignore in pairs:
         if not ignore:
             continue
-        for obj in [nm] + d.get('also', []):
-            for src in sorted(given.get(obj, ())):
-                tags = {x for x in detail.get(obj, ()) if x.split(':', 1)[0] == src}
-                if tags and tags <= ignore:
-                    given[obj].discard(src)
-            if obj in given and not given[obj]:
-                del given[obj]
+        for src in sorted(given.get(obj, ())):
+            tags = {x for x in detail.get(obj, ()) if x.split(':', 1)[0] == src}
+            if tags and tags <= ignore:
+                given[obj].discard(src)
+        if obj in given and not given[obj]:
+            del given[obj]
 
 
 def byexception(given):

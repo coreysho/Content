@@ -47,6 +47,12 @@ if ($amount <= 0) {
 // bonus goes in here rather than at the call sites.
 def_int $bonus = ~outfit_xp_bonus(farmers_strawhat, farmers_jacket, farmers_trousers, farmers_boots);
 def_int $extra = calc(($amount * $bonus) / 1000);
+// The bottomless compost bucket, which OSRS puts on the Hespori - a Farming Guild boss this
+// server has no content for. It is a Farming reward for Farming either way, so it rides this
+// proc the same way the ten skilling outfits ride theirs: the chance is proportional to what the
+// action was worth, which pays for the work rather than for the click. Pre-bonus, so the
+// farmer's outfit does not make its own successor come faster.
+~compost_bucket_roll($amount);
 stat_advance(farming, calc($amount + $extra));
 
 // ============================================================================ op1 - the context action

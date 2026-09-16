@@ -3558,27 +3558,55 @@ _hard = _sw.stdout.split('NOTHING ANYWHERE MENTIONS THESE', 1)[-1].split('MENTIO
 _stillorphan = [p for p in PIECE.values() if re.search(r'\b%s\b' % re.escape(p), _hard)]
 check(not _stillorphan, 'and it agrees every piece in the table is obtainable now: %s'
       % (_stillorphan[:4] or 'all %d of them' % len(PIECE)))
-# The one that is still not, on purpose, so wiring it is a reminder to update this. BY PIECE NAME,
-# not by prefix: while four outfits were unsourced a prefix was enough, but with only this one left
-# "hunter" also matches hunter_hood, which belongs to the Hunter camo outfit and is unobtainable
-# too - so the prefix version went on passing with all four guild pieces stocked in a shop.
+# THE GUILD HUNTER SET MOVED, and this check moved with it. It used to assert the four pieces were
+# still in the real orphan list; they are now in the by-design list with a written reason, because
+# the sources round specced every orphan and the real list is empty. The stronger question is not
+# "is it still unobtainable" - the empty list answers that - but "is the REASON still on file",
+# which is what stops it being quietly excused.
 _GUILD_HUNTER = ['hunter_headwear', 'hunter_top', 'hunter_legs', 'hunter_boots']
-_still = [p for p in _GUILD_HUNTER if re.search(r'\b%s\b' % p, _hard)]
-check(_still == _GUILD_HUNTER,
-      'the guild hunter outfit is the only one left without a source, and all four of its pieces '
-      'are still in the real list, because Hunter does not exist: %s'
-      % (sorted(set(_GUILD_HUNTER) - set(_still)) or 'all four'))
+_nospec = _json.loads(read('tools/nosourcespec.json'))['objs']
+_hunterspec = [k for k, v in _nospec.items()
+               if set(_GUILD_HUNTER) <= set([k] + v.get('also', []))]
+check(len(_hunterspec) == 1,
+      'the guild hunter outfit is still the outfit without a source, and all four pieces are '
+      'accounted for by one entry in nosourcespec.json rather than scattered or dropped: %s'
+      % (_hunterspec or 'no entry covers all four'))
+if _hunterspec:
+    _hw = _nospec[_hunterspec[0]]['why']
+    check('Hunter is not a skill' in _hw,
+          'and the reason on file is still that Hunter is not a skill here, not something vaguer')
+_bydesign = _sw.stdout.split('BUILT WITH NO SOURCE ON PURPOSE', 1)[-1].split('NOTHING ANYWHERE', 1)[0]
+check(all(re.search(r'\b%s\b' % p, _bydesign) for p in _GUILD_HUNTER),
+      'and the sweep puts all four in its by-design section, so they are excused on the record '
+      'rather than by being forgotten')
 
 # A STORAGE LIST IS NOT A MENTION EITHER. Excluding the costume room from the SOURCE rule was not
 # enough: it still counted as a mention, which demotes an obj out of "nothing anywhere mentions
 # these" and into "worth a glance, not a bug list". That hid seventeen unobtainable objs, two of
-# them Graceful pieces this round had to wire. Asked behaviourally, of something still unobtainable
-# whose only mention is that list - the mime set, from a random event this build does not run.
-_mime = [p for p in ('macro_mime_mask', 'macro_mime_top', 'macro_mime_legs')
-         if re.search(r'\b%s\b' % p, _hard)]
-check(len(_mime) == 3,
-      'an obj mentioned only by the costume room storage list still counts as unobtainable: %s'
-      % (_mime or 'none of the mime set is in the real list'))
+# them Graceful pieces.
+#
+# THIS USED TO ASK THE QUESTION OF THE MIME SET and cannot any more. Every orphan is specced now,
+# and a spec entry outranks both lists - so reverting the fix moves nothing, the check went red on
+# correct code, and the mutation written for it "passed" only because the check could no longer
+# pass at all. A check that cannot pass is exactly as useless as one that cannot fail, and it
+# fools the harness in the same way.
+#
+# So the rule is asked of an input this check builds, which needs no live case to exist. Same
+# technique as the path-separator check: give the function the shape it is meant to strip and see
+# whether it strips it.
+sys.path.insert(0, os.path.join(C, 'tools'))
+import obtainable as _ob
+_probe = '\n'.join(['[poh_store_item]', 'val=0,a_thing_only_stored', '', '[something_else]',
+                     'val=0,a_thing_really_mentioned'])
+_stripped = _ob.without_storage_lists(_probe)
+check('a_thing_only_stored' not in _stripped and 'a_thing_really_mentioned' in _stripped,
+      'the mention scan drops a name that only a costume room storage list names, and keeps one '
+      'any other table names')
+check('poh_store_item' in _ob.STORAGE_LISTS and 'poh_costume_item' in _ob.STORAGE_LISTS,
+      'and both storage lists are the ones it drops')
+check(re.search(r're\.findall\(.*without_storage_lists\(read\(rel\)\)',
+                read('tools/obtainable.py')),
+      'with the stripping wired into the mention scan itself, not just available to it')
 
 
 print('64b. what the three outfits that pay no experience do instead')
@@ -4208,6 +4236,122 @@ check(_listed67 == _expect67,
       % (len(_expect67), 'yes' if _listed67 == _expect67 else set(_expect67) ^ set(_listed67)))
 check('WARNING:' not in _design67,
       'with no disagreement between the spec and what the game can actually give out')
+
+
+print('68. every obj can be got, or says why not')
+
+# THE SWEEP'S REAL LIST IS EMPTY, and that is the claim this group is here to keep true. 107 objs
+# had no source and no reason on file; each now has one or the other. The value is not the empty
+# list - it is that the next obj to land in it stands out instead of joining a crowd.
+
+_NOSPEC = _json.loads(read('tools/nosourcespec.json'))
+_specced = set()
+for _k, _v in _NOSPEC['objs'].items():
+    _specced.add(_k)
+    _specced.update(_v.get('also', []))
+
+_realcount = re.search(r'NOTHING ANYWHERE MENTIONS THESE \((\d+)\)', _sw.stdout)
+check(_realcount and int(_realcount.group(1)) == 0,
+      'no obj in the game is unobtainable without a reason recorded for it: the sweep\'s real '
+      'list holds %s' % (_realcount.group(1) if _realcount else 'no count at all'))
+
+# A REASON, NOT JUST A NAME. A spec entry with no why is the thing this file exists to prevent -
+# it excuses the obj and tells the next round nothing, which is how the same grep gets done twice.
+_nowhy = sorted(k for k, v in _NOSPEC['objs'].items() if len(v.get('why', '')) < 40)
+check(not _nowhy, 'and every entry that excuses one says why, at more than a few words: %s'
+      % (_nowhy or 'all %d of them' % len(_NOSPEC['objs'])))
+_nosrc = sorted(k for k, v in _NOSPEC['objs'].items() if 'osrs_source' not in v)
+check(not _nosrc, 'and what OSRS does instead, so the departure is visible: %s'
+      % (_nosrc or 'all of them'))
+
+# THE DUPLICATE SECATEURS, which is the one entry whose whole purpose is a check. The working
+# magic secateurs are fairy_enchanted_secateurs (7409); magic_secateurs (8109) came in with a
+# later-cache import, does nothing, and sits one autocomplete away from the one that works. It is
+# not deleted, because removing an obj id would leave a character who was ::given one holding an
+# item the server no longer defines - so this is what closes the trap instead.
+# Every .rs2 and every config in the tree, because the point is that NOTHING names it - a
+# hand-listed set of files would be a check that passes by looking in the wrong places.
+_ALLSRC = []
+for _dp, _dn, _fn in os.walk(os.path.join(C, 'scripts')):
+    if '_unpack' in _dp:
+        continue
+    for _f in _fn:
+        if _f.rsplit('.', 1)[-1] in ('rs2', 'obj', 'enum', 'dbrow', 'inv', 'npc', 'param'):
+            _ALLSRC.append(os.path.join(_dp, _f)[len(C) + 1:].replace(chr(92), '/'))
+# ITS OWN CONFIG BLOCK IS NOT A USE, and the first version of this check counted it - the
+# [magic_secateurs] header is the definition, so the check went red on exactly the state it is
+# meant to describe. The block is cut out of each file before looking.
+def _without_block(text, name):
+    out, skip = [], False
+    for line in text.split('\n'):
+        t = line.split('//')[0].strip()
+        if t.startswith('[') and t.endswith(']'):
+            skip = t[1:-1] == name
+        if not skip:
+            out.append(line)
+    return '\n'.join(out)
+
+_names_it = sorted(set(
+    rel for rel in _ALLSRC
+    if re.search(r'(?<![\w+])magic_secateurs(?![\w+])',
+                 _without_block(read(rel), 'magic_secateurs'))))
+check(not _names_it,
+      'nothing in the game wires the duplicate magic secateurs - the working ones are '
+      'fairy_enchanted_secateurs: %s' % (_names_it or 'no script names it'))
+check(re.search(r'(?<![\w+])fairy_enchanted_secateurs(?![\w+])',
+                read('scripts/skill_farming/scripts/farming_actions.rs2')),
+      'and the ones the farming bonus reads are the working ones')
+
+# ---- THE TWO RANDOM EVENTS THAT DESTROYED TOOLS
+# Both found by the sweep, neither an orphan problem: an unobtainable dragon axe handle was the
+# symptom of a lost-axe event that could not put a dragon axe back together.
+_LOSTAXE = read('scripts/macro events/scripts/woodcutting/macro_event_lost_axe.rs2')
+_LOSTPICK = read('scripts/macro events/scripts/mining/macro_event_lost_pickaxe.rs2')
+
+check(re.search(r'\$axe_head = null\) \{\s*\n\s*return;', strip(_LOSTAXE)),
+      'the lost-axe event leaves the axe alone when it has no head to drop')
+check(re.search(r'\$pickaxe_head = null\) \{\s*\n\s*return;', strip(_LOSTPICK)),
+      'and the lost-pickaxe event does the same - which was not hypothetical: it deleted a dragon '
+      'pickaxe, handed back a handle and dropped nothing, because obj_add is silent on a null obj')
+
+# Every tool the checkers can return has to have a head, or the guard above is doing the work a
+# config should. Asked of the checkers themselves, so a tool added to one is covered.
+_AXES = read('scripts/skill_woodcutting/configs/axes/axes.obj')
+_axenames = re.findall(r'^\[(\w*axe)\]', _AXES, re.M)
+_AXEB = blocks(_AXES)
+_WOODCUT = read('scripts/skill_woodcutting/scripts/woodcut.rs2')
+_headless = [a for a in _axenames
+             if re.search(r'return \(%s\);' % a, _WOODCUT)
+             and 'axe_head' not in ','.join(_AXEB.get(a, {}).get('param', []))]
+check(not _headless,
+      'every axe the woodcutting checker can hand back names an axe_head, so the event has '
+      'something to drop for all of them: %s' % (_headless or 'all of them'))
+
+# The dragon axe is the only one with its own handle art, and before this round the head of a lost
+# dragon axe could not be reattached by any means - a 55,000gp axe destroyed in silence.
+check('axe_handle,macro_hatchethandle_dragon' in ','.join(_AXEB['dragon_axe'].get('param', [])),
+      'the dragon axe names its own handle, which is what gives that handle a source at all')
+_sw_axe = strip(_LOSTAXE)
+check(_sw_axe.count('macro_dragon_hatchethead') >= 3,
+      'and the dragon head is accepted by both handles and by its own opheldu, so a lost dragon '
+      'axe can be put back together: named %s times' % _sw_axe.count('macro_dragon_hatchethead'))
+_heads = re.findall(r'^\[(macro_\w*hatchethead)\]', read('scripts/macro events/configs/antimacro.obj'), re.M)
+_unaccepted = []
+for _handle in ('macro_hatchethandle', 'macro_hatchethandle_dragon'):
+    _sw = _sw_axe.split('[opheldu,%s]' % _handle, 1)[1].split('\n[', 1)[0]
+    _unaccepted += ['%s on %s' % (h, _handle) for h in _heads if h not in _sw]
+check(not _unaccepted,
+      'and every axe head in the game is accepted by BOTH handles, not just the heads that '
+      'existed when it was written - asked of each switch on its own, because searching the whole '
+      'file let a head missing from one of them be found in the other: %s'
+      % (_unaccepted or 'all %d heads, both handles' % len(_heads)))
+
+# ---- THE GREEGREES, the one gap left as a gap on purpose
+_gree = [k for k, v in _NOSPEC['objs'].items() if 'greegree' in k]
+check(len(_gree) == 1 and 'Monkey Madness stage 3 is built' in _NOSPEC['objs'][_gree[0]]['why'],
+      'the seven unmade greegrees are recorded as a gap in built content rather than as missing '
+      'items, so the next round knows it is quest work and not a source')
+
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
 sys.exit(1 if fails else 0)
