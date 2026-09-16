@@ -2,11 +2,16 @@
 // with category and follower_id swapped: category drives the [opheld5,_bosspet] drop trigger, and
 // param=follower_id names the npc that gets spawned.
 //
-// PLACEHOLDER ICONS, flagged. This 377 cache contains no figurine or miniature-creature obj models -
-// searching model.pack for dragon, kalphite, mole, dagannoth, statue and figurine turns up only
-// equipment. Every one of these therefore uses obj_bird_egg_red, the one small creature-adjacent
-// model that carries recolour fields, recoloured per boss. The mechanic is complete and correct; the
-// inventory icon is a stand-in and is a one-line swap per item if real models ever exist.
+// The icons are OSRS's own, imported by tools/models/importosrs.py with each item's own 2d camera;
+// the recoloured bird eggs that stood in for them until the art round are gone. Four of the six
+// draw the npc's mesh, which is what OSRS does as well - a Dagannoth King at zoom 4560 is simply
+// one seen from far enough away to fit an inventory square - and only the Prince black dragon and
+// the Baby mole have a purpose-built icon model. The Prince carries no camera lines at all because
+// its model is authored for the default one, which 377 and OSRS share (zoom 2000, no rotation).
+//
+// The two Dagannoth recolours are the item config's own, not baked into the mesh: all three share
+// model 9941 and OSRS repaints two of them, so the pairs are carried across and converted from
+// HSL16 to the RGB15 a .obj is written in.
 //
 // tradeable=no matches the cats and keeps pets off the trade screen, which matters because these are
 // rare drops with no other sink.
@@ -14,12 +19,7 @@
 [bosspet_kbd_item]
 name=Prince black dragon
 desc=The biggest, meanest dragon around. Eventually.
-model=obj_bird_egg_red
-recol1s=30224
-recol1d=1
-2dzoom=650
-2dyan=16
-2dxan=76
+model=obj_bosspet_kbd_item
 members=yes
 weight=1500g
 category=bosspet
@@ -29,12 +29,10 @@ tradeable=no
 [bosspet_kalphite_queen_item]
 name=Kalphite princess
 desc=I don't think insect repellent will work on her either.
-model=obj_bird_egg_red
-recol1s=30224
-recol1d=22464
-2dzoom=650
-2dyan=16
-2dxan=76
+model=obj_bosspet_kalphite_queen_item
+2dzoom=8016
+2dxan=342
+2dyan=1778
 members=yes
 weight=1500g
 category=bosspet
@@ -44,12 +42,11 @@ tradeable=no
 [bosspet_giant_mole_item]
 name=Baby mole
 desc=I will call him, Mini Mole.
-model=obj_bird_egg_red
-recol1s=30224
-recol1d=8323
-2dzoom=650
-2dyan=16
-2dxan=76
+model=obj_bosspet_giant_mole_item
+2dzoom=2256
+2dxan=369
+2dyan=1874
+2dyof=20
 members=yes
 weight=1500g
 category=bosspet
@@ -59,12 +56,18 @@ tradeable=no
 [bosspet_dagannoth_rex_item]
 name=Pet dagannoth rex
 desc=Firstborn of the legendary dagannoth kings, and still quite small.
-model=obj_bird_egg_red
-recol1s=30224
-recol1d=6273
-2dzoom=650
-2dyan=16
-2dxan=76
+model=obj_bosspet_dagannoth_rex_item
+2dzoom=4560
+2dxan=2042
+2dyan=1868
+recol1s=6373
+recol1d=8421
+recol2s=7430
+recol2d=9478
+recol3s=1122
+recol3d=10567
+recol4s=16646
+recol4d=13508
 members=yes
 weight=1500g
 category=bosspet
@@ -74,12 +77,18 @@ tradeable=no
 [bosspet_dagannoth_prime_item]
 name=Pet dagannoth prime
 desc=Rumoured to fly on the North winds. Currently rumoured to fly onto furniture.
-model=obj_bird_egg_red
-recol1s=30224
-recol1d=15855
-2dzoom=650
-2dyan=16
-2dxan=76
+model=obj_bosspet_dagannoth_prime_item
+2dzoom=4560
+2dxan=2042
+2dyan=1868
+recol1s=10594
+recol1d=19810
+recol2s=1122
+recol2d=10338
+recol3s=6373
+recol3d=6374
+recol4s=7430
+recol4d=7431
 members=yes
 weight=1500g
 category=bosspet
@@ -89,12 +98,10 @@ tradeable=no
 [bosspet_dagannoth_supreme_item]
 name=Pet dagannoth supreme
 desc=Not yet responsible for the death of anything much.
-model=obj_bird_egg_red
-recol1s=30224
-recol1d=11488
-2dzoom=650
-2dyan=16
-2dxan=76
+model=obj_bosspet_dagannoth_supreme_item
+2dzoom=4560
+2dxan=2042
+2dyan=1868
 members=yes
 weight=1500g
 category=bosspet
