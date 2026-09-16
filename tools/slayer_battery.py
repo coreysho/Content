@@ -227,9 +227,13 @@ WIKI = {'Bigger and Badder': 50, 'Gargoyle Smasher': 120, 'Slug Salter': 10,
 names, costs = rows('slayer_unlock_name'), rows('slayer_unlock_cost')
 got = {names[k]: int(costs[k]) for k in names}
 check(got == WIKI, 'the five unlock prices are the wiki\'s: %s' % (got if got != WIKI else 'all five'))
-BUY = {'slayer_ring_8': 75, 'herb_sack': 750, 'looting_bag': 10}
+# The rune pouch is 750 points from a slayer master in OSRS, the same as the herb sack, so it
+# belongs in this list rather than as an exception to it.
+BUY = {'slayer_ring_8': 75, 'herb_sack': 750, 'looting_bag': 10, 'rune_pouch': 750}
 bobj, bcost = rows('slayer_buy_obj'), rows('slayer_buy_cost')
-check({bobj[k]: int(bcost[k]) for k in bobj} == BUY, 'and so are the three things you can buy')
+got = {bobj[k]: int(bcost[k]) for k in bobj}
+check(got == BUY, 'and so are the four things you can buy: %s'
+      % ('all four' if got == BUY else got))
 objp = {n.strip(): int(i) for i, n in
         (l.split('=', 1) for l in read('pack/obj.pack').split('\n') if '=' in l)}
 bad = [o for o in bobj.values() if o not in objp]

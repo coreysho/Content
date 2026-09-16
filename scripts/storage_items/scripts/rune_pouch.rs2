@@ -1,0 +1,145 @@
+// The rune pouch, and the divine pouch it becomes.
+//
+// A storage item like the three in storage_items.rs2, and it reuses their helpers rather than
+// copying them: ~storage_check, ~storage_empty_to_inv and @storage_destroy all take the inv and a
+// name. What is different is that this one is READ BY SPELLS - see ~rune_total and ~rune_del in
+// skill_magic/scripts/magic.rs2, which count and spend runes across the inventory and this pouch
+// together. That is the whole feature; everything here just fills and empties it.
+//
+// Both pouches share one four-slot store and differ only in param=pouch_slots, so the upgrade
+// moves nothing.
+
+// Which pouch you are carrying, or null. The divine one wins if you somehow carry both.
+[proc,rune_pouch_carried]()(namedobj)
+if (inv_total(inv, divine_rune_pouch) > 0) {
+    return(divine_rune_pouch);
+}
+if (inv_total(inv, rune_pouch) > 0) {
+    return(rune_pouch);
+}
+return(null);
+
+// How many of the store's slots the carried pouch can reach: 3, 4, or 0 when you carry none.
+// Everything that reads the pouch goes through this, so leaving the pouch in the bank turns the
+// whole feature off without a single extra check anywhere.
+[proc,rune_pouch_slots]()(int)
+def_namedobj $pouch = ~rune_pouch_carried;
+if ($pouch = null) {
+    return(0);
+}
+return(oc_param($pouch, pouch_slots));
+
+[proc,rune_pouch_accepts](obj $obj)(boolean)
+def_int $i = 0;
+while ($i < ^rune_pouch_kinds) {
+    // through an obj local, as ~herb_sack_accepts does: comparing the enum's namedobj against an
+    // obj directly is "Operator '=' cannot be applied to 'namedobj', 'obj'" at build time.
+    def_obj $rune = enum(int, namedobj, rune_pouch_runes, $i);
+    if ($rune = $obj) {
+        return(true);
+    }
+    $i = calc($i + 1);
+}
+return(false);
+
+// How many kinds are in the store. Compared against ~rune_pouch_slots rather than inv_size, which
+// is what stops the plain pouch reaching the fourth slot.
+[proc,rune_pouch_kinds_used]()(int)
+def_int $used = 0;
+def_int $slot = 0;
+while ($slot < inv_size(rune_pouch_store)) {
+    if (inv_getobj(rune_pouch_store, $slot) ! null) {
+        $used = calc($used + 1);
+    }
+    $slot = calc($slot + 1);
+}
+return($used);
+
+// ---------------------------------------------------------------- Fill
+[opheld1,rune_pouch] ~rune_pouch_fill;
+[opheld1,divine_rune_pouch] ~rune_pouch_fill;
+
+[proc,rune_pouch_fill]
+def_int $slots = ~rune_pouch_slots;
+def_int $moved = 0;
+def_boolean $full = false;
+def_int $i = 0;
+while ($i < ^rune_pouch_kinds) {
+    def_namedobj $rune = enum(int, namedobj, rune_pouch_runes, $i);
+    def_int $have = inv_total(inv, $rune);
+    if ($have > 0) {
+        def_int $inside = inv_total(rune_pouch_store, $rune);
+        // a rune already in the pouch tops up; a new kind needs a slot the pouch can reach
+        if ($inside > 0 | ~rune_pouch_kinds_used < $slots) {
+            def_int $space = calc(^rune_pouch_max_per_rune - $inside);
+            def_int $n = min($have, $space);
+            if ($n > 0) {
+                inv_moveitem(inv, rune_pouch_store, $rune, $n);
+                $moved = calc($moved + $n);
+            } else {
+                $full = true;
+            }
+        } else {
+            $full = true;
+        }
+    }
+    $i = calc($i + 1);
+}
+if ($moved > 0) {
+    mes("You fill the pouch.");
+} else if ($full = true) {
+    mes("The pouch cannot hold any more of those runes.");
+} else {
+    mes("You don't have any runes that can go in the pouch.");
+}
+
+// ---------------------------------------------------------------- Empty, Check, Destroy
+[opheld2,rune_pouch] ~storage_empty_to_inv(rune_pouch_store, "rune pouch");
+[opheld2,divine_rune_pouch] ~storage_empty_to_inv(rune_pouch_store, "divine rune pouch");
+[opheld3,rune_pouch] ~storage_check(rune_pouch_store, "rune pouch");
+[opheld3,divine_rune_pouch] ~storage_check(rune_pouch_store, "divine rune pouch");
+[opheld5,rune_pouch] @storage_destroy(rune_pouch, rune_pouch_store, "rune pouch");
+[opheld5,divine_rune_pouch] @storage_destroy(divine_rune_pouch, rune_pouch_store, "divine rune pouch");
+
+// ---------------------------------------------------------------- the upgrade
+// Reached from the needle's own [opheldu,needle] switch in skill_crafting - a second [opheldu,needle]
+// would be a duplicate trigger and would not compile.
+[opheldu,rune_pouch]
+if (last_useitem = needle) {
+    @rune_pouch_upgrade;
+}
+~displaymessage(^dm_default);
+
+[label,rune_pouch_upgrade]
+if (stat_base(crafting) < ^rune_pouch_craft_level) {
+    mes("You need a Crafting level of <tostring(^rune_pouch_craft_level)> to stitch that.");
+    return;
+}
+if (inv_total(inv, thread) < 1) {
+    mes("You need some thread to stitch the pouch with.");
+    return;
+}
+if (inv_total(inv, rune_pouch) < 1) {
+    return;
+}
+inv_del(inv, thread, 1);
+inv_del(inv, rune_pouch, 1);
+inv_add(inv, divine_rune_pouch, 1);
+// No experience, as OSRS gives none for it.
+mes("You stitch the rune pouch into a divine rune pouch.");
+
+// Revert, which OSRS also offers. Refused while a fourth kind is inside rather than dropping it:
+// the store keeps all four, and the plain pouch simply cannot reach the last one.
+[opheld4,divine_rune_pouch]
+if (~rune_pouch_kinds_used > oc_param(rune_pouch, pouch_slots)) {
+    mes("The plain pouch only holds <tostring(oc_param(rune_pouch, pouch_slots))> kinds of rune. Take some out first.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("You need room for the thread.");
+    return;
+}
+inv_del(inv, divine_rune_pouch, 1);
+inv_add(inv, rune_pouch, 1);
+inv_add(inv, thread, 1);
+mes("You unpick the stitching and get the thread back.");
