@@ -115,7 +115,13 @@ gate = EQUIP.split('[opheld2,max_cape]', 1)[1].split('\n[', 1)[0]
 check('~skillcape_count_99s < enum_getoutputcount(stats)' in gate,
       'the gate counts 99s against the stats enum rather than naming skills')
 check('~equip(last_slot)' in gate, 'and equips when they are all there')
-check(len(STATS) == 22, 'the enum holds %d skills - Construction in, Hunter out' % len(STATS))
+# VALUES AFTER THE CLAIM, NOT INSIDE IT. A mutation's label is the wording of the check it is
+# written for, so a number in the middle of a claim changes the wording the moment the number
+# changes, and the label stops matching. Three labels in this file were unmatchable for that
+# reason; tools/mutate_labels.py is what found them.
+check(len(STATS) == 22,
+      'the enum holds every skill this build has, Construction in and Hunter out: %d'
+      % len(STATS))
 check('construction' in STATS.values() and 'hunter' not in STATS.values(),
       'Construction is one of them and Hunter is not, which is what makes the cape reachable')
 price = SHOP.split('[proc,maxcape_price]', 1)[1].split('\n[', 1)[0]
@@ -253,7 +259,7 @@ check(len(spots) == 1, 'he is placed exactly once, got %d' % len(spots))
 if spots:
     lv, x, z = spots[0]
     ring = [(x + dx, z + dz) for dx in (-1, 0, 1) for dz in (-1, 0, 1) if (x + dx, z + dz) in solid]
-    check(lv == 0 and not ring, 'his tile (%d,%d) and the eight around it are clear: %s'
+    check(lv == 0 and not ring, 'his tile and the eight around it are clear: (%d,%d) %s'
           % (2816 + x, 3520 + z, ring or 'all nine'))
     check(2816 + x < 2837, 'and it is west of the guild wall, as near OSRS\'s island as this map gets')
 
@@ -339,7 +345,7 @@ for line in read('maps/m50_56.jm2').split('\n'):
         d = data.split()
         if int(d[0]) in alt_ids and (x, z) not in altars: altars.append((x, z))
         if len(d) < 2 or int(d[1]) != 22: solid.add((x, z))
-check(len(spots) == 8, 'there are %d of them' % len(spots))
+check(len(spots) == 8, 'and the spawn count is what it was: %d' % len(spots))
 check(len(altars) == 1, 'and one altar on the square (%s)'
       % ', '.join('%d,%d' % (3200 + x, 3584 + z) for x, z in altars))
 if altars and spots:

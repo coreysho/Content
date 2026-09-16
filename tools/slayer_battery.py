@@ -100,8 +100,12 @@ print('3. the list is long enough that no tab ever needs a second page')
 nrows = len([n for n in COM if re.fullmatch(r'row\d+', n)])
 counts = {'Unlock': len(rows('slayer_unlock_name')), 'Extend': len(rows('slayer_extend_name')),
           'Buy': len(rows('slayer_buy_obj')), 'Tasks': const('slayer_task_rows'), 'Cosmetics': 0}
+# VALUES AFTER THE CLAIM, NOT INSIDE IT. A mutation's label is the wording of the check it is
+# written for, so a number in the middle of a claim changes the wording the moment the number
+# changes - and the label stops matching. Four labels in this file were unmatchable for
+# exactly that reason, and tools/mutate_labels.py is what found them.
 check(nrows >= max(counts.values()),
-      'the window has %d rows and the longest tab needs %d (%s)'
+      'the window has a row for every entry the longest tab needs: %d rows, %d wanted by %s'
       % (nrows, max(counts.values()), max(counts, key=counts.get)))
 check(all(COM['row%d' % i].get('type') == 'layer' for i in range(nrows)),
       'every row is a layer, which is the only thing if_sethide works on')
@@ -167,7 +171,7 @@ print('5. the four browns are the same in the interface and in the script')
 for name, com, key in (('slayer_ui_row_off', 'r0box', 'colour'),
                        ('slayer_ui_tab_off', 'tab0fill', 'colour')):
     check(int(COM[com][key], 0) == const(name),
-          '^%s (0x%06X) is what the .if paints %s with' % (name, const(name), com))
+          '^%s is the colour the .if paints %s with: 0x%06X' % (name, com, const(name)))
 check(const('slayer_ui_row_on') != const('slayer_ui_row_off'), 'a selected row is a different brown')
 check(const('slayer_ui_tab_on') != const('slayer_ui_tab_off'), 'and so is the open tab')
 for c in ('slayer_ui_row_on', 'slayer_ui_row_off', 'slayer_ui_tab_on', 'slayer_ui_tab_off'):
@@ -181,7 +185,8 @@ print('6. one opening of the window cannot run out of instructions')
 clicks, per = const('slayer_ui_clicks'), const('slayer_ui_click_ops')
 check(clicks > 0 and per > 0, 'both numbers are recorded: %d clicks at %d opcodes' % (clicks, per))
 check(clicks * per < 400000,
-      '%d x %d is %s, inside the 500,000 a script gets' % (clicks, per, format(clicks * per, ',')))
+      'and their product is inside the 500,000 opcodes a script gets: %d x %d is %s'
+      % (clicks, per, format(clicks * per, ',')))
 loop = WIN.split('[proc,slayer_rewards_window]', 1)[1].split('\n[', 1)[0]
 check('while ($clicks < ^slayer_ui_clicks)' in loop, 'the loop is bounded by that constant')
 check('while (true)' not in WIN, 'and is not a while(true), which would hang the player script')
@@ -208,8 +213,11 @@ print('8. buying something still goes through the one proc that owns the effect'
 take = WIN.split('[proc,slayer_ui_take]', 1)[1].split('\n[', 1)[0]
 for proc in ('~slayer_buy_unlock', '~slayer_buy_extend', '~slayer_buy_item', '~slayer_do_task'):
     check(proc in take, 'Confirm reaches %s' % proc)
-check(take.index('%slayer_points < $cost') < take.index('~slayer_buy_unlock'),
-      'and it checks the points before it reaches any of them')
+check('%slayer_points < $cost' in take,
+      'and Confirm compares the points against the cost at all')
+if '%slayer_points < $cost' in take and '~slayer_buy_unlock' in take:
+    check(take.index('%slayer_points < $cost') < take.index('~slayer_buy_unlock'),
+          'and it checks the points before it reaches any of them')
 check('~slayer_ui_owned($tab, $sel) = true' in take, 'and refuses what you already own')
 check(REW.count('%slayer_points = sub(') == 5 and PTS.count('%slayer_points = sub(') == 2,
       'points are spent in seven places: unlock, cosmetic, extend, item, imbue, cancel, block')
@@ -240,7 +248,9 @@ bad = [o for o in bobj.values() if o not in objp]
 check(not bad, 'each of which is a real obj: %s' % (bad or ', '.join(bobj.values())))
 imbue_row = const('slayer_buy_imbue')
 bname = rows('slayer_buy_name')
-check(str(imbue_row) in bname, 'the Buy tab\'s row %d is the imbue, named by a table because it hands over no item' % imbue_row)
+check(str(imbue_row) in bname,
+      'the imbue has a name from the table rather than from an obj, because it hands over no '
+      'item: Buy tab row %d' % imbue_row)
 check(str(imbue_row) not in bobj, 'and it has no obj of its own')
 check(int(bcost[str(imbue_row)]) == const('slayer_imbue_cost'),
       'its price in the enum is ^slayer_imbue_cost (%d), the number the imbue round set' % const('slayer_imbue_cost'))

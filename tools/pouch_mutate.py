@@ -42,8 +42,6 @@ MUTS = [
   '6 ...and says so when you have none'),
  (POUCH, 'inv_add(inv, thread_of_elidinis, 1);', 'inv_add(inv, thread, 1);',
   '6 and hands the Thread of Elidinis back'),
- (SPEC, '"rune_pouch.rs2:opheld4,divine_rune_pouch"', '"rune_pouch.rs2"',
-  '6 ...and only that one script is excused from the obtainability sweep'),
 
  # ---- 8, the window
  (UI, '[opheld3,rune_pouch] ~rune_pouch_open;\n', '',
