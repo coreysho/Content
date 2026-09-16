@@ -123,10 +123,13 @@ jobs:
       working-directory: content
       run: python tools/poh_battery.py
 
-    # tools/mutate_labels.py BELONGS HERE and is not added yet, deliberately. It fails today on
-    # poh_mutate's 130 unlabelled mutations, which are still being measured - and a step added
-    # while it is red would either turn CI red on purpose or need continue-on-error, which is a
-    # check that cannot fail. It goes in when it passes.
+    # Two minutes, and it is the drift nobody notices by hand: every mutation must name the check
+    # it is written for, or "caught by its own check" is a sentence the harness cannot mean. 198 of
+    # 521 had stopped naming one. It runs every checker, poh_battery among them, so it needs this
+    # job's engine and built cache - which is also why it is here and not in the matrix.
+    - name: Every mutation names the check it is written for
+      working-directory: content
+      run: python tools/mutate_labels.py
 
   batteries:
     name: ${{ matrix.script }}

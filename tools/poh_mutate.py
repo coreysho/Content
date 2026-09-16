@@ -61,10 +61,10 @@ MUTS = [
  ('pack/interface.order', '19242\n', '', '30 interface.pack and interface.order hold the same id set'),
  ('scripts/skill_construction/scripts/poh_menus.rs2',
   'if_sethide(poh_roommenu:row0, true);', 'if_sethide(poh_roommenu:r0name, true);',
-  '31 hide-needs-a-layer'),
+  '31 is a LAYER, so if_sethide can hide it'),
  ('scripts/skill_construction/scripts/poh_menus.rs2',
   'if_settext(poh_roommenu:r0cost,', 'if_settext(poh_roommenu:row0,',
-  '31 settext needs a text component'),
+  '31 is a text component'),
  ('scripts/skill_construction/configs/poh_menus.enum',
   'val=2,@bla@', 'val=2,@gry@', '37 poh_tint_name: every value is a tag PixFont.evaluateTag knows:'),
  ('scripts/skill_construction/configs/poh_menus.enum',
@@ -83,7 +83,7 @@ MUTS = [
   'case 238 : loc_add($spot, poh_treasure_magic_chest, $angle, centrepiece_straight, ^poh_loc_duration);\n',
   '', '28 ~poh_furn_show places every item 1..351'),
  ('scripts/skill_construction/configs/construction.constant',
-  '^poh_furn_slots = 256', '^poh_furn_slots = 257', '28 a slot with no varp'),
+  '^poh_furn_slots = 256', '^poh_furn_slots = 257', '28 every furniture slot has a varp'),
  # THROUGH THE SPEC HARNESS. This angle is furnspec.json's, and poh_menus.rs2 is generated from
  # it - so the only edit worth making is to the spec, regenerated, which is what
  # tools/poh_mutate_spec.py does. Marked (spec) so the plain harness skips it instead of reporting
@@ -145,7 +145,7 @@ MUTS = [
   '15 an enum of the wrong type for the parameter (rs2check)'),
  ('scripts/skill_construction/scripts/poh_tablets.rs2',
   'anim(poh_tab_break, 0);', 'anim(human_castteleport, 0);',
-  '44 the cast animation creeping back into a break'),
+  '44 ~poh_tab_breakanim plays poh_tab_break'),
  ('scripts/skill_construction/scripts/poh_tablets.rs2',
   'sound_synth(teleport_all, 1, 0);\n~poh_tab_breakanim;\np_delay(2);\n~p_telejump_safe($dest);',
   'sound_synth(teleport_all, 1, 0);\np_delay(2);\n~p_telejump_safe($dest);',
@@ -155,7 +155,7 @@ MUTS = [
   '44 every break frame is in anim.pack:'),
  ('scripts/skill_construction/configs/poh_tab_break.spotanim',
   'model=spot_poh_tab_break_gfx', 'model=spot_poh_tab_break_ghost',
-  '44 a break graphic whose model is not there'),
+  '44 the break graphic model spot_poh_tab_break_gfx is in model.pack'),
  ('scripts/skill_construction/interfaces/poh_tabletmenu.if',
   '[qty5]\ntype=text\nx=382\ny=46\nbuttontype=normal',
   '[qty5]\ntype=text\nx=382\ny=46',
@@ -200,7 +200,7 @@ MUTS = [
   '46 poh_garden_shop has an id in inv.pack'),
  ('maps/m46_52.jm2',
   '0 59 49: 3922', '0 56 49: 3922',
-  '46 the supplier standing in a flowerbed'),
+  '46 and neither do the eight tiles around her'),
  ('scripts/skill_construction/configs/construction.constant',
   '^poh_garden_cp_x = 3', '^poh_garden_cp_x = 1',
   '47 every style has its Centrepiece space at ^poh_garden_cp_x/z ([(3, 3)])'),
@@ -223,16 +223,16 @@ MUTS = [
   '48 a thousand bricks, twenty blocks, twenty leaves and ten stones:'),
  ('maps/m44_159.jm2',
   '0 27 8: 3923', '0 27 15: 3923',
-  '48 the Stonemason standing in a wall'),
+  '48 his tile and the eight around it are clear'),
  ('scripts/skill_construction/configs/poh_stone.npc',
   'param=owned_shop,poh_stone_shop', 'param=owned_shop,poh_garden_shop',
-  '48 the Stonemason selling bagged plants'),
+  '48 he owns poh_stone_shop'),
  ('scripts/skill_construction/configs/poh_rooms.enum',
   'val=16,15', 'val=16,7',
-  '49 a formal garden door mask that is not what the templates have'),
+  '49 its door mask is the sides the six template squares actually have doors on'),
  ('scripts/skill_construction/configs/poh_rooms.enum',
   'val=16,17', 'val=16,18',
-  '49 the formal garden reading the wrong template zone'),
+  '49 its template zone is the one the templates are drawn in'),
  ('scripts/skill_construction/configs/poh_rooms.enum',
   'val=16,75000', 'val=16,7500',
   '49 every grouped price is its own number:'),
@@ -256,10 +256,10 @@ MUTS = [
  ('scripts/skill_construction/scripts/poh_menus.rs2',
   'def_int $a = ~poh_nth_fit($mask, calc($page * ^poh_menu_rows + 0));',
   'def_int $a = ~poh_nth_room($rx, $rz, $side, calc($page * ^poh_menu_rows + 0));',
-  '50 the per-row walk coming back into the page loop'),
+  '50 the per-row walk is gone from the build, not just unused'),
  ('scripts/skill_construction/configs/construction.constant',
   '^poh_room_count = 16', '^poh_room_count = 32',
-  '50 more room types than a mask has bits'),
+  '50 the room types all fit in the bits of one mask, whose ceiling is 31'),
  ('scripts/skill_construction/configs/poh_furniture.enum',
   '[poh_fam_last]\ninputtype=int\noutputtype=int\nval=1,7',
   '[poh_fam_last]\ninputtype=int\noutputtype=int\nval=1,6',
@@ -301,7 +301,7 @@ MUTS = [
   '53 each style is cut from a different square and level:'),
  ('scripts/skill_construction/scripts/poh_portal.rs2',
   'if (stat(construction) < $level) {', 'if (false) {',
-  '53 a redecoration with no level gate'),
+  '53 redecorating tests the level before it takes the coins'),
  ('scripts/skill_construction/scripts/poh_portal.rs2',
   '''// re-check: the choice box gives the player a chance to drop or trade the coins away
 if (inv_total(inv, coins) < $cost) {
@@ -317,7 +317,7 @@ if (inv_total(inv, coins) < $cost) {
   '"<enum(int, string, poh_style_name, 4)> - <tostring(enum(int, int, poh_style_cost, 4))> coins", 2,',
   '53 the two menu pages between them offer all six styles: [0, 1, 2, 3,'),
  ('maps/m39_48.jm2', '0 45 27: 15296 10 0', '0 45 27: 15296 10 2',
-  '22 a portal turned away from the way it was approved'),
+  '22 the one that was approved'),
  ('maps/m43_49.jm2', '0 7 40: 15296 10 3', '0 8 40: 15296 10 3',
   '21 town 4: the map and poh_loc_portal name the same tile ((0,'),
  ('maps/m41_56.jm2', '0 42 48: 3920', '0 47 48: 3920',
@@ -329,7 +329,7 @@ if (inv_total(inv, coins) < $cost) {
   '55 and nothing in the chest is something a shop sells:'),
  ('scripts/skill_construction/configs/poh_costume.enum',
   'val=4,rune_full_helm_zamorak', 'val=4,rune_full_helm_saradomin',
-  '55 the same piece listed twice'),
+  '55 no item is listed twice'),
  ('scripts/skill_construction/configs/poh_costume.enum',
   '[poh_costume_set_first]\ninputtype=int\noutputtype=int\ndefault=null\nval=0,0\nval=1,4',
   '[poh_costume_set_first]\ninputtype=int\noutputtype=int\ndefault=null\nval=0,0\nval=1,5',
@@ -382,7 +382,7 @@ if (inv_total(inv, coins) < $cost) {
  ('tools/genfurn.py',
   "body = ['~poh_furn_sit(%s, %s);' % (op['seq'], q(op['mes']))]",
   "body = ['anim(%s, 0);' % op['seq'], 'mes(%s);' % q(op['mes'])]",
-  '57 sitting beside the chair again'),
+  '57 all 24 seats go through it (spec)'),
  ('maps/m45_54.jm2', '0 7 0: 15296 10 3', '0 7 1: 15296 10 3',
   '15 town 1: the map and poh_loc_portal name the same tile ((0, 7,'),
  ('scripts/skill_construction/configs/poh_locations.enum',
@@ -404,7 +404,7 @@ if (inv_total(inv, coins) < $cost) {
   'val=6,58', 'val=6,50', '58 every level and landing coord is its own teleport spell\'s:'),
  # a landing coord that drifts off the spell's
  ('scripts/skill_construction/configs/poh_portal_dest.enum',
-  'val=7,0_45_57_11_23', 'val=7,0_45_57_11_24', '58 level and coord are the spell\'s own'),
+  'val=7,0_45_57_11_23', 'val=7,0_45_57_11_24', '58 every level and landing coord is its own teleport spell\'s'),
  # the table that would let a marble portal to Camelot come up as a teak one somewhere else
  ('scripts/skill_construction/scripts/poh_portal_chamber.rs2',
   'case 28 : return(poh_portal_marble_camelot);', 'case 28 : return(poh_portal_teak_falador);',
@@ -428,10 +428,10 @@ if (inv_total(inv, coins) < $cost) {
   '[oploc5,poh_portal_marble_yanille] ~poh_portal_remove;' + chr(10), '',
   '58 every placeable piece has a Remove trigger: 350 placed,'),
  # and the piece itself going down as a fixed loc again, which loses the destination
- ('scripts/skill_construction/scripts/poh_furniture.rs2',
-  'case 289 : ~poh_portal_place($spot, $angle, 1);',
-  'case 289 : loc_add($spot, poh_portal_teak_empty, $angle, centrepiece_straight, ^poh_loc_duration);',
-  '29 a placed piece is removable / 58 Enter and Remove'),
+ ('tools/genfurn.py',
+  "        if f.get('show'):\n            o.append('    case %d : ~%s($spot, $angle, %d);' % (i['n'], f['show'], i['tier']))",
+  "        if False:\n            o.append('    case %d : ~%s($spot, $angle, %d);' % (i['n'], f['show'], i['tier']))",
+  '29 every placeable piece has a Remove trigger (spec)'),
 
  # --- 59, the combat ring ---
  # a rope one square out of the ring
@@ -468,7 +468,7 @@ if (inv_total(inv, coins) < $cost) {
  ('tools/furnspec.json', '15098,', '15098,\n   15104,', '59 the family takes the 16 visible hotspots'),
  # the anchor moved onto a tile the ring itself stands on
  ('tools/furnspec.json', '"anchor": [\n    0,\n    0\n   ],', '"anchor": [\n    1,\n    1\n   ],',
-  '59 nothing in the Combat room template stands on (0,0)'),
+  '59 anchors where no hotspot of its own stands'),
  # cloth that cannot be bought, so three of the four rings are unbuildable
  ('scripts/skill_construction/scripts/sawmill.rs2',
   '~sawmill_sell(bolt_of_cloth, ^sawmill_cost_cloth);', '~sawmill_sell(saw, ^sawmill_cost_cloth);',
@@ -519,7 +519,7 @@ if (inv_total(inv, coins) < $cost) {
   'cost=100000', 'cost=200000', '26 all four come out at the OSRS price:'),
  # and the stonemason no longer stocking it, which makes two pieces unbuildable
  ('scripts/skill_construction/configs/poh_stone.inv',
-  'stock3=gold_leaf,20,100' + chr(10), '', '26 he stocks three things'),
+  'stock3=gold_leaf,20,100' + chr(10), '', '26 the Stonemason stocks what he is meant to'),
 
  # --- 61, the fence, the throne floor, the windows and the multiloc sweep ---
  # the check that would have caught the dead Remove on every window in the house
@@ -531,11 +531,11 @@ if (inv_total(inv, coins) < $cost) {
  # a fence post one square off the perimeter
  ('scripts/skill_construction/scripts/poh_decor.rs2',
   '~poh_fence_wall($base, $rot, 0, 1, 0, $tier);', '~poh_fence_wall($base, $rot, 1, 1, 0, $tier);',
-  '61 Fencing every one is the template\'s tile'),
+  '61 and every one is the template\'s tile, shape and angle'),
  # a fence corner laid on the straight-wall layer, which leaves the hotspot standing in it
  ('scripts/skill_construction/scripts/poh_decor.rs2',
   '~poh_fence_corner($base, $rot, 0, 0, 3, $tier);', '~poh_fence_wall($base, $rot, 0, 0, 3, $tier);',
-  '61 Fencing tile, shape and angle'),
+  '61 and every one is the template\'s tile, shape and angle'),
  # the window table reordered, so building Saradomin glass gives you Guthix
  ('scripts/skill_construction/scripts/poh_decor.rs2',
   'case 2 : return(poh_rimmington_window_saradomin);', 'case 2 : return(poh_rimmington_window_guthix);',
@@ -623,7 +623,7 @@ if (inv_total(inv, coins) < $cost) {
   '62 hotspot-shaped'),
  # the five families inserted where they read best, renumbering every item above them
  ('tools/furnspec.json', '"key": "caperack",', '"key": "caperack_moved",',
-  '62 the five families are the last five in the spec'),
+  '62 tools/genstores.py runs clean'),
  # the level-99 cape rack made of planks after all, so the magic stone has no reason to exist
  ('tools/furnspec.json', '"magic_stone",\n       1', '"mahogany_plank",\n       4',
   '62 one magic stone, for the level-99 cape rack'),
@@ -636,7 +636,7 @@ if (inv_total(inv, coins) < $cost) {
   '62 the experience is planks x the wood'),
  # the Stonemason no longer stocking the one thing a level-99 cape rack needs
  ('scripts/skill_construction/configs/poh_stone.inv', 'stock4=magic_stone,10,100' + chr(10), '',
-  '62 he stocks 4 things'),
+  '62 the Stonemason stocks what he is meant to'),
  # ...or stocking it at the wrong price
  ('scripts/skill_construction/configs/poh_formal_mats.obj', 'cost=750000', 'cost=4000000',
   '62 all four come out at the OSRS price'),
@@ -694,7 +694,7 @@ if (inv_total(inv, coins) < $cost) {
   '63 each at the template\'s own tile and angle'),
  # a tile laid on the wall layer, where the fence already is
  ('tools/genhedge.py', "centrepiece_straight, ^poh_loc_duration);", "wall_straight, ^poh_loc_duration);",
-  '63 re-running genhedge changes nothing'),
+  '63 re-running it changes nothing'),
  # a hedge nobody can take out again
  ('scripts/skill_construction/scripts/poh_hedge.rs2',
   '[oploc5,loc_13476] ~poh_hedge_remove;' + chr(10), '',

@@ -1899,7 +1899,7 @@ check(prm.get('shop_buy_multiplier') == str(const('poh_stone_buy')),
 check(prm.get('shop_delta') == '0', 'a fixed-price shop, like the Garden Centre')
 sstock = dict((m.group(2), (int(m.group(3)), int(m.group(4))))
               for m in re.finditer(r'^stock(\d+)=(\w+),(\d+),(\d+)$', SINV, re.M))
-check(len(sstock) == 4, 'he stocks %d things' % len(sstock))
+check(len(sstock) == 4, 'the Stonemason stocks what he is meant to: %d things' % len(sstock))
 bad = [k for k in sstock if k not in OBJS]
 check(not bad, 'every line of stock is a real obj: %s' % (bad or ', '.join(sstock)))
 # the OSRS prices again: their cache costs are exactly twice what he charges
@@ -1947,7 +1947,10 @@ check(len(spots) == 1, 'he is placed exactly once, got %d' % len(spots))
 if spots:
     lv, x, z = spots[0]
     ring = [(x + dx, z + dz) for dx in (-1, 0, 1) for dz in (-1, 0, 1) if (x + dx, z + dz) in ksolid]
-    check(lv == 0 and not ring, 'his tile (%d,%d) and the eight around it are clear: %s'
+# VALUES AFTER THE CLAIM, NOT INSIDE IT - a mutation's label is a check's wording, so a number
+# in the middle of a claim makes a label that names nothing the moment the number moves. Fifth
+# time this rule has come up; tools/mutate_labels.py is what keeps finding it.
+    check(lv == 0 and not ring, 'his tile and the eight around it are clear: (%d,%d) %s'
           % (2816 + x, 10176 + z, ring or 'all nine'))
 
 print('49. the formal garden room, and what goes in it')
@@ -1968,7 +1971,8 @@ check(all((TEMPL.get({v: k for k, v in LOCS.items()}[h], {}).get('category') or 
 check(const('poh_room_formal_garden') == 16 and COUNT == 16,
       'the formal garden is room type %s of %s' % (const('poh_room_formal_garden'), COUNT))
 ZONE = enumtable(ROOMS, 'poh_room_zone'); DOORS = enumtable(ROOMS, 'poh_room_doors')
-check(int(ZONE[16]) == 2 * 8 + 1, 'its template zone is 2,1 (%s)' % ZONE[16])
+check(int(ZONE[16]) == 2 * 8 + 1,
+      'its template zone is the one the templates are drawn in: 2,1 packs to %s' % ZONE[16])
 # the door mask, read out of all six template squares rather than believed
 DOORIDS = {LOCS['loc474_%d' % n] for n in range(15305, 15318)}
 sides = set()
@@ -1985,7 +1989,7 @@ for sq, levels in (('m29_79', (0, 1, 2, 3)), ('m30_79', (0, 1))):
         lx, lz = x - 16, z - 8
         sides.add(1 if lz == 7 else 2 if lx == 7 else 4 if lz == 0 else 8 if lx == 0 else 0)
 check(0 not in sides and sum(sides) == int(DOORS[16]),
-      'its door mask (%s) is the sides the six template squares actually have doors on (%s)'
+      'its door mask is the sides the six template squares actually have doors on: %s against %s'
       % (DOORS[16], sum(sides)))
 check(int(enumtable(ROOMS, 'poh_room_level')[16]) == 55
       and int(enumtable(ROOMS, 'poh_room_cost')[16]) == 75000,
@@ -2035,7 +2039,8 @@ check('~poh_room_fits' in fm and '$bit = calc($bit * 2)' in fm,
 nf = bd.split('[proc,poh_nth_fit]', 1)[1].split('\n[', 1)[0]
 check('~poh_' not in nf, '~poh_nth_fit calls nothing - it just reads bits')
 RC = int(re.search(r'\^poh_room_count\s*=\s*(\d+)', CONST).group(1))
-check(RC <= 31, 'the %d room types fit in the bits of one mask (31 is the ceiling)' % RC)
+check(RC <= 31,
+      'the room types all fit in the bits of one mask, whose ceiling is 31: %d of them' % RC)
 pick = mn.split('[proc,poh_pick_room]', 1)[1].split('\n[', 1)[0]
 check('[proc,poh_pick_room](int $mask)(int)' in mn,
       '~poh_pick_room is handed the mask rather than the cell it is for')
@@ -2153,7 +2158,8 @@ named = {int(m) for m in re.findall(r'poh_style_name, (\d)\)', pick)}
 check(named == set(range(6)), 'the two menu pages between them offer all six styles: %s' % sorted(named))
 check('while (true)' not in pick, 'the pager is a bounded loop - while (true) has no precedent here')
 do = PORTRS.split('[proc,poh_redecorate_to]', 1)[1].split('\n[', 1)[0]
-check(before(do, 'stat(construction)', 'inv_del'), 'the level is tested before the coins are taken')
+check(before(do, 'stat(construction)', 'inv_del'),
+      'redecorating tests the level before it takes the coins')
 check(do.count('inv_del(inv, coins') == 1, 'the coins come out exactly once')
 check(do.count('inv_total(inv, coins)') == 2,
       'the purse is re-checked AFTER the confirm box - it is a suspend, and coins can leave during it')
@@ -2197,7 +2203,8 @@ check('[oploc1,poh_house_portal]' in PORTRS2 and '~poh_enter' not in
 
 # the move itself
 mv = PORTRS2.split('[proc,poh_relocate_to]', 1)[1].split('\n[', 1)[0]
-check(before(mv, 'stat(construction)', 'inv_del'), 'the level is tested before the coins are taken')
+check(before(mv, 'stat(construction)', 'inv_del'),
+      'and moving house tests the level before it takes the coins')
 check(mv.count('inv_del(inv, coins') == 1, 'the coins come out exactly once')
 check(mv.count('inv_total(inv, coins)') == 2, 'the purse is re-checked after the confirm box')
 check(before(mv, '~poh_free', '%poh_location = $town'),
@@ -2735,7 +2742,7 @@ for _f in anchored:
                 _zones.add((_x // 8) * 8 + (_z // 8))
     _clash = [z for z in _zones if tuple(_f['anchor']) in _famroomhot.get(z, set())]
     check(not _clash,
-          '%s anchors at %s, and no hotspot stands there in any of its %d rooms: %s'
+          '%s anchors where no hotspot of its own stands: at %s, across %d rooms %s'
           % (_f['key'], tuple(_f['anchor']), len(_zones), _clash or 'clear'))
 # An anchored family has the tile in TWO places: furnspec.json, where the click reads it, and a
 # constant, where the removal proc reads it. If those two ever drift the piece is stored at one
