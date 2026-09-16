@@ -201,19 +201,21 @@ check(BUCKET.count('~compost_bucket_is_compost(last_useitem) = true') == 2,
       '...on both the empty and the filled item: %d'
       % BUCKET.count('~compost_bucket_is_compost(last_useitem) = true'))
 
-# The forward link is the part that was missing from the whole cache: oc_cert and
-# inv_moveitem_cert both read certlink off the BASE obj (certtemplate == -1 && certlink >= 0), and
-# not one obj in this 377 cache carried it - only the notes carried the backward link. So noted
-# compost could not exist at all, and neither could a noted anything.
+# Noted compost exists because the notes do, and because the PACKER derives the forward link from
+# the name cert_<base> - nothing in any config carries it. An earlier pass of this battery asserted
+# a hand-written certlink= on each base, which was a no-op written on a wrong guess about how
+# noting works; tools/certcheck.py now fails if any config carries one.
 for base in ('bucket_compost', 'bucket_supercompost'):
     blk = block(ALLOBJ, base)
-    check('certlink=cert_%s' % base in blk,
-          '%s names its note, which is what makes oc_cert answer' % base)
+    check('certlink' not in blk,
+          '%s does not hand-write a forward link - the packer derives it' % base)
     check('certtemplate' not in blk,
-          '...and is not itself a note, which is the other half of the engine\'s test')
+          '...and is not itself a note, which is half the engine\'s test for a noteable obj')
     note = block(ALLOBJ, 'cert_' + base)
     check('certlink=%s' % base in note and 'certtemplate=template_for_cert' in note,
-          '...and its note still points back at it')
+          '...while cert_%s is a real note pointing back at it, which is the other half' % base)
+    check('cert_%s' % base in read('pack/obj.pack'),
+          '...and is registered in pack/obj.pack, or the packer would never see it')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
