@@ -166,13 +166,19 @@ jobs:
     name: ${{ matrix.script }}
     if: github.event_name == 'workflow_dispatch' && inputs.mutations
     runs-on: ubuntu-latest
-    # The poh sweep is 242 mutations and each one re-runs a battery that drives five generators.
+    # A shard of poh's 266 is under two hours; the other harnesses are minutes.
     timeout-minutes: 330
     strategy:
       fail-fast: false
       matrix:
+        # poh_mutate IS SHARDED. 266 mutations at about a minute and a half each is six and a half
+        # hours - past any job timeout, and the reason this sweep has never once finished. Four
+        # shards bring it under two hours each. The other harnesses are small enough whole.
         script:
-        - poh_mutate.py
+        - poh_mutate.py --shard 0/4
+        - poh_mutate.py --shard 1/4
+        - poh_mutate.py --shard 2/4
+        - poh_mutate.py --shard 3/4
         - pet_mutate.py
         - pouch_mutate.py
         - compost_mutate.py
@@ -181,18 +187,52 @@ jobs:
         - maxcape_mutate.py
         - cert_mutate.py
 
+    # THE SAME SETUP AS THE pack JOB, copied rather than trimmed per harness. Every harness spawns
+    # a checker, and poh_battery among them reads the engine source AND the packed cache - so a
+    # runner without both makes group 64b fail for every mutation and report "caught, but by",
+    # which is the pollution that makes a whole sweep worthless. Forty seconds of setup against
+    # tens of minutes of mutations is not worth conditioning it per harness.
     steps:
     - uses: actions/checkout@v4
+      with:
+        path: content
+
+    - uses: actions/checkout@v4
+      with:
+        repository: coreysho/Engine-TS
+        ref: 377-wip
+        path: engine
 
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
 
+    - uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: latest
+
+    - uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
     - name: Install
+      working-directory: engine
+      run: bun install
+
+    - name: Install the renderers the batteries import
       run: pip install pillow numpy
 
-    # Through the environment rather than into the command line, so a filter with a space or a
-    # quote in it cannot become part of the command. Empty means every mutation.
-    - env:
+    - name: Pack
+      working-directory: engine
+      env:
+        BUILD_VERIFY: 'false'
+      run: bun run build
+
+    # Through the environment rather than the command line, so a filter with a space or a quote in
+    # it cannot become part of the command. Empty means every mutation in the shard.
+    - name: Mutate
+      working-directory: content
+      env:
         FILTER: ${{ inputs.filter }}
       run: python tools/${{ matrix.script }} $FILTER

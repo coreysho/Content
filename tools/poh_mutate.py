@@ -20,7 +20,13 @@ is the sequence a person would actually produce. They are still listed below so 
 import os, shutil, subprocess, sys
 
 C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-W = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'poh_mutate_work')
+# The work tree is per-shard, so two shards on one machine do not overwrite each other's copy.
+# In CI each shard is its own runner and it would not matter; locally it would, silently.
+_shardtag = ''
+for _k, _a in enumerate(sys.argv):
+    if _a == '--shard' and _k + 1 < len(sys.argv):
+        _shardtag = '_' + sys.argv[_k + 1].replace('/', 'of')
+W = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'poh_mutate_work' + _shardtag)
 # The real engine clone, under either name it goes by, handed to every checker through the
 # environment - see the note beside the subprocess call.
 ENGINE = next((os.path.join(C, '..', e) for e in ('engine', 'Engine-TS')
@@ -1117,8 +1123,19 @@ def main():
     # A FULL RUN TAKES OVER AN HOUR now that the battery drives five generators. An argument
     # filters by the why string, which is how one round's entries get run on their own:
     #     python3 tools/poh_mutate.py 67
-    only = sys.argv[1] if len(sys.argv) > 1 else None
+    only = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith('--shard') else None
+    # SHARDING, so the full sweep can finish. 266 mutations at about a minute and a half each is
+    # six and a half hours, past any CI job's timeout - and the reason this harness has never once
+    # run to completion. --shard i/n takes every nth entry starting at i, so four runners bring it
+    # under two hours each and none of them can lose another's work.
+    shard = None
+    for k, a in enumerate(sys.argv):
+        if a == '--shard' and k + 1 < len(sys.argv):
+            shard = tuple(int(x) for x in sys.argv[k + 1].split('/'))
     muts = [m for m in MUTS if not only or only in m[3]]
+    if shard:
+        muts = [m for k, m in enumerate(muts) if k % shard[1] == shard[0]]
+        print('shard %d of %d: %d of %d mutations' % (shard[0], shard[1], len(muts), len(MUTS)))
     if only:
         print('running %d of %d mutations matching %r' % (len(muts), len(MUTS), only))
     fails = 0
