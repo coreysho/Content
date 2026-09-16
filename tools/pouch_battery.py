@@ -7,7 +7,7 @@ you have no runes while the pouch is full.
 
     python3 tools/pouch_battery.py
 """
-import os, re, sys
+import json, os, re, subprocess, sys
 
 C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -30,6 +30,12 @@ INV = read('scripts/storage_items/configs/storage_items.inv')
 CONST = read('scripts/storage_items/configs/rune_pouch.constant')
 ENUM = read('scripts/storage_items/configs/rune_pouch.enum')
 ALCH = read('scripts/skill_magic/scripts/spells/alchemy.rs2')
+UI = read('scripts/storage_items/scripts/rune_pouch_ui.rs2')
+LOGIN = read('scripts/login_logout/scripts/login.rs2')
+MAINIF = read('scripts/storage_items/interfaces/rune_pouch_main.if')
+SIDEIF = read('scripts/storage_items/interfaces/rune_pouch_side.if')
+MIRRORIF = read('scripts/storage_items/interfaces/rune_pouch_mirror.if')
+IFPACK = read('pack/interface.pack')
 LEATHER = read('scripts/skill_crafting/scripts/leather/leather.rs2')
 DEATH = read('scripts/player/scripts/death.rs2')
 
@@ -128,26 +134,35 @@ check('blankrune' not in allowed, 'rune essence is not a rune and does not go in
 
 # ============================================================================ 5
 print('5. Fill, Empty, Check and Destroy, on the helpers the other three storage items use')
-for op, what in (('opheld1', 'Fill'), ('opheld2', 'Empty'), ('opheld3', 'Check'),
-                 ('opheld5', 'Destroy')):
+# Check is the exception: it opens the window (group 8) rather than reading the contents out down
+# the chatbox, so its trigger lives in rune_pouch_ui.rs2 and it reuses no storage helper.
+for op, what, where in (('opheld1', 'Fill', POUCH), ('opheld2', 'Empty', POUCH),
+                        ('opheld3', 'Check', UI), ('opheld5', 'Destroy', POUCH)):
     for item in ('rune_pouch', 'divine_rune_pouch'):
-        check('[%s,%s]' % (op, item) in POUCH, '%s has %s' % (item, what))
+        check('[%s,%s]' % (op, item) in where, '%s has %s' % (item, what))
         check(objblock(item).get(op.replace('opheld', 'iop')) == what,
               '...and the obj advertises it')
 for helper, what in (('~storage_empty_to_inv(rune_pouch_store', 'Empty'),
-                     ('~storage_check(rune_pouch_store', 'Check'),
                      ('@storage_destroy(', 'Destroy')):
     check(POUCH.count(helper) == 2,
           '%s reuses the shared helper, for both pouches' % what)
+check('~storage_empty_to_inv(rune_pouch_store' in UI,
+      '...and the window\'s Empty button goes through the same helper as the item op')
 for h in ('proc,storage_empty_to_inv', 'proc,storage_check', 'label,storage_destroy'):
     check('[' + h + ']' in STORAGE, '...which still exists: %s' % h.split(',')[1])
 
 # ============================================================================ 6
-print('6. the upgrade is OSRS\'s recipe with the one unobtainable ingredient swapped')
+print('6. the upgrade is OSRS\'s recipe, all four parts of it')
 up = code(block(POUCH, 'label,rune_pouch_upgrade'))
 check('stat_base(crafting) < ^rune_pouch_craft_level' in up, 'it wants the level, unboosted')
 check(const('rune_pouch_craft_level') == 75, 'which is OSRS\'s 75 Crafting')
-check('inv_del(inv, thread, 1);' in up, 'it spends a thread')
+# The Thread of Elidinis, not ordinary thread. The first pass substituted plain thread, which
+# made the recipe wrong rather than incomplete: the item exists in the OSRS cache and imports
+# cleanly, so there was never a reason to stand something else in for it.
+check('inv_del(inv, thread_of_elidinis, 1);' in up, 'it spends a Thread of Elidinis')
+check(not re.search(r'inv_(del|total)\(inv, thread,', up),
+      '...and not ordinary thread, which is a different item that must not work')
+check('inv_total(inv, thread_of_elidinis) < 1' in up, '...and says so when you have none')
 check('inv_del(inv, rune_pouch, 1);' in up and 'inv_add(inv, divine_rune_pouch, 1);' in up,
       'and swaps the pouch for the divine one')
 check('stat_advance' not in up, 'and gives no experience, as OSRS gives none')
@@ -160,7 +175,15 @@ check('[opheldu,rune_pouch]' in POUCH and 'last_useitem = needle' in POUCH,
 rev = code(block(POUCH, 'opheld4,divine_rune_pouch'))
 check('~rune_pouch_kinds_used > oc_param(rune_pouch, pouch_slots)' in rev,
       'Revert refuses while a fourth kind is inside rather than dropping it')
-check('inv_add(inv, thread, 1);' in rev, 'and hands the thread back')
+check('inv_add(inv, thread_of_elidinis, 1);' in rev,
+      'and hands the Thread of Elidinis back, which is the one OSRS returns')
+# The refund is why the sweep has to be told about it: an inv_add of a sourceless obj looks like
+# a source. It is exempted at script grain in nosourcespec.json, not by file.
+spec = json.loads(read('tools/nosourcespec.json'))['objs']['thread_of_elidinis']
+check(spec['ignore'] == ['rune_pouch.rs2:opheld4,divine_rune_pouch'],
+      '...and only that one script is excused from the obtainability sweep: %s' % spec['ignore'])
+check('osrs_source' in spec and 'Amascut' in spec['osrs_source'],
+      '...with where OSRS gets it written down')
 check(objblock('divine_rune_pouch').get('iop4') == 'Revert', 'the divine pouch advertises Revert')
 check('iop4' not in objblock('rune_pouch'), 'and the plain one has nothing to revert')
 
@@ -174,6 +197,137 @@ check('rune_pouch_store' not in DEATH,
 check(objblock('rune_pouch').get('tradeable') == 'no'
       and objblock('divine_rune_pouch').get('tradeable') == 'no',
       'both pouches are untradeable, as in OSRS')
+
+# ============================================================================ 8
+print('8. the window: four slots you can take out of and a pack you can put in from')
+check('[opheld3,rune_pouch] ~rune_pouch_open;' in UI
+      and '[opheld3,divine_rune_pouch] ~rune_pouch_open;' in UI,
+      'Check opens the window, for both pouches')
+check('~storage_check(rune_pouch_store' not in POUCH,
+      '...and no longer lists the contents down the chatbox instead')
+check(objblock('rune_pouch').get('iop3') == 'Check'
+      and objblock('divine_rune_pouch').get('iop3') == 'Check',
+      '...which is still the op both items advertise')
+op = code(block(UI, 'proc,rune_pouch_open'))
+check('if ($slots = 0) {' in op, 'it does nothing when you are not carrying a pouch')
+check('inv_transmit(rune_pouch_store, rune_pouch_main:pouch);' in op
+      and 'inv_transmit(inv, rune_pouch_side:inv);' in op,
+      'it transmits the store and your pack')
+check('if_openmain_side(rune_pouch_main, rune_pouch_side);' in op,
+      '...and opens them as a window and a sidebar, the way the bank does')
+cl = code(block(UI, 'if_close,rune_pouch_main'))
+check('inv_stoptransmit(rune_pouch_main:pouch);' in cl
+      and 'inv_stoptransmit(rune_pouch_side:inv);' in cl, 'and stops both on close')
+check('rune_pouch_mirror' not in cl,
+      '...but NOT the mirror, which is not part of this window')
+# taking out
+for n, amt in ((1, '1'), (2, '5'), (3, '10'), (4, '^max_32bit_int')):
+    check('[inv_button%d,rune_pouch_main:pouch] ~rune_pouch_remove(last_slot, %s);' % (n, amt) in UI,
+          'Remove %s is wired to slot click %d' % (amt, n))
+    check('[inv_button%d,rune_pouch_side:inv] ~rune_pouch_store_op(last_item, %s);' % (n, amt) in UI,
+          '...and Store %s to the sidebar' % amt)
+for i, o in enumerate(['Remove 1', 'Remove 5', 'Remove 10', 'Remove All'], 1):
+    check('option%d=%s' % (i, o) in MAINIF, 'the window slot advertises %s' % o)
+for i, o in enumerate(['Store 1', 'Store 5', 'Store 10', 'Store All'], 1):
+    check('option%d=%s' % (i, o) in SIDEIF, 'the sidebar advertises %s' % o)
+rm = code(block(UI, 'proc,rune_pouch_remove'))
+check('if ($slot >= ~rune_pouch_slots) {' in rm,
+      'a slot the carried pouch cannot reach will not empty - the plain pouch does not spill the '
+      'divine one\'s fourth kind, which is the rule Revert already follows')
+check('min($count, inv_total(rune_pouch_store, $rune))' in rm, '...and it never takes more than is there')
+check('inv_freespace(inv) < 1 & inv_total(inv, $rune) < 1' in rm,
+      '...and refuses when there is no room, unless the rune can stack onto one you hold')
+check('~rune_pouch_refresh;' in rm, '...and repaints the labels afterwards')
+# putting in
+put = code(block(UI, 'proc,rune_pouch_put'))
+check('~rune_pouch_accepts($obj) = false' in put, 'only a rune goes in')
+check('$inside = 0 & ~rune_pouch_kinds_used >= ~rune_pouch_slots' in put,
+      '...a new kind needs a slot the pouch can reach')
+check('^rune_pouch_max_per_rune - $inside' in put, '...and the 16,000 cap still applies')
+check('[opheldu,rune_pouch]' in POUCH and '[opheldu,divine_rune_pouch]' in POUCH,
+      'a rune used on either pouch goes in, which is how anyone tries it first')
+check(POUCH.count('~rune_pouch_put(last_useitem, ^max_32bit_int)') == 2,
+      '...both through the same proc as the window: %d'
+      % POUCH.count('~rune_pouch_put(last_useitem, ^max_32bit_int)'))
+check('last_useitem = needle' in code(block(POUCH, 'opheldu,rune_pouch')),
+      '...and the needle is still checked first, so the upgrade is not shadowed')
+# the labels
+ref = code(block(UI, 'proc,rune_pouch_refresh'))
+slots = int(re.search(r'size=(\d+)', block(INV, 'rune_pouch_store')).group(1))
+for i in range(slots):
+    check('if_settext(rune_pouch_main:name%d, ~rune_pouch_slotname(%d));' % (i, i) in ref,
+          'slot %d gets its rune name written under it' % i)
+    check('[name%d]' % i in MAINIF, '...and the component exists')
+check(ref.count('if_settext(rune_pouch_main:name') == slots,
+      'one label per slot and no more: %d of %d'
+      % (ref.count('if_settext(rune_pouch_main:name'), slots))
+check('if_sethide(rune_pouch_main:locked, true);' in ref
+      and 'if_sethide(rune_pouch_main:locked, false);' in ref,
+      'the fourth slot is marked locked for the plain pouch')
+check('type=layer' in block(MAINIF, 'locked'),
+      '...on a LAYER, because if_sethide does nothing to anything else in this client')
+for where in ('if_button,rune_pouch_main:fill', 'if_button,rune_pouch_main:empty',
+              'proc,rune_pouch_store_op'):
+    check('~rune_pouch_refresh' in code(block(UI, where)),
+          '...repainted after %s' % where.split(',')[-1])
+
+# ============================================================================ 9
+print('9. the mirror, which is why a rune in the pouch can be cast at all')
+check('[proc,rune_pouch_mirror_start]' in UI and
+      'inv_transmit(rune_pouch_store, rune_pouch_mirror:runes);' in UI,
+      'there is one proc that starts the mirror')
+check('~rune_pouch_mirror_start;' in code(LOGIN),
+      '...and login starts it, so it runs for the whole session')
+check('inv_stoptransmit(rune_pouch_mirror' not in UI + POUCH,
+      '...and nothing ever stops it')
+check('type=inv' in MIRRORIF,
+      'the mirror component is an inv - the client allocates invSlotObjId at unpack for type 2 and '
+      'keeps those components through unloadCom, which is what makes it safe to count before '
+      'anything has been transmitted')
+check('rune_pouch_mirror:runes' in IFPACK, '...and it is in interface.pack for the packer to find')
+check('option' not in MIRRORIF, '...with no options, because nothing ever clicks it')
+check(re.search(r'width=%d\s*\nheight=1' % slots, MIRRORIF),
+      '...and as many slots as the store has: %d' % slots)
+# the ops themselves
+# One check per interface rather than one for the whole run: a single gate means a mutation that
+# breaks one spellbook is "caught" by a check that names a different one.
+r = subprocess.run([sys.executable, os.path.join(C, 'tools/genpouchruneops.py'), '--check'],
+                   capture_output=True, text=True, cwd=C)
+state, raw = {}, []
+for l in r.stdout.split('\n'):
+    # The KEYS are normalised, so a separator difference cannot break the checks below on one
+    # platform and pass on the other - which is exactly what it did: the generator printed
+    # backslashes on Windows and this battery, looking for 'scripts/', saw no files at all.
+    # The RAW lines are kept so the separator itself can still be checked, below, rather than
+    # this normalisation quietly hiding a regression from the check that is meant to catch it.
+    if l.replace(chr(92), '/').startswith('scripts/'):
+        raw.append(l.split()[0])
+        state[l.replace(chr(92), '/').split()[0]] = l.split()[-1]
+check(len(state) == 6,
+      'six interfaces count runes, and the generator finds them itself rather than being told: %d'
+      % len(state))
+for rel in sorted(state):
+    check(state[rel] == 'unchanged',
+          '%s counts every pack rune in the pouch too' % os.path.basename(rel))
+check(all(chr(92) not in k for k in raw),
+      '...and names them with POSIX separators, so the printout is the same on Windows as on '
+      'Linux: %s' % (sorted(k for k in raw if chr(92) in k) or 'all forward slashes'))
+check('scripts/skill_combat/interfaces/magic/staff_spells.if' in state,
+      'the autocast panel is one of them - a hand-written list of the two spellbooks missed it, '
+      'and only decoding the packed archive found that out')
+runes = [l.split(',', 1)[1].strip() for l in ENUM.split('\n') if l.strip().startswith('val=')]
+MAGICIF = read('scripts/skill_magic/interfaces/magic.if')
+for r_ in ('airrune', 'lawrune', 'bloodrune'):
+    check('inv_count,rune_pouch_mirror:runes,%s' % r_ in MAGICIF, '%s is counted in the pouch' % r_)
+for notrune in ('banana', 'stafforb'):
+    check('inv_count,rune_pouch_mirror:runes,%s' % notrune not in MAGICIF,
+          '...and %s is not, being no kind of rune' % notrune)
+worst = 0
+for blk in re.split(r'(?m)^(?=\[)', MAGICIF + '\n' + read('scripts/skill_magic/interfaces/ancient_magic.if')):
+    for j in range(1, 6):
+        n = len([l for l in blk.split('\n') if l.startswith('script%dop' % j)])
+        worst = max(worst, n)
+check(worst <= 20, 'no script exceeds the packer\'s cap of 20 ops: worst is %d' % worst)
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

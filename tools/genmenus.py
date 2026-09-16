@@ -73,7 +73,11 @@ def emit(coms):
     """coms: list of (name, dict). dict keys are written in a fixed, readable order."""
     KEY = ['layer', 'type', 'x', 'y', 'buttontype', 'width', 'height', 'scroll', 'hide',
            'center', 'font', 'shadowed', 'fill', 'graphic', 'model', 'zoom', 'xan', 'yan',
-           'text', 'colour', 'activecolour', 'overcolour', 'option']
+           'text', 'colour', 'activecolour', 'overcolour', 'option',
+           # inv components, for the rune pouch window: margin is the gap between slots and the
+           # five options are the right-click menu the client builds for a slot.
+           'draggable', 'interactable', 'usable', 'margin',
+           'option1', 'option2', 'option3', 'option4', 'option5']
     out = []
     for name, c in coms:
         out.append('[%s]' % name)

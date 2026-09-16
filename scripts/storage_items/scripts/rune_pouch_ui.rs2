@@ -1,0 +1,139 @@
+// The rune pouch window, and the mirror that makes spells see what is in it.
+//
+// THE MIRROR. rune_pouch_mirror:runes is transmitted for the whole session, from login, and never
+// stopped. Nothing ever opens that interface - it exists so the CLIENT has a copy of the store it
+// can count. Every spell button in magic.if greys itself with a client-side script that sums
+// inv_count ops and only lights the spell when the total clears the spell's cost; those ops used
+// to name inventory:inv alone, so a rune in the pouch could not satisfy one and the cast was
+// refused before a packet was sent. tools/genpouchruneops.py adds the pouch's count beside every
+// inventory rune count, and this is where the client gets the numbers from.
+//
+// Why its own interface and not a hidden slot in the window: Player.clearComListeners drops every
+// transmit belonging to a root when that root closes, for modalMain, modalChat, modalSide and the
+// main overlay. A window component would stop being transmitted the first time you closed the
+// window. An interface that is never opened is never any of those.
+
+[proc,rune_pouch_mirror_start]
+inv_transmit(rune_pouch_store, rune_pouch_mirror:runes);
+
+// ---------------------------------------------------------------- the window
+[opheld3,rune_pouch] ~rune_pouch_open;
+[opheld3,divine_rune_pouch] ~rune_pouch_open;
+
+[proc,rune_pouch_open]
+def_int $slots = ~rune_pouch_slots;
+if ($slots = 0) {
+    return;
+}
+inv_transmit(rune_pouch_store, rune_pouch_main:pouch);
+inv_transmit(inv, rune_pouch_side:inv);
+~rune_pouch_refresh;
+if_openmain_side(rune_pouch_main, rune_pouch_side);
+
+// Everything about the window that the client cannot work out for itself: the subtitle, the four
+// slot names, and whether the fourth slot is out of reach. Called after anything that changes the
+// store, because the client redraws the ITEMS on its own but not the labels.
+//
+// Four if_settext calls rather than a loop: a component cannot be indexed in rs2, and four is the
+// number of slots in storage_items.inv. tools/pouch_battery.py holds the two in step.
+[proc,rune_pouch_refresh]
+def_int $slots = ~rune_pouch_slots;
+if ($slots >= inv_size(rune_pouch_store)) {
+    if_settext(rune_pouch_main:subtitle, "Divine rune pouch - <tostring($slots)> kinds of rune");
+    if_sethide(rune_pouch_main:locked, true);
+} else {
+    if_settext(rune_pouch_main:subtitle, "Rune pouch - <tostring($slots)> kinds of rune");
+    if_sethide(rune_pouch_main:locked, false);
+}
+if_settext(rune_pouch_main:name0, ~rune_pouch_slotname(0));
+if_settext(rune_pouch_main:name1, ~rune_pouch_slotname(1));
+if_settext(rune_pouch_main:name2, ~rune_pouch_slotname(2));
+if_settext(rune_pouch_main:name3, ~rune_pouch_slotname(3));
+
+// "Air rune" -> "Air". The client draws the count on the icon but never a name, and four 32px
+// rune icons are genuinely hard to tell apart - which is the whole reason for the labels.
+[proc,rune_pouch_slotname](int $slot)(string)
+def_obj $rune = inv_getobj(rune_pouch_store, $slot);
+if ($rune = null) {
+    return("");
+}
+return(~string_removeright(oc_name($rune), 5));
+
+[if_close,rune_pouch_main]
+inv_stoptransmit(rune_pouch_main:pouch);
+inv_stoptransmit(rune_pouch_side:inv);
+// The mirror is deliberately NOT stopped here. It is not part of this window.
+
+[if_button,rune_pouch_main:fill]
+~rune_pouch_fill;
+~rune_pouch_refresh;
+
+[if_button,rune_pouch_main:empty]
+~storage_empty_to_inv(rune_pouch_store, "rune pouch");
+~rune_pouch_refresh;
+
+// ---------------------------------------------------------------- taking runes out
+[inv_button1,rune_pouch_main:pouch] ~rune_pouch_remove(last_slot, 1);
+[inv_button2,rune_pouch_main:pouch] ~rune_pouch_remove(last_slot, 5);
+[inv_button3,rune_pouch_main:pouch] ~rune_pouch_remove(last_slot, 10);
+[inv_button4,rune_pouch_main:pouch] ~rune_pouch_remove(last_slot, ^max_32bit_int);
+[inv_buttond,rune_pouch_main:pouch]
+
+[proc,rune_pouch_remove](int $slot, int $count)
+def_obj $rune = inv_getobj(rune_pouch_store, $slot);
+if ($rune = null) {
+    return;
+}
+// A slot the carried pouch cannot reach is not yours to empty: the plain pouch keeps the divine
+// one's fourth kind where it is rather than spilling it (the same rule Revert follows).
+if ($slot >= ~rune_pouch_slots) {
+    mes("Your pouch cannot reach that slot. A divine rune pouch can.");
+    return;
+}
+def_int $take = min($count, inv_total(rune_pouch_store, $rune));
+if (inv_freespace(inv) < 1 & inv_total(inv, $rune) < 1) {
+    mes("You don't have room for that.");
+    return;
+}
+inv_moveitem(rune_pouch_store, inv, $rune, $take);
+~rune_pouch_refresh;
+
+// ---------------------------------------------------------------- putting runes in
+[inv_button1,rune_pouch_side:inv] ~rune_pouch_store_op(last_item, 1);
+[inv_button2,rune_pouch_side:inv] ~rune_pouch_store_op(last_item, 5);
+[inv_button3,rune_pouch_side:inv] ~rune_pouch_store_op(last_item, 10);
+[inv_button4,rune_pouch_side:inv] ~rune_pouch_store_op(last_item, ^max_32bit_int);
+
+[proc,rune_pouch_store_op](obj $obj, int $count)
+if ($obj = null) {
+    return;
+}
+if (~rune_pouch_put($obj, $count) = false) {
+    return;
+}
+~rune_pouch_refresh;
+
+// One rune in, however many of it will fit. Answers false and says why when none can go, so both
+// the window and a rune used on the pouch get the same wording.
+[proc,rune_pouch_put](obj $obj, int $count)(boolean)
+if (~rune_pouch_accepts($obj) = false) {
+    mes("That does not go in the pouch.");
+    return(false);
+}
+def_int $have = inv_total(inv, $obj);
+if ($have < 1) {
+    return(false);
+}
+def_int $inside = inv_total(rune_pouch_store, $obj);
+if ($inside = 0 & ~rune_pouch_kinds_used >= ~rune_pouch_slots) {
+    mes("Your pouch is already holding <tostring(~rune_pouch_slots)> kinds of rune.");
+    return(false);
+}
+def_int $space = calc(^rune_pouch_max_per_rune - $inside);
+if ($space < 1) {
+    mes("The pouch cannot hold any more of those.");
+    return(false);
+}
+def_int $n = min(min($count, $have), $space);
+inv_moveitem(inv, rune_pouch_store, $obj, $n);
+return(true);

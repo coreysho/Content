@@ -96,8 +96,8 @@ if ($moved > 0) {
 // ---------------------------------------------------------------- Empty, Check, Destroy
 [opheld2,rune_pouch] ~storage_empty_to_inv(rune_pouch_store, "rune pouch");
 [opheld2,divine_rune_pouch] ~storage_empty_to_inv(rune_pouch_store, "divine rune pouch");
-[opheld3,rune_pouch] ~storage_check(rune_pouch_store, "rune pouch");
-[opheld3,divine_rune_pouch] ~storage_check(rune_pouch_store, "divine rune pouch");
+// Check opens the window rather than listing the contents in the chatbox - see
+// scripts/rune_pouch_ui.rs2. ~storage_check is still what the other three storage items use.
 [opheld5,rune_pouch] @storage_destroy(rune_pouch, rune_pouch_store, "rune pouch");
 [opheld5,divine_rune_pouch] @storage_destroy(divine_rune_pouch, rune_pouch_store, "divine rune pouch");
 
@@ -108,6 +108,16 @@ if ($moved > 0) {
 if (last_useitem = needle) {
     @rune_pouch_upgrade;
 }
+if (~rune_pouch_put(last_useitem, ^max_32bit_int) = true) {
+    return;
+}
+~displaymessage(^dm_default);
+
+// The divine pouch has no needle recipe left to reach, so a rune used on it is all it answers.
+[opheldu,divine_rune_pouch]
+if (~rune_pouch_put(last_useitem, ^max_32bit_int) = true) {
+    return;
+}
 ~displaymessage(^dm_default);
 
 [label,rune_pouch_upgrade]
@@ -115,18 +125,18 @@ if (stat_base(crafting) < ^rune_pouch_craft_level) {
     mes("You need a Crafting level of <tostring(^rune_pouch_craft_level)> to stitch that.");
     return;
 }
-if (inv_total(inv, thread) < 1) {
-    mes("You need some thread to stitch the pouch with.");
+if (inv_total(inv, thread_of_elidinis) < 1) {
+    mes("You need a Thread of Elidinis to stitch the pouch with. Ordinary thread will not do it.");
     return;
 }
 if (inv_total(inv, rune_pouch) < 1) {
     return;
 }
-inv_del(inv, thread, 1);
+inv_del(inv, thread_of_elidinis, 1);
 inv_del(inv, rune_pouch, 1);
 inv_add(inv, divine_rune_pouch, 1);
 // No experience, as OSRS gives none for it.
-mes("You stitch the rune pouch into a divine rune pouch.");
+mes("You stitch the thread into the rune pouch. It is divine.");
 
 // Revert, which OSRS also offers. Refused while a fourth kind is inside rather than dropping it:
 // the store keeps all four, and the plain pouch simply cannot reach the last one.
@@ -141,5 +151,5 @@ if (inv_freespace(inv) < 1) {
 }
 inv_del(inv, divine_rune_pouch, 1);
 inv_add(inv, rune_pouch, 1);
-inv_add(inv, thread, 1);
+inv_add(inv, thread_of_elidinis, 1);
 mes("You unpick the stitching and get the thread back.");

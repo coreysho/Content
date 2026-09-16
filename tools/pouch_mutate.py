@@ -17,8 +17,71 @@ ENUM = 'scripts/storage_items/configs/rune_pouch.enum'
 ALCH = 'scripts/skill_magic/scripts/spells/alchemy.rs2'
 LEATHER = 'scripts/skill_crafting/scripts/leather/leather.rs2'
 DEATH = 'scripts/player/scripts/death.rs2'
+UI = 'scripts/storage_items/scripts/rune_pouch_ui.rs2'
+LOGIN = 'scripts/login_logout/scripts/login.rs2'
+MAINIF = 'scripts/storage_items/interfaces/rune_pouch_main.if'
+MIRRORIF = 'scripts/storage_items/interfaces/rune_pouch_mirror.if'
+MAGICIF = 'scripts/skill_magic/interfaces/magic.if'
+STAFFIF = 'scripts/skill_combat/interfaces/magic/staff_spells.if'
+SPEC = 'tools/nosourcespec.json'
 
 MUTS = [
+ # ---- 6, the recipe's real second ingredient
+ (POUCH, 'inv_del(inv, thread_of_elidinis, 1);', 'inv_del(inv, thread, 1);',
+  '6 it spends a Thread of Elidinis'),
+ (POUCH, 'if (inv_total(inv, thread_of_elidinis) < 1) {', 'if (inv_total(inv, thread) < 1) {',
+  '6 ...and says so when you have none'),
+ (POUCH, 'inv_add(inv, thread_of_elidinis, 1);', 'inv_add(inv, thread, 1);',
+  '6 and hands the Thread of Elidinis back'),
+ (SPEC, '"rune_pouch.rs2:opheld4,divine_rune_pouch"', '"rune_pouch.rs2"',
+  '6 ...and only that one script is excused from the obtainability sweep'),
+
+ # ---- 8, the window
+ (UI, '[opheld3,rune_pouch] ~rune_pouch_open;\n', '',
+  '8 Check opens the window, for both pouches'),
+ (UI, 'if ($slots = 0) {', 'if ($slots < 0) {',
+  '8 it does nothing when you are not carrying a pouch'),
+ (UI, 'inv_transmit(inv, rune_pouch_side:inv);', 'inv_transmit(worn, rune_pouch_side:inv);',
+  '8 it transmits the store and your pack'),
+ (UI, 'inv_stoptransmit(rune_pouch_side:inv);', 'inv_stoptransmit(rune_pouch_mirror:runes);',
+  '8 and stops both on close'),
+ # The one that matters most: stopping the mirror on close would break every spell the moment the
+ # player looked in the pouch once.
+ (UI, '// The mirror is deliberately NOT stopped here. It is not part of this window.',
+      'inv_stoptransmit(rune_pouch_mirror:runes);',
+  '8 ...but NOT the mirror, which is not part of this window'),
+ (UI, 'if ($slot >= ~rune_pouch_slots) {', 'if ($slot >= inv_size(rune_pouch_store)) {',
+  '8 a slot the carried pouch cannot reach will not empty'),
+ (UI, 'def_int $take = min($count, inv_total(rune_pouch_store, $rune));',
+      'def_int $take = $count;',
+  '8 ...and it never takes more than is there'),
+ (UI, 'if_settext(rune_pouch_main:name2, ~rune_pouch_slotname(2));\n', '',
+  '8 slot 2 gets its rune name written under it'),
+ (UI, 'if_sethide(rune_pouch_main:locked, false);', 'if_sethide(rune_pouch_main:locked, true);',
+  '8 the fourth slot is marked locked for the plain pouch'),
+ (MAINIF, 'option4=Remove All', 'option4=Destroy', '8 the window slot advertises Remove All'),
+ (POUCH, '[opheldu,divine_rune_pouch]\nif (~rune_pouch_put(last_useitem, ^max_32bit_int) = true) {\n    return;\n}\n~displaymessage(^dm_default);\n',
+         '',
+  '8 a rune used on either pouch goes in, which is how anyone tries it first'),
+ (UI, '~rune_pouch_accepts($obj) = false', '$obj = null', '8 only a rune goes in'),
+ (UI, '$inside = 0 & ~rune_pouch_kinds_used >= ~rune_pouch_slots',
+      '~rune_pouch_kinds_used >= inv_size(rune_pouch_store)',
+  '8 ...a new kind needs a slot the pouch can reach'),
+
+ # ---- 9, the mirror
+ (LOGIN, '~rune_pouch_mirror_start;\n', '',
+  '9 ...and login starts it, so it runs for the whole session'),
+ (MIRRORIF, 'type=inv', 'type=layer', '9 the mirror component is an inv'),
+ (MIRRORIF, 'width=4', 'width=3', '9 ...and as many slots as the store has'),
+ # A rune the spellbook can ask for that the client cannot see in the pouch: the spell stays grey
+ # and the cast is refused before a packet is sent, which is the whole bug.
+ (MAGICIF, 'script1op2=inv_count,rune_pouch_mirror:runes,airrune\n', '',
+  '9 magic.if counts every pack rune in the pouch too'),
+ (STAFFIF, 'script1op2=inv_count,rune_pouch_mirror:runes,airrune\n', '',
+  '9 staff_spells.if counts every pack rune in the pouch too'),
+ (MAGICIF, 'script1op1=inv_count,inventory:inv,airrune',
+           'script1op1=inv_count,inventory:inv,banana\nscript1op30=inv_count,rune_pouch_mirror:runes,banana',
+  '9 ...and banana is not, being no kind of rune'),
  # 1 - the store and the slot limits
  (OBJ, 'param=pouch_slots,3', 'param=pouch_slots,4',
   '1 the rune pouch reaches three of them'),
@@ -58,8 +121,13 @@ MUTS = [
  # 5 - an op that the item does not advertise, which is a dead click
  (OBJ, 'iop3=Check\niop5=Destroy\nparam=pouch_slots,3', 'iop5=Destroy\nparam=pouch_slots,3',
   '5 ...and the obj advertises it'),
- (POUCH, '~storage_check(rune_pouch_store, "rune pouch");', 'mes("It has runes in it.");',
-  '5 Check reuses the shared helper, for both pouches'),
+ (POUCH, '~storage_empty_to_inv(rune_pouch_store, "rune pouch");',
+         'inv_moveitem(rune_pouch_store, inv, airrune, 1);',
+  '5 Empty reuses the shared helper, for both pouches'),
+ ('scripts/storage_items/scripts/rune_pouch_ui.rs2',
+  '~storage_empty_to_inv(rune_pouch_store, "rune pouch");',
+  'inv_moveitem(rune_pouch_store, inv, airrune, ^max_32bit_int);',
+  '5 ...and the window\'s Empty button goes through the same helper as the item op'),
  # 6 - the upgrade
  (CONST, '^rune_pouch_craft_level = 75', '^rune_pouch_craft_level = 1',
   '6 which is OSRS\'s 75 Crafting'),

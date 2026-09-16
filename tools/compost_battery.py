@@ -26,6 +26,7 @@ OBJ = read('scripts/skill_farming/configs/compost_bucket.obj')
 INV = read('scripts/skill_farming/configs/compost_bucket.inv')
 CONST = read('scripts/skill_farming/configs/compost_bucket.constant')
 FCONST = read('scripts/skill_farming/configs/farming.constant')
+ALLOBJ = read('scripts/_unpack/377/all.obj')
 STORAGE = read('scripts/storage_items/scripts/storage_items.rs2')
 
 def const(txt, n):
@@ -44,13 +45,22 @@ check(const(CONST, 'compost_bucket_per_bucket') == 2,
 check(const(CONST, 'compost_bucket_max') == 10000, 'it holds 10,000 uses')
 check(const(CONST, 'compost_bucket_fill_max') == 5000, 'and takes 5,000 buckets in one Fill')
 fill = code(block(BUCKET, 'proc,compost_bucket_fill'))
-check('$buckets * ^compost_bucket_per_bucket' in fill,
+check('$took * ^compost_bucket_per_bucket' in fill,
       'Fill multiplies buckets into uses rather than storing buckets')
 check('min($have, ^compost_bucket_fill_max)' in fill, '...caps how many buckets one Fill takes')
 check('$room / ^compost_bucket_per_bucket' in fill,
       '...and converts the room left back into buckets, so it cannot overfill')
 check('^compost_bucket_max - ~compost_bucket_uses' in fill, 'the room is measured in uses')
-check('inv_add(inv, bucket_empty, $buckets);' in fill, 'and the empty buckets come back')
+# THE ONE DEPARTURE FROM OSRS, and it is deliberate: OSRS hands the empty buckets back in the same
+# noted or unnoted form they went in as. Here the buckets go in with the compost. Five thousand
+# empty buckets are not a reward, and the whole point of the item is not to handle buckets.
+check('bucket_empty' not in fill,
+      'the buckets go IN - nothing comes back, which is the one place this differs from OSRS')
+check('bucket_empty' not in BUCKET,
+      '...and nowhere else in the file hands one back either')
+check('$took = ~compost_bucket_take($want, $buckets)' in fill,
+      'what is actually stored is what the pack could give up, not what was asked for')
+check('if ($took < 1) {' in fill, '...and nothing is stored when it could give up none')
 
 # ============================================================================ 2
 print('2. the state is the store\'s one slot: the obj is the tier, the count is the uses')
@@ -164,6 +174,46 @@ check('WARNING' not in r.stdout,
 re2 = code(block(BUCKET, 'proc,compost_bucket_restyle'))
 check(re2.count('inv_add(inv, bottomless_bucket') == re2.count('inv_del(inv, bottomless_bucket'),
       'every add in the swap has its delete, so nothing is created out of nothing')
+
+# ============================================================================ 7
+print('7. noted compost, which is the only way the capacity is reachable')
+# 10,000 uses is 5,000 buckets and a pack holds 28. Without notes the cap is decoration.
+held = code(block(BUCKET, 'proc,compost_bucket_held'))
+check('oc_cert($bucket)' in held, 'the count asks for the obj\'s noted form')
+check('inv_total(inv, $bucket) + inv_total(inv, $note)' in held,
+      '...and counts loose buckets and the noted stack together')
+check('if ($note = $bucket) {' in held,
+      '...falling back to loose only when the obj has no note, which is what oc_cert answers then')
+take = code(block(BUCKET, 'proc,compost_bucket_take'))
+check('min(inv_total(inv, $bucket), $count)' in take, 'and spending takes the loose ones first')
+check('$rest = calc($count - $loose)' in take, '...then the remainder out of the notes')
+check('inv_del(inv, $note, $fromnote);' in take, '...by deleting from the noted stack')
+check('return(calc($loose + $fromnote));' in take, '...and answers what it really got')
+check('~compost_bucket_held(bucket_supercompost) > 0' in fill
+      and '~compost_bucket_held(bucket_compost) > 0' in fill,
+      'choosing the tier looks at the noted stack too, so a noted-only pack still fills')
+check('def_int $have = ~compost_bucket_held($want);' in fill,
+      '...and so does how much there is to pour')
+isc = code(block(BUCKET, 'proc,compost_bucket_is_compost'))
+check('oc_cert(bucket_compost)' in isc and 'oc_cert(bucket_supercompost)' in isc,
+      'a noted bucket used on it fills it, as in OSRS')
+check(BUCKET.count('~compost_bucket_is_compost(last_useitem) = true') == 2,
+      '...on both the empty and the filled item: %d'
+      % BUCKET.count('~compost_bucket_is_compost(last_useitem) = true'))
+
+# The forward link is the part that was missing from the whole cache: oc_cert and
+# inv_moveitem_cert both read certlink off the BASE obj (certtemplate == -1 && certlink >= 0), and
+# not one obj in this 377 cache carried it - only the notes carried the backward link. So noted
+# compost could not exist at all, and neither could a noted anything.
+for base in ('bucket_compost', 'bucket_supercompost'):
+    blk = block(ALLOBJ, base)
+    check('certlink=cert_%s' % base in blk,
+          '%s names its note, which is what makes oc_cert answer' % base)
+    check('certtemplate' not in blk,
+          '...and is not itself a note, which is the other half of the engine\'s test')
+    note = block(ALLOBJ, 'cert_' + base)
+    check('certlink=%s' % base in note and 'certtemplate=template_for_cert' in note,
+          '...and its note still points back at it')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

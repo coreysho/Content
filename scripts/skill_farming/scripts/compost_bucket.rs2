@@ -14,6 +14,40 @@ return(inv_getobj(compost_bucket_store, 0));
 [proc,compost_bucket_uses]()(int)
 return(inv_getnum(compost_bucket_store, 0));
 
+// How much compost of one kind you are carrying, counting the noted stack as well as the loose
+// buckets. A 10,000-use bucket is pointless if it can only be fed 28 buckets at a time, so the
+// note is not an optional extra here - it is the only way to reach the capacity.
+[proc,compost_bucket_held](namedobj $bucket)(int)
+def_obj $note = oc_cert($bucket);
+if ($note = $bucket) {
+    return(inv_total(inv, $bucket));
+}
+return(calc(inv_total(inv, $bucket) + inv_total(inv, $note)));
+
+// Take $count buckets of one kind out of the pack, loose ones first and then out of the noted
+// stack, and answer how many it actually got.
+[proc,compost_bucket_take](namedobj $bucket, int $count)(int)
+def_int $loose = min(inv_total(inv, $bucket), $count);
+if ($loose > 0) {
+    inv_del(inv, $bucket, $loose);
+}
+def_int $rest = calc($count - $loose);
+if ($rest < 1) {
+    return($loose);
+}
+def_obj $note = oc_cert($bucket);
+if ($note = $bucket) {
+    return($loose);
+}
+// inv_del and inv_total both take an obj rather than a namedobj, which is what makes this work
+// at all: oc_cert answers an obj, and an obj cannot be assigned to a namedobj local - the build
+// catches that, rs2check does not. Nothing here needs inv_add, which is the namedobj one.
+def_int $fromnote = min(inv_total(inv, $note), $rest);
+if ($fromnote > 0) {
+    inv_del(inv, $note, $fromnote);
+}
+return(calc($loose + $fromnote));
+
 [proc,compost_bucket_carried]()(namedobj)
 if (inv_total(inv, bottomless_bucket_filled) > 0) {
     return(bottomless_bucket_filled);
@@ -47,18 +81,28 @@ if (~compost_bucket_uses > 0) {
 // Using a bucket of compost on it fills it too, which is the way OSRS does it and the way anyone
 // would try first.
 [opheldu,bottomless_bucket]
-if (last_useitem = bucket_compost | last_useitem = bucket_supercompost) {
+if (~compost_bucket_is_compost(last_useitem) = true) {
     ~compost_bucket_fill;
     return;
 }
 ~displaymessage(^dm_default);
 
 [opheldu,bottomless_bucket_filled]
-if (last_useitem = bucket_compost | last_useitem = bucket_supercompost) {
+if (~compost_bucket_is_compost(last_useitem) = true) {
     ~compost_bucket_fill;
     return;
 }
 ~displaymessage(^dm_default);
+
+// Either compost, noted or not - four objs, and OSRS lets you use any of them on it.
+[proc,compost_bucket_is_compost](obj $obj)(boolean)
+if ($obj = bucket_compost | $obj = bucket_supercompost) {
+    return(true);
+}
+if ($obj = oc_cert(bucket_compost) | $obj = oc_cert(bucket_supercompost)) {
+    return(true);
+}
+return(false);
 
 [proc,compost_bucket_fill]
 def_obj $inside = ~compost_bucket_tier;
@@ -70,16 +114,16 @@ if ($inside = bucket_supercompost) {
     $want = bucket_supercompost;
 } else if ($inside = bucket_compost) {
     $want = bucket_compost;
-} else if (inv_total(inv, bucket_supercompost) > 0) {
+} else if (~compost_bucket_held(bucket_supercompost) > 0) {
     $want = bucket_supercompost;
-} else if (inv_total(inv, bucket_compost) > 0) {
+} else if (~compost_bucket_held(bucket_compost) > 0) {
     $want = bucket_compost;
 }
 if ($want = null) {
     mes("You have no compost to put in the bucket.");
     return;
 }
-def_int $have = inv_total(inv, $want);
+def_int $have = ~compost_bucket_held($want);
 if ($have < 1) {
     mes("The bucket already holds <lowercase(oc_name($want))>, and you have none left to put in.");
     return;
@@ -92,11 +136,18 @@ if ($room < ^compost_bucket_per_bucket) {
 // one bucket in, two uses out - and never more buckets than one Fill accepts
 def_int $buckets = min($have, ^compost_bucket_fill_max);
 $buckets = min($buckets, calc($room / ^compost_bucket_per_bucket));
-inv_del(inv, $want, $buckets);
-inv_add(inv, bucket_empty, $buckets);
-inv_add(compost_bucket_store, $want, calc($buckets * ^compost_bucket_per_bucket));
+// The buckets go IN WITH the compost. OSRS hands the empties back in the same noted or unnoted
+// form they went in as; this server keeps them, on purpose - see the note in the obj config.
+// $took rather than $buckets from here on, because the pack is what decides how many it could
+// actually give up.
+def_int $took = ~compost_bucket_take($want, $buckets);
+if ($took < 1) {
+    mes("You have no compost to put in the bucket.");
+    return;
+}
+inv_add(compost_bucket_store, $want, calc($took * ^compost_bucket_per_bucket));
 ~compost_bucket_restyle;
-mes("You pour <tostring($buckets)> <lowercase(oc_name($want))> in. The bucket holds <tostring(~compost_bucket_uses)> uses.");
+mes("You pour <tostring($took)> <lowercase(oc_name($want))> in. The bucket holds <tostring(~compost_bucket_uses)> uses.");
 
 // ---------------------------------------------------------------- Check
 [opheld2,bottomless_bucket] ~compost_bucket_check;

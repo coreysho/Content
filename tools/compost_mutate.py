@@ -18,20 +18,53 @@ OBJ = 'scripts/skill_farming/configs/compost_bucket.obj'
 INV = 'scripts/skill_farming/configs/compost_bucket.inv'
 CONST = 'scripts/skill_farming/configs/compost_bucket.constant'
 SPEC = 'tools/nosourcespec.json'
+ALLOBJ = 'scripts/_unpack/377/all.obj'
 
 MUTS = [
+ # ---- 7, noted compost and the buckets that do not come back
+ (BUCKET, 'inv_add(compost_bucket_store, $want, calc($took * ^compost_bucket_per_bucket));',
+          'inv_add(compost_bucket_store, $want, calc($took * ^compost_bucket_per_bucket));\n'
+          'inv_add(inv, bucket_empty, $took);',
+  '7 the buckets go IN - nothing comes back'),
+ (BUCKET, 'return(calc(inv_total(inv, $bucket) + inv_total(inv, $note)));',
+          'return(inv_total(inv, $bucket));',
+  '7 ...and counts loose buckets and the noted stack together'),
+ (BUCKET, 'def_int $loose = min(inv_total(inv, $bucket), $count);', 'def_int $loose = 0;',
+  '7 and spending takes the loose ones first'),
+ (BUCKET, 'inv_del(inv, $note, $fromnote);', 'inv_del(inv, $bucket, $fromnote);',
+  '7 ...by deleting from the noted stack'),
+ (BUCKET, 'return(calc($loose + $fromnote));', 'return($count);',
+  '7 ...and answers what it really got'),
+ (BUCKET, 'def_int $have = ~compost_bucket_held($want);',
+          'def_int $have = inv_total(inv, $want);',
+  '7 ...and so does how much there is to pour'),
+ (BUCKET, '} else if (~compost_bucket_held(bucket_supercompost) > 0) {',
+          '} else if (inv_total(inv, bucket_supercompost) > 0) {',
+  '7 choosing the tier looks at the noted stack too'),
+ (BUCKET, 'if ($obj = oc_cert(bucket_compost) | $obj = oc_cert(bucket_supercompost)) {',
+          'if ($obj = bucket_compost | $obj = bucket_supercompost) {',
+  '7 a noted bucket used on it fills it, as in OSRS'),
+ # The forward certlink. Without it oc_cert answers the base obj, noted compost cannot exist, and
+ # nothing above works - so it is the one line the whole group rests on.
+ (ALLOBJ, 'certlink=cert_bucket_compost', 'certtemplate=template_for_cert',
+  '7 bucket_compost names its note, which is what makes oc_cert answer'),
+ (ALLOBJ, 'certlink=cert_bucket_supercompost\n', '',
+  '7 bucket_supercompost names its note, which is what makes oc_cert answer'),
+ (BUCKET, 'def_int $took = ~compost_bucket_take($want, $buckets);\nif ($took < 1) {',
+          'def_int $took = $buckets;\nif ($took < 1) {',
+  '7 what is actually stored is what the pack could give up'),
+
  # 1 - the numbers, and the doubling that is the whole point of the item
  (CONST, '^compost_bucket_per_bucket = 2', '^compost_bucket_per_bucket = 1',
   '1 a bucket poured in is worth two uses'),
+ (BUCKET, 'calc($took * ^compost_bucket_per_bucket)', 'calc($took + $took)',
+  '1 Fill multiplies buckets into uses rather than storing buckets'),
  (CONST, '^compost_bucket_max = 10000', '^compost_bucket_max = 1000',
   '1 it holds 10,000 uses'),
  (CONST, '^compost_bucket_fill_max = 5000', '^compost_bucket_fill_max = 50',
   '1 and takes 5,000 buckets in one Fill'),
  # Storing the buckets instead of the uses. The item still works, holds the same number of things,
  # and is worth exactly half what it should be - the failure this doubling is for.
- (BUCKET, 'inv_add(compost_bucket_store, $want, calc($buckets * ^compost_bucket_per_bucket));',
-          'inv_add(compost_bucket_store, $want, $buckets);',
-  '1 Fill multiplies buckets into uses rather than storing buckets'),
  (BUCKET, 'def_int $buckets = min($have, ^compost_bucket_fill_max);',
           'def_int $buckets = $have;',
   '1 ...caps how many buckets one Fill takes'),
@@ -43,8 +76,6 @@ MUTS = [
  (BUCKET, 'def_int $room = calc(^compost_bucket_max - ~compost_bucket_uses);',
           'def_int $room = ^compost_bucket_max;',
   '1 the room is measured in uses'),
- (BUCKET, 'inv_add(inv, bucket_empty, $buckets);\n', '',
-  '1 and the empty buckets come back'),
 
  # 2 - the state is the store's one slot and nothing else
  (INV, 'size=1', 'size=2', '2 the store has one slot'),
@@ -62,8 +93,8 @@ MUTS = [
   '2 and no param for what is inside'),
  (BUCKET, 'if ($inside = bucket_supercompost) {\n    $want = bucket_supercompost;\n'
           '} else if ($inside = bucket_compost) {\n    $want = bucket_compost;\n'
-          '} else if (inv_total(inv, bucket_supercompost) > 0) {',
-          'if (inv_total(inv, bucket_supercompost) > 0) {',
+          '} else if (~compost_bucket_held(bucket_supercompost) > 0) {',
+          'if (~compost_bucket_held(bucket_supercompost) > 0) {',
   '2 Fill looks at what is already inside before it chooses what to pour'),
 
  # 3 - a use is spent instead of a bucket, and only when the caller says so
@@ -91,9 +122,9 @@ MUTS = [
   '3 and the tier it applies is the one inside'),
 
  # 4 - the icon
- (BUCKET, 'inv_add(compost_bucket_store, $want, calc($buckets * ^compost_bucket_per_bucket));\n'
+ (BUCKET, 'inv_add(compost_bucket_store, $want, calc($took * ^compost_bucket_per_bucket));\n'
           '~compost_bucket_restyle;\n',
-          'inv_add(compost_bucket_store, $want, calc($buckets * ^compost_bucket_per_bucket));\n',
+          'inv_add(compost_bucket_store, $want, calc($took * ^compost_bucket_per_bucket));\n',
   '4 ...called after compost_bucket_fill'),
  (BUCKET, '} else if ($have = bottomless_bucket_filled) {\n'
           '    inv_del(inv, bottomless_bucket_filled, 1);\n'
