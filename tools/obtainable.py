@@ -68,6 +68,48 @@ def configs(pattern):
     return out, where
 
 
+def enclosing(text, pos):
+    """The [script,header] an offset sits under, so a source can be named finer than its file.
+
+    obtainable.py's own report stays file-level, because that is the useful grain for a human
+    reading it. This is for tools/nosourcespec.json's "ignore": the bottomless compost bucket adds
+    its own two items to make the icon follow the contents, which is a swap and not a source, and
+    a whole-file exemption there would also excuse a REAL source added to that file later.
+    """
+    last = ''
+    for m in re.finditer(r'^\[([^\]\n]+)\]', text[:pos], re.M):
+        last = m.group(1)
+    return last
+
+
+def apply_ignores(given, detail):
+    """Take the adds that are swaps rather than sources out of `given`, per nosourcespec.json.
+
+    The bottomless compost bucket swaps its own empty item for its own filled one so the icon
+    follows the contents. Both halves of that swap are an inv_add, and reading them as sources
+    would mean the tool insisted the bucket is obtainable while nothing in the game hands one out.
+    So the spec names the script they live in and they stop counting - for the whole report, not
+    just for the by-design section, because a false source is a false source everywhere.
+
+    A source is only dropped when EVERY add it covers is named, so a REAL source added to an
+    already-named file still counts and is still reported as a disagreement with the spec.
+    """
+    path = os.path.join(ROOT, 'tools', 'nosourcespec.json')
+    if not os.path.exists(path):
+        return
+    for nm, d in json.loads(read('tools/nosourcespec.json'))['objs'].items():
+        ignore = set(d.get('ignore', []))
+        if not ignore:
+            continue
+        for obj in [nm] + d.get('also', []):
+            for src in sorted(given.get(obj, ())):
+                tags = {x for x in detail.get(obj, ()) if x.split(':', 1)[0] == src}
+                if tags and tags <= ignore:
+                    given[obj].discard(src)
+            if obj in given and not given[obj]:
+                del given[obj]
+
+
 def byexception(given):
     """The objs this repo built on purpose with nothing to give them out.
 
@@ -94,6 +136,17 @@ def byexception(given):
             else:
                 names.add(item)
 
+    # ---- the one-offs, out of tools/nosourcespec.json
+    one_path = os.path.join(ROOT, 'tools', 'nosourcespec.json')
+    if os.path.exists(one_path):
+        for nm, d in json.loads(read('tools/nosourcespec.json'))['objs'].items():
+            for obj in [nm] + d.get('also', []):
+                if obj in given:
+                    wrong.append('%s is listed in nosourcespec.json, but %s gives you one - '
+                                 'update the spec' % (obj, ', '.join(sorted(given[obj]))))
+                else:
+                    names.add(obj)
+
     spec_path = os.path.join(ROOT, 'tools', 'slayerhelmspec.json')
     if not os.path.exists(spec_path):
         return names, wrong
@@ -117,6 +170,9 @@ def main():
     cfg, where = configs('.obj')
 
     given = collections.defaultdict(set)
+    # obj -> {'file.rs2:script,header'}, the same adds at a finer grain. Only nosourcespec.json's
+    # "ignore" reads it; the report itself stays file-level.
+    detail = collections.defaultdict(set)
 
     # ---- shops
     for dirpath, _dirs, files in os.walk(os.path.join(ROOT, 'scripts')):
@@ -142,6 +198,7 @@ def main():
                 for w in re.findall(r'([a-z][a-z0-9_+]{2,})', m.group(1)):
                     if w in byname:
                         given[w].add(fn)
+                        detail[w].add('%s:%s' % (fn, enclosing(t, m.start())))
             for m in re.finditer(r'\binv_moveitem\(\s*\w+\s*,\s*\w+\s*,\s*(\w+)', t):
                 if m.group(1) in byname:
                     given[m.group(1)].add(fn)
@@ -280,6 +337,9 @@ def main():
                 if w in byname:
                     loose[w].add(fn)
 
+    # ---- the adds that are swaps and not sources, out of the spec, before anything reads `given`
+    apply_ignores(given, detail)
+
     # ---- and what is left
     TEMPLATE = re.compile(r'template|^cert_|_cert$|^unused|^null')
     orphan = []
@@ -307,10 +367,10 @@ def main():
     print()
     if onpurpose or mismatch:
         print('==== BUILT WITH NO SOURCE ON PURPOSE (%d) ====' % len(onpurpose))
-        print('Declared on purpose: slayer helmet colours with no "source" block in')
-        print('slayerhelmspec.json, whose head-dropping monsters are not in this era, and pets')
-        print('marked wired=false in petspec.json, whose skill or hook is not built yet. They exist')
-        print('so they can be looked at with ::give. Not a bug list - but not hidden either.')
+        print('Declared on purpose, out of three specs: slayer helmet colours with no "source"')
+        print('block in slayerhelmspec.json, pets marked wired=false in petspec.json whose skill')
+        print('or hook is not built yet, and the one-offs in nosourcespec.json. They exist so they')
+        print('can be looked at with ::give. Not a bug list - but not hidden either.')
         print()
         for i, name, disp, src in sorted(onpurpose):
             print('    %5d  %-38s %s' % (i, name, disp))

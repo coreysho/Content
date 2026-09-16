@@ -12,8 +12,11 @@ switch_obj($item) {
     case rake : ~farming_rake($patch);
     case spade : ~farming_spade($patch);
     case dibber : ~farming_dibber_hint($patch);
-    case bucket_compost : ~farming_apply_compost($patch, bucket_compost, ^farming_compost_normal);
-    case bucket_supercompost : ~farming_apply_compost($patch, bucket_supercompost, ^farming_compost_super);
+    case bucket_compost : ~farming_apply_compost($patch, bucket_compost, ^farming_compost_normal, false);
+    case bucket_supercompost : ~farming_apply_compost($patch, bucket_supercompost, ^farming_compost_super, false);
+    // the bottomless bucket pays a use instead of a bucket - skill_farming/scripts/compost_bucket.rs2
+    case bottomless_bucket : ~compost_bucket_apply($patch);
+    case bottomless_bucket_filled : ~compost_bucket_apply($patch);
     case plant_cure : ~farming_cure($patch);
     case secateurs : ~farming_prune($patch);
     case fairy_enchanted_secateurs : ~farming_prune($patch);
@@ -191,7 +194,7 @@ mes("You plant the <lowercase(oc_name($item))> in the patch.");
 // A fully grown crop is refused: there are no cycles left to protect and the only effect would be
 // free harvest lives, which is not a thing you can buy in any version of the game.
 
-[proc,farming_apply_compost](int $patch, namedobj $bucket, int $tier)
+[proc,farming_apply_compost](int $patch, namedobj $bucket, int $tier, boolean $bottomless)
 if (~farming_compost($patch) >= $tier) {
     mes("This patch has already been treated.");
     return;
@@ -223,8 +226,14 @@ if ($crop = 0) {
 // bucket-emptying animation (its own replaceheldright is bucket_empty).
 anim(farming_pour_water, 0);
 p_delay(2);
-inv_del(inv, $bucket, 1);
-inv_add(inv, bucket_empty, 1);
+// Where the compost is spent from is the caller's business, not this proc's guess: a bucket from
+// the inventory leaves an empty bucket behind, a use from the bottomless one leaves nothing.
+if ($bottomless = true) {
+    inv_del(compost_bucket_store, $bucket, 1);
+} else {
+    inv_del(inv, $bucket, 1);
+    inv_add(inv, bucket_empty, 1);
+}
 ~farming_set_compost($patch, $tier);
 
 if ($crop ! 0) {

@@ -1,0 +1,132 @@
+// The bottomless compost bucket.
+//
+// A bucket of compost poured in is worth TWO uses. That doubling is the item, not the carrying
+// capacity: 10,000 uses is a lot, but any sack would do that.
+//
+// Where the state lives: the one slot of compost_bucket_store holds the compost itself, so the OBJ
+// in that slot is which tier is inside and its COUNT is the uses left. No varp, no param, and
+// "one type at a time" is a consequence of there being one slot rather than a rule anyone
+// enforces. Check is then just ~storage_check, and spending a use is one inv_del.
+
+[proc,compost_bucket_tier]()(obj)
+return(inv_getobj(compost_bucket_store, 0));
+
+[proc,compost_bucket_uses]()(int)
+return(inv_getnum(compost_bucket_store, 0));
+
+[proc,compost_bucket_carried]()(namedobj)
+if (inv_total(inv, bottomless_bucket_filled) > 0) {
+    return(bottomless_bucket_filled);
+}
+if (inv_total(inv, bottomless_bucket) > 0) {
+    return(bottomless_bucket);
+}
+return(null);
+
+// The icon follows the contents, as the herb sack's does. Called after anything that can change
+// them, so an empty bucket never looks full and a full one never looks empty.
+[proc,compost_bucket_restyle]
+def_namedobj $have = ~compost_bucket_carried;
+if ($have = null) {
+    return;
+}
+if (~compost_bucket_uses > 0) {
+    if ($have = bottomless_bucket) {
+        inv_del(inv, bottomless_bucket, 1);
+        inv_add(inv, bottomless_bucket_filled, 1);
+    }
+} else if ($have = bottomless_bucket_filled) {
+    inv_del(inv, bottomless_bucket_filled, 1);
+    inv_add(inv, bottomless_bucket, 1);
+}
+
+// ---------------------------------------------------------------- Fill
+[opheld1,bottomless_bucket] ~compost_bucket_fill;
+[opheld1,bottomless_bucket_filled] ~compost_bucket_fill;
+
+// Using a bucket of compost on it fills it too, which is the way OSRS does it and the way anyone
+// would try first.
+[opheldu,bottomless_bucket]
+if (last_useitem = bucket_compost | last_useitem = bucket_supercompost) {
+    ~compost_bucket_fill;
+    return;
+}
+~displaymessage(^dm_default);
+
+[opheldu,bottomless_bucket_filled]
+if (last_useitem = bucket_compost | last_useitem = bucket_supercompost) {
+    ~compost_bucket_fill;
+    return;
+}
+~displaymessage(^dm_default);
+
+[proc,compost_bucket_fill]
+def_obj $inside = ~compost_bucket_tier;
+// With something inside, only more of the same goes in. With nothing, the first bucket poured
+// decides the tier - supercompost first if you are holding both, because that is the one you would
+// rather not pour into a patch by hand.
+def_namedobj $want = null;
+if ($inside = bucket_supercompost) {
+    $want = bucket_supercompost;
+} else if ($inside = bucket_compost) {
+    $want = bucket_compost;
+} else if (inv_total(inv, bucket_supercompost) > 0) {
+    $want = bucket_supercompost;
+} else if (inv_total(inv, bucket_compost) > 0) {
+    $want = bucket_compost;
+}
+if ($want = null) {
+    mes("You have no compost to put in the bucket.");
+    return;
+}
+def_int $have = inv_total(inv, $want);
+if ($have < 1) {
+    mes("The bucket already holds <lowercase(oc_name($want))>, and you have none left to put in.");
+    return;
+}
+def_int $room = calc(^compost_bucket_max - ~compost_bucket_uses);
+if ($room < ^compost_bucket_per_bucket) {
+    mes("The bucket is full.");
+    return;
+}
+// one bucket in, two uses out - and never more buckets than one Fill accepts
+def_int $buckets = min($have, ^compost_bucket_fill_max);
+$buckets = min($buckets, calc($room / ^compost_bucket_per_bucket));
+inv_del(inv, $want, $buckets);
+inv_add(inv, bucket_empty, $buckets);
+inv_add(compost_bucket_store, $want, calc($buckets * ^compost_bucket_per_bucket));
+~compost_bucket_restyle;
+mes("You pour <tostring($buckets)> <lowercase(oc_name($want))> in. The bucket holds <tostring(~compost_bucket_uses)> uses.");
+
+// ---------------------------------------------------------------- Check
+[opheld2,bottomless_bucket] ~compost_bucket_check;
+[opheld2,bottomless_bucket_filled] ~compost_bucket_check;
+
+[proc,compost_bucket_check]
+if (~compost_bucket_uses < 1) {
+    mes("The bucket is empty.");
+    return;
+}
+mes("The bucket holds <tostring(~compost_bucket_uses)> uses of <lowercase(oc_name(~compost_bucket_tier))>.");
+
+// Destroying it loses what is inside, and says so first - the shared helper from storage_items.rs2
+// already words and confirms exactly that.
+[opheld5,bottomless_bucket_filled]
+@storage_destroy(bottomless_bucket_filled, compost_bucket_store, "bottomless compost bucket");
+
+// ---------------------------------------------------------------- using it on a patch
+// Reached from ~farming_useitem's switch. The tier comes out of the store rather than from the
+// item you clicked, and the namedobj is passed as a literal: inv_getobj answers an obj, and an obj
+// where a namedobj is wanted is a build error, not a warning.
+[proc,compost_bucket_apply](int $patch)
+def_obj $inside = ~compost_bucket_tier;
+if ($inside = null | ~compost_bucket_uses < 1) {
+    mes("The bucket is empty.");
+    return;
+}
+if ($inside = bucket_supercompost) {
+    ~farming_apply_compost($patch, bucket_supercompost, ^farming_compost_super, true);
+} else {
+    ~farming_apply_compost($patch, bucket_compost, ^farming_compost_normal, true);
+}
+~compost_bucket_restyle;
