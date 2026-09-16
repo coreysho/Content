@@ -9,21 +9,27 @@ C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 W = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'cert_mutate_work')
 
 ALL = 'scripts/_unpack/377/all.obj'
-SPEC = 'tools/certaliens.json'
+REC = 'tools/certrenames.json'
 PACK = 'pack/obj.pack'
 WITCH = 'scripts/areas/area_mos_le_harmless/configs/witchwood_icon.obj'
 
 MUTS = [
  # 1 - a link the packer would make to something that is not a note. This is the bug itself: the
  # obj on the other end of cert_<name> has to carry certtemplate or the link is a lie.
- # A real note losing its certtemplate. It stops being linked at all, which is the silent
- # version of this bug: the item simply cannot be noted any more and nothing says so. Without the
- # enumerated spec it would just join the 132 and be counted as expected.
+ # A real note losing its certtemplate. It stops being linked at all, which is the silent version
+ # of this bug: the item simply cannot be noted any more and nothing says so. There is no exception
+ # list to hide in now, so the claim fails outright.
  (ALL, '[cert_torch_lit]\ncertlink=torch_lit\ncerttemplate=template_for_cert',
        '[cert_torch_lit]\ncertlink=torch_lit_base_only',
-  '1 exactly the cert_* objs recorded in certaliens.json are not certificates'),
- (SPEC, '"cert_baguette": "Waste disposal",\n', '',
-  '1 exactly the cert_* objs recorded in certaliens.json are not certificates'),
+  '1 every obj named cert_* really is a certificate'),
+ # An obj that arrives wearing the prefix without earning it, which is how all 132 got here.
+ (PACK, '1459=rotten_net', '1459=cert_law_talisman',
+  '1 every obj named cert_* really is a certificate'),
+ # An id moved rather than a name. Nothing in a save, a drop table or a map would follow it.
+ (PACK, '1459=rotten_net\n', '',
+  '4 every renamed obj sits at the id it always had'),
+ (REC, '"to": "rotten_net"', '"to": "pretty_girl"',
+  '4 ...and no two of them were given the same name'),
  (ALL, '[cert_lit_candle]\ncertlink=lit_candle\ncerttemplate=template_for_cert',
        '[cert_lit_candle]\ncertlink=torch_lit\ncerttemplate=template_for_cert',
   '1 ...and every one of them names its own base back'),
@@ -54,7 +60,7 @@ MUTS = [
  # 4 - a hand-written forward link. Always either a no-op or a disagreement, because the packer
  # derives it; two sat in all.obj for a round on the strength of a wrong guess.
  (ALL, '[bucket_compost]\nname=Compost', '[bucket_compost]\ncertlink=cert_bucket_compost\nname=Compost',
-  '4 no base config carries certlink'),
+  '5 no base config carries certlink'),
 ]
 
 

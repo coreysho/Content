@@ -81,20 +81,15 @@ def main():
     print('     %d objs have a cert_ sibling: %d are notes, %d are not'
           % (len(linkable), len(notes), len(aliens)))
     check(len(notes) > 2000, 'the game has its notes: %d' % len(notes))
-    # The 132 are an enumerated set, not a count, and that is the point: if a REAL note loses its
-    # certtemplate it becomes one of these, and a count would have absorbed it silently. Anything
-    # new here is a failure until somebody records it on purpose.
-    spec = json.loads(io.open(os.path.join(C, 'tools/certaliens.json'), encoding='utf-8').read())
-    known = set(spec['objs'])
-    got = set('cert_' + b for b in aliens)
-    # The count goes at the END. A mutation harness matches a check by its wording, so a number
-    # interpolated into the middle of the claim changes the claim every time the number moves -
-    # which is how removing one spec entry stopped matching the check that caught it.
-    check(got == known,
-          'exactly the cert_* objs recorded in certaliens.json are not certificates: %s'
-          % (('new: %s' % sorted(got - known) if got - known else '')
-             + ('  gone: %s' % sorted(known - got) if known - got else '')
-             or 'the same %d' % len(known)))
+    # No exception list any more. This was a pinned set of 132 objs named cert_<something> that were
+    # not certificates at all - the unpacker names an obj after whatever sits at the previous id -
+    # and tools/renamecerts.py renamed every one of them to what it really is. So the claim is now
+    # unconditional, which is much stronger than a list of excused cases: a REAL note that loses
+    # its certtemplate fails here, and so does a new obj that arrives wearing the cert_ prefix
+    # without earning it.
+    check(not aliens,
+          'every obj named cert_* really is a certificate: %s'
+          % (sorted('cert_' + b for b in aliens) or 'all %d of them' % len(notes)))
     for base in sorted(notes):
         keys = cfg['cert_' + base][1]
         if keys.get('certlink') != base:
@@ -126,17 +121,29 @@ def main():
     orphan = sorted(n for n, b in allnotes.items() if b and b not in pack)
     check(not orphan, '...and so does every base it points at: %s' % (orphan or 'all of them'))
 
-    print('4. nothing hand-writes a forward link, because the packer derives it')
+    print('4. the renames landed, and the ids did not move')
+    # Only the NAME moved: an id change would silently repoint every save, drop table and map that
+    # holds the number. So the record is checked against the pack by id, not by name alone.
+    rec = json.loads(io.open(os.path.join(C, 'tools/certrenames.json'), encoding='utf-8').read())
+    ren = rec['renames']
+    wrong = sorted(o for o, d in ren.items() if pack.get(d['to']) != d['id'])
+    check(not wrong, 'every renamed obj sits at the id it always had: %s'
+          % (wrong or 'all %d' % len(ren)))
+    left = sorted(o for o in ren if o in pack)
+    check(not left, 'and none of the old names is still in the pack: %s' % (left or 'none'))
+    check(len(set(d['to'] for d in ren.values())) == len(ren),
+          '...and no two of them were given the same name')
+
+    print('5. nothing hand-writes a forward link, because the packer derives it')
     hand = sorted(n for n, (f, k) in cfg.items() if 'certlink' in k and 'certtemplate' not in k)
     check(not hand, 'no base config carries certlink: %s' % (hand or 'none'))
 
     print()
-    print('The %d cert_* objs that are not certificates are recorded in tools/certaliens.json.' % len(aliens))
-    print('The packer no longer links them; the names still lie, and tools/obtainable.py hides')
-    print('them behind its ^cert_ rule. A few, to keep them in view:')
-    for base in sorted(aliens)[:6]:
-        note = 'cert_' + base
-        print('    %-34s %-22s of %s' % (note, cfg.get(note, ('', {}))[1].get('name', '(no name)'), base))
+    print('%d objs once named cert_<something> without being certificates are recorded in'
+          % len(ren))
+    print('tools/certrenames.json under the names they really deserve. A few:')
+    for old_, d in list(ren.items())[:5]:
+        print('    %5d  %-32s -> %-24s %s' % (d['id'], old_, d['to'], d['name']))
     print()
     print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
     return 1 if fails else 0
