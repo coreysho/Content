@@ -51,6 +51,28 @@ def rows(path):
         out[m.group(1)] = d
     return out
 
+def params(path):
+    """[name] blocks -> {name: {param: value}}, for a struct or obj config."""
+    out = {}
+    for b in re.split(r'(?m)^(?=\[)', read(path)):
+        m = re.match(r'\[([\w+]+)\]', b)
+        if not m: continue
+        d = {}
+        for l in b.split('\n')[1:]:
+            l = l.split('//')[0].strip()
+            if l.startswith('param='):
+                k, _, v = l[6:].partition(',')
+                d.setdefault(k, []).append(v)
+        out[m.group(1)] = d
+    return out
+
+
+def table(spec):
+    """One entry of a pet's "tables" -> ({block: {key: [values]}}, key)."""
+    reader = {'dbrow': rows, 'param': params}[spec['kind']]
+    return reader(spec['path']), spec['key']
+
+
 # ============================================================================ 1
 print('1. the roll is OSRS\'s formula, and it reads the level OSRS reads')
 step = const(CONST, 'skillpet_level_step')
@@ -105,17 +127,21 @@ check(len(SPEC['boss']) == 10, 'all ten boss pets are accounted for')
 print('3. every base chance in the game is the spec\'s, and the spec cites the wiki')
 check('oldschool.runescape.wiki' in SPEC['wiki'], 'the spec says where its numbers came from')
 wired = {k: v for k, v in SPEC['skill'].items() if v['wired']}
-check(len(wired) == 4, 'four of the eight skilling pets are wired: %s' % sorted(wired))
+check(len(wired) == 7, 'seven of the eight skilling pets are wired: %s' % sorted(wired))
 for pet, d in sorted(wired.items()):
-    if 'bases' in d:
-        tbl = rows(d['held_in'])
-        col = d['column'].split(':')[1]
-        for blk, want in sorted(d['bases'].items()):
-            got = tbl.get(blk, {}).get(col, [None])[0]
+    for spec in d.get('tables', []):
+        tbl, key = table(spec)
+        # One line per base rather than a count. Verbose - the farming table alone is 57 - but a
+        # count makes every base share one check, and then a mutation that moves one of them is
+        # "caught" by a check that names none of them.
+        for blk, want in sorted(spec['bases'].items()):
+            got = tbl.get(blk, {}).get(key, [None])[0]
             check(got == str(want), '%s: %s is %s' % (pet, blk, want))
-        extra = [b for b in tbl if col in tbl[b] and b not in d['bases']]
-        check(not extra, '...and no row carries a base the spec does not know: %s'
-              % (extra or 'none of %d' % len(tbl)))
+        extra = [b for b in tbl if key in tbl[b] and b not in spec['bases']]
+        # Named per table, not "...and nothing else": every pet has one of these checks, and a
+        # shared wording means a mutation aimed at one of them is "caught" by another's.
+        check(not extra, '%s: nothing else in %s carries a base the spec does not know: %s'
+              % (pet, os.path.basename(spec['path']), extra or 'none of %d blocks' % len(tbl)))
     for cn, want in sorted(d.get('constants', {}).items()):
         check(const(CONST, cn) == want, '%s: ^%s is %s' % (pet, cn, want))
 
@@ -125,9 +151,9 @@ print('4. no base can outrun the formula at 99')
 # the two equal, so a number lowered in one place is caught there and here.
 for pet, d in sorted(wired.items()):
     vals = []
-    if 'bases' in d:
-        tbl = rows(d['held_in']); col = d['column'].split(':')[1]
-        vals += [int(v[0]) for b, f in tbl.items() if (v := f.get(col)) and int(v[0]) > 0]
+    for spec in d.get('tables', []):
+        tbl, key = table(spec)
+        vals += [int(v[0]) for b, f in tbl.items() if (v := f.get(key)) and int(v[0]) > 0]
     vals += [c for cn in d.get('constants', {}) if (c := const(CONST, cn))]
     worst = min(vals) if vals else None
     check(worst is None or worst - 99 * SPEC['level_step'] >= 1,
@@ -157,9 +183,9 @@ for pet, d in sorted(wired.items()):
                   '...and %s rolls on completing a lap' % os.path.basename(f))
 
 # ============================================================================ 6
-print('6. the four that are not wired cannot be rolled, and say so')
+print('6. the one that is not wired cannot be rolled, and says so')
 pending = {k: v for k, v in SPEC['skill'].items() if not v['wired']}
-check(len(pending) == 4, 'four are pending: %s' % sorted(pending))
+check(len(pending) == 1, 'one is pending: %s' % sorted(pending))
 allrs2 = ''
 for dirpath, _dirs, files in os.walk(os.path.join(C, 'scripts')):
     for fn in files:
@@ -194,6 +220,95 @@ for pet in allpets:
     check('category=bosspet' in NB[pet] and 'category=bosspet' in OB[item],
           '...both on the category the four follower triggers hang off')
     check('tradeable=no' in OB[item], '...and the item is untradeable')
+
+# ============================================================================ 8
+print('8. WHEN the three newest roll, which no base table can say')
+FISH = code(read('scripts/skill_fishing/scripts/fishing.rs2'))
+MEMBER = code(read('scripts/skill_fishing/scripts/fishing_spots/memberfish.rs2'))
+TRAWL = code(read('scripts/minigames/game_trawler/scripts/trawler_win.rs2'))
+FARM = code(read('scripts/skill_farming/scripts/farming_actions.rs2'))
+THIEF = code(read('scripts/skill_thieving/scripts/thieving.rs2'))
+
+# --- the Heron. Every catch that pays xp must also roll, and it must roll on the struct the fish
+# came from: reading $struct1's base after catching $struct2's fish is a whole tier of fish rolling
+# at the wrong rate, and nothing else would ever show it.
+pairs = re.findall(r'~fishing_xp\(struct_param\((\$struct\d), productexp\)\);\s*'
+                   r'~skillpet_roll\(skillpet_heron_item, fishing, '
+                   r'struct_param\((\$struct\d), fishing_pet_base\)\);', FISH)
+check(len(pairs) == 4, 'all four catches in fish_roll and fish_roll_loc roll: %d' % len(pairs))
+check(all(a == b for a, b in pairs),
+      '...each off the struct of the fish it just caught: %s' % (pairs or 'none'))
+check(FISH.count('~fishing_xp(') == 4 and FISH.count('~skillpet_roll(') == 4,
+      'and nothing in fishing.rs2 pays fishing xp without rolling')
+# --- the big net is one haul of up to nine things, so it rolls once, for the haul
+big = MEMBER.split('[proc,fish_roll_big_net]', 1)[1].split('\n[', 1)[0]
+check(big.count('~skillpet_roll(') == 1,
+      'the big net rolls once per haul, not once per item: %d' % big.count('~skillpet_roll('))
+check('if ($caught > 0) {' in big, '...and only when the haul caught something')
+check(big.count('$caught = calc($caught + 1);') == big.count('inv_add(inv,'),
+      'every item the net can bring up counts towards that: %d adds, %d counted'
+      % (big.count('inv_add(inv,'), big.count('$caught = calc($caught + 1);')))
+check('^skillpet_heron_big_net' in big,
+      '...at the activity constant, because OSRS gives one figure for big net fishing')
+# --- the trawler is one roll per game landed, and its net can only be pulled once
+netop = TRAWL.split('[oploc1,game_trawler_reward_net]', 1)[1].split('\n[', 1)[0]
+check(netop.count('~skillpet_roll(') == 1, 'the trawler rolls once for the net')
+check('^skillpet_heron_trawler' in netop, '...at its own constant')
+check('%trawler_catch = 0;' in netop and '%trawler < 3 | %trawler_catch = 0' in TRAWL,
+      '...which is once per game landed, the net being emptied and gated on a finished journey')
+check(TRAWL.count('~skillpet_roll(') == 1,
+      'and the trawler does not also roll per fish out of the net: %d rolls'
+      % TRAWL.count('~skillpet_roll('))
+
+# --- the Tangleroot. Check-health where the family has one, the FINAL harvest where it does not.
+check(FARM.count('[proc,farming_pet_roll]') == 1, 'one proc names the pet and the skill')
+proc = FARM.split('[proc,farming_pet_roll](namedobj $seed)', 1)[1].split('\n[', 1)[0]
+check('~skillpet_roll(skillpet_tangleroot_item, farming, oc_param($seed, farming_pet_base))' in proc,
+      '...and reads the base off the seed that grew there')
+check(FARM.count('~farming_pet_roll($seed);') == 4, 'four call sites: %d'
+      % FARM.count('~farming_pet_roll($seed);'))
+chk = FARM.split('[proc,farming_check_health]', 1)[1].split('\n[', 1)[0]
+check('~farming_pet_roll($seed);' in chk, 'check-health rolls, which is where a tree rolls')
+harv = FARM.split('[proc,farming_harvest]', 1)[1].split('\n[', 1)[0]
+check(harv.count('~farming_pet_roll($seed);') == 2 and harv.count('~farming_clear_patch(') == 2,
+      'the two harvests that clear the patch roll, and only those: %d rolls, %d clears'
+      % (harv.count('~farming_pet_roll($seed);'), harv.count('~farming_clear_patch(')))
+for i, half in enumerate(harv.split('~farming_clear_patch(')[:-1]):
+    check(half.rstrip().endswith('~farming_pet_roll($seed);'),
+          '...the roll comes before the clear, while the seed is still known (%d)' % (i + 1))
+pick = FARM.split('[proc,farming_pick_produce]', 1)[1].split('\n[', 1)[0]
+check(pick.count('~farming_pet_roll($seed);') == 1,
+      'picking regrowing produce rolls once and only on the last mushroom: %d'
+      % pick.count('~farming_pet_roll($seed);'))
+check('~farming_pet_roll($seed);' in pick.split('if ($left <= 1) {', 1)[-1].split('}', 1)[0],
+      '...which is the pick that empties the patch, mushrooms having no check-health')
+# Every seed with a base must be able to reach a roll: a family with no check-health that never
+# clears its patch would hold a base that can never fire.
+seeds = params('scripts/_unpack/377/all.obj')
+fam = {'6': 'tree', '7': 'fruit_tree', '8': 'cactus', '9': 'calquat', '12': 'spirit_tree',
+       '5': 'bush'}
+unreachable = [s for s, f in seeds.items()
+               if int((f.get('farming_pet_base') or ['0'])[0]) > 0
+               and (f.get('farming_family') or ['0'])[0] in fam
+               and int((f.get('farming_check_state') or ['0'])[0]) == 0]
+check(not unreachable, 'every family that never clears its patch has a check-health to roll at: %s'
+      % (unreachable or 'all of them do'))
+
+# --- the Rocky. Two rolls, and the chests get none.
+check(THIEF.count('~skillpet_roll(') == 2, 'thieving rolls in exactly two places: %d'
+      % THIEF.count('~skillpet_roll('))
+for what, col in (('pick_pocket', 'pickpocket:pet_base'), ('steal_from_stall', 'stealing:pet_base')):
+    m = re.search(r'~skillpet_roll\(skillpet_rocky_item, thieving, '
+                  r'db_getfield\(\$data, ' + re.escape(col) + r', 0\)\);', THIEF)
+    check(bool(m), '...one off %s' % col)
+dis = THIEF.split('[proc,disarm_trapped_chest]', 1)[1].split('\n[', 1)[0]
+check('~skillpet_roll(' not in dis,
+      'a trapped chest gives no pet, as in OSRS - only pickpocketing, stalls, Pyramid Plunder and '
+      'the Sorceress\'s Garden have a figure')
+# The roll must sit with the xp: a success that pays xp cannot then skip the roll, and a roll that
+# drifted away from its xp would fire on a failed attempt.
+check(len(re.findall(r'stat_advance\(thieving, \$experience\);\n~skillpet_roll\(', THIEF)) == 2,
+      'and each roll sits on the line after the xp it belongs to')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

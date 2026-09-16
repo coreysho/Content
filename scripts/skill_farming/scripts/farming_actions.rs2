@@ -121,12 +121,19 @@ switch_int(oc_param($seed, farming_family)) {
 // The single biggest xp drop in the skill, and the reason a magic tree is worth eight hours: it is
 // paid once, the first time you look at a finished tree, bush or cactus.
 
+// The Tangleroot. OSRS rolls it at a patch's CHECK-HEALTH where the family has one, and at the
+// FINAL harvest - the pick that clears the patch - where it does not. So a ranarr patch is one
+// roll however many herbs it gave, and a magic tree is one roll when you look at it.
+[proc,farming_pet_roll](namedobj $seed)
+~skillpet_roll(skillpet_tangleroot_item, farming, oc_param($seed, farming_pet_base));
+
 [proc,farming_check_health](int $patch, namedobj $seed)
 ~farming_set_checked($patch, 1);
 ~farming_set_grown($patch, $seed);
 ~farming_set_time($patch, ~farming_now);
 mes("You examine the <lowercase(oc_name($seed))> for signs of disease and find that it is in perfect health.");
 ~farming_xp(oc_param($seed, farming_check_xp));
+~farming_pet_roll($seed);
 
 // ============================================================================ harvesting
 //
@@ -183,6 +190,7 @@ if (~farming_cts($seed) <= 0) {
     inv_add(inv, $produce, 1);
     mes("You harvest <lowercase(oc_name($produce))>.");
     ~farming_xp(oc_param($seed, farming_harvest_xp));
+    ~farming_pet_roll($seed);
     ~farming_clear_patch($patch);
     return;
 }
@@ -217,6 +225,7 @@ if ($lives > 0) {
     return;
 }
 anim(null, 0);
+~farming_pet_roll($seed);
 ~farming_clear_patch($patch);
 mes("You have harvested everything this patch had to offer.");
 
@@ -247,8 +256,10 @@ mes("You pick <lowercase(oc_name($produce))>.");
 
 def_int $full = oc_param($seed, farming_checked_state);
 if (oc_param($seed, farming_family) = ^farming_family_mushroom) {
-    // Mushrooms count the other way and never come back - the last one empties the patch.
+    // Mushrooms count the other way and never come back - the last one empties the patch, and
+    // being the final harvest of a family with no check-health, it is the one that rolls.
     if ($left <= 1) {
+        ~farming_pet_roll($seed);
         ~farming_clear_patch($patch);
         return;
     }

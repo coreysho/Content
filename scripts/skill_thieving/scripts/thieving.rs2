@@ -20,6 +20,7 @@ def_int $experience = db_getfield($data, pickpocket:experience, 0);
 ~pick_pocket_check_for_reward($data);
 anim(human_pickpocket, 0);
 stat_advance(thieving, $experience);
+~skillpet_roll(skillpet_rocky_item, thieving, db_getfield($data, pickpocket:pet_base, 0));
 sound_synth(pick, 1, 0);
 mes("You pick the <$pocket>.");
 
@@ -96,6 +97,7 @@ switch_loc (loc_type) {
 }
 ~stealing_check_for_reward($data);
 stat_advance(thieving, $experience);
+~skillpet_roll(skillpet_rocky_item, thieving, db_getfield($data, stealing:pet_base, 0));
 // Temp note: dur does not need updated
 loc_change(market, $respawn_ticks);
 
@@ -128,6 +130,9 @@ sound_synth(chest_open, 1, 0);
 p_delay(1);
 mes("You find treasure inside!");
 anim(human_openchest, 0);
+// No Rocky roll here: OSRS lists a base chance for pickpocketing, for stalls, for Pyramid
+// Plunder's chests and for the Sorceress's Garden, and for nothing else - an ordinary
+// thieving chest gives no pet.
 ~trapped_chest_check_for_reward($data);
 def_int $experience = db_getfield($data, trapped_chest:experience, 0);
 stat_advance(thieving, $experience);

@@ -49,51 +49,61 @@
   "skillpet_beaver": {
    "stat": "woodcutting",
    "wired": true,
-   "held_in": "scripts/skill_woodcutting/configs/trees.dbrow",
-   "column": "woodcutting_trees:pet_base",
    "hooks": [
     "scripts/skill_woodcutting/scripts/woodcut.rs2",
     "scripts/quests/quest_legends/scripts/jungle_tree.rs2"
    ],
-   "bases": {
-    "normal_tree_table": 317647,
-    "achey_tree_table": 317647,
-    "oak_tree_table": 361146,
-    "willow_tree_table": 289286,
-    "maple_tree_table": 221918,
-    "yew_tree_table": 145013,
-    "magic_tree_table": 72321,
-    "hollow_tree_table": 214367,
-    "teak_tree_table": 264336,
-    "mahogany_tree_table": 220623,
-    "jungle_tree_table": 0,
-    "burnt_tree_table": 0
-   }
+   "tables": [
+    {
+     "path": "scripts/skill_woodcutting/configs/trees.dbrow",
+     "kind": "dbrow",
+     "key": "pet_base",
+     "bases": {
+      "achey_tree_table": 317647,
+      "burnt_tree_table": 0,
+      "hollow_tree_table": 214367,
+      "jungle_tree_table": 0,
+      "magic_tree_table": 72321,
+      "mahogany_tree_table": 220623,
+      "maple_tree_table": 221918,
+      "normal_tree_table": 317647,
+      "oak_tree_table": 361146,
+      "teak_tree_table": 264336,
+      "willow_tree_table": 289286,
+      "yew_tree_table": 145013
+     }
+    }
+   ]
   },
   "skillpet_rock_golem": {
    "stat": "mining",
    "wired": true,
-   "held_in": "scripts/skill_mining/configs/mine.dbrow",
-   "column": "mining_table:pet_base",
    "hooks": [
     "scripts/skill_mining/scripts/mining.rs2"
    ],
-   "bases": {
-    "clay_rock_table": 741600,
-    "copper_rock_table": 741600,
-    "tin_rock_table": 741600,
-    "iron_rock_table": 741600,
-    "silver_rock_table": 741600,
-    "coal_rock_table": 290640,
-    "gold_rock_table": 296640,
-    "mithril_rock_table": 148320,
-    "adamantite_rock_table": 59328,
-    "runite_rock_table": 42377,
-    "gem_rock": 211886,
-    "rune_essence_table": 0,
-    "blurite_rock": 0,
-    "desertrescue_rock": 0
-   }
+   "tables": [
+    {
+     "path": "scripts/skill_mining/configs/mine.dbrow",
+     "kind": "dbrow",
+     "key": "pet_base",
+     "bases": {
+      "adamantite_rock_table": 59328,
+      "blurite_rock": 0,
+      "clay_rock_table": 741600,
+      "coal_rock_table": 290640,
+      "copper_rock_table": 741600,
+      "desertrescue_rock": 0,
+      "gem_rock": 211886,
+      "gold_rock_table": 296640,
+      "iron_rock_table": 741600,
+      "mithril_rock_table": 148320,
+      "rune_essence_table": 0,
+      "runite_rock_table": 42377,
+      "silver_rock_table": 741600,
+      "tin_rock_table": 741600
+     }
+    }
+   ]
   },
   "skillpet_rift_guardian": {
    "stat": "runecraft",
@@ -129,61 +139,163 @@
   },
   "skillpet_heron": {
    "stat": "fishing",
-   "wired": false,
-   "why": "the 27 literal xp awards in memberfish.rs2 have to be mapped one at a time; the struct path is ready for it",
-   "bases_pending": {
-    "shrimps": 870330,
-    "anchovies": 870330,
-    "sardine": 1056000,
-    "herring": 1056000,
-    "trout": 923616,
-    "salmon": 923616,
-    "pike": 305792,
-    "tuna": 257770,
-    "swordfish": 257770,
-    "lobster": 116129,
-    "shark": 82243,
-    "lava_eel": 0,
-    "mantaray": 0,
-    "seaturtle": 0
-   }
+   "wired": true,
+   "hooks": [
+    "scripts/skill_fishing/scripts/fishing.rs2",
+    "scripts/skill_fishing/scripts/fishing_spots/memberfish.rs2",
+    "scripts/minigames/game_trawler/scripts/trawler_win.rs2"
+   ],
+   "tables": [
+    {
+     "path": "scripts/skill_fishing/configs/fishing.struct",
+     "kind": "param",
+     "key": "fishing_pet_base",
+     "bases": {
+      "fishing_struct_anchovies": 870330,
+      "fishing_struct_herring": 1056000,
+      "fishing_struct_lava_eel": 0,
+      "fishing_struct_lobster": 116129,
+      "fishing_struct_mantaray": 0,
+      "fishing_struct_pike": 305792,
+      "fishing_struct_salmon": 923616,
+      "fishing_struct_sardine": 1056000,
+      "fishing_struct_seaturtle": 0,
+      "fishing_struct_shark": 82243,
+      "fishing_struct_shrimps": 870330,
+      "fishing_struct_swordfish": 257770,
+      "fishing_struct_trout": 923616,
+      "fishing_struct_tuna": 257770
+     }
+    }
+   ],
+   "constants": {
+    "skillpet_heron_big_net": 1147827,
+    "skillpet_heron_trawler": 5000
+   },
+   "note": "OSRS's figures are per fish, so each one lives on its own fishing struct. The big net is the exception: the wiki gives one figure for big net fishing as an ACTIVITY, and one haul can bring up boots, seaweed, two mackerel, a cod and a bass at once, so it is rolled once per haul that caught something, out of a constant. The Fishing Trawler has its own figure too and is rolled once per game landed, since its net can only be pulled after a journey that finished. The lava eel, manta ray and sea turtle have no row on the wiki and so give no pet, as in OSRS."
   },
   "skillpet_tangleroot": {
    "stat": "farming",
-   "wired": false,
-   "why": "the wiki gives ranges per family for hops, bushes and trees; the hook carries the seed, so it wants a per-seed table and one more research pass",
-   "bases_pending": {
-    "allotment": 281040,
-    "flower": 281040,
-    "herb": 98364,
-    "fruit_tree": 9000,
-    "cactus": 7000,
-    "calquat": 6000,
-    "spirit_tree": 5000,
-    "hops": "56208-112416",
-    "bush": "28104-44966",
-    "tree": "9368-22483"
-   }
+   "wired": true,
+   "hooks": [
+    "scripts/skill_farming/scripts/farming_actions.rs2"
+   ],
+   "per": "patch",
+   "tables": [
+    {
+     "path": "scripts/_unpack/377/all.obj",
+     "kind": "param",
+     "key": "farming_pet_base",
+     "bases": {
+      "asgarnian_hop_seed": 89933,
+      "avantoe_seed": 98364,
+      "barley_seed": 112416,
+      "belladonna_seed": 8000,
+      "cabbage_seed": 281040,
+      "cactus_seed": 7000,
+      "cadantine_seed": 98364,
+      "cadavaberry_bush_seed": 37472,
+      "dwarf_weed_seed": 98364,
+      "dwellberry_bush_seed": 32119,
+      "guam_seed": 98364,
+      "hammerstone_hop_seed": 112416,
+      "harralander_seed": 98364,
+      "irit_seed": 98364,
+      "jangerberry_bush_seed": 28104,
+      "jute_seed": 89933,
+      "krandorian_hop_seed": 64238,
+      "kwuarm_seed": 98364,
+      "lantadyme_seed": 98364,
+      "limpwurt_seed": 281040,
+      "marigold_seed": 281040,
+      "marrentill_seed": 98364,
+      "mushroom_seed": 7500,
+      "nasturtium_seed": 281040,
+      "onion_seed": 281040,
+      "plantpot_apple_sapling": 9000,
+      "plantpot_banana_sapling": 9000,
+      "plantpot_calquat_sapling": 6000,
+      "plantpot_curry_sapling": 9000,
+      "plantpot_magic_tree_sapling": 9368,
+      "plantpot_maple_sapling": 14052,
+      "plantpot_oak_sapling": 22483,
+      "plantpot_orange_sapling": 9000,
+      "plantpot_palm_sapling": 9000,
+      "plantpot_papaya_sapling": 9000,
+      "plantpot_pineapple_sapling": 9000,
+      "plantpot_spirit_tree_sapling": 5000,
+      "plantpot_willow_sapling": 16059,
+      "plantpot_yew_sapling": 11242,
+      "poisonivy_bush_seed": 28104,
+      "potato_seed": 281040,
+      "ranarr_seed": 98364,
+      "redberry_bush_seed": 44966,
+      "rosemary_seed": 281040,
+      "scarecrow_complete": 0,
+      "snapdragon_seed": 98364,
+      "strawberry_seed": 187360,
+      "sweetcorn_seed": 224832,
+      "tarromin_seed": 98364,
+      "toadflax_seed": 98364,
+      "tomato_seed": 281040,
+      "torstol_seed": 98364,
+      "watermelon_seed": 160594,
+      "whiteberry_bush_seed": 28104,
+      "wildblood_hop_seed": 56208,
+      "woad_seed": 281040,
+      "yanillian_hop_seed": 74944
+     }
+    }
+   ],
+   "note": "The wiki does give per-seed figures, so no family range is interpolated. WHEN it rolls is the other half: OSRS rolls at a patch's check-health where the family has one, and at the FINAL harvest - the pick that clears the patch - where it does not. So a ranarr patch is one roll however many herbs it gave, and a magic tree is one roll when you look at it. The scarecrow plants in a flower patch without being a crop and has no produce, so it gives no pet."
   },
   "skillpet_rocky": {
    "stat": "thieving",
-   "wired": false,
-   "why": "per target, and this server's pickpocket and stall targets have to be mapped onto the wiki's four npc bands and four stall bands",
-   "bases_pending": {
-    "pickpocket_most": 257211,
-    "pickpocket_watchman": 134625,
-    "pickpocket_paladin": 127056,
-    "pickpocket_gnome_hero_elf": 99175,
-    "stall_veg": 206777,
-    "stall_bakery_fruit": 124066,
-    "stall_crafting_food": 47718,
-    "stall_other": 36490
-   }
+   "wired": true,
+   "hooks": [
+    "scripts/skill_thieving/scripts/thieving.rs2"
+   ],
+   "tables": [
+    {
+     "path": "scripts/skill_thieving/configs/pickpocking/pickpocket.dbrow",
+     "kind": "dbrow",
+     "key": "pet_base",
+     "bases": {
+      "pickpocket_farmer": 257211,
+      "pickpocket_gnome": 108718,
+      "pickpocket_guard": 257211,
+      "pickpocket_hero": 99175,
+      "pickpocket_knight_of_ardougne": 257211,
+      "pickpocket_man": 257211,
+      "pickpocket_paladin": 127056,
+      "pickpocket_rogue": 257211,
+      "pickpocket_warrior": 257211,
+      "pickpocket_watchman": 134625,
+      "pickpocket_woman": 257211
+     }
+    },
+    {
+     "path": "scripts/skill_thieving/configs/stalls/stealing.dbrow",
+     "kind": "dbrow",
+     "key": "pet_base",
+     "bases": {
+      "stealing_bakery_stall": 124066,
+      "stealing_fur_stall": 36490,
+      "stealing_gem_stall": 36490,
+      "stealing_silk_stall": 68926,
+      "stealing_silver_stall": 36490,
+      "stealing_spice_stall": 36490,
+      "stealing_tea_stall": 68926
+     }
+    }
+   ],
+   "note": "Every one of this server's eleven pickpocket targets and seven stalls is named explicitly in one of the wiki's bands, so nothing is assigned by resemblance. Note the gnome is its OWN band at 108,718 - it is not in with the hero and the elf at 99,175, which is what an earlier pass of this spec had. The trapped chests get no roll: the wiki lists pickpocketing, stalls, Pyramid Plunder's chests and the Sorceress's Garden, and nothing else."
   },
   "skillpet_chinchompa": {
    "stat": "hunter",
    "wired": false,
    "why": "this server has no Hunter skill at all - nothing advances it - so the pet is built with no source on purpose, the way the twelve sourceless slayer helmet colours are"
   }
- }
+ },
+ "tables_is": "where each base chance lives: path, kind ('dbrow' for a data=<key> line in a dbrow, 'param' for a param=<key> line in a struct or obj config), the key, and the bases keyed by the block they belong to. A pet can name more than one table - the Rocky's targets and stalls are two."
 }

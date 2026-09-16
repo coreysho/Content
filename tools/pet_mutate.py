@@ -21,6 +21,15 @@ SPEC = 'tools/petspec.json'
 MINERS2 = 'scripts/skill_mining/scripts/mining.rs2'
 RC = 'scripts/skill_runecraft/scripts/runecraft.rs2'
 GNOME = 'scripts/skill_agility/scripts/gnome_course.rs2'
+FISH = 'scripts/skill_fishing/scripts/fishing.rs2'
+FSTRUCT = 'scripts/skill_fishing/configs/fishing.struct'
+MEMBER = 'scripts/skill_fishing/scripts/fishing_spots/memberfish.rs2'
+TRAWL = 'scripts/minigames/game_trawler/scripts/trawler_win.rs2'
+FARM = 'scripts/skill_farming/scripts/farming_actions.rs2'
+ALLOBJ = 'scripts/_unpack/377/all.obj'
+THIEF = 'scripts/skill_thieving/scripts/thieving.rs2'
+PICKROW = 'scripts/skill_thieving/configs/pickpocking/pickpocket.dbrow'
+STALLROW = 'scripts/skill_thieving/configs/stalls/stealing.dbrow'
 
 MUTS = [
  # 1 - the formula itself
@@ -77,8 +86,9 @@ if (random($chance) ! 0) {
  (CONST, '^skillpet_squirrel_barbarian = 44376', '^skillpet_squirrel_barbarian = 35609',
   '3 skillpet_squirrel: ^skillpet_squirrel_barbarian is 44376'),
  # a row that grows a base the spec has never heard of
- (MINE, '[blurite_rock]\ntable=mining_table', '[blurite_rock2]\ntable=mining_table',
-  '3 ...and no row carries a base the spec does not know'),
+ (MINE, '[blurite_rock]\ntable=mining_table',
+        '[granite_rock]\ntable=mining_table\ndata=pet_base,741600\n\n[blurite_rock]\ntable=mining_table',
+  '3 skillpet_rock_golem: nothing else in mine.dbrow carries a base'),
  # 4 - a base so small the formula runs out at 99
  (CONST, '^skillpet_squirrel_wilderness = 34666', '^skillpet_squirrel_wilderness = 2400',
   '4 skillpet_squirrel: its smallest base'),
@@ -91,10 +101,86 @@ if (random($chance) ! 0) {
   '5 ...and the Rift guardian rolls once per essence, not once per click'),
  (GNOME, '    ~skillpet_roll(skillpet_squirrel_item, agility, ^skillpet_squirrel_gnome);\n', '',
   '5 skillpet_squirrel_item rolls in gnome_course.rs2'),
- # 6 - a pending pet quietly wired, which would put it in the game at a rate nobody checked
- ('scripts/skill_fishing/scripts/fishing.rs2', '~fishing_xp(struct_param($struct1, productexp));',
-  '~fishing_xp(struct_param($struct1, productexp));\n        ~skillpet_roll(skillpet_heron_item, fishing, 116129);',
-  '6 skillpet_heron is rolled nowhere'),
+ # ---- 3, the three newest pets' bases
+ (FSTRUCT, 'param=fishing_pet_base,82243', 'param=fishing_pet_base,116129',
+  '3 skillpet_heron: fishing_struct_shark is 82243'),
+ (FSTRUCT, '[fishing_struct_mantaray]',
+           '[fishing_struct_cod]\nparam=fishing_pet_base,1147827\n\n[fishing_struct_mantaray]',
+  '3 skillpet_heron: nothing else in fishing.struct carries a base'),
+ (ALLOBJ, 'param=farming_pet_base,160594', 'param=farming_pet_base,281040',
+  '3 skillpet_tangleroot: watermelon_seed is 160594'),
+ # The gnome is its OWN band at 108,718 - an earlier pass of the spec had it in with the hero and
+ # the elf at 99,175, and nothing but this would ever have shown it.
+ (PICKROW, 'data=pet_base,108718', 'data=pet_base,99175',
+  '3 skillpet_rocky: pickpocket_gnome is 108718'),
+ (STALLROW, 'data=pet_base,124066', 'data=pet_base,36490',
+  '3 skillpet_rocky: stealing_bakery_stall is 124066'),
+ (CONST, '^skillpet_heron_big_net = 1147827', '^skillpet_heron_big_net = 1056000',
+  '3 skillpet_heron: ^skillpet_heron_big_net is 1147827'),
+ (CONST, '^skillpet_heron_trawler = 5000', '^skillpet_heron_trawler = 50000',
+  '3 skillpet_heron: ^skillpet_heron_trawler is 5000'),
+
+ # ---- 5, a hook rolling against the wrong skill
+ (FISH, '~skillpet_roll(skillpet_heron_item, fishing,',
+        '~skillpet_roll(skillpet_heron_item, agility,', '5 ...against fishing'),
+ (FARM, '~skillpet_roll(skillpet_tangleroot_item, farming,',
+        '~skillpet_roll(skillpet_tangleroot_item, woodcutting,', '5 ...against farming'),
+ (THIEF, '~skillpet_roll(skillpet_rocky_item, thieving,',
+         '~skillpet_roll(skillpet_rocky_item, mining,', '5 ...against thieving'),
+
+ # ---- 6, the last pending pet quietly wired, which would put it in the game at a rate nobody has
+ # checked and against a skill that does not exist
+ (FISH, '~fishing_xp(struct_param($struct1, productexp));',
+  '~fishing_xp(struct_param($struct1, productexp));\n        ~skillpet_roll(skillpet_chinchompa_item, hunter, 116129);',
+  '6 skillpet_chinchompa is rolled nowhere'),
+
+ # ---- 8, WHEN each of the three rolls
+ # A tier of fish rolling at another tier's rate. Invisible without this: the roll still happens,
+ # the pet still drops, and only the maths over ten thousand catches would ever say.
+ (FISH, 'struct_param($struct1, fishing_pet_base)', 'struct_param($struct2, fishing_pet_base)',
+  '8 ...each off the struct of the fish it just caught'),
+ (FISH, '\n        ~skillpet_roll(skillpet_heron_item, fishing, struct_param($struct2, fishing_pet_base));', '',
+  '8 all four catches in fish_roll and fish_roll_loc roll'),
+ (MEMBER, 'if ($caught > 0) {', 'if ($caught > -1) {',
+  '8 ...and only when the haul caught something'),
+ (MEMBER, '    ~fishing_xp(1);\n    $caught = calc($caught + 1);', '    ~fishing_xp(1);',
+  '8 every item the net can bring up counts towards that'),
+ (MEMBER, '~skillpet_roll(skillpet_heron_item, fishing, ^skillpet_heron_big_net);',
+          '~skillpet_roll(skillpet_heron_item, fishing, ^skillpet_heron_big_net);\n~skillpet_roll(skillpet_heron_item, fishing, ^skillpet_heron_big_net);',
+  '8 the big net rolls once per haul, not once per item'),
+ (MEMBER, '^skillpet_heron_big_net', '^skillpet_heron_trawler',
+  '8 ...at the activity constant, because OSRS gives one figure for big net fishing'),
+ (TRAWL, '    inv_add(trawler_rewardinv, raw_mantaray, 1);',
+         '    inv_add(trawler_rewardinv, raw_mantaray, 1);\n    ~skillpet_roll(skillpet_heron_item, fishing, ^skillpet_heron_trawler);',
+  '8 and the trawler does not also roll per fish out of the net'),
+ (FARM, '~farming_xp(oc_param($seed, farming_check_xp));\n~farming_pet_roll($seed);',
+        '~farming_xp(oc_param($seed, farming_check_xp));',
+  '8 check-health rolls, which is where a tree rolls'),
+ # The roll after the clear: the patch is already empty, and on a server where clearing resets the
+ # patch's seed this is the roll reading whatever is there next.
+ (FARM, 'anim(null, 0);\n~farming_pet_roll($seed);\n~farming_clear_patch($patch);',
+        'anim(null, 0);\n~farming_clear_patch($patch);\n~farming_pet_roll($seed);',
+  '8 ...the roll comes before the clear, while the seed is still known'),
+ # A roll on every pick rather than on the pick that clears: a ranarr patch would roll five times.
+ (FARM, 'inv_add(inv, $produce, 1);\nmes("You harvest <lowercase(oc_name($produce))>.");\n~farming_xp(oc_param($seed, farming_harvest_xp));',
+        'inv_add(inv, $produce, 1);\nmes("You harvest <lowercase(oc_name($produce))>.");\n~farming_xp(oc_param($seed, farming_harvest_xp));\n~farming_pet_roll($seed);',
+  '8 the two harvests that clear the patch roll, and only those'),
+ (FARM, '    if ($left <= 1) {\n        ~farming_pet_roll($seed);',
+        '    if ($left <= 1) {',
+  '8 picking regrowing produce rolls once and only on the last mushroom'),
+ # A bush that loses its check-health keeps a base that can then never fire: the patch regrows
+ # instead of clearing, so nothing ever rolls for it.
+ (ALLOBJ, 'param=farming_check_state,250', 'param=farming_check_state,0',
+  '8 every family that never clears its patch has a check-health to roll at'),
+ (THIEF, '~trapped_chest_check_for_reward($data);',
+         '~trapped_chest_check_for_reward($data);\n~skillpet_roll(skillpet_rocky_item, thieving, 36490);',
+  '8 a trapped chest gives no pet, as in OSRS'),
+ (THIEF, '~skillpet_roll(skillpet_rocky_item, thieving, db_getfield($data, stealing:pet_base, 0));',
+         '~skillpet_roll(skillpet_rocky_item, thieving, db_getfield($data, pickpocket:pet_base, 0));',
+  '8 ...one off stealing:pet_base'),
+ (THIEF, 'stat_advance(thieving, $experience);\n~skillpet_roll(skillpet_rocky_item, thieving, db_getfield($data, pickpocket:pet_base, 0));',
+         'stat_advance(thieving, $experience);\nsound_synth(pick, 1, 0);\n~skillpet_roll(skillpet_rocky_item, thieving, db_getfield($data, pickpocket:pet_base, 0));',
+  '8 and each roll sits on the line after the xp it belongs to'),
  # 7 - the two halves of a pet losing track of each other
  ('scripts/npc/configs/skill_pets.obj', 'param=follower_id,skillpet_beaver',
   'param=follower_id,skillpet_heron', '7 ...and the item names the npc'),

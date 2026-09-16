@@ -135,65 +135,81 @@ if (npc_param(is_whirlpool) = ^true) {
     return;
 }
 def_int $level = stat(fishing);
+// One big-net haul is several independent rolls and can bring up more than one thing at once, so
+// the Heron is rolled ONCE for the haul rather than once per item. OSRS's figure is for "big net
+// fishing" - the activity, not a fish - so it lives in a constant rather than on a struct, and
+// the junk counts: boots and seaweed come out of the same successful cast as the cod.
+def_int $caught = 0;
 // leather boots
 if (stat_random(fishing, 10, 10) = true) {
     inv_add(inv, leather_boots, 1);
     mes("You catch some boots.");
     ~fishing_xp(10);
+    $caught = calc($caught + 1);
 }
 // seaweed
 if (stat_random(fishing, 10, 10) = true) {
     inv_add(inv, seaweed, 1);
     mes("You catch some seaweed.");
     ~fishing_xp(1);
+    $caught = calc($caught + 1);
 }
 // leather gloves
 if (stat_random(fishing, 5, 5) = true) {
     inv_add(inv, leather_gloves, 1);
     mes("You catch some gloves.");
     ~fishing_xp(10);
+    $caught = calc($caught + 1);
 }
 // mackerel
 if (stat_random(fishing, 5, 65) = true) {
     inv_add(inv, raw_mackerel, 1);
     mes("You catch a mackerel.");
     ~fishing_xp(200);
+    $caught = calc($caught + 1);
 }
 // another mackerel
 if (stat_random(fishing, 10, 10) = true) {
     inv_add(inv, raw_mackerel, 1);
     mes("You catch a mackerel.");
     ~fishing_xp(200);
+    $caught = calc($caught + 1);
 }
 // oyster
 if (stat_random(fishing, 3, 7) = true) {
     inv_add(inv, oystershell, 1);
     mes("You catch an oyster shell.");
     ~fishing_xp(100);
+    $caught = calc($caught + 1);
 }
 // casket
 if (stat_random(fishing, 1, 2) = true) {
     inv_add(inv, casket, 1);
     mes("You catch a casket.");
     ~fishing_xp(100);
+    $caught = calc($caught + 1);
 }
 // cod
-if ($level < 23) {
-    return;
+if ($level >= 23) {
+    if (stat_random(fishing, 4, 55) = true) {
+        inv_add(inv, raw_cod, 1);
+        mes("You catch a cod.");
+        ~fishing_xp(450);
+        $caught = calc($caught + 1);
+    }
+    // bass
+    if ($level >= 46) {
+        if (stat_random(fishing, 3, 40) = true) {
+            inv_add(inv, raw_bass, 1);
+            mes("You catch a bass.");
+            ~fishing_xp(1000);
+            $caught = calc($caught + 1);
+        }
+    }
 }
-if (stat_random(fishing, 4, 55) = true) {
-    inv_add(inv, raw_cod, 1);
-    mes("You catch a cod.");
-    ~fishing_xp(450);
-}
-// bass
-if ($level < 46) {
-    return;
-}
-if (stat_random(fishing, 3, 40) = true) {
-    inv_add(inv, raw_bass, 1);
-    mes("You catch a bass.");
-    ~fishing_xp(1000);
+// A cast that brought up nothing is not a successful action and gives no roll.
+if ($caught > 0) {
+    ~skillpet_roll(skillpet_heron_item, fishing, ^skillpet_heron_big_net);
 }
 
 // oysters and casket ops
