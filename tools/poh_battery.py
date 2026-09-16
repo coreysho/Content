@@ -4392,11 +4392,114 @@ check(not _unaccepted,
       'file let a head missing from one of them be found in the other: %s'
       % (_unaccepted or 'all %d heads, both handles' % len(_heads)))
 
-# ---- THE GREEGREES, the one gap left as a gap on purpose
-_gree = [k for k, v in _NOSPEC['objs'].items() if 'greegree' in k]
-check(len(_gree) == 1 and 'Monkey Madness stage 3 is built' in _NOSPEC['objs'][_gree[0]]['why'],
-      'the seven unmade greegrees are recorded as a gap in built content rather than as missing '
-      'items, so the next round knows it is quest work and not a source')
+# ---- THE GREEGREES were the one gap left as a gap on purpose, and are not any more: group 69
+# checks the recipe that closed it. What is left here is that nobody re-adds the excuse.
+check(not [k for k, v in _NOSPEC['objs'].items() if 'greegree' in k],
+      'no greegree is excused as sourceless any more, because Zooknock makes all eight')
+
+print('69. eight greegrees, one recipe, and the animations the cache asked for')
+
+# Monkey Madness stage 3 made exactly ONE of its eight greegrees, so a player could finish the
+# quest and never see seven of its rewards - even though all eight were fully configured, each with
+# its own param=mm_transmog_npc. The relic decides the head; the head's own param decides the
+# monkey. This group is about keeping those two facts in one table.
+
+MMOBJ = read('scripts/quests/quest_mm/configs/quest_mm.obj')
+MMGREE = read('scripts/quests/quest_mm/configs/mm_greegree.enum')
+MMRS = read('scripts/quests/quest_mm/scripts/mm_stage3.rs2')
+ALLNPC = read('scripts/_unpack/377/all.npc')
+
+_rows = dict(re.findall(r'^val=(\w+),(\w+)$', MMGREE, re.M))
+_greegrees = sorted(re.findall(r'^\[(mm_monkey_greegree_\w+)\]', MMOBJ, re.M))
+check(len(_greegrees) == 8, 'all eight greegrees are configured: %d' % len(_greegrees))
+check(sorted(_rows.values()) == _greegrees,
+      'and every one of them has a relic that makes it, with no greegree left out and none '
+      'invented: %s' % (sorted(set(_rows.values()) ^ set(_greegrees)) or 'all eight'))
+
+_objnames = {l.strip().split('=', 1)[1] for l in read('pack/obj.pack').split('\n') if '=' in l}
+_notreal = sorted(n for n in list(_rows) + list(_rows.values()) if n not in _objnames)
+check(not _notreal, 'every relic and every head in the table is a real obj: %s'
+                    % (_notreal[:3] or 'all %d' % (len(_rows) * 2)))
+
+# ONE HEAD PER FORM. Two greegrees pointing at the same transmogrification npc would mean one of
+# the eight monkeys could never be worn, which is the shape of the bug this round closed.
+_forms = dict(re.findall(r'^\[(mm_monkey_greegree_\w+)\]\n(?:(?!\[).*\n)*?'
+                         r'param=mm_transmog_npc,(\w+)$', MMOBJ, re.M))
+check(len(_forms) == 8, 'each greegree names the monkey it turns you into: %d of 8' % len(_forms))
+check(len(set(_forms.values())) == 8,
+      'and no two of them name the same monkey, so every form is reachable: %d distinct'
+      % len(set(_forms.values())))
+
+# ---- THE ANIMATION TABLE, PINNED TO THE CACHE
+# Content cannot read an npc's walkanim - nc_param, nc_name, nc_size and nc_vislevel exist, the
+# anims do not - so ~mm_monkey_bas carries a copy of what the cache already knows. That is a
+# duplicate, and the one thing a duplicate needs is something that fails when it drifts. The eight
+# forms use FOUR different sets, and hardcoding one of them is how the only greegree there used to
+# be got animated as the wrong size of monkey.
+_bas = MMRS.split('[proc,mm_monkey_bas]', 1)[1].split('\n[', 1)[0]
+_cases = re.findall(r'case ([\w, ]+) : ~mm_bas\((\w+), (\w+)\);', _bas)
+_want = {}
+for _names, _ready, _walk in _cases:
+    for _n in [x.strip() for x in _names.split(',')]:
+        _want[_n] = (_ready, _walk)
+_drift = []
+for _form in sorted(set(_forms.values())):
+    _blk = ALLNPC.split('[%s]' % _form, 1)
+    if len(_blk) < 2:
+        _drift.append('%s is not in the cache at all' % _form)
+        continue
+    _blk = _blk[1].split('\n[', 1)[0]
+    _cr = re.search(r'^readyanim=(\S+)$', _blk, re.M)
+    _cw = re.search(r'^walkanim=(\S+)$', _blk, re.M)
+    _got = _want.get(_form)
+    if not _got:
+        _drift.append('%s has no case in ~mm_monkey_bas' % _form)
+    elif not (_cr and _cw) or _got != (_cr.group(1), _cw.group(1)):
+        _drift.append('%s: table says %s, the cache says %s'
+                      % (_form, _got, (_cr and _cr.group(1), _cw and _cw.group(1))))
+check(not _drift,
+      "every form's animation set is the one that form's own npc config asks for, read out of the "
+      'cache rather than trusted: %s' % (_drift[:2] or 'all %d forms' % len(set(_forms.values()))))
+check(len({v for v in _want.values()}) >= 4,
+      'and they are not all the same set, which is the mistake this replaced: %d distinct sets'
+      % len({v for v in _want.values()}))
+
+# ---- THE RECIPE reads the table rather than naming a head
+_carve = MMRS.split('[label,mm_zooknock_carve]', 1)[1].split('\n[', 1)[0]
+check('enum(obj, namedobj, mm_greegree_for,' in _carve,
+      'the carve reads which head to make out of the table')
+check(not re.search(r'inv_add\(inv, mm_monkey_greegree_\w+', _carve),
+      'and names no greegree of its own, so a ninth needs no code')
+check(before(_carve, 'inv_del(inv, mm_monkey_talisman', 'inv_add(inv, $head'),
+      'the talisman and the relic are spent before the head is granted, in one block with no '
+      'pausing call between them')
+_after = MMRS.split('if (%mm_main >= ^mm_has_greegree) {', 1)[1].split('\nif (', 1)[0]
+check('@mm_zooknock_carve;' in _after,
+      'and Zooknock carves again after the quest is over, which is what makes the other seven '
+      'reachable at all')
+check('~mm_greegree_relic_held = null' in _after,
+      '...but only when you have brought him something to work, so a bare hello still gets a line')
+
+# ---- EVERY RELIC IS OBTAINABLE, asked of the sweep rather than assumed
+_sw69 = _sp.run([sys.executable, os.path.join(C, 'tools/obtainable.py')],
+                capture_output=True, text=True, cwd=C)
+check(_sw69.returncode == 0, 'tools/obtainable.py runs clean')
+_hard69 = _sw69.stdout.split('NOTHING ANYWHERE MENTIONS THESE', 1)[-1].split('MENTIONED, BUT', 1)[0]
+_unget = sorted(r for r in _rows if re.search(r'\b%s\b' % r, _hard69))
+check(not _unget, 'and every relic the table asks for can be got: %s'
+                  % (_unget or 'all %d' % len(_rows)))
+
+# THE TWO NEW DROPS ARE JUSTIFIED BY THE CACHE'S OWN MODELS, not by a guess. The bearded gorilla's
+# bones came off nothing: the guard wearing the bearded body (npc_1438) dropped the normal
+# gorilla's. And the level-149 ninja guards wearing npc_1441 dropped nothing, while the level-86
+# archers wearing the same body drop the SMALL ninja bones.
+for _npc, _bones, _body in (('mm_religious_trapdoor_guard', 'mm_bearded_gorilla_monkey_bones', 'npc_1438'),
+                            ('mm_monkey_guard', 'mm_medium_ninja_monkey_bones', 'npc_1441')):
+    _blk = ALLNPC.split('[%s]' % _npc, 1)[1].split('\n[', 1)[0]
+    check('param=death_drop,%s' % _bones in _blk,
+          '%s drops %s' % (_npc, _bones))
+    check(re.search(r'^model\d*=%s' % _body, _blk, re.M),
+          '...and wears the %s body those bones came off, which is why they are its drop' % _body)
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

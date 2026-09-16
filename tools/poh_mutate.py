@@ -1099,9 +1099,44 @@ MUTS += [
  ('scripts/macro events/scripts/woodcutting/macro_event_lost_axe.rs2',
   'macro_black_hatchethead, ', '',
   '68 and every axe head in the game is accepted by BOTH handles'),
- ('tools/nosourcespec.json', 'KNOWN GAP IN IMPLEMENTED CONTENT, not a missing item. Monkey Madness stage 3 is built',
-  'KNOWN GAP IN IMPLEMENTED CONTENT, not a missing item. That quest is around somewhere',
-  '68 the seven unmade greegrees are recorded as a gap in built content'),
+]
+
+
+# ---- 69: eight greegrees, one recipe ---------------------------------------------------------
+MUTS += [
+ ('scripts/quests/quest_mm/configs/mm_greegree.enum',
+  'val=mm_bearded_gorilla_monkey_bones,mm_monkey_greegree_for_bearded_gorilla\n', '',
+  '69 and every one of them has a relic that makes it'),
+ ('scripts/quests/quest_mm/configs/quest_mm.obj',
+  'param=mm_transmog_npc,mm_transmogrification_bearded_gorilla',
+  'param=mm_transmog_npc,mm_transmogrification_normal_gorilla',
+  '69 and no two of them name the same monkey'),
+ # THE PIN ON THE CACHE: give a form the wrong animation set and the check has to notice, because
+ # nothing else will until someone watches themselves walk.
+ ('scripts/quests/quest_mm/scripts/mm_stage3.rs2',
+  'case mm_transmogrification_normal_gorilla, mm_transmogrification_bearded_gorilla, mm_transmogrification_ancient_monkey : ~mm_bas(m_gorilla_ready, m_gorilla_walk);',
+  'case mm_transmogrification_normal_gorilla, mm_transmogrification_bearded_gorilla, mm_transmogrification_ancient_monkey : ~mm_bas(monkey_ready, monkey_walk);',
+  "69 every form's animation set is the one that form's own npc config asks for"),
+ ('scripts/quests/quest_mm/scripts/mm_stage3.rs2',
+  'case mm_transmogrification_small_ninja_monkey, mm_transmogrification_medium_ninja_monkey : ~mm_bas(m_monkey_ready, m_monkey_walk);\n',
+  '',
+  '69 and they are not all the same set, which is the mistake this replaced'),
+ ('scripts/quests/quest_mm/scripts/mm_stage3.rs2',
+  'def_namedobj $head = enum(obj, namedobj, mm_greegree_for, $relic);',
+  'def_namedobj $head = mm_monkey_greegree_for_normal_monkey;',
+  '69 the carve reads which head to make out of the table'),
+ ('scripts/quests/quest_mm/scripts/mm_stage3.rs2',
+  '    @mm_zooknock_carve;\n}\nif (%mm_main < ^mm_has_talisman) {',
+  '    return;\n}\nif (%mm_main < ^mm_has_talisman) {',
+  '69 and Zooknock carves again after the quest is over'),
+ ('scripts/_unpack/377/all.npc',
+  'param=death_drop,mm_bearded_gorilla_monkey_bones',
+  'param=death_drop,mm_normal_gorilla_monkey_bones',
+  '69 mm_religious_trapdoor_guard drops mm_bearded_gorilla_monkey_bones'),
+ ('tools/nosourcespec.json',
+  '"magic_secateurs": {',
+  '"mm_monkey_greegree_for_normal_gorilla": {"why": "x", "osrs_source": "x"},\n  "magic_secateurs": {',
+  '69 no greegree is excused as sourceless any more'),
 ]
 
 

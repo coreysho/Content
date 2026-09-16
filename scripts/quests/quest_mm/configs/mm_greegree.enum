@@ -1,0 +1,28 @@
+// Which greegree Zooknock makes from which relic.
+//
+// EIGHT GREEGREES, ONE RECIPE. The quest used to hand over the Karamjan one and nothing else, so
+// seven of the eight had no recipe at all - a player could finish Monkey Madness and never see
+// them. They were all fully configured, each with its own param=mm_transmog_npc, which is why this
+// is a table and not eight code paths: the relic decides the head, and the head's own param
+// decides what you turn into.
+//
+// The relics are the cache's own death drops from the monkeys they came off - see
+// claude/monkey-greegrees.md for which monkey drops which. The ancient one is a skull off the
+// floor of the Temple of Marimbo dungeon rather than a set of bones, which is OSRS's own
+// exception and the reason this is keyed by relic rather than by monkey.
+
+[mm_greegree_for]
+// KEYED BY obj, not namedobj: inv_getobj hands back an obj and inv_del takes one, so only the
+// OUTPUT needs to be a namedobj - that is what inv_add wants. Getting this the other way round
+// is a build error rs2check does not catch, which is how it was found.
+inputtype=obj
+outputtype=namedobj
+default=null
+val=mm_normal_monkey_bones,mm_monkey_greegree_for_normal_monkey
+val=mm_small_ninja_monkey_bones,mm_monkey_greegree_for_small_ninja_monkey
+val=mm_medium_ninja_monkey_bones,mm_monkey_greegree_for_medium_ninja_monkey
+val=mm_normal_gorilla_monkey_bones,mm_monkey_greegree_for_normal_gorilla
+val=mm_bearded_gorilla_monkey_bones,mm_monkey_greegree_for_bearded_gorilla
+val=mm_small_zombie_monkey_bones,mm_monkey_greegree_for_small_zombie_monkey
+val=mm_large_zombie_monkey_bones,mm_monkey_greegree_for_large_zombie_monkey
+val=mm_ancient_monkey_skull,mm_monkey_greegree_for_ancient_monkey_skull

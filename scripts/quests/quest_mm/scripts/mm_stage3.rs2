@@ -83,9 +83,17 @@ inv_add(inv, mm_monkey_talisman, 1);
 // [opnpc1,mm_zooknock] in quest_mm.rs2 jumps here once the amulet is made.
 
 [label,mm_zooknock_greegree]
+// HE KEEPS WORKING AFTER THE QUEST. OSRS lets you come back with other bones for other heads, and
+// this used to answer a line of flavour and stop - which is what made seven of the eight
+// unobtainable even though all eight were built. The quest gate below is unchanged: the FIRST
+// greegree is still what completes Monkey Madness.
 if (%mm_main >= ^mm_has_greegree) {
-    ~chatnpc("<p,happy>Hold it and you are a monkey. Put it away and you are not. Try not to think about it too hard.");
-    return;
+    if (inv_total(inv, mm_monkey_talisman) < 1 | ~mm_greegree_relic_held = null) {
+        ~chatnpc("<p,happy>Hold it and you are a monkey. Put it away and you are not. Try not to think about it too hard.");
+        ~chatnpc("<p,neutral>Bring me another talisman and other bones and I will carve you another face.");
+        return;
+    }
+    @mm_zooknock_carve;
 }
 if (%mm_main < ^mm_has_talisman) {
     if (%mm_zooknock_player_is_collecting_for_talisman = ^false) {
@@ -104,23 +112,31 @@ if (inv_total(inv, mm_monkey_talisman) < 1) {
     ~chatnpc("<p,neutral>You had a talisman. Where is the talisman?");
     return;
 }
-if (inv_total(inv, mm_normal_monkey_bones) < 1) {
+if (~mm_greegree_relic_held = null) {
     ~chatnpc("<p,neutral>The talisman, yes. Now the bones. Any monkey on this island that is no longer using them.");
     return;
 }
 ~chatplayer("<p,neutral>Talisman and bones.");
 ~chatnpc("<p,neutral>Then hold still and do not watch the middle part.");
-// Everything is spent and granted in one block before the first pausing call, so a dismissed
-// message cannot cost the player the talisman without giving them the greegree.
+@mm_zooknock_carve;
+
+// Spending and granting happen in one block before the first pausing call, so a dismissed message
+// cannot cost the player the talisman without giving them the greegree. Reached from two places -
+// the quest's first greegree and every one after it - which is why it is a label and not inline.
+[label,mm_zooknock_carve]
+def_obj $relic = ~mm_greegree_relic_held;
+def_namedobj $head = enum(obj, namedobj, mm_greegree_for, $relic);
 inv_del(inv, mm_monkey_talisman, 1);
-inv_del(inv, mm_normal_monkey_bones, 1);
-inv_add(inv, mm_monkey_greegree_for_normal_monkey, 1);
+inv_del(inv, $relic, 1);
+inv_add(inv, $head, 1);
 %mm_zooknock_has_magical_talisman = ^true;
 %mm_zooknock_has_monkey_relic = ^true;
 %mm_zooknock_player_is_collecting_for_talisman = ^false;
-%mm_main = ^mm_has_greegree;
-~send_quest_progress(questlist:mm, 10, ^mm_complete);
-~objbox(mm_monkey_greegree_for_normal_monkey, "Zooknock works the talisman and the bones together into a single carved head. It is warm, and it is looking at you.", 250, 0, divide(^objbox_height, 2));
+if (%mm_main < ^mm_has_greegree) {
+    %mm_main = ^mm_has_greegree;
+    ~send_quest_progress(questlist:mm, 10, ^mm_complete);
+}
+~objbox($head, "Zooknock works the talisman and the bones together into a single carved head. It is warm, and it is looking at you.", 250, 0, divide(^objbox_height, 2));
 ~chatnpc("<p,neutral>Hold it and walk into Marim. They will not look at you twice.");
 ~chatnpc("<p,worried>Wear the amulet as well, or you will be a monkey who cannot understand monkeys.");
 
@@ -134,6 +150,47 @@ inv_add(inv, mm_monkey_greegree_for_normal_monkey, 1);
 //
 // p_transmogrify is an engine command that Castle Wars already uses. Unlike Castle Wars this does
 // NOT blank the interface tabs - you keep playing normally, you just happen to be a monkey.
+
+// The relic in the pack that Zooknock can work, or null. The table is the only list of them:
+// asking it rather than naming eight objs here is what stops a ninth greegree being configured
+// and silently having no recipe, which is exactly how seven of them spent their existence.
+[proc,mm_greegree_relic_held]()(obj)
+def_int $i = 0;
+while ($i < inv_size(inv)) {
+    def_obj $o = inv_getobj(inv, $i);
+    if ($o ! null & enum(obj, namedobj, mm_greegree_for, $o) ! null) {
+        return($o);
+    }
+    $i = calc($i + 1);
+}
+return(null);
+
+// THE ANIM SET IS NOT THE SAME FOR ALL EIGHT, and getting it wrong is invisible until you watch
+// yourself walk. The cache gives the eight transmogrification npcs FOUR different sets: the
+// Karamjan monkey uses the small monkey_* seqs, the two ninjas the big m_monkey_* ones, the two
+// gorillas and the ancient monkey m_gorilla_*, and the two zombies m_zombie_walk with the big
+// monkey's ready. This used to hardcode the small monkey set for the only greegree there was, and
+// the comment beside it already recorded getting THAT wrong once - a small monkey animated as a
+// large one.
+//
+// Content cannot read an npc's walkanim: nc_param, nc_name, nc_size and nc_vislevel exist, the
+// anims do not. So the table lives here, duplicating what the cache already knows - and
+// poh_battery group 69 pins every row of it to that npc's own walkanim and readyanim in
+// scripts/_unpack/377/all.npc, so it cannot drift.
+[proc,mm_monkey_bas](npc $form)
+switch_npc ($form) {
+    case mm_transmogrification_normal_monkey : ~mm_bas(monkey_ready, monkey_walk);
+    case mm_transmogrification_small_ninja_monkey, mm_transmogrification_medium_ninja_monkey : ~mm_bas(m_monkey_ready, m_monkey_walk);
+    case mm_transmogrification_normal_gorilla, mm_transmogrification_bearded_gorilla, mm_transmogrification_ancient_monkey : ~mm_bas(m_gorilla_ready, m_gorilla_walk);
+    case mm_transmogrification_small_zombie_monkey, mm_transmogrification_large_zombie_monkey : ~mm_bas(m_monkey_ready, m_zombie_walk);
+    case default : ~mm_bas(monkey_ready, monkey_walk);
+}
+
+// One walk seq for all six directions and the run, which is what the cache gives these npcs: none
+// of them has a backwards, sideways or running animation of its own. Naming it once keeps the
+// table above one line per form.
+[proc,mm_bas](seq $ready, seq $walk)
+~bas_set($ready, $walk, $walk, $walk, $walk, $walk, $walk);
 
 [proc,mm_greegree_form]()(npc)
 def_obj $held = inv_getobj(worn, ^wearpos_rhand);
@@ -150,11 +207,9 @@ return(false);
 
 [proc,mm_become_monkey](npc $form)
 p_transmogrify($form);
-// The greegree turns you into mm_transmogrification_normal_monkey, whose own config uses the
-// SMALL monkey set (walkanim=monkey_walk, readyanim=monkey_ready). This used to set the m_monkey_*
-// set instead - that is the big Marim monkey, what Awowogei and Bonzara use - so the player wore a
-// small monkey model animated as a large one. Run was also null, which fell back to the human run.
-~bas_set(monkey_ready, monkey_walk, monkey_walk, monkey_walk, monkey_walk, monkey_walk, monkey_walk);
+// The set the form itself wants - see ~mm_monkey_bas. Hardcoding one set was right while there
+// was one greegree and wrong the moment there were eight.
+~mm_monkey_bas($form);
 p_animprotect(^true);
 
 [proc,mm_become_human]
