@@ -21,6 +21,11 @@ import os, shutil, subprocess, sys
 
 C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 W = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'poh_mutate_work')
+# The real engine clone, under either name it goes by, handed to every checker through the
+# environment - see the note beside the subprocess call.
+ENGINE = next((os.path.join(C, '..', e) for e in ('engine', 'Engine-TS')
+               if os.path.exists(os.path.join(C, '..', e, 'src'))),
+              os.path.join(C, '..', 'engine'))
 
 MUTS = [
  # (file, find, replace, which check group must go red)
@@ -968,6 +973,72 @@ if (inv_total(inv, coins) < $cost) {
   '67 and names the other 24 as deliberate, by name'),
  ]
 
+# ---- 64b: what the three outfits that pay no experience do instead ---------------------------
+# Appended rather than written into the literal above, because entries in that list contain rs2
+# source with brackets and blank lines at column 0 - there is no reliable way to find its end by
+# text, and a script that guesses wrong silently drops entries.
+#
+# NOT MUTATED HERE, deliberately: group 64b's four engine-side checks and its packed-artefact
+# check read a sibling clone and a built cache, and no mutation to THIS tree can change either.
+# They were proved by hand instead - a graceful weight edited, the build re-run, and
+# tools/objpacked.py watched going red - which is written down in the project doc rather than
+# implied by a green line here.
+MUTS += [
+ ('scripts/skilling_outfits/scripts/outfit_effects.rs2',
+  '[proc,rogue_worn]()(int)\ndef_int $count = 0;',
+  '[proc,graceful_worn]()(int)\nreturn(inv_total(worn, graceful_hood));\n\n'
+  '[proc,rogue_worn]()(int)\ndef_int $count = 0;',
+  '64b Graceful is not scripted'),
+ ('scripts/skill_thieving/scripts/thieving.rs2',
+  'if (~rogue_doubles = true) {\n    $multiplier = 2;\n}',
+  'if (false = true) {\n    $multiplier = 2;\n}',
+  '64b a pickpocket asks the Rogue outfit whether its loot doubles'),
+ ('scripts/skill_thieving/scripts/thieving.rs2',
+  'inv_add(inv, $reward, calc($quantity_roll * $multiplier));',
+  'inv_add(inv, $reward, $quantity_roll);',
+  '64b the roll happens once for the theft'),
+ ('scripts/skilling_outfits/scripts/outfit_effects.rs2',
+  'if (inv_getobj(worn, ^wearpos_hands) = rogue_gloves) {',
+  'if (inv_getobj(worn, ^wearpos_torso) = rogue_gloves) {',
+  '64b all five Rogue pieces are counted'),
+ ('scripts/skilling_outfits/scripts/outfit_effects.rs2',
+  'if ($worn >= ^rogue_full_pieces) {\n    return(^rogue_double_full);\n}\n',
+  '',
+  '64b the fifth piece is worth more than the other four'),
+ ('scripts/skilling_outfits/scripts/outfit_effects.rs2',
+  'if (random(100) < $chance) {',
+  'if (random(100) < 15) {',
+  '64b and no chance in this file is a bare number'),
+ ('scripts/skilling_outfits/scripts/outfit_effects.rs2',
+  'if (inv_getobj(worn, ^wearpos_legs) = zealots_bottom & random(^zealots_save_denom) = 0) {',
+  'if (inv_getobj(worn, ^wearpos_feet) = zealots_bottom & random(^zealots_save_denom) = 0) {',
+  "64b every Zealot's piece is looked for in its own slot"),
+ ('scripts/skilling_outfits/scripts/outfit_effects.rs2',
+  'if (inv_getobj(worn, ^wearpos_torso) = zealots_top & random(^zealots_save_denom) = 0) {',
+  'if (inv_getobj(worn, ^wearpos_torso) = zealots_top) {',
+  '64b and each of them rolls separately'),
+ ('scripts/skill_prayer/scripts/bury_bone.rs2',
+  'def_boolean $saved = ~zealots_saves;',
+  'def_boolean $saved = false;',
+  "64b Zealot's robes get their chance when burying a bone"),
+ ('scripts/skill_prayer/scripts/bury_bone.rs2',
+  'if ($saved = false) {\n    inv_delslot(inv, $slot);\n}',
+  'inv_delslot(inv, $slot);',
+  '64b and the remains are only used up when they did not save it, burying a bone'),
+ ('scripts/skill_prayer/scripts/bury_bone.rs2',
+  '~prayer_xp(oc_param($last_item, bone_exp));',
+  'if ($saved = false) {\n    ~prayer_xp(oc_param($last_item, bone_exp));\n}',
+  '64b while the experience is paid whichever way it went, burying a bone'),
+ # The altar half is GENERATED, so the mutation goes in the generator: an edit to
+ # poh_furn_ops.rs2 is overwritten by the battery's own regenerate before any check can see it,
+ # which would read as a surviving mutation and be nothing of the kind.
+ ('tools/genfurn.py',
+  "'def_boolean $saved = ~zealots_saves;',",
+  "'def_boolean $saved = false;',",
+  '64b genfurn.py is what writes the altar call'),
+]
+
+
 def checker_for(why):
     if why.endswith('(rs2check)'):
         return 'tools/rs2check.py'
@@ -1007,8 +1078,18 @@ def main():
         # rs2check takes the current directory as the script root, and refuses to run anywhere
         # else - see the note beside engine.rs2 in it.
         cwd = os.path.join(W, 'scripts') if checker.endswith('rs2check.py') else W
+        # POINT THE CHECKERS AT THE REAL ENGINE. Some checks read the engine source or the packed
+        # data, which live in a SIBLING clone of this tree - and W is a scratch copy with no
+        # sibling, so a plain run would have those checks go red for every mutation and drown out
+        # the one under test. That is the "a shared check absorbs the individual ones" fault, and
+        # it would have made this whole harness useless the moment group 64b landed.
+        #
+        # The consequence, stated rather than hidden: a mutation here cannot change the engine or
+        # the packed artefact, so the engine-side and artefact checks are never the ones that
+        # catch anything below. They are proved by hand instead - edit a weight, rebuild, watch
+        # tools/objpacked.py go red - and that is recorded in the project doc rather than here.
         r = subprocess.run([sys.executable, os.path.join(W, checker)], capture_output=True,
-                           text=True, cwd=cwd)
+                           text=True, cwd=cwd, env=dict(os.environ, LOSTCITY_ENGINE=ENGINE))
         open(p, 'wb').write(original)
         ok = r.returncode != 0
         # WHICH check went red matters. A mutation that trips some OTHER check still exits

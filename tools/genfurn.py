@@ -961,14 +961,24 @@ def emit_ops(fams, items, byfam, path='scripts/skill_construction/scripts/poh_fu
           'if (oc_param($bone, bone_exp) <= 0) {',
           '    mes("The gods have no use for that.");', '    return;', '}',
           'def_int $pct = ~poh_furn_altar_bonus($item);',
-          'inv_del(inv, $bone, 1);',
+          # Zealot's robes may leave the remains intact, here exactly as when burying them. The
+          # experience is paid either way - see skill_prayer/scripts/bury_bone.rs2, which is the
+          # other half of this and the one a person is more likely to find first.
+          'def_boolean $saved = ~zealots_saves;',
+          'if ($saved = false) {',
+          '    inv_del(inv, $bone, 1);',
+          '}',
           'anim(human_pray, 0);',
           'sound_synth(prayer_recharge, 1, 0);',
           # Through ~prayer_xp so the altar rolls for a Zealot's piece like every other Prayer
           # action. A direct stat_advance here is how the carpenter's outfit could have been
           # wired and still never turned up - see skilling_outfits/scripts/outfit_xp.rs2.
           '~prayer_xp(calc(oc_param($bone, bone_exp) * $pct / 100));',
-          'mes("You offer the bones. The gods are pleased.");', '',
+          'if ($saved = true) {',
+          '    mes("You offer the bones. The gods are pleased, and your robes preserve them.");',
+          '} else {',
+          '    mes("You offer the bones. The gods are pleased.");',
+          '}', '',
           '// =========================================================================== sitting', '',
           '// 377 HAS NO SEATED STATE, so this is a pose and not something the engine holds: the seq',
           '// plays once and the player stands back up. What it can do is play in the right PLACE.',

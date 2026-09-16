@@ -3581,6 +3581,128 @@ check(len(_mime) == 3,
       % (_mime or 'none of the mime set is in the real list'))
 
 
+print('64b. what the three outfits that pay no experience do instead')
+
+# Graceful, the Rogue outfit and Zealot's robes pay no experience bonus, in OSRS or here. This is
+# the group for what they pay instead. Two of the three are scripts hooking one action at the
+# moment it resolves; the third is two numbers the engine already reads, and the checks below are
+# as much about keeping it that way as about the numbers being right.
+
+OEFF = read('scripts/skilling_outfits/scripts/outfit_effects.rs2')
+BURY = read('scripts/skill_prayer/scripts/bury_bone.rs2')
+THIEF = read('scripts/skill_thieving/scripts/thieving.rs2')
+FURNOPS = read('scripts/skill_construction/scripts/poh_furn_ops.rs2')
+GENFURN = read('tools/genfurn.py')
+OEFF_CODE = strip(OEFF)
+
+# ---- GRACEFUL: a continuous effect, so not a script at all
+_GRACE_PIECES = ('graceful_hood', 'graceful_top', 'graceful_legs', 'graceful_gloves',
+                 'graceful_boots', 'graceful_cape')
+check(not [g for g in _GRACE_PIECES if g in OEFF_CODE],
+      'Graceful is not scripted: no piece of it is named in any proc, because its weight and its '
+      'recovery are numbers the engine reads and not an action to hook: %s'
+      % ([g for g in _GRACE_PIECES if g in OEFF_CODE] or 'none of the six'))
+
+# ASK THE ARTEFACT, NOT THE CONFIG. tools/objpacked.py decodes data/pack/server/obj.dat - the file
+# the server loads - and checks the six weights and params there. The config saying weight=-3kg
+# is not evidence that a negative weight survives p2; this is. It needs a build to have run.
+_op = _sp.run([sys.executable, os.path.join(C, 'tools/objpacked.py')],
+              capture_output=True, text=True, cwd=C)
+check(_op.returncode == 0,
+      "the packed obj table agrees about Graceful's weights and its energy_restore params, read "
+      'out of the artefact the server loads rather than the config it was built from'
+      + ('' if _op.returncode == 0 else ':\n' + '\n'.join(
+          l for l in _op.stdout.split('\n') if 'FAIL' in l or 'no packed' in l)[:400]))
+
+# ---- GRACEFUL: and the engine end of it
+# The engine clone is a sibling, under either of the two names it goes by. If it is not there this
+# FAILS rather than skipping: a check that quietly passes when it could not look is the certcheck.ts
+# mistake, and it is worse than no check.
+_EROOTS = ([os.environ['LOSTCITY_ENGINE']] if os.environ.get('LOSTCITY_ENGINE') else []) \
+    + [os.path.join(C, '..', e) for e in ('engine', 'Engine-TS')]
+_ENG = next((os.path.join(r, 'src/engine/entity/Player.ts') for r in _EROOTS
+             if os.path.exists(os.path.join(r, 'src/engine/entity/Player.ts'))), None)
+check(_ENG is not None,
+      'the engine source is reachable, so the half of Graceful that lives in it can be checked '
+      'at all rather than skipped: tried %s' % ', '.join(_EROOTS))
+if _ENG:
+    _PL = open(_ENG, encoding='utf-8', newline='').read().replace('\r\n', '\n')
+    check("ParamType.getId('energy_restore')" in _PL,
+          'the engine reads the bonus from the energy_restore param by name, so it knows nothing '
+          'about which outfit a piece belongs to')
+    check(re.search(r'if \(inv\.type === InvType\.WORN && restoreParam !== -1\) \{\s*\n\s*'
+                    r'this\.runrestore \+= ParamHelper\.getIntParam', _PL),
+          'and sums it over WORN equipment only, so carrying a piece in your pack does nothing')
+    check('this.runrestore = 0;' in _PL and 'calculateRunWeight() {' in _PL
+          and 'this.runrestore = 0;' in _PL.split('calculateRunWeight() {', 1)[1].split('\n    }', 1)[0],
+          'recomputed inside calculateRunWeight, which is the function that already runs at every '
+          'moment worn equipment changes, so the number cannot go stale')
+    check(re.search(r'const recovered = natural \+ \(\(\(natural \* this\.runrestore\) / 100\) \| 0\);', _PL),
+          'and applied to the natural recovery as a whole-percent scale of it')
+    # THE ONE PLACE IT MUST NOT BE APPLIED, and the handler lives in a different file - the first
+    # version of this check looked in Player.ts, found the word HEALENERGY in the COMMENT saying
+    # the bonus does not belong there, and went red on correct code. A check has to read the thing
+    # it is talking about.
+    _OPS = os.path.join(os.path.dirname(_ENG), '../script/handlers/PlayerOps.ts')
+    check(os.path.exists(_OPS),
+          'the HEALENERGY handler is where it can be read, so the next check is about code')
+    if os.path.exists(_OPS):
+        _PO = open(_OPS, encoding='utf-8', newline='').read().replace('\r\n', '\n')
+        _hbody = _PO.split('[ScriptOpcode.HEALENERGY]', 1)[1].split('\n    },', 1)[0]
+        check('runrestore' not in _hbody,
+              'but an energy potion is not scaled by it, because a potion is not you catching '
+              'your breath')
+
+# ---- ROGUE OUTFIT: doubled pickpocket loot
+_after = strip(THIEF).split('[proc,pick_pocket_check_for_reward]', 1)[1].split('\n[', 1)[0]
+check('~rogue_doubles' in _after and strip(THIEF).count('~rogue_doubles') == 1,
+      'a pickpocket asks the Rogue outfit whether its loot doubles, and it is the only thing that '
+      'asks - so stalls, chests and trapped chests are untouched the way OSRS leaves them')
+check('* $multiplier' in _after and _after.count('~rogue_doubles') == 1,
+      'the roll happens once for the theft rather than once per item in the pocket')
+_rw = OEFF_CODE.split('[proc,rogue_worn]', 1)[1].split('\n[', 1)[0]
+_RSLOT = {'rogue_mask': 'hat', 'rogue_top': 'torso', 'rogue_trousers': 'legs',
+          'rogue_gloves': 'hands', 'rogue_boots': 'feet'}
+_rbad = [p for p, sl in _RSLOT.items()
+         if 'inv_getobj(worn, ^wearpos_%s) = %s' % (sl, p) not in _rw]
+check(not _rbad,
+      'all five Rogue pieces are counted, each looked for in the slot it is actually worn in: %s'
+      % (_rbad or 'all five'))
+_rc = OEFF_CODE.split('[proc,rogue_double_chance]', 1)[1].split('\n[', 1)[0]
+check('^rogue_full_pieces' in _rc and '^rogue_double_full' in _rc
+      and '^rogue_double_pct' in _rc,
+      "the fifth piece is worth more than the other four: the full set returns its own constant "
+      'rather than five times the per-piece one')
+check(not re.search(r'random\(\d+\)\s*<\s*\d', OEFF_CODE),
+      'and no chance in this file is a bare number against a bare number')
+
+# ---- ZEALOT'S ROBES: the remains may survive
+_zs = OEFF_CODE.split('[proc,zealots_saves]', 1)[1].split('\n[', 1)[0]
+_ZSLOT = {'zealots_helm': 'hat', 'zealots_top': 'torso', 'zealots_bottom': 'legs',
+          'zealots_boots': 'feet'}
+_zbad = [p for p, sl in _ZSLOT.items()
+         if 'inv_getobj(worn, ^wearpos_%s) = %s' % (sl, p) not in _zs]
+check(not _zbad,
+      "every Zealot's piece is looked for in its own slot: %s" % (_zbad or 'all four'))
+check(_zs.count('random(^zealots_save_denom)') == 4,
+      'and each of them rolls separately, which is what makes the set a shade under five percent '
+      'instead of exactly five: %s rolls' % _zs.count('random(^zealots_save_denom)'))
+
+# BOTH bone paths, and the experience paid either way. The altar one is GENERATED, so the check is
+# on the generator as well - a hand edit to poh_furn_ops.rs2 is undone by the next regenerate.
+for _lbl, _txt in (('burying a bone', BURY), ('offering one at the altar', FURNOPS)):
+    _t = strip(_txt)
+    check('~zealots_saves' in _t,
+          "Zealot's robes get their chance when %s" % _lbl)
+    check(re.search(r'if \(\$saved = false\) \{\s*\n\s*inv_del', _t),
+          'and the remains are only used up when they did not save it, %s' % _lbl)
+    check(re.search(r'\n~prayer_xp|\n\s*~prayer_xp', _t) and not re.search(
+              r'if \(\$saved = false\) \{[^}]*~prayer_xp', _t, re.S),
+          'while the experience is paid whichever way it went, %s' % _lbl)
+check('~zealots_saves' in GENFURN,
+      'and genfurn.py is what writes the altar call, so a regenerate keeps it')
+
+
 print('65. the checkers can go red')
 
 # A CHECK THAT CANNOT FAIL IS WORSE THAN NO CHECK: it reads as coverage and is not. Two rules in

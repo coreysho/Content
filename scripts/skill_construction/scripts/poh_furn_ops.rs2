@@ -82,11 +82,18 @@ if (oc_param($bone, bone_exp) <= 0) {
     return;
 }
 def_int $pct = ~poh_furn_altar_bonus($item);
-inv_del(inv, $bone, 1);
+def_boolean $saved = ~zealots_saves;
+if ($saved = false) {
+    inv_del(inv, $bone, 1);
+}
 anim(human_pray, 0);
 sound_synth(prayer_recharge, 1, 0);
 ~prayer_xp(calc(oc_param($bone, bone_exp) * $pct / 100));
-mes("You offer the bones. The gods are pleased.");
+if ($saved = true) {
+    mes("You offer the bones. The gods are pleased, and your robes preserve them.");
+} else {
+    mes("You offer the bones. The gods are pleased.");
+}
 
 // =========================================================================== sitting
 

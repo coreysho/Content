@@ -1,0 +1,94 @@
+// What the three outfits that pay no experience do instead.
+//
+// Seven skilling outfits pay a 2.5% experience bonus and outfit_xp.rs2 holds it. These three pay
+// nothing, because OSRS gives them nothing:
+//
+//   Graceful   -25kg of weight, and +20% natural run energy recovery.
+//   Rogue      a chance that a pickpocket's loot is doubled.
+//   Zealot's   a chance that the remains are not used up.
+//
+// GRACEFUL IS NOT IN THIS FILE, and the absence is deliberate. Its weight is the pieces' own
+// weight= lines, which the engine already sums into the energy drain; its recovery is the
+// energy_restore param, which the engine sums over worn equipment in calculateRunWeight() and
+// applies in updateEnergy(). A continuous effect belongs in the numbers the engine reads anyway.
+// A script doing the same job would have to run every tick, and would have to guess which part of
+// a rise in run energy was natural recovery and which was an energy potion - the engine does not
+// have to guess, because it is the thing doing the recovering.
+//
+// The other two hook one action, once, at the moment it resolves, which is why they are scripts.
+//
+// WHERE THEY ARE CALLED FROM:
+//   ~rogue_doubles    skill_thieving/scripts/thieving.rs2, in [proc,pick_pocket_check_for_reward]
+//                     and nowhere else. OSRS's set effect is pickpocketing only: stalls, chests
+//                     and trapped chests have their own reward procs beside that one and are
+//                     deliberately not covered.
+//   ~zealots_saves    skill_prayer/scripts/bury_bone.rs2 and the costume-room altar, which is
+//                     generated - the call is written by tools/genfurn.py, not by hand.
+
+// ---------------------------------------------------------------------------- Rogue outfit
+
+// How many of the five are worn. Each piece has its own slot, so a slot can hold at most one of
+// them and there is nothing to double-count.
+[proc,rogue_worn]()(int)
+def_int $count = 0;
+if (inv_getobj(worn, ^wearpos_hat) = rogue_mask) {
+    $count = calc($count + 1);
+}
+if (inv_getobj(worn, ^wearpos_torso) = rogue_top) {
+    $count = calc($count + 1);
+}
+if (inv_getobj(worn, ^wearpos_legs) = rogue_trousers) {
+    $count = calc($count + 1);
+}
+if (inv_getobj(worn, ^wearpos_hands) = rogue_gloves) {
+    $count = calc($count + 1);
+}
+if (inv_getobj(worn, ^wearpos_feet) = rogue_boots) {
+    $count = calc($count + 1);
+}
+return($count);
+
+// The chance in percent that a pickpocket's loot is doubled. The full set is a certainty, and
+// deliberately not pieces x ^rogue_double_pct: OSRS's fifth piece is worth forty points, not
+// fifteen. See outfits.constant.
+[proc,rogue_double_chance]()(int)
+def_int $worn = ~rogue_worn;
+if ($worn >= ^rogue_full_pieces) {
+    return(^rogue_double_full);
+}
+return(calc($worn * ^rogue_double_pct));
+
+// Does THIS pickpocket double? Asked once per pickpocket, not once per item in the pocket: it is
+// the theft that is doubled, so a pocket paying two things pays double of both or neither.
+[proc,rogue_doubles]()(boolean)
+def_int $chance = ~rogue_double_chance;
+if ($chance <= 0) {
+    return(false);
+}
+if (random(100) < $chance) {
+    return(true);
+}
+return(false);
+
+// ---------------------------------------------------------------------------- Zealot's robes
+
+// Do the robes save the remains? Each piece rolls on its own, which is what makes the full set a
+// shade under 5% rather than exactly 5%: independent rolls compose as 1-(79/80)^4. Returning on
+// the first success is the same thing as "any piece saved it", so the early exit costs nothing.
+//
+// The experience is paid whether or not this returns true - that is OSRS's behaviour, and it is
+// the whole point of the set: you get the prayer and you keep the bone.
+[proc,zealots_saves]()(boolean)
+if (inv_getobj(worn, ^wearpos_hat) = zealots_helm & random(^zealots_save_denom) = 0) {
+    return(true);
+}
+if (inv_getobj(worn, ^wearpos_torso) = zealots_top & random(^zealots_save_denom) = 0) {
+    return(true);
+}
+if (inv_getobj(worn, ^wearpos_legs) = zealots_bottom & random(^zealots_save_denom) = 0) {
+    return(true);
+}
+if (inv_getobj(worn, ^wearpos_feet) = zealots_boots & random(^zealots_save_denom) = 0) {
+    return(true);
+}
+return(false);

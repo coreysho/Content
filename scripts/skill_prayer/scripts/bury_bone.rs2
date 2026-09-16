@@ -11,9 +11,19 @@ p_delay(0);
 
 // delete is after delay: https://www.youtube.com/watch?v=OnW0ZwXLze4&t=141s
 def_obj $last_item = inv_getobj(inv, $slot);
-inv_delslot(inv, $slot);
+// Zealot's robes may leave the remains intact. The experience is paid either way, which is OSRS's
+// behaviour and the whole point of the set. The wording of the second message is ours: the wiki
+// records the effect but not a message for it.
+def_boolean $saved = ~zealots_saves;
+if ($saved = false) {
+    inv_delslot(inv, $slot);
+}
 ~prayer_xp(oc_param($last_item, bone_exp));
-mes("You bury the bones.");
+if ($saved = true) {
+    mes("Your robes preserve the bones.");
+} else {
+    mes("You bury the bones.");
+}
 
 if (afk_event = ^true) {
     @macro_event_prayer;

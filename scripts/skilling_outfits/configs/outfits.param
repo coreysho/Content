@@ -1,0 +1,14 @@
+// One param, carried by the Graceful pieces.
+
+// WHOLE PERCENT added to natural run energy recovery. The engine sums it over WORN equipment in
+// calculateRunWeight() - the same pass, at the same moments, as the run weight - and applies it in
+// updateEnergy() to the natural recovery only. An energy potion is not scaled by it, because a
+// potion is not you catching your breath.
+//
+// It is deliberately a plain number rather than a "graceful" flag: the engine knows nothing about
+// which outfit this is, so anything else that should help you recover just carries the param. And
+// it is read from the worn objs every time worn equipment changes rather than cached in a varp,
+// which is the difference between a number that cannot go stale and one that can.
+[energy_restore]
+type=int
+default=0

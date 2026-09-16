@@ -150,6 +150,14 @@ loc_change(loc_2572, $respawn_ticks); //looted chest
 [proc,pick_pocket_check_for_reward](dbrow $data)
 def_int $count = calc(db_getfieldcount($data, pickpocket:loot) - 1);
 def_int $reward_rarity_denominator = 128;
+// The Rogue outfit doubles what a pickpocket yields. Rolled ONCE, here, rather than once per
+// item: it is the theft that doubles, so a pocket paying two things pays double of both or
+// neither. Stalls and chests are deliberately untouched - OSRS's set effect is pickpocketing
+// only, and their reward procs are the next three below.
+def_int $multiplier = 1;
+if (~rogue_doubles = true) {
+    $multiplier = 2;
+}
 while ($count >= 0) {
     def_namedobj $reward;
     def_int $reward_quantity_min;
@@ -162,7 +170,7 @@ while ($count >= 0) {
     if ($roll >= $reward_rarity_denominator) {
         def_int $quantity_roll = ~random_range($reward_quantity_min, $reward_quantity_max);
         // Pickpocketing can reward more than 1.
-        inv_add(inv, $reward, $quantity_roll);
+        inv_add(inv, $reward, calc($quantity_roll * $multiplier));
     }
 
     $count = calc($count - 1);

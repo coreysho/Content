@@ -94,9 +94,17 @@ def decode(buf, id):
     if bt in (1,4,5,6): buf.gjstr()
     return c
 
-DEFAULT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                       '..', 'engine', 'data', 'pack', 'client', 'interface')
-path = sys.argv[1] if len(sys.argv) > 1 else DEFAULT
+C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# WHERE THE ENGINE IS. In order: an explicit path argument, then $LOSTCITY_ENGINE, then a sibling
+# clone under either name it goes by - "engine" in CI and in the cloud, "Engine-TS" on the laptop.
+# The environment variable is what tools/poh_mutate.py sets: it copies the CONTENT tree to a
+# scratch directory, so a sibling lookup from there finds nothing, and a check that cannot look is
+# a check that fails for every mutation and drowns out the one under test.
+_roots = ([os.environ['LOSTCITY_ENGINE']] if os.environ.get('LOSTCITY_ENGINE') else []) \
+    + [os.path.join(C, '..', e) for e in ('engine', 'Engine-TS')]
+DEFAULTS = [os.path.join(r, 'data', 'pack', 'client', 'interface') for r in _roots]
+path = sys.argv[1] if len(sys.argv) > 1 else next(
+    (d for d in DEFAULTS if os.path.exists(d)), DEFAULTS[0])
 if not os.path.exists(path):
     print('no packed interface archive at %s - run the build first' % path)
     sys.exit(2)

@@ -39,3 +39,29 @@
 // bonus. This is the only number in the mechanism, for every outfit at once: nothing else here is
 // a magic constant, and there is no per-outfit rate to drift.
 ^outfit_roll_xp = 50000
+
+// ------------------------------------------------- the three that pay no experience
+// Graceful, the Rogue outfit and Zealot's robes give no experience bonus in OSRS. What they give
+// instead is below, and outfit_effects.rs2 is where two of the three are wired.
+
+// GRACEFUL is not here at all, and that is the point: -25kg is the pieces' own weight= lines and
+// +20% recovery is their energy_restore param, both read by the engine. A continuous effect
+// belongs in the numbers the engine already reads every tick, not in a script pretending to.
+//
+// OSRS gives a further +10% for wearing all six, for 30% rather than 20%. That is the one
+// deliberate departure here: the engine sums a param over worn equipment and knows nothing about
+// which outfit a piece belongs to, and teaching it about sets to buy the last ten points was not
+// worth the mechanism. The per-piece 3/4/4/3/3/3 is exactly OSRS's.
+
+// ROGUE OUTFIT: a chance that a pickpocket's loot is doubled. OSRS pays 15/30/45/60/100 for one
+// through five pieces - note the jump. The fifth piece is worth forty points and not fifteen,
+// which is why the full set is the thing worth chasing and why this is not simply pieces x 15.
+^rogue_double_pct = 15
+^rogue_double_full = 100
+^rogue_full_pieces = 5
+
+// ZEALOT'S ROBES: each piece has its OWN chance to stop the remains being used up, and the four
+// rolls are INDEPENDENT - so the full set is 1-(79/80)^4, a shade under 5%, and not 4/80. OSRS
+// quotes 1.25% a piece, which is exactly 1 in 80, so this is a denominator rather than a
+// percentage and there is no rounding in it anywhere.
+^zealots_save_denom = 80
