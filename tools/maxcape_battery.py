@@ -19,6 +19,16 @@ def check(ok, what):
     print(('  ok   ' if ok else '  FAIL ') + what)
     if not ok: fails += 1
 
+def before(hay, a, b):
+    """a appears before b - and False rather than an exception when either is missing.
+
+    A CHECK WHOSE OWN CONDITION RAISES IS A CRASH, NOT A CHECK. hay.index(x) throws when x is
+    gone, which is exactly what a mutation removes: the battery blew up, the mutation harness
+    counted the non-zero exit as caught, and no check had fired. Five were found that way in one
+    afternoon, and each was hiding the fact that nothing asserted the thing was there at all.
+    """
+    return a in hay and b in hay and hay.index(a) < hay.index(b)
+
 def pack(name):
     out = {}
     for line in read('pack/' + name).split('\n'):
@@ -167,7 +177,7 @@ print('5. it has every perk, through the one proc that answers them all')
 worn = PERKS.split('[proc,skillcape_worn]', 1)[1].split('\n[', 1)[0]
 check('if ($back = max_cape) {\n    return(true);' in worn,
       '~skillcape_worn answers true for the Max cape whatever the skill asked about')
-check(worn.index('max_cape') < worn.index('skillcape_cape'),
+check(before(worn, 'max_cape', 'skillcape_cape'),
       'before it looks the individual capes up, so no table needs a Max cape row')
 tele = PERKS.split('[opheld3,max_cape]', 1)[1].split('\n[', 1)[0]
 feat = PERKS.split('[opheld4,max_cape]', 1)[1].split('\n[', 1)[0]
@@ -205,7 +215,7 @@ check('[opheld3,construction_cape] @skillcape_teleport_house;' in PERKS
 agent = read('scripts/skill_construction/scripts/poh_portal.rs2')
 offer = agent.split('[opnpc1,poh_estate_agent]', 1)[1].split('\n[', 1)[0]
 check('~skillcape_offer(construction) = true' in offer, 'the estate agent sells it')
-check(offer.index('~skillcape_offer') < offer.index('%poh_owned'),
+check(before(offer, '~skillcape_offer', '%poh_owned'),
       'from the top of his Talk-to, before his own dialogue')
 
 # ============================================================================ 7

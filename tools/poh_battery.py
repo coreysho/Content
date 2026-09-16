@@ -22,6 +22,16 @@ def check(ok, what):
     print(('  ok   ' if ok else '  FAIL ') + what)
     if not ok: fails += 1
 
+def before(hay, a, b):
+    """a appears before b - and False rather than an exception when either is missing.
+
+    A CHECK WHOSE OWN CONDITION RAISES IS A CRASH, NOT A CHECK. hay.index(x) throws when x is
+    gone, which is exactly what a mutation removes: the battery blew up, the mutation harness
+    counted the non-zero exit as caught, and no check had fired. Five were found that way in one
+    afternoon, and each was hiding the fact that nothing asserted the thing was there at all.
+    """
+    return a in hay and b in hay and hay.index(a) < hay.index(b)
+
 def read(p):
     return open(os.path.join(C, p), newline='').read().replace('\r\n', '\n')
 
@@ -636,10 +646,10 @@ check(not bad, 'no unproven idiom: %s' % bad)
 print('25. build mode: the money and the grid are touched in the right order')
 bd = clean[FILES[3]]
 click = bd.split('[proc,poh_hotspot_click]')[1].split('\n[')[0]
-check(click.index('inv_del') < click.index('~poh_room_set'), 'the coins go before the room does')
-check(click.index('~poh_room_rot_for') < click.index('inv_del'), 'the rotation is re-checked before charging')
-check(click.index('inv_total') < click.index('inv_del'), 'the purse is checked before it is emptied')
-check('~poh_furn_restore' in click and click.index('~poh_place_zone') < click.index('~poh_furn_restore'),
+check(before(click, 'inv_del', '~poh_room_set'), 'the coins go before the room does')
+check(before(click, '~poh_room_rot_for', 'inv_del'), 'the rotation is re-checked before charging')
+check(before(click, 'inv_total', 'inv_del'), 'the purse is checked before it is emptied')
+check('~poh_furn_restore' in click and before(click, '~poh_place_zone', '~poh_furn_restore'),
       'the furniture - the exit portal included - is re-laid after the room changes')
 rm = bd.split('[proc,poh_remove_room]')[1].split('\n[')[0]
 check('~poh_room_total <= 1' in rm, 'the last room cannot be removed')
@@ -649,7 +659,7 @@ check('~poh_furn_restore' in rm, 'the furniture is re-laid after a removal too')
 # and the room holding the last way out cannot be taken out at all, or the portal goes with it
 check('~poh_furn_count_cell_item' in rm and '^poh_furn_exit_portal' in rm,
       'the room with the only exit portal in it is refused')
-check(rm.index('~poh_furn_count_cell_item') < rm.index('~p_choice2'),
+check(before(rm, '~poh_furn_count_cell_item', '~p_choice2'),
       'that refusal comes before the player is asked to confirm')
 
 print('26. the sawmill: the items, the npc and where he stands')
@@ -715,7 +725,7 @@ for log, plank, fee in pairs:
     check(log.startswith(stem) or (plank == 'plank' and log == 'logs'),
           '%s is cut from %s' % (plank, log))
 cut = sw.split('[proc,sawmill_cut]')[1].split('\n[')[0]
-check(cut.index('inv_del') < cut.index('inv_add'), 'the logs and the coins go before the planks arrive')
+check(before(cut, 'inv_del', 'inv_add'), 'the logs and the coins go before the planks arrive')
 check('inv_total(inv, coins)' in cut, 'the purse is read before it is charged')
 check('divide($coins, $fee)' in cut, 'a half-funded batch is cut down, not refused')
 
@@ -975,12 +985,12 @@ clickb = fu.split('[proc,poh_furn_click_at]')[1].split('\n[')[0]
 check('~poh_furn_click_at($fam, -1, -1);' in fu.split('[proc,poh_furn_click]')[1].split('\n[')[0],
       '~poh_furn_click still exists and is the unanchored door')
 check('if ($ax >= 0) {' in clickb, 'and an anchor overrides the clicked tile rather than adding a path')
-check(clickb.index('~poh_furn_have') < clickb.index('~poh_furn_take'), 'the materials are counted before they are taken')
-check(clickb.index('~poh_furn_take') < clickb.index('~poh_furn_show'), 'the materials go before the furniture appears')
+check(before(clickb, '~poh_furn_have', '~poh_furn_take'), 'the materials are counted before they are taken')
+check(before(clickb, '~poh_furn_take', '~poh_furn_show'), 'the materials go before the furniture appears')
 check(clickb.count('~poh_furn_have') >= 2, 'the materials are re-checked after the menu suspends')
 # The xp used to be a bare stat_advance; it goes through ~construction_xp now so the carpenter's
 # outfit gets its bonus and can turn up. What matters here is unchanged: the piece is saved first.
-check(clickb.index('~poh_furn_set') < clickb.index('~construction_xp'),
+check(before(clickb, '~poh_furn_set', '~construction_xp'),
       'it is saved before the xp is paid')
 check('inv_total(inv, hammer)' in clickb and 'inv_total(inv, saw)' in clickb, 'a hammer and a saw are required')
 check('~poh_furn_free' in clickb and clickb.count('~poh_furn_free') >= 2, 'a free slot is re-checked after the menu suspends')
@@ -991,7 +1001,7 @@ check('~poh_furn_clear_cell' in bd, 'removing a ROOM clears its furniture too')
 pb = clean[FILES[0]]
 check('~poh_furn_restore' in pb, '~poh_build puts the furniture back')
 build_body = pb.split('[proc,poh_build]')[1].split('\n[')[0]
-check(build_body.index('~poh_furn_restore') < build_body.index('instance_loccategory'),
+check(before(build_body, '~poh_furn_restore', 'instance_loccategory'),
       'furniture is placed BEFORE the hotspots are hidden, so it changes them in place')
 
 print('39. what the furniture does: every trigger is on an op the loc really has')
@@ -1454,7 +1464,7 @@ check('~staff_runes' not in TABRS,
 check('~give_spell_xp' not in TABRS and 'stat_advance(magic' in TABRS,
       'making pays the spell row\'s own experience, and reads it from the row')
 mk = TABRS.split('[proc,poh_tab_make]')[1].split('\n[')[0]
-check(mk.index('inv_del(inv, softclay') < mk.index('inv_add(inv,'),
+check(before(mk, 'inv_del(inv, softclay', 'inv_add(inv,'),
       'the clay and the runes go before the tablet arrives')
 for prc in ('poh_tab_teleport', 'poh_tab_gohome'):
     body = TABRS.split('[proc,%s]' % prc)[1].split('\n[')[0]
@@ -1685,7 +1695,7 @@ check('while (true)' not in TABRS and 'def_string' not in TABRS,
       'no unproven idiom in the tablet script (claude/rs2-compile-traps.md)')
 # the window comes down before the animation and the loop puts it back
 after = pick.split('if ($pick > 0) {')[1]
-check(after.index('if_close;') < after.index('~poh_tab_make_n('),
+check(before(after, 'if_close;', '~poh_tab_make_n('),
       'the window closes before the tablets are made, so the animation is visible')
 # the quantity lives in a temp varp: it is a setting for this visit, not part of the house
 check('poh_tab_qty' in varps, '%poh_tab_qty is registered in varp.pack')
@@ -1856,7 +1866,7 @@ check('stat(construction)' not in ens and 'inv_del' not in ens,
       'the first one is free and needs no level - OSRS starts a house with it built')
 pohrs = clean[FILES[0]]
 ent = pohrs.split('[proc,poh_enter]')[1].split('\n[')[0]
-check('~poh_ensure_exit' in ent and ent.index('~poh_ensure_exit') < ent.index('~poh_build'),
+check('~poh_ensure_exit' in ent and before(ent, '~poh_ensure_exit', '~poh_build'),
       '~poh_enter makes sure of the portal before it builds the house')
 check('~poh_spawn_exit' not in pohrs + clean[FILES[3]],
       'nothing loc_adds a loose portal any more')
@@ -2013,7 +2023,10 @@ check('~poh_room_total' not in cp and '~poh_house_empty' in cp,
 he = poh.split('[proc,poh_house_empty]', 1)[1].split('\n[', 1)[0]
 check('^poh_type_mask' in he and '~poh_word_get' in he,
       'and ~poh_house_empty masks whole layout words rather than decoding slots')
-check(int(re.search(r'\^poh_type_mask\s*=\s*(\d+)', CONST).group(1)) == 0x3f3f3f3f,
+# re.search(...).group(1) raises on None, which is the same crash-not-a-check as a bare .index:
+# removing the constant blew the battery up instead of failing this.
+_tm = re.search(r'\^poh_type_mask\s*=\s*(\d+)', CONST)
+check(_tm and int(_tm.group(1)) == 0x3f3f3f3f,
       '^poh_type_mask covers the four 6-bit type fields of a word, nothing else')
 check('return(false)' in he, 'it stops at the first room it finds')
 fm = bd.split('[proc,poh_fit_mask]', 1)[1].split('\n[', 1)[0]
@@ -2140,7 +2153,7 @@ named = {int(m) for m in re.findall(r'poh_style_name, (\d)\)', pick)}
 check(named == set(range(6)), 'the two menu pages between them offer all six styles: %s' % sorted(named))
 check('while (true)' not in pick, 'the pager is a bounded loop - while (true) has no precedent here')
 do = PORTRS.split('[proc,poh_redecorate_to]', 1)[1].split('\n[', 1)[0]
-check(do.index('stat(construction)') < do.index('inv_del'), 'the level is tested before the coins are taken')
+check(before(do, 'stat(construction)', 'inv_del'), 'the level is tested before the coins are taken')
 check(do.count('inv_del(inv, coins') == 1, 'the coins come out exactly once')
 check(do.count('inv_total(inv, coins)') == 2,
       'the purse is re-checked AFTER the confirm box - it is a suspend, and coins can leave during it')
@@ -2166,7 +2179,7 @@ check(lname[0] == 'Rimmington', 'town 0 is Rimmington - a save written before %p
 VARPF = read('scripts/skill_construction/configs/construction.varp')
 vblk = VARPF.split('[poh_location]', 1)[1].split('\n[', 1)[0]
 check('scope=perm' in vblk, '%poh_location is scope=perm')
-check(VARPF.index('[poh_location]') < VARPF.index('// ---- furniture'),
+check(before(VARPF, '[poh_location]', '// ---- furniture'),
       'and it sits ABOVE the furniture marker - genfurn.py truncates the file there')
 check('poh_location' in {l.split('=', 1)[1] for l in read('pack/varp.pack').split('\n') if '=' in l},
       'it is registered in varp.pack')
@@ -2176,7 +2189,7 @@ PORTRS2 = read('scripts/skill_construction/scripts/poh_portal.rs2')
 clk = PORTRS2.split('[proc,poh_portal_click]', 1)[1].split('\n[', 1)[0]
 check('loc_coord' in clk and 'poh_loc_portal' in clk,
       'the click compares loc_coord against poh_loc_portal')
-check(clk.index('mes(') < clk.index('~poh_enter'),
+check(before(clk, 'mes(', '~poh_enter'),
       'and refuses before it enters, rather than entering and then complaining')
 check('[oploc1,poh_house_portal]' in PORTRS2 and '~poh_enter' not in
       PORTRS2.split('[oploc1,poh_house_portal]', 1)[1].split('\n\n', 1)[0],
@@ -2184,10 +2197,10 @@ check('[oploc1,poh_house_portal]' in PORTRS2 and '~poh_enter' not in
 
 # the move itself
 mv = PORTRS2.split('[proc,poh_relocate_to]', 1)[1].split('\n[', 1)[0]
-check(mv.index('stat(construction)') < mv.index('inv_del'), 'the level is tested before the coins are taken')
+check(before(mv, 'stat(construction)', 'inv_del'), 'the level is tested before the coins are taken')
 check(mv.count('inv_del(inv, coins') == 1, 'the coins come out exactly once')
 check(mv.count('inv_total(inv, coins)') == 2, 'the purse is re-checked after the confirm box')
-check(mv.index('~poh_free') < mv.index('%poh_location = $town'),
+check(before(mv, '~poh_free', '%poh_location = $town'),
       'the instance is freed BEFORE the move - someone standing in their house would come out the wrong door')
 check('$town = %poh_location' in mv, 'moving to where you already are is refused')
 pick = PORTRS2.split('[proc,poh_location_pick]', 1)[1].split('\n[', 1)[0]
@@ -2367,7 +2380,7 @@ check(not dead, 'no op on a placed piece is a dead click: %s' % (dead[:6] or 'al
 check(len(re.findall(r'^\[oploc1,poh_archery_target', GAMES, re.M)) == 2, 'both archery targets shoot')
 check(len(re.findall(r'^\[oploc1,poh_dartboard', GAMES, re.M)) == 2, 'both dartboards throw')
 shoot = GAMES.split('[proc,poh_range_shoot]', 1)[1].split('\n[', 1)[0]
-check(shoot.index('inv_del') < shoot.index('random(100)'),
+check(before(shoot, 'inv_del', 'random(100)'),
       'the ammunition is spent before the roll - a miss has to cost something')
 check(shoot.count('stat_advance(ranged') == 2, 'and the experience is only paid on a hit or a bullseye')
 arch = GAMES.split('[proc,poh_archery]', 1)[1].split('\n[', 1)[0]
@@ -2457,7 +2470,7 @@ for f, why in (('scripts/skill_construction/scripts/poh_portal.rs2', 'redecorati
 SIT = read('scripts/skill_construction/scripts/poh_furn_ops.rs2').split('[proc,poh_furn_sit]', 1)[1].split('\n[', 1)[0]
 check('p_walk($seat)' in SIT, 'sitting walks onto the chair - an oploc1 click only gets you adjacent')
 check('facesquare' in SIT, 'and turns to face the way the chair faces')
-check(SIT.index('p_walk') < SIT.index('anim('), 'before the pose plays, not after')
+check(before(SIT, 'p_walk', 'anim('), 'before the pose plays, not after')
 check(len(re.findall(r'~poh_furn_sit\(', read('scripts/skill_construction/scripts/poh_furn_ops.rs2'))) == 24,
       'all 24 seats go through it')
 
@@ -2774,7 +2787,7 @@ check(sum(1 for m in _mats.values() if any(x[0] == 'bolt_of_cloth' for x in m)) 
 for _p in ('poh_ring_climb', 'poh_ring_beam_stand', 'poh_ring_beam_down'):
     check('[proc,%s]' % _p in CB, '%s is answered' % _p)
 _stand = CB.split('[proc,poh_ring_beam_stand]', 1)[1].split('\n[', 1)[0]
-check('p_walk(loc_coord)' in _stand and _stand.index('p_walk') < _stand.index('anim('),
+check('p_walk(loc_coord)' in _stand and before(_stand, 'p_walk', 'anim('),
       'standing on the beam walks onto it before the pose plays, as the chairs do')
 
 

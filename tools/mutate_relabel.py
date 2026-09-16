@@ -33,8 +33,16 @@ import importlib.util, json, os, re, shutil, subprocess, sys
 C = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) if '__file__' in dir() else os.getcwd()
 C = os.getcwd()
 TOOLS = os.path.join(C, 'tools')
-OUT = os.environ.get('RELABEL_OUT', '/tmp/relabel_%s.json' % sys.argv[1])
-W = '/tmp/relabel_work_%s' % sys.argv[1]
+# SHARDING, because this is one checker run per mutation and the box has two cores. --shard i/n
+# takes every nth mutation starting at i, into its own work tree and its own json, so two
+# processes halve the wall clock and neither can lose the other's results. The jsons merge by key.
+SHARD = None
+for _a in sys.argv[2:]:
+    if _a.startswith('--shard'):
+        SHARD = tuple(int(x) for x in sys.argv[sys.argv.index(_a) + 1].split('/'))
+_tag = sys.argv[1] + ('' if not SHARD else '_%d of%d' % SHARD).replace(' ', '')
+OUT = os.environ.get('RELABEL_OUT', '/tmp/relabel_%s.json' % _tag)
+W = '/tmp/relabel_work_%s' % _tag
 
 HARNESS = sys.argv[1]
 CHECKER = sys.argv[2] if len(sys.argv) > 2 else None
@@ -83,6 +91,8 @@ def measure():
             continue
         if any(label in h for h in HAY):
             continue
+        if SHARD and i % SHARD[1] != SHARD[0]:
+            continue
         todo.append(i)
     print('%s: %d mutations need a label, %d already recorded' %
           (HARNESS, len(todo), sum(1 for i in todo if '%s:%d' % (HARNESS, i) in db)))
@@ -116,26 +126,49 @@ def measure():
 
 # A check that goes red for ANY edit to the files it covers, so it tells you nothing about which
 # check a mutation was written for. Matched on the opening of the message.
-ABSORBING = ('re-running it changes nothing',)
+# MATCHED ON THE CHECK'S IDENTITY, NOT ON ONE OF ITS MESSAGES. The generator-idempotence check
+# says "re-running it changes nothing" when it passes and "re-running it CHANGES the file" when it
+# fails - and it is the failing one that shows up here. Matching the passing wording missed seven
+# absorbed mutations and labelled them with the failing sentence, which is not a check's wording at
+# all on a clean tree, so none of them matched anything.
+ABSORBING = ('re-running it ',)
 
 
-def newlabel(why, fired):
-    """Keep the group number; take the wording of the first non-absorbing check that fired, up to
-    where its values start. A check puts its numbers after a colon by convention, and a label
-    carrying a value goes stale the moment the value does - that fault has been found four times."""
+def newlabel(why, fired, clean=()):
+    """Keep the group number; take the wording of the first non-absorbing check that fired.
+
+    THE LABEL MUST BE A SUBSTRING OF A CLEAN CHECK'S MESSAGE, and the message captured here came
+    off a MUTATED tree - which for a check that puts a value inside its claim is different text.
+    'the window has 11 rows and the longest tab needs 12' reads 11 and 12 on a clean tree and
+    other numbers on a mutated one, so the captured sentence names nothing. So it is trimmed from
+    the right until what is left names exactly one clean check, which is the longest wording that
+    really is printed. Values after a colon are dropped first, since that is where they belong.
+    """
     useful = [f for f in fired if not f.startswith(ABSORBING)]
     if not useful:
         return None
     grp = re.match(r'^(\d+[a-z]?)\s+', why)
     head = grp.group(1) + ' ' if grp else ''
-    txt = re.sub(r'\s+', ' ', useful[0].split(':')[0].strip())
+    txt = re.sub(r'\s+', ' ', useful[0].strip())
+    if clean:
+        while txt and len([c for c in clean if txt in c]) != 1:
+            if ' ' not in txt:
+                return None
+            txt = txt.rsplit(' ', 1)[0]
+        if len(txt) < 25:
+            return None
     if len(txt) > 78:
         txt = txt[:78].rsplit(' ', 1)[0]
     return head + txt
 
 
-def apply(harness):
+def apply(harness, checker=None):
     db = json.load(open(os.environ.get('RELABEL_OUT', '/tmp/relabel_%s.json' % harness)))
+    ALL = muts(harness)
+    clean = []
+    if checker:
+        clean = messages(checker, C)[0]
+        print('%d clean check messages to match labels against' % len(clean))
     p = os.path.join(TOOLS, harness + '.py')
     raw = open(p, 'rb').read()
     nl = '\r\n' if b'\r\n' in raw else '\n'
@@ -149,8 +182,19 @@ def apply(harness):
             print('  NOTHING FIRED  %s' % v['why'])
             nothing += 1
             continue
-        new = newlabel(v['why'], fired)
-        if new is None:
+        # A LABEL THAT ALREADY NAMES A CHECK IS LEFT ALONE. The json holds every mutation that
+        # was measured, not only the broken ones, and re-deriving a good label can only make it
+        # worse: the derivation reads a mutated tree, so for a check with a value inside its
+        # claim it produces something that names nothing. Skipping these is not an optimisation,
+        # it is the difference between 121 correct labels and 91.
+        _lbl = v['why'].split(' ', 1)[1] if v['why'][:1].isdigit() else v['why']
+        for _suf in ('(spec)',):
+            if _lbl.endswith(_suf):
+                _lbl = _lbl[:-len(_suf)].strip()
+        if clean and any(_lbl in c for c in clean):
+            continue
+        new = newlabel(v['why'], fired, clean)
+        if new is None and not [f for f in fired if not f.startswith(ABSORBING)]:
             print('  ONLY %r fired - so either this mutation is ABOUT the generator, in which '
                   'case that is its own check, or it edits a generated file and is absorbed '
                   'before its own check can fire, in which case it belongs in '
@@ -158,16 +202,29 @@ def apply(harness):
                   % (fired[0].split(':')[0], v['why']))
             absorbed += 1
             continue
+        if new is None:
+            print('  NO WORDING NAMES ONE CHECK, so no label can be stable - the check it fires '
+                  'puts a value inside its claim and needs rewording first: %s' % v['why'])
+            stuck += 1
+            continue
         if new == v['why']:
             continue
         old = "'" + v['why'].replace("'", "\\'") + "'"
-        if s.count(old) != 1:
+        if old not in s:
             old = '"' + v['why'] + '"'
-        if s.count(old) != 1:
+        if old not in s:
             print('  COULD NOT PLACE %r' % v['why'])
             stuck += 1
             continue
-        s = s.replace(old, old[0] + new.replace("'", "\\'") + old[0], 1)
+        ordinal = sum(1 for j in range(int(key.split(':')[1])) if ALL[j][3] == v['why'])
+        parts = s.split(old)
+        if len(parts) - 1 <= ordinal:
+            print('  COULD NOT PLACE %r (wanted occurrence %d of %d)'
+                  % (v['why'], ordinal + 1, len(parts) - 1))
+            stuck += 1
+            continue
+        s = (old.join(parts[:ordinal + 1]) + old[0] + new.replace("'", "\\'") + old[0]
+             + old.join(parts[ordinal + 1:]))
         done += 1
         if len([f for f in fired if not f.startswith(ABSORBING)]) > 1:
             multi.append((new, len(fired)))
@@ -185,6 +242,6 @@ if __name__ == '__main__':
     # Two modes, and the measuring one must not run for --apply: it copies a 24k-file tree and
     # runs the checker before it does anything else.
     if len(sys.argv) > 2 and sys.argv[2] == '--apply':
-        sys.exit(apply(HARNESS))
+        sys.exit(apply(HARNESS, sys.argv[3] if len(sys.argv) > 3 else None))
     measure()
     sys.exit(0)

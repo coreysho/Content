@@ -18,6 +18,16 @@ def check(ok, what):
     print(('  ok   ' if ok else '  FAIL ') + what)
     if not ok: fails += 1
 
+def before(hay, a, b):
+    """a appears before b - and False rather than an exception when either is missing.
+
+    A CHECK WHOSE OWN CONDITION RAISES IS A CRASH, NOT A CHECK. hay.index(x) throws when x is
+    gone, which is exactly what a mutation removes: the battery blew up, the mutation harness
+    counted the non-zero exit as caught, and no check had fired. Five were found that way in one
+    afternoon, and each was hiding the fact that nothing asserted the thing was there at all.
+    """
+    return a in hay and b in hay and hay.index(a) < hay.index(b)
+
 IF = read('scripts/skill_slayer/interfaces/slayer_rewards.if')
 UI = read('scripts/skill_slayer/scripts/slayer_ui.rs2')
 WIN = read('scripts/skill_slayer/scripts/slayer_window.rs2')
@@ -216,7 +226,7 @@ for proc in ('~slayer_buy_unlock', '~slayer_buy_extend', '~slayer_buy_item', '~s
 check('%slayer_points < $cost' in take,
       'and Confirm compares the points against the cost at all')
 if '%slayer_points < $cost' in take and '~slayer_buy_unlock' in take:
-    check(take.index('%slayer_points < $cost') < take.index('~slayer_buy_unlock'),
+    check(before(take, '%slayer_points < $cost', '~slayer_buy_unlock'),
           'and it checks the points before it reaches any of them')
 check('~slayer_ui_owned($tab, $sel) = true' in take, 'and refuses what you already own')
 check(REW.count('%slayer_points = sub(') == 5 and PTS.count('%slayer_points = sub(') == 2,
