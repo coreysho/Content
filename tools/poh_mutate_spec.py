@@ -55,8 +55,16 @@ def main():
         open(p, 'w', newline='').write(raw.replace(find, repl, 1))
         for gen in GENERATORS:
             subprocess.run([sys.executable, os.path.join(W, gen)], capture_output=True, cwd=W)
+        # THE SAME ENGINE PATH poh_mutate.py hands over. W is a scratch copy of the content tree
+        # with no sibling engine clone, so group 64b's engine and packed-artefact checks go red for
+        # every mutation and drown out the one under test - which is what happened the first time
+        # this harness was used after 64b landed: it reported the Graceful artefact check.
+        ENGINE = next((os.path.join(C, '..', e) for e in ('engine', 'Engine-TS')
+                       if os.path.exists(os.path.join(C, '..', e, 'src'))),
+                      os.path.join(C, '..', 'engine'))
         r = subprocess.run([sys.executable, os.path.join(W, 'tools/poh_battery.py')],
-                           capture_output=True, text=True, cwd=W)
+                           capture_output=True, text=True, cwd=W,
+                           env=dict(os.environ, LOSTCITY_ENGINE=ENGINE))
         named = [l for l in r.stdout.split('\n') if l.startswith('  FAIL')]
         print('  %-5s %-58s %s' % ('red' if r.returncode else 'GREEN', why,
                                    named[0][7:80] if named else ''))

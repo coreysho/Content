@@ -36,9 +36,17 @@ MUTS = [
   '[r0box]\nlayer=row0\ntype=rect\nx=0\ny=0', '31 resume button must be a button'),
  ('scripts/skill_construction/interfaces/poh_roommenu.if',
   '[cancel]\ntype=text\nx=272\ny=301', '[cancel]\ntype=text\nx=272\ny=321', '32 inside the window'),
- ('scripts/skill_construction/interfaces/poh_furnmenu.if',
-  '[s0name]\nlayer=slot0\ntype=text\nx=96', '[s0name]\nlayer=slot0\ntype=text\nx=206',
-  '32 inside the window'),
+ # RETARGETED AT THE GENERATOR, AND ROUTED TO THE SPEC HARNESS. poh_furnmenu.if is generated and
+ # the battery regenerates before it checks, so editing the .if was overwritten before "inside the
+ # window" could look at it and group 38 fired instead - the mutation read as caught while nothing
+ # it claims to test was tested. Moving it to genmenus.py is not enough on its own either: a
+ # mutated generator makes the regenerated output differ from what is checked in, which is also
+ # group 38. tools/poh_mutate_spec.py regenerates AND takes the new output as the baseline, which
+ # is the only sequence where the check under test is the one that fires.
+ ('tools/genmenus.py',
+  "coms.append((p + 'name', dict(layer=L, type='text', x=96, y=11, width=126, height=14,",
+  "coms.append((p + 'name', dict(layer=L, type='text', x=206, y=11, width=126, height=14,",
+  '32 poh_furnmenu: every component is inside (spec)'),
  ('scripts/skill_construction/scripts/poh_menus.rs2',
   '[proc,poh_room_zoom](int $type)(int)\nswitch_int ($type) {\n    case 1 : return(5096);',
   '[proc,poh_room_zoom](int $type)(int)\nswitch_int ($type) {\n    case 1 : return(900);',
@@ -76,10 +84,13 @@ MUTS = [
   '', '28 an item that nothing places'),
  ('scripts/skill_construction/configs/construction.constant',
   '^poh_furn_slots = 256', '^poh_furn_slots = 257', '28 a slot with no varp'),
- ('scripts/skill_construction/scripts/poh_menus.rs2',
-  '[proc,poh_furn_xan](int $fam)(int)\nswitch_int ($fam) {\n    case 32 : return(120);',
-  '[proc,poh_furn_xan](int $fam)(int)\nswitch_int ($fam) {\n    case 32 : return(150);',
-  '33 a camera the zoom was not solved for'),
+ # THROUGH THE SPEC HARNESS. This angle is furnspec.json's, and poh_menus.rs2 is generated from
+ # it - so the only edit worth making is to the spec, regenerated, which is what
+ # tools/poh_mutate_spec.py does. Marked (spec) so the plain harness skips it instead of reporting
+ # group 38 and calling it caught.
+ ('tools/furnspec.json',
+  '"wallchart": [\n   120,\n   1536\n  ]', '"wallchart": [\n   150,\n   1536\n  ]',
+  '33 the families turned face-on all use the same camera (spec)'),
  ('scripts/skill_construction/configs/construction.constant',
   '^poh_furn_bit_lit = 22', '^poh_furn_bit_lit = 13', '1 the lit bit must sit above the old fields (furn sim)'),
  ('scripts/skill_construction/scripts/poh_furn_ops.rs2',
@@ -1118,6 +1129,18 @@ def main():
         raw = original.decode('utf-8')
         nl = '\r\n' if raw.count('\r\n') > raw.count('\n') / 2 else '\n'
         f, r2 = find.replace('\n', nl), repl.replace('\n', nl)
+        # A MUTATION TO A GENERATED FILE CANNOT BE RUN HERE. The battery re-runs the generators
+        # before it checks anything, so the edit is overwritten before the check under test can
+        # look at it - and group 38's "re-running it changes nothing" fires instead, which makes
+        # the mutation read as caught while nothing it claims to test was tested. Two entries were
+        # in exactly that state and had been for as long as they existed.
+        #
+        # Those are marked (spec) and belong to tools/poh_mutate_spec.py, which edits the spec the
+        # generator reads, regenerates, and only then runs the battery - the sequence a person
+        # would actually produce. Skipped here rather than silently mislabelled.
+        if why.endswith('(spec)'):
+            print('  -     %-62s %s' % (why, 'run by poh_mutate_spec.py, not here'))
+            continue
         checker = checker_for(why)
         if f not in raw:
             print('  SKIP (pattern not found) %-44s %s' % (path, why))

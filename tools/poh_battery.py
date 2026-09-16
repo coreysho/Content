@@ -1172,6 +1172,32 @@ for label, models, zooms, comp, win in [
     check(not bad, '%s: all %d icons are drawn inside their %dx%d row: %s'
           % (label, len(models), rw, rh, bad[:3] or 'all inside'))
 
+# AND THE ANGLE, which nothing here looked at. The checks above are about ZOOM - whether the icon
+# fits its row - and a mutation that changed a family's camera ANGLE in furnspec.json survived all
+# of them. It had never been caught: the mutation edited the generated poh_menus.rs2, so the
+# battery's own regenerate overwrote it before anything could look, and group 38 fired instead.
+#
+# The invariant is real. Every family in furnspec.json's camera list is on it for ONE reason - a
+# framed picture has no depth, so it is turned face-on - which means they share one camera. A
+# family with its own angle is either a mistake or a reason that is no longer written down.
+_CAMS = {k: v for k, v in _json.loads(read('tools/furnspec.json'))['cameras'].items() if k != '_'}
+_distinct = sorted({tuple(v) for v in _CAMS.values()})
+check(len(_distinct) == 1,
+      'the families turned face-on all use the same camera, because they are all on that list '
+      'for the same reason: %s' % (_distinct if len(_distinct) != 1 else '%d families at %s'
+                                   % (len(_CAMS), _distinct[0])))
+# And the generated switch really says what the spec says, per family rather than in aggregate.
+_XAN = procbody(read('scripts/skill_construction/scripts/poh_menus.rs2'), 'poh_furn_xan')
+_FAMKEYS = [f['key'] for f in _json.loads(read('tools/furnspec.json'))['families']]
+_wrong = []
+for _k, _v in sorted(_CAMS.items()):
+    _n = _FAMKEYS.index(_k) + 1
+    if 'case %d : return(%d);' % (_n, _v[0]) not in _XAN:
+        _wrong.append('%s wants %d at case %d' % (_k, _v[0], _n))
+check(not _wrong,
+      'and the generated angle switch carries each one at its own family number: %s'
+      % (_wrong[:3] or 'all %d' % len(_CAMS)))
+
 print('34. the room prices are written twice and say the same thing')
 ROOMS = read('scripts/skill_construction/configs/poh_rooms.enum')
 def enumtable(txt, name):

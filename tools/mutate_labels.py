@@ -31,6 +31,13 @@ TOOLS = os.path.join(C, 'tools')
 # battery, and poh_mutate's checker_for() routes it there. Not a labelling fault.
 OTHER_CHECKER = ('(rs2check)', '(build sim)', '(furn sim)')
 
+# (spec) is deliberately NOT above. A spec-routed mutation is run by a different HARNESS -
+# tools/poh_mutate_spec.py, which regenerates before it checks - but it is checked by the same
+# battery, so its label must match a check exactly as every other one does. Exempting it would let
+# a stale spec label rot unnoticed, which is the fault this tool exists to catch. The suffix is
+# stripped before matching.
+SUFFIX_ONLY = ('(spec)',)
+
 fails = 0
 def check(ok, what):
     global fails
@@ -114,6 +121,9 @@ def main():
             label = why.split(' ', 1)[1] if why[:1].isdigit() else why
             if label.endswith(OTHER_CHECKER):
                 continue
+            for suf in SUFFIX_ONLY:
+                if label.endswith(suf):
+                    label = label[:-len(suf)].strip()
             n += 1
             if not any(label in h for h in hay):
                 bad.append(why)
