@@ -62,12 +62,16 @@ if (finduid(%npc_attacking_uid) = true) {
 npc_del;
 
 // --- The drop ---
-// Called from each boss's death table. 1 in 3000, the Old School rate for this family of pets.
+// Called from each boss's death table with ITS OWN rate: 1 in 3,000 for the KBD / Kalphite Queen /
+// Giant Mole / Dagannoth King family, 1 in 5,000 for the god wars generals. The rate is an argument
+// rather than a constant read in here, so a family that drops at a different rate has to say so at
+// the call site and cannot silently inherit another family's number.
+//
 // A player who already owns the pet - in the inventory, the bank, or currently following them -
 // cannot roll a second one, which is what stops them being farmed for a trade that tradeable=no
 // already forbids anyway.
-[proc,bosspet_roll](namedobj $pet)
-if (random(^bosspet_droprate) ! 0) {
+[proc,bosspet_roll](namedobj $pet, int $rate)
+if (random($rate) ! 0) {
     return;
 }
 if (~obj_gettotal($pet) > 0) {

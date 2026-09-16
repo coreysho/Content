@@ -76,11 +76,28 @@ def byexception(given):
     cannot sit in an exception list forever. If the game can give you one, that is reported as a
     disagreement instead of quietly excusing it.
     """
+    names, wrong = set(), []
+
+    # ---- the pets whose skill this server does not have yet, out of tools/petspec.json. A pet
+    # marked wired=false there has nothing that can give you one; if something does, that is a
+    # disagreement to report rather than an exception to keep.
+    pet_path = os.path.join(ROOT, 'tools', 'petspec.json')
+    if os.path.exists(pet_path):
+        pets = json.loads(read('tools/petspec.json'))
+        for nm, d in pets['skill'].items():
+            item = nm + '_item'
+            if d.get('wired'):
+                continue
+            if item in given:
+                wrong.append('%s is wired=false in petspec.json, but something in the game gives '
+                             'you one - update the spec' % item)
+            else:
+                names.add(item)
+
     spec_path = os.path.join(ROOT, 'tools', 'slayerhelmspec.json')
     if not os.path.exists(spec_path):
-        return set(), []
+        return names, wrong
     spec = json.loads(read('tools/slayerhelmspec.json'))
-    names, wrong = set(), []
     for c in spec['colours']:
         pair = ('slayer_helm_%s' % c['key'], 'slayer_helm_%s_i' % c['key'])
         if 'source' in c:
@@ -290,9 +307,10 @@ def main():
     print()
     if onpurpose or mismatch:
         print('==== BUILT WITH NO SOURCE ON PURPOSE (%d) ====' % len(onpurpose))
-        print('Declared in tools/slayerhelmspec.json as colours with no "source" block. The monsters')
-        print('that drop their heads are not in this era; the helmets exist so they can be looked at')
-        print('with ::give. Not a bug list - but not hidden either.')
+        print('Declared on purpose: slayer helmet colours with no "source" block in')
+        print('slayerhelmspec.json, whose head-dropping monsters are not in this era, and pets')
+        print('marked wired=false in petspec.json, whose skill or hook is not built yet. They exist')
+        print('so they can be looked at with ::give. Not a bug list - but not hidden either.')
         print()
         for i, name, disp, src in sorted(onpurpose):
             print('    %5d  %-38s %s' % (i, name, disp))

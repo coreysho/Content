@@ -146,6 +146,7 @@ if (random($chance) = ^true) {
     inv_add(inv, $output, 1);
     ~skillcape_mining_extra($output); // skill cape perk (skillcapes/scripts/skillcape_perks.rs2)
     ~mining_xp(db_getfield($data, mining_table:rock_exp, 0));
+    ~skillpet_roll(skillpet_rock_golem_item, mining, db_getfield($data, mining_table:pet_base, 0));
     mes("You manage to mine some <db_getfield($data, mining_table:ore_name, 0)>.");
     return;
 }
@@ -184,6 +185,7 @@ if (random($chance) = ^true) {
     inv_add(inv, db_getfield($data, mining_table:rock_output, 0), 1);
     ~skillcape_mining_extra(db_getfield($data, mining_table:rock_output, 0)); // skill cape perk (skillcapes/scripts/skillcape_perks.rs2)
     ~mining_xp(db_getfield($data, mining_table:rock_exp, 0));
+    ~skillpet_roll(skillpet_rock_golem_item, mining, db_getfield($data, mining_table:pet_base, 0));
     mes("You manage to mine some <db_getfield($data, mining_table:ore_name, 0)>.");
     return;
 }
@@ -200,9 +202,11 @@ if ($data = null) {
 if (stat_base(mining) >= 30 & map_members = ^true) {
     inv_add(inv, blankrune_high, 1);
     ~mining_xp(db_getfield($data, mining_table:rock_exp, 0));
+    ~skillpet_roll(skillpet_rock_golem_item, mining, db_getfield($data, mining_table:pet_base, 0));
 } else {
     inv_add(inv, db_getfield($data, mining_table:rock_output, 0), 1);
     ~mining_xp(db_getfield($data, mining_table:rock_exp, 0));
+    ~skillpet_roll(skillpet_rock_golem_item, mining, db_getfield($data, mining_table:pet_base, 0));
 }
 // mes("You manage to mine an unbound rune stone."); probably removed with law altar?
 p_oploc(3);
@@ -238,6 +242,7 @@ if (stat_random(mining, $low, $high) = true) {
     $gem, $count = ~roll_on_drop_table(gem_rock_table);
     inv_add(inv, $gem, 1);
     ~mining_xp(db_getfield($data, mining_table:rock_exp, 0));
+    ~skillpet_roll(skillpet_rock_golem_item, mining, db_getfield($data, mining_table:pet_base, 0));
 
     db_find(gem_cutting_table:uncut_gem, $gem);
     $data = db_findnext;

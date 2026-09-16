@@ -1,0 +1,50 @@
+// The skilling pets' roll. One proc, called once per successful action from the place that knows
+// which action it was - see the mechanic note in configs/skill_pets.constant.
+//
+// The follower behaviour itself is not here: a skilling pet is a follower like any other and rides
+// on the same four category triggers as the boss pets, in boss_pets.rs2.
+
+// $base is the action's own base chance. ^skillpet_no_roll means this action gives no pet in OSRS
+// either, and is the ONLY way to opt out - a missing table entry reads as 0 and so reads as "no
+// pet" rather than as "one every action", which is the direction a mistake should fall in.
+[proc,skillpet_roll](namedobj $pet, stat $stat, int $base)
+if ($base <= ^skillpet_no_roll) {
+    return;
+}
+// The unboosted level, as OSRS uses: a dwarven stout must not improve the odds.
+def_int $chance = calc($base - (stat_base($stat) * ^skillpet_level_step));
+// B - 25*99 is positive for every base this server ships, and the battery proves that for each
+// one; the floor is here so that a base added later without checking cannot divide by nothing.
+if ($chance < 1) {
+    $chance = 1;
+}
+if (random($chance) ! 0) {
+    return;
+}
+// Owning one anywhere - pack, bank, worn - or having it out already, stops a second.
+if (~obj_gettotal($pet) > 0) {
+    return;
+}
+if (%follower_obj = $pet) {
+    return;
+}
+// It goes in the pack when there is room. When there is not it goes on the floor rather than
+// nowhere: these are one-in-a-hundred-thousand rolls and losing one to a full inventory would be
+// worse than the shuffle of picking it up.
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, $pet, 1);
+} else {
+    obj_add(coord, $pet, 1, ^lootdrop_duration);
+    mes("You have a funny feeling like you would be followed, if you had the space.");
+    return;
+}
+mes("You have a funny feeling like you're being followed.");
+
+// Runecraft rolls once PER ESSENCE, not once per click, so a full pouch of 28 is 28 rolls. Every
+// roll after the one that succeeds is a no-op, because owning the pet blocks a second.
+[proc,skillpet_roll_each](namedobj $pet, stat $stat, int $base, int $times)
+def_int $i = 0;
+while ($i < $times) {
+    ~skillpet_roll($pet, $stat, $base);
+    $i = calc($i + 1);
+}

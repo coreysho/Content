@@ -23,10 +23,10 @@ def check(ok, what):
 
 SPEC = json.loads(read('tools/bossartspec.json'))
 DRAGONS = read('scripts/npc/configs/dragons.npc')
-PETS = read('scripts/npc/configs/boss_pets.npc')
-PETOBJ = read('scripts/npc/configs/boss_pets.obj')
+PETS = read('scripts/npc/configs/boss_pets.npc') + '\n' + read('scripts/npc/configs/skill_pets.npc')
+PETOBJ = read('scripts/npc/configs/boss_pets.obj') + '\n' + read('scripts/npc/configs/skill_pets.obj')
 DSEQ = read('scripts/npc/configs/dragons.seq')
-PSEQ = read('scripts/npc/configs/boss_pets.seq')
+PSEQ = read('scripts/npc/configs/boss_pets.seq') + '\n' + read('scripts/npc/configs/skill_pets.seq')
 PETRS2 = read('scripts/npc/scripts/boss_pets.rs2')
 
 def blocks(txt):
@@ -154,9 +154,10 @@ for s in sets:
     check(os.path.exists(os.path.join(C, 'models', s + '.anim')), '...and the blob is on disk')
 
 # ============================================================================ 5
-print('5. the six pets are the cache\'s own art at the cache\'s own scale')
-PETNAMES = [n for n in SPEC['npcs'] if n.startswith('bosspet_')]
-check(len(PETNAMES) == 6, 'there are six of them: %d' % len(PETNAMES))
+print('5. every pet is the cache\'s own art at the cache\'s own scale')
+PETNAMES = [n for n in SPEC['npcs'] if n.startswith(('bosspet_', 'skillpet_'))]
+check(len(PETNAMES) == 18, 'there are eighteen of them, ten boss and eight skilling: %d'
+      % len(PETNAMES))
 for n in sorted(PETNAMES):
     s = SPEC['npcs'][n]; b = NPCB[n]
     got = [v for k, v in sorted(b.items()) if re.match(r'model\d$', k) for v in v]
@@ -221,28 +222,43 @@ for p in ('model.pack', 'npc.pack', 'obj.pack', 'anim.pack', 'animset.pack', 'ba
     check(len(set(d)) == len(d), '...and no duplicate name')
 for f in ('scripts/npc/configs/dragons.npc', 'scripts/npc/configs/dragons.seq',
           'scripts/npc/configs/boss_pets.npc', 'scripts/npc/configs/boss_pets.seq',
-          'scripts/npc/configs/boss_pets.obj', 'tools/bossartspec.json'):
+          'scripts/npc/configs/boss_pets.obj', 'scripts/npc/configs/skill_pets.npc',
+          'scripts/npc/configs/skill_pets.seq', 'scripts/npc/configs/skill_pets.obj',
+          'scripts/npc/configs/skill_pets.constant', 'scripts/npc/scripts/skill_pets.rs2',
+          'tools/bossartspec.json', 'tools/petspec.json'):
     raw = open(os.path.join(C, f), 'rb').read()
     crlf = raw.count(b'\r\n'); lf = raw.count(b'\n') - crlf
     check(not (crlf and lf), '%s has one kind of line ending (%s)'
           % (os.path.basename(f), 'CRLF' if crlf else 'LF'))
 
 # ============================================================================ 10
-print('10. the pets are still obtainable, and still only from their own boss')
+print('10. every pet is obtainable, or declared not to be, and the sweep agrees')
 import subprocess
 r = subprocess.run([sys.executable, os.path.join(C, 'tools/obtainable.py')],
                    capture_output=True, text=True, cwd=C)
 check(r.returncode == 0, 'tools/obtainable.py runs clean')
-hard = r.stdout.split('NOTHING ANYWHERE MENTIONS THESE', 1)[-1]
-orph = [n for n in SPEC['items'] if re.search(r'\b%s\b' % n, hard)]
-check(not orph, 'it finds a source for all six pet items: %s' % (orph or 'every one'))
-for n in sorted(SPEC['items']):
-    boss = n.replace('bosspet_', '').replace('_item', '')
-    t = 'scripts/drop_tables/scripts/%s.rs2' % {'kbd': 'king_black_dragon'}.get(boss, boss)
-    if not os.path.exists(os.path.join(C, t)):
-        check(False, '%s: no drop table at %s' % (n, t)); continue
-    live = '\n'.join(l.split('//')[0] for l in read(t).split('\n'))
-    check('~bosspet_roll(%s)' % n in live, '%s is rolled by %s' % (n, os.path.basename(t)))
+check('WARNING' not in r.stdout,
+      'and finds no disagreement between the specs and what the game can give out')
+# Every pet item is either ROLLED by something or DECLARED as having no source on purpose - never
+# neither. The sweep's own hard list cannot carry a pet, because a pet is always mentioned by its
+# two configs and so reads as "reachable, probably" to the loose pass; this is the claim that
+# actually bites. (The first version of this check asked the hard list and could not fail at all.)
+bydesign = r.stdout.split('BUILT WITH NO SOURCE ON PURPOSE', 1)[-1] \
+                   .split('NOTHING ANYWHERE MENTIONS', 1)[0]
+rolled = ''
+for dirpath, _dirs, files in os.walk(os.path.join(C, 'scripts')):
+    for fn in files:
+        if fn.endswith('.rs2'):
+            rel = os.path.join(dirpath, fn)[len(C) + 1:]
+            rolled += '\n'.join(l.split('//')[0] for l in read(rel).split('\n'))
+stray = []
+for n in SPEC['items']:
+    can_get = re.search(r'~(boss|skill)pet_roll(_each)?\(%s\b' % n, rolled) is not None
+    declared = re.search(r'\b%s\b' % n, bydesign) is not None
+    if can_get == declared:
+        stray.append('%s (%s)' % (n, 'both' if can_get else 'neither'))
+check(not stray, 'every pet item is either rolled by something or declared sourceless, '
+                 'never both and never neither: %s' % (stray or 'all 18'))
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

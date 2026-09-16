@@ -6,7 +6,7 @@
 //      A unique replaces the main drop, and is broadcast like every other rare drop on this server.
 //   2. otherwise the main table, weights as the wiki lists them (random(total) of the weights).
 //      "RDT" = the shared gem/rare table (~randomjewel).
-// Always-drops, the hard clue roll, and no pets (GWD pets are part of the rest of GWD, not this).
+// Always-drops, the hard clue roll, then the pet at 1 in 5,000 (^bosspet_gwd_droprate).
 // Items the wiki lists that are later OSRS additions or absent from this cache are left out; their
 // weight is simply not in the table (noted per boss). No spawns yet - ::npc <name> to test.
 
@@ -16,6 +16,7 @@ gosub(npc_death);
 if (npc_findhero = ^false) {
     return;
 }
+~bosspet_roll(bosspet_graardor_item, ^bosspet_gwd_droprate);
 obj_add(npc_coord, big_bones, 1, ^lootdrop_duration);
 ~trail_hardcluedrop(^trail_hard_droprate, npc_coord);
 if (~gwd_unique_roll_graardor = true) {
@@ -83,6 +84,7 @@ gosub(npc_death);
 if (npc_findhero = ^false) {
     return;
 }
+~bosspet_roll(bosspet_kril_item, ^bosspet_gwd_droprate);
 ~trail_hardcluedrop(^trail_hard_droprate, npc_coord);
 if (~gwd_unique_roll_kril = true) {
     return;
@@ -149,6 +151,7 @@ gosub(npc_death);
 if (npc_findhero = ^false) {
     return;
 }
+~bosspet_roll(bosspet_zilyana_item, ^bosspet_gwd_droprate);
 obj_add(npc_coord, bones, 1, ^lootdrop_duration);
 ~trail_hardcluedrop(^trail_hard_droprate, npc_coord);
 if (~gwd_unique_roll_zilyana = true) {
@@ -218,6 +221,7 @@ gosub(npc_death);
 if (npc_findhero = ^false) {
     return;
 }
+~bosspet_roll(bosspet_kree_item, ^bosspet_gwd_droprate);
 obj_add(npc_coord, big_bones, 1, ^lootdrop_duration);
 obj_add(npc_coord, feather, ~random_range(1, 16), ^lootdrop_duration);
 ~trail_hardcluedrop(^trail_hard_droprate, npc_coord);

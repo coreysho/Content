@@ -1,0 +1,27 @@
+// The skilling pets, and the base chances OSRS rolls them on.
+//
+// THE MECHANIC. OSRS rolls a skilling pet once per successful action, at
+//
+//     1 in (B - (level * 25))
+//
+// where B is a base chance that belongs to the ACTION - a yew tree and a normal tree are different
+// numbers - and level is the player's unboosted level in that skill. Every B below is the OSRS
+// wiki's own figure (oldschool.runescape.wiki, September 2026), and nothing here is interpolated:
+// where the wiki lists no figure for something this server has, the base is ^skillpet_no_roll and
+// the action gives no pet, exactly as essence mining and the burnt tree give none in OSRS.
+//
+// B lives next to the thing that defines it rather than in one table here: a pet_base column on
+// the mining and woodcutting dbrows, because those already carry the rock and the tree; a constant
+// here for Runecraft and for each agility course, because OSRS uses one number for each.
+^skillpet_level_step = 25
+^skillpet_no_roll = 0
+
+// Runecraft, the Rift guardian. OSRS charges 804,984 at the blood altar and 782,999 at the soul
+// altar and 1,487,213 at the Ourania altar; this server has none of those three, so every altar it
+// does have falls under the wiki's "everything else".
+^skillpet_rift_guardian_base = 1795758
+
+// Agility, the Giant squirrel - rolled on COMPLETING A LAP, not per obstacle. Three courses here.
+^skillpet_squirrel_gnome = 35609
+^skillpet_squirrel_barbarian = 44376
+^skillpet_squirrel_wilderness = 34666

@@ -79,10 +79,11 @@ MUTS = [
   '8 ...and bosspet_dagannoth_rex_item names it back'),
  (OBJ, '[bosspet_kbd_item]\nname=Prince black dragon', '[bosspet_kbd_item]\nname=Prince black dragon\ntradeable=yes',
   '8 ...and the item is untradeable, as the cats are'),
- # 10 - and the drop that puts one in the game
- ('scripts/drop_tables/scripts/giant_mole.rs2', '~bosspet_roll(bosspet_giant_mole_item)',
-  '// ~bosspet_roll(bosspet_giant_mole_item)',
-  '10 bosspet_giant_mole_item is rolled by giant_mole.rs2'),
+ # 10 - the sweep, which is now the whole of this group: WHERE a pet comes from moved to
+ # tools/pet_battery.py when petspec.json took ownership of the rates, and its mutations live in
+ # tools/pet_mutate.py. Nothing here should test a drop table.
+ ('tools/petspec.json', '"skillpet_chinchompa": {', '"skillpet_chinchompa_typo": {',
+  '10 every pet item is either rolled by something or declared sourceless'),
 ]
 
 def main():
