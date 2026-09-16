@@ -41,6 +41,11 @@ p_teleport(0_58_46_37_29);
 // npc flips between applayer2 and opplayer2 depending on what is in your amulet slot, so putting
 // the icon on mid-fight makes it start actually attacking, and taking it off makes it stop.
 //
+// ~cave_horror_screech serves TWO monsters: this one and the cave abomination, whose own
+// applayer2/opplayer2 pair is in superiors.rs2 beside the banshee's. The damage is a share of the
+// player's hitpoints rather than anything of the npc's, so the superior screeches for the same
+// amount and nothing here had to change to let it.
+//
 // The DIFFERENCE from the banshee is what protects you. Earmuffs and the slayer helmet stop a
 // banshee; neither does anything here. Only the witchwood icon works, and it has no combat
 // bonuses at all - so the cost of coming down here is your amulet slot for the whole trip.
@@ -105,8 +110,9 @@ gosub(npc_death);
 if (npc_findhero = ^false) {
     return;
 }
-~cave_horror_drop_table_loot; // a proc, not a label, so the cave abomination can
-                             // reuse it whole when someone imports one
+~cave_horror_drop_table_loot; // a proc, not a label, so the cave abomination can reuse it
+                             // whole - which it now does, three times over, from
+                             // ~superior_loot in skill_slayer/scripts/superiors.rs2
 
 [proc,cave_horror_drop_table_loot]
 ~trail_hardcluedrop(^trail_hard_droprate, npc_coord);

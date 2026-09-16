@@ -40,6 +40,7 @@ mes("@red@A superior foe has appeared...");
 [ai_queue3,superior_insatiable_bloodveld] @superior_death;
 [ai_queue3,superior_vitreous_jelly] @superior_death;
 [ai_queue3,superior_spiked_turoth] @superior_death;
+[ai_queue3,superior_cave_abomination] @superior_death;
 [ai_queue3,superior_abhorrent_spectre] @superior_death;
 [ai_queue3,superior_king_kurask] @superior_death;
 [ai_queue3,superior_nechryarch] @superior_death;
@@ -124,6 +125,7 @@ switch_npc ($type) {
     case superior_insatiable_bloodveld : ~slayer_bloodveld_drop_table_loot;
     case superior_vitreous_jelly : ~slayer_jelly_loot;
     case superior_spiked_turoth : ~slayer_turoth_baby_drop_table_loot;
+    case superior_cave_abomination : ~cave_horror_drop_table_loot;
     case superior_abhorrent_spectre : ~slayer_abberant_spectre_1_drop_table_loot;
     case superior_king_kurask : ~slayer_kursk_1_drop_table_loot;
     case superior_marble_gargoyle : ~slayer_gargoyle_loot;
@@ -185,6 +187,25 @@ npc_setmode(opplayer2);
 
 [ai_opplayer2,superior_cockathrice]
 if (inv_total(worn, slayer_mirror_shield) < 1) {
+    npc_setmode(applayer2);
+    return;
+}
+gosub(npc_default_attack);
+
+// The cave abomination screeches exactly as the cave horror does, and only the witchwood icon
+// stops it - not earmuffs and not the slayer helmet (area_mos_le_harmless/scripts/cave_horror.rs2
+// has the why). Keyed on npc type rather than on the category, like the two above, so it is
+// repeated here rather than inherited.
+[ai_queue1,superior_cave_abomination] gosub(npc_default_retaliate_ap);
+[ai_applayer2,superior_cave_abomination]
+if (inv_total(worn, witchwood_icon) < 1) {
+    ~cave_horror_screech;
+    return;
+}
+npc_setmode(opplayer2);
+
+[ai_opplayer2,superior_cave_abomination]
+if (inv_total(worn, witchwood_icon) < 1) {
     npc_setmode(applayer2);
     return;
 }
