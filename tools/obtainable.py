@@ -38,6 +38,28 @@ def read(p):
     return io.open(os.path.join(ROOT, p), encoding='utf-8', errors='replace', newline='').read()
 
 
+# A STORAGE table is not a source, and it is not a mention either. poh_store_item and
+# poh_costume_item list what the costume room will PUT AWAY for you, which says nothing about
+# whether you can get one. Reading them as sources once hid a carpenter's shirt that no shop sold
+# behind a fancy dress box that would happily store it - and excluding them from `given` alone was
+# not enough: they still counted as a MENTION, which demotes an obj from "nothing anywhere mentions
+# these" to "worth a glance, not a bug list". That quietly hid seventeen more, including two
+# Graceful pieces, the mime set, the lederhosen, the frog mask and the zombie set.
+STORAGE_LISTS = ('poh_store_item', 'poh_costume_item')
+
+
+def without_storage_lists(text):
+    """The file with any STORAGE_LISTS enum block removed, for the loose mention scan."""
+    out, skip = [], False
+    for line in text.split('\n'):
+        s = line.split('//')[0].strip()
+        if s.startswith('[') and s.endswith(']'):
+            skip = s[1:-1] in STORAGE_LISTS
+        if not skip:
+            out.append(line)
+    return '\n'.join(out)
+
+
 def packnames(p):
     out = {}
     for l in read(p).split('\n'):
@@ -268,7 +290,7 @@ def main():
                         # what the costume room will PUT AWAY for you, which tells you nothing about
                         # whether you can get one - and reading them as sources hid a carpenter's
                         # shirt that no shop sells behind a fancy dress box that would store it.
-                        if v in byname and cur not in ('poh_store_item', 'poh_costume_item'):
+                        if v in byname and cur not in STORAGE_LISTS:
                             given[v].add('table:' + fn)
                     elif suffix == '.dbrow' and '=' in l:
                         for w in re.findall(r'([a-z][a-z0-9_+]{2,})', l.split('=', 1)[1]):
@@ -317,7 +339,8 @@ def main():
         if base and base in given:
             given[name].add('note of ' + base)
 
-    # ---- a result handed to a label or a proc. The godswords are joined by
+    # ---- a result handed to a label or a proc, minus the storage lists (see STORAGE_LISTS). The
+    # godswords are joined by
     # @godsword_join($a, $b, godsword_blade) - the obj that comes OUT is an argument, nowhere near
     # an inv_add - and following that properly means following every call. So instead: in a file
     # that gives items out at all, a bare mention of an obj name counts as "reachable, probably".
@@ -333,7 +356,7 @@ def main():
             rel = os.path.join(dirpath, fn)[len(ROOT) + 1:]
             if fn == 'engine.rs2':
                 continue
-            for w in set(re.findall(r'([a-z][a-z0-9_+]{2,})', read(rel))):
+            for w in set(re.findall(r'([a-z][a-z0-9_+]{2,})', without_storage_lists(read(rel)))):
                 if w in byname:
                     loose[w].add(fn)
 

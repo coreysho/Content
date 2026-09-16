@@ -178,9 +178,13 @@ if (random($chance) ! 0) {
  (THIEF, '~skillpet_roll(skillpet_rocky_item, thieving, db_getfield($data, stealing:pet_base, 0));',
          '~skillpet_roll(skillpet_rocky_item, thieving, db_getfield($data, pickpocket:pet_base, 0));',
   '8 ...one off stealing:pet_base'),
- (THIEF, 'stat_advance(thieving, $experience);\n~skillpet_roll(skillpet_rocky_item, thieving, db_getfield($data, pickpocket:pet_base, 0));',
-         'stat_advance(thieving, $experience);\nsound_synth(pick, 1, 0);\n~skillpet_roll(skillpet_rocky_item, thieving, db_getfield($data, pickpocket:pet_base, 0));',
+ (THIEF, '~thieving_xp($experience);\n~skillpet_roll(skillpet_rocky_item, thieving, db_getfield($data, pickpocket:pet_base, 0));',
+         '~thieving_xp($experience);\nsound_synth(pick, 1, 0);\n~skillpet_roll(skillpet_rocky_item, thieving, db_getfield($data, pickpocket:pet_base, 0));',
   '8 and each roll sits on the line after the xp it belongs to'),
+ # Thieving going round its own funnel: the pet still rolls, but the Rogue outfit never turns up.
+ (THIEF, '~thieving_xp($experience);\n~skillpet_roll(skillpet_rocky_item, thieving, db_getfield($data, stealing:pet_base, 0));',
+         'stat_advance(thieving, $experience);\n~skillpet_roll(skillpet_rocky_item, thieving, db_getfield($data, stealing:pet_base, 0));',
+  '8 ...which is the funnel, not a direct award'),
  # 7 - the two halves of a pet losing track of each other
  ('scripts/npc/configs/skill_pets.obj', 'param=follower_id,skillpet_beaver',
   'param=follower_id,skillpet_heron', '7 ...and the item names the npc'),

@@ -10,14 +10,16 @@
 // argument, so it is unproven and cannot be compile-tested from outside the build.
 // See claude/rs2-compile-traps.md. Seven small procs cost nothing and are provably safe.
 //
-// Not every skilling outfit gives experience, and the ones that do not are deliberately
-// absent from this file:
-//   Graceful  - weight reduction and run-energy restore, no xp
-//   Rogue     - doubles pickpocketing loot, no xp
-//   Zealot's  - chance not to consume bones/ashes, no xp
-//   Guild hunter - Hunter does not exist in this build
+// Not every skilling outfit gives experience. Three of them give none in OSRS - Graceful restores
+// run energy, the Rogue outfit doubles pickpocketing loot, and Zealot's saves a bone - and their
+// procs are at the bottom of this file with no bonus in them at all. They are here for the ROLL:
+// the outfit still has to come from somewhere, and the xp funnel is the one place that sees every
+// action in a skill.
 //
-// THE CARPENTER'S OUTFIT USED TO BE ON THAT LIST, next to the Guild hunter's, because Construction
+//   Guild hunter - still nothing, and the only outfit that cannot have a source of this shape,
+//                  because Hunter does not exist in this build. See outfits.constant.
+//
+// THE CARPENTER'S OUTFIT USED TO BE ON THAT LIST TOO, next to the Guild hunter's, because Construction
 // did not exist when this file was written. It does now, so ~construction_xp is below with the
 // other six and the carpenter's outfit pays its 2.5% like everything else. A comment that names a
 // reason goes stale when the reason does; this is the second one this week to have been quietly
@@ -129,3 +131,35 @@ def_int $bonus = ~outfit_xp_bonus(carpenters_helm, carpenters_shirt, carpenters_
 def_int $extra = calc(($xp * $bonus) / 1000);
 ~outfit_roll(^outfit_carpenters, $xp);
 stat_advance(construction, calc($xp + $extra));
+
+// ---------------------------------------------------------------- the three with no bonus
+// Agility, Thieving and Prayer. No ~outfit_xp_bonus call and no $extra, because OSRS gives these
+// three outfits no experience bonus - so there is nothing to add and the proc is the roll and the
+// award. The roll still sees the pre-bonus amount, because there is no other amount.
+//
+// WHAT ROUTES THROUGH THEM. Every award in scripts/skill_agility, scripts/skill_thieving,
+// scripts/skill_prayer, the agility arena, the gnomeball field, the Yanille agility dungeon, the
+// abyss and the costume-room altar. What does NOT is anything under scripts/quests: a quest award
+// is a lump sum for finishing something, not an hour of training, and finishing Regicide should
+// not roll for a Graceful piece. Battery group 64 holds that line by path.
+
+[proc,agility_xp](int $xp)
+if ($xp <= 0) {
+    return;
+}
+~outfit_roll(^outfit_graceful, $xp);
+stat_advance(agility, $xp);
+
+[proc,thieving_xp](int $xp)
+if ($xp <= 0) {
+    return;
+}
+~outfit_roll(^outfit_rogue, $xp);
+stat_advance(thieving, $xp);
+
+[proc,prayer_xp](int $xp)
+if ($xp <= 0) {
+    return;
+}
+~outfit_roll(^outfit_zealots, $xp);
+stat_advance(prayer, $xp);

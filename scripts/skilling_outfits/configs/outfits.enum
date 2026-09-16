@@ -1,51 +1,86 @@
-// The seven skilling outfits that can be found, and the four pieces of each.
+// The ten skilling outfits that can be found, and up to six pieces of each.
 //
-// The index into outfit_piece is ^outfit_<name> * ^outfit_pieces + the slot, in hat / torso / legs
-// / feet order. The Smiths' uniform has no headpiece - it is gloves instead - so its "hat" slot is
-// the gloves, which is also the order ~outfit_xp_bonus_smiths reads them in.
+// The index into outfit_piece is ^outfit_<name> * ^outfit_pieces + the slot, and the slots are
+// hat / torso / legs / feet / hands / back. A slot an outfit does not have is null, which is what
+// the stride costs and the only thing it costs: ~outfit_missing and ~outfit_roll both skip a null,
+// so a four-piece outfit behaves exactly as it did when the stride was four.
+//
+// THE STRIDE IS SIX BECAUSE GRACEFUL HAS SIX - hood, top, legs, boots, gloves and a cape - and the
+// Rogue outfit has five. Before those three were wired the stride was four and the Smiths' gloves
+// sat in the hat slot for want of anywhere else; they are in the hands slot now, which is where
+// they are worn. Nothing reads these by slot except the roll, so that was free: the experience
+// bonus procs name their pieces literally.
 
 [outfit_piece]
 inputtype=int
 outputtype=namedobj
 default=null
+// Prospector
 val=0,prospector_helm
 val=1,prospector_jacket
 val=2,prospector_legs
 val=3,prospector_boots
-val=4,angler_hat
-val=5,angler_top
-val=6,angler_waders
-val=7,angler_boots
-val=8,lumberjack_hat
-val=9,lumberjack_top
-val=10,lumberjack_legs
-val=11,lumberjack_boots
-val=12,pyromancer_hood
-val=13,pyromancer_garb
-val=14,pyromancer_robe
-val=15,pyromancer_boots
-val=16,eye_hat
-val=17,eye_top
-val=18,eye_bottoms
-val=19,eye_boots
-val=20,smiths_gloves
-val=21,smiths_tunic
-val=22,smiths_trousers
-val=23,smiths_boots
-val=24,carpenters_helm
-val=25,carpenters_shirt
-val=26,carpenters_trousers
-val=27,carpenters_boots
+// Angler
+val=6,angler_hat
+val=7,angler_top
+val=8,angler_waders
+val=9,angler_boots
+// Lumberjack
+val=12,lumberjack_hat
+val=13,lumberjack_top
+val=14,lumberjack_legs
+val=15,lumberjack_boots
+// Pyromancer
+val=18,pyromancer_hood
+val=19,pyromancer_garb
+val=20,pyromancer_robe
+val=21,pyromancer_boots
+// Eye
+val=24,eye_hat
+val=25,eye_top
+val=26,eye_bottoms
+val=27,eye_boots
+// Smiths'
+val=31,smiths_tunic
+val=32,smiths_trousers
+val=33,smiths_boots
+val=34,smiths_gloves
+// Carpenter's
+val=36,carpenters_helm
+val=37,carpenters_shirt
+val=38,carpenters_trousers
+val=39,carpenters_boots
+// Graceful
+val=42,graceful_hood
+val=43,graceful_top
+val=44,graceful_legs
+val=45,graceful_boots
+val=46,graceful_gloves
+val=47,graceful_cape
+// Rogue
+val=48,rogue_mask
+val=49,rogue_top
+val=50,rogue_trousers
+val=51,rogue_boots
+val=52,rogue_gloves
+// Zealot's
+val=54,zealots_helm
+val=55,zealots_top
+val=56,zealots_bottom
+val=57,zealots_boots
 
 // What to call the outfit in the message that announces a piece.
 [outfit_name]
 inputtype=int
 outputtype=string
 default=null
-val=0,prospector's
-val=1,angler's
-val=2,lumberjack
-val=3,pyromancer's
+val=0,Prospector
+val=1,Angler
+val=2,Lumberjack
+val=3,Pyromancer
 val=4,Eye
-val=5,smith's
-val=6,carpenter's
+val=5,Smiths'
+val=6,Carpenter's
+val=7,Graceful
+val=8,Rogue
+val=9,Zealot's

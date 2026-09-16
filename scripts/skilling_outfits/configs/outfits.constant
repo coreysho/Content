@@ -1,6 +1,6 @@
 // The skilling outfits: how many, and how often a piece turns up.
 
-// Seven outfits have a source. The index is the order below and it is what keys outfit_piece and
+// Ten outfits have a source. The index is the order below and it is what keys outfit_piece and
 // outfit_name, so it cannot be reordered without reordering those.
 ^outfit_prospector = 0
 ^outfit_angler = 1
@@ -9,18 +9,33 @@
 ^outfit_eye = 4
 ^outfit_smiths = 5
 ^outfit_carpenters = 6
-^outfit_count = 7
-^outfit_pieces = 4
+^outfit_graceful = 7
+^outfit_rogue = 8
+^outfit_zealots = 9
+^outfit_count = 10
+
+// Six, because Graceful has six - hood, top, legs, boots, gloves and a cape. The Rogue outfit has
+// five and everything else four; the slots an outfit does not have are null in outfit_piece and
+// the roll skips them. See the note there.
+^outfit_pieces = 6
+
+// The GUILD HUNTER outfit is the one still without a source, and it is the only one that cannot
+// have this one: every other outfit is found while training its own skill, and Hunter does not
+// exist in this build. Four pieces - hunter_headwear, hunter_top, hunter_legs, hunter_boots - plus
+// a separate hunter_hood, and they wait on the skill.
 
 // HOW OFTEN. A roll happens once per skilling action, inside the same proc that applies the
-// outfit's experience bonus, and it succeeds with probability xp/^outfit_roll_xp - so the chance
-// is proportional to what the action was worth. A magic log is worth twenty normal ones and rolls
-// twenty times as often, which is the behaviour you want and which a flat per-action chance would
-// get exactly backwards.
+// outfit's experience bonus where there is one, and it succeeds with probability xp/^outfit_roll_xp
+// - so the chance is proportional to what the action was worth. A magic log is worth twenty normal
+// ones and rolls twenty times as often, which is the behaviour you want and which a flat
+// per-action chance would get exactly backwards.
 //
-// 250,000 means one piece per 250,000 experience on average, and a full set of four in about a
-// million - the fourth piece takes as long as the first, because a piece you already own is never
-// given twice and the roll simply picks another. At 60-80k an hour that is somewhere around twelve
-// to sixteen hours a set, which is the number to tune if it feels wrong. It is the only number
-// here: nothing else in the mechanism is a magic constant.
-^outfit_roll_xp = 250000
+// 50,000 means one piece per 50,000 experience on average. A four-piece set is 200,000 and
+// Graceful's six are 300,000, because the fourth piece takes as long as the first - a piece you
+// already own is never given twice and the roll simply picks another. At 30-40k an hour that is
+// roughly an hour and a half per piece and five to seven hours for a set.
+//
+// It was 250,000 - twelve to sixteen hours a set, which was too much for a cosmetic with a 2.5%
+// bonus. This is the only number in the mechanism, for every outfit at once: nothing else here is
+// a magic constant, and there is no per-outfit rate to drift.
+^outfit_roll_xp = 50000

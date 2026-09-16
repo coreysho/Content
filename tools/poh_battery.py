@@ -3403,11 +3403,18 @@ print('64. the skilling outfits, and the funnel they are found through')
 # inside the same proc that applies the outfit's own bonus, so every repeatable action in those
 # skills rolls, at a chance proportional to what the action was worth.
 
-OUTFITS = ['prospector', 'angler', 'lumberjack', 'pyromancer', 'eye', 'smiths', 'carpenters']
+OUTFITS = ['prospector', 'angler', 'lumberjack', 'pyromancer', 'eye', 'smiths', 'carpenters',
+           'graceful', 'rogue', 'zealots']
 XPPROC = {'prospector': ('mining_xp', 'mining'), 'angler': ('fishing_xp', 'fishing'),
           'lumberjack': ('woodcutting_xp', 'woodcutting'), 'pyromancer': ('firemaking_xp', 'firemaking'),
           'eye': ('runecraft_xp', 'runecraft'), 'smiths': ('smithing_xp', 'smithing'),
-          'carpenters': ('construction_xp', 'construction')}
+          'carpenters': ('construction_xp', 'construction'),
+          # Graceful, Rogue and Zealot's give no experience bonus in OSRS, so their procs have no
+          # $extra to add. They exist for the roll alone.
+          'graceful': ('agility_xp', 'agility'), 'rogue': ('thieving_xp', 'thieving'),
+          'zealots': ('prayer_xp', 'prayer')}
+NOBONUS = ('graceful', 'rogue', 'zealots')
+OSLOTS = ['hat', 'torso', 'legs', 'feet', 'hands', 'back']
 OX = read('scripts/skilling_outfits/scripts/outfit_xp.rs2')
 OD = read('scripts/skilling_outfits/scripts/outfit_drop.rs2')
 OE = read('scripts/skilling_outfits/configs/outfits.enum')
@@ -3419,37 +3426,51 @@ def _oconst(n):
     m = re.search(r'^\^%s\s*=\s*(-?\d+)\s*$' % n, OC, re.M)
     return int(m.group(1)) if m else None
 
-check([_oconst('outfit_' + o) for o in OUTFITS] == list(range(7)),
-      'the seven outfits are 0..6 with no gap: %s' % [_oconst('outfit_' + o) for o in OUTFITS])
-check(_oconst('outfit_count') == 7 and _oconst('outfit_pieces') == 4,
-      '^outfit_count is %s and ^outfit_pieces is %s' % (_oconst('outfit_count'), _oconst('outfit_pieces')))
+check([_oconst('outfit_' + o) for o in OUTFITS] == list(range(len(OUTFITS))),
+      'the ten outfits are 0..9 with no gap: %s' % [_oconst('outfit_' + o) for o in OUTFITS])
+# Values AFTER the claim, not inside it. A mutation harness matches a check by its wording, so a
+# number interpolated into the claim changes the claim whenever the number moves - and a mutation
+# aimed at this check stopped matching it for exactly that reason. Third time this session.
+check(_oconst('outfit_count') == len(OUTFITS) and _oconst('outfit_pieces') == len(OSLOTS),
+      '^outfit_count and ^outfit_pieces are the ten outfits and the six slots: got %s and %s'
+      % (_oconst('outfit_count'), _oconst('outfit_pieces')))
 
 PIECE = enumtable(OE, 'outfit_piece')
 ONAME = enumtable(OE, 'outfit_name')
-check(sorted(PIECE) == list(range(28)), 'outfit_piece is 28 rows with no gap: %d' % len(PIECE))
-check(sorted(ONAME) == list(range(7)), 'and every outfit has a name for the message')
+check(sorted(ONAME) == list(range(len(OUTFITS))), 'every outfit has a name for the message')
 _bad = [v for v in PIECE.values() if v not in OBJS]
-check(not _bad, 'every piece is a real obj: %s' % (_bad or 'all 28'))
-check(len(set(PIECE.values())) == 28, 'and no piece is in two outfits')
+check(not _bad, 'every piece is a real obj: %s' % (_bad or 'all %d' % len(PIECE)))
+check(len(set(PIECE.values())) == len(PIECE), 'and no piece is in two outfits')
 
-# the table is grouped four at a time, in the order the bonus proc reads the slots
-_SLOTS = ['hat', 'torso', 'legs', 'feet']
-_bad = []
-for oi, o in enumerate(OUTFITS):
-    want = _SLOTS if o != 'smiths' else ['hands', 'torso', 'legs', 'feet']
-    for si in range(4):
-        piece = PIECE[oi * 4 + si]
-        got = (OOBJ.get(piece, {}).get('wearpos') or ['?'])[0]
-        if got != want[si]:
-            _bad.append((piece, got, want[si]))
-        if not piece.startswith(o.rstrip('s') if o == 'carpenters' else o):
-            if not piece.startswith(o):
-                _bad.append((piece, 'not a %s piece' % o, ''))
-check(not _bad, 'each outfit is its own four, in hat/torso/legs/feet order: %s'
-      % (_bad[:3] or 'all seven'))
-# ...and the Smiths' uniform really is the odd one - gloves where a hat would be
-check((OOBJ.get(PIECE[_oconst('outfit_smiths') * 4], {}).get('wearpos') or [''])[0] == 'hands',
-      "the Smiths' uniform has gloves in the head slot, which is what its bonus proc reads")
+# WHAT THE TABLE SHOULD HOLD, worked out from the obj configs and not from the table: every obj in
+# outfits.obj whose name starts with the outfit's own prefix, placed at the slot its own wearpos
+# says. Reading the enum to decide what the enum should say would check nothing. Guild hunter is
+# excluded because it has no source and no index - and so is hunter_hood, which belongs to the
+# Hunter camo outfit rather than the guild one.
+_want = {}
+for _n, _b in OOBJ.items():
+    _pre = next((o for o in OUTFITS if _n.startswith(o + '_')), None)
+    if _pre is None:
+        continue
+    _wp = (_b.get('wearpos') or [None])[0]
+    if _wp in OSLOTS:
+        _want[_n] = _oconst('outfit_' + _pre) * len(OSLOTS) + OSLOTS.index(_wp)
+_got = {v: k for k, v in PIECE.items()}
+_missing = sorted(n for n in _want if n not in _got)
+_wrong = sorted((n, _got[n], _want[n]) for n in _want if n in _got and _got[n] != _want[n])
+check(not _missing, 'every piece of the ten outfits is in the table: %s'
+      % (_missing or 'all %d' % len(_want)))
+check(not _wrong, '...each at its own wearpos slot in hat/torso/legs/feet/hands/back order: %s'
+      % (_wrong[:3] or 'all %d' % len(_want)))
+_extra = sorted(n for n in _got if n not in _want)
+check(not _extra, '...and the table holds nothing else: %s' % (_extra or 'nothing'))
+# The Smiths' uniform is the one with no headpiece, and Graceful the only one with six.
+check(_oconst('outfit_smiths') * len(OSLOTS) not in PIECE,
+      "the Smiths' uniform has no hat slot, because it has no headpiece")
+check(sum(1 for k in PIECE if k // len(OSLOTS) == _oconst('outfit_graceful')) == 6,
+      'Graceful is the six-piece one, which is why the stride is six')
+check(sum(1 for k in PIECE if k // len(OSLOTS) == _oconst('outfit_rogue')) == 5,
+      '...and the Rogue outfit the five-piece one')
 
 # every xp proc rolls for its own outfit, and rolls on the PRE-bonus xp
 _bad = []
@@ -3461,11 +3482,22 @@ for o in OUTFITS:
     body = m.group(1)
     if '~outfit_roll(^outfit_%s, $xp);' % o not in body:
         _bad.append((proc, 'does not roll for %s on the pre-bonus xp' % o))
-    if 'stat_advance(%s, calc($xp + $extra));' % stat not in body:
-        _bad.append((proc, 'does not award %s' % stat))
-check(not _bad, 'all seven experience procs roll for their own outfit: %s' % (_bad[:3] or 'all seven'))
-check(len(re.findall(r'~outfit_roll\(', OX)) == 7, 'seven rolls, one per proc: %d'
-      % len(re.findall(r'~outfit_roll\(', OX)))
+    # The three with no OSRS bonus award the plain amount; the seven with one add $extra. Checking
+    # the right shape per outfit is the point - a bonus proc quietly dropped from one of the seven
+    # would otherwise pass as "one of the three".
+    if o in NOBONUS:
+        if 'stat_advance(%s, $xp);' % stat not in body:
+            _bad.append((proc, 'does not award %s plainly' % stat))
+        if '$extra' in body or '~outfit_xp_bonus' in body:
+            _bad.append((proc, 'applies a bonus OSRS does not give'))
+    else:
+        if 'stat_advance(%s, calc($xp + $extra));' % stat not in body:
+            _bad.append((proc, 'does not award %s with its bonus' % stat))
+        if '~outfit_xp_bonus' not in body:
+            _bad.append((proc, 'does not read its own bonus'))
+check(not _bad, 'all ten experience procs roll for their own outfit: %s' % (_bad[:3] or 'all ten'))
+check(len(re.findall(r'~outfit_roll\(', OX)) == len(OUTFITS),
+      'ten rolls, one per proc: %d' % len(re.findall(r'~outfit_roll\(', OX)))
 
 # THE FUNNEL. A skilling script that calls stat_advance directly gets neither the bonus nor a roll,
 # which is how the carpenter's outfit could have been wired and still never turn up. Every direct
@@ -3473,6 +3505,9 @@ check(len(re.findall(r'~outfit_roll\(', OX)) == 7, 'seven rolls, one per proc: %
 # hours of mining - and the four that are not in scripts/quests are named here with the reason.
 DIRECT_OK = {
     'scripts/areas/area_ardougne_east/scripts/caroline.rs2': 'the Fishing Contest reward',
+    # A quest lump sum that happens to live in an area file rather than under scripts/quests -
+    # finishing Regicide is not five hours on an agility course, so it does not roll.
+    'scripts/areas/area_ardougne_east/scripts/king_lathas.rs2': 'the Regicide reward',
 }
 _direct = []
 for _root, _dirs, _fs in os.walk(os.path.join(C, 'scripts')):
@@ -3483,11 +3518,11 @@ for _root, _dirs, _fs in os.walk(os.path.join(C, 'scripts')):
         if _rel.endswith('outfit_xp.rs2') or _rel == 'scripts/engine.rs2':
             continue
         for _m in re.finditer(r'stat_advance\((mining|fishing|woodcutting|firemaking|runecraft|'
-                              r'smithing|construction),', read(_rel)):
+                              r'smithing|construction|agility|thieving|prayer),', read(_rel)):
             if _rel.startswith('scripts/quests/') or _rel in DIRECT_OK:
                 continue
             _direct.append((_rel, _m.group(1)))
-check(not _direct, 'nothing outside a quest awards these seven directly: %s'
+check(not _direct, 'nothing outside a quest awards these ten directly: %s'
       % (sorted(set(_direct))[:3] or 'every repeatable action goes through the procs'))
 
 # the construction one is the newest and the whole reason the carpenter's outfit works
@@ -3521,15 +3556,29 @@ check(_sw.returncode == 0, 'tools/obtainable.py runs clean'
       + ('' if _sw.returncode == 0 else ': ' + _sw.stderr[-300:]))
 _hard = _sw.stdout.split('NOTHING ANYWHERE MENTIONS THESE', 1)[-1].split('MENTIONED, BUT', 1)[0]
 _stillorphan = [p for p in PIECE.values() if re.search(r'\b%s\b' % re.escape(p), _hard)]
-check(not _stillorphan, 'and it agrees all 28 are obtainable now: %s'
-      % (_stillorphan[:4] or 'every piece of all seven'))
-# the four that are still not, on purpose, so wiring one is a reminder to update this
-_LEFT = ['graceful', 'rogue', 'zealots', 'hunter']
-_left_now = sorted({w.split('_')[0] for w in re.findall(r'\b(\w+)_\w+\b', _hard)
-                    if w.split('_')[0] in _LEFT})
-check(_left_now == sorted(_LEFT),
-      'the four left without a source are still exactly graceful, rogue, zealot\'s and guild hunter: %s'
-      % _left_now)
+check(not _stillorphan, 'and it agrees every piece in the table is obtainable now: %s'
+      % (_stillorphan[:4] or 'all %d of them' % len(PIECE)))
+# The one that is still not, on purpose, so wiring it is a reminder to update this. BY PIECE NAME,
+# not by prefix: while four outfits were unsourced a prefix was enough, but with only this one left
+# "hunter" also matches hunter_hood, which belongs to the Hunter camo outfit and is unobtainable
+# too - so the prefix version went on passing with all four guild pieces stocked in a shop.
+_GUILD_HUNTER = ['hunter_headwear', 'hunter_top', 'hunter_legs', 'hunter_boots']
+_still = [p for p in _GUILD_HUNTER if re.search(r'\b%s\b' % p, _hard)]
+check(_still == _GUILD_HUNTER,
+      'the guild hunter outfit is the only one left without a source, and all four of its pieces '
+      'are still in the real list, because Hunter does not exist: %s'
+      % (sorted(set(_GUILD_HUNTER) - set(_still)) or 'all four'))
+
+# A STORAGE LIST IS NOT A MENTION EITHER. Excluding the costume room from the SOURCE rule was not
+# enough: it still counted as a mention, which demotes an obj out of "nothing anywhere mentions
+# these" and into "worth a glance, not a bug list". That hid seventeen unobtainable objs, two of
+# them Graceful pieces this round had to wire. Asked behaviourally, of something still unobtainable
+# whose only mention is that list - the mime set, from a random event this build does not run.
+_mime = [p for p in ('macro_mime_mask', 'macro_mime_top', 'macro_mime_legs')
+         if re.search(r'\b%s\b' % p, _hard)]
+check(len(_mime) == 3,
+      'an obj mentioned only by the costume room storage list still counts as unobtainable: %s'
+      % (_mime or 'none of the mime set is in the real list'))
 
 
 print('65. the checkers can go red')

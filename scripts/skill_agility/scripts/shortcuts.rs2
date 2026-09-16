@@ -16,7 +16,7 @@ if(stat(agility) < 5) {
     return;
 }
 p_telejump(movecoord(loc_coord, 0, 0, 3));
-stat_advance(agility, 250);
+~agility_xp(250);
 sound_synth(climb_wall, 1, 0);
 mes("You climb over the wall.");
 
@@ -39,7 +39,7 @@ sound_synth(log_balance, 2, 0);
 sound_synth(log_balance, 1, 0);
 ~forcemove(movecoord(coord, $x_dist, 0, 0));
 ~update_bas;
-stat_advance(agility, 85);
+~agility_xp(85);
 // https://youtu.be/Fr0ZhqD6KKM?si=NUQInNCAp1j_PJhp&t=164
 mes("...You make it safely to the other side.");
 
@@ -84,7 +84,7 @@ if(stat_random(agility, 90, 250) = false) {
     p_delay(1);
     ~update_bas;
     ~forcemove($fail_end_coord);
-    stat_advance(agility, 20);
+    ~agility_xp(20);
     ~damage_self(calc(((stat(hitpoints) * 6) / 100) + 1));
     return;
 }
@@ -92,7 +92,7 @@ mes("You make it across the log without any problems.");
 p_teleport(movecoord(coord, $x_dist, 0, 0));
 p_delay(2);
 ~update_bas;
-stat_advance(agility, 40);
+~agility_xp(40);
 
 [proc,get_island_rope_var]()(int)
 switch_coord (loc_param(start_coord)) {
@@ -144,7 +144,7 @@ loc_anim(ropeswing_long);
 ~agility_exactmove(human_ropeswing_long, 20, 0, coord, loc_param(end_coord), 45, 70, loc_param(dir), false);
 mes("You skillfully swing across.");
 sound_synth(swing_across, 1, 0);
-stat_advance(agility, 30);
+~agility_xp(30);
 
 [oploc1,_monkeybars]
 if(stat(agility) < loc_param(agil_level_req) & coordz(loc_coord) ! 9489 & coordz(loc_coord) ! 9969) {
@@ -187,7 +187,7 @@ p_delay(0);
 sound_synth(monkeybars_loop, 3, 0);
 ~forcemove(movecoord(coord, 0, 0, calc($dist_mod * 1)));
 ~update_bas;
-stat_advance(agility, 200);
+~agility_xp(200);
 anim(human_monkeybars_off, 0);
 sound_synth(monkeybars_off, 1, 0);
 p_delay(0);
@@ -261,10 +261,10 @@ if(stat_random(agility, 140, 250) = false) {
     mes("You get washed up on the side of the river.");
     mes("After being nearly half drowned.");
     ~damage_self(calc($damage_bound + random($damage_bound) + 1)); // 10 - 20%?
-    stat_advance(agility, 10);
+    ~agility_xp(10);
     return;
 }
-stat_advance(agility, 30);
+~agility_xp(30);
 mes("You manage to make the jump.");
 
 [oploc1,farming_style]
@@ -326,7 +326,7 @@ if(coordx(coord) > coordx(loc_coord)) {
     ~agility_exactmove(human_walk_crumbledwall, 20, 0, coord, $end_coord, 45, 70, ^exact_east, true);
     p_teleport($end_coord);
 }
-stat_advance(agility, 50);
+~agility_xp(50);
 sound_synth(climb_wall, 1, 0);
 mes("You climb over the wall.");
 
@@ -410,7 +410,7 @@ mes("You jump over the strange floor.");
 sound_synth(jump_no_land, 1, 20);
 ~agility_exactmove(human_steppingstonejump, 20, 2, coord, $exit, 48, 60, $dir, true);
 p_teleport($exit);
-stat_advance(agility, 50);
+~agility_xp(50);
 
 [oploc1,loc_9321]
 if (stat(agility) < 81) {

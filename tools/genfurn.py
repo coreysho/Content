@@ -964,7 +964,10 @@ def emit_ops(fams, items, byfam, path='scripts/skill_construction/scripts/poh_fu
           'inv_del(inv, $bone, 1);',
           'anim(human_pray, 0);',
           'sound_synth(prayer_recharge, 1, 0);',
-          'stat_advance(prayer, calc(oc_param($bone, bone_exp) * $pct / 100));',
+          # Through ~prayer_xp so the altar rolls for a Zealot's piece like every other Prayer
+          # action. A direct stat_advance here is how the carpenter's outfit could have been
+          # wired and still never turned up - see skilling_outfits/scripts/outfit_xp.rs2.
+          '~prayer_xp(calc(oc_param($bone, bone_exp) * $pct / 100));',
           'mes("You offer the bones. The gods are pleased.");', '',
           '// =========================================================================== sitting', '',
           '// 377 HAS NO SEATED STATE, so this is a pose and not something the engine holds: the seq',

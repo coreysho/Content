@@ -704,13 +704,28 @@ if (inv_total(inv, coins) < $cost) {
  # THE ONE THE SWEEP FOUND: a piece with no way to get it. Take it out of the drop table and the
  # end-to-end check asks tools/obtainable.py, which says so.
  ('scripts/skilling_outfits/configs/outfits.enum',
-  'val=24,carpenters_helm' + chr(10), '',
-  '64 outfit_piece is 28 rows with no gap'),
+  'val=36,carpenters_helm' + chr(10), '',
+  '64 every piece of the ten outfits is in the table'),
+ # ...and Graceful's cape, the piece that made the stride six in the first place
+ ('scripts/skilling_outfits/configs/outfits.enum',
+  'val=47,graceful_cape' + chr(10), '',
+  '64 Graceful is the six-piece one'),
  # a skilling script going round the funnel - neither the bonus nor the roll reaches it
  ('scripts/areas/area_abyss/scripts/abyss_outer.rs2',
   '~mining_xp(250);', 'stat_advance(mining, 250);',
-  '64 nothing outside a quest awards these seven directly'),
- # ...and the same for the one that made the carpenter's outfit possible at all
+  '64 nothing outside a quest awards these ten directly'),
+ # the same for each of the three new ones: an agility obstacle, a pickpocket and the altar
+ ('scripts/skill_agility/scripts/gnome_course.rs2',
+  '~agility_xp(75);', 'stat_advance(agility, 75);',
+  '64 nothing outside a quest awards these ten directly'),
+ ('scripts/skill_thieving/scripts/thieving.rs2',
+  '~thieving_xp($experience);', 'stat_advance(thieving, $experience);',
+  '64 nothing outside a quest awards these ten directly'),
+ ('scripts/skill_construction/scripts/poh_furn_ops.rs2',
+  '~prayer_xp(calc(oc_param($bone, bone_exp) * $pct / 100));',
+  'stat_advance(prayer, calc(oc_param($bone, bone_exp) * $pct / 100));',
+  '64 nothing outside a quest awards these ten directly'),
+ # ...and the one that made the carpenter's outfit possible at all
  ('tools/genfurn.py',
   "'~construction_xp(enum(int, int, poh_furn_xp, $item));',",
   "'stat_advance(construction, enum(int, int, poh_furn_xp, $item));',",
@@ -718,22 +733,32 @@ if (inv_total(inv, coins) < $cost) {
  # an outfit rolling for its neighbour, which would quietly hand a miner angler boots
  ('scripts/skilling_outfits/scripts/outfit_xp.rs2',
   '~outfit_roll(^outfit_prospector, $xp);', '~outfit_roll(^outfit_angler, $xp);',
-  '64 all seven experience procs roll for their own outfit'),
+  '64 all ten experience procs roll for their own outfit'),
  # a proc that stopped rolling at all
  ('scripts/skilling_outfits/scripts/outfit_xp.rs2',
   '~outfit_roll(^outfit_eye, $xp);' + chr(10), '',
-  '64 seven rolls, one per proc'),
+  '64 ten rolls, one per proc'),
  # the roll paid on the post-bonus xp, so three pieces make the fourth come faster
  ('scripts/skilling_outfits/scripts/outfit_xp.rs2',
   '~outfit_roll(^outfit_smiths, $xp);', '~outfit_roll(^outfit_smiths, calc($xp + $extra));',
-  '64 all seven experience procs roll for their own outfit'),
- # the table reordered, so the bonus proc reads a hat out of the legs slot
+  '64 all ten experience procs roll for their own outfit'),
+ # a bonus OSRS does not give, on one of the three that give none
+ ('scripts/skilling_outfits/scripts/outfit_xp.rs2',
+  '~outfit_roll(^outfit_graceful, $xp);\nstat_advance(agility, $xp);',
+  '~outfit_roll(^outfit_graceful, $xp);\nstat_advance(agility, calc($xp + $extra));',
+  '64 all ten experience procs roll for their own outfit'),
+ # ...and a bonus quietly dropped from one of the seven that do
+ ('scripts/skilling_outfits/scripts/outfit_xp.rs2',
+  'def_int $bonus = ~outfit_xp_bonus(prospector_helm, prospector_jacket, prospector_legs, prospector_boots);',
+  'def_int $bonus = 0;',
+  '64 all ten experience procs roll for their own outfit'),
+ # the table reordered, so a hat sits in the torso slot
  ('scripts/skilling_outfits/configs/outfits.enum',
-  'val=4,angler_hat\nval=5,angler_top', 'val=4,angler_top\nval=5,angler_hat',
-  '64 each outfit is its own four, in hat/torso/legs/feet order'),
+  'val=6,angler_hat\nval=7,angler_top', 'val=6,angler_top\nval=7,angler_hat',
+  '64 each at its own wearpos slot in hat/torso/legs/feet/hands/back order'),
  # the Smiths' gloves swapped for a piece that is already in another outfit
  ('scripts/skilling_outfits/configs/outfits.enum',
-  'val=20,smiths_gloves', 'val=20,prospector_helm',
+  'val=34,smiths_gloves', 'val=34,prospector_helm',
   '64 and no piece is in two outfits'),
  # a piece the player already banked being given again
  ('scripts/skilling_outfits/scripts/outfit_drop.rs2',
@@ -746,12 +771,29 @@ if (inv_total(inv, coins) < $cost) {
   '64 a piece found with a full inventory goes on the floor'),
  # the rate written into the script instead of the constant
  ('scripts/skilling_outfits/scripts/outfit_drop.rs2',
-  'if (random(^outfit_roll_xp) >= $xp) {', 'if (random(250000) >= $xp) {',
+  'if (random(^outfit_roll_xp) >= $xp) {', 'if (random(50000) >= $xp) {',
   '64 no bare number in the roll'),
  # an outfit index that no longer lines up with the table it keys
  ('scripts/skilling_outfits/configs/outfits.constant',
   '^outfit_carpenters = 6', '^outfit_carpenters = 7',
-  '64 the seven outfits are 0..6 with no gap'),
+  '64 the ten outfits are 0..9 with no gap'),
+ # the stride shortened, which loses Graceful's cape and the Rogue gloves off the end
+ ('scripts/skilling_outfits/configs/outfits.constant',
+  '^outfit_pieces = 6', '^outfit_pieces = 5',
+  '64 ^outfit_count and ^outfit_pieces are the ten outfits and the six slots'),
+ # the guild hunter outfit quietly given a source, which is the reminder this check exists to be
+ ('scripts/_unpack/727/all.inv',
+  'stock1=pot_empty,5,10',
+  'stock1=pot_empty,5,10\nstock2=hunter_headwear,5,10\nstock3=hunter_top,5,10\n'
+  'stock4=hunter_legs,5,10\nstock5=hunter_boots,5,10',
+  '64 the guild hunter outfit is the only one left without a source'),
+ # A STORAGE LIST IS NOT A MENTION. Excluding the costume room from `given` was not enough - it
+ # still counted as a mention, which demoted seventeen unobtainable objs out of the real list and
+ # into "worth a glance", including two Graceful pieces.
+ ('tools/obtainable.py',
+  "for w in set(re.findall(r'([a-z][a-z0-9_+]{2,})', without_storage_lists(read(rel)))):",
+  "for w in set(re.findall(r'([a-z][a-z0-9_+]{2,})', read(rel))):",
+  '64 an obj mentioned only by the costume room storage list still counts as unobtainable'),
  # ---- 65: the checkers can go red ----
  # BOTH HISTORICAL INERT RULES, recreated. Each one shipped, did nothing, and the repo printed
  # 0 ERROR through it. The selftest exists so that cannot happen again, so the selftest has to be

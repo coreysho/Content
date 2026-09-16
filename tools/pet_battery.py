@@ -306,9 +306,13 @@ check('~skillpet_roll(' not in dis,
       'a trapped chest gives no pet, as in OSRS - only pickpocketing, stalls, Pyramid Plunder and '
       'the Sorceress\'s Garden have a figure')
 # The roll must sit with the xp: a success that pays xp cannot then skip the roll, and a roll that
-# drifted away from its xp would fire on a failed attempt.
-check(len(re.findall(r'stat_advance\(thieving, \$experience\);\n~skillpet_roll\(', THIEF)) == 2,
+# drifted away from its xp would fire on a failed attempt. The xp line is ~thieving_xp now rather
+# than a bare stat_advance - Thieving got a funnel so the Rogue outfit could be found while
+# training it (poh_battery group 64) - and the roll still sits directly under it.
+check(len(re.findall(r'~thieving_xp\(\$experience\);\n~skillpet_roll\(', THIEF)) == 2,
       'and each roll sits on the line after the xp it belongs to')
+check('stat_advance(thieving,' not in THIEF,
+      '...which is the funnel, not a direct award, so the outfit roll sees it too')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
