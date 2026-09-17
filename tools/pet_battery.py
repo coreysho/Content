@@ -194,9 +194,14 @@ for dirpath, _dirs, files in os.walk(os.path.join(C, 'scripts')):
     for fn in files:
         if fn.endswith('.rs2'):
             allrs2 += code(read(os.path.join(dirpath, fn)[len(C) + 1:]))
+# HANDED OVER nowhere, not MENTIONED nowhere: the chinchompa has a voice and a metamorphosis of
+# its own now (npc/scripts/pet_talk.rs2, npc/scripts/pet_metamorph.rs2), and neither is a source.
+# What must not exist is a call that gives one.
+GIVE = r'(?:~skillpet_roll(?:_each)?|~bosspet_roll|inv_add|obj_add|~obj_giveorbank)\([^;]*\b%s_item\b'
 for pet, d in sorted(pending.items()):
-    check('%s_item' % pet not in allrs2.replace('%s_item' % pet + '_', ''),
-          '%s is rolled nowhere' % pet)
+    check(not re.search(GIVE % pet, allrs2),
+          '%s is handed over nowhere, because the skill that would drop it does not exist here'
+          % pet)
     check('why' in d, '...and the spec says why not: %s' % d['why'][:64])
 check('hunter' == SPEC['skill']['skillpet_chinchompa']['stat'],
       'the chinchompa waits on Hunter, which this server does not have at all')

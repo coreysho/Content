@@ -1,0 +1,195 @@
+// Talking to a pet. Twenty pets, one voice each, three things each of them can say.
+//
+// This replaces one line that every pet in the game shared: "It looks up at you and makes a noise
+// you would rather it did not make at full size." Old School gives each pet its own dialogue -
+// the beaver tells tree puns, the boss pets answer back - and those transcripts run to pages per
+// pet. The LINES HERE ARE WRITTEN FOR THIS SERVER rather than copied out of them: same shape, same
+// kind of joke, our own words.
+//
+// The dispatch is on the pet's ITEM, not its npc type, which is what makes a metamorphosis free:
+// all fifteen rift guardians and the Great blue heron answer as themselves without a case each.
+//
+// ~chatnpc uses the ACTIVE npc's name and chathead, which every pet record carries. It also sets
+// the npc to playerfaceclose, so the pet stops following the moment it finishes talking - hence
+// ~follower_refollow after the switch, once, for whichever pet it was.
+
+[opnpc3,_bosspet]
+if (%npc_attacking_uid ! uid | %follower_uid ! npc_uid) {
+    mes("That isn't yours.");
+    return;
+}
+switch_obj (npc_param(pet_item_id)) {
+    case bosspet_kbd_item : ~pettalk_kbd;
+    case bosspet_kalphite_queen_item : ~pettalk_kalphite;
+    case bosspet_giant_mole_item : ~pettalk_mole;
+    case bosspet_dagannoth_rex_item : ~pettalk_dag_rex;
+    case bosspet_dagannoth_prime_item : ~pettalk_dag_prime;
+    case bosspet_dagannoth_supreme_item : ~pettalk_dag_supreme;
+    case bosspet_graardor_item : ~pettalk_graardor;
+    case bosspet_zilyana_item : ~pettalk_zilyana;
+    case bosspet_kree_item : ~pettalk_kree;
+    case bosspet_kril_item : ~pettalk_kril;
+    case bosspet_tzrek_jad_item : ~pettalk_tzrek;
+    case bosspet_jalrek_jad_item : ~pettalk_jalrek;
+    case skillpet_beaver_item : ~pettalk_beaver;
+    case skillpet_heron_item : ~pettalk_heron;
+    case skillpet_rock_golem_item : ~pettalk_golem;
+    case skillpet_rocky_item : ~pettalk_rocky;
+    case skillpet_squirrel_item : ~pettalk_squirrel;
+    case skillpet_tangleroot_item : ~pettalk_tangleroot;
+    case skillpet_rift_guardian_item : ~pettalk_rift;
+    case skillpet_chinchompa_item : ~pettalk_chinchompa;
+    // A pet added without a voice says the old line rather than nothing. The battery fails on it,
+    // so this is a net rather than a resting place.
+    case default : ~pettalk_default;
+}
+~follower_refollow;
+
+[proc,pettalk_default]
+~chatnpc("<p,neutral>It looks up at you and makes a noise you would rather|it did not make at full size.");
+
+// ---------------------------------------------------------------- the boss pets
+[proc,pettalk_kbd]
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,happy>One day I shall be enormous, and then we shall see|who fetches whom.");
+    case 1 : ~chatnpc("<p,neutral>I have three kinds of breath and no way to reach|anything with them yet.");
+    case 2 :
+        ~chatplayer("<p,neutral>Who's a big scary dragon then?");
+        ~chatnpc("<p,angry>I am NOT a big scary dragon. Yet.");
+}
+
+[proc,pettalk_kalphite]
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,neutral>My mother would have eaten you by now. I am|working up to it.");
+    case 1 : ~chatnpc("<p,happy>The hive sends its regards. Mostly it sends me.");
+    case 2 : ~chatnpc("<p,neutral>I can do this with either shape, you know. Ask me|again and I shall show you.");
+}
+
+[proc,pettalk_mole]
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,happy>I dug a tunnel under your bank. You are welcome.");
+    case 1 : ~chatnpc("<p,neutral>It is very bright out here. Everything is very|bright out here.");
+    case 2 : ~chatnpc("<p,happy>Wormwood? Wormwood. Wormwood!");
+}
+
+[proc,pettalk_dag_rex]
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,angry>Rex. REX. That is the whole thought, and it is a|good one.");
+    case 1 : ~chatnpc("<p,neutral>My brothers are wrong about everything and I shall|bite them for it.");
+    case 2 : ~chatnpc("<p,happy>Do you have a rock I could hit?");
+}
+
+[proc,pettalk_dag_prime]
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,neutral>Water first, then lightning. There is an order to|these things.");
+    case 1 : ~chatnpc("<p,happy>I am the clever one. Rex hits things. I hit things|with weather.");
+    case 2 : ~chatnpc("<p,sad>The lighthouse was draughty and I miss it.");
+}
+
+[proc,pettalk_dag_supreme]
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,happy>Supreme. It is in the name. I did not choose it,|but I do agree with it.");
+    case 1 : ~chatnpc("<p,neutral>I could put an arrow through a fly at this range.|I am told not to.");
+    case 2 : ~chatnpc("<p,neutral>Three of us, one island, no agreement. Same as|ever.");
+}
+
+[proc,pettalk_graardor]
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,happy>FOR THE GLORY OF- sorry. Indoor voice. For the|glory of Bandos.");
+    case 1 : ~chatnpc("<p,neutral>My general says strength is everything. I am|working on the everything.");
+    case 2 : ~chatnpc("<p,happy>Do we hit it? Can we hit it? Let us hit it.");
+}
+
+[proc,pettalk_zilyana]
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,happy>Saradomin's light shines on you. Mind the step.");
+    case 1 : ~chatnpc("<p,neutral>I am the smallest of the four and the fastest.|Consider that carefully.");
+    case 2 : ~chatnpc("<p,neutral>The others fight for territory. I fight because|it is right. Also territory.");
+}
+
+[proc,pettalk_kree]
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,happy>The wind is different down here. Worse. Heavier.");
+    case 1 : ~chatnpc("<p,neutral>Armadyl watches from above. I would rather be up|there with him.");
+    case 2 : ~chatnpc("<p,angry>Something is walking on the ground. Everything is|walking on the ground!");
+}
+
+[proc,pettalk_kril]
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,angry>Zamorak asks nothing of me but blood, and I am too|small to give much.");
+    case 1 : ~chatnpc("<p,happy>Your soul looks well. Keep it that way, I am not|hungry yet.");
+    case 2 : ~chatnpc("<p,neutral>I had a very large axe once. I am told I dropped|it somewhere.");
+}
+
+[proc,pettalk_tzrek]
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,happy>Tzrek-Jad! Jad. JAD.");
+    case 1 :
+        ~chatplayer("<p,neutral>Can you do the big one? The one that flattens people?");
+        ~chatnpc("<p,happy>Tzrek! ...tzrek?");
+    case 2 : ~chatnpc("<p,neutral>Ket-Zek. Yt-MejKot. Tz-Kih. Tzrek. It is a small|vocabulary and I am fond of it.");
+}
+
+[proc,pettalk_jalrek]
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,happy>JalRek! The flame changed nothing except all of me.");
+    case 1 : ~chatnpc("<p,neutral>I am blacker than I was and I burn where I stand.|It is an improvement.");
+    case 2 : ~chatnpc("<p,happy>Jal. Rek. Jad. Still four words, still enough.");
+}
+
+// ---------------------------------------------------------------- the skilling pets
+[proc,pettalk_beaver]
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,happy>What did the oak say to the axe? Nothing. Oaks|are terrible conversation.");
+    case 1 : ~chatnpc("<p,neutral>I could have that willow down in an afternoon.|Say the word.");
+    case 2 : ~chatnpc("<p,happy>Yew are doing well today. That was a yew joke.|There will be more.");
+}
+
+[proc,pettalk_heron]
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,neutral>You have been standing at that spot for an hour.|I have been standing longer.");
+    case 1 : ~chatnpc("<p,happy>I have eaten four of your fish and you did not|notice any of them.");
+    case 2 : ~chatnpc("<p,neutral>Patience is the whole skill. The rod is|decoration.");
+}
+
+[proc,pettalk_golem]
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,neutral>I am made of the rock you were hitting. Think|about that.");
+    case 1 : ~chatnpc("<p,happy>Granite. Good. Coal. Also good. Clay. We will not|discuss clay.");
+    case 2 : ~chatnpc("<p,neutral>Swing lower. You are wasting half of every swing.");
+}
+
+[proc,pettalk_rocky]
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,happy>You had four coins. Now you have three. Say|nothing.");
+    case 1 : ~chatnpc("<p,neutral>I could have that guard's purse before he finished|turning round.");
+    case 2 : ~chatnpc("<p,happy>Hands are for pockets. Yours are enormous and|slow.");
+}
+
+[proc,pettalk_squirrel]
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,happy>Over the log, under the net, up the rope. You are|too heavy for all three.");
+    case 1 : ~chatnpc("<p,neutral>I have never fallen off anything in my life.");
+    case 2 : ~chatnpc("<p,happy>Giant is a strong word for it. I am simply|confident.");
+}
+
+[proc,pettalk_tangleroot]
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,happy>Your herbs are dying and it is because you are|impatient.");
+    case 1 : ~chatnpc("<p,neutral>I am mostly roots and slightly a leaf. Do not|water me.");
+    case 2 : ~chatnpc("<p,happy>Compost. Compost! You never bring me compost.");
+}
+
+[proc,pettalk_rift]
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,neutral>I guard the rift. The rift is currently a small|hole in the air behind you.");
+    case 1 : ~chatnpc("<p,happy>Essence in, runes out, and nobody asks who does the|filing.");
+    case 2 : ~chatnpc("<p,neutral>I can be any colour you like. It changes nothing|about the filing.");
+}
+
+[proc,pettalk_chinchompa]
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,happy>Do not squeeze. Do NOT squeeze.");
+    case 1 : ~chatnpc("<p,neutral>I am a weapon, a pet and an accident waiting for|somewhere to happen.");
+    case 2 : ~chatnpc("<p,happy>Red ones go off louder. I have opinions about the|red ones.");
+}

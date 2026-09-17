@@ -339,8 +339,9 @@ if (multiply(npc_stat(hitpoints), 2) <= npc_basestat(hitpoints)) {
   '9 ...and it never hands over a second pet'),
  (XRS2, '~obj_giveorbank(tzhaar_token, $tokkul);', 'obj_add(coord, tzhaar_token, $tokkul, 100);',
   '9 everything the exchange pays goes to the pack or the bank, never the floor'),
- (REW, '// The pet, on its own roll.', '// The pet (not tzhaar_cape_infernal), on its own roll.',
-  '9 tzhaar_cape_infernal is named by exactly one script in the tree, the exchange'),
+ (REW, '~obj_giveorbank(bosspet_tzrek_jad_item, 1);',
+        '~obj_giveorbank(bosspet_tzrek_jad_item, 1);\ninv_add(inv, tzhaar_cape_infernal, 1);',
+  '9 tzhaar_cape_infernal is handed over by exactly one script in the tree, the exchange'),
 ]
 MUTS = [m for m in MUTS if len(m) == 4]
 

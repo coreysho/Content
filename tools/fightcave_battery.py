@@ -840,10 +840,15 @@ for root, _, fs in os.walk(os.path.join(C, 'scripts')):
         if f.endswith('.rs2'):
             ALLRS2.append((os.path.relpath(os.path.join(root, f), C),
                            open(os.path.join(root, f), newline='', errors='replace').read()))
+# HANDED OVER by exactly one script, not merely NAMED by one: JalRek-Jad has a voice now
+# (npc/scripts/pet_talk.rs2 dispatches every pet's dialogue on its item), and being spoken to is
+# not a way to obtain one. The check is about sources, so it looks at the calls that give an item.
+GIVE = r'(?:inv_add|obj_add|~obj_giveorbank|~bosspet_roll|~skillpet_roll(?:_each)?)\([^;]*\b%s\b'
 for obj in (CAPE, JITEM):
-    where = sorted(p for p, t in ALLRS2 if obj in t)
+    where = sorted(p for p, t in ALLRS2
+                   if re.search(GIVE % obj, '\n'.join(l.split('//')[0] for l in t.split('\n'))))
     check(where == ['scripts/minigames/game_fightcave/scripts/fightcave_exchange.rs2'],
-          '%s is named by exactly one script in the tree, the exchange: %s' % (obj, where))
+          '%s is handed over by exactly one script in the tree, the exchange: %s' % (obj, where))
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

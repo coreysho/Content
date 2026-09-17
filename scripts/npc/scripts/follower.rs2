@@ -39,6 +39,15 @@ npc_add(coord, $type, ^max_32bit_int);
 %npc_attacking_uid = uid;
 npc_setmode(playerfollow);
 
+// Back to following, after something else has taken the npc's mode - ~chatnpc leaves it on
+// playerfaceclose, so a pet that has just spoken would stand there for good. playerfollow is set
+// in this file and nowhere else, which is what keeps one spawn path one spawn path.
+[proc,follower_refollow]
+if (npc_finduid(%follower_uid) = false) {
+    return;
+}
+npc_setmode(playerfollow);
+
 // Logout: the npc goes, the item the slot remembers does not. %follower_uid is scope=temp and would
 // be dropped anyway; clearing it here keeps the two in step for the rest of the logout script.
 [proc,follower_logout]
@@ -62,7 +71,7 @@ if (oc_param(%follower_obj, follower_id) = null) {
 if (npc_finduid(%follower_uid) = true) {
     return;
 }
-~follower_spawn(oc_param(%follower_obj, follower_id));
+~follower_spawn(~pet_form(%follower_obj));
 if (~follower_is_cat(%follower_obj) = true) {
     npc_say("Meeeew!"); //youtu.be/6y_cOu5OQf4?t=110
     settimer(petcat_growth, 150);

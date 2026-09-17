@@ -28,7 +28,26 @@
     "  fails until it does.",
     "cat_categories: the three categories the cache's own cat ITEMS carry. ~follower_is_cat names",
     "  exactly these, every follower item in all.obj carries one of them, and no pet item carries any -",
-    "  which is what makes the dispatch safe in both directions."
+    "  which is what makes the dispatch safe in both directions.",
+    "rings: a pet with more than one look is a RING of npc records joined by param=metamorph_next -",
+    "  each names the next, the last names the base again. One param covers a pair and a fifteen",
+    "  alike. Two kinds of ring, and the difference is the design: forms that SHARE ONE ITEM need",
+    "  %pet_form to remember which one you are on (the item cannot say), and forms that ARE DIFFERENT",
+    "  ITEMS - TzRek-Jad and JalRek-Jad - need nothing, because the slot's own %follower_obj is the",
+    "  other item now. bits is the %pet_form range for the first kind and null for the second; the",
+    "  checks are that each range holds its own ring, that no two overlap, and that ~pet_form_get and",
+    "  ~pet_form_set name the same items in the same order - a get without a set is a form that is",
+    "  chosen and then forgotten.",
+    "  The forms themselves are OSRS's own art: 6638 (green, wingless) for the kalphite princess,",
+    "  6817 the Great blue heron, 6756/6758/6759 the red, black and gold chinchompas, and 7355-7367",
+    "  plus 8028 for the rift guardian's fourteen recolours. Only the green kalphite princess has",
+    "  animations of its own (6239/6238); every other form shares its base's pair, which is also what",
+    "  keeps the client's walk-merge working.",
+    "talk: twenty pets, one voice each, three lines each, dispatched on the pet's ITEM so that every",
+    "  metamorphosis form answers as itself for free. The lines are written for this server rather",
+    "  than copied out of Old School's transcripts - same shape, our own words. ~chatnpc leaves the",
+    "  npc on playerfaceclose, so a pet that has spoken would stand there for good: ~follower_refollow",
+    "  puts it back, and playerfollow is still set in exactly one file."
   ],
   "cat_categories": [
     "kitten",
@@ -88,5 +107,49 @@
       ]
     }
   },
-  "spawn_line": "%follower_uid = npc_uid;"
+  "spawn_line": "%follower_uid = npc_uid;",
+  "rings": {
+    "bosspet_kalphite_queen": {
+      "forms": 2,
+      "items": 1,
+      "bits": [
+        0,
+        0
+      ]
+    },
+    "skillpet_heron": {
+      "forms": 2,
+      "items": 1,
+      "bits": [
+        1,
+        1
+      ]
+    },
+    "skillpet_chinchompa": {
+      "forms": 4,
+      "items": 1,
+      "bits": [
+        2,
+        3
+      ]
+    },
+    "skillpet_rift_guardian": {
+      "forms": 15,
+      "items": 1,
+      "bits": [
+        4,
+        7
+      ]
+    },
+    "bosspet_tzrek_jad": {
+      "forms": 2,
+      "items": 2,
+      "bits": null
+    }
+  },
+  "pet_records": 39,
+  "talk": {
+    "variants": 3,
+    "default_proc": "pettalk_default"
+  }
 }

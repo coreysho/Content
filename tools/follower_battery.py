@@ -13,6 +13,8 @@ Against tools/followerspec.json. Six groups:
   4. ownership - one answer to "owns this pet", used everywhere, counting all four places
   5. Probita herself - her record, her art, and where she stands
   6. her window - the .if, the packs, the script, and that nothing is ever charged
+  7. the metamorphosis rings - closed, consistent, and remembered in bits wide enough to hold them
+  8. the dialogue - one voice per pet, and the follow mode put back afterwards
 
     python3 tools/follower_battery.py
 """
@@ -64,6 +66,10 @@ MAP      = read('maps/%s.jm2' % PROB['map'])
 PETOBJ   = read('scripts/npc/configs/boss_pets.obj') + '\n' + read('scripts/npc/configs/skill_pets.obj')
 ALLOBJ   = read('scripts/_unpack/377/all.obj')
 DAVE     = read('scripts/quests/quest_100/scripts/hundred_dave.rs2')
+META     = read('scripts/npc/scripts/pet_metamorph.rs2')
+TALK     = read('scripts/npc/scripts/pet_talk.rs2')
+FORMNPC  = read('scripts/npc/configs/pet_forms.npc')
+FORMCONST= read('scripts/npc/configs/pet_forms.constant')
 
 # Every .rs2 in the tree, for the "this is the only place that does X" claims.
 RS2 = {}
@@ -153,8 +159,8 @@ logn = trigger(FOLLOWER, 'queue,follower_login')
 guard = logn.find('~follower_is_cat(')
 check(guard != -1 and logn.find('npc_say(') > guard and logn.find('settimer(petcat_growth') > guard,
       'the login respawn puts the miaow and the growth timer behind ~follower_is_cat')
-check('~follower_spawn(oc_param(%follower_obj, follower_id))' in logn,
-      '...and respawns whatever the slot remembers, through ~follower_spawn')
+check('~follower_spawn(~pet_form(%follower_obj));' in logn,
+      '...and respawns whatever the slot remembers, in the form it was last put in')
 check('oc_param(%follower_obj, follower_id) = null' in logn,
       '...and empties the slot rather than spawning null when the item is no longer a follower')
 
@@ -311,6 +317,130 @@ check('inv_freespace(inv) = 0' in (recl or ''),
 bad = [w for w in PROB['free']['forbidden_symbols'] if re.search(r'\b%s\b' % w, pc)]
 check(not bad, 'nothing in the bureau names a currency - reclaiming is free: %s'
       % (bad or 'no coins anywhere'))
+
+print('\n-- 7. the metamorphosis rings ------------------------------------------------')
+
+PETRECS = {}
+for src in (read('scripts/npc/configs/boss_pets.npc'), read('scripts/npc/configs/skill_pets.npc'),
+            FORMNPC):
+    for n, b in blocks(src).items():
+        PETRECS[n] = b
+# The label prints the MEASURED count, because the mutation for this moves the spec's. Tenth time
+# this has come up: print the side the mutation does not touch.
+check(len(PETRECS) == SPEC['pet_records'],
+      'there are %d pet npc records, base forms and metamorphosis forms together' % len(PETRECS))
+
+def rec_item(n): 
+    m = re.search(r'param=pet_item_id,(\w+)', PETRECS[n]); return m.group(1) if m else None
+def rec_next(n):
+    m = re.search(r'param=metamorph_next,(\w+)', PETRECS[n]); return m.group(1) if m else None
+
+# Walk each ring from its named base. A ring that does not come back to where it started is the
+# failure this checks for: the walk in ~pet_form would run off the end of it.
+for base, want in sorted(SPEC['rings'].items()):
+    ring, at, ok = [base], rec_next(base), True
+    while at and at != base and len(ring) < 40:
+        ring.append(at)
+        at = rec_next(at)
+    check(at == base and len(ring) == want['forms'],
+          '%s is a closed ring of %d forms: %d, %s'
+          % (base, want['forms'], len(ring), 'closed' if at == base else 'OPEN at ' + str(at)))
+    items = sorted({rec_item(n) for n in ring})
+    check(len(items) == want['items'],
+          '...and its forms carry %d pet item(s), which is what decides whether %%pet_form has to '
+          'remember the form at all: %s' % (want['items'], items))
+    missing = [n for n in ring if 'op4=Metamorphosis' not in PETRECS[n]]
+    check(not missing, '...and every form in it has the right-click: %s'
+          % (missing or 'all %d' % len(ring)))
+    models = [m for n in ring for m in re.findall(r'(?:model|head)\d+=(\S+)', PETRECS[n])]
+    gone = [m for m in models if m not in pack
+            or not os.path.exists(os.path.join(C, 'models/npc', m + '.ob2'))]
+    check(not gone, '...and all %d of their models are packed and on disk: %s'
+          % (len(models), gone or 'all present'))
+
+# No pet outside a ring may carry the op: op4 with no metamorph_next is a right-click that says
+# "Nothing happens", which is worse than no right-click.
+stray = [n for n in PETRECS if 'op4=Metamorphosis' in PETRECS[n] and not rec_next(n)]
+check(not stray, 'no pet has the right-click without a ring to spend it on: %s'
+      % (stray or 'none'))
+
+# The bit ranges: wide enough for their own ring, and not overlapping.
+CONSTNAME = {'bosspet_kalphite_queen': 'kalphite', 'skillpet_heron': 'heron',
+             'skillpet_chinchompa': 'chinchompa', 'skillpet_rift_guardian': 'rift'}
+owner = {}
+for base, want in sorted(SPEC['rings'].items()):
+    if want['bits'] is None:
+        check('%s_item' % base not in (GET_SRC := code(META).split('[proc,pet_form_get]', 1)[-1]
+                                       .split('\n[', 1)[0]),
+              '%s spends no %%pet_form bits, because its two forms are two items' % base)
+        continue
+    lo, hi = want['bits']
+    # Labels quote the RING, never the range: the mutations for these move the range.
+    check(2 ** (hi - lo + 1) >= want['forms'],
+          '%s has enough of %%pet_form to hold its %d forms' % (base, want['forms']))
+    for b in range(lo, hi + 1):
+        owner.setdefault(b, []).append(base)
+    name = CONSTNAME.get(base)
+    check(name is not None
+          and re.search(r'\^pet_form_%s_lo\s*=\s*%d' % (name, lo), FORMCONST) is not None
+          and re.search(r'\^pet_form_%s_hi\s*=\s*%d' % (name, hi), FORMCONST) is not None,
+          '...and %s says the same range in pet_forms.constant'
+          % (name or base + ' has no constant at all'))
+clash = {b: v for b, v in owner.items() if len(v) > 1}
+check(not clash, 'no two rings share a bit of %%pet_form: %s'
+      % (clash or 'bits %s, one owner each' % sorted(owner)))
+
+GET = trigger(META, 'proc,pet_form_get')
+SET = trigger(META, 'proc,pet_form_set')
+gets = re.findall(r'case (\w+_item) :', GET or '')
+sets = re.findall(r'case (\w+_item) :', SET or '')
+check(gets == sets and gets,
+      'the two halves of %%pet_form name the same items in the same order: %s' % (gets == sets))
+check(sorted(gets) == sorted(b + '_item' for b, w in SPEC['rings'].items() if w['bits']),
+      '...and they are exactly the rings whose forms share one item: %s' % sorted(gets))
+
+op = trigger(META, 'opnpc4,_bosspet')
+check('npc_param(metamorph_next)' in op and '~follower_spawn($next);' in op,
+      'the right-click spawns the next form through ~follower_spawn')
+i_same = op.find('nc_param($next, pet_item_id) = $item')
+i_set = op.find('~pet_form_set(')
+check(i_same != -1 and i_set > i_same,
+      '...and only remembers a form when the item did not change, which is what keeps TzRek-Jad '
+      'and JalRek-Jad out of the bits')
+check('~pet_form(last_item)' in code(BOSSRS2),
+      'and a pet put down comes back in the form it was in, not its base one')
+
+print('\n-- 8. the dialogue -----------------------------------------------------------')
+
+tk = trigger(TALK, 'opnpc3,_bosspet')
+check(tk is not None and 'switch_obj (npc_param(pet_item_id))' in tk,
+      'talking to a pet dispatches on its ITEM, so every metamorphosis form answers as itself')
+cases = dict(re.findall(r'case (\w+_item) : ~(\w+);', tk or ''))
+petitems = sorted(n for n in blocks(PETOBJ) if 'param=follower_id,' in blocks(PETOBJ)[n])
+check(sorted(cases) == petitems,
+      'all %d pets have a voice of their own: %d cases%s'
+      % (len(petitems), len(cases),
+         '' if sorted(cases) == petitems else ', missing ' + str(sorted(set(petitems) - set(cases)))))
+absent = [p for p in cases.values() if not defines(p)]
+check(not absent, '...and every one of them is a proc that exists: %s' % (absent or 'all present'))
+thin = []
+for proc in sorted(set(cases.values())):
+    body = trigger(TALK, 'proc,' + proc) or ''
+    if ('random(%d)' % SPEC['talk']['variants']) not in body \
+       or len(set(re.findall(r'case (\d) :', body))) != SPEC['talk']['variants']:
+        thin.append(proc)
+check(not thin, '...each with %d things to say, chosen at random: %s'
+      % (SPEC['talk']['variants'], thin or 'all %d' % len(set(cases.values()))))
+check('case default : ~%s;' % SPEC['talk']['default_proc'] in tk,
+      'a pet added without a voice falls back to the old line rather than saying nothing')
+check('~follower_refollow;' in code(TALK),
+      'and the pet goes back to following afterwards - ~chatnpc leaves it on playerfaceclose')
+follow = {p: t.count('npc_setmode(playerfollow)') for p, t in RS2.items()
+          if 'npc_setmode(playerfollow)' in t and 'macro' not in p}
+check(set(follow) == {'scripts/npc/scripts/follower.rs2',
+                      'scripts/quests/quest_fluffs/scripts/pet.rs2'},
+      'follow mode is set in the slot\'s own file and, for the cats\' vermin hunt, the cat quest: %s'
+      % sorted(os.path.basename(p) for p in follow))
 
 print('\nALL PASS' if not fails else '\n%d FAILED' % fails)
 sys.exit(1 if fails else 0)

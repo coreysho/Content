@@ -1,0 +1,12 @@
+// Which metamorphosis form each pet is wearing, packed into one varp the way %cat_growth packs
+// hunger, attention and growth. One varp rather than four because the save writes varps sparsely
+// by id, and because these are four small numbers that are only ever read together.
+//
+// The bit ranges are in npc/scripts/pet_metamorph.rs2, in ~pet_form_get and ~pet_form_set, and
+// tools/follower_battery.py checks that they do not overlap and that each is wide enough for its
+// own ring. A range too narrow would wrap a pet back to a form it was not on.
+//
+// Only the rings whose forms SHARE ONE ITEM need this. TzRek-Jad and JalRek-Jad are two items, so
+// the slot's own %follower_obj already says which form you are on and no bits are spent on them.
+[pet_form]
+scope=perm

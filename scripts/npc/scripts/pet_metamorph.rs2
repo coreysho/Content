@@ -1,0 +1,107 @@
+// The Metamorphosis right-click, and the memory of which form you are on.
+//
+// A pet with more than one look is a RING of npc records joined by param=metamorph_next: each one
+// names the next and the last names the base again. One param covers a pair (the kalphite
+// princess, the heron) and a fifteen (the rift guardian) alike, and there is no list to keep in
+// step with a count. npc/configs/pet_forms.npc holds the forms; the base records are in
+// boss_pets.npc and skill_pets.npc and are full members of their own rings.
+//
+// TWO KINDS OF RING, and the difference is the whole design:
+//
+//   * forms that SHARE ONE ITEM - every ring but one. The item cannot say which form you are on,
+//     so %pet_form remembers it as a step count from the base, and the login respawn and the
+//     put-down both walk that many steps.
+//   * forms that ARE DIFFERENT ITEMS - TzRek-Jad and JalRek-Jad. Nothing needs remembering: the
+//     slot's %follower_obj is the other item now, and its own base form is the right one to bring
+//     back. The Fight Cave exchange performs that change one way for a Fire cape; this makes it a
+//     toggle you can walk back, which is what Old School does.
+//
+// The op number is op4 rather than OSRS's op3 because the op numbers belong to the CATEGORY - the
+// triggers in boss_pets.rs2 serve every pet - so one pet cannot reorder them. See pet_forms.npc.
+
+[opnpc4,_bosspet]
+if (%npc_attacking_uid ! uid | %follower_uid ! npc_uid) {
+    mes("That isn't yours.");
+    return;
+}
+def_npc $next = npc_param(metamorph_next);
+if ($next = null) {
+    // Only records in a ring carry op4, so this is a config mistake rather than a player one.
+    mes("Nothing happens.");
+    return;
+}
+def_namedobj $item = npc_param(pet_item_id);
+p_delay(0);
+npc_del;
+~follower_spawn($next);
+if (nc_param($next, pet_item_id) = $item) {
+    ~pet_form_set($item, ~pet_form_index($item, $next));
+}
+mes("Your pet shifts into a different shape.");
+
+// Which form the slot should bring back for this item: the base, walked forward by the remembered
+// number of steps. A cat, or any pet with no ring, walks nowhere and comes back as itself - which
+// is why the login respawn and the put-down can both call this without asking whether the pet has
+// a metamorphosis at all.
+[proc,pet_form](obj $item)(npc)
+def_npc $at = oc_param($item, follower_id);
+def_int $steps = ~pet_form_get($item);
+def_int $i = 0;
+while ($i < $steps) {
+    def_npc $next = nc_param($at, metamorph_next);
+    if ($next = null) {
+        return($at);
+    }
+    $at = $next;
+    $i = calc($i + 1);
+}
+return($at);
+
+// The reverse: how many steps from the base this form is. Walked rather than stored, so the
+// records are the only place a ring's order is written down.
+[proc,pet_form_index](obj $item, npc $form)(int)
+def_npc $at = oc_param($item, follower_id);
+def_int $i = 0;
+while ($i < ^pet_form_walk_max) {
+    if ($at = $form) {
+        return($i);
+    }
+    $at = nc_param($at, metamorph_next);
+    if ($at = null) {
+        return(0);
+    }
+    $i = calc($i + 1);
+}
+return(0);
+
+// obj rather than namedobj on all four of these: [opheld5,_bosspet] has only last_item, which is
+// an obj, and a namedobj goes in where an obj is expected but not the other way round.
+//
+// The two halves of %pet_form. They name the same four items in the same order on purpose: the
+// battery checks that, because a get without a matching set is a form that is chosen and then
+// forgotten. Any pet not listed here has no ring, or a ring that changes the item.
+[proc,pet_form_get](obj $item)(int)
+switch_obj ($item) {
+    case bosspet_kalphite_queen_item :
+        return(getbit_range(%pet_form, ^pet_form_kalphite_lo, ^pet_form_kalphite_hi));
+    case skillpet_heron_item :
+        return(getbit_range(%pet_form, ^pet_form_heron_lo, ^pet_form_heron_hi));
+    case skillpet_chinchompa_item :
+        return(getbit_range(%pet_form, ^pet_form_chinchompa_lo, ^pet_form_chinchompa_hi));
+    case skillpet_rift_guardian_item :
+        return(getbit_range(%pet_form, ^pet_form_rift_lo, ^pet_form_rift_hi));
+    case default : return(0);
+}
+
+[proc,pet_form_set](obj $item, int $form)
+switch_obj ($item) {
+    case bosspet_kalphite_queen_item :
+        %pet_form = setbit_range_toint(%pet_form, $form, ^pet_form_kalphite_lo, ^pet_form_kalphite_hi);
+    case skillpet_heron_item :
+        %pet_form = setbit_range_toint(%pet_form, $form, ^pet_form_heron_lo, ^pet_form_heron_hi);
+    case skillpet_chinchompa_item :
+        %pet_form = setbit_range_toint(%pet_form, $form, ^pet_form_chinchompa_lo, ^pet_form_chinchompa_hi);
+    case skillpet_rift_guardian_item :
+        %pet_form = setbit_range_toint(%pet_form, $form, ^pet_form_rift_lo, ^pet_form_rift_hi);
+    case default : return;
+}

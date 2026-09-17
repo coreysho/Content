@@ -14,7 +14,9 @@ if (npc_finduid(%follower_uid) = true) {
     return;
 }
 def_int $slot = last_slot;
-def_npc $type = oc_param(last_item, follower_id);
+// ~pet_form, not the item's follower_id: a pet put down comes back in the form you last chose
+// for it. npc/scripts/pet_metamorph.rs2.
+def_npc $type = ~pet_form(last_item);
 inv_delslot(inv, $slot);
 sound_synth(put_down, 1, 0);
 // The slot itself is claimed by ~follower_spawn in npc/scripts/follower.rs2 - the same four lines
@@ -38,13 +40,6 @@ p_delay(0);
 inv_add(inv, npc_param(pet_item_id), 1);
 sound_synth(pick, 1, 0);
 npc_del;
-
-[opnpc3,_bosspet]
-if (%npc_attacking_uid ! uid | %follower_uid ! npc_uid) {
-    mes("That isn't yours.");
-    return;
-}
-mes("It looks up at you and makes a noise you would rather it did not make at full size.");
 
 // Keeping up. This is the body of [ai_timer,_petcat] - if the owner is more than 15 tiles away or on
 // a different floor, the pet teleports to them; if the owner is gone, the pet despawns. It only runs

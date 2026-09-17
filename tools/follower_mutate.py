@@ -25,6 +25,11 @@ IF = 'scripts/npc/interfaces/probita_main.if'
 MAP = 'maps/m40_51.jm2'
 SPEC = 'tools/followerspec.json'
 PETOBJ = 'scripts/npc/configs/boss_pets.obj'
+BOSSNPC = 'scripts/npc/configs/boss_pets.npc'
+FORMNPC = 'scripts/npc/configs/pet_forms.npc'
+FORMCONST = 'scripts/npc/configs/pet_forms.constant'
+META = 'scripts/npc/scripts/pet_metamorph.rs2'
+TALK = 'scripts/npc/scripts/pet_talk.rs2'
 MODELPACK = 'pack/model.pack'
 NPCPACK = 'pack/npc.pack'
 IFPACK = 'pack/interface.pack'
@@ -75,9 +80,6 @@ MUTS = [
  (FOL, 'if (~follower_is_cat(%follower_obj) = true) {\n    npc_say("Meeeew!");',
         'npc_say("Meeeew!");\nif (~follower_is_cat(%follower_obj) = true) {',
   '2 the login respawn puts the miaow and the growth timer behind ~follower_is_cat'),
- (FOL, '~follower_spawn(oc_param(%follower_obj, follower_id));',
-        'npc_add(coord, oc_param(%follower_obj, follower_id), ^max_32bit_int);',
-  '2 ...and respawns whatever the slot remembers, through ~follower_spawn'),
  (FOL, 'if (oc_param(%follower_obj, follower_id) = null) {\n    %follower_obj = null;\n    return;\n}',
         'if (oc_param(%follower_obj, follower_id) = 0) {\n    %follower_obj = null;\n    return;\n}',
   '2 ...and empties the slot rather than spawning null when the item is no longer a follower'),
@@ -188,6 +190,62 @@ MUTS = [
   '6 ...refusing without a free slot'),
  (PRS2, 'sound_synth(pick, 1, 0);', 'inv_del(inv, coins, 1);\nsound_synth(pick, 1, 0);',
   '6 nothing in the bureau names a currency - reclaiming is free'),
+ # 7 - the metamorphosis rings
+ (SPEC, '"pet_records": 39', '"pet_records": 38',
+  '7 there are 39 pet npc records, base forms and metamorphosis forms together'),
+ (FORMNPC, 'param=metamorph_next,skillpet_chinchompa\n',
+           'param=metamorph_next,skillpet_chinchompa_red\n',
+  '7 skillpet_chinchompa is a closed ring of 4 forms'),
+ (FORMNPC, 'param=pet_item_id,skillpet_heron_item', 'param=pet_item_id,skillpet_rocky_item',
+  '7 ...and its forms carry 1 pet item(s)'),
+ (FORMNPC, 'op4=Metamorphosis\ncategory=bosspet\nparam=pet_item_id,skillpet_heron_item',
+           'category=bosspet\nparam=pet_item_id,skillpet_heron_item',
+  '7 ...and every form in it has the right-click'),
+ (MODELPACK, '=npc_skillpet_heron_great_blue_1\n', '=npc_skillpet_heron_great_blue_one\n',
+  '7 ...and all 4 of their models are packed and on disk'),
+ (BOSSNPC, 'op3=Talk-to\ncategory=bosspet\nparam=pet_item_id,bosspet_giant_mole_item',
+           'op3=Talk-to\nop4=Metamorphosis\ncategory=bosspet\nparam=pet_item_id,bosspet_giant_mole_item',
+  '7 no pet has the right-click without a ring to spend it on'),
+ (SPEC, '"skillpet_rift_guardian": {\n      "forms": 15,\n      "items": 1,\n      "bits": [\n        4,\n        7',
+        '"skillpet_rift_guardian": {\n      "forms": 15,\n      "items": 1,\n      "bits": [\n        4,\n        5',
+  '7 skillpet_rift_guardian has enough of %pet_form to hold its 15 forms'),
+ (SPEC, '"skillpet_heron": {\n      "forms": 2,\n      "items": 1,\n      "bits": [\n        1,\n        1',
+        '"skillpet_heron": {\n      "forms": 2,\n      "items": 1,\n      "bits": [\n        2,\n        2',
+  '7 no two rings share a bit of %pet_form'),
+ (FORMCONST, '^pet_form_rift_hi = 7', '^pet_form_rift_hi = 6',
+  '7 ...and rift says the same range in pet_forms.constant'),
+ (META, '    case skillpet_heron_item :\n        %pet_form = setbit_range_toint', '    case default : %pet_form = setbit_range_toint',
+  '7 the two halves of %pet_form name the same items in the same order'),
+ (SPEC, '"bosspet_tzrek_jad": {\n      "forms": 2,\n      "items": 2,\n      "bits": null',
+        '"bosspet_tzrek_jad": {\n      "forms": 2,\n      "items": 2,\n      "bits": [\n        8,\n        8\n      ]',
+  '7 ...and they are exactly the rings whose forms share one item'),
+ (META, '~follower_spawn($next);\n', '',
+  '7 the right-click spawns the next form through ~follower_spawn'),
+ (META, 'if (nc_param($next, pet_item_id) = $item) {\n    ~pet_form_set($item, ~pet_form_index($item, $next));\n}',
+        '~pet_form_set($item, ~pet_form_index($item, $next));',
+  '7 ...and only remembers a form when the item did not change'),
+ (BOSS, 'def_npc $type = ~pet_form(last_item);',
+        'def_npc $type = oc_param(last_item, follower_id);',
+  '7 and a pet put down comes back in the form it was in, not its base one'),
+ (FOL, '~follower_spawn(~pet_form(%follower_obj));',
+       '~follower_spawn(oc_param(%follower_obj, follower_id));',
+  '2 ...and respawns whatever the slot remembers, in the form it was last put in'),
+
+ # 8 - the dialogue
+ (TALK, 'switch_obj (npc_param(pet_item_id))', 'switch_npc (npc_type)',
+  '8 talking to a pet dispatches on its ITEM'),
+ (TALK, '    case skillpet_beaver_item : ~pettalk_beaver;\n', '',
+  '8 all 20 pets have a voice of their own'),
+ (TALK, 'case skillpet_beaver_item : ~pettalk_beaver;', 'case skillpet_beaver_item : ~pettalk_beavers;',
+  '8 ...and every one of them is a proc that exists'),
+ (TALK, '[proc,pettalk_heron]\nswitch_int (random(3))', '[proc,pettalk_heron]\nswitch_int (random(2))',
+  '8 ...each with 3 things to say, chosen at random'),
+ (TALK, '    case default : ~pettalk_default;\n', '',
+  '8 a pet added without a voice falls back to the old line rather than saying nothing'),
+ (TALK, '~follower_refollow;', '',
+  '8 and the pet goes back to following afterwards'),
+ (TALK, '[proc,pettalk_default]', '[proc,pettalk_default]\nnpc_setmode(playerfollow);',
+  "8 follow mode is set in the slot's own file and, for the cats' vermin hunt, the cat quest"),
 ]
 
 

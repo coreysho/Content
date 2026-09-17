@@ -1,0 +1,20 @@
+// The bit ranges of %pet_form, one per metamorphosis ring whose forms share a single item. See
+// npc/configs/pet_forms.varp for why they share a varp and npc/scripts/pet_metamorph.rs2 for the
+// two switches that read and write them.
+//
+// Each range is exactly wide enough for its own ring: 1 bit for a pair, 2 for the chinchompa's
+// four, 4 for the rift guardian's fifteen. tools/follower_battery.py counts each ring in the
+// configs and fails if a range cannot hold it - too narrow would wrap a pet onto a form it was
+// never put on.
+^pet_form_kalphite_lo = 0
+^pet_form_kalphite_hi = 0
+^pet_form_heron_lo = 1
+^pet_form_heron_hi = 1
+^pet_form_chinchompa_lo = 2
+^pet_form_chinchompa_hi = 3
+^pet_form_rift_lo = 4
+^pet_form_rift_hi = 7
+
+// The loop bound on every ring walk - not a limit on ring length, just a stop for a ring that a
+// config mistake has left open. The longest ring in the tree is the rift guardian's fifteen.
+^pet_form_walk_max = 32

@@ -1,0 +1,373 @@
+// The metamorphosis forms: a second - or fifteenth - npc record for a pet that already exists.
+// Same item, same category, same follower mechanism, a different look. See
+// npc/scripts/pet_metamorph.rs2 for the ring they sit in and how the chosen one is remembered.
+//
+// EVERY FORM IN A RING IS A FULL MEMBER of it, including the base record over in boss_pets.npc or
+// skill_pets.npc: each one carries param=metamorph_next naming the next, and the last names the
+// base again. A ring rather than a list means one param does pairs and fifteens alike, and
+// tools/follower_battery.py checks every ring is closed and that every form in it names the same
+// pet_item_id - a form pointing at the wrong item would hand you somebody else's pet on pick-up.
+//
+// WHAT THEY ARE NAMED FOR is what the render shows, not their OSRS ids: the chinchompa's other
+// three are plainly red, black and gold, the heron's is the Great blue heron, and the kalphite
+// princess's is green and wingless where the base is orange and winged. The rift guardian's
+// fourteen are the exception and are numbered: one mesh in fifteen recolours whose meanings the
+// cache does not state, so naming them would be inventing.
+//
+// THE ONLY FORM WITH ANIMATIONS OF ITS OWN is the green kalphite princess - OSRS gives 6638 its
+// own ready and walk (6239/6238, converted into pet_forms.seq), and the base's 6236 would not fit
+// a mesh with no wings. Every other form shares its base's pair, which is also what keeps the
+// client's walk-merge working: both animations come from the same source and share a base.
+//
+// size=1 on all of them, including the green kalphite princess, whose cache record says 2. A
+// two-tile follower cannot path where a one-tile one can, and the whole family is size=1.
+//
+// The op set matches every other pet - op1 Pick-up, op3 Talk-to - plus op4 Metamorphosis. OSRS
+// puts Metamorphosis on op3 and Pick-up on op4, but the op NUMBERS here belong to the category
+// (the four triggers in npc/scripts/boss_pets.rs2 serve every pet), so one pet cannot reorder
+// them without reordering all of them.
+
+[bosspet_kalphite_queen_green]
+// OSRS npc 6638
+name=Kalphite princess
+desc=Green, and no wings. The other side of the Kalphite Queen.
+model1=npc_bosspet_kalphite_queen_green_1
+model2=npc_bosspet_kalphite_queen_green_2
+head1=npc_bosspet_kalphite_queen_green_head1
+readyanim=osrs_seq_6239
+walkanim=osrs_seq_6238
+resizeh=45
+resizev=45
+size=1
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+op4=Metamorphosis
+category=bosspet
+param=pet_item_id,bosspet_kalphite_queen_item
+param=metamorph_next,bosspet_kalphite_queen
+
+[skillpet_heron_great_blue]
+// OSRS npc 6817
+name=Great blue heron
+desc=Blue, and rather pleased about it.
+model1=npc_skillpet_heron_great_blue_1
+head1=npc_skillpet_heron_great_blue_head1
+readyanim=osrs_seq_6772
+walkanim=osrs_seq_6774
+size=1
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+op4=Metamorphosis
+category=bosspet
+param=pet_item_id,skillpet_heron_item
+param=metamorph_next,skillpet_heron
+
+[skillpet_chinchompa_red]
+// OSRS npc 6756
+name=Baby chinchompa
+desc=Handle with care. Red ones go off louder.
+model1=npc_skillpet_chinchompa_red_1
+head1=npc_skillpet_chinchompa_red_head1
+readyanim=osrs_seq_5182
+walkanim=osrs_seq_5181
+size=1
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+op4=Metamorphosis
+category=bosspet
+param=pet_item_id,skillpet_chinchompa_item
+param=metamorph_next,skillpet_chinchompa_black
+
+[skillpet_chinchompa_black]
+// OSRS npc 6758
+name=Baby chinchompa
+desc=Handle with care. This one you cannot see coming.
+model1=npc_skillpet_chinchompa_black_1
+head1=npc_skillpet_chinchompa_black_head1
+readyanim=osrs_seq_5182
+walkanim=osrs_seq_5181
+size=1
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+op4=Metamorphosis
+category=bosspet
+param=pet_item_id,skillpet_chinchompa_item
+param=metamorph_next,skillpet_chinchompa_gold
+
+[skillpet_chinchompa_gold]
+// OSRS npc 6759
+name=Baby chinchompa
+desc=Handle with care. Worth a bit more, too.
+model1=npc_skillpet_chinchompa_gold_1
+head1=npc_skillpet_chinchompa_gold_head1
+readyanim=osrs_seq_5182
+walkanim=osrs_seq_5181
+size=1
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+op4=Metamorphosis
+category=bosspet
+param=pet_item_id,skillpet_chinchompa_item
+param=metamorph_next,skillpet_chinchompa
+
+[skillpet_rift_guardian_f2]
+// OSRS npc 7355
+name=Rift guardian
+desc=It guards the rift. Or would, if it were bigger.
+model1=npc_skillpet_rift_guardian_f2_1
+head1=npc_skillpet_rift_guardian_f2_head1
+readyanim=osrs_seq_7307
+walkanim=osrs_seq_7306
+size=1
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+op4=Metamorphosis
+category=bosspet
+param=pet_item_id,skillpet_rift_guardian_item
+param=metamorph_next,skillpet_rift_guardian_f3
+
+[skillpet_rift_guardian_f3]
+// OSRS npc 7356
+name=Rift guardian
+desc=It guards the rift. Or would, if it were bigger.
+model1=npc_skillpet_rift_guardian_f3_1
+head1=npc_skillpet_rift_guardian_f3_head1
+readyanim=osrs_seq_7307
+walkanim=osrs_seq_7306
+size=1
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+op4=Metamorphosis
+category=bosspet
+param=pet_item_id,skillpet_rift_guardian_item
+param=metamorph_next,skillpet_rift_guardian_f4
+
+[skillpet_rift_guardian_f4]
+// OSRS npc 7357
+name=Rift guardian
+desc=It guards the rift. Or would, if it were bigger.
+model1=npc_skillpet_rift_guardian_f4_1
+head1=npc_skillpet_rift_guardian_f4_head1
+readyanim=osrs_seq_7307
+walkanim=osrs_seq_7306
+size=1
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+op4=Metamorphosis
+category=bosspet
+param=pet_item_id,skillpet_rift_guardian_item
+param=metamorph_next,skillpet_rift_guardian_f5
+
+[skillpet_rift_guardian_f5]
+// OSRS npc 7358
+name=Rift guardian
+desc=It guards the rift. Or would, if it were bigger.
+model1=npc_skillpet_rift_guardian_f5_1
+head1=npc_skillpet_rift_guardian_f5_head1
+readyanim=osrs_seq_7307
+walkanim=osrs_seq_7306
+size=1
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+op4=Metamorphosis
+category=bosspet
+param=pet_item_id,skillpet_rift_guardian_item
+param=metamorph_next,skillpet_rift_guardian_f6
+
+[skillpet_rift_guardian_f6]
+// OSRS npc 7359
+name=Rift guardian
+desc=It guards the rift. Or would, if it were bigger.
+model1=npc_skillpet_rift_guardian_f6_1
+head1=npc_skillpet_rift_guardian_f6_head1
+readyanim=osrs_seq_7307
+walkanim=osrs_seq_7306
+size=1
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+op4=Metamorphosis
+category=bosspet
+param=pet_item_id,skillpet_rift_guardian_item
+param=metamorph_next,skillpet_rift_guardian_f7
+
+[skillpet_rift_guardian_f7]
+// OSRS npc 7360
+name=Rift guardian
+desc=It guards the rift. Or would, if it were bigger.
+model1=npc_skillpet_rift_guardian_f7_1
+head1=npc_skillpet_rift_guardian_f7_head1
+readyanim=osrs_seq_7307
+walkanim=osrs_seq_7306
+size=1
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+op4=Metamorphosis
+category=bosspet
+param=pet_item_id,skillpet_rift_guardian_item
+param=metamorph_next,skillpet_rift_guardian_f8
+
+[skillpet_rift_guardian_f8]
+// OSRS npc 7361
+name=Rift guardian
+desc=It guards the rift. Or would, if it were bigger.
+model1=npc_skillpet_rift_guardian_f8_1
+head1=npc_skillpet_rift_guardian_f3_head1
+readyanim=osrs_seq_7307
+walkanim=osrs_seq_7306
+size=1
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+op4=Metamorphosis
+category=bosspet
+param=pet_item_id,skillpet_rift_guardian_item
+param=metamorph_next,skillpet_rift_guardian_f9
+
+[skillpet_rift_guardian_f9]
+// OSRS npc 7362
+name=Rift guardian
+desc=It guards the rift. Or would, if it were bigger.
+model1=npc_skillpet_rift_guardian_f9_1
+head1=npc_skillpet_rift_guardian_f9_head1
+readyanim=osrs_seq_7307
+walkanim=osrs_seq_7306
+size=1
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+op4=Metamorphosis
+category=bosspet
+param=pet_item_id,skillpet_rift_guardian_item
+param=metamorph_next,skillpet_rift_guardian_f10
+
+[skillpet_rift_guardian_f10]
+// OSRS npc 7363
+name=Rift guardian
+desc=It guards the rift. Or would, if it were bigger.
+model1=npc_skillpet_rift_guardian_f10_1
+head1=npc_skillpet_rift_guardian_f6_head1
+readyanim=osrs_seq_7307
+walkanim=osrs_seq_7306
+size=1
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+op4=Metamorphosis
+category=bosspet
+param=pet_item_id,skillpet_rift_guardian_item
+param=metamorph_next,skillpet_rift_guardian_f11
+
+[skillpet_rift_guardian_f11]
+// OSRS npc 7364
+name=Rift guardian
+desc=It guards the rift. Or would, if it were bigger.
+model1=npc_skillpet_rift_guardian_f11_1
+head1=npc_skillpet_rift_guardian_f2_head1
+readyanim=osrs_seq_7307
+walkanim=osrs_seq_7306
+size=1
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+op4=Metamorphosis
+category=bosspet
+param=pet_item_id,skillpet_rift_guardian_item
+param=metamorph_next,skillpet_rift_guardian_f12
+
+[skillpet_rift_guardian_f12]
+// OSRS npc 7365
+name=Rift guardian
+desc=It guards the rift. Or would, if it were bigger.
+model1=npc_skillpet_rift_guardian_f12_1
+head1=npc_skillpet_rift_guardian_f12_head1
+readyanim=osrs_seq_7307
+walkanim=osrs_seq_7306
+size=1
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+op4=Metamorphosis
+category=bosspet
+param=pet_item_id,skillpet_rift_guardian_item
+param=metamorph_next,skillpet_rift_guardian_f13
+
+[skillpet_rift_guardian_f13]
+// OSRS npc 7366
+name=Rift guardian
+desc=It guards the rift. Or would, if it were bigger.
+model1=npc_skillpet_rift_guardian_f13_1
+head1=npc_skillpet_rift_guardian_f13_head1
+readyanim=osrs_seq_7307
+walkanim=osrs_seq_7306
+size=1
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+op4=Metamorphosis
+category=bosspet
+param=pet_item_id,skillpet_rift_guardian_item
+param=metamorph_next,skillpet_rift_guardian_f14
+
+[skillpet_rift_guardian_f14]
+// OSRS npc 7367
+name=Rift guardian
+desc=It guards the rift. Or would, if it were bigger.
+model1=npc_skillpet_rift_guardian_f14_1
+head1=npc_skillpet_rift_guardian_f14_head1
+readyanim=osrs_seq_7307
+walkanim=osrs_seq_7306
+size=1
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+op4=Metamorphosis
+category=bosspet
+param=pet_item_id,skillpet_rift_guardian_item
+param=metamorph_next,skillpet_rift_guardian_f15
+
+[skillpet_rift_guardian_f15]
+// OSRS npc 8028
+name=Rift guardian
+desc=It guards the rift. Or would, if it were bigger.
+model1=npc_skillpet_rift_guardian_f15_1
+head1=npc_skillpet_rift_guardian_f15_head1
+readyanim=osrs_seq_7307
+walkanim=osrs_seq_7306
+size=1
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+op4=Metamorphosis
+category=bosspet
+param=pet_item_id,skillpet_rift_guardian_item
+param=metamorph_next,skillpet_rift_guardian

@@ -128,7 +128,7 @@ if (random($chance) ! 0) {
  # checked and against a skill that does not exist
  (FISH, '~fishing_xp(struct_param($struct1, productexp));',
   '~fishing_xp(struct_param($struct1, productexp));\n        ~skillpet_roll(skillpet_chinchompa_item, hunter, 116129);',
-  '6 skillpet_chinchompa is rolled nowhere'),
+  '6 skillpet_chinchompa is handed over nowhere'),
 
  # ---- 8, WHEN each of the three rolls
  # A tier of fish rolling at another tier's rate. Invisible without this: the roll still happens,
