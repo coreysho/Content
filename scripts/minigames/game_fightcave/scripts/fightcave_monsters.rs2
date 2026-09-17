@@ -77,7 +77,7 @@ if (multiply(npc_stat(hitpoints), 2) <= npc_basestat(hitpoints)) {
 }
 
 [proc,fightcave_heal_others]
-npc_anim(lizard_cleric_heal, 0);
+npc_anim(osrs_seq_2639, 0);
 .npc_findallany(npc_coord, 10, ^vis_off);
 while (.npc_findnext = true) {
     if (.npc_type = tzhaar_fightcave_swarm_4a | .npc_type = tzhaar_fightcave_swarm_5a
@@ -120,9 +120,11 @@ if (~fightcave_adjacent(5) = true) {
 // TzTok-Jad - three styles, and four healers at 150
 // ---------------------------------------------------------------------------------------------
 // The three attack animations were assigned by rendering them on his own mesh, not by their names:
-// lordmagmus_smash rears up and slams with a splash on the GROUND beneath him, which is the ranged
-// burst; lordmagmus_fire is a 31-frame breath held far forward, which is the magic one; and
-// lordmagmus_attack is a plain crouching bite, which is melee.
+// osrs_seq_2652 rears up and slams with a splash on the GROUND beneath him, which is the ranged
+// burst; osrs_seq_2656 is a 31-frame breath held far forward, which is the magic one; and
+// osrs_seq_2655 is a plain crouching bite, which is melee. All three were rendered on his own mesh
+// with tools/models/posepreview.py, first on the 377 art and again on the OSRS art that replaced
+// it: the two caches hold the same three animations, at 12, 14 and 31 frames either way.
 //
 // Which style he uses is chosen fresh each attack and ANNOUNCED ONLY BY THE ANIMATION - that is the
 // fight. Melee only when you are next to him, so a player standing away is choosing between two.
@@ -179,7 +181,7 @@ if (~fightcave_adjacent(1) = true) {
 ~hurkot_heal_jad;
 
 [proc,hurkot_heal_jad]
-npc_anim(lizard_cleric_heal, 0);
+npc_anim(osrs_seq_2639, 0);
 %npc_action_delay = add(map_clock, npc_param(attackrate));
 .npc_findallany(npc_coord, 20, ^vis_off);
 while (.npc_findnext = true) {

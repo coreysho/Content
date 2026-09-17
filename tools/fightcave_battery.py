@@ -49,6 +49,15 @@ def param(d, key):
         if k == key: return v
     return None
 
+def seqframes(txt):
+    """{seq name: [frame names]} out of a .seq config - enough to answer "is this seq real" and
+    "how many frames does it hold"."""
+    out = {}
+    for b in re.split(r'(?m)^(?=\[)', txt):
+        m = re.match(r'\[([\w.]+)\]', b)
+        if m: out[m.group(1)] = re.findall(r'(?m)^frame\d+=(\S+)', b)
+    return out
+
 SPEC = json.loads(read('tools/fightcavespec.json'))
 MON = SPEC['monsters']
 CONST = consts(read('scripts/minigames/game_fightcave/configs/fightcave.constant'))
@@ -61,6 +70,9 @@ ALLOBJ = blocks(read('scripts/_unpack/377/all.obj'))
 ALLSEQ = blocks(read('scripts/_unpack/377/all.seq'))
 DEATH = read('scripts/player/scripts/death.rs2')
 MELEE = read('scripts/skill_combat/scripts/npc/npc_combat_melee.rs2')
+# The cave's animations, converted from OSRS, plus the one the pet round converted first.
+SEQS_OSRS = dict(seqframes(read('scripts/minigames/game_fightcave/configs/fightcave.seq')),
+                 **seqframes(read('scripts/npc/configs/boss_pets.seq')))
 
 def enumrows(name):
     b = ENUM.split('[' + name + ']', 1)[-1].split('\n[', 1)[0]
@@ -170,7 +182,10 @@ for name, s in sorted(MON.items(), key=lambda kv: kv[1]['tier']):
     check(param(d, 'fightcave_tier') == str(s['tier']), '...tagged tier %d' % s['tier'])
     for k in ('attack_anim', 'defend_anim', 'death_anim'):
         a = param(d, k)
-        check(a is not None and a in ALLSEQ, '...%s is a real seq: %s' % (k, a))
+        # The roster wears OSRS animations now, so a seq is real if it is in the cave's own
+        # converted set or - for Jad's stand, which the pet round converted first - in the pet's.
+        check(a is not None and (a in ALLSEQ or a in SEQS_OSRS),
+              '...%s is a real seq: %s' % (k, a))
     check(param(d, 'damagetype') is not None, '...and it has a damage type at all')
     check('[ai_queue3,%s]' % name in MRS2, '...and its death is hooked')
 # the five b duplicates the cache carries and the wave builder does not use
@@ -269,9 +284,11 @@ check(givers('tzhaar_cape_fire') == ['fightcave_reward.rs2'],
       'the cave is the ONLY source of a Fire cape: %s' % (', '.join(givers('tzhaar_cape_fire')) or 'nothing'))
 # Tokkul is a different case and the check says so rather than pretending otherwise: the four
 # TzHaar city monsters already dropped it, so the cave is a new source and not the first one.
-check(givers('tzhaar_token') == ['fightcave_reward.rs2', 'tzhaar_hur.rs2', 'tzhaar_ket.rs2',
-                                 'tzhaar_mej.rs2', 'tzhaar_xil.rs2'],
-      'and Tokkul comes from the cave and the four city drop tables that already had it: %s'
+check(givers('tzhaar_token') == ['fightcave_exchange.rs2', 'fightcave_reward.rs2',
+                                 'tzhaar_hur.rs2', 'tzhaar_ket.rs2', 'tzhaar_mej.rs2',
+                                 'tzhaar_xil.rs2'],
+      'and Tokkul comes from the cave, the cape exchange, and the four city drop tables that '
+      'already had it: %s'
       % ', '.join(givers('tzhaar_token')))
 
 # ============================================================================ 6
@@ -295,11 +312,11 @@ check(MRS2.count('.npc_queue(9, ^fightcave_heal_amount, 0);') == 2,
       % MRS2.count('.npc_queue(9, ^fightcave_heal_amount, 0);'))
 JAD = ALLNPC['tzhaar_fightcave_swarm_boss']
 anims = {param(JAD, k) for k in ('crushattack_anim', 'rangeattack_anim', 'magicattack_anim')}
-check(len(anims) == 3 and all(a in ALLSEQ for a in anims),
+check(len(anims) == 3 and all(a in SEQS_OSRS for a in anims),
       'TzTok-Jad has three distinct attack animations: %s' % ', '.join(sorted(anims)))
-check(param(JAD, 'magicattack_anim') == 'lordmagmus_fire',
+check(param(JAD, 'magicattack_anim') == 'osrs_seq_2656' and len(SEQS_OSRS['osrs_seq_2656']) >= 31,
       '...the 31-frame breath is the magic one')
-check(param(JAD, 'rangeattack_anim') == 'lordmagmus_smash',
+check(param(JAD, 'rangeattack_anim') == 'osrs_seq_2652',
       '...the rear-and-slam with the splash on the ground is the ranged one')
 JA = MRS2.split('[proc,jad_attack]', 1)[-1].split('\n[', 1)[0]
 check('%fightcave_jad_called = 0 & npc_stat(hitpoints) <= ^fightcave_jad_heal_hp' in JA,
@@ -419,6 +436,316 @@ check('~obj_giveorbank(%s, 1);' % ITEM in ROLL and 'obj_add' not in ROLL,
       '...and hands it over rather than dropping it in an instance about to be deleted')
 check('~fightcave_pet_roll;' in REW.split('[proc,fightcave_reward]', 1)[-1].split('\n[', 1)[0],
       'and killing Jad is what rolls it')
+
+# ============================================================================ 8
+print('8. The roster wears OSRS art, models and animations both')
+ART = SPEC['roster_art']
+FCSEQ = blocks(read('scripts/minigames/game_fightcave/configs/fightcave.seq'))
+PETSEQ2 = blocks(read('scripts/npc/configs/boss_pets.seq'))
+MODELPACK = {l.split('=', 1)[1] for l in read('pack/model.pack').split('\n') if '=' in l}
+
+def seqinfo(d):
+    """(frame count, priority) of a .seq block, straight out of the config."""
+    return (len([k for k in d if re.fullmatch(r'frame\d+', k)]),
+            int(d['priority'][0]) if 'priority' in d else None)
+
+def ob2_faces(path):
+    """(face info, face colours) out of a 377 .ob2. Section order is Model.java's, and the walk is
+    reconciled against the file length so a wrong order cannot return plausible bytes - the same
+    guard tools/superior_battery.py's vertex_labels() uses."""
+    b = open(os.path.join(C, path), 'rb').read(); n = len(b); o = n - 18
+    g2 = lambda i: (b[i] << 8) | b[i + 1]
+    vc, fc, tc = g2(o), g2(o + 2), b[o + 4]
+    f_tex, f_pri, f_alpha, f_flabel, f_vlabel = b[o + 5], b[o + 6], b[o + 7], b[o + 8], b[o + 9]
+    xlen, ylen, zlen, flen = g2(o + 10), g2(o + 12), g2(o + 14), g2(o + 16)
+    p = vc + fc
+    if f_pri == 255: p += fc
+    if f_flabel == 1: p += fc
+    info = list(b[p:p + fc]) if f_tex == 1 else [0] * fc
+    col_at = p + (fc if f_tex == 1 else 0) + (vc if f_vlabel == 1 else 0) + (fc if f_alpha == 1 else 0) + flen
+    if col_at + fc * 2 + tc * 6 + xlen + ylen + zlen != n - 18:
+        raise ValueError('%s: section walk does not reconcile' % path)
+    return info, [g2(col_at + 2 * i) for i in range(fc)]
+
+for npc, d in sorted(ART['npcs'].items()):
+    rec = ALLNPC[npc]
+    # --- the models
+    check([rec.get('model%d' % k, [None])[0] for k in range(1, len(d['models']) + 1)]
+          == d['models'],
+          '%s wears OSRS npc %d\'s %d model(s)' % (npc, d['osrs'], len(d['models'])))
+    check(all('model%d' % k not in rec for k in range(len(d['models']) + 1, 6)),
+          '...and no leftover model line from the 377 record it replaced')
+    check(all(m in MODELPACK for m in d['models']), '...each with its own model.pack line')
+    check(all(os.path.exists(os.path.join(C, 'models/npc', m + '.ob2')) for m in d['models']),
+          '...and its own .ob2 on disk')
+    check('recol1s' not in rec and 'recol1d' not in rec,
+          '...and no recolour line, because OSRS bakes its recolours into the mesh')
+    # --- the art numbers nobody had to change
+    a = d['art']
+    got = dict(ambient=rec.get('ambient', [None])[0], contrast=rec.get('contrast', [None])[0],
+               size=rec.get('size', ['1'])[0], resizeh=rec.get('resizeh', [None])[0],
+               resizev=rec.get('resizev', [None])[0])
+    want = {k: (None if v is None else str(v)) for k, v in a.items()}
+    check(got == want,
+          '...and its ambient, contrast, size and resizes are the cache\'s own, unchanged: %s'
+          % ', '.join('%s=%s' % (k, v) for k, v in sorted(want.items()) if v is not None))
+    # --- the animations
+    for field, (oid, was) in sorted(d['anims'].items()):
+        want_name = 'osrs_seq_%d' % oid
+        got_name = (rec.get(field, [None])[0] if field in ('readyanim', 'walkanim')
+                    else param(rec, field))
+        check(got_name == want_name,
+              '%s.%s is %s, where the 377 record had %s' % (npc, field, want_name, was))
+        blk = FCSEQ.get(want_name) or PETSEQ2.get(want_name)
+        check(blk is not None, '...and %s is a real seq in the tree' % want_name)
+        if blk is None or was not in ALLSEQ:
+            continue
+        ofr, opr = seqinfo(blk)
+        wfr, wpr = seqinfo(ALLSEQ[was])
+        check(ofr == wfr, '...and it holds the same %d frames %s holds' % (wfr, was))
+        check((opr is None) == (wpr is None),
+              '...and agrees with it on whether the animation takes priority at all')
+
+# The pairing is only forced if (frames, priority) is unique inside the family, so that is the
+# check - derived from all.seq every run, not asserted in the spec.
+for npc, d in sorted(ART['npcs'].items()):
+    stated = set(d['stated_by_record'].values())
+    inferred = sorted({was for f, (oid, was) in d['anims'].items() if oid not in stated})
+    sigs = [seqinfo(ALLSEQ[w]) for w in inferred if w in ALLSEQ]
+    check(len(sigs) == len(set(sigs)),
+          '%s: the %d animations that had to be inferred have %d distinct (frames, priority) '
+          'signatures, so each has exactly one OSRS partner' % (npc, len(sigs), len(set(sigs))))
+
+# Jad is the one family whose priorities do NOT carry across, so say so rather than let the
+# priority-class check above imply they did.
+JX = ART['jad_priority_exception']
+jadseqs = {was: seqinfo(ALLSEQ[was])[0] for was in JX['frames']}
+check(jadseqs == JX['frames'],
+      'TzTok-Jad\'s three attacks are %s frames, all distinct, which is what separates them when '
+      'the priority does not: 377 gives them %d and OSRS gives them %d'
+      % (', '.join(str(v) for v in sorted(jadseqs.values())),
+         JX['era377_attack_priority'], JX['osrs_attack_priority']))
+
+# Nothing 377 left behind
+# What became of the animations the roster dropped. This is NOT the per-field check above said
+# twice: it asks who ELSE wears them, because the cave's Tok-Xil was borrowing the POH statue's
+# models and the Fight Pit shares four of the six animation sets. Nothing there was touched, and
+# the check is what says so.
+NPCTXT = read('scripts/_unpack/377/all.npc')
+def wearers(family):
+    out = set()
+    for b in re.split(r'(?m)^(?=\[)', NPCTXT):
+        m = re.match(r'\[([\w.]+)\]', b)
+        if m and re.search(r'=%s\w+' % family, b.split(']', 1)[1]):
+            out.add(m.group(1))
+    return sorted(out)
+for family, left in (('firebat_', ['tzhaar_fightcave_swarm_1b', 'tzhaar_fightpit_swarm_1a',
+                                   'tzhaar_fightpit_swarm_1b']),
+                     ('lavabeast_', ['tzhaar_fightcave_swarm_2b', 'tzhaar_fightpit_swarm_2a',
+                                     'tzhaar_fightpit_swarm_2b']),
+                     ('magmaquris_', ['poh_tok_xil', 'tzhaar_fightcave_swarm_3b',
+                                      'tzhaar_fightpit_swarm_3a', 'tzhaar_fightpit_swarm_3b']),
+                     ('lizard_cleric_', ['tzhaar_fightcave_swarm_4b']),
+                     ('igniferum_', ['tzhaar_fightcave_swarm_5b']),
+                     ('lordmagmus_', [])):
+    check(wearers(family) == left,
+          'the 377 %s set is worn by %s now' % (family.rstrip('_'),
+          ', '.join(left) if left else 'NOTHING AT ALL - TzTok-Jad was its only user'))
+# And the five 'b' duplicates that still carry 377 art cannot turn up in a wave or on a map.
+for k in range(1, 6):
+    b = 'tzhaar_fightcave_swarm_%db' % k
+    check(param(ALLNPC[b], 'fightcave_tier') is None and not npc_spawns('37_79', b)
+          and not npc_spawns('38_80', b),
+          '%s has no tier and no spawn, so its 377 art is never seen' % b)
+check(not any(s in MRS2 for s in ('lizard_cleric_heal', 'lordmagmus_', 'igniferum_', 'magmaquris_')),
+      'and the scripts name no 377 cave animation either - the healer\'s is osrs_seq_2639')
+check(MRS2.count('npc_anim(osrs_seq_2639, 0);') == 2,
+      '...in BOTH places it is played: the Yt-MejKot aura and the Yt-HurKot heal')
+
+# Jad's mesh is the pet's, once, under the name of the thing it is
+check('npc_bosspet_tzrek_jad_1' not in read('pack/model.pack')
+      and not os.path.exists(os.path.join(C, 'models/npc/npc_bosspet_tzrek_jad_1.ob2')),
+      'the old name of Jad\'s mesh is gone from the pack and the disk')
+PETNPC2 = blocks(read('scripts/npc/configs/boss_pets.npc'))
+check(PETNPC2['bosspet_tzrek_jad']['model1'][0] == 'npc_tztok_jad_1'
+      == ALLNPC['tzhaar_fightcave_swarm_boss']['model1'][0],
+      '...and TzRek-Jad and TzTok-Jad name the same one file, a resize apart')
+
+import hashlib
+newmodels = sorted({m for d in ART['npcs'].values() for m in d['models']})
+hashes = {}
+for m in newmodels:
+    h = hashlib.sha1(open(os.path.join(C, 'models/npc', m + '.ob2'), 'rb').read()).hexdigest()
+    hashes.setdefault(h, []).append(m)
+dupes = {h: v for h, v in hashes.items() if len(v) > 1}
+check(not dupes, 'no two of the %d imported meshes are the same bytes under two names: %s'
+      % (len(newmodels), dupes or 'none'))
+check(len(FCSEQ) == 34 and 'osrs_seq_2650' not in FCSEQ,
+      'fightcave.seq holds 34 seqs and NOT osrs_seq_2650, which boss_pets.seq already had')
+check('osrs_seq_2650' in PETSEQ2, '...and that one is still where the pet round put it')
+texfaces = 0
+for m in newmodels:
+    info, col = ob2_faces('models/npc/' + m + '.ob2')
+    texfaces += sum(1 for i in info if i & 2)
+check(texfaces == 0,
+      'and not one of the %d imported faces is textured, so every colour crossed over exactly: '
+      '%d textured' % (sum(len(ob2_faces('models/npc/' + m + '.ob2')[1]) for m in newmodels), texfaces))
+
+# ============================================================================ 9
+print('9. The Fire cape exchange')
+EX = SPEC['exchange']
+XRS2 = read('scripts/minigames/game_fightcave/scripts/fightcave_exchange.rs2')
+FCOBJ = blocks(read('scripts/minigames/game_fightcave/configs/fightcave.obj'))
+PETOBJ2 = blocks(read('scripts/npc/configs/boss_pets.obj'))
+OBJPACK = {l.split('=', 1)[1] for l in read('pack/obj.pack').split('\n') if '=' in l}
+NPCPACK = {l.split('=', 1)[1] for l in read('pack/npc.pack').split('\n') if '=' in l}
+ROLL2 = XRS2.split('[proc,fightcave_exchange_roll]', 1)[-1].split('\n[', 1)[0]
+
+# --- the ladder
+for key, const in (('cape', 'fightcave_exchange_cape_rate'), ('meta', 'fightcave_exchange_meta_rate'),
+                   ('pet', 'fightcave_exchange_pet_rate')):
+    # The label prints the CONSTANT, not the spec: these mutations move the spec, and a label
+    # that quotes the mutated value matches the mutated output instead of the claim.
+    check(int(CONST[const]) == EX['rates'][key], '^%s is %s' % (const, CONST[const]))
+# No check here restates the three above by comparing them with each other: 1/100 > 1/50 = 1/50
+# cannot fail unless one of those three has already failed, and a check that can only fail
+# alongside another one steals its attribution. What IS independent is the order the code rolls
+# them in, which is what makes the ladder a ladder.
+order = [ROLL2.find(s) for s in ('^fightcave_exchange_cape_rate', '^fightcave_exchange_meta_rate',
+                                 '^fightcave_exchange_pet_rate', '^fightcave_exchange_tokkul_min')]
+check(all(x > 0 for x in order) and order == sorted(order),
+      '...and the roll asks in the order the rates were chosen for - the 1/%d cape first, then '
+      'the two 1/%d pets, Tokkul last - so one cape buys one thing'
+      % (EX['rates']['cape'], EX['rates']['meta']))
+check(ROLL2.count('return;') == 3,
+      '...with a return after each hit, so a cape cannot pay twice')
+check(int(CONST['fightcave_exchange_tokkul_min']) == EX['tokkul'][0]
+      and int(CONST['fightcave_exchange_tokkul_max']) == EX['tokkul'][1]
+      and 'calc(^fightcave_exchange_tokkul_min\n    + random(calc(^fightcave_exchange_tokkul_max '
+          '- ^fightcave_exchange_tokkul_min + 1)))' in XRS2,
+      'the consolation is a flat roll between %d and %d Tokkul inclusive' % tuple(EX['tokkul']))
+
+# --- the cape it eats
+check(XRS2.count('inv_del(inv, tzhaar_cape_fire, 1);') == 1,
+      'exactly one line deletes the Fire cape')
+check(XRS2.count('inv_total(inv, tzhaar_cape_fire) < 1') == 2,
+      '...and the cape is checked TWICE: ~p_choice2 pauses, and a paused player can bank the thing '
+      'they were just asked about')
+# split on the CALL, not the word: the file's own header comment says "~p_choice2 pauses", and
+# splitting on the bare name puts the whole header on the left and finds nothing there.
+before, after = XRS2.split('~p_choice2(', 1)
+check('inv_total(inv, tzhaar_cape_fire) < 1' in before
+      and 'inv_total(inv, tzhaar_cape_fire) < 1' in after.split('inv_del', 1)[0],
+      '...once on each side of the pause, and the delete comes after the second one')
+
+# --- Mej-Jal, who had an op and no handler at all
+MEJ = ALLNPC['tzhaar_fightcave_master']
+check(MEJ.get('op1', [None])[0] == 'Talk-to' and MEJ.get('op3', [None])[0] == 'Exchange',
+      'TzHaar-Mej-Jal has Talk-to and Exchange')
+check('[opnpc1,tzhaar_fightcave_master]' in XRS2 and '[opnpc3,tzhaar_fightcave_master]' in XRS2,
+      '...and BOTH have a handler now: op1 was in the cache with nothing behind it, which made the '
+      'one npc who explains the cave a dead click')
+check(XRS2.count('@multi3(') == 1
+      and 'fightcave_exchange' in XRS2.split('@multi3(', 1)[1].split(');', 1)[0],
+      '...and the exchange is reachable from the conversation as well as the right-click')
+
+# --- the Infernal cape
+CAPE, FIRE = 'tzhaar_cape_infernal', 'tzhaar_cape_fire'
+check(CAPE in FCOBJ and CAPE in OBJPACK, 'the Infernal cape exists and is in obj.pack')
+for k, v in sorted(EX['infernal_bonuses'].items()):
+    check(param(FCOBJ[CAPE], k) == str(v), '...param %s is the cache\'s %d' % (k, v))
+check(FCOBJ[CAPE].get('cost', [None])[0] == str(EX['infernal']['cost']),
+      '...and the cost is the cache\'s %d' % EX['infernal']['cost'])
+fire = ALLOBJ[FIRE]
+same = [k for k in fire if k not in ('param',)]
+check([k for k in same if k not in FCOBJ[CAPE]] == [],
+      '...and the record is a line-for-line parallel of the Fire cape\'s: every field the Fire '
+      'cape has, the Infernal cape has')
+check(FCOBJ[CAPE].get('tradeable', [None])[0] == 'no' == fire.get('tradeable', [None])[0],
+      '...including tradeable=no, which is how this fork ships the Fire cape')
+check(len(FCOBJ[CAPE].get('param', [])) == len(EX['infernal_bonuses']),
+      '...and it carries exactly the %d bonuses and no invented thirteenth'
+      % len(EX['infernal_bonuses']))
+# the lava, which is the one substitution in the round
+for m, n in (('obj_tzhaar_cape_infernal', 'the inventory model'),
+             ('obj_tzhaar_cape_infernal_manwear', 'the male one'),
+             ('obj_tzhaar_cape_infernal_womanwear', 'the female one')):
+    info, col = ob2_faces('models/obj/' + m + '.ob2')
+    lit = [c for c, i in zip(col, info) if i & 2]
+    # Measured counts in the label, spec values in the comparison, because the mutations for
+    # these two move the SPEC - and a label quoting the spec would move with it.
+    check(len(lit) == EX['infernal']['lava_faces']
+          and set(lit) == {EX['infernal']['shared_lava_texture']},
+          '%s carries its %d lava faces on 377 texture %s, the Fire cape\'s own'
+          % (n, len(lit), ', '.join(str(x) for x in sorted(set(lit)))))
+    check(EX['infernal']['fallback_hsl'] not in col,
+          '...and no face of it is left on the olive green the importer paints a texture 377 does '
+          'not have')
+finfo, fcol = ob2_faces('models/obj/obj_tzhaar_cape_fire.ob2')
+check(sum(1 for i in finfo if i & 2) == EX['infernal']['fire_cape_lava_faces'],
+      'and the Fire cape still wears the same texture on its own %d faces, which is where the '
+      'substitution came from' % sum(1 for i in finfo if i & 2))
+
+# --- JalRek-Jad
+JPET, JITEM = 'bosspet_jalrek_jad', 'bosspet_jalrek_jad_item'
+check(JPET in PETNPC2 and JITEM in PETOBJ2 and JPET in NPCPACK and JITEM in OBJPACK,
+      'JalRek-Jad exists as an npc and an item, both packed')
+check(param(PETNPC2[JPET], 'pet_item_id') == JITEM and param(PETOBJ2[JITEM], 'follower_id') == JPET,
+      '...and the two name each other')
+check(PETNPC2[JPET].get('category', [None])[0] == 'bosspet'
+      == PETOBJ2[JITEM].get('category', [None])[0],
+      '...on the category the four follower triggers hang off')
+jseqs = [PETNPC2[JPET].get('readyanim', [''])[0], PETNPC2[JPET].get('walkanim', [''])[0]]
+check(jseqs == ['osrs_seq_%d' % EX['jalrek']['readyanim'], 'osrs_seq_%d' % EX['jalrek']['walkanim']],
+      '...wearing the cache\'s own pair, %s' % ', '.join(jseqs))
+check(all(s in PETSEQ2 for s in jseqs),
+      '...both converted from OSRS so they share a base and still walk-merge')
+check(PETNPC2[JPET].get('resizeh', [None])[0] == str(EX['jalrek']['resize'])
+      and PETNPC2[JPET].get('ambient', [None])[0] == str(EX['jalrek']['ambient']),
+      '...at the cache\'s resize %d and ambient %d' % (EX['jalrek']['resize'], EX['jalrek']['ambient']))
+
+# --- who can roll what
+META = XRS2.split('[proc,fightcave_metamorphose]', 1)[-1].split('\n[', 1)[0]
+HAS = XRS2.split('[proc,fightcave_has_pet]', 1)[-1].split('\n[', 1)[0]
+check('~obj_gettotal($pet) > 0' in HAS and '%follower_obj = $pet' in HAS,
+      '"do they have this pet" counts pack, bank and worn AND the one out following them')
+def guard(rate):
+    """The eligibility line that wraps one rung of the ladder - the if whose body rolls that rate."""
+    m = re.search(r'if \(([^\n]*)\) \{\n    if \(random\(\^fightcave_exchange_%s_rate\)' % rate,
+                  ROLL2)
+    return m.group(1) if m else ''
+check('~fightcave_has_pet(bosspet_tzrek_jad_item) = true' in guard('meta')
+      and '~fightcave_has_pet(bosspet_jalrek_jad_item) = false' in guard('meta'),
+      'the metamorphosis needs TzRek-Jad and no JalRek-Jad, which is what "must already have the '
+      'pet" means')
+check('~fightcave_has_pet(bosspet_tzrek_jad_item) = false' in guard('pet')
+      and '~fightcave_has_pet(bosspet_jalrek_jad_item) = false' in guard('pet'),
+      '...and the plain pet needs neither, so metamorphosing is never undone by a later roll')
+check('npc_finduid(%follower_uid) = true' in META and 'npc_del;' in META
+      and 'npc_add(coord, bosspet_jalrek_jad, ^max_32bit_int);' in META,
+      'the metamorphosis transforms the pet OUT FOLLOWING you in place, the same four lines '
+      '[opheld5,_bosspet] uses to put one down')
+check('inv_del(inv, bosspet_tzrek_jad_item, 1);' in META
+      and 'inv_del(bank, bosspet_tzrek_jad_item, 1);' in META,
+      '...and the pack and the bank as well, so all three places the pet can be are covered')
+check(META.count('inv_add(inv, bosspet_jalrek_jad_item, 1);')
+      + META.count('inv_add(bank, bosspet_jalrek_jad_item, 1);') == 2
+      and 'inv_add' not in META.split('npc_setmode(playerfollow);', 1)[0],
+      '...and it never hands over a second pet: one goes out for every one that comes in')
+check('~obj_giveorbank(' in ROLL2 and 'obj_add' not in ROLL2,
+      'everything the exchange pays goes to the pack or the bank, never the floor')
+
+# --- and the two new items have exactly one source in the game
+ALLRS2 = []
+for root, _, fs in os.walk(os.path.join(C, 'scripts')):
+    for f in sorted(fs):
+        if f.endswith('.rs2'):
+            ALLRS2.append((os.path.relpath(os.path.join(root, f), C),
+                           open(os.path.join(root, f), newline='', errors='replace').read()))
+for obj in (CAPE, JITEM):
+    where = sorted(p for p, t in ALLRS2 if obj in t)
+    check(where == ['scripts/minigames/game_fightcave/scripts/fightcave_exchange.rs2'],
+          '%s is named by exactly one script in the tree, the exchange: %s' % (obj, where))
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

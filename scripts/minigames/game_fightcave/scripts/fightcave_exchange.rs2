@@ -1,0 +1,118 @@
+// TzHaar-Mej-Jal: the conversation, and the Fire cape exchange.
+//
+// Mej-Jal had op1=Talk-to in the cache and NO handler anywhere in the tree, so the one npc who is
+// supposed to explain the cave was a dead click. He talks now, and he takes capes.
+//
+// See fightcave.constant for the rates and why they are chosen rather than sourced. The order
+// matters and is the point: the Infernal cape is rolled first and rarest, the metamorphosis and
+// the pet share the middle, and Tokkul is what happens when none of them land.
+
+[opnpc1,tzhaar_fightcave_master] @fightcave_talk;
+[opnpc3,tzhaar_fightcave_master] @fightcave_exchange;
+
+[label,fightcave_talk]
+~chatnpc("<p,neutral>You are not TzHaar. You do not belong here, JalYt.");
+@multi3("What is this place?", fightcave_talk_place,
+        "I have a Fire cape to exchange.", fightcave_exchange,
+        "Nothing, sorry.", fightcave_talk_nothing);
+
+[label,fightcave_talk_place]
+~chatplayer("<p,quiz>What is this place?");
+~chatnpc("<p,neutral>The cave below is where TzHaar test themselves. Sixty-three|times the fire comes, and the last of them is TzTok-Jad.");
+~chatnpc("<p,neutral>Live through it and you leave wearing the fire. Bring the|cape back to me and I will return it to the flame, if you|are tired of it.");
+
+[label,fightcave_talk_nothing]
+~chatplayer("<p,neutral>Nothing, sorry.");
+
+// ---------------------------------------------------------------------------------------------
+// The exchange
+// ---------------------------------------------------------------------------------------------
+// The cape is checked twice: once before the question and once after it, because ~p_choice2 pauses
+// for a click and a paused player can bank, drop or trade the thing they were asked about.
+
+[label,fightcave_exchange]
+~chatplayer("<p,neutral>I have a Fire cape to exchange.");
+if (inv_total(inv, tzhaar_cape_fire) < 1) {
+    ~chatnpc("<p,neutral>You carry no cape of fire. Earn one in the cave, JalYt, and|then we will trade.");
+    return;
+}
+~chatnpc("<p,neutral>Give it to the flame and the flame gives back. What it gives|is not mine to choose - and the cape does not come back.");
+def_int $choice = ~p_choice2("Exchange my Fire cape.", 1, "I'll keep it.", 2);
+if ($choice ! 1) {
+    ~chatplayer("<p,neutral>I'll keep it.");
+    return;
+}
+if (inv_total(inv, tzhaar_cape_fire) < 1) {
+    ~chatnpc("<p,neutral>You carry no cape of fire.");
+    return;
+}
+inv_del(inv, tzhaar_cape_fire, 1);
+~fightcave_exchange_roll;
+
+// One cape, one reward, in this order. Each block that cannot apply - a pet you already have, a
+// metamorphosis with nothing to metamorphose - is skipped rather than rolled and wasted, so the
+// ladder never quietly swallows a roll a player was eligible for.
+[proc,fightcave_exchange_roll]
+if (random(^fightcave_exchange_cape_rate) = 0) {
+    ~obj_giveorbank(tzhaar_cape_infernal, 1);
+    ~mesbox("The Fire cape burns away in TzHaar-Mej-Jal's hands, and what is|left behind is hotter still.");
+    broadcast_mes(append(displayname(), " has pulled an Infernal cape out of the flames!"));
+    return;
+}
+if (~fightcave_has_pet(bosspet_tzrek_jad_item) = true & ~fightcave_has_pet(bosspet_jalrek_jad_item) = false) {
+    if (random(^fightcave_exchange_meta_rate) = 0) {
+        ~fightcave_metamorphose;
+        return;
+    }
+}
+if (~fightcave_has_pet(bosspet_tzrek_jad_item) = false & ~fightcave_has_pet(bosspet_jalrek_jad_item) = false) {
+    if (random(^fightcave_exchange_pet_rate) = 0) {
+        ~obj_giveorbank(bosspet_tzrek_jad_item, 1);
+        ~mesbox("Something small climbs out of the fire and looks up at you.");
+        broadcast_mes(append(displayname(), " has a funny feeling like they are being followed..."));
+        return;
+    }
+}
+def_int $tokkul = calc(^fightcave_exchange_tokkul_min
+    + random(calc(^fightcave_exchange_tokkul_max - ^fightcave_exchange_tokkul_min + 1)));
+~obj_giveorbank(tzhaar_token, $tokkul);
+~mesbox("The cape burns. TzHaar-Mej-Jal counts out <tostring($tokkul)> Tokkul|and hands it over.");
+
+// Owned anywhere at all: pack, bank, worn, or out following you. ~obj_gettotal covers the first
+// three; %follower_obj is the fourth, and it is the one a check written from the inventory alone
+// would miss - a player with the pet out would be handed a second one.
+[proc,fightcave_has_pet](namedobj $pet)(boolean)
+if (~obj_gettotal($pet) > 0) {
+    return(true);
+}
+if (%follower_obj = $pet) {
+    return(true);
+}
+return(false);
+
+// The metamorphosis. It TRANSFORMS the pet rather than handing over a second one, which is what
+// "must already have TzRek-Jad" means, and it has to work in all three places the pet can be.
+//
+// The following case is the interesting one: npc_finduid sets the active npc, npc_del takes it
+// away, and npc_add puts the new form on the same tile and hands back its uid - the same four
+// lines [opheld5,_bosspet] uses to put a pet down in the first place, in the same order.
+[proc,fightcave_metamorphose]
+if (%follower_obj = bosspet_tzrek_jad_item & npc_finduid(%follower_uid) = true) {
+    npc_del;
+    npc_add(coord, bosspet_jalrek_jad, ^max_32bit_int);
+    %follower_obj = nc_param(npc_type, pet_item_id);
+    %follower_uid = npc_uid;
+    %npc_attacking_uid = uid;
+    npc_setmode(playerfollow);
+    ~mesbox("The flame washes over your pet. It comes out black and burning,|and entirely unbothered.");
+    return;
+}
+if (inv_total(inv, bosspet_tzrek_jad_item) > 0) {
+    inv_del(inv, bosspet_tzrek_jad_item, 1);
+    inv_add(inv, bosspet_jalrek_jad_item, 1);
+    ~mesbox("TzHaar-Mej-Jal holds your pet in the flame. It comes out black|and burning, and entirely unbothered.");
+    return;
+}
+inv_del(bank, bosspet_tzrek_jad_item, 1);
+inv_add(bank, bosspet_jalrek_jad_item, 1);
+~mesbox("TzHaar-Mej-Jal says something about the pet you left in your|bank. It is not the same pet any more.");
