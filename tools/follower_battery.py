@@ -584,9 +584,42 @@ want_cells = [i for i, f in enumerate(gring) if i == 0 or f in RUNENAME]
 check(cellnums == want_cells,
       'the picker has a cell for the plain guardian and for each of the %d altars, and for nothing '
       'else: %s' % (len(RIFT), cellnums if cellnums != want_cells else 'ring indices %s' % want_cells))
-check(re.search(r'\^rift_pickable_colours\s*=\s*%d' % len(want_cells), FORMCONST) is not None,
-      '...and ^rift_pickable_colours says %d too, which is what its subtitle counts against'
-      % len(want_cells))
+# The grid is the whole answer: the window carries no text the script has to keep current. It used
+# to caption the grid with a count of unlocked colours, which said what the grid already shows -
+# and said it wrongly, because constants are NOT substituted inside if_settext string literals, so
+# it printed "^rift_pickable_colours" at the player. So the only thing the script does to this
+# window is hide icons, and this is the check that keeps it that way.
+blank = [n for n in PICK if re.search(r'(?m)^text=\s*$', PICK[n])]
+check('if_settext(rift_metamorph:' not in code(VAR) and not blank,
+      'the picker has no script-set text, so nothing in it can go stale or print the name of a '
+      'constant at the player: %s' % (blank or 'no empty text component, no if_settext'))
+# ...and the guardian is centred in its cell. The model BOX is not the guardian: rendered with
+# tools/ifrender.py at this camera the mesh comes out 26x28 at offset (9, 0) inside the 44x50 box,
+# and the label's ink is the top 9 rows of its 13-tall component. Centring the box put the
+# guardian high and left of its cell's middle, which is the complaint these numbers answer, so
+# what gets measured here is the DRAWN rectangle and the label INK. Re-measure if either changes -
+# tools/genriftpicker.py holds the same four numbers and a note saying so.
+DRAWN_W, DRAWN_H, DRAWN_OX, DRAWN_OY, NAME_INK = 26, 28, 9, 0, 9
+CELL_W, CELL_H = 116, 78
+
+
+def geom(name, i):
+    b = PICK['%s%d' % (name, i)]
+    return tuple(int(re.search(r'(?m)^%s=(-?\d+)$' % k, b).group(1)) for k in 'xy')
+
+
+layouts = {(geom('icon', i), geom('name', i)) for i in cellnums}
+check(len(layouts) == 1, 'every cell of the grid is laid out identically: %d layouts across %d '
+      'cells' % (len(layouts), len(cellnums)))
+ragged = []
+for i in cellnums:
+    (ix, iy), (nx, ny) = geom('icon', i), geom('name', i)
+    left, right = ix + DRAWN_OX, CELL_W - (ix + DRAWN_OX + DRAWN_W)
+    top, bottom = iy + DRAWN_OY, CELL_H - (ny + NAME_INK)
+    if abs(left - right) > 1 or abs(top - bottom) > 1:
+        ragged.append((i, left, right, top, bottom))
+check(not ragged, '...and the guardian and its label sit centred in it, margins even to within a '
+      'pixel: %s' % (ragged or 'all %d cells' % len(cellnums)))
 wrong = []
 for i in cellnums:
     want = re.search(r'model1=(\S+)', PETRECS[gring[i]]).group(1)

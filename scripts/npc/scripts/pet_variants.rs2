@@ -183,12 +183,6 @@ if_sethide(rift_metamorph:icon8, ~rift_locked(8));
 if_sethide(rift_metamorph:icon9, ~rift_locked(9));
 if_sethide(rift_metamorph:icon10, ~rift_locked(10));
 if_sethide(rift_metamorph:icon13, ~rift_locked(13));
-def_int $n = ~rift_unlocked_count;
-if ($n = 1) {
-    if_settext(rift_metamorph:subtitle, "One colour unlocked.");
-    return;
-}
-if_settext(rift_metamorph:subtitle, "<tostring($n)> colours unlocked of ^rift_pickable_colours.");
 
 // The one place %rift_unlocked is read. ~pet_form_allowed asks this too, so the right-click and
 // the window cannot disagree about what you have earned.
@@ -197,17 +191,6 @@ if (testbit(%rift_unlocked, $index) = ^true) {
     return(false);
 }
 return(true);
-
-[proc,rift_unlocked_count]()(int)
-def_int $n = 0;
-def_int $i = 0;
-while ($i < ^rift_unlocked_bits) {
-    if (~rift_locked($i) = false) {
-        $n = calc($n + 1);
-    }
-    $i = calc($i + 1);
-}
-return($n);
 
 // Choosing one. A locked cell says so rather than doing nothing, and choosing the colour you are
 // already wearing is not an error either - ~pet_wearform says whether anything moved.

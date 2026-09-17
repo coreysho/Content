@@ -39,10 +39,24 @@ TILE_W, TILE_H = 88, 60
 COLS, ROWS = 4, 3
 CELL_W, CELL_H = 116, 78
 GRID_X = PANEL_X + (PANEL_W - COLS * CELL_W) // 2
-GRID_Y = 68
+GRID_Y = 56
 # The model box inside a cell, and the camera for it. 32204 is a small mesh and these are the
 # numbers that framed it when the window was rendered - see the module docstring.
 MODEL_W, MODEL_H, ZOOM, XAN, YAN = 44, 50, 1900, 160, 40
+# The guardian does NOT fill that box. Rendered with tools/ifrender.py at this camera it comes out
+# 26 wide and 28 tall at offset (9, 0) inside the 44x50 box: a model component puts the mesh's own
+# origin at the box's centre, and this mesh hangs above and left of its origin. So centring the
+# BOX is not centring the guardian - it left it high in its cell, which is what this corrects. The
+# layout below positions the DRAWN rectangle and then backs the box out of it by that offset.
+# Re-measure all four numbers if the camera, the cell or the mesh changes.
+DRAWN_W, DRAWN_H, DRAWN_OX, DRAWN_OY = 26, 28, 9, 0
+# The label is centred on its INK, not on its 13-tall component: p11_full puts the cap height in
+# the top 9 rows and none of the twelve labels has a descender, so balancing the box would sit the
+# whole cell two rows high. NAME_INK is that measured ink.
+NAME_H, NAME_INK, NAME_GAP = 13, 9, 8
+DRAWN_X = (CELL_W - DRAWN_W) // 2
+DRAWN_Y = (CELL_H - (DRAWN_H + NAME_GAP + NAME_INK)) // 2
+NAME_Y = DRAWN_Y + DRAWN_H + NAME_GAP
 
 
 def read(p):
@@ -114,9 +128,6 @@ def main():
     com('close', type='text', x=424, y=28, buttontype='close', width=68, height=11,
         font='p11_full', shadowed='yes', text='Close Window', colour='0xC00000',
         overcolour='0xFFFFFF')
-    com('subtitle', type='text', x=12, y=50, width=488, height=13, center='yes', font='p12_full',
-        shadowed='yes', text='', colour='0xFFFFFF')
-
     # A cell is named for its RING INDEX, not for where it sits: the script's handlers pass an
     # index into the ring, and skipping three colours must not renumber the other twelve.
     cells = [(i, f) for i, f in enumerate(order) if i == 0 or f in by_form]
@@ -131,17 +142,20 @@ def main():
             option='Choose')
         # ...and the icon gets a LAYER of its own, because if_sethide only works on layers and a
         # colour you have not unlocked has to be able to hide its guardian.
-        com('icon%d' % i, layer='cell%d' % i, type='layer', x=(CELL_W - MODEL_W) // 2, y=4,
+        com('icon%d' % i, layer='cell%d' % i, type='layer',
+            x=DRAWN_X - DRAWN_OX, y=DRAWN_Y - DRAWN_OY,
             width=MODEL_W, height=MODEL_H, scroll=0)
         com('model%d' % i, layer='icon%d' % i, type='model', x=0, y=0, width=MODEL_W,
             height=MODEL_H, model=model, zoom=ZOOM, xan=XAN, yan=YAN)
         # The name is STATIC: which altar paints a colour never changes at runtime, so the script
         # has no name table to keep in step and the locked state is shown by hiding the guardian
         # rather than by rewriting text. A cell with a name and no guardian in it reads as "not
-        # yours yet", and the line under the grid says how to change that.
+        # yours yet", and the line under the grid says how to change that. NOTHING in this window
+        # is set by the script except those hides: a count of what you have unlocked is the grid
+        # itself, so the window has no text the script has to keep current.
         rune = by_form.get(form)
         label = 'Plain' if i == 0 else rune[:-4].capitalize()
-        com('name%d' % i, layer='cell%d' % i, type='text', x=0, y=MODEL_H + 10, width=CELL_W,
+        com('name%d' % i, layer='cell%d' % i, type='text', x=0, y=NAME_Y, width=CELL_W,
             height=13, center='yes', font='p11_full', shadowed='yes', text=label,
             colour='0xFF981F')
 
