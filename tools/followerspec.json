@@ -47,7 +47,24 @@
     "  metamorphosis form answers as itself for free. The lines are written for this server rather",
     "  than copied out of Old School's transcripts - same shape, our own words. ~chatnpc leaves the",
     "  npc on playerfaceclose, so a pet that has spoken would stand there for good: ~follower_refollow",
-    "  puts it back, and playerfollow is still set in exactly one file."
+    "  puts it back, and playerfollow is still set in exactly one file.",
+    "variants: three pets change their look WITHOUT a right-click, and the cache says so by giving",
+    "  none of their records a Metamorphosis op. The rock golem takes the colour of an ore you use on",
+    "  it (a plain rock puts it back, and nothing is consumed); the tangleroot takes a seed and EATS",
+    "  it; and the rift guardian takes the colour of the altar you were crafting at. They are still",
+    "  rings, because that is how %pet_form remembers a look through a pick-up and a login, and the",
+    "  op4 flag on each ring is what says whether anything cycles it.",
+    "  golem_exact_matches: nine of the eleven ore looks share an EXACT recolour destination with the",
+    "  ore item's own recolour. Clay and iron are the only tan and dark-brown looks left once those",
+    "  nine are taken, and the renders agree. Eight of Old School's nineteen ores are not in this",
+    "  build at all, so neither are their looks.",
+    "  rift: crafting at an altar unlocks that colour for good (%rift_unlocked, one bit per form",
+    "  index), the right-click only cycles unlocked colours, and Locking - the cache's own op5 - stops",
+    "  the altar repainting the pet without stopping the right-click. Eleven altars, eleven colours;",
+    "  the plain one comes from making a tiara, which rolls the pet with no altar rune behind it.",
+    "  The altar-to-colour mapping is a CHOICE with evidence: eight of the eleven share an exact",
+    "  recolour destination with their rune item's own colours, and fire, chaos and law are the",
+    "  nearest colour left. Nothing in the cache could settle those three."
   ],
   "cat_categories": [
     "kitten",
@@ -115,7 +132,8 @@
       "bits": [
         0,
         0
-      ]
+      ],
+      "op4": true
     },
     "skillpet_heron": {
       "forms": 2,
@@ -123,7 +141,8 @@
       "bits": [
         1,
         1
-      ]
+      ],
+      "op4": true
     },
     "skillpet_chinchompa": {
       "forms": 4,
@@ -131,7 +150,8 @@
       "bits": [
         2,
         3
-      ]
+      ],
+      "op4": true
     },
     "skillpet_rift_guardian": {
       "forms": 15,
@@ -139,17 +159,72 @@
       "bits": [
         4,
         7
-      ]
+      ],
+      "op4": true
     },
     "bosspet_tzrek_jad": {
       "forms": 2,
       "items": 2,
-      "bits": null
+      "bits": null,
+      "op4": true
+    },
+    "skillpet_rock_golem": {
+      "forms": 12,
+      "items": 1,
+      "bits": [
+        8,
+        11
+      ],
+      "op4": false
+    },
+    "skillpet_tangleroot": {
+      "forms": 2,
+      "items": 1,
+      "bits": [
+        12,
+        12
+      ],
+      "op4": false
     }
   },
-  "pet_records": 39,
+  "pet_records": 51,
   "talk": {
     "variants": 3,
     "default_proc": "pettalk_default"
+  },
+  "variants": {
+    "golem_ores": [
+      "rock",
+      "clay",
+      "copper_ore",
+      "tin_ore",
+      "iron_ore",
+      "blurite_ore",
+      "silver_ore",
+      "coal",
+      "gold_ore",
+      "mithril_ore",
+      "adamantite_ore",
+      "runite_ore"
+    ],
+    "golem_exact_matches": 9,
+    "tangleroot_seeds": [
+      "acorn",
+      "guam_seed"
+    ],
+    "tangleroot_absent": {
+      "crystal": 9492,
+      "dragonfruit": 9493,
+      "white_lily": 9495,
+      "redwood": 9496
+    },
+    "rift_altars": 11,
+    "rift_locked_bit": 13,
+    "rift_unlock_varp": "rift_unlocked",
+    "rift_roll_hooks": [
+      "scripts/skill_runecraft/scripts/runecraft.rs2",
+      "scripts/skill_runecraft/scripts/runecraft_combo_runes.rs2",
+      "scripts/skill_runecraft/scripts/runecraft_tiaras.rs2"
+    ]
   }
 }

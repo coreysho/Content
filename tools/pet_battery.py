@@ -165,19 +165,34 @@ for pet, d in sorted(wired.items()):
 
 # ============================================================================ 5
 print('5. every hook the spec names really rolls for that pet, with that skill')
+# The rift guardian's three hooks call ~rift_guardian_roll instead of the roll itself: its colour
+# comes off the altar, so the wrapper in npc/scripts/pet_variants.rs2 has to see the rune. The
+# wrapper is where the roll then happens, and it is checked here like any other hook.
+WRAP = {'skillpet_rift_guardian': ('~rift_guardian_roll', 'scripts/npc/scripts/pet_variants.rs2')}
 for pet, d in sorted(wired.items()):
     item = pet + '_item'
+    wrapper = WRAP.get(pet)
     for f in d['hooks']:
         t = code(read(f))
+        if wrapper:
+            check(wrapper[0] + '(' in t,
+                  '%s rolls in %s, through %s' % (item, os.path.basename(f), wrapper[0]))
+            continue
         m = [x for x in re.findall(r'~skillpet_roll(?:_each)?\(([^)]*)\)', t)
              if x.split(',')[0].strip() == item]
         check(bool(m), '%s rolls in %s' % (item, os.path.basename(f)))
         if not m: continue
         stats = {x.split(',')[1].strip() for x in m}
         check(stats == {d['stat']}, '...against %s' % d['stat'])
+    if wrapper:
+        t = code(read(wrapper[1]))
+        m = [x for x in re.findall(r'~skillpet_roll(?:_each)?\(([^)]*)\)', t)
+             if x.split(',')[0].strip() == item]
+        check(bool(m) and {x.split(',')[1].strip() for x in m} == {d['stat']},
+              '...and %s rolls it against %s' % (wrapper[0], d['stat']))
     if d.get('per') == 'essence':
-        t = code(read(d['hooks'][0]))
-        check('~skillpet_roll_each(' in t and '$total_ess' in t,
+        t = code(read(wrapper[1] if wrapper else d['hooks'][0]))
+        check('~skillpet_roll_each(' in t and '$times' in t,
               '...and the Rift guardian rolls once per essence, not once per click')
     if d.get('per') == 'lap':
         for f in d['hooks']:

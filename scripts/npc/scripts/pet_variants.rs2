@@ -1,0 +1,147 @@
+// The looks you are not given by a right-click: an ore on the rock golem, a seed on the
+// tangleroot, and the rift guardian's colour, which comes off the altar you were crafting at.
+//
+// Old School has three different mechanisms here and none of them is Metamorphosis - the cache
+// says so, because none of these records carries the op. What they share with the metamorphosis
+// pets is the RING and the memory: npc/configs/pet_forms.npc joins each pet's looks with
+// param=metamorph_next, and %pet_form remembers which one it is wearing, so a look survives a
+// pick-up, a bank and a login however it was chosen.
+//
+// npc/configs/pet_variants.enum holds all three tables. An item with no row does nothing.
+
+// ---------------------------------------------------------------- an item used on the pet itself
+[opnpcu,_bosspet]
+if (%npc_attacking_uid ! uid | %follower_uid ! npc_uid) {
+    mes("That isn't yours.");
+    return;
+}
+~pet_use_item(npc_param(pet_item_id), last_useitem, true);
+
+// ...and on the pet while it is in your pack, which Old School allows too. The look is remembered
+// either way, so the change shows the next time you put the pet down.
+[opheldu,_bosspet]
+~pet_use_item(last_item, last_useitem, false);
+
+[proc,pet_use_item](obj $pet, obj $used, boolean $out)
+switch_obj ($pet) {
+    case skillpet_rock_golem_item : ~golem_ore($pet, $used, $out);
+    case skillpet_tangleroot_item : ~tangleroot_seed($pet, $used, $out);
+    case default : ~displaymessage(^dm_default);
+}
+
+// The golem takes the colour of an ore. Nothing is consumed - the ore is a sample, not a
+// sacrifice - and a plain rock puts it back, which is Old School's own way round.
+[proc,golem_ore](obj $pet, obj $ore, boolean $out)
+def_npc $form = enum(obj, npc, golem_ore_form, $ore);
+if ($form = null) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (~pet_wearform($pet, $form, $out) = false) {
+    mes("Your rock golem is already that colour.");
+    return;
+}
+if ($ore = rock) {
+    mes("Your rock golem is plain rock again.");
+    return;
+}
+mes("Your rock golem takes on the colour of the <lowercase(oc_name($ore))>.");
+
+// The tangleroot takes the seed - and it EATS the seed, which is Old School's rule and the reason
+// the acorn that puts it back is a real cost rather than a free undo.
+[proc,tangleroot_seed](obj $pet, obj $seed, boolean $out)
+def_npc $form = enum(obj, npc, tangleroot_seed_form, $seed);
+if ($form = null) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (~pet_wearform($pet, $form, $out) = false) {
+    mes("Your tangleroot is already like that.");
+    return;
+}
+inv_del(inv, $seed, 1);
+if ($seed = acorn) {
+    mes("Your tangleroot is its old self again. The acorn is gone.");
+    return;
+}
+mes("Your tangleroot swallows the seed and grows into something else.");
+
+// Put a pet into a given form, remember it, and say whether anything actually changed. $out is
+// whether the pet is standing in front of you: if it is, it has to be respawned in the new form,
+// and if it is in your pack there is nothing to respawn.
+[proc,pet_wearform](obj $pet, npc $form, boolean $out)(boolean)
+if (~pet_form($pet) = $form) {
+    return(false);
+}
+~pet_form_set($pet, ~pet_form_index($pet, $form));
+if ($out = true & npc_finduid(%follower_uid) = true) {
+    npc_del;
+    ~follower_spawn($form);
+}
+return(true);
+
+// ---------------------------------------------------------------- the rift guardian
+// Old School: the colour is the altar's, crafting at an altar while the guardian follows you
+// unlocks that colour for good, and the Locking right-click stops the pet being repainted by the
+// altar you happen to be standing at. The right-click only ever cycles colours you have unlocked -
+// ~pet_form_allowed in npc/scripts/pet_metamorph.rs2 is the other half of this.
+//
+// Called from every place runecraft rolls the pet, WITH the rune being bound. A tiara passes null:
+// there is no altar rune in making one, so a tiara gives the plain guardian.
+[proc,rift_guardian_roll](namedobj $rune, int $times)
+def_boolean $had = ~pet_owned(skillpet_rift_guardian_item);
+~skillpet_roll_each(skillpet_rift_guardian_item, runecraft, ^skillpet_rift_guardian_base, $times);
+if ($had = false & ~pet_owned(skillpet_rift_guardian_item) = true) {
+    // A new one arrives in the colour of what you were binding, and that colour is unlocked.
+    ~rift_unlock($rune);
+    ~pet_wearform(skillpet_rift_guardian_item, ~rift_form($rune), false);
+    return;
+}
+// One you already own: the altar unlocks its colour, and repaints the pet unless it is locked.
+if ($had = true) {
+    ~rift_unlock($rune);
+    if (getbit_range(%pet_form, ^pet_form_rift_locked_lo, ^pet_form_rift_locked_hi) = 0) {
+        // Out and following means it has to be respawned in the new colour; in the pack or the
+        // bank it only has to be remembered.
+        def_boolean $out = false;
+        if (%follower_obj = skillpet_rift_guardian_item) {
+            $out = true;
+        }
+        ~pet_wearform(skillpet_rift_guardian_item, ~rift_form($rune), $out);
+    }
+}
+
+// The colour an altar paints, and the plain one for anything with no rune behind it.
+[proc,rift_form](namedobj $rune)(npc)
+def_npc $form = enum(obj, npc, rift_rune_form, $rune);
+if ($form = null) {
+    return(skillpet_rift_guardian);
+}
+return($form);
+
+[proc,rift_unlock](namedobj $rune)
+// Bit 0 is the plain guardian and is always yours: a tiara gives it, and the right-click has to
+// have somewhere to go back to.
+%rift_unlocked = setbit(%rift_unlocked, 0);
+%rift_unlocked = setbit(%rift_unlocked,
+    ~pet_form_index(skillpet_rift_guardian_item, ~rift_form($rune)));
+
+// Locking, straight off the cache's own op. It does not lock the right-click - you can still
+// metamorphose by hand - it locks the ALTAR out, so that an afternoon of law runes does not repaint
+// the guardian you chose.
+[opnpc5,_bosspet]
+if (%npc_attacking_uid ! uid | %follower_uid ! npc_uid) {
+    mes("That isn't yours.");
+    return;
+}
+if (npc_param(pet_item_id) ! skillpet_rift_guardian_item) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (getbit_range(%pet_form, ^pet_form_rift_locked_lo, ^pet_form_rift_locked_hi) = 0) {
+    %pet_form = setbit_range_toint(%pet_form, 1, ^pet_form_rift_locked_lo, ^pet_form_rift_locked_hi);
+    mes("Your rift guardian will keep this colour, whatever altar you use.");
+    return;
+}
+%pet_form = setbit_range_toint(%pet_form, 0, ^pet_form_rift_locked_lo, ^pet_form_rift_locked_hi);
+mes("Your rift guardian will take the colour of the next altar you craft at.");

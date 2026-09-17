@@ -1,0 +1,70 @@
+// What you use on a pet, and which of its looks that gives you.
+//
+// Three tables, one per pet that changes this way. An item with no row does nothing - the enums'
+// default is null and every handler in npc/scripts/pet_variants.rs2 checks for it - so a new ore
+// or seed cannot silently repaint a pet.
+//
+// inputtype=obj rather than namedobj because the key arrives as last_useitem, which is an obj: a
+// namedobj goes in where an obj is expected and not the other way round.
+
+// The rock golem: use an ore on it. rock is Old School's own way back to the plain golem, and this
+// build has a [rock] item (obj 968) for it. Eight of Old School's nineteen ores are not here at
+// all, so neither are their looks.
+[golem_ore_form]
+inputtype=obj
+outputtype=npc
+default=null
+val=rock,skillpet_rock_golem
+val=clay,skillpet_rock_golem_clay
+val=copper_ore,skillpet_rock_golem_copper
+val=tin_ore,skillpet_rock_golem_tin
+val=iron_ore,skillpet_rock_golem_iron
+val=blurite_ore,skillpet_rock_golem_blurite
+val=silver_ore,skillpet_rock_golem_silver
+val=coal,skillpet_rock_golem_coal
+val=gold_ore,skillpet_rock_golem_gold
+val=mithril_ore,skillpet_rock_golem_mithril
+val=adamantite_ore,skillpet_rock_golem_adamantite
+val=runite_ore,skillpet_rock_golem_runite
+
+// The tangleroot: use a seed on it, and the seed is EATEN - that is Old School's own rule, and it
+// is why the acorn that puts it back is a real cost rather than a free undo. Crystal acorn,
+// dragonfruit, redwood and white lily seeds do not exist in this build, so four of its six looks
+// are unreachable and not imported.
+[tangleroot_seed_form]
+inputtype=obj
+outputtype=npc
+default=null
+val=acorn,skillpet_tangleroot
+val=guam_seed,skillpet_tangleroot_herb
+
+// The rift guardian: the rune you were binding when it turned up, and the colour it turns up in.
+// Also the colour crafting that rune unlocks while it follows you.
+//
+// The mapping is CHOSEN, and eight of the eleven rows have real evidence behind them: air, mind,
+// water, earth, body, cosmic, nature and death each share an EXACT recolour destination with their
+// rune item's own colours. Fire, chaos and law had no exact match left and are the nearest colour
+// standing - the orange one, the dark red one and the pale blue one. The cache does not record
+// which altar Old School paints which guardian for, and nothing in it could settle it, so this
+// says plainly where the measurement stopped and the choosing began.
+//
+// Eleven altars, eleven colours, and the base is the twelfth: making a TIARA rolls the pet too
+// (skill_runecraft/scripts/runecraft_tiaras.rs2) and there is no altar rune in that, so a tiara
+// gives the plain guardian. Three looks - f12, f13 and f15 - are left over, for the blood, soul,
+// astral and wrath altars this build does not have. They are imported, because the ring is fifteen
+// long either way, and they simply never unlock.
+[rift_rune_form]
+inputtype=obj
+outputtype=npc
+default=null
+val=airrune,skillpet_rift_guardian_f2
+val=mindrune,skillpet_rift_guardian_f3
+val=waterrune,skillpet_rift_guardian_f10
+val=earthrune,skillpet_rift_guardian_f5
+val=firerune,skillpet_rift_guardian_f8
+val=bodyrune,skillpet_rift_guardian_f6
+val=cosmicrune,skillpet_rift_guardian_f7
+val=chaosrune,skillpet_rift_guardian_f14
+val=naturerune,skillpet_rift_guardian_f9
+val=lawrune,skillpet_rift_guardian_f4
+val=deathrune,skillpet_rift_guardian_f11

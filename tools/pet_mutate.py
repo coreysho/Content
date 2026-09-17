@@ -20,6 +20,7 @@ GWD = 'scripts/bosses/godwars/scripts/gwd_drops.rs2'
 SPEC = 'tools/petspec.json'
 MINERS2 = 'scripts/skill_mining/scripts/mining.rs2'
 RC = 'scripts/skill_runecraft/scripts/runecraft.rs2'
+VARRS2 = 'scripts/npc/scripts/pet_variants.rs2'
 GNOME = 'scripts/skill_agility/scripts/gnome_course.rs2'
 FISH = 'scripts/skill_fishing/scripts/fishing.rs2'
 FSTRUCT = 'scripts/skill_fishing/configs/fishing.struct'
@@ -92,9 +93,16 @@ if (random($chance) ! 0) {
  (MINERS2, '~skillpet_roll(skillpet_rock_golem_item, mining, db_getfield($data, mining_table:pet_base, 0));',
            '~skillpet_roll(skillpet_rock_golem_item, fishing, db_getfield($data, mining_table:pet_base, 0));',
   '5 ...against mining'),
- (RC, '~skillpet_roll_each(skillpet_rift_guardian_item, runecraft, ^skillpet_rift_guardian_base, $total_ess);',
-      '~skillpet_roll(skillpet_rift_guardian_item, runecraft, ^skillpet_rift_guardian_base);',
+ # The rift guardian's roll lives in ~rift_guardian_roll now (npc/scripts/pet_variants.rs2), which
+ # is where the rune is known - its colour comes off the altar.
+ (VARRS2, '~skillpet_roll_each(skillpet_rift_guardian_item, runecraft, ^skillpet_rift_guardian_base, $times);',
+          '~skillpet_roll(skillpet_rift_guardian_item, runecraft, ^skillpet_rift_guardian_base);',
   '5 ...and the Rift guardian rolls once per essence, not once per click'),
+ (RC, '~rift_guardian_roll($rune, $total_ess);', '',
+  '5 skillpet_rift_guardian_item rolls in runecraft.rs2, through ~rift_guardian_roll'),
+ (VARRS2, '~skillpet_roll_each(skillpet_rift_guardian_item, runecraft, ^skillpet_rift_guardian_base, $times);',
+          '~skillpet_roll_each(skillpet_rift_guardian_item, fishing, ^skillpet_rift_guardian_base, $times);',
+  '5 ...and ~rift_guardian_roll rolls it against runecraft'),
  (GNOME, '    ~skillpet_roll(skillpet_squirrel_item, agility, ^skillpet_squirrel_gnome);\n', '',
   '5 skillpet_squirrel_item rolls in gnome_course.rs2'),
  # ---- 3, the three newest pets' bases

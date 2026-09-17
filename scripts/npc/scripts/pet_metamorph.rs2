@@ -24,13 +24,18 @@ if (%npc_attacking_uid ! uid | %follower_uid ! npc_uid) {
     mes("That isn't yours.");
     return;
 }
-def_npc $next = npc_param(metamorph_next);
+def_namedobj $item = npc_param(pet_item_id);
+def_npc $next = ~pet_form_nextallowed($item, npc_type);
 if ($next = null) {
-    // Only records in a ring carry op4, so this is a config mistake rather than a player one.
+    // Only records in a ring carry op4, so a null next is a config mistake rather than a player
+    // one - except for the rift guardian, where it means you have unlocked nothing else yet.
+    if ($item = skillpet_rift_guardian_item) {
+        mes("You have not unlocked another colour for it yet.");
+        return;
+    }
     mes("Nothing happens.");
     return;
 }
-def_namedobj $item = npc_param(pet_item_id);
 p_delay(0);
 npc_del;
 ~follower_spawn($next);
@@ -38,6 +43,38 @@ if (nc_param($next, pet_item_id) = $item) {
     ~pet_form_set($item, ~pet_form_index($item, $next));
 }
 mes("Your pet shifts into a different shape.");
+
+// The next form the right-click may give this pet: the next one round the ring that is ALLOWED.
+// For every pet but one that is simply the next record. The rift guardian is the exception Old
+// School makes: crafting at an altar unlocks that colour for good (see npc/scripts/pet_variants.rs2)
+// and the right-click only ever cycles colours you have unlocked, so this walks past the locked
+// ones and returns null if there is nothing else to go to.
+[proc,pet_form_nextallowed](obj $item, npc $from)(npc)
+def_npc $at = nc_param($from, metamorph_next);
+def_int $i = 0;
+while ($at ! null & $i < ^pet_form_walk_max) {
+    if ($at = $from) {
+        return(null);
+    }
+    if (~pet_form_allowed($item, $at) = true) {
+        return($at);
+    }
+    $at = nc_param($at, metamorph_next);
+    $i = calc($i + 1);
+}
+return(null);
+
+// Is this form one the player may wear? Yes for every pet whose looks are not earned. The rift
+// guardian's are: bit N of %rift_unlocked is the Nth form of its ring, and bit 0 - the plain one a
+// tiara gives - is always set by ~rift_unlock the first time anything touches it.
+[proc,pet_form_allowed](obj $item, npc $form)(boolean)
+if ($item ! skillpet_rift_guardian_item) {
+    return(true);
+}
+if (testbit(%rift_unlocked, ~pet_form_index($item, $form)) = ^true) {
+    return(true);
+}
+return(false);
 
 // Which form the slot should bring back for this item: the base, walked forward by the remembered
 // number of steps. A cat, or any pet with no ring, walks nowhere and comes back as itself - which
@@ -90,6 +127,10 @@ switch_obj ($item) {
         return(getbit_range(%pet_form, ^pet_form_chinchompa_lo, ^pet_form_chinchompa_hi));
     case skillpet_rift_guardian_item :
         return(getbit_range(%pet_form, ^pet_form_rift_lo, ^pet_form_rift_hi));
+    case skillpet_rock_golem_item :
+        return(getbit_range(%pet_form, ^pet_form_golem_lo, ^pet_form_golem_hi));
+    case skillpet_tangleroot_item :
+        return(getbit_range(%pet_form, ^pet_form_tangleroot_lo, ^pet_form_tangleroot_hi));
     case default : return(0);
 }
 
@@ -103,5 +144,9 @@ switch_obj ($item) {
         %pet_form = setbit_range_toint(%pet_form, $form, ^pet_form_chinchompa_lo, ^pet_form_chinchompa_hi);
     case skillpet_rift_guardian_item :
         %pet_form = setbit_range_toint(%pet_form, $form, ^pet_form_rift_lo, ^pet_form_rift_hi);
+    case skillpet_rock_golem_item :
+        %pet_form = setbit_range_toint(%pet_form, $form, ^pet_form_golem_lo, ^pet_form_golem_hi);
+    case skillpet_tangleroot_item :
+        %pet_form = setbit_range_toint(%pet_form, $form, ^pet_form_tangleroot_lo, ^pet_form_tangleroot_hi);
     case default : return;
 }

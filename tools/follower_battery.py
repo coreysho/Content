@@ -15,6 +15,7 @@ Against tools/followerspec.json. Six groups:
   6. her window - the .if, the packs, the script, and that nothing is ever charged
   7. the metamorphosis rings - closed, consistent, and remembered in bits wide enough to hold them
   8. the dialogue - one voice per pet, and the follow mode put back afterwards
+  9. the looks that are not a right-click - an ore, a seed, and the altar you crafted at
 
     python3 tools/follower_battery.py
 """
@@ -70,6 +71,10 @@ META     = read('scripts/npc/scripts/pet_metamorph.rs2')
 TALK     = read('scripts/npc/scripts/pet_talk.rs2')
 FORMNPC  = read('scripts/npc/configs/pet_forms.npc')
 FORMCONST= read('scripts/npc/configs/pet_forms.constant')
+VAR      = read('scripts/npc/scripts/pet_variants.rs2')
+VARENUM  = read('scripts/npc/configs/pet_variants.enum')
+RCROW    = read('scripts/skill_runecraft/configs/runecraft.dbrow')
+RCALTARS = read('scripts/skill_runecraft/scripts/runecraft_altars.rs2')
 
 # Every .rs2 in the tree, for the "this is the only place that does X" claims.
 RS2 = {}
@@ -349,9 +354,16 @@ for base, want in sorted(SPEC['rings'].items()):
     check(len(items) == want['items'],
           '...and its forms carry %d pet item(s), which is what decides whether %%pet_form has to '
           'remember the form at all: %s' % (want['items'], items))
-    missing = [n for n in ring if 'op4=Metamorphosis' not in PETRECS[n]]
-    check(not missing, '...and every form in it has the right-click: %s'
-          % (missing or 'all %d' % len(ring)))
+    # Whether a ring HAS a right-click is a property of the ring: the rock golem's looks come off
+    # an ore and the tangleroot's off a seed, and neither carries the op in the cache or here.
+    if want['op4']:
+        missing = [n for n in ring if 'op4=Metamorphosis' not in PETRECS[n]]
+        check(not missing, '...and every form in it has the right-click: %s'
+              % (missing or 'all %d' % len(ring)))
+    else:
+        stray = [n for n in ring if 'op4=Metamorphosis' in PETRECS[n]]
+        check(not stray, '...and not one form in it has the right-click, because nothing cycles '
+              'this pet: %s' % (stray or 'none of %d' % len(ring)))
     models = [m for n in ring for m in re.findall(r'(?:model|head)\d+=(\S+)', PETRECS[n])]
     gone = [m for m in models if m not in pack
             or not os.path.exists(os.path.join(C, 'models/npc', m + '.ob2'))]
@@ -366,7 +378,8 @@ check(not stray, 'no pet has the right-click without a ring to spend it on: %s'
 
 # The bit ranges: wide enough for their own ring, and not overlapping.
 CONSTNAME = {'bosspet_kalphite_queen': 'kalphite', 'skillpet_heron': 'heron',
-             'skillpet_chinchompa': 'chinchompa', 'skillpet_rift_guardian': 'rift'}
+             'skillpet_chinchompa': 'chinchompa', 'skillpet_rift_guardian': 'rift',
+             'skillpet_rock_golem': 'golem', 'skillpet_tangleroot': 'tangleroot'}
 owner = {}
 for base, want in sorted(SPEC['rings'].items()):
     if want['bits'] is None:
@@ -400,8 +413,9 @@ check(sorted(gets) == sorted(b + '_item' for b, w in SPEC['rings'].items() if w[
       '...and they are exactly the rings whose forms share one item: %s' % sorted(gets))
 
 op = trigger(META, 'opnpc4,_bosspet')
-check('npc_param(metamorph_next)' in op and '~follower_spawn($next);' in op,
-      'the right-click spawns the next form through ~follower_spawn')
+check('~pet_form_nextallowed($item, npc_type)' in op and '~follower_spawn($next);' in op,
+      'the right-click spawns the next ALLOWED form through ~follower_spawn - allowed because the '
+      'rift guardian only cycles colours it has unlocked')
 i_same = op.find('nc_param($next, pet_item_id) = $item')
 i_set = op.find('~pet_form_set(')
 check(i_same != -1 and i_set > i_same,
@@ -441,6 +455,121 @@ check(set(follow) == {'scripts/npc/scripts/follower.rs2',
                       'scripts/quests/quest_fluffs/scripts/pet.rs2'},
       'follow mode is set in the slot\'s own file and, for the cats\' vermin hunt, the cat quest: %s'
       % sorted(os.path.basename(p) for p in follow))
+
+print('\n-- 9. the looks that are not a right-click -----------------------------------')
+
+V = SPEC['variants']
+def enum_rows(name):
+    b = re.search(r'(?m)^\[' + name + r'\]\n(.*?)(?=^\[|\Z)', VARENUM, re.S)
+    return dict(re.findall(r'(?m)^val=(\w+),(\w+)$', b.group(1))) if b else {}
+
+objpack = {n for i, n in (l.split('=', 1) for l in read('pack/obj.pack').split('\n') if l)}
+GOLEM = enum_rows('golem_ore_form')
+check(sorted(GOLEM) == sorted(V['golem_ores']),
+      'the golem answers to %d ores and a plain rock, and nothing else: %s'
+      % (len(V['golem_ores']) - 1, sorted(set(GOLEM) ^ set(V['golem_ores'])) or 'exactly those'))
+missing = [o for o in GOLEM if o not in objpack]
+check(not missing, '...every one of which is a real item in this build: %s'
+      % (missing or 'all %d' % len(GOLEM)))
+check(GOLEM.get('rock') == 'skillpet_rock_golem',
+      "...and a plain rock is what puts it back, which is Old School's own way round")
+TANG = enum_rows('tangleroot_seed_form')
+check(sorted(TANG) == sorted(V['tangleroot_seeds']),
+      'the tangleroot answers to %s and nothing else: %s'
+      % (' and '.join(V['tangleroot_seeds']), sorted(TANG)))
+check(TANG.get('acorn') == 'skillpet_tangleroot', '...and an acorn is what puts it back')
+absent = [n for n in PETRECS if n.startswith('skillpet_tangleroot_')
+          and n != 'skillpet_tangleroot_herb']
+check(not absent, 'the four tangleroot looks whose seeds do not exist here are NOT imported - an '
+      'npc nothing can reach is dead weight: %s' % (absent or 'none of them'))
+
+# Every form these two tables name has to be in that pet's own ring, or the pet would be repainted
+# into something that is not one of its looks.
+for table, base in ((GOLEM, 'skillpet_rock_golem'), (TANG, 'skillpet_tangleroot')):
+    ring, at = [base], rec_next(base)
+    while at and at != base:
+        ring.append(at); at = rec_next(at)
+    off = sorted(set(table.values()) - set(ring))
+    check(not off, '...and every look it names belongs to %s\'s own ring: %s'
+          % (base, off or 'all %d' % len(set(table.values()))))
+
+check('[opnpcu,_bosspet]' in code(VAR) and '[opheldu,_bosspet]' in code(VAR),
+      'an item can be used on a pet standing in front of you or sitting in your pack, as Old '
+      'School allows')
+gold = trigger(VAR, 'proc,golem_ore')
+tang = trigger(VAR, 'proc,tangleroot_seed')
+check('inv_del(' not in (gold or ''),
+      'the ore is not consumed - it is a sample, not a sacrifice')
+check('inv_del(inv, $seed, 1);' in (tang or ''),
+      '...and the seed IS consumed, which is what makes the acorn that puts it back a real cost')
+wear = trigger(VAR, 'proc,pet_wearform')
+check('~pet_form_set(' in (wear or '') and '~follower_spawn($form);' in (wear or ''),
+      'a new look is remembered and, if the pet is out, respawned in it')
+check('if ($out = true & npc_finduid(%follower_uid) = true) {' in (wear or ''),
+      '...and only respawned when there is something standing there to respawn')
+
+# The rift guardian: eleven altars, eleven colours, and the mapping covers exactly the altars this
+# build has - no more (a colour nothing can unlock) and no fewer (an altar that paints nothing).
+RUNES = re.findall(r'data=rune,(\w+)', RCROW)
+RIFT = enum_rows('rift_rune_form')
+check(len(RUNES) == V['rift_altars'],
+      'this build has %d runecrafting altars' % len(RUNES))
+check(sorted(RIFT) == sorted(RUNES),
+      '...and the guardian has a colour for every one of them and for nothing else: %s'
+      % (sorted(set(RIFT) ^ set(RUNES)) or 'exactly those'))
+check(len(set(RIFT.values())) == len(RIFT),
+      '...no two altars painting the same colour: %d colours for %d altars'
+      % (len(set(RIFT.values())), len(RIFT)))
+gring, at = ['skillpet_rift_guardian'], rec_next('skillpet_rift_guardian')
+while at and at != 'skillpet_rift_guardian':
+    gring.append(at); at = rec_next(at)
+off = sorted(set(RIFT.values()) - set(gring))
+check(not off, "...and every colour is one of the guardian's own fifteen: %s"
+      % (off or 'all %d' % len(RIFT)))
+check('skillpet_rift_guardian' not in RIFT.values(),
+      '...while the plain one belongs to the tiara, which rolls the pet with no altar behind it')
+
+for f in V['rift_roll_hooks']:
+    check('~rift_guardian_roll(' in code(read(f)),
+          '%s rolls the guardian through the wrapper that knows the rune' % os.path.basename(f))
+check('~rift_guardian_roll(null, 1);' in code(read(V['rift_roll_hooks'][2])),
+      '...and the tiara passes null, so a tiara gives the plain guardian')
+# The combination-rune path: the colour follows the ALTAR, and a mist rune can be bound at either
+# the air altar or the water one - so every call has to pass the rune of the altar it sits under.
+altar, wrong = None, []
+for line in code(RCALTARS).split('\n'):
+    m = re.match(r'\[oplocu,(\w+)_altar\]', line)
+    if m: altar = m.group(1)
+    if '~runecraft_combo_rune(' in line:
+        arg = line.rstrip(');').rsplit(',', 1)[-1].strip()
+        if arg != altar + 'rune': wrong.append((altar, arg))
+check(not wrong, 'every combination-rune call passes the rune of the altar it stands at: %s'
+      % (wrong or 'all twelve'))
+
+unlock = trigger(VAR, 'proc,rift_unlock')
+check('setbit(%rift_unlocked, 0)' in (unlock or ''),
+      'bit 0 of %rift_unlocked - the plain guardian - is always set, so the right-click has '
+      'somewhere to go back to')
+check('~pet_form_index(skillpet_rift_guardian_item, ~rift_form($rune))' in (unlock or ''),
+      '...and crafting at an altar sets that colour\'s own bit for good')
+allowed = trigger(META, 'proc,pet_form_allowed')
+check('if ($item ! skillpet_rift_guardian_item) {' in (allowed or '')
+      and 'return(true);' in (allowed or ''),
+      'only the rift guardian has to earn its colours; every other pet may wear all of its looks')
+check('testbit(%%rift_unlocked' % () in (allowed or ''),
+      '...and what it may wear is what %rift_unlocked says')
+lock = trigger(VAR, 'opnpc5,_bosspet')
+check(lock is not None and 'npc_param(pet_item_id) ! skillpet_rift_guardian_item' in lock,
+      'Locking is the guardian\'s alone, and says so rather than silently doing nothing')
+check('^pet_form_rift_locked_lo' in lock and 'setbit_range_toint' in lock,
+      '...and it toggles the one bit of %pet_form that is not a form number')
+roll = trigger(VAR, 'proc,rift_guardian_roll')
+check('^pet_form_rift_locked_lo' in (roll or ''),
+      'a locked guardian still unlocks the colour but is not repainted by the altar')
+locked_recs = [n for n in PETRECS if 'op5=Locking' in PETRECS[n]]
+check(sorted(locked_recs) == sorted(gring),
+      'op5=Locking is on all %d guardian records and on no other pet: %d records'
+      % (len(gring), len(locked_recs)))
 
 print('\nALL PASS' if not fails else '\n%d FAILED' % fails)
 sys.exit(1 if fails else 0)

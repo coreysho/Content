@@ -1,4 +1,4 @@
-[proc,runecraft_combo_rune](namedobj $required_rune, namedobj $required_talisman, namedobj $combined_rune, int $levelrequire, int $experience)
+[proc,runecraft_combo_rune](namedobj $required_rune, namedobj $required_talisman, namedobj $combined_rune, int $levelrequire, int $experience, namedobj $altar_rune)
 
 if (stat_base(runecraft) < $levelrequire) {
     mes("You need a Runecrafting level of <tostring($levelrequire)> to bind <oc_name($combined_rune)>.");
@@ -72,7 +72,9 @@ if (last_useitem = $required_talisman) {
 if ($runes_crafted > 0) {
     inv_add(inv, $combined_rune, $runes_crafted);
     ~runecraft_xp(calc($runes_crafted * $experience));
-    ~skillpet_roll_each(skillpet_rift_guardian_item, runecraft, ^skillpet_rift_guardian_base, $runes_crafted);
+    // $altar_rune, not $combined_rune: the rift guardian takes the colour of the ALTAR, and a
+    // mist rune can be bound at either the air altar or the water one.
+    ~rift_guardian_roll($altar_rune, $runes_crafted);
 }
 
 if ($runes_crafted = $runes_to_craft) {

@@ -30,6 +30,12 @@ FORMNPC = 'scripts/npc/configs/pet_forms.npc'
 FORMCONST = 'scripts/npc/configs/pet_forms.constant'
 META = 'scripts/npc/scripts/pet_metamorph.rs2'
 TALK = 'scripts/npc/scripts/pet_talk.rs2'
+VAR = 'scripts/npc/scripts/pet_variants.rs2'
+VARENUM = 'scripts/npc/configs/pet_variants.enum'
+RCRS2 = 'scripts/skill_runecraft/scripts/runecraft.rs2'
+RCTIARA = 'scripts/skill_runecraft/scripts/runecraft_tiaras.rs2'
+RCALTARS = 'scripts/skill_runecraft/scripts/runecraft_altars.rs2'
+OBJPACK = 'pack/obj.pack'
 MODELPACK = 'pack/model.pack'
 NPCPACK = 'pack/npc.pack'
 IFPACK = 'pack/interface.pack'
@@ -191,8 +197,8 @@ MUTS = [
  (PRS2, 'sound_synth(pick, 1, 0);', 'inv_del(inv, coins, 1);\nsound_synth(pick, 1, 0);',
   '6 nothing in the bureau names a currency - reclaiming is free'),
  # 7 - the metamorphosis rings
- (SPEC, '"pet_records": 39', '"pet_records": 38',
-  '7 there are 39 pet npc records, base forms and metamorphosis forms together'),
+ (SPEC, '"pet_records": 51', '"pet_records": 50',
+  '7 there are 51 pet npc records, base forms and metamorphosis forms together'),
  (FORMNPC, 'param=metamorph_next,skillpet_chinchompa\n',
            'param=metamorph_next,skillpet_chinchompa_red\n',
   '7 skillpet_chinchompa is a closed ring of 4 forms'),
@@ -220,7 +226,7 @@ MUTS = [
         '"bosspet_tzrek_jad": {\n      "forms": 2,\n      "items": 2,\n      "bits": [\n        8,\n        8\n      ]',
   '7 ...and they are exactly the rings whose forms share one item'),
  (META, '~follower_spawn($next);\n', '',
-  '7 the right-click spawns the next form through ~follower_spawn'),
+  '7 the right-click spawns the next ALLOWED form through ~follower_spawn'),
  (META, 'if (nc_param($next, pet_item_id) = $item) {\n    ~pet_form_set($item, ~pet_form_index($item, $next));\n}',
         '~pet_form_set($item, ~pet_form_index($item, $next));',
   '7 ...and only remembers a form when the item did not change'),
@@ -246,6 +252,67 @@ MUTS = [
   '8 and the pet goes back to following afterwards'),
  (TALK, '[proc,pettalk_default]', '[proc,pettalk_default]\nnpc_setmode(playerfollow);',
   "8 follow mode is set in the slot's own file and, for the cats' vermin hunt, the cat quest"),
+ # 9 - the looks that are not a right-click
+ (VARENUM, 'val=blurite_ore,skillpet_rock_golem_blurite\n', '',
+  '9 the golem answers to 11 ores and a plain rock, and nothing else'),
+ (OBJPACK, '=blurite_ore\n', '=blurite_ore_renamed\n',
+  '9 ...every one of which is a real item in this build'),
+ (VARENUM, 'val=rock,skillpet_rock_golem\n', 'val=rock,skillpet_rock_golem_clay\n',
+  "9 ...and a plain rock is what puts it back, which is Old School's own way round"),
+ (VARENUM, 'val=clay,skillpet_rock_golem_clay', 'val=clay,skillpet_heron',
+  "9 ...and every look it names belongs to skillpet_rock_golem's own ring"),
+ (VARENUM, 'val=guam_seed,skillpet_tangleroot_herb',
+           'val=guam_seed,skillpet_tangleroot_herb\nval=redwood_logs,skillpet_tangleroot_herb',
+  '9 the tangleroot answers to acorn and guam_seed and nothing else'),
+ (VARENUM, 'val=acorn,skillpet_tangleroot\n', 'val=acorn,skillpet_tangleroot_herb\n',
+  '9 ...and an acorn is what puts it back'),
+ (VARENUM, 'val=lawrune,skillpet_rift_guardian_f4', 'val=lawrune,skillpet_rift_guardian_f10',
+  '9 ...no two altars painting the same colour'),
+ (VARENUM, 'val=deathrune,skillpet_rift_guardian_f11\n', '',
+  '9 ...and the guardian has a colour for every one of them and for nothing else'),
+ (VARENUM, 'val=airrune,skillpet_rift_guardian_f2', 'val=airrune,skillpet_rift_guardian',
+  '9 ...while the plain one belongs to the tiara'),
+ (VAR, 'inv_del(inv, $seed, 1);\n', '',
+  '9 ...and the seed IS consumed'),
+ (VAR, 'def_npc $form = enum(obj, npc, golem_ore_form, $ore);',
+       'def_npc $form = enum(obj, npc, golem_ore_form, $ore);\ninv_del(inv, $ore, 1);',
+  '9 the ore is not consumed - it is a sample, not a sacrifice'),
+ (VAR, '[opheldu,_bosspet]\n~pet_use_item(last_item, last_useitem, false);\n', '',
+  '9 an item can be used on a pet standing in front of you or sitting in your pack'),
+ (VAR, 'if ($out = true & npc_finduid(%follower_uid) = true) {',
+       'if (npc_finduid(%follower_uid) = true) {',
+  '9 ...and only respawned when there is something standing there to respawn'),
+ (VAR, '%rift_unlocked = setbit(%rift_unlocked, 0);\n', '',
+  '9 bit 0 of %rift_unlocked - the plain guardian - is always set'),
+ (VAR, '%rift_unlocked = setbit(%rift_unlocked,\n    ~pet_form_index(skillpet_rift_guardian_item, ~rift_form($rune)));',
+       '%rift_unlocked = setbit(%rift_unlocked, 1);',
+  "9 ...and crafting at an altar sets that colour's own bit for good"),
+ (VAR, '    if (getbit_range(%pet_form, ^pet_form_rift_locked_lo, ^pet_form_rift_locked_hi) = 0) {\n        // Out and following',
+       '    if (1 = 1) {\n        // Out and following',
+  '9 a locked guardian still unlocks the colour but is not repainted by the altar'),
+ (VAR, 'if (npc_param(pet_item_id) ! skillpet_rift_guardian_item) {\n    ~displaymessage(^dm_default);\n    return;\n}\n', '',
+  "9 Locking is the guardian's alone, and says so rather than silently doing nothing"),
+ (RCALTARS, '~runecraft_combo_rune(waterrune, water_talisman, mistrune, 6, 80, airrune);',
+            '~runecraft_combo_rune(waterrune, water_talisman, mistrune, 6, 80, waterrune);',
+  '9 every combination-rune call passes the rune of the altar it stands at'),
+ (RCTIARA, '~rift_guardian_roll(null, 1);', '~rift_guardian_roll(airrune, 1);',
+  '9 ...and the tiara passes null, so a tiara gives the plain guardian'),
+ (RCRS2, '~rift_guardian_roll($rune, $total_ess);',
+         '~skillpet_roll_each(skillpet_rift_guardian_item, runecraft, ^skillpet_rift_guardian_base, $total_ess);',
+  '9 runecraft.rs2 rolls the guardian through the wrapper that knows the rune'),
+ (META, 'if ($item ! skillpet_rift_guardian_item) {\n    return(true);\n}\n', '',
+  '9 only the rift guardian has to earn its colours'),
+ (FORMNPC, 'op4=Metamorphosis\nop5=Locking\ncategory=bosspet\nparam=pet_item_id,skillpet_rift_guardian_item\nparam=metamorph_next,skillpet_rift_guardian_f3',
+           'op4=Metamorphosis\ncategory=bosspet\nparam=pet_item_id,skillpet_rift_guardian_item\nparam=metamorph_next,skillpet_rift_guardian_f3',
+  '9 op5=Locking is on all 15 guardian records and on no other pet'),
+ (FORMNPC, 'op3=Talk-to\ncategory=bosspet\nparam=pet_item_id,skillpet_rock_golem_item\nparam=metamorph_next,skillpet_rock_golem_copper',
+           'op3=Talk-to\nop4=Metamorphosis\ncategory=bosspet\nparam=pet_item_id,skillpet_rock_golem_item\nparam=metamorph_next,skillpet_rock_golem_copper',
+  '9 ...and not one form in it has the right-click, because nothing cycles this pet'),
+ (SPEC, '"skillpet_rock_golem": {\n      "forms": 12,\n      "items": 1,\n      "bits": [\n        8,\n        11',
+        '"skillpet_rock_golem": {\n      "forms": 12,\n      "items": 1,\n      "bits": [\n        8,\n        9',
+  '9 skillpet_rock_golem has enough of %pet_form to hold its 12 forms'),
+ (META, '~pet_form_nextallowed($item, npc_type)', 'npc_param(metamorph_next)',
+  '7 the right-click spawns the next ALLOWED form through ~follower_spawn'),
 ]
 
 

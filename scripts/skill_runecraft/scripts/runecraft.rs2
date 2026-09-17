@@ -123,7 +123,10 @@ $total_ess = calc($craft_count / $rune_count_per_ess);
 
 inv_del(inv, $blankrune_type, $total_ess);
 ~runecraft_xp(calc($total_ess * db_getfield($data, runecraft_table:experience, 0)));
-~skillpet_roll_each(skillpet_rift_guardian_item, runecraft, ^skillpet_rift_guardian_base, $total_ess);
+// Through ~rift_guardian_roll (npc/scripts/pet_variants.rs2) rather than straight at the roll:
+// the guardian arrives in the colour of the rune you were binding, and binding it at all
+// unlocks that colour for one you already own.
+~rift_guardian_roll($rune, $total_ess);
 // later revs they just use oc_name($rune), i think after 2007 or so
 mes("You bind the temple's power into <db_getfield($data, runecraft_table:name, 0)> Runes.");
 inv_add(inv, $rune, calc($total_ess * $rune_count_per_ess));
