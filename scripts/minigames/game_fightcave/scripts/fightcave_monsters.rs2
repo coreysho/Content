@@ -1,0 +1,269 @@
+// What the eight Fight Cave monsters do. Their combat records are in scripts/_unpack/377/all.npc
+// (OSRS stats, 377 animations); this is the behaviour on top of the default combat.
+//
+// Every one of them ends the same way: gosub(npc_death) and then ~fightcave_died, which is what
+// advances the wave once the last of them is gone.
+
+// ---------------------------------------------------------------------------------------------
+// Tz-Kih (tier 1) - melee, and it drains prayer
+// ---------------------------------------------------------------------------------------------
+// The drain is param-driven in ~playerhit_n_melee rather than scripted here, because that proc is
+// the only place that knows whether a hit LANDED. Damis in Desert Treasure drains there too, but
+// half the damage rather than a flat point, so the two stay separate mechanics.
+[ai_queue1,tzhaar_fightcave_swarm_1a] ~npc_default_retaliate_ap;
+[ai_queue3,tzhaar_fightcave_swarm_1a] @fightcave_monster_death;
+
+[queue,fightcave_prayer_drain](int $amount)
+if (stat(prayer) = 0) {
+    return;
+}
+stat_sub(prayer, $amount, 0);
+if (stat(prayer) = 0) {
+    mes("Your prayer has been drained.");
+}
+
+// ---------------------------------------------------------------------------------------------
+// Tz-Kek (tier 2) - melee, and it splits
+// ---------------------------------------------------------------------------------------------
+// Two smaller ones on death, which is why tzhaar_fightcave_swarm_2spawn exists in the cache with
+// its own resizeh/resizev of 80. They count towards the wave like anything else, so the wave does
+// not advance until both halves are dead - which is the whole point of the mechanic.
+[ai_queue1,tzhaar_fightcave_swarm_2a] ~npc_default_retaliate_ap;
+[ai_queue3,tzhaar_fightcave_swarm_2a]
+def_coord $home = npc_coord;
+gosub(npc_death);
+// npc_add makes each new spawn the active npc, so the splits come after npc_death and nothing
+// below may touch the parent again.
+npc_add(map_findsquare($home, 1, 2, ^map_findsquare_lineofwalk), tzhaar_fightcave_swarm_2spawn, ^fightcave_npc_life);
+npc_setmode(opplayer2);
+npc_add(map_findsquare($home, 1, 2, ^map_findsquare_lineofwalk), tzhaar_fightcave_swarm_2spawn, ^fightcave_npc_life);
+npc_setmode(opplayer2);
+
+[ai_queue1,tzhaar_fightcave_swarm_2spawn] ~npc_default_retaliate_ap;
+[ai_queue3,tzhaar_fightcave_swarm_2spawn] @fightcave_monster_death;
+
+// ---------------------------------------------------------------------------------------------
+// Tok-Xil (tier 3) - spines at range, a punch up close
+// ---------------------------------------------------------------------------------------------
+[ai_queue1,tzhaar_fightcave_swarm_3a] ~npc_default_retaliate_ap;
+[ai_applayer2,tzhaar_fightcave_swarm_3a] ~tokxil_attack;
+[ai_opplayer2,tzhaar_fightcave_swarm_3a] ~tokxil_attack;
+[ai_queue3,tzhaar_fightcave_swarm_3a] @fightcave_monster_death;
+
+[proc,tokxil_attack]
+if (~fightcave_adjacent(3) = true) {
+    ~fightcave_melee(npc_param(crushattack_anim));
+    return;
+}
+~npc_rangeattack;
+
+// ---------------------------------------------------------------------------------------------
+// Yt-MejKot (tier 4) - melee, and it heals its own side when hurt
+// ---------------------------------------------------------------------------------------------
+// OSRS gives it a healing aura once it is wounded. Healing ANOTHER npc is the awkward part: there
+// is no .npc_statheal, so it cannot be done through the secondary pointer, and making each target
+// the active npc would throw away the MejKot's own. .npc_queue is the way through - the heal runs
+// on the target itself, as its own queued script.
+[ai_queue1,tzhaar_fightcave_swarm_4a] ~npc_default_retaliate_ap;
+[ai_applayer2,tzhaar_fightcave_swarm_4a] ~mejkot_attack;
+[ai_opplayer2,tzhaar_fightcave_swarm_4a] ~mejkot_attack;
+[ai_queue3,tzhaar_fightcave_swarm_4a] @fightcave_monster_death;
+
+[proc,mejkot_attack]
+~fightcave_melee(npc_param(attack_anim));
+// Last, because the heal walks the secondary npc pointer: nothing below may need this npc.
+if (multiply(npc_stat(hitpoints), 2) <= npc_basestat(hitpoints)) {
+    ~fightcave_heal_others;
+}
+
+[proc,fightcave_heal_others]
+npc_anim(lizard_cleric_heal, 0);
+.npc_findallany(npc_coord, 10, ^vis_off);
+while (.npc_findnext = true) {
+    if (.npc_type = tzhaar_fightcave_swarm_4a | .npc_type = tzhaar_fightcave_swarm_5a
+        | .npc_type = tzhaar_fightcave_swarm_3a | .npc_type = tzhaar_fightcave_swarm_2a) {
+        spotanim_map(tzhaar_heal, .npc_coord, 92, 0);
+        .npc_queue(9, ^fightcave_heal_amount, 0);
+    }
+}
+
+// The far end of that: a monster healing itself because something told it to. One hook per type,
+// because an ai_queue is declared per npc.
+[ai_queue9,tzhaar_fightcave_swarm_2a] ~fightcave_be_healed;
+[ai_queue9,tzhaar_fightcave_swarm_3a] ~fightcave_be_healed;
+[ai_queue9,tzhaar_fightcave_swarm_4a] ~fightcave_be_healed;
+[ai_queue9,tzhaar_fightcave_swarm_5a] ~fightcave_be_healed;
+[ai_queue9,tzhaar_fightcave_swarm_boss] ~fightcave_be_healed;
+
+[proc,fightcave_be_healed]
+npc_statheal(hitpoints, ^fightcave_heal_amount, 0);
+
+// ---------------------------------------------------------------------------------------------
+// Ket-Zek (tier 5) - a fireball at range, melee up close
+// ---------------------------------------------------------------------------------------------
+// The fireball goes through the raw ~npc_magic_attack_roll primitives rather than the spell table,
+// the way the Dagannoth Kings' and the King Black Dragon's breath do: it is not a player-castable
+// spell and there is no dbrow for it.
+[ai_queue1,tzhaar_fightcave_swarm_5a] ~npc_default_retaliate_ap;
+[ai_applayer2,tzhaar_fightcave_swarm_5a] ~ketzek_attack;
+[ai_opplayer2,tzhaar_fightcave_swarm_5a] ~ketzek_attack;
+[ai_queue3,tzhaar_fightcave_swarm_5a] @fightcave_monster_death;
+
+[proc,ketzek_attack]
+if (~fightcave_adjacent(5) = true) {
+    ~fightcave_melee(npc_param(crushattack_anim));
+    return;
+}
+~fightcave_magic(npc_param(magicattack_anim), npc_param(proj_travel));
+
+// ---------------------------------------------------------------------------------------------
+// TzTok-Jad - three styles, and four healers at 150
+// ---------------------------------------------------------------------------------------------
+// The three attack animations were assigned by rendering them on his own mesh, not by their names:
+// lordmagmus_smash rears up and slams with a splash on the GROUND beneath him, which is the ranged
+// burst; lordmagmus_fire is a 31-frame breath held far forward, which is the magic one; and
+// lordmagmus_attack is a plain crouching bite, which is melee.
+//
+// Which style he uses is chosen fresh each attack and ANNOUNCED ONLY BY THE ANIMATION - that is the
+// fight. Melee only when you are next to him, so a player standing away is choosing between two.
+[ai_queue1,tzhaar_fightcave_swarm_boss] ~npc_default_retaliate_ap;
+[ai_applayer2,tzhaar_fightcave_swarm_boss] ~jad_attack;
+[ai_opplayer2,tzhaar_fightcave_swarm_boss] ~jad_attack;
+[ai_queue3,tzhaar_fightcave_swarm_boss] @fightcave_monster_death;
+
+[proc,jad_attack]
+// The healers come first: at 150 he calls them once, and they are what the rest of the fight is
+// about. %fightcave_jad_called is why 150 does not call four more on every tick.
+if (%fightcave_jad_called = 0 & npc_stat(hitpoints) <= ^fightcave_jad_heal_hp) {
+    %fightcave_jad_called = 1;
+    ~jad_call_healers;
+    return;
+}
+if (~fightcave_adjacent(5) = true & random(3) = 0) {
+    ~fightcave_melee(npc_param(crushattack_anim));
+    return;
+}
+if (random(2) = 0) {
+    ~fightcave_magic(npc_param(magicattack_anim), npc_param(proj_travel));
+    return;
+}
+~npc_rangeattack;
+
+[proc,jad_call_healers]
+npc_say("TzTok-Jad screeches!");
+def_coord $home = npc_coord;
+def_int $i = 0;
+// Last thing this proc does, and nothing after it: npc_add moves the active npc to each healer.
+while ($i < ^fightcave_jad_healers) {
+    npc_add(map_findsquare($home, 2, 3, ^map_findsquare_lineofwalk), tzhaar_fightcave_swarm_boss_cleric, ^fightcave_npc_life);
+    npc_setmode(opplayer2);
+    $i = calc($i + 1);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Yt-HurKot - it heals Jad, and it is the only thing that does
+// ---------------------------------------------------------------------------------------------
+// A healer that is being hit stops healing and fights back, which is what makes killing them the
+// answer rather than ignoring them.
+[ai_queue1,tzhaar_fightcave_swarm_boss_cleric] ~npc_default_retaliate_ap;
+[ai_applayer2,tzhaar_fightcave_swarm_boss_cleric] ~hurkot_attack;
+[ai_opplayer2,tzhaar_fightcave_swarm_boss_cleric] ~hurkot_attack;
+[ai_queue3,tzhaar_fightcave_swarm_boss_cleric] @fightcave_monster_death;
+
+[proc,hurkot_attack]
+if (~fightcave_adjacent(1) = true) {
+    ~fightcave_melee(npc_param(attack_anim));
+    return;
+}
+// Out of reach of the player, so it does what it is for. Last in the proc for the usual reason.
+~hurkot_heal_jad;
+
+[proc,hurkot_heal_jad]
+npc_anim(lizard_cleric_heal, 0);
+%npc_action_delay = add(map_clock, npc_param(attackrate));
+.npc_findallany(npc_coord, 20, ^vis_off);
+while (.npc_findnext = true) {
+    if (.npc_type = tzhaar_fightcave_swarm_boss) {
+        spotanim_map(tzhaar_heal, .npc_coord, 92, 0);
+        .npc_queue(9, ^fightcave_heal_amount, 0);
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The shared pieces
+// ---------------------------------------------------------------------------------------------
+
+// Every cave monster's death. The order matters: npc_death first, because that is what credits the
+// kill and clears the npc, and only then may the wave be asked whether it is over.
+[label,fightcave_monster_death]
+gosub(npc_death);
+// npc_findhero hands this script an active player, but an UNPROTECTED one, and everything the wave
+// does next - writing %fightcave_wave, the message, the next spawn - needs the protected pointer.
+// A queued player script is where that exists, and it is the same shape the slayer task credit
+// uses from this very spot (~check_progress_task in slayer_task.rs2).
+if (npc_findhero = ^false) {
+    return;
+}
+queue*(fightcave_died, 0)(npc_uid);
+
+// The player within one tile of an npc of this size. npc_coord is its south-west corner, so a
+// five-tile Jad is "adjacent" anywhere from -1 to 5 on both axes.
+[proc,fightcave_adjacent](int $size)(boolean)
+def_int $dx = sub(coordx(coord), coordx(npc_coord));
+def_int $dz = sub(coordz(coord), coordz(npc_coord));
+if ($dx >= -1 & $dx <= $size & $dz >= -1 & $dz <= $size) {
+    return(true);
+}
+return(false);
+
+// A melee swing with a named animation - the standard rolls, just not the standard animation,
+// because three of these monsters have a separate animation for hitting you up close.
+[proc,fightcave_melee](seq $anim)
+if (%npc_action_delay > map_clock) {
+    npc_setmode(applayer2);
+    return;
+}
+if (~npc_check_notcombat = false) {
+    npc_setmode(null);
+    return;
+}
+if (~npc_check_notcombat_self = false) {
+    return;
+}
+npc_anim($anim, 0);
+~npc_meleeattack;
+
+// A magic attack with a projectile and no spell behind it.
+[proc,fightcave_magic](seq $anim, spotanim $proj)
+if (%npc_action_delay > map_clock) {
+    npc_setmode(applayer2);
+    return;
+}
+if (~npc_check_notcombat = false) {
+    npc_setmode(null);
+    return;
+}
+if (~npc_check_notcombat_self = false) {
+    return;
+}
+if_close;
+npc_anim($anim, 0);
+%npc_action_delay = add(map_clock, npc_param(attackrate));
+def_int $duration = ~player_projectile(npc_coord, coord, uid, $proj, 40, 36, 32, 15, 0, 11, 5);
+def_int $damage = 0;
+def_int $attack_roll = ~npc_magic_attack_roll;
+def_int $defence_roll = ~player_defence_roll_specific(^magic_style);
+if (randominc($attack_roll) > randominc($defence_roll)) {
+    $damage = randominc(~npc_magic_maxhit_fightcave);
+}
+queue(combat_damage_player, calc($duration / 30), $damage);
+queue*(playerhit_n_retaliate, calc($duration / 30))(npc_uid);
+~npc_set_attack_vars;
+
+// No cache anywhere carries a max hit, and no bonus param is set on these monsters for the same
+// reason strengthbonus is left unset everywhere else in this fork: a remembered wiki number is not
+// evidence. So the magic hit is derived from the npc's own magic level the way the melee maxhit is
+// derived from strength - (level + 9) * 64 + 320, all over 640 - which is the engine's own shape
+// with a bonus of zero.
+[proc,npc_magic_maxhit_fightcave]()(int)
+return(divide(add(multiply(add(npc_stat(magic), 9), 64), 320), 640));

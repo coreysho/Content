@@ -1,0 +1,91 @@
+// THE TZHAAR FIGHT CAVE.
+//
+// Every monster, every animation, the arena and the rewards were already in the 377 cache and had
+// no content at all - fourteen npc records with art and nothing else, a 2227-tile arena nobody
+// could enter, and a Fire cape with no source. This is the content.
+//
+// WHAT CAME FROM WHERE, because the wave table is the part worth being careful about:
+//   the wave composition  five tier thresholds and greedy subtraction (below), spot-checked
+//                         against thirteen cells of the OSRS wiki's own table - see
+//                         tools/fightcavespec.json, which records both
+//   the combat numbers    the OSRS cache's own six-value stats arrays, npcs 3116-3128
+//   the spawn cycle       the wiki's rule, over five points measured off this arena's geometry
+//   the animations        377's own, complete down to Ket-Zek's fireball and the healers' beam
+
+// ---------------------------------------------------------------------------------------------
+// The waves
+// ---------------------------------------------------------------------------------------------
+// 63 waves. Waves 1-62 are composed by SUBTRACTION, not by a table: take the highest tier whose
+// threshold is at most what is left of the wave number, spawn that monster, subtract, repeat. The
+// thresholds are 2^k - 1, which is what makes the boundaries fall where OSRS's table has them -
+// Tok-Xil first heads a wave at 7, Yt-MejKot at 15, Ket-Zek at 31, and 62 is two Ket-Zek.
+//
+// It is stated as an algorithm because a 63-row table written out by hand is 63 chances to be
+// wrong, and because the algorithm is checkable: tools/fightcave_battery.py generates all 62 and
+// compares them against the thirteen wiki cells in the spec.
+^fightcave_waves = 63
+^fightcave_jad_wave = 63
+^fightcave_tiers = 5
+^fightcave_tier_ketzek = 31
+^fightcave_tier_mejkot = 15
+^fightcave_tier_tokxil = 7
+^fightcave_tier_tzkek = 3
+^fightcave_tier_tzkih = 1
+
+// ---------------------------------------------------------------------------------------------
+// The arena
+// ---------------------------------------------------------------------------------------------
+// m37_79 is the cave, all 64x64 of it, and it is copied whole into an instance: 8x8 zones, so the
+// fight is one player's own. ^fightcave_zones is that 8, and the loop in fightcave.rs2 is what
+// turns it into 64 instance_setzone calls.
+^fightcave_template = 0_37_79_0_0
+^fightcave_zones = 8
+
+// Where the player lands - one tile inside the cave's own exit loc, which is at (44,62). Both
+// tiles are reachable; the flood fill that picked the spawn points below started here.
+^fightcave_entry = 0_37_79_44_61
+
+// And where leaving puts you back: beside TzHaar-Mej-Jal, who stands at 0_38_80_6_49.
+^fightcave_outside = 0_38_80_5_47
+
+// THE FIVE SPAWN POINTS, measured rather than remembered. Every one of these is the furthest tile
+// in its direction that has a 5x5 clear and REACHABLE block around it, because Ket-Zek and TzTok-Jad
+// are five tiles wide and a spawn where they do not fit is a monster standing in a wall. 1664 of the
+// arena's 2227 walkable tiles qualify; these five are the extremes of that set, and the closest two
+// are 21 tiles apart.
+^fightcave_spawn_se = 0_37_79_52_19
+^fightcave_spawn_sw = 0_37_79_3_6
+^fightcave_spawn_c = 0_37_79_26_31
+^fightcave_spawn_nw = 0_37_79_4_56
+^fightcave_spawn_s = 0_37_79_26_10
+
+// The cycle the wiki gives: "SE, SW, C, NW, SW, SE, S, NW, C, SE, SW, S, NW, C, S", repeating, with
+// the highest-level monster of a wave taking the next point in the cycle and the rest following on.
+// Fifteen entries over five points, held in fightcave.enum.
+^fightcave_cycle = 15
+
+// ---------------------------------------------------------------------------------------------
+// TzTok-Jad
+// ---------------------------------------------------------------------------------------------
+// 250 hitpoints, from the cache. The four healers come at 150, which is the wiki's figure and sits
+// below that 250 - the two agreeing is part of why the stats array's order is read the way it is.
+// How long a spawned cave monster lives if nothing kills it. NOT ZERO: the engine's DurationValid
+// rejects anything below 1, so npc_add(coord, type, 0) throws at RUNTIME and compiles perfectly -
+// every wave in the cave would have errored the moment it spawned. Five hours is past any single
+// run, so in practice they live until they die or the instance is deleted with them; the number
+// exists so that a leaked instance eventually empties itself rather than holding npcs forever.
+^fightcave_npc_life = 30000
+
+^fightcave_jad_healers = 4
+^fightcave_jad_heal_hp = 150
+// A healer restores this much per heal, and heals on its own attack rate.
+^fightcave_heal_amount = 10
+
+// ---------------------------------------------------------------------------------------------
+// Tokkul and the cape
+// ---------------------------------------------------------------------------------------------
+// The wiki's formula for finishing at wave N is N * (N + 1), and killing Jad adds 4,000 flat. A
+// full run is 63 * 64 + 4000 = 8,032, which is the figure the wiki quotes for a completed cave -
+// two independent statements of the same number, which is the only reason to trust either.
+^fightcave_tokkul_jad = 4000
+^fightcave_full_run_tokkul = 8032

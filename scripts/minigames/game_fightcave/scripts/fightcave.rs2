@@ -1,0 +1,214 @@
+// The TzHaar Fight Cave - the entrance, the instance and the wave engine.
+//
+// See fightcave.constant for where every number came from. The short version: the monsters, the
+// animations, the arena and the Fire cape were all already in the 377 cache with no content at all,
+// the combat stats are the OSRS cache's own, and the wave composition is an algorithm spot-checked
+// against thirteen cells of the wiki's table rather than a hand-typed list of 63 rows.
+
+// ---------------------------------------------------------------------------------------------
+// Getting in
+// ---------------------------------------------------------------------------------------------
+// Two locs, both called "Cave entrance" and both op1=Enter, and neither had a handler: loc_9356 in
+// the TzHaar city beside Mej-Jal, and loc_9357 inside the arena, which is the way out.
+
+[oploc1,loc_9356] @fightcave_enter;
+[oploc1,loc_9357] @fightcave_leave;
+
+[label,fightcave_enter]
+if (p_finduid(uid) = false) {
+    return;
+}
+if (%fightcave_instance ! null) {
+    // Already inside somehow - put them back rather than building a second cave.
+    p_teleport(~fightcave_at(^fightcave_entry));
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("You need at least one free inventory space to enter the cave.");
+    return;
+}
+mes("You enter the TzHaar Fight Cave...");
+p_delay(1);
+if (~fightcave_build = false) {
+    mes("The cave is full. Try again shortly.");
+    return;
+}
+%fightcave_wave = 1;
+%fightcave_cycle_at = 0;
+p_teleport(~fightcave_at(^fightcave_entry));
+~fightcave_spawn_wave(1);
+mes("<col=ff0000>Wave 1</col>");
+
+[label,fightcave_leave]
+if (p_finduid(uid) = false) {
+    return;
+}
+mes("You leave the cave.");
+p_delay(1);
+~fightcave_end(sub(%fightcave_wave, 1));
+
+// ---------------------------------------------------------------------------------------------
+// The instance
+// ---------------------------------------------------------------------------------------------
+// The whole 64x64 square, copied zone by zone: 8x8 of them. The POH lays one room at a time
+// because build mode changes one room at a time; here there is nothing to change, so it is one
+// loop and the cave is whole or it is not built at all.
+
+[proc,fightcave_build]()(boolean)
+def_coord $base = instance_create;
+if ($base = null) {
+    return(false);
+}
+def_int $zz = 0;
+while ($zz < ^fightcave_zones) {
+    def_int $zx = 0;
+    while ($zx < ^fightcave_zones) {
+        def_coord $dst = movecoord($base, calc($zx * 8), 0, calc($zz * 8));
+        def_coord $src = movecoord(^fightcave_template, calc($zx * 8), 0, calc($zz * 8));
+        if (instance_setzone($dst, $src, 0) = false) {
+            // A half-built cave is worse than none: the player would land in a hole in the floor.
+            instance_delete($base);
+            return(false);
+        }
+        $zx = calc($zx + 1);
+    }
+    $zz = calc($zz + 1);
+}
+%fightcave_instance = $base;
+return(true);
+
+// A template coordinate translated into this player's instance. Everything below addresses the
+// cave through this, so no coordinate in the arena is ever used raw.
+[proc,fightcave_at](coord $tpl)(coord)
+if (%fightcave_instance = null) {
+    return($tpl);
+}
+def_int $dx = sub(coordx($tpl), coordx(^fightcave_template));
+def_int $dz = sub(coordz($tpl), coordz(^fightcave_template));
+return(movecoord(%fightcave_instance, $dx, 0, $dz));
+
+// ---------------------------------------------------------------------------------------------
+// The waves
+// ---------------------------------------------------------------------------------------------
+// Composition by subtraction, highest tier first - see fightcave.constant. The spawn cycle turns
+// with every monster placed, not with every wave, which is what makes it a rotation.
+
+[proc,fightcave_spawn_wave](int $wave)
+if ($wave >= ^fightcave_jad_wave) {
+    ~fightcave_place(tzhaar_fightcave_swarm_boss);
+    return;
+}
+def_int $left = $wave;
+while ($left > 0) {
+    def_int $tier = ^fightcave_tiers;
+    while ($tier > 0 & enum(int, int, fightcave_tier_threshold, $tier) > $left) {
+        $tier = sub($tier, 1);
+    }
+    if ($tier <= 0) {
+        // Cannot happen while tier 1's threshold is 1, and is a silent infinite loop if it ever can.
+        return;
+    }
+    $left = sub($left, enum(int, int, fightcave_tier_threshold, $tier));
+    ~fightcave_place(enum(int, npc, fightcave_tier_npc, $tier));
+}
+
+// One monster, at the next point in the cycle.
+[proc,fightcave_place](npc $type)
+def_int $slot = enum(int, int, fightcave_cycle_spawn, %fightcave_cycle_at);
+%fightcave_cycle_at = modulo(add(%fightcave_cycle_at, 1), ^fightcave_cycle);
+def_coord $at = ~fightcave_at(enum(int, coord, fightcave_spawn, $slot));
+npc_add($at, $type, ^fightcave_npc_life);
+npc_setmode(opplayer2);
+
+// How many cave monsters are still alive in this player's instance. Counted rather than tracked in
+// a varp: a counter drifts the moment anything despawns, and the whole wave hinges on this number
+// reaching zero. ^fightcave_tier is null on everything that is not one of them.
+[proc,fightcave_alive]()(int)
+if (%fightcave_instance = null) {
+    return(0);
+}
+def_int $count = 0;
+npc_findallany(~fightcave_at(^fightcave_spawn_c), 64, ^vis_off);
+while (npc_findnext = true) {
+    // BOTH tests, and the second is not belt-and-braces: instance slots are 128 tiles apart and
+    // this radius is 64 from a point 26 tiles into one, so it reaches into the slot next door.
+    // Without the instance test another player's cave would hold this player's wave open.
+    if (npc_param(fightcave_tier) ! null & instance_find(npc_coord) = %fightcave_instance) {
+        $count = add($count, 1);
+    }
+}
+return($count);
+
+// Queued from every cave monster's death (fightcave_monsters.rs2), after npc_death has run. The
+// npc_uid argument is not used - it is what queue* carries, and the shape the rest of this repo
+// queues npc-to-player work in.
+[queue,fightcave_died](npc_uid $npc)
+if (%fightcave_instance = null) {
+    return;
+}
+if (~fightcave_alive > 0) {
+    return;
+}
+if (%fightcave_wave >= ^fightcave_jad_wave) {
+    ~fightcave_finish;
+    return;
+}
+%fightcave_wave = add(%fightcave_wave, 1);
+~fightcave_spawn_wave(%fightcave_wave);
+mes("<col=ff0000>Wave <tostring(%fightcave_wave)></col>");
+
+// ---------------------------------------------------------------------------------------------
+// Getting out, one way or the other
+// ---------------------------------------------------------------------------------------------
+// Leaving, dying and finishing all land here, because all three have to do the same two things:
+// pay for the waves that were survived and free the instance. An instance left behind is a slot
+// nobody can use until the server restarts, and there are only 1024 of them.
+
+// $completed is waves SURVIVED, which is not the wave you are standing in: leaving or dying on
+// wave N means N-1 completed, and killing Jad means all 63. Passing it in rather than deriving it
+// here is what makes the full run pay 63 * 64 + 4000 = 8032 instead of 62 * 63 + 4000.
+[proc,fightcave_end](int $completed)
+if (%fightcave_instance = null) {
+    return;
+}
+~fightcave_pay($completed);
+def_coord $inst = %fightcave_instance;
+%fightcave_instance = null;
+%fightcave_wave = 0;
+%fightcave_cycle_at = 0;
+p_teleport(^fightcave_outside);
+// The player is out before the instance goes: anyone still inside is standing on unallocated
+// collision, which blocks every step they try to take.
+instance_delete($inst);
+
+[proc,fightcave_finish]
+mes("<col=ff0000>You have defeated TzTok-Jad!</col>");
+~fightcave_reward;
+~fightcave_end(^fightcave_waves);
+
+// Dying. The cave is SAFE - you keep everything and you keep the Tokkul for the waves you did -
+// so this runs instead of the ordinary death, not after it. The guard is at the top of
+// [queue,player_death_default] in player/scripts/death.rs2, beside Castle Wars' own.
+[label,fightcave_death]
+~player_death;
+midi_jingle(death2);
+mes("Oh dear you are dead!");
+mes("The TzHaar drag you out of the cave.");
+~combat_clearqueue;
+clearqueue(player_death_default);
+~prayer_deactivate_all;
+~fightcave_end(sub(%fightcave_wave, 1));
+~stat_reset_all;
+healenergy(10000);
+~clear_poison;
+anim(null, 0);
+p_stopaction;
+
+[proc,in_fightcave](coord $coord)(boolean)
+if (%fightcave_instance = null) {
+    return(false);
+}
+if (instance_find($coord) = %fightcave_instance) {
+    return(true);
+}
+return(false);

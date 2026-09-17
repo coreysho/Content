@@ -59710,6 +59710,29 @@ readyanim=human_ready
 op1=Talk-to
 head1=idk_man_hair_dreadlocks_head
 
+// ---------------------------------------------------------------------------------------------
+// THE TZHAAR FIGHT CAVE MONSTERS got their combat records here (2026-09-16). The cache carried the
+// art and NOTHING else - fourteen records with models, a ready and a walk, a level and a size, and
+// not one combat stat, attack animation or damage type between them.
+//
+// Every number below is the OSRS cache's own six-value stats array, npcs 3116-3128, read in the
+// order this repo's importers use: attack, defence, strength, hitpoints, ranged, magic. Two things
+// confirm that order rather than assuming it - TzTok-Jad's fourth value is 250, which is his
+// hitpoints, and the wiki independently says his healers come at 150, which only makes sense below
+// 250; and every size in those records matches the size the 377 art records already carried.
+//
+// The animations are 377's own and were already complete, down to Tok-Xil's separate punch and
+// spine attacks, Ket-Zek's fireball with its own launch and impact spotanims, and the lizard
+// cleric's heal - which is what the Yt-MejKot's aura and the Yt-HurKot's healing of Jad are made of.
+//
+// attackrate is left unset (the engine default of 4) for everything: OSRS's attack speeds are not
+// in any cache here and a remembered number is not evidence. attackrange IS set for the two that
+// fight at distance and for Jad, at 8, which is what this build's other ranged npcs use.
+//
+// The b duplicates (_1b, _2b, _3b, _4b, _5b) are left exactly as the cache left them. OSRS carries
+// two ids per tier so two can be on screen at once; the wave builder uses the a records only, and
+// tools/fightcave_battery.py holds that line so a half-configured duplicate cannot appear.
+// ---------------------------------------------------------------------------------------------
 [tzhaar_fightcave_swarm_1a]
 name=Tz-Kih
 desc=Some kind of bat...
@@ -59720,6 +59743,22 @@ readyanim=firebat_ready
 ambient=60
 contrast=60
 vislevel=22
+attack=20
+defence=15
+strength=30
+hitpoints=10
+ranged=30
+magic=15
+maxrange=64
+huntrange=10
+huntmode=cowardly
+param=damagetype,^crush_style
+param=attack_anim,firebat_attack
+param=defend_anim,firebat_defend
+param=death_anim,firebat_death
+param=death_drop,null
+param=prayer_drain,1
+param=fightcave_tier,1
 
 [tzhaar_fightcave_swarm_1b]
 name=Tz-Kih
@@ -59755,6 +59794,21 @@ resizev=160
 ambient=40
 contrast=40
 vislevel=45
+attack=40
+defence=30
+strength=60
+hitpoints=20
+ranged=60
+magic=30
+maxrange=64
+huntrange=10
+huntmode=cowardly
+param=damagetype,^crush_style
+param=attack_anim,lavabeast_attack
+param=defend_anim,lavabeast_defend
+param=death_anim,lavabeast_death
+param=death_drop,null
+param=fightcave_tier,2
 
 [tzhaar_fightcave_swarm_2b]
 name=Tz-Kek
@@ -59792,6 +59846,21 @@ resizev=80
 ambient=40
 contrast=40
 vislevel=22
+attack=20
+defence=15
+strength=30
+hitpoints=10
+ranged=30
+magic=15
+maxrange=64
+huntrange=10
+huntmode=cowardly
+param=damagetype,^crush_style
+param=attack_anim,lavabeast_attack
+param=defend_anim,lavabeast_defend
+param=death_anim,lavabeast_death
+param=death_drop,null
+param=fightcave_tier,2
 
 [tzhaar_fightcave_swarm_3a]
 name=Tok-Xil
@@ -59807,6 +59876,25 @@ readyanim=magmaquris_ready
 ambient=60
 contrast=60
 vislevel=90
+attack=80
+defence=60
+strength=120
+hitpoints=40
+ranged=120
+magic=60
+attackrange=8
+maxrange=64
+huntrange=10
+huntmode=cowardly
+param=damagetype,^ranged_style
+param=attack_anim,magmaquris_spine_attack
+param=rangeattack_anim,magmaquris_spine_attack
+param=crushattack_anim,magmaquris_punch
+param=proj_travel,tzhaar_spine_attack
+param=defend_anim,magmaquris_defend
+param=death_anim,magmaquris_death
+param=death_drop,null
+param=fightcave_tier,3
 
 [tzhaar_fightcave_swarm_3b]
 name=Tok-Xil
@@ -59844,6 +59932,21 @@ contrast=30
 resizeh=140
 resizev=140
 vislevel=180
+attack=160
+defence=120
+strength=240
+hitpoints=80
+ranged=240
+magic=120
+maxrange=64
+huntrange=10
+huntmode=cowardly
+param=damagetype,^crush_style
+param=attack_anim,lizard_cleric_attack
+param=defend_anim,lizard_cleric_defend
+param=death_anim,lizard_cleric_death
+param=death_drop,null
+param=fightcave_tier,4
 
 [tzhaar_fightcave_swarm_4b]
 name=Yt-MejKot
@@ -59876,6 +59979,25 @@ walkanim=igniferum_walk
 readyanim=igniferum_ready
 ambient=40
 vislevel=360
+attack=320
+defence=240
+strength=480
+hitpoints=160
+ranged=480
+magic=240
+attackrange=8
+maxrange=64
+huntrange=10
+huntmode=cowardly
+param=damagetype,^magic_style
+param=attack_anim,igniferum_ranged
+param=magicattack_anim,igniferum_ranged
+param=crushattack_anim,igniferum_attack
+param=proj_travel,tzhaar_fire_launch_travel
+param=defend_anim,igniferum_defend
+param=death_anim,igniferum_death
+param=death_drop,null
+param=fightcave_tier,5
 
 [tzhaar_fightcave_swarm_5b]
 name=Ket-Zek
@@ -59913,6 +60035,29 @@ walkanim=lordmagmus_walk
 readyanim=lordmagmus_ready
 ambient=60
 vislevel=702
+attack=640
+defence=480
+strength=960
+hitpoints=250
+ranged=960
+magic=480
+attackrange=8
+maxrange=64
+huntrange=12
+huntmode=cowardly
+param=stabdefence,40
+param=slashdefence,40
+param=crushdefence,40
+param=damagetype,^crush_style
+param=attack_anim,lordmagmus_attack
+param=crushattack_anim,lordmagmus_attack
+param=rangeattack_anim,lordmagmus_smash
+param=magicattack_anim,lordmagmus_fire
+param=proj_travel,tzhaar_fire_spit_travel
+param=defend_anim,lordmagmus_defend
+param=death_anim,lordmagmus_death
+param=death_drop,null
+param=fightcave_tier,6
 
 [tzhaar_fightcave_swarm_boss_cleric]
 name=Yt-HurKot
@@ -59930,6 +60075,21 @@ contrast=30
 resizeh=35
 resizev=35
 vislevel=108
+attack=140
+defence=60
+strength=100
+hitpoints=60
+ranged=120
+magic=120
+maxrange=64
+huntrange=10
+huntmode=cowardly
+param=damagetype,^crush_style
+param=attack_anim,lizard_cleric_attack
+param=defend_anim,lizard_cleric_defend
+param=death_anim,lizard_cleric_death
+param=death_drop,null
+param=fightcave_tier,7
 
 [wanted_solus]
 name=Solus Dellagar

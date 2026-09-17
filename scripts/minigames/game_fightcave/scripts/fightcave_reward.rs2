@@ -1,0 +1,43 @@
+// What the Fight Cave pays, and what happens when you die in it.
+//
+// Both the Fire cape and Tokkul were already fully configured in the cache and had NO SOURCE - the
+// cape with its full bonuses and tradeable=no, Tokkul stackable with its own count variants right
+// up to 25. This is the only place either comes from.
+
+// Tokkul for surviving $waves waves. The wiki gives the formula as N * (N + 1), and the same page
+// quotes 8,032 for a completed cave: 63 * 64 = 4032, plus the 4,000 for Jad, is exactly that. Two
+// independent statements of one number is the only reason to trust either, so
+// ^fightcave_full_run_tokkul records it and the battery checks the arithmetic still lands on it.
+[proc,fightcave_tokkul_for](int $waves)(int)
+if ($waves <= 0) {
+    return(0);
+}
+return(multiply($waves, add($waves, 1)));
+
+[proc,fightcave_pay](int $waves)
+def_int $tokkul = ~fightcave_tokkul_for($waves);
+if ($tokkul <= 0) {
+    return;
+}
+~obj_giveorbank(tzhaar_token, $tokkul);
+mes("You are awarded <tostring($tokkul)> Tokkul.");
+
+// Killing TzTok-Jad. The cape does not go in the bank if the pack is full - it goes on the floor of
+// a cave that is about to be deleted - so this is the one reward that must reach the player's own
+// inventory or their bank, never the ground.
+[proc,fightcave_reward]
+~obj_giveorbank(tzhaar_cape_fire, 1);
+~obj_giveorbank(tzhaar_token, ^fightcave_tokkul_jad);
+mes("You are awarded <tostring(^fightcave_tokkul_jad)> Tokkul, and TzHaar-Mej-Jal's respect.");
+broadcast_mes(append(displayname(), " has defeated TzTok-Jad and claimed a Fire cape!"));
+
+// Pack first, bank second. Nothing here may fall on the floor: the instance is deleted moments
+// later and anything lying in it goes with it.
+[proc,obj_giveorbank](namedobj $obj, int $count)
+// A free slot takes anything; an existing stack takes more of a stackable without needing one.
+if (inv_freespace(inv) > 0 | inv_total(inv, $obj) > 0) {
+    inv_add(inv, $obj, $count);
+    return;
+}
+inv_add(bank, $obj, $count);
+mes("<oc_name($obj)> has been sent to your bank.");

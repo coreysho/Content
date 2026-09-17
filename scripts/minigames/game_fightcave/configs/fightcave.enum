@@ -1,0 +1,57 @@
+// The Fight Cave's tables (minigames/game_fightcave/scripts/fightcave.rs2).
+
+// Tier -> the npc to spawn. Ascending, so tier 5 is the one that heads a wave.
+[fightcave_tier_npc]
+inputtype=int
+outputtype=npc
+default=null
+val=1,tzhaar_fightcave_swarm_1a
+val=2,tzhaar_fightcave_swarm_2a
+val=3,tzhaar_fightcave_swarm_3a
+val=4,tzhaar_fightcave_swarm_4a
+val=5,tzhaar_fightcave_swarm_5a
+
+// Tier -> its threshold. The wave builder walks 5 down to 1 subtracting these; see
+// fightcave.constant for why they are 2^k - 1.
+[fightcave_tier_threshold]
+inputtype=int
+outputtype=int
+default=0
+val=1,^fightcave_tier_tzkih
+val=2,^fightcave_tier_tzkek
+val=3,^fightcave_tier_tokxil
+val=4,^fightcave_tier_mejkot
+val=5,^fightcave_tier_ketzek
+
+// The five spawn points, 0-4: SE, SW, C, NW, S.
+[fightcave_spawn]
+inputtype=int
+outputtype=coord
+default=null
+val=0,^fightcave_spawn_se
+val=1,^fightcave_spawn_sw
+val=2,^fightcave_spawn_c
+val=3,^fightcave_spawn_nw
+val=4,^fightcave_spawn_s
+
+// The cycle, as the wiki states it: SE, SW, C, NW, SW, SE, S, NW, C, SE, SW, S, NW, C, S.
+// Fifteen steps over those five points, and it repeats.
+[fightcave_cycle_spawn]
+inputtype=int
+outputtype=int
+default=0
+val=0,0
+val=1,1
+val=2,2
+val=3,3
+val=4,1
+val=5,0
+val=6,4
+val=7,3
+val=8,2
+val=9,0
+val=10,1
+val=11,4
+val=12,3
+val=13,2
+val=14,4

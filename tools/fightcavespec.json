@@ -1,0 +1,56 @@
+{
+  "note": [
+    "The TzHaar Fight Cave. Everything a check here compares against, and where it came from.",
+    "monsters: the OSRS cache's own npc records, 3116-3128 - the six-value stats array read as",
+    "  attack, defence, strength, hitpoints, ranged, magic. Two things confirm that order rather",
+    "  than assuming it: TzTok-Jad's fourth value is 250, which is his hitpoints, and the wiki says",
+    "  independently that his healers come at 150, which only means anything below 250; and every",
+    "  size here matches the size the 377 art record already carried.",
+    "waves: an algorithm, not a table - thresholds 2^k-1, highest first, subtract and repeat. The",
+    "  thirteen anchors are cells of the OSRS wiki's own wave table, and the battery generates all",
+    "  62 waves from the enum's thresholds and checks them against these.",
+    "arena: measured off maps/m37_79.jm2 by flooding from the ENTRY tile, (44,61). Flooding from",
+    "  the exit loc's own tile at (44,62) gives one more, because a flood counts its seed and that",
+    "  tile is clipped by the loc standing on it - which is why the entry tile is one to its south.",
+    "  the subset of those where a five-tile npc fits, which is what the spawn points are drawn from.",
+    "tokkul: the wiki gives the formula N*(N+1) and separately quotes 8032 for a full run. 63*64",
+    "  plus the 4000 for Jad is exactly that, and the two agreeing is the only reason to trust either."
+  ],
+  "monsters": {
+    "tzhaar_fightcave_swarm_1a": {"osrs": 3116, "tier": 1, "name": "Tz-Kih", "size": 1, "level": 22, "stats": [20, 15, 30, 10, 30, 15]},
+    "tzhaar_fightcave_swarm_2a": {"osrs": 3118, "tier": 2, "name": "Tz-Kek", "size": 2, "level": 45, "stats": [40, 30, 60, 20, 60, 30]},
+    "tzhaar_fightcave_swarm_2spawn": {"osrs": 3120, "tier": 2, "name": "Tz-Kek", "size": 1, "level": 22, "stats": [20, 15, 30, 10, 30, 15]},
+    "tzhaar_fightcave_swarm_3a": {"osrs": 3121, "tier": 3, "name": "Tok-Xil", "size": 3, "level": 90, "stats": [80, 60, 120, 40, 120, 60]},
+    "tzhaar_fightcave_swarm_4a": {"osrs": 3123, "tier": 4, "name": "Yt-MejKot", "size": 4, "level": 180, "stats": [160, 120, 240, 80, 240, 120]},
+    "tzhaar_fightcave_swarm_5a": {"osrs": 3125, "tier": 5, "name": "Ket-Zek", "size": 5, "level": 360, "stats": [320, 240, 480, 160, 480, 240]},
+    "tzhaar_fightcave_swarm_boss": {"osrs": 3127, "tier": 6, "name": "TzTok-Jad", "size": 5, "level": 702, "stats": [640, 480, 960, 250, 960, 480]},
+    "tzhaar_fightcave_swarm_boss_cleric": {"osrs": 3128, "tier": 7, "name": "Yt-HurKot", "size": 1, "level": 108, "stats": [140, 60, 100, 60, 120, 120]}
+  },
+  "wave_anchors": {
+    "1": [1],
+    "2": [1, 1],
+    "3": [2],
+    "4": [2, 1],
+    "6": [2, 2],
+    "7": [3],
+    "10": [3, 2],
+    "14": [3, 3],
+    "15": [4],
+    "22": [4, 3],
+    "30": [4, 4],
+    "31": [5],
+    "46": [5, 4]
+  },
+  "wave_boundaries": {"tokxil_first_heads": 7, "mejkot_first_heads": 15, "ketzek_first_heads": 31, "last_wave": 62, "jad_wave": 63},
+  "arena": {
+    "square": "37_79",
+    "entry": [44, 61],
+    "exit_loc": "loc_9357",
+    "city_loc": "loc_9356",
+    "reachable_tiles": 2226,
+    "tiles_fitting_size5": 1664,
+    "spawns": {"se": [52, 19], "sw": [3, 6], "c": [26, 31], "nw": [4, 56], "s": [26, 10]},
+    "closest_two_spawns": 21
+  },
+  "tokkul": {"formula": "waves * (waves + 1)", "jad_bonus": 4000, "full_run": 8032}
+}
