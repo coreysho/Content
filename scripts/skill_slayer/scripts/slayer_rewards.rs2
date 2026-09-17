@@ -6,8 +6,9 @@
 //   Unlock     Bigger and Badder 50 (superiors.rs2), Gargoyle Smasher 120, Slug Salter 10,
 //              Reptile Freezer 10, Ring Bling 150
 //   Extend     eleven tasks (configs/slayer_rewards.enum) - longer tasks from Chaeldar and Duradel
-//   Buy        Slayer ring (8) 75, Herb sack 750, Looting bag 10, and the imbue at
-//              ^slayer_imbue_cost, which is a service rather than an item
+//   Buy        Slayer ring (8) 75, Herb sack 750, Looting bag 10, Rune pouch 750 - four items and
+//              no services, since the black mask imbue became a Scroll of imbuing drop
+//              (skill_slayer/scripts/imbue_scroll.rs2)
 //   Tasks      cancel 30, block 100, unblock free (slayer_points.rs2)
 //   Cosmetics  Unholy Helmet 1,000 and Kalphite Khat 1,000 - the helmet recolours, which OSRS also
 //              keeps in a tab of their own (slayer_helm_colours.rs2 reads their bits)
@@ -53,12 +54,8 @@ return(true);
 mes("Your <enum(int, string, slayer_extend_monster, $i)> tasks will be longer from now on. <tostring(%slayer_points)> points left.");
 return(true);
 
-// The Buy tab. Row 3 is the imbue, which hands over no item and so has no obj: ^slayer_buy_imbue is
-// the row it sits in.
+// The Buy tab. Every row hands over an item - the imbue used to be a row here and is a drop now.
 [proc,slayer_buy_item](int $i)(boolean)
-if ($i = ^slayer_buy_imbue) {
-    return(~slayer_do_imbue);
-}
 def_namedobj $item = enum(int, namedobj, slayer_buy_obj, $i);
 if (inv_freespace(inv) < 1) {
     mes("You need a free inventory space for that.");
@@ -67,38 +64,6 @@ if (inv_freespace(inv) < 1) {
 %slayer_points = sub(%slayer_points, enum(int, int, slayer_buy_cost, $i));
 inv_add(inv, $item, 1);
 mes("You buy <~add_article(lowercase(oc_name($item)))>. <tostring(%slayer_points)> points left.");
-return(true);
-
-// THE IMBUE, as a proc rather than the label it was.
-//
-// OSRS imbues a black mask in the Nightmare Zone for 1,250,000 NMZ points, at Soul Wars for 500
-// Zeal tokens, or in Emir's Arena with a Scroll of Imbuing. None of those three exists in a 2006
-// build, so this is a slayer master service and ^slayer_imbue_cost is the one invented number in
-// it - see the note beside the constant.
-//
-// The imbue is a property of the MASK: a helmet is imbued by imbuing its mask, or directly if it is
-// already assembled, and taking a helmet apart hands back whichever mask went in.
-//
-// A SECOND IMBUE IS ALLOWED, as in OSRS. The chat version warned "you've already got one of those
-// imbued" and then imbued and charged anyway - the branch had no return - so the message only ever
-// misled. Carrying a second plain mask and paying again is a fair thing to want, so it is silent.
-[proc,slayer_do_imbue]()(boolean)
-def_namedobj $from = null;
-def_namedobj $to = null;
-if (inv_total(inv, black_mask) > 0) {
-    $from = black_mask;
-    $to = black_mask_i;
-} else if (inv_total(inv, slayer_helm) > 0) {
-    $from = slayer_helm;
-    $to = slayer_helm_i;
-} else {
-    mes("You need a black mask or a slayer helmet with you to imbue.");
-    return(false);
-}
-%slayer_points = sub(%slayer_points, ^slayer_imbue_cost);
-inv_del(inv, $from, 1);
-inv_add(inv, $to, 1);
-mes("You imbue your <lowercase(oc_name($from))>. <tostring(%slayer_points)> points left.");
 return(true);
 
 // Called after every assignment (slayer_task.rs2). Only Chaeldar and Duradel give extended tasks,

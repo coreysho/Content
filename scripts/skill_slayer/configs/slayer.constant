@@ -84,16 +84,38 @@
 ^slayer_cancel_cost = 30
 ^slayer_block_cost = 100
 
-// What a slayer master charges to imbue a black mask or a slayer helmet.
+// ---- the Scroll of imbuing (skill_slayer/scripts/imbue_scroll.rs2) ----
+// The imbue used to be a slayer master's service at 1,250 points - about eighty tasks for ONE
+// imbue, a number that round itself called invented and too steep. It is a DROP now, of OSRS's own
+// Scroll of imbuing, and these two numbers are the whole of it.
+
+// ONE SCROLL PER THIS MANY HITPOINTS KILLED ON TASK. Weighted by the monster's hitpoints, not flat
+// per kill, for the same reason ^bottomless_roll_xp is weighted by experience: a flat per-kill rate
+// would make Turael's rats - fifteen of them a minute, five hitpoints each - the fastest scroll farm
+// in the game. Weighting by hitpoints makes the rate a rate of TIME instead, and a slayer kill
+// already pays Slayer xp as 10 x hitpoints, so this is the quantity the skill is already denominated
+// in.
 //
-// THE ONE INVENTED NUMBER in the imbue round. OSRS imbues at the Nightmare Zone for 1,250,000 NMZ
-// points, at Soul Wars for 500 Zeal tokens, or with a Scroll of Imbuing from Emir's Arena - none of
-// which exists in a 2006 build, and none of which converts to Slayer points. 1,250 echoes OSRS's
-// 1,250,000 at a thousandth and sits just above the 1,000 that OSRS charges for a helmet recolour
-// unlock, which is the closest comparable priced in this same currency. Tune it here.
+// Measured against this build's own task tables (the weighted mean of every row in
+// slayer_tasks.dbrow against the hitpoints of the npcs in each task's slayer_category):
 //
-// For scale: the top masters pay 15 points a task, so this is around eighty tasks.
-^slayer_imbue_cost = 1250
+//     Turael      932 hitpoints a task  -> 161 tasks a scroll
+//     Mazchna   2,268                   ->  66
+//     Vannaka   6,549                   ->  23
+//     Chaeldar 14,585                   ->  10
+//     Duradel  18,973                   ->   8
+//
+// So the scroll is a high-level reward and low-level task farming cannot shortcut it - which is the
+// shape the old price had, at a tenth of its cost per imbue.
+^imbue_scroll_hitpoints = 150000
+
+// AND A SUPERIOR PAYS A FLAT ONE IN THIS MANY, on top of the hitpoints roll it gets for being an
+// on-task kill like any other. Flat, because "an increased rate" has to be visible: a superior
+// averages 211 hitpoints, so its hitpoints roll alone is about 1/711, and this is roughly fifty
+// times that. With Bigger and Badder a superior appears on 1/200 of on-task kills, so this path
+// adds about a third again to a Duradel-task player's scrolls - six tasks a scroll rather than
+// eight - and nothing at all to a player who has not bought the unlock.
+^imbue_scroll_superior_odds = 15
 
 // ---- the Slayer Rewards window (slayer_window.rs2, interface by tools/genslayerui.py) ----
 // The five tabs, in OSRS's own order. Cosmetics is empty until the slayer helmet recolours land.
@@ -106,10 +128,6 @@
 
 // Rows the Tasks tab shows: cancel, block, and one per block slot.
 ^slayer_task_rows = 6
-
-// Which row of the Buy tab is the imbue. It is a service and not an item, so it has no obj in
-// slayer_buy_obj and ~slayer_buy_item hands it to ~slayer_do_imbue instead.
-^slayer_buy_imbue = 3
 
 // Every description in the window is two lines (battery group 4 proves it), so the third line of
 // the panel is always blank and nothing needs a table of line counts.

@@ -189,15 +189,11 @@ val=1,Abyssal demons drop the head.
 val=3,Use a Kq head on a slayer helmet to turn it green.
 val=4,The Kalphite Queen drops the head.
 
-// Row 3 of the Buy tab is the imbue, which is a service and not an item - so it has no obj here and
-// ~slayer_ui_name falls back to slayer_buy_name for it. Its price is ^slayer_imbue_cost, kept in
-// slayer.constant where the imbue round put it; battery group 9 checks the two agree.
-[slayer_buy_name]
-inputtype=int
-outputtype=string
-default=null
-val=3,Imbue a black mask or helmet
-
+// EVERY ROW OF THE BUY TAB IS AN ITEM. Row 3 used to be the imbue - a service with no obj, which
+// ~slayer_ui_name had to special-case - and the imbue is a Scroll of imbuing drop now
+// (skill_slayer/scripts/imbue_scroll.rs2), so the row is gone and the rune pouch has moved down
+// into it. The rows have to stay contiguous from 0: ~slayer_ui_rows counts them with
+// enum_getoutputcount(slayer_buy_cost) and a gap would draw a blank row.
 [slayer_buy_obj]
 inputtype=int
 outputtype=namedobj
@@ -205,7 +201,7 @@ default=null
 val=0,slayer_ring_8
 val=1,herb_sack
 val=2,looting_bag
-val=4,rune_pouch
+val=3,rune_pouch
 
 [slayer_buy_cost]
 inputtype=int
@@ -214,8 +210,7 @@ default=0
 val=0,75
 val=1,750
 val=2,10
-val=3,1250
-val=4,750
+val=3,750
 
 [slayer_buy_desc]
 inputtype=int
@@ -227,10 +222,8 @@ val=3,Holds 30 of each grimy herb, so a long task does not fill
 val=4,your inventory with them.
 val=6,Holds 28 items you would otherwise leave on the floor.
 val=7,Everything in it is lost if you die.
-val=9,Imbue a black mask or a slayer helmet you are carrying: the
-val=10,on-task bonus then works for ranged and magic too.
-val=12,Holds 16,000 each of three kinds of rune, and spells cast
-val=13,straight from it. A needle and thread make it hold four.
+val=9,Holds 16,000 each of three kinds of rune, and spells cast
+val=10,straight from it. A needle and thread make it hold four.
 
 // Every price the Slayer Rewards window can show, grouped. The engine
 // has no command that formats a number and a row that says 1000 reads
@@ -249,4 +242,3 @@ val=150,150
 val=200,200
 val=750,750
 val=1000,1,000
-val=1250,1,250

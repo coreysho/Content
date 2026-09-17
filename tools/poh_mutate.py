@@ -864,8 +864,8 @@ if (inv_total(inv, coins) < $cost) {
   '66 and the protections door does the same'),
  # the plain mask giving the imbued bonus, which would make the imbue worthless
  ('scripts/general/configs/osrs_items.obj',
-  'param=slayer_headgear,yes\nparam=slayer_helmet,yes\n\n[dragon_pickaxe]',
-  'param=slayer_headgear,yes\nparam=slayer_helmet,yes\nparam=slayer_imbued,yes\n\n[dragon_pickaxe]',
+  'param=slayer_helmet,yes\nparam=imbue_into,slayer_helm_i',
+  'param=slayer_helmet,yes\nparam=slayer_imbued,yes\nparam=imbue_into,slayer_helm_i',
   '66 neither plain item claims to be imbued'),
  # the two doors drifting apart - the ranged boost applying off task
  ('scripts/skill_slayer/scripts/black_mask.rs2',
@@ -890,11 +890,68 @@ if (inv_total(inv, coins) < $cost) {
   '// Its own lookup: this is a different proc from the single-target cast above, so that one\'s\n// $mask_num is not in scope here. Each extra target of a multi-target spell rolls separately, so\n// the mask has to be asked again for each of them anyway.\ndef_int $mask_num = 1;\ndef_int $mask_div = 1;\nif (~black_mask_imbued_on_task = true) {\n    $mask_num = 23;\n    $mask_div = 20;\n}\n',
   '',
   '66 every block that reads $mask_num declares it'),
- # the imbue's price written into the script instead of read from the constant
- ('scripts/skill_slayer/scripts/slayer_rewards.rs2',
-  '%slayer_points = sub(%slayer_points, ^slayer_imbue_cost);',
-  '%slayer_points = sub(%slayer_points, 1250);',
-  '66 the purchase spends that constant, never a copy of its value'),
+ # ---- the Scroll of imbuing, which replaced that purchase ----
+ # the points imbue growing back
+ ('scripts/skill_slayer/configs/slayer.constant',
+  '^imbue_scroll_hitpoints = 150000', '^imbue_scroll_hitpoints = 150000\n^slayer_imbue_cost = 1250',
+  '66 the points imbue is gone: no price constant, no Buy row constant, no purchase proc'),
+ # a pair that points only one way - the single mistake this shape can make
+ ('scripts/skill_slayer/configs/imbue_scroll.obj',
+  'param=imbue_from,seer_ring\n', '',
+  '66 every imbue pair points both ways'),
+ # an item that can be imbued and was never thought about. It is paired to ITSELF on purpose: a
+ # half-pair would be caught by the both-ways check above instead, which proves nothing about this
+ # one. A self-pair is well-formed and still wrong.
+ ('scripts/general/configs/osrs_items.obj',
+  "desc=If rocks could feel fear, they'd fear this.",
+  "desc=If rocks could feel fear, they'd fear this.\nparam=imbue_into,dragon_pickaxe\nparam=imbue_from,dragon_pickaxe",
+  "66 and they are the 20 items OSRS's scroll list leaves this build"),
+ # OSRS's OWN number for the seers ring instead of double THIS build's ring
+ ('scripts/skill_slayer/configs/imbue_scroll.obj',
+  'param=magicattack,8\nparam=magicdefence,8', 'param=magicattack,12\nparam=magicdefence,12',
+  '66 each imbued ring is its plain ring doubled, stat for stat'),
+ # an imbued item you cannot get the scroll back out of
+ ('scripts/skill_slayer/scripts/imbue_scroll.rs2',
+  '[opheld3,seer_ring_i] @imbue_uncharge;\n', '',
+  '66 all 20 imbued items have an Uncharge trigger and nothing else does'),
+ # the handoff removed, so the scroll works in one click order and not the other
+ ('scripts/skill_slayer/scripts/slayer_helm.rs2',
+  'if (last_useitem = slayer_imbue_scroll) {\n    ~imbue_scroll_read(last_item);\n    return;\n}\n',
+  '',
+  '66 the use is one trigger on the scroll, and the one imbueable item with an [opheldu] of its own hands the scroll on'),
+ # a pair named in the script, which is what the params exist to avoid
+ ('scripts/skill_slayer/scripts/imbue_scroll.rs2',
+  'def_namedobj $into = oc_param($target, imbue_into);',
+  'def_namedobj $into = null;\nif ($target = black_mask) {\n    $into = black_mask_i;\n}',
+  '66 and both halves read the param, so no pair is named in the script'),
+ # an already-imbued item falling through to "nothing interesting happens"
+ ('scripts/skill_slayer/scripts/imbue_scroll.rs2',
+  '    if (oc_param($target, imbue_from) ! null) {\n        mes("Your <lowercase(oc_name($target))> is already imbued.");\n        return;\n    }\n',
+  '',
+  '66 and an item that is already imbued says so rather than nothing interesting happening'),
+ # a flat per-kill rate, which would make Turael's rats the fastest scroll farm in the game
+ ('scripts/skill_slayer/scripts/imbue_scroll.rs2',
+  'if (random(^imbue_scroll_hitpoints) >= npc_basestat(hitpoints)) {',
+  'if (random(^imbue_scroll_hitpoints) ! 0) {',
+  "66 the drop is weighted by the kill's hitpoints"),
+ # rolled on the whole kill but not on the split one
+ ('scripts/skill_slayer/scripts/slayer_task.rs2',
+  '    ~imbue_scroll_kill_roll;\n    if(%slayer_count = 0) ~complete_task;\n    ~slayer_superior_roll(npc_type);\n',
+  '    if(%slayer_count = 0) ~complete_task;\n    ~slayer_superior_roll(npc_type);\n',
+  '66 and it is rolled from both on-task kill queues'),
+ # ...and rolled somewhere an off-task kill can reach
+ ('scripts/skill_combat/scripts/npc/npc_death.rs2',
+  '~check_progress_task(npc_param(slayer_category));',
+  '~check_progress_task(npc_param(slayer_category));\n~imbue_scroll_kill_roll;',
+  '66 ...so an off-task kill can never give one'),
+ # the superior's own rate taken away, leaving it just a bigger monster
+ ('scripts/skill_slayer/scripts/superiors.rs2',
+  '~imbue_scroll_superior_roll;', '',
+  '66 a superior rolls a flat rate of its own on top of that'),
+ # a rate written twice
+ ('scripts/skill_slayer/scripts/imbue_scroll.rs2',
+  'random(^imbue_scroll_superior_odds)', 'random(15)',
+  '66 both rates are constants and neither value is written again in the script'),
  # assembling an imbued mask into a PLAIN helmet, silently spending what the player paid for
  ('scripts/skill_slayer/scripts/slayer_helm.rs2',
   'def_namedobj $helm = slayer_helm;\nif ($mask = black_mask_i) {\n    $helm = slayer_helm_i;\n}',

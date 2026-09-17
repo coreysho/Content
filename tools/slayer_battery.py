@@ -229,8 +229,9 @@ if '%slayer_points < $cost' in take and '~slayer_buy_unlock' in take:
     check(before(take, '%slayer_points < $cost', '~slayer_buy_unlock'),
           'and it checks the points before it reaches any of them')
 check('~slayer_ui_owned($tab, $sel) = true' in take, 'and refuses what you already own')
-check(REW.count('%slayer_points = sub(') == 5 and PTS.count('%slayer_points = sub(') == 2,
-      'points are spent in seven places: unlock, cosmetic, extend, item, imbue, cancel, block')
+check(REW.count('%slayer_points = sub(') == 4 and PTS.count('%slayer_points = sub(') == 2,
+      'points are spent in six places: unlock, cosmetic, extend, item, cancel, block - the imbue '
+      'was the seventh until it became a Scroll of imbuing drop')
 check('setbit(%slayer_unlocks' in REW and 'setbit(%slayer_extends' in REW,
       'the unlock and the extend are the bits they always were')
 bits = rows('slayer_unlock_bit')
@@ -249,25 +250,28 @@ check(got == WIKI, 'the five unlock prices are the wiki\'s: %s' % (got if got !=
 # belongs in this list rather than as an exception to it.
 BUY = {'slayer_ring_8': 75, 'herb_sack': 750, 'looting_bag': 10, 'rune_pouch': 750}
 bobj, bcost = rows('slayer_buy_obj'), rows('slayer_buy_cost')
-got = {bobj[k]: int(bcost[k]) for k in bobj}
+# .get, not [k]: a row with an obj and no price is a real mistake and the check below is what says
+# so, and this line crashing instead was the eighth time in this repo that a battery answered a
+# mutation with a traceback. A crash is not a catch - it says nothing about which claim broke.
+got = {bobj[k]: int(bcost[k]) for k in bobj if k in bcost}
 check(got == BUY, 'and so are the four things you can buy: %s'
       % ('all four' if got == BUY else got))
 objp = {n.strip(): int(i) for i, n in
         (l.split('=', 1) for l in read('pack/obj.pack').split('\n') if '=' in l)}
 bad = [o for o in bobj.values() if o not in objp]
 check(not bad, 'each of which is a real obj: %s' % (bad or ', '.join(bobj.values())))
-imbue_row = const('slayer_buy_imbue')
-bname = rows('slayer_buy_name')
-check(str(imbue_row) in bname,
-      'the imbue has a name from the table rather than from an obj, because it hands over no '
-      'item: Buy tab row %d' % imbue_row)
-check(str(imbue_row) not in bobj, 'and it has no obj of its own')
-check(int(bcost[str(imbue_row)]) == const('slayer_imbue_cost'),
-      'its price in the enum is ^slayer_imbue_cost (%d), the number the imbue round set' % const('slayer_imbue_cost'))
-check('~slayer_do_imbue' in REW, 'and Confirm on it reaches ~slayer_do_imbue')
-check('[label,slayer_imbue]' not in REW, 'the chat version of the imbue is gone')
-imb = REW.split('[proc,slayer_do_imbue]', 1)[1].split('\n[', 1)[0]
-check('~chatnpc' not in imb, 'and the proc that replaced it does not talk over the window')
+# EVERY BUY ROW IS AN ITEM NOW. The imbue was row 3 and was the only row that handed over no obj -
+# it needed a name table of its own, an ^slayer_buy_imbue row number, and a special case in
+# ~slayer_ui_name. The imbue is a Scroll of imbuing drop now (poh_battery group 66), so all three
+# are gone, and this is the check that they stay gone rather than growing back one at a time.
+check(sorted(int(k) for k in bcost) == sorted(int(k) for k in bobj)
+      and sorted(int(k) for k in bcost) == list(range(len(BUY))),
+      'the Buy tab is keyed 0..%d with no gap and every row has both an obj and a price - a gap '
+      'draws a blank row, because the tab counts its rows with enum_getoutputcount' % (len(BUY) - 1))
+check('slayer_buy_name' not in ENUMS and 'slayer_buy_imbue' not in CONST
+      and '~slayer_ui_buy_name' not in WIN,
+      'and no row is a service: the name table, the row constant and the special case that read '
+      'them are all gone with the points imbue')
 check(const('slayer_cancel_cost') == 30 and const('slayer_block_cost') == 100,
       'cancelling is 30 points and blocking 100, as they were before the window')
 check(const('slayer_task_rows') == 6, 'the Tasks tab is cancel, block and four block slots')
@@ -281,7 +285,7 @@ def grouped(n): return '{:,}'.format(n)
 prices = set()
 for tbl in ('slayer_unlock_cost', 'slayer_extend_cost', 'slayer_buy_cost', 'slayer_cosmetic_cost'):
     prices |= {int(v) for v in rows(tbl).values()}
-for c in ('slayer_cancel_cost', 'slayer_block_cost', 'slayer_imbue_cost'):
+for c in ('slayer_cancel_cost', 'slayer_block_cost'):
     prices.add(const(c))
 spell = rows('slayer_cost_text')
 missing = sorted(p for p in prices if str(p) not in spell)

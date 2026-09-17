@@ -208,6 +208,7 @@ if(%slayer_count <= 0) {
 if(npc_finduid($uid) = true) {
     %slayer_count = sub(%slayer_count, 1);
     stat_advance(slayer, calc(10 * npc_basestat(hitpoints)));
+    ~imbue_scroll_kill_roll; // Scroll of imbuing (imbue_scroll.rs2) - weighted by the same hitpoints
     if(%slayer_count = 0) ~complete_task;
     ~slayer_superior_roll(npc_type); // Bigger and Badder (superiors.rs2) - keep last, it swaps the active npc
 }
@@ -219,6 +220,9 @@ if(%slayer_count <= 0) {
 if(npc_finduid($uid) = true) {
     %slayer_count = sub(%slayer_count, 1);
     stat_advance(slayer, calc(10 * (npc_basestat(hitpoints) / 2)));
+    // The SPLIT kill halves the xp but not the scroll: a drop cannot be halved, and both players
+    // get their own roll, which is what two players sharing a kill would each have got alone.
+    ~imbue_scroll_kill_roll;
     if(%slayer_count = 0) ~complete_task;
     ~slayer_superior_roll(npc_type);
 }

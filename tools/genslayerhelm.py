@@ -51,7 +51,7 @@ BASE = 'slayer_helm'
 # this round fixed; copying param=slayer_* gave every colour each param twice in the last one.
 OVERRIDDEN = ('name=', 'desc=', 'model=', 'manwear=', 'womanwear=', 'manhead=', 'womanhead=',
               '2dzoom=', '2dxan=', '2dyan=', '2dzan=', '2dxof=', '2dyof=',
-              'recol', 'param=slayer_')
+              'recol', 'param=slayer_', 'param=imbue_')
 
 
 def read(p):
@@ -209,8 +209,15 @@ def main():
                     continue
                 o.append(line)
             o += ['param=slayer_headgear,yes', 'param=slayer_helmet,yes']
+            # The imbue pairing is per COLOUR, which is why param=imbue_ is overridden rather than
+            # copied: copying the plain helmet's line would point every colour's imbue at the plain
+            # imbued helmet, and every colour's Uncharge at the plain one. iop5=Uncharge IS copied,
+            # because that line is the same on all fourteen.
             if imbued:
                 o.append('param=slayer_imbued,yes')
+                o.append('param=imbue_from,%s' % key[:-2])
+            else:
+                o.append('param=imbue_into,%s_i' % key)
             o.append('')
     write(OUT_OBJ, o)
 
@@ -228,6 +235,11 @@ def main():
          '// ::give and get no trigger here at all; the black one becomes real the moment the King',
          '// Black Dragon does. tools/obtainable.py reports them by name rather than being told to',
          '// ignore them.',
+         '//',
+         '// A SCROLL OF IMBUING WORKS ON EVERY COLOUR, and Uncharge on every imbued colour hands',
+         '// that colour\'s plain helmet back with the scroll. Neither costs this file a trigger: the',
+         '// pairing is the param=imbue_into / param=imbue_from pair on each obj above, and',
+         '// skill_slayer/scripts/imbue_scroll.rs2 is one proc that reads them.',
          '//',
          '// THE IMBUE SURVIVES THE RECOLOUR IN BOTH DIRECTIONS. An imbued helmet recoloured stays',
          '// imbued, which is what the paired _i variants are for. Nothing here can turn an imbued',
@@ -279,6 +291,13 @@ def main():
     for key, c, imbued in made:
         r.append('[opheld3,%s] @slayer_helm_check;' % key)
     r.append('')
+    r += ['',
+          '// Uncharge, on the imbued half of every colour: op5, because Wear, Check and Disassemble',
+          '// are already taken. The label is in skill_slayer/scripts/imbue_scroll.rs2 and reads the',
+          "// colour's own param=imbue_from, so this loop needs to know nothing about pairs.", '']
+    for key, c, imbued in made:
+        if imbued:
+            r.append('[opheld5,%s] @imbue_uncharge;' % key)
     for key, c, imbued in made:
         mask = 'black_mask_i' if imbued else 'black_mask'
         if 'source' in c:

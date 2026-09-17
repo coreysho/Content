@@ -11,6 +11,11 @@
 // Black Dragon does. tools/obtainable.py reports them by name rather than being told to
 // ignore them.
 //
+// A SCROLL OF IMBUING WORKS ON EVERY COLOUR, and Uncharge on every imbued colour hands
+// that colour's plain helmet back with the scroll. Neither costs this file a trigger: the
+// pairing is the param=imbue_into / param=imbue_from pair on each obj above, and
+// skill_slayer/scripts/imbue_scroll.rs2 is one proc that reads them.
+//
 // THE IMBUE SURVIVES THE RECOLOUR IN BOTH DIRECTIONS. An imbued helmet recoloured stays
 // imbued, which is what the paired _i variants are for. Nothing here can turn an imbued
 // helmet into a plain one, because the player paid for it.
@@ -108,6 +113,25 @@ return(false);
 [opheld3,slayer_helm_radiant] @slayer_helm_check;
 [opheld3,slayer_helm_radiant_i] @slayer_helm_check;
 
+
+// Uncharge, on the imbued half of every colour: op5, because Wear, Check and Disassemble
+// are already taken. The label is in skill_slayer/scripts/imbue_scroll.rs2 and reads the
+// colour's own param=imbue_from, so this loop needs to know nothing about pairs.
+
+[opheld5,slayer_helm_black_i] @imbue_uncharge;
+[opheld5,slayer_helm_green_i] @imbue_uncharge;
+[opheld5,slayer_helm_red_i] @imbue_uncharge;
+[opheld5,slayer_helm_purple_i] @imbue_uncharge;
+[opheld5,slayer_helm_turquoise_i] @imbue_uncharge;
+[opheld5,slayer_helm_hydra_i] @imbue_uncharge;
+[opheld5,slayer_helm_twisted_i] @imbue_uncharge;
+[opheld5,slayer_helm_tztok_i] @imbue_uncharge;
+[opheld5,slayer_helm_vampyric_i] @imbue_uncharge;
+[opheld5,slayer_helm_tzkal_i] @imbue_uncharge;
+[opheld5,slayer_helm_araxyte_i] @imbue_uncharge;
+[opheld5,slayer_helm_hooded_i] @imbue_uncharge;
+[opheld5,slayer_helm_oathplate_i] @imbue_uncharge;
+[opheld5,slayer_helm_radiant_i] @imbue_uncharge;
 [opheld4,slayer_helm_black] @slayer_helm_split_headless(black_mask);
 [opheld4,slayer_helm_black_i] @slayer_helm_split_headless(black_mask_i);
 [opheld4,slayer_helm_green] @slayer_helm_split_coloured(black_mask, kq_head);

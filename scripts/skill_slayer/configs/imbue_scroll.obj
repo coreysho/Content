@@ -1,0 +1,126 @@
+// The Scroll of imbuing, and the four Fremennik rings it can imbue.
+//
+// THE SCROLL IS OSRS'S OWN ITEM, obj 26706, model 45065, imported by tools/models/importosrs.py.
+// In Old School it is bought from Emir's Arena for 200 points; there is no Emir's Arena in a 2006
+// build, so here it DROPS - from an on-task slayer kill, and far more often from a superior. The
+// two rates are in slayer.constant with the arithmetic that chose them.
+//
+// WHAT IT CAN IMBUE IS NOT A LIST IN A SCRIPT. Every imbueable item carries param=imbue_into
+// naming its imbued twin, and every imbued item carries param=imbue_from naming the plain one it
+// came from (imbue_scroll.param). So the script is one proc that reads a param, the fourteen
+// recoloured helmets cost it nothing, and the pairing cannot half-exist: tools/poh_battery.py
+// group 66 walks the whole obj table and fails if either direction is missing or disagrees.
+//
+// UNCHARGING IS OSRS'S RULE TOO - "every item can be uncharged to return the scroll in its
+// original form, allowing it to be swapped to other items freely" - and it matters more here than
+// it does there, because here the scroll is a rare drop rather than a shop line.
+//
+// THE FOUR RINGS ARE THE WHOLE OF OSRS'S SCROLL LIST THAT THIS BUILD HAS, minus the two already
+// done. The scroll imbues thirteen items in Old School: the black mask and the slayer helmet (both
+// imbued here since the round in claude/slayer-imbues.md), the archers, berserker, seers and
+// warrior rings - all four below - and seven that do not exist in this era at all (granite ring,
+// ring of suffering, ring of the gods, treasonous and tyrannical rings, and the two salve
+// amulets, whose base item has no source here: the Haunted Mine is not built). The magic
+// shortbow (i) and the imbued god capes are NOT on the scroll's list in Old School either, and the
+// god capes already have their own source here - Mage Arena II gives them.
+//
+// EVERY STAT BELOW IS DOUBLE THE PLAIN RING'S OWN, which is what the wiki says the imbue does
+// ("its stats are double those of the berserker ring"), and it is doubled off THIS BUILD'S rings
+// rather than copied from Old School's numbers. Old School's Seers ring (i) is +12/+12 because its
+// plain ring is +6/+6; ours is +4/+4, so ours is +8/+8. Copying the 12 would have left the imbued
+// ring three times the ring it is an imbue of. The plain four are in scripts/_unpack/377/all.obj,
+// which is also where their param=imbue_into lines live.
+
+[slayer_imbue_scroll]
+name=Scroll of imbuing
+desc=A magical scroll used to imbue a variety of items.
+model=obj_slayer_imbue_scroll
+2dzoom=1866
+2dxan=370
+2dyan=1924
+2dzan=1953
+2dxof=-3
+2dyof=3
+cost=100
+members=yes
+stackable=yes
+tradeable=no
+
+[berzerker_ring_i]
+name=Berserker ring (i)
+desc=A ring reputed to bring out a berserk fury in its wearer. It has been imbued.
+model=obj_berzerker_ring
+iop2=Wear
+iop3=Uncharge
+members=yes
+tradeable=no
+2dxof=3
+2dyof=-15
+2dzoom=600
+2dyan=1916
+2dxan=324
+wearpos=ring
+weight=4g
+cost=10000
+param=strengthbonus,8
+param=imbue_from,berzerker_ring
+
+[warrior_ring_i]
+name=Warrior ring (i)
+desc=A legendary ring once worn by Fremennik warriors. It has been imbued.
+model=obj_warrior_ring
+iop2=Wear
+iop3=Uncharge
+members=yes
+tradeable=no
+2dxof=2
+2dyof=-6
+2dzoom=570
+2dyan=1776
+2dxan=348
+wearpos=ring
+weight=4g
+cost=10000
+param=slashattack,8
+param=slashdefence,8
+param=imbue_from,warrior_ring
+
+[ranger_ring_i]
+name=Archers ring (i)
+desc=A fabled ring that improves the wearer's skill with a bow... It has been imbued.
+model=obj_ranger_ring
+iop2=Wear
+iop3=Uncharge
+members=yes
+tradeable=no
+2dxof=4
+2dyof=-14
+2dzoom=630
+2dyan=1904
+2dxan=332
+wearpos=ring
+weight=4g
+cost=10000
+param=rangeattack,8
+param=rangedefence,8
+param=imbue_from,ranger_ring
+
+[seer_ring_i]
+name=Seers ring (i)
+desc=A mysterious ring that can fill the wearer with magical power... It has been imbued.
+model=obj_seer_ring
+iop2=Wear
+iop3=Uncharge
+members=yes
+tradeable=no
+2dxof=3
+2dyof=-13
+2dzoom=620
+2dyan=1940
+2dxan=340
+wearpos=ring
+weight=4g
+cost=10000
+param=magicattack,8
+param=magicdefence,8
+param=imbue_from,seer_ring

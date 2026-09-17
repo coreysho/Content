@@ -3930,28 +3930,132 @@ check(_sp.run([sys.executable, os.path.join(C, 'tools/rs2check.py')],
               cwd=os.path.join(C, 'scripts')).returncode == 0,
       '...which rule 18 is what proves, and it is green')
 
-# the price is a constant, not a number in a script
+# ---- THE SCROLL OF IMBUING replaced the 1,250-point service ----
+#
+# What made the old price checkable was that it was one constant spent in one place. What makes the
+# scroll checkable is different and better: THE PAIRING IS DATA, so these checks walk the obj table
+# rather than reading a script. A pair that only points one way is the one mistake this shape can
+# make, and it is the first check below.
 _SC = read('scripts/skill_slayer/configs/slayer.constant')
-_m66 = re.search(r'^\^slayer_imbue_cost\s*=\s*(\d+)\s*$', _SC, re.M)
-# The window replaced the chat menu, so the price is no longer printed by this file: the Buy tab
-# reads it out of slayer_buy_cost and slayer_battery group 9 is what holds that row equal to the
-# constant. What stays this group's business is that the constant exists and the SPEND uses it.
 _RE = read('scripts/skill_slayer/configs/slayer_rewards.enum')
-_brow = re.search(r'^\^slayer_buy_imbue\s*=\s*(\d+)\s*$', _SC, re.M)
-_bcost = dict(re.findall(r'^val=(\d+),(-?\d+)$',
-              _RE.split('[slayer_buy_cost]', 1)[1].split('\n[', 1)[0], re.M))
-check(_m66 and _brow and _bcost.get(_brow.group(1)) == _m66.group(1),
-      'the price is ^slayer_imbue_cost (%s) and the Buy tab\'s row shows that same number'
-      % (_m66.group(1) if _m66 else 'NOT DECLARED'))
-# The imbue block spends the constant and contains no number of its own - a price written twice
-# drifts, which is how the Stonemason came to sell at his own buying rate.
-_imbblk = _RW.split('[proc,slayer_do_imbue]', 1)[1].split('\n[', 1)[0]
-# ...and the price's VALUE never appears as a literal in it. Not "no numbers at all" - ~objbox
-# takes a zoom of 250 like every other reward does - but the 1250 itself, which is the thing that
-# drifts when a price is written in two places.
-check('sub(%slayer_points, ^slayer_imbue_cost)' in _imbblk
-      and (not _m66 or not re.search(r'\b%s\b' % _m66.group(1), _imbblk)),
-      'and the purchase spends that constant, never a copy of its value')
+_IS = read('scripts/skill_slayer/scripts/imbue_scroll.rs2')
+check(not re.search(r'\^slayer_imbue_cost|\^slayer_buy_imbue|slayer_do_imbue', _SC + _RW),
+      'the points imbue is gone: no price constant, no Buy row constant, no purchase proc')
+
+# Every obj in the tree, so the pairing is checked against ALL of it and not against a list of the
+# items this round happened to think of.
+_ALLOBJ = {}
+for _root66, _d66, _fs66 in os.walk(os.path.join(C, 'scripts')):
+    for _fn66 in _fs66:
+        if _fn66.endswith('.obj'):
+            _ALLOBJ.update(blocks(read(os.path.join(_root66, _fn66)[len(C) + 1:])))
+_param66 = lambda n, k: next((v.split(',', 1)[1] for v in (_ALLOBJ.get(n, {}).get('param') or [])
+                              if v.startswith(k + ',')), None)
+_into = {n: _param66(n, 'imbue_into') for n in _ALLOBJ if _param66(n, 'imbue_into')}
+_from = {n: _param66(n, 'imbue_from') for n in _ALLOBJ if _param66(n, 'imbue_from')}
+_oneway = ([('%s -> %s, which has no imbue_from back' % (a, b)) for a, b in _into.items()
+            if _from.get(b) != a]
+           + [('%s <- %s, which has no imbue_into out' % (a, b)) for b, a in _from.items()
+              if _into.get(a) != b])
+check(not _oneway,
+      'every imbue pair points both ways - %d plain items naming their twin and the same %d twins '
+      'naming them back: %s' % (len(_into), len(_from), _oneway or 'all paired'))
+# ...and it is the whole list this build can have: the mask, the helmet and its fourteen colours,
+# and the four Fremennik rings. Anything else with a param would be an item that can be imbued and
+# was never thought about; anything missing would be one the scroll silently refuses.
+_WANT66 = ({'black_mask', 'slayer_helm', 'berzerker_ring', 'warrior_ring', 'ranger_ring',
+            'seer_ring'}
+           | {n for n in _ALLOBJ
+              if re.fullmatch(r'slayer_helm_[a-z]+', n) and n != 'slayer_helm_i'})
+check(set(_into) == _WANT66,
+      'and they are the %d items OSRS\'s scroll list leaves this build: %s'
+      % (len(_WANT66), sorted(set(_into) ^ _WANT66) or 'exactly those'))
+
+# THE FOUR RINGS DOUBLE THEIR OWN PLAIN RING, which is what the wiki says the imbue does - and
+# doubled off THIS build's rings, not off OSRS's. OSRS's Seers ring (i) is +12/+12 because its
+# plain ring is +6/+6; ours is +4/+4, so ours is +8/+8, and copying the 12 would have made the
+# imbued ring three times the ring it is an imbue of. So this is a COMPARISON, like every other
+# check in this group.
+_stats66 = lambda n: {v.split(',')[0][6:]: int(v.split(',')[1])
+                      for v in (_ALLOBJ.get(n, {}).get('param') or [])
+                      if re.match(r'param=\w*(attack|defence|bonus),-?\d+$', 'param=' + v)}
+_ringbad = []
+for _r66 in ('berzerker_ring', 'warrior_ring', 'ranger_ring', 'seer_ring'):
+    _pp, _ii = _stats66(_r66), _stats66(_r66 + '_i')
+    if _ii != {k: v * 2 for k, v in _pp.items()} or not _pp:
+        _ringbad.append((_r66, _pp, _ii))
+check(not _ringbad, 'each imbued ring is its plain ring doubled, stat for stat: %s'
+      % (_ringbad or 'all four'))
+
+# EVERY IMBUED ITEM CAN BE UNCHARGED, which is OSRS's own rule for the scroll ("every item can be
+# uncharged to return the scroll in its original form") and is most of what one scroll is worth
+# when the scroll is a drop. One trigger per imbued obj, wherever it is written - six by hand and
+# the fourteen colours by tools/genslayerhelm.py.
+_ALLRS2 = ''
+for _root66, _d66, _fs66 in os.walk(os.path.join(C, 'scripts')):
+    for _fn66 in _fs66:
+        if _fn66.endswith('.rs2'):
+            _ALLRS2 += read(os.path.join(_root66, _fn66)[len(C) + 1:])
+_unch = set(re.findall(r'\[opheld\d,(\w+)\] @imbue_uncharge;', _ALLRS2))
+check(_unch == set(_from),
+      'all %d imbued items have an Uncharge trigger and nothing else does: %s'
+      % (len(_from), sorted(_unch ^ set(_from)) or 'exactly those'))
+# ONE TRIGGER ON THE SCROLL, not twenty on the items - but an imbueable item may already have an
+# [opheldu] of its own, and then the engine finds THAT one when the item is the clicked half
+# (network/game/client/handler/OpHeldUHandler.ts looks the trigger up on the clicked obj first).
+# The black mask has one, for assembling a slayer helmet, and this check is what found it: without
+# a handoff the scroll worked in one click order and said "nothing interesting happens" in the
+# other. So the claim is not "no item has one" - it is that any item which does hands the scroll
+# on, which is checkable by following the trigger to its body.
+_shadow = []
+for _n66 in _into:
+    _m = re.search(r'\[opheldu,%s\](?: @(\w+);)?' % _n66, _ALLRS2)
+    if not _m:
+        continue
+    _body = (_ALLRS2.split('[label,%s]' % _m.group(1), 1)[1].split('\n[', 1)[0]
+             if _m.group(1) else _ALLRS2[_m.end():].split('\n[', 1)[0])
+    if 'slayer_imbue_scroll' not in _body:
+        _shadow.append(_n66)
+check('[opheldu,slayer_imbue_scroll]' in _IS and not _shadow,
+      'the use is one trigger on the scroll, and the one imbueable item with an [opheldu] of its '
+      'own hands the scroll on rather than swallowing it: %s'
+      % (_shadow or 'black_mask does'))
+# and the two procs read the param rather than naming a pair - which is what makes the fourteen
+# colours cost this file nothing
+check('oc_param($target, imbue_into)' in _IS and 'oc_param($item, imbue_from)' in _IS
+      and not re.search(r'(?m)^\s*(if|switch).*black_mask', _IS),
+      'and both halves read the param, so no pair is named in the script')
+# ...and an item that is already imbued is TOLD so. "Nothing interesting happens" on a black mask
+# (i) is the one wrong target a player will actually pick, and with a drop this rare, leaving them
+# unsure whether the scroll was spent is worse than the wasted click.
+check('is already imbued.")' in _IS and 'oc_param($target, imbue_from)' in _IS,
+      'and an item that is already imbued says so rather than nothing interesting happening')
+
+# WHERE IT COMES FROM. Weighted by hitpoints, not flat per kill: flat would make Turael's rats the
+# fastest scroll farm in the game, which is the mistake ^bottomless_roll_xp exists not to make.
+_TK = read('scripts/skill_slayer/scripts/slayer_task.rs2')
+_SUP66 = read('scripts/skill_slayer/scripts/superiors.rs2')
+check(re.search(r'random\(\^imbue_scroll_hitpoints\) >= npc_basestat\(hitpoints\)', _IS)
+      is not None,
+      'the drop is weighted by the kill\'s hitpoints, the same quantity the kill pays Slayer xp for')
+_q66 = [_b for _b in re.split(r'\n(?=\[)', _TK)
+        if _b.startswith('[queue,progress_task]') or _b.startswith('[queue,progress_task_split]')]
+check(len(_q66) == 2 and all('~imbue_scroll_kill_roll' in _b for _b in _q66),
+      'and it is rolled from both on-task kill queues - the whole kill and the split one - and '
+      'from nowhere else: %d of 2, %d calls in the tree'
+      % (sum('~imbue_scroll_kill_roll' in _b for _b in _q66),
+         _ALLRS2.count('~imbue_scroll_kill_roll;')))
+check(_ALLRS2.count('~imbue_scroll_kill_roll;') == 2,
+      '...so an off-task kill can never give one')
+check('~imbue_scroll_superior_roll;' in _SUP66
+      and re.search(r'random\(\^imbue_scroll_superior_odds\) ! 0', _IS) is not None,
+      'a superior rolls a flat rate of its own on top of that, which is what makes it an '
+      'increased rate rather than just a bigger monster')
+_r66a = re.search(r'^\^imbue_scroll_hitpoints\s*=\s*(\d+)\s*$', _SC, re.M)
+_r66b = re.search(r'^\^imbue_scroll_superior_odds\s*=\s*(\d+)\s*$', _SC, re.M)
+check(_r66a and _r66b and not re.search(r'\b(%s|%s)\b' % (_r66a.group(1), _r66b.group(1)), _IS),
+      'both rates are constants and neither value is written again in the script: %s'
+      % ((_r66a.group(1) if _r66a else '?') + ' hitpoints, 1/' + (_r66b.group(1) if _r66b else '?')))
 
 # assembly carries the imbue in both directions - a helmet built from an imbued mask is imbued,
 # and taking it apart gives the imbued mask back rather than spending what was paid for
@@ -4029,12 +4133,17 @@ for _c in _COL:
             _bad.append((_k, 'missing')); continue
         if _k not in OBJS:
             _bad.append((_k, 'no id in obj.pack'))
-        for _f in ('wearpos', 'wearpos2', 'wearpos3', 'weight', 'cost',
-                   'members', 'tradeable', 'category', 'iop2', 'iop3', 'iop4'):
+        # iop5 is in the list because the imbued half inherits Uncharge and the plain half must
+        # not have it: comparing against the plain source gets both halves right at once.
+        for _f in ('wearpos', 'wearpos2', 'wearpos3', 'weight', 'cost', 'members', 'tradeable',
+                   'category', 'iop2', 'iop3', 'iop4', 'iop5'):
             if _d.get(_f) != _p.get(_f):
                 _bad.append((_k, '%s differs from the plain helmet' % _f))
-        _dp = sorted(x for x in (_d.get('param') or []) if not x.startswith('slayer_'))
-        _pp = sorted(x for x in (_p.get('param') or []) if not x.startswith('slayer_'))
+        # slayer_ and imbue_ params are per-colour by design - what a colour IS and which colour
+        # it imbues into. Everything else is the plain helmet's, and that is what is compared.
+        _skip66 = ('slayer_', 'imbue_')
+        _dp = sorted(x for x in (_d.get('param') or []) if not x.startswith(_skip66))
+        _pp = sorted(x for x in (_p.get('param') or []) if not x.startswith(_skip66))
         if _dp != _pp:
             _bad.append((_k, 'combat params differ from the plain helmet'))
 check(not _bad, 'each inherits every stat, op and gate from the plain helmet: %s'

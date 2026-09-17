@@ -28,18 +28,11 @@ return(0);
 switch_int ($tab) {
     case ^slayer_tab_unlock : return(enum(int, string, slayer_unlock_name, $i));
     case ^slayer_tab_extend : return(enum(int, string, slayer_extend_name, $i));
-    case ^slayer_tab_buy : return(~slayer_ui_buy_name($i));
+    case ^slayer_tab_buy : return(oc_name(enum(int, namedobj, slayer_buy_obj, $i)));
     case ^slayer_tab_tasks : return(~slayer_ui_task_name($i));
     case ^slayer_tab_cosmetics : return(enum(int, string, slayer_cosmetic_name, $i));
 }
 return("");
-
-// A thing you buy is named by the obj; the imbue is a service and is named by a table.
-[proc,slayer_ui_buy_name](int $i)(string)
-if ($i = ^slayer_buy_imbue) {
-    return(enum(int, string, slayer_buy_name, $i));
-}
-return(oc_name(enum(int, namedobj, slayer_buy_obj, $i)));
 
 // The Tasks tab: cancel, block, then one row per block slot. A slot shows what is in it, or that it
 // is empty, or how many quest points would open it - ~slayer_block_name already words all three.

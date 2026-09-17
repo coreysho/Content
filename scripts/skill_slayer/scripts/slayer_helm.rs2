@@ -26,6 +26,15 @@
 [opheldu,wallbeast_spike_helmet] @slayer_helm_combine;
 
 [label,slayer_helm_combine]
+// A SCROLL OF IMBUING USED ON A MASK ARRIVES HERE, not at the scroll's own [opheldu]. The mask
+// carries this trigger for assembly, and [opheldu] is looked up on the clicked half first
+// (network/game/client/handler/OpHeldUHandler.ts), so clicking the mask and then the scroll finds
+// this label. Without the handoff the player would get "Nothing interesting happens" from one of
+// the two click orders and not the other, which is the worst kind of bug to report.
+if (last_useitem = slayer_imbue_scroll) {
+    ~imbue_scroll_read(last_item);
+    return;
+}
 if (~slayer_helm_part(last_item) = false | ~slayer_helm_part(last_useitem) = false) {
     ~displaymessage(^dm_default);
     return;

@@ -182,7 +182,7 @@ def cost_text():
     for tbl in ('slayer_unlock_cost', 'slayer_extend_cost', 'slayer_buy_cost', 'slayer_cosmetic_cost'):
         body = ENUMS.split('[' + tbl + ']', 1)[1].split('\n[', 1)[0]
         costs |= {int(v) for v in re.findall(r'^val=\d+,(-?\d+)$', body, re.M)}
-    for c in ('slayer_cancel_cost', 'slayer_block_cost', 'slayer_imbue_cost'):
+    for c in ('slayer_cancel_cost', 'slayer_block_cost'):
         costs.add(int(re.search(r'\^' + c + r'\s*=\s*(\d+)', CONST).group(1)))
     return sorted(costs)
 

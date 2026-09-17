@@ -1,0 +1,107 @@
+// The Scroll of imbuing: what it does, and where it comes from.
+//
+// OSRS sells it at Emir's Arena for 200 points and uses it to imbue thirteen items. There is no
+// Emir's Arena in a 2006 build, so here it DROPS from slayer - see the two constants in
+// slayer.constant for the rates and the arithmetic behind them. It replaces the slayer master's
+// 1,250-point imbue service, which was one invented number doing the work of a reward.
+//
+// ONE PROC, TWENTY ITEMS, NO TABLE. Every imbueable obj carries param=imbue_into naming its imbued
+// twin and every imbued obj carries param=imbue_from naming the plain one, so this file never
+// names a pair. That is what makes the fourteen recoloured slayer helmets free: they get their
+// params from tools/genslayerhelm.py and this file does not know they exist. The items are the
+// black mask, the slayer helmet and its fourteen colours, and the four Fremennik rings -
+// skill_slayer/configs/imbue_scroll.obj says why that is the whole list.
+//
+// WHY THE TRIGGER IS ON THE SCROLL AND NOT ON THE ITEMS. [opheldu,X] is looked up on both halves of
+// a use and the engine swaps last_item/last_useitem so that last_item is always the half that
+// carried the trigger (network/game/client/handler/OpHeldUHandler.ts). One trigger on the scroll
+// therefore catches the click both ways round, and twenty triggers on the items would be twenty
+// chances to shadow one another.
+
+[opheldu,slayer_imbue_scroll]
+~imbue_scroll_read(last_useitem);
+
+[proc,imbue_scroll_read](obj $target)
+def_namedobj $into = oc_param($target, imbue_into);
+if ($into = null) {
+    // An item that is ALREADY imbued gets told so rather than "nothing interesting happens" -
+    // it is the one wrong target a player is likely to pick, and the scroll is rare enough that
+    // "did that just do nothing, or did it work?" is a bad question to leave them with.
+    if (oc_param($target, imbue_from) ! null) {
+        mes("Your <lowercase(oc_name($target))> is already imbued.");
+        return;
+    }
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, slayer_imbue_scroll, 1);
+inv_del(inv, $target, 1);
+inv_add(inv, $into, 1);
+~objbox($into, "You read the scroll, and your <lowercase(oc_name($target))> is imbued.", 250, 0, 0);
+
+// UNCHARGING IS OSRS'S RULE: "every item can be uncharged to return the scroll in its original
+// form, allowing it to be swapped to other items freely". It matters more here than it does there,
+// because here the scroll is a rare drop and not a shop line - being able to move an imbue off a
+// mask and onto a ring is most of what one scroll is worth.
+//
+// No confirmation box: the whole thing is reversible with the scroll it just handed back, so there
+// is nothing to protect the player from.
+[label,imbue_uncharge]
+~imbue_scroll_uncharge(last_item);
+
+[proc,imbue_scroll_uncharge](obj $item)
+def_namedobj $back = oc_param($item, imbue_from);
+if ($back = null) {
+    ~displaymessage(^dm_default);
+    return;
+}
+// One item leaves and two arrive, so a full pack needs one free slot - unless a scroll is already
+// in there, because the scroll stacks and joins that stack without asking for a slot.
+if (inv_freespace(inv) < 1 & inv_total(inv, slayer_imbue_scroll) < 1) {
+    mes("You need a free inventory space to uncharge that.");
+    return;
+}
+inv_del(inv, $item, 1);
+inv_add(inv, $back, 1);
+inv_add(inv, slayer_imbue_scroll, 1);
+~objbox(slayer_imbue_scroll, "You uncharge your <lowercase(oc_name($item))>. The scroll rolls itself back up, ready for something else.", 250, 0, 0);
+
+// Uncharge is op3 on the mask and the rings, which have only Wear above it, and op5 on the helmets,
+// which have Wear, Check and Disassemble. The fourteen recoloured helmets get their line from
+// tools/genslayerhelm.py, into slayer_helm_colours.rs2.
+[opheld3,black_mask_i] @imbue_uncharge;
+[opheld5,slayer_helm_i] @imbue_uncharge;
+[opheld3,berzerker_ring_i] @imbue_uncharge;
+[opheld3,warrior_ring_i] @imbue_uncharge;
+[opheld3,ranger_ring_i] @imbue_uncharge;
+[opheld3,seer_ring_i] @imbue_uncharge;
+
+// ---- where it comes from ----
+//
+// Called from [queue,progress_task] and [queue,progress_task_split] (skill_slayer/scripts/
+// slayer_task.rs2), which are the only two places an ON-TASK kill is counted - so the scroll can
+// only ever come off a monster your master sent you to kill, and no amount of killing something
+// else helps. The active npc is the one that just died: the same npc_basestat(hitpoints) the line
+// above it pays Slayer xp for.
+//
+// The roll is hitpoints/^imbue_scroll_hitpoints, written the way the bottomless bucket's is
+// (skill_farming/scripts/compost_bucket.rs2) because it is the same kind of roll.
+[proc,imbue_scroll_kill_roll]
+if (random(^imbue_scroll_hitpoints) >= npc_basestat(hitpoints)) {
+    return;
+}
+~imbue_scroll_drop;
+
+// A superior's own roll, from [label,superior_death] (skill_slayer/scripts/superiors.rs2). It is
+// on TOP of the hitpoints roll above, which the superior also gets for being an on-task kill.
+[proc,imbue_scroll_superior_roll]
+if (random(^imbue_scroll_superior_odds) ! 0) {
+    return;
+}
+~imbue_scroll_drop;
+
+// On the floor at the kill, with the rest of the loot, like the imbued heart - not into the pack
+// like a skilling pet. It is a monster drop and the player is expecting to pick the drops up.
+[proc,imbue_scroll_drop]
+obj_add(npc_coord, slayer_imbue_scroll, 1, ^lootdrop_duration);
+mes("@red@A Scroll of imbuing falls from your kill.");
