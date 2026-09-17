@@ -39,6 +39,9 @@ if (distance(coord, ^barrows_mound_ahrim) <= ^barrows_mound_radius) {
 if ($crypt = null) {
     return(false);
 }
+// The run begins with the first hole in the ground: that is when the crypt that hides the
+// passage is drawn, and barrows_tunnels.rs2 owns the drawing.
+~barrows_begin_run;
 p_arrivedelay;
 p_stopaction;
 mes("You dig into the mound...");
@@ -62,7 +65,7 @@ mes("You climb out of the crypt.");
 // ---------------------------------------------------------------------------------------------
 // The sarcophagi
 // ---------------------------------------------------------------------------------------------
-// Search one and its brother climbs out of it. ONE BROTHER PER RUN: his bit in %barrows_killed is
+// Search one and its brother climbs out of it. ONE BROTHER PER RUN: his bit in %barrows_kills is
 // set when he dies and the sarcophagus is empty until the run is cleared, so a brother cannot be
 // farmed by searching the same box twice. The bit is also why this is a proc rather than six
 // copies - the only thing that differs between the six is the npc, the bit and where he stands.
@@ -74,7 +77,17 @@ mes("You climb out of the crypt.");
 p_arrivedelay;
 p_stopaction;
 facesquare(loc_coord);
-if (testbit(%barrows_killed, $bit) = ^true) {
+~barrows_begin_run;
+// THE WAY IN. One of the six crypts is the passage this run, and this is it: the brother who
+// sleeps here is not in his box, he is the one who turns up when the chest is opened.
+if (%barrows_entry_crypt = add($bit, 1)) {
+    ~barrows_passage;
+    return;
+}
+// testbit on %barrows_kills rather than on the six named varbits, because bits 0-5 of that var
+// ARE barrows_killed_ahrim .. barrows_killed_verac and reading them as one int is how the chest
+// counts them too. The deaths write through the named varbits; only the reads go to the base.
+if (testbit(%barrows_kills, $bit) = ^true) {
     mes("You search the sarcophagus and find nothing but dust.");
     return;
 }
@@ -99,7 +112,8 @@ npc_setmode(opplayer2);
 // ---------------------------------------------------------------------------------------------
 // A brother drops nothing. That is not an omission: in Old School the brothers are the price of the
 // reward and the chest is where it comes from, so a brother who dropped loot would pay twice. What
-// a death does is set his bit, which empties his sarcophagus for the rest of the run.
+// a death does is set his bit, which empties his sarcophagus for the rest of the run, and pays his
+// two points of reward potential - which the chest reads back off these same six bits.
 //
 // WHY THE SIX DEATHS ARE WRITTEN OUT instead of sharing a label. A script that writes a player var
 // needs [ 'p_active_player' ], and npc_findhero is what supplies it inside an ai_queue3 - but the
@@ -113,39 +127,39 @@ gosub(npc_death);
 if (npc_findhero = ^false) {
     return;
 }
-%barrows_killed = setbit(%barrows_killed, ^barrows_bit_ahrim);
+%barrows_killed_ahrim = ^true;
 
 [ai_queue3,barrows_dharok]
 gosub(npc_death);
 if (npc_findhero = ^false) {
     return;
 }
-%barrows_killed = setbit(%barrows_killed, ^barrows_bit_dharok);
+%barrows_killed_dharok = ^true;
 
 [ai_queue3,barrows_guthan]
 gosub(npc_death);
 if (npc_findhero = ^false) {
     return;
 }
-%barrows_killed = setbit(%barrows_killed, ^barrows_bit_guthan);
+%barrows_killed_guthan = ^true;
 
 [ai_queue3,barrows_karil]
 gosub(npc_death);
 if (npc_findhero = ^false) {
     return;
 }
-%barrows_killed = setbit(%barrows_killed, ^barrows_bit_karil);
+%barrows_killed_karil = ^true;
 
 [ai_queue3,barrows_torag]
 gosub(npc_death);
 if (npc_findhero = ^false) {
     return;
 }
-%barrows_killed = setbit(%barrows_killed, ^barrows_bit_torag);
+%barrows_killed_torag = ^true;
 
 [ai_queue3,barrows_verac]
 gosub(npc_death);
 if (npc_findhero = ^false) {
     return;
 }
-%barrows_killed = setbit(%barrows_killed, ^barrows_bit_verac);
+%barrows_killed_verac = ^true;

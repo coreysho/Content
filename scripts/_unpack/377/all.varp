@@ -823,7 +823,14 @@ transmit=yes
 [barrows]
 transmit=yes
 
+// protect=no because every writer is a DEATH, which runs in npc context: npc_findhero hands
+// that script the player but not protected access to him, and a protected var refuses the write
+// at compile time - "Attempt to access uninitialized pointer [ 'p_active_player' ]". The six
+// brothers' bits, the reward potential and the kill count are all written that way.
+// areas/area_barrows/scripts/barrows.rs2 has the whole chain; mage_arena_2.varp marks its own
+// npc-death-written progress var the same way.
 [barrows_kills]
+protect=no
 transmit=yes
 
 [worn_set]

@@ -1,0 +1,81 @@
+// WHICH DOORS ARE SHUT THIS RUN. Old School randomises the tunnel doors on every run -
+// "not all of the doors in these tunnels can be opened" - and the one thing that must stay
+// true is that the chest is still reachable. Working that out in the script would mean a
+// flood fill in RuneScript, so it is worked out offline instead: tools/barrowsmaze.py reads
+// maps/m55_151.jm2, builds the tunnel's graph, and keeps only masks where all four chamber
+// ladders can still walk to the chest. barrows_battery.py re-verifies every row below
+// against the map on every run, so a row that stops being solvable cannot ship.
+//
+// A mask is sixteen bits, LOW BIT = gate a, and a SET bit means LOCKED - the same order and
+// meaning as %barrows bits 10-25, so one setbit_range_toint lays a whole maze.
+// the twenty-four mazes, as the tool printed them:
+//    0 0x098A  5 shut bdhil          1 0x7005  5 shut acmno          2 0x84A8  5 shut dfhkp
+//    3 0x8131  5 shut aefip          4 0x8A15  6 shut acejlp         5 0x24A5  6 shut acfhkn
+//    6 0xE089  6 shut adhnop         7 0x886A  6 shut bdfglp         8 0x7491  7 shut aehkmno
+//    9 0x6E22  7 shut bfjklno       10 0x039D  7 shut acdehij       11 0x45D8  7 shut deghiko
+//   12 0xE0BA  8 shut bdefhnop      13 0xF852  8 shut beglmnop      14 0x4717  8 shut abceijko
+//   15 0xAD4C  8 shut cdgiklnp      16 0x77C8  9 shut dghijkmno     17 0x7E38  9 shut defjklmno
+//   18 0x86FC  9 shut cdefghjkp     19 0x2ABD  9 shut acdefhjln     20 0x375E 10 shut bcdegijkmn
+//   21 0x376D 10 shut acdfgijkmn    22 0xEDE4 10 shut cfghiklnop    23 0xFD64 10 shut cfgiklmnop
+[barrows_mazes]
+inputtype=int
+outputtype=int
+// A miss opens every door rather than shutting every door, because a run nobody can finish is
+// worse than a run with no maze in it.
+default=0
+val=0,2442
+val=1,28677
+val=2,33960
+val=3,33073
+val=4,35349
+val=5,9381
+val=6,57481
+val=7,34922
+val=8,29841
+val=9,28194
+val=10,925
+val=11,17880
+val=12,57530
+val=13,63570
+val=14,18199
+val=15,44364
+val=16,30664
+val=17,32312
+val=18,34556
+val=19,10941
+val=20,14174
+val=21,14189
+val=22,60900
+val=23,64868
+
+// THE TWENTY-FOUR PIECES, four per brother in the order the brothers' bits run, so a piece is
+// addressed as brother*4 + 0..3 and a brother nobody killed can never be picked.
+[barrows_equipment]
+inputtype=int
+outputtype=namedobj
+// obj 0 is a real item (mcannonremains), so a miss has to say null out loud.
+default=null
+val=0,barrows_ahrim_head
+val=1,barrows_ahrim_body
+val=2,barrows_ahrim_legs
+val=3,barrows_ahrim_weapon
+val=4,barrows_dharok_head
+val=5,barrows_dharok_body
+val=6,barrows_dharok_legs
+val=7,barrows_dharok_weapon
+val=8,barrows_guthan_head
+val=9,barrows_guthan_body
+val=10,barrows_guthan_legs
+val=11,barrows_guthan_weapon
+val=12,barrows_karil_head
+val=13,barrows_karil_body
+val=14,barrows_karil_legs
+val=15,barrows_karil_weapon
+val=16,barrows_torag_head
+val=17,barrows_torag_body
+val=18,barrows_torag_legs
+val=19,barrows_torag_weapon
+val=20,barrows_verac_head
+val=21,barrows_verac_body
+val=22,barrows_verac_legs
+val=23,barrows_verac_weapon

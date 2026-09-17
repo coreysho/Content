@@ -1,0 +1,307 @@
+// The Barrows tunnels: the passage in, the sixteen doors, what comes out of them, and the reward
+// potential that everything down here pays into.
+//
+// NOTHING HERE NEEDED ART OR CONFIG. 377 already ships the whole tunnel: the rooms, the chest, the
+// thirty-four monsters, four ladders that are multilocs on their own chamber bit, and sixteen door
+// pairs that are multilocs on their own door bit with a locked form and an unlocked form carrying
+// Open. What did not exist was a single handler. See barrows.constant for the bit map.
+//
+// THE MAZE IS CHOSEN, NOT BUILT. Old School randomises which doors open every run and the chest
+// must stay reachable; tools/barrowsmaze.py works that out against maps/m55_151.jm2 offline and
+// barrows.enum holds twenty-four masks that all pass. One setbit_range_toint lays a whole maze.
+
+// ---------------------------------------------------------------------------------------------
+// Starting a run
+// ---------------------------------------------------------------------------------------------
+// %barrows_entry_crypt holds a brother's bit plus one, so 0 means no run is on. It is rolled by
+// the first dig of a run and cleared by looting the chest, and it decides three things: which
+// sarcophagus gives the passage instead of its brother, which brother the chest hands you, and
+// whether anything down here counts for anything at all.
+[proc,barrows_begin_run]
+// A run that is still owed its chest keeps everything: the maze, the ladder, the brothers already
+// down, the potential. A run whose chest has paid is over, and the next hole in the ground is the
+// next run - which is why looting does not clear anything itself.
+if (%barrows_entry_crypt ! ^barrows_entry_none & %barrows_chest_paid = ^false) {
+    return;
+}
+%barrows_entry_crypt = add(random(^barrows_brothers), 1);
+// A fresh run owes nothing and has killed nobody. The doors are laid when the passage is found
+// rather than here, because a player who never finds it never needs a maze.
+%barrows_kills = 0;
+%barrows_chest_paid = ^false;
+%barrows_chest_open = ^false;
+%barrows = setbit_range_toint(%barrows, 0, ^barrows_door_first, ^barrows_door_last);
+~barrows_shut_ladders;
+
+// ---------------------------------------------------------------------------------------------
+// The passage
+// ---------------------------------------------------------------------------------------------
+// Six crypts, four ladders: the chamber cannot be read off the crypt, so it is rolled on the way
+// in and then remembered by the only bit that can remember it - the one that makes its ladder
+// exist. Coming back down the same run returns you to the same chamber and the same maze.
+[proc,barrows_passage]
+mes("You search the sarcophagus...");
+anim(human_openchest, 0);
+p_delay(1);
+def_int $chamber = ~barrows_open_chamber;
+if ($chamber < 0) {
+    $chamber = random(^barrows_chambers);
+    ~barrows_open_ladder($chamber);
+    %barrows = setbit_range_toint(%barrows, enum(int, int, barrows_mazes, random(^barrows_mazes)), ^barrows_door_first, ^barrows_door_last);
+    ~mesbox("You have found a passage into the Barrows tunnels!");
+} else {
+    ~mesbox("You climb back down into the tunnels.");
+}
+p_telejump(~barrows_chamber_tile($chamber));
+
+// A fresh run owns no chamber. Leaving the old ladder standing would make ~barrows_open_chamber
+// answer with it, and the next run would inherit the last one's maze.
+[proc,barrows_shut_ladders]
+%barrows_chamber_a = ^false;
+%barrows_chamber_c = ^false;
+%barrows_chamber_g = ^false;
+%barrows_chamber_i = ^false;
+
+// The chamber this run is using, or -1 when it has not picked one yet.
+[proc,barrows_open_chamber]()(int)
+if (%barrows_chamber_a = ^true) {
+    return(^barrows_chamber_a);
+} else if (%barrows_chamber_c = ^true) {
+    return(^barrows_chamber_c);
+} else if (%barrows_chamber_g = ^true) {
+    return(^barrows_chamber_g);
+} else if (%barrows_chamber_i = ^true) {
+    return(^barrows_chamber_i);
+}
+return(-1);
+
+[proc,barrows_open_ladder](int $chamber)
+switch_int ($chamber) {
+    case ^barrows_chamber_a : %barrows_chamber_a = ^true;
+    case ^barrows_chamber_c : %barrows_chamber_c = ^true;
+    case ^barrows_chamber_g : %barrows_chamber_g = ^true;
+    case ^barrows_chamber_i : %barrows_chamber_i = ^true;
+}
+
+[proc,barrows_chamber_tile](int $chamber)(coord)
+switch_int ($chamber) {
+    case ^barrows_chamber_a : return(^barrows_chamber_tile_a);
+    case ^barrows_chamber_c : return(^barrows_chamber_tile_c);
+    case ^barrows_chamber_g : return(^barrows_chamber_tile_g);
+    case ^barrows_chamber_i : return(^barrows_chamber_tile_i);
+}
+return(null);
+
+// ---------------------------------------------------------------------------------------------
+// The way out
+// ---------------------------------------------------------------------------------------------
+// All four ladders are the same loc once their bit is set, so one handler serves them, and it puts
+// the player back on the mound of the crypt they came in by - the hole they dug is the way out.
+[oploc1,barrows_ladder]
+p_arrivedelay;
+p_stopaction;
+mes("You climb the ladder...");
+~climb_ladder(~barrows_entry_mound, true);
+mes("...and come out on the surface.");
+
+[proc,barrows_entry_mound]()(coord)
+// %barrows_entry_crypt is the brother's bit PLUS ONE so that 0 can mean "no run", and a switch
+// case has to be a constant, so the plus one comes off here rather than going onto the cases.
+switch_int (sub(%barrows_entry_crypt, 1)) {
+    case ^barrows_bit_ahrim : return(^barrows_mound_ahrim);
+    case ^barrows_bit_dharok : return(^barrows_mound_dharok);
+    case ^barrows_bit_guthan : return(^barrows_mound_guthan);
+    case ^barrows_bit_karil : return(^barrows_mound_karil);
+    case ^barrows_bit_torag : return(^barrows_mound_torag);
+    case ^barrows_bit_verac : return(^barrows_mound_verac);
+}
+// No run: the middle mound is where the wiki puts the Strange Old Man and is the one tile on the
+// surface that is certainly a mound, so a player who got down here another way is not stranded.
+return(^barrows_mound_ahrim);
+
+// ---------------------------------------------------------------------------------------------
+// The doors
+// ---------------------------------------------------------------------------------------------
+// The unlocked form is the only one carrying Open, so a locked door needs no handler and no
+// message: the client draws it darker and it has no option, which is 377's own answer to "not all
+// of the doors in these tunnels can be opened".
+//
+// The door does not swing. There is no open form of it in the cache - barrows_door_inactive_l is
+// the same model with no ops at all - so what a click does is carry the player through the
+// doorway, the way general_use/scripts/fence.rs2 carries them through a fence, and then let
+// something out behind them.
+[oploc1,barrows_door_unlocked_l] ~barrows_door_through;
+[oploc1,barrows_door_unlocked_r] ~barrows_door_through;
+
+[proc,barrows_door_through]
+p_arrivedelay;
+p_stopaction;
+def_coord $start = loc_coord;
+def_coord $end = ~movecoord_loc_return(~door_open(loc_angle, loc_shape));
+def_int $dir;
+switch_int (loc_angle) {
+    case ^loc_west : $dir = ^exact_west;
+    case ^loc_north : $dir = ^exact_north;
+    case ^loc_east : $dir = ^exact_east;
+    case ^loc_south : $dir = ^exact_south;
+}
+if (~check_axis(coord, loc_coord, loc_angle) = false) {
+    $start = ~movecoord_loc_return(~door_open(loc_angle, loc_shape));
+    $end = loc_coord;
+    switch_int (loc_angle) {
+        case ^loc_west : $dir = ^exact_east;
+        case ^loc_north : $dir = ^exact_south;
+        case ^loc_east : $dir = ^exact_west;
+        case ^loc_south : $dir = ^exact_north;
+    }
+}
+if (coord ! $start) {
+    p_teleport($start);
+    p_delay(1);
+}
+facesquare($end);
+p_delay(0);
+~agility_exactmove(human_walk_style, 0, 2, $start, $end, 0, 76, $dir, true);
+p_teleport($end);
+~barrows_door_spawn($end);
+
+// WHAT COMES THROUGH WITH YOU, out of 128 and from the wiki: 12 a brother you have not killed, 52
+// a skeleton, 32 a bloodworm, 32 a crypt rat - unless the room is already holding eleven, in which
+// case nothing comes. AFTER THE CHEST IS LOOTED every door is a brother instead, which is the
+// wiki's own "each door you open is guaranteed to summon one of the brothers whom you did not
+// kill" and is the only way the last brother can be met before the chest is opened at all.
+[proc,barrows_door_spawn](coord $where)
+if (%barrows_entry_crypt = ^barrows_entry_none) {
+    return;
+}
+if (~barrows_crowd($where) >= ^barrows_spawn_crowd) {
+    return;
+}
+def_int $roll = random(^barrows_spawn_denom);
+if (%barrows_chest_paid = ^true) {
+    $roll = 0;
+}
+if ($roll < ^barrows_spawn_brother) {
+    ~barrows_spawn_brother($where);
+    return;
+}
+def_npc $monster = barrows_rat;
+if ($roll < ^barrows_spawn_skeleton) {
+    $monster = barrows_skeleton_armed;
+    if (random(2) = 0) {
+        $monster = barrows_skeleton_unarmed;
+    }
+} else if ($roll < ^barrows_spawn_bloodworm) {
+    $monster = barrows_bloodworm;
+}
+~barrows_wake($where, $monster);
+
+// How many npcs are already in earshot of the tile the player stepped onto. npc_findallany counts
+// everything, which is what the wiki's "eleven enemies" means - there is nothing else down here.
+[proc,barrows_crowd](coord $where)(int)
+def_int $count = 0;
+npc_findallany($where, ^barrows_spawn_range, 1);
+while (npc_findnext = true) {
+    $count = add($count, 1);
+}
+return($count);
+
+// A brother out of a door is one you have NOT killed, picked evenly among those left. With none
+// left there is nothing to send, so a skeleton comes instead rather than nothing at all.
+[proc,barrows_spawn_brother](coord $where)
+def_int $left = sub(^barrows_brothers, ~barrows_brothers_killed);
+if ($left <= 0) {
+    ~barrows_wake($where, barrows_skeleton_armed);
+    return;
+}
+~barrows_wake($where, ~barrows_brother_npc(~barrows_nth_unkilled(random($left))));
+
+[proc,barrows_wake](coord $where, npc $monster)
+npc_add($where, $monster, ^barrows_brother_life);
+%npc_aggressive_player = uid;
+%aggressive_npc = npc_uid;
+npc_setmode(opplayer2);
+
+// ---------------------------------------------------------------------------------------------
+// Counting the brothers
+// ---------------------------------------------------------------------------------------------
+// Bits 0-5 of %barrows_kills are the six barrows_killed_* varbits, so they can be counted and
+// indexed as one int - which is what the chest's roll count, its equipment table and the doors'
+// brother all need.
+[proc,barrows_brothers_killed]()(int)
+def_int $bit = 0;
+def_int $count = 0;
+while ($bit < ^barrows_brothers) {
+    if (testbit(%barrows_kills, $bit) = ^true) {
+        $count = add($count, 1);
+    }
+    $bit = add($bit, 1);
+}
+return($count);
+
+// The $n-th brother still alive, counting from 0. Used with random(brothers left), so it always
+// lands on one; -1 would mean the caller asked for a brother that is not there.
+[proc,barrows_nth_unkilled](int $n)(int)
+def_int $bit = 0;
+while ($bit < ^barrows_brothers) {
+    if (testbit(%barrows_kills, $bit) = ^false) {
+        if ($n = 0) {
+            return($bit);
+        }
+        $n = sub($n, 1);
+    }
+    $bit = add($bit, 1);
+}
+return(-1);
+
+[proc,barrows_brother_npc](int $bit)(npc)
+switch_int ($bit) {
+    case ^barrows_bit_ahrim : return(barrows_ahrim);
+    case ^barrows_bit_dharok : return(barrows_dharok);
+    case ^barrows_bit_guthan : return(barrows_guthan);
+    case ^barrows_bit_karil : return(barrows_karil);
+    case ^barrows_bit_torag : return(barrows_torag);
+    case ^barrows_bit_verac : return(barrows_verac);
+}
+return(null);
+
+// ---------------------------------------------------------------------------------------------
+// Reward potential
+// ---------------------------------------------------------------------------------------------
+// Called from [proc,npc_death] beside ~check_progress_task, because that is the one place every
+// death passes through and the tunnel monsters are not all hookable: the two skeletons already
+// carry an [ai_queue3] for their drop table, and a second trigger on the same npc is a hard build
+// error. The proc asks three questions and answers nothing otherwise.
+//
+// THE BROTHERS DO NOT PAY INTO THE POOL. The wiki gives monsters their combat level into a total
+// capped at 1000 and brothers a flat 2 each, "capping the maximum reward potential at 1,012" - and
+// 1000 + 6*2 is the only reading of that number in which a brother pays 2 and nothing more. Their
+// 2 each is added by the chest, off the six killed bits, so it cannot be paid twice.
+[proc,barrows_potential]
+if (inzone(^barrows_tunnel_sw, ^barrows_tunnel_ne, npc_coord) = ^false) {
+    return;
+}
+if (~barrows_brother_bit(npc_type) >= 0) {
+    return;
+}
+if (npc_findhero = ^false) {
+    return;
+}
+if (%barrows_entry_crypt = ^barrows_entry_none) {
+    return;
+}
+%barrows_killed_monster = min(add(%barrows_killed_monster, nc_vislevel(npc_type)), ^barrows_potential_cap);
+%barrows_killed_count = add(%barrows_killed_count, 1);
+
+// Which of the six a dying npc is, or -1 for anything else - the guard that keeps the brothers out
+// of the monster pool, and the same question the chest asks of a door's brother.
+[proc,barrows_brother_bit](npc $brother)(int)
+switch_npc ($brother) {
+    case barrows_ahrim : return(^barrows_bit_ahrim);
+    case barrows_dharok : return(^barrows_bit_dharok);
+    case barrows_guthan : return(^barrows_bit_guthan);
+    case barrows_karil : return(^barrows_bit_karil);
+    case barrows_torag : return(^barrows_bit_torag);
+    case barrows_verac : return(^barrows_bit_verac);
+}
+return(-1);

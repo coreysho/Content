@@ -1,0 +1,114 @@
+{
+  "_what": "The Barrows chest as Old School documents it, so the battery has something to compare the scripts AGAINST rather than comparing them with themselves.",
+  "_source": "https://oldschool.runescape.wiki/w/Chest_(Barrows) and https://oldschool.runescape.wiki/w/Barrows/Strategies, read 2026-09-17",
+  "_quotes": {
+    "rolls": "There is initially one roll at the drop table. Each additional brother killed grants an additional roll at the drop table, to a maximum of seven total rolls.",
+    "equipment": "In order to receive a piece of Barrows equipment, the corresponding brother must be killed before the chest is looted.",
+    "roll": "A roll is performed for a value between 1 and your reward potential (each inclusive). The result then determines what item is awarded, and in what quantity.",
+    "potential": "The reward potential gathered is equal to the combat level of the monster that was slain, capped for a total of 1,000. For every Barrows brother that was slain, the player will receive an extra 2 points on their rewards potential, capping the maximum reward potential at 1,012.",
+    "doors": "Upon opening any of the doors in these tunnels, a monster will spawn and attack the player. When opening a door to a room that already contains eleven enemies or more, no new monster will be spawned.",
+    "afterloot": "Each door you open is guaranteed to summon one of the brothers whom you did not kill."
+  },
+  "potential": {
+    "monster_cap": 1000,
+    "per_brother": 2,
+    "max": 1012
+  },
+  "rolls": {
+    "base": 1,
+    "per_brother": 1,
+    "max": 7
+  },
+  "equipment": {
+    "base": 450,
+    "step": 58,
+    "pieces_per_brother": 4,
+    "_note": "P(N) = 1/(450 - 58*N) per roll, N = brothers killed: 1/392 at one brother and 1/102 at six.",
+    "odds": {
+      "1": 392,
+      "2": 334,
+      "3": 276,
+      "4": 218,
+      "5": 160,
+      "6": 102
+    }
+  },
+  "table": [
+    {
+      "item": "coins",
+      "rp": 1,
+      "low": 2,
+      "high": 774
+    },
+    {
+      "item": "mindrune",
+      "rp": 381,
+      "low": 253,
+      "high": 336
+    },
+    {
+      "item": "chaosrune",
+      "rp": 506,
+      "low": 112,
+      "high": 139
+    },
+    {
+      "item": "deathrune",
+      "rp": 631,
+      "low": 70,
+      "high": 83
+    },
+    {
+      "item": "bloodrune",
+      "rp": 756,
+      "low": 37,
+      "high": 43
+    },
+    {
+      "item": "boltrack",
+      "rp": 881,
+      "low": 35,
+      "high": 40
+    },
+    {
+      "item": "keyhalf",
+      "rp": 1006,
+      "low": 1,
+      "high": 1
+    },
+    {
+      "item": "dragonmed",
+      "rp": 1012,
+      "low": 1,
+      "high": 1
+    }
+  ],
+  "_table_note": "The rp column is the reward potential an item needs before it can be rolled at all, and it is also the band: the roll is a value in 1..potential, and the item awarded is the last one in this list whose rp the roll reached. The bands therefore run 1-380 coins, 381-505 mind, 506-630 chaos, 631-755 death, 756-880 blood, 881-1005 bolt rack, 1006-1011 key half, 1012 dragon med helm - 380 + 125*5 + 6 + 1 = 1012 exactly. The wiki's own rates column prints coins as 379/1012, one short of the band its thresholds describe; the thresholds are what is implemented, because they are the side that adds up.",
+  "door_spawn": {
+    "_denominator": 128,
+    "brother": 12,
+    "skeleton": 52,
+    "bloodworm": 32,
+    "crypt_rat": 32,
+    "crowd": 11
+  },
+  "tunnel_monsters": {
+    "barrows_skeleton_armed": 77,
+    "barrows_skeleton_unarmed": 77,
+    "barrows_bloodworm": 52,
+    "barrows_rat": 43,
+    "barrows_giantrat": 76,
+    "barrows_spider": 56,
+    "barrows_giantspider": 79
+  },
+  "_monsters_note": "Combat levels read off the npc records in scripts/_unpack/377/all.npc, not off the wiki: these are 377's own Barrows monsters and the battery re-reads them from the same place the engine does.",
+  "teleport": {
+    "osrs_obj": 19629,
+    "osrs_model": 31539,
+    "destination": "0_55_51_45_48",
+    "rate": 10,
+    "low": 4,
+    "high": 6,
+    "_note": "Corey's addition, not Old School's: the chest pays a Barrows teleport at 1/10 on a looted chest, four to six of them. The destination is the tile he asked for."
+  }
+}

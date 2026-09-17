@@ -15,7 +15,16 @@ C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 W = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'barrows_mutate_work')
 
 CONST = 'scripts/areas/area_barrows/configs/barrows.constant'
-VARP = 'scripts/areas/area_barrows/configs/barrows.varp'
+VARBIT = 'scripts/areas/area_barrows/configs/barrows.varbit'
+ENUM = 'scripts/areas/area_barrows/configs/barrows.enum'
+TUN = 'scripts/areas/area_barrows/scripts/barrows_tunnels.rs2'
+CHEST = 'scripts/areas/area_barrows/scripts/barrows_chest.rs2'
+TELE = 'scripts/areas/area_barrows/scripts/barrows_teleport.rs2'
+TOBJ = 'scripts/areas/area_barrows/configs/barrows.obj'
+DEATH = 'scripts/skill_combat/scripts/npc/npc_death.rs2'
+ALLVARP = 'scripts/_unpack/377/all.varp'
+ALLVARBIT = 'scripts/_unpack/377/all.varbit'
+CHESTSPEC = 'tools/barrowschestspec.json'
 RS2 = 'scripts/areas/area_barrows/scripts/barrows.rs2'
 STAIRS = 'scripts/ladders+stairs/scripts/stairs.rs2'
 SPADE = 'scripts/general_use/scripts/spade.rs2'
@@ -84,8 +93,9 @@ MUTS = [
  (RS2, '[oploc1,barrow_torag_sarcophagus] ~barrows_search(barrows_torag, ^barrows_bit_torag);\n',
        '',
   '6 every sarcophagus in the cache has a handler'),
- (RS2, 'facesquare(loc_coord);\nif (testbit(',
-       'facesquare(loc_coord);\nnpc_add(coord, $brother, ^barrows_brother_life);\nif (testbit(',
+ (RS2, 'if (testbit(%barrows_kills, $bit) = ^true) {',
+       'npc_add(coord, $brother, ^barrows_brother_life);\n'
+       'if (testbit(%barrows_kills, $bit) = ^true) {',
   '6 the sarcophagus reads the kill bit BEFORE it adds anybody'),
  (RS2, 'npc_add(coord, $brother, ^barrows_brother_life);',
        'npc_add(coord, $brother, ^max_32bit_int);',
@@ -94,32 +104,22 @@ MUTS = [
   '6 and he comes out fighting'),
 
  # --- the deaths, and the compile-time lesson about where the write has to live
- (RS2, '%barrows_killed = setbit(%barrows_killed, ^barrows_bit_karil);',
-       '%barrows_killed = setbit(%barrows_killed, ^barrows_bit_torag);',
+ (RS2, '%barrows_killed_karil = ^true;', '%barrows_killed_torag = ^true;',
   "7 karil's death sets"),
- (RS2, '%barrows_killed = setbit(%barrows_killed, ^barrows_bit_ahrim);',
+ (RS2, '%barrows_killed_ahrim = ^true;',
        '~barrows_brother_killed(^barrows_bit_ahrim);\n\n'
        '[proc,barrows_brother_killed](int $bit)\n'
-       '%barrows_killed = setbit(%barrows_killed, $bit);',
+       '%barrows_kills = setbit(%barrows_kills, $bit);',
   '7 the bit is written only inside the death triggers'),
- (RS2, 'if (npc_findhero = ^false) {\n    return;\n}\n'
-       '%barrows_killed = setbit(%barrows_killed, ^barrows_bit_ahrim);',
-       '%barrows_killed = setbit(%barrows_killed, ^barrows_bit_ahrim);\n'
-       'if (npc_findhero = ^false) {\n    return;\n}',
+ (RS2, 'if (npc_findhero = ^false) {\n    return;\n}\n%barrows_killed_ahrim = ^true;',
+       '%barrows_killed_ahrim = ^true;\nif (npc_findhero = ^false) {\n    return;\n}',
   '7 ahrim finds his killer before he writes to him'),
  (RS2, 'gosub(npc_death);\nif (npc_findhero = ^false) {\n    return;\n}\n'
-       '%barrows_killed = setbit(%barrows_killed, ^barrows_bit_dharok);',
-       '%barrows_killed = setbit(%barrows_killed, ^barrows_bit_dharok);',
+       '%barrows_killed_dharok = ^true;',
+       '%barrows_killed_dharok = ^true;',
   "7 dharok's death still dies properly"),
 
  # --- the var and the bits
- (VARP, '[barrows_killed]\nprotect=no\nscope=perm', '[barrows_killed]\nscope=perm',
-  '8 %barrows_killed is protect=no'),
- (VARP, '[barrows_killed]\nprotect=no\nscope=perm',
-        '[barrows_killed]\nprotect=no\nscope=temp',
-  '8 %barrows_killed is protect=no'),
- (VARPPACK, '1176=barrows_killed\n', '',
-  '8 barrows_killed is in pack/varp.pack'),
  (CONST, '^barrows_bit_verac = 5', '^barrows_bit_verac = 4',
   '8 the six bits are 0-5 with no collision'),
  (CONST, '^barrows_brothers = 6', '^barrows_brothers = 5',
@@ -145,6 +145,160 @@ MUTS = [
   "9 dharok's strength bonus is"),
  (SPEC, '"combat": 98, "speed": 6', '"combat": 99, "speed": 6',
   '9 ahrim is combat 99 on the right-click'),
+ # --- the run's storage, which is the cache's and not ours
+ (VARBIT, '[barrows_entry_crypt]\nbasevar=barrows\nstartbit=0\nendbit=2',
+          '[barrows_entry_crypt]\nbasevar=barrows\nstartbit=6\nendbit=8',
+  '10 barrows_entry_crypt sits in %barrows bits 0-2'),
+ (VARBIT, '[barrows_chest_paid]\nbasevar=barrows\nstartbit=3\nendbit=3',
+          '[barrows_chest_paid]\nbasevar=barrows\nstartbit=9\nendbit=9',
+  '10 barrows_chest_paid sits in %barrows bit 3'),
+ ('pack/varbit.pack', '2114=barrows_entry_crypt\n', '',
+  '10 barrows_entry_crypt is in pack/varbit.pack'),
+ (ALLVARP, '[barrows_kills]\nprotect=no\ntransmit=yes', '[barrows_kills]\ntransmit=yes',
+  '10 [barrows_kills] is protect=no'),
+ (ALLVARBIT, '[barrows_killed_dharok]\nbasevar=barrows_kills\nstartbit=1\nendbit=1',
+             '[barrows_killed_dharok]\nbasevar=barrows_kills\nstartbit=2\nendbit=2',
+  '10 barrows_killed_dharok is bit 1 of %barrows_kills'),
+ (ALLVARBIT, '[barrows_killed_monster]\nbasevar=barrows_kills\nstartbit=6\nendbit=15',
+             '[barrows_killed_monster]\nbasevar=barrows_kills\nstartbit=6\nendbit=14',
+  '10 barrows_killed_monster holds the reward potential and is wide enough'),
+ (CHEST, 'mes("You close the chest.");', 'mes("You close the chest.");\n%barrows_killed = 0;',
+  '10 nothing reads or writes a %barrows_killed varp any more'),
+
+ # --- the maze
+ (ENUM, 'val=7,34922', 'val=7,65535', '11 every maze still leaves all four ladders'),
+ (ENUM, 'val=7,34922', 'val=7,2442', '11 and no row is a duplicate of another'),
+ (ENUM, 'val=23,64868\n', '', '11 barrows_mazes holds ^barrows_mazes = 24 rows'),
+ (ENUM, 'default=0', 'default=1', '11 a miss opens every door rather than shutting one'),
+ (ENUM, 'val=3,33073', 'val=3,0', '11 every maze shuts something'),
+ (CONST, '^barrows_mazes = 24', '^barrows_mazes = 23',
+  '11 barrows_mazes holds ^barrows_mazes = 23 rows'),
+ (CONST, '^barrows_door_first = 10', '^barrows_door_first = 11', '11 gate a is %barrows bit 11'),
+ (CONST, '^barrows_door_last = 25', '^barrows_door_last = 24',
+  '11 ^barrows_door_first..last is exactly sixteen bits wide'),
+
+ # --- the equipment table
+ (ENUM, 'val=2,barrows_ahrim_legs', 'val=2,barrows_dharok_legs',
+  "12 piece 2 is one of ahrim's"),
+ (ENUM, 'val=20,barrows_verac_head', 'val=20,barrows_verac_headd',
+  "12 piece 20 is one of verac's"),
+ (ENUM, 'val=1,barrows_ahrim_body', 'val=1,barrows_ahrim_head', '12 no piece is listed twice'),
+ (ENUM, 'default=null', 'default=barrows_ahrim_head', '12 and says null out loud on a miss'),
+ (CHEST, '~barrows_nth_killed(random($brothers))', '~barrows_nth_unkilled(random($brothers))',
+  '12 and picks the brother from the ones that are DEAD'),
+ (CHEST, 'if (testbit(%barrows_kills, $bit) = ^true) {\n        if ($n = 0) {',
+         'if (testbit(%barrows_kills, $bit) = ^false) {\n        if ($n = 0) {',
+  '12 ~barrows_nth_killed counts the killed bits'),
+ (TUN, 'if (testbit(%barrows_kills, $bit) = ^false) {\n        if ($n = 0) {',
+        'if (testbit(%barrows_kills, $bit) = ^true) {\n        if ($n = 0) {',
+  '12 ...and its mirror, which a door uses, counts the live ones'),
+
+ # --- the chest's own numbers
+ (CONST, '^barrows_rolls_max = 7', '^barrows_rolls_max = 8', '13 one roll to start and seven at most'),
+ (CONST, '^barrows_equip_step = 58', '^barrows_equip_step = 57', '13 which is 1/392 with 1 brother'),
+ (CONST, '^barrows_potential_max = 1012', '^barrows_potential_max = 1014',
+  '13 ...and that is arithmetic rather than three numbers'),
+ (CONST, '^barrows_rp_mind = 381', '^barrows_rp_mind = 380', '13 mindrune needs 381 reward potential'),
+ (CONST, '^barrows_rp_keyhalf = 1006', '^barrows_rp_keyhalf = 1000',
+  '13 keyhalf needs 1006 reward potential'),
+ (CONST, '^barrows_loot_coins_high = 774', '^barrows_loot_coins_high = 775',
+  '13 coins comes 2-774 at a time'),
+ (CHESTSPEC, '"rp": 881', '"rp": 880', '13 boltrack needs 880 reward potential'),
+ (CHEST, '} else if ($roll >= ^barrows_rp_blood) {\n    ~obj_giveorbank(bloodrune,',
+         '} else if ($roll >= ^barrows_rp_blood) {\n    ~obj_giveorbank(chaosrune,',
+  '13 the blood band pays bloodrune'),
+ (CHEST, 'if ($roll >= ^barrows_rp_dragonmed) {', 'if ($roll >= ^barrows_rp_mind) {',
+  '13 the chest tests the bands from the top down'),
+ (CHEST, 'add(random($potential), 1)', 'random($potential)',
+  '13 the roll is a value in 1..potential'),
+
+ # --- paying twice, and clearing the run
+ (CHEST, '%barrows_chest_paid = ^true;\ndef_int $rolls',
+         'def_int $rolls',
+  '14 looting marks the chest paid'),
+ (CHEST, '%barrows_entry_crypt = ^barrows_entry_none | %barrows_chest_paid = ^true',
+         '%barrows_entry_crypt = ^barrows_entry_none',
+  '14 and it refuses both a second search'),
+ (CHEST, '~mesbox("You loot the chest,', '%barrows_kills = 0;\n~mesbox("You loot the chest,',
+  '14 looting clears NOTHING'),
+ (TUN, '%barrows_chest_paid = ^false;\n%barrows_chest_open = ^false;',
+        '%barrows_chest_open = ^false;',
+  '14 the next dig is what clears the last run'),
+ (TUN, 'if (%barrows_entry_crypt ! ^barrows_entry_none & %barrows_chest_paid = ^false) {',
+        'if (%barrows_entry_crypt ! ^barrows_entry_none) {',
+  '14 ...and a run still owed its chest is never cleared'),
+
+ # --- the doors
+ (CONST, '^barrows_spawn_skeleton = 64', '^barrows_spawn_skeleton = 60', '15 a skeleton on 52'),
+ (CONST, '^barrows_spawn_bloodworm = 96', '^barrows_spawn_bloodworm = 100', '15 a bloodworm on 32'),
+ (CONST, '^barrows_spawn_crowd = 11', '^barrows_spawn_crowd = 12',
+  '15 nothing comes through into a room already holding 11'),
+ (TUN, 'if (%barrows_entry_crypt = ^barrows_entry_none) {\n    return;\n}\nif (~barrows_crowd',
+        'if (~barrows_crowd',
+  '15 a door with no run behind it lets nothing out'),
+ (TUN, 'if (~barrows_crowd($where) >= ^barrows_spawn_crowd) {\n    return;\n}\n'
+       'def_int $roll = random(^barrows_spawn_denom);',
+       'def_int $roll = random(^barrows_spawn_denom);\n'
+       'if (~barrows_crowd($where) >= ^barrows_spawn_crowd) {\n    return;\n}',
+  '15 ...checked before the roll'),
+ (TUN, 'if (%barrows_chest_paid = ^true) {\n    $roll = 0;\n}', '',
+  '15 after the chest has paid, every door is a brother'),
+ (TUN, '~barrows_nth_unkilled(random($left))', '~barrows_nth_killed(random($left))',
+  "15 a door's brother is one the player has NOT killed"),
+ (TUN, '[oploc1,barrows_door_unlocked_r] ~barrows_door_through;\n', '',
+  '15 the r half of a doorway is handled'),
+
+ # --- the passage and the ladder
+ (CONST, '^barrows_chamber_tile_a = 0_55_151_15_48', '^barrows_chamber_tile_a = 0_55_151_14_48',
+  "16 chamber a's drop tile is floor a player can stand on"),
+ (CONST, '^barrows_chamber_tile_a = 0_55_151_15_48', '^barrows_chamber_tile_a = 0_55_151_47_48',
+  "16 chamber a's drop tile is beside ITS OWN ladder"),
+ (CONST, '^barrows_chamber_g = 2', '^barrows_chamber_g = 3',
+  '16 the four chambers are numbered 0..3'),
+ (TUN, 'case ^barrows_chamber_c : return(^barrows_chamber_tile_c);',
+        'case ^barrows_chamber_c : return(^barrows_chamber_tile_g);',
+  '16 chamber c answers with g\'s tile'),
+ (TUN, 'case ^barrows_chamber_i : %barrows_chamber_i = ^true;',
+        'case ^barrows_chamber_i : %barrows_chamber_a = ^true;',
+  '16 and opening chamber i lights a\'s ladder'),
+ (TUN, 'case ^barrows_bit_torag : return(^barrows_mound_torag);',
+        'case ^barrows_bit_torag : return(^barrows_mound_karil);',
+  "16 the ladder puts a player who came in by torag's crypt back on karil's mound"),
+ (TUN, 'def_int $chamber = ~barrows_open_chamber;', 'def_int $chamber = -1;',
+  '16 coming back down the same run reuses the chamber'),
+ (RS2, 'if (%barrows_entry_crypt = add($bit, 1)) {', 'if (%barrows_entry_crypt = $bit) {',
+  '16 the sarcophagus of the entry crypt gives the passage'),
+
+ # --- reward potential
+ (DEATH, '~barrows_potential;\n', '', '17 [proc,npc_death] pays reward potential'),
+ (TUN, 'if (inzone(^barrows_tunnel_sw, ^barrows_tunnel_ne, npc_coord) = ^false) {\n    return;\n}',
+        '',
+  '17 and nothing outside the tunnels pays anything'),
+ (TUN, 'if (~barrows_brother_bit(npc_type) >= 0) {\n    return;\n}', '',
+  '17 a BROTHER pays nothing into the pool'),
+ (TUN, 'min(add(%barrows_killed_monster, nc_vislevel(npc_type)), ^barrows_potential_cap)',
+        'add(%barrows_killed_monster, nc_vislevel(npc_type))',
+  "17 what it pays is the dead thing's own combat level, capped"),
+ (CONST, '^barrows_potential_cap = 1000', '^barrows_potential_cap = 1001',
+  '17 the pool caps at 1000'),
+ (CHESTSPEC, '"barrows_bloodworm": 52', '"barrows_bloodworm": 53',
+  '17 barrows_bloodworm is combat 53'),
+
+ # --- the teleport
+ (TOBJ, 'stackable=yes', 'stackable=no', '18 it stacks, which is the point of a tab'),
+ (TOBJ, 'iop1=Break', 'iop2=Break', '18 and its one option is Break'),
+ (TOBJ, '2dzoom=465', '2dzoom=400', "18 its 2dzoom is the lectern tablets' own"),
+ (CONST, '^barrows_tele_dest = 0_55_51_45_48', '^barrows_tele_dest = 0_55_51_45_47',
+  '18 it lands on 0_55_51_45_48, the tile Corey asked for'),
+ (CONST, '^barrows_tele_rate = 10', '^barrows_tele_rate = 8', '18 the chest pays one at 1/10'),
+ (CONST, '^barrows_tele_high = 6', '^barrows_tele_high = 8', '18 and pays 4 to 6 of them'),
+ (CHEST, 'if (random(^barrows_tele_rate) = 0) {\n    ~obj_giveorbank(barrows_teleport,'
+         ' ~barrows_between(^barrows_tele_low, ^barrows_tele_high));\n}', '',
+  '18 the chest is the only thing in the game that hands one over'),
+ (TELE, 'inv_del(inv, barrows_teleport, 1);', 'mes("");',
+  '18 breaking one spends exactly one'),
+ (TELE, 'if (~pre_tele_checks(coord) = false) {\n    return;\n}', '',
+  '18 and it is not a way out of deep wilderness'),
 ]
 
 

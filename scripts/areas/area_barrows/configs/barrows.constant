@@ -58,3 +58,110 @@
 ^barrows_bit_torag = 4
 ^barrows_bit_verac = 5
 ^barrows_brothers = 6
+
+// =============================================================================================
+// THE TUNNELS
+// =============================================================================================
+// WHAT WAS ALREADY IN THE CACHE, and the reason almost none of this needed inventing. The Barrows
+// run is modelled in varbits that 377 already ships, and every loc down there is already a
+// multiloc reading one of them:
+//
+//   %barrows_kills  bits 0-5   barrows_killed_ahrim .. barrows_killed_verac
+//                   bits 6-15  barrows_killed_monster - ten bits, which is exactly 0..1000
+//                   bit  16    barrows_chest_open     - the chest's own multivar
+//                   bits 17-31 barrows_killed_count
+//   %barrows        bits 0-2   free, and now barrows_entry_crypt (barrows.varbit)
+//                   bits 6-9   barrows_chamber_a/c/g/i - each one a ladder's multivar
+//                   bits 10-25 barrows_door_a .. barrows_door_p - each a door pair's multivar,
+//                              0 = the unlocked form with Open on it, 1 = the locked form
+//                   bits 29-31 barrows_puzzle - unused here, see claude/barrows-tunnels.md
+//
+// So there is nothing to add to the packs for any of it, and the client already knows how to draw
+// a locked door, a missing ladder and an open chest.
+
+// The whole tunnel level, used to ask "did this die down there?" of an npc's own coordinate.
+^barrows_tunnel_sw = 0_55_151_0_0
+^barrows_tunnel_ne = 0_55_151_63_63
+
+// WHICH CRYPT IS THE WAY IN. Old School picks one of the six per run - "searching a sarcophagus in
+// one of the six crypts randomly leads to a passage" - and that brother then turns up when the
+// chest is looted rather than out of his own box. %barrows_entry_crypt holds his bit PLUS ONE so
+// that 0 can mean "no run in progress", which is also what the chest resets it to.
+^barrows_entry_none = 0
+
+// THE FOUR CHAMBERS WITH A LADDER, and the tile the passage drops you on. There are six crypts and
+// only four ladders in the map, so the chamber cannot be derived from the crypt: it is rolled on
+// the way in and remembered by its own multivar, which is the same bit that makes its ladder exist.
+// Each tile is the ladder's neighbour on the side facing the middle of the tunnel - the ladder's
+// own tile is flagged blocked on the map, which is why the drop is beside it and not on it.
+^barrows_chambers = 4
+^barrows_chamber_a = 0
+^barrows_chamber_c = 1
+^barrows_chamber_g = 2
+^barrows_chamber_i = 3
+^barrows_chamber_tile_a = 0_55_151_15_48
+^barrows_chamber_tile_c = 0_55_151_47_48
+^barrows_chamber_tile_g = 0_55_151_15_14
+^barrows_chamber_tile_i = 0_55_151_47_14
+
+// The maze table in barrows.enum. Every row keeps all four ladders walking distance from the chest,
+// which tools/barrowsmaze.py proves against the map and the battery re-proves on every run.
+^barrows_mazes = 24
+^barrows_door_first = 10
+^barrows_door_last = 25
+
+// WHAT A DOOR LETS OUT, out of 128, from the wiki: 12 a brother you have not killed, 52 a skeleton,
+// 32 a bloodworm, 32 a crypt rat. Written as the cumulative edges of those four bands.
+^barrows_spawn_denom = 128
+^barrows_spawn_brother = 12
+^barrows_spawn_skeleton = 64
+^barrows_spawn_bloodworm = 96
+// "When opening a door to a room that already contains eleven enemies or more, no new monster will
+// be spawned" - so this is a ceiling on what is already there, not on what is added.
+^barrows_spawn_crowd = 11
+^barrows_spawn_range = 7
+
+// REWARD POTENTIAL. The combat level of everything killed in the tunnels goes into a pool capped at
+// 1000; each brother killed adds 2 on top, which is where 1012 comes from. The brothers themselves
+// do NOT pay their combat level - the cap arithmetic is what says so - so the pool skips them.
+^barrows_potential_cap = 1000
+^barrows_potential_brother = 2
+^barrows_potential_max = 1012
+
+// THE CHEST. One roll, plus one per brother killed, to a ceiling of seven; and per roll a piece of
+// Barrows equipment at 1/(450 - 58 * brothers), which is 1/392 at one brother and 1/102 at six.
+^barrows_rolls_base = 1
+^barrows_rolls_max = 7
+^barrows_equip_base = 450
+^barrows_equip_step = 58
+^barrows_equip_pieces = 4
+
+// THE BANDS. A roll is a value in 1..potential, and the reward is the last band the roll reached,
+// which is why each number below is both "the potential this item needs" and "where its band
+// starts". 380 + 125*5 + 6 + 1 = 1012 exactly. tools/barrowschestspec.json quotes the wiki.
+^barrows_rp_mind = 381
+^barrows_rp_chaos = 506
+^barrows_rp_death = 631
+^barrows_rp_blood = 756
+^barrows_rp_boltrack = 881
+^barrows_rp_keyhalf = 1006
+^barrows_rp_dragonmed = 1012
+^barrows_loot_coins_low = 2
+^barrows_loot_coins_high = 774
+^barrows_loot_mind_low = 253
+^barrows_loot_mind_high = 336
+^barrows_loot_chaos_low = 112
+^barrows_loot_chaos_high = 139
+^barrows_loot_death_low = 70
+^barrows_loot_death_high = 83
+^barrows_loot_blood_low = 37
+^barrows_loot_blood_high = 43
+^barrows_loot_boltrack_low = 35
+^barrows_loot_boltrack_high = 40
+
+// COREY'S ADDITION, and the one thing in this file Old School does not have: a Barrows teleport tab
+// at 1/10 on a looted chest, four to six at a time, landing on the tile he asked for.
+^barrows_tele_rate = 10
+^barrows_tele_low = 4
+^barrows_tele_high = 6
+^barrows_tele_dest = 0_55_51_45_48

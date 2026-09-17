@@ -1,0 +1,144 @@
+// The Barrows chest: opening it, what it pays, and the brother it lets out.
+//
+// THE OPS ARE THE CACHE'S. barrows_stone_chest is a multiloc on barrows_chest_open: closed it
+// carries Open, open it carries Search and Close. So this is a two-stage chest rather than the
+// one-click loot Old School has, and each op does something - Open lets the last brother out and
+// starts the shaking, Search pays, Close shuts it again.
+//
+// WHAT IT PAYS is tools/barrowschestspec.json, which quotes the wiki: one roll plus one per
+// brother killed to a ceiling of seven; per roll a piece of Barrows equipment at
+// 1/(450 - 58 * brothers) and only from brothers actually killed; otherwise a value rolled in
+// 1..potential and read against the bands, which ARE the "reward potential required" column.
+
+[oploc1,barrows_stone_chest_closed]
+p_arrivedelay;
+p_stopaction;
+facesquare(loc_coord);
+if (%barrows_entry_crypt = ^barrows_entry_none) {
+    // Nobody's run: no brothers, no potential, nothing owed. The chest still opens.
+    mes("You open the chest. It is empty.");
+    %barrows_chest_open = ^true;
+    return;
+}
+mes("You open the chest...");
+anim(human_openchest, 0);
+p_delay(1);
+%barrows_chest_open = ^true;
+// THE BROTHER WHOSE CRYPT YOU CAME IN BY. He was never in his sarcophagus - the passage was - so
+// this is where he turns up, unless a door already sent him or he is already dead.
+def_int $bit = sub(%barrows_entry_crypt, 1);
+def_npc $brother = ~barrows_brother_npc($bit);
+if (testbit(%barrows_kills, $bit) = ^false & ~barrows_brother_here($brother) = ^false) {
+    ~barrows_wake(coord, $brother);
+    ~mesbox("<nc_name($brother)> bursts out of the darkness!");
+} else {
+    mes("The tunnels begin to shake and dust falls from the ceiling.");
+}
+
+[oploc2,barrows_stone_chest_open]
+p_arrivedelay;
+p_stopaction;
+facesquare(loc_coord);
+%barrows_chest_open = ^false;
+mes("You close the chest.");
+
+// Is he already down here? A door can send the entry brother before the chest is ever opened -
+// "if he did not already appear while travelling through the tunnels" - and two of him would be a
+// second set of armour. 64 tiles reaches the whole tunnel square and no brother stands anywhere
+// else in the world.
+[proc,barrows_brother_here](npc $brother)(boolean)
+npc_findall(coord, $brother, 64, 1);
+if (npc_findnext = true) {
+    return(^true);
+}
+return(^false);
+
+// ---------------------------------------------------------------------------------------------
+// The reward
+// ---------------------------------------------------------------------------------------------
+[oploc1,barrows_stone_chest_open]
+p_arrivedelay;
+p_stopaction;
+facesquare(loc_coord);
+if (%barrows_entry_crypt = ^barrows_entry_none | %barrows_chest_paid = ^true) {
+    mes("You search the chest and find nothing of interest.");
+    return;
+}
+def_int $brothers = ~barrows_brothers_killed;
+def_int $potential = min(add(%barrows_killed_monster,
+                             multiply($brothers, ^barrows_potential_brother)),
+                         ^barrows_potential_max);
+if ($potential <= 0) {
+    mes("You search the chest, but you have done nothing to earn its contents.");
+    return;
+}
+anim(human_openchest, 0);
+p_delay(1);
+%barrows_chest_paid = ^true;
+def_int $rolls = min(add(^barrows_rolls_base, $brothers), ^barrows_rolls_max);
+def_int $n = 0;
+while ($n < $rolls) {
+    ~barrows_reward_roll($brothers, $potential);
+    $n = add($n, 1);
+}
+// COREY'S ADDITION, and the one thing here Old School does not have.
+if (random(^barrows_tele_rate) = 0) {
+    ~obj_giveorbank(barrows_teleport, ~barrows_between(^barrows_tele_low, ^barrows_tele_high));
+}
+~mesbox("You loot the chest, and the tunnels shudder around you. Time to leave.");
+
+[proc,barrows_reward_roll](int $brothers, int $potential)
+// A PIECE OF ARMOUR FIRST, and only from a brother who was killed: 1/(450 - 58 * brothers), which
+// is 1/392 with one down and 1/102 with all six. With none down there is no piece to give.
+def_int $odds = sub(^barrows_equip_base, multiply(^barrows_equip_step, $brothers));
+if ($brothers > 0 & random($odds) = 0) {
+    def_int $bit = ~barrows_nth_killed(random($brothers));
+    def_int $piece = add(multiply($bit, ^barrows_equip_pieces), random(^barrows_equip_pieces));
+    ~obj_giveorbank(enum(int, namedobj, barrows_equipment, $piece), 1);
+    return;
+}
+// "A roll is performed for a value between 1 and your reward potential (each inclusive)", and the
+// reward is the last band that roll reached.
+def_int $roll = add(random($potential), 1);
+if ($roll >= ^barrows_rp_dragonmed) {
+    ~obj_giveorbank(dragon_med_helm, 1);
+} else if ($roll >= ^barrows_rp_keyhalf) {
+    // "Key halves, 1 each" - the crystal key's tooth end and loop end, one or the other.
+    if (random(2) = 0) {
+        ~obj_giveorbank(keyhalf1, 1);
+    } else {
+        ~obj_giveorbank(keyhalf2, 1);
+    }
+} else if ($roll >= ^barrows_rp_boltrack) {
+    ~obj_giveorbank(barrows_karil_ammo,
+                    ~barrows_between(^barrows_loot_boltrack_low, ^barrows_loot_boltrack_high));
+} else if ($roll >= ^barrows_rp_blood) {
+    ~obj_giveorbank(bloodrune, ~barrows_between(^barrows_loot_blood_low, ^barrows_loot_blood_high));
+} else if ($roll >= ^barrows_rp_death) {
+    ~obj_giveorbank(deathrune, ~barrows_between(^barrows_loot_death_low, ^barrows_loot_death_high));
+} else if ($roll >= ^barrows_rp_chaos) {
+    ~obj_giveorbank(chaosrune, ~barrows_between(^barrows_loot_chaos_low, ^barrows_loot_chaos_high));
+} else if ($roll >= ^barrows_rp_mind) {
+    ~obj_giveorbank(mindrune, ~barrows_between(^barrows_loot_mind_low, ^barrows_loot_mind_high));
+} else {
+    ~obj_giveorbank(coins, ~barrows_between(^barrows_loot_coins_low, ^barrows_loot_coins_high));
+}
+
+// Inclusive both ends, which is how every quantity in the wiki's table is written.
+[proc,barrows_between](int $low, int $high)(int)
+return(add($low, random(add(sub($high, $low), 1))));
+
+// The $n-th brother who IS dead, counting from 0 - the mirror of ~barrows_nth_unkilled, and what
+// makes the equipment table reachable only through a brother the player actually beat.
+[proc,barrows_nth_killed](int $n)(int)
+def_int $bit = 0;
+while ($bit < ^barrows_brothers) {
+    if (testbit(%barrows_kills, $bit) = ^true) {
+        if ($n = 0) {
+            return($bit);
+        }
+        $n = sub($n, 1);
+    }
+    $bit = add($bit, 1);
+}
+return(-1);

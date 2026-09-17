@@ -1,0 +1,32 @@
+// The Barrows teleport tab.
+//
+// COREY'S ADDITION, and the one thing in the Barrows that Old School's own chest does not pay.
+// The item IS Old School's though - obj 19629, model 31539, imported with the same 2d camera the
+// fourteen lectern tablets carry (2dzoom 465, 2dxan 373, 2dyof -1), which is why it sits in the
+// pack looking like the rest of them. The cache names no cost for it, so none is written here.
+//
+// WHERE IT LANDS is the tile Corey asked for, ^barrows_tele_dest, north of the mounds.
+//
+// The checks are ~poh_tab_teleport's, because breaking a tablet is breaking a tablet: not a way
+// out of deep wilderness, a duel or the trawler. What it does NOT share is the spell row - there
+// is no Barrows teleport spell to read a destination out of, so the coord is a constant.
+[opheld1,barrows_teleport]
+if (~wilderness_level(coord) > 20) {
+    mes("A mysterious force blocks your teleport!");
+    mes("You can't use this teleport after level 20 wilderness.");
+    return;
+}
+if (~pre_tele_checks(coord) = false) {
+    return;
+}
+if (inv_total(inv, barrows_teleport) < 1) {
+    return;
+}
+inv_del(inv, barrows_teleport, 1);
+mes("You break the tablet.");
+if_close;
+p_stopaction;
+sound_synth(teleport_all, 1, 0);
+~poh_tab_breakanim;
+p_delay(2);
+~p_telejump_safe(^barrows_tele_dest);

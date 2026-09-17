@@ -30,8 +30,19 @@ BROS = ('ahrim', 'dharok', 'guthan', 'karil', 'torag', 'verac')
 SPEC = json.load(open(os.path.join(C, 'tools/barrowsspec.json')))
 
 CONST = read('scripts/areas/area_barrows/configs/barrows.constant')
-VARP  = read('scripts/areas/area_barrows/configs/barrows.varp')
+VARBIT = read('scripts/areas/area_barrows/configs/barrows.varbit')
+ENUM  = read('scripts/areas/area_barrows/configs/barrows.enum')
 RS2   = read('scripts/areas/area_barrows/scripts/barrows.rs2')
+TUN   = read('scripts/areas/area_barrows/scripts/barrows_tunnels.rs2')
+CHEST = read('scripts/areas/area_barrows/scripts/barrows_chest.rs2')
+TELE  = read('scripts/areas/area_barrows/scripts/barrows_teleport.rs2')
+DEATH = read('scripts/skill_combat/scripts/npc/npc_death.rs2')
+ALLVARP = read('scripts/_unpack/377/all.varp')
+ALLVARBIT = read('scripts/_unpack/377/all.varbit')
+ALLLOC = read('scripts/_unpack/377/all.loc')
+CHESTSPEC = json.load(open(os.path.join(C, 'tools/barrowschestspec.json')))
+sys.path.insert(0, os.path.join(C, 'tools'))
+import barrowsmaze
 STAIRS = read('scripts/ladders+stairs/scripts/stairs.rs2')
 SPADE  = read('scripts/general_use/scripts/spade.rs2')
 NPCCFG = read('scripts/_unpack/377/all.npc')
@@ -275,7 +286,7 @@ print()
 print('--- the sarcophagi hand over one brother each')
 # =============================================================================================
 SEARCH = nocomment(RS2.split('[proc,barrows_search]', 1)[1].split('\n[', 1)[0])
-check(SEARCH.index('testbit(%barrows_killed') < SEARCH.index('npc_add('),
+check(SEARCH.index('testbit(%barrows_kills') < SEARCH.index('npc_add('),
       'the sarcophagus reads the kill bit BEFORE it adds anybody, so a dead brother cannot be '
       'searched out of his own box twice')
 check('^barrows_brother_life' in SEARCH and '^max_32bit_int' not in SEARCH,
@@ -305,30 +316,24 @@ for b in BROS:
     check(len(body) == 2, 'barrows_%s has a death trigger' % b)
     if len(body) != 2: continue
     body = body[1].split('\n[', 1)[0]
-    m = re.search(r'%barrows_killed = setbit\(%barrows_killed, \^barrows_bit_(\w+)\);', body)
+    m = re.search(r'%barrows_killed_(\w+) = \^true;', body)
     check(bool(m) and m.group(1) == b,
           '%s\'s death sets %s\'s bit' % (b, m.group(1) if m else 'nothing'))
     check('gosub(npc_death);' in body and 'npc_findhero = ^false' in body,
           '%s\'s death still dies properly and only credits a player it found' % b)
-    check('npc_findhero' in body and 'setbit' in body
-          and body.index('npc_findhero') < body.index('setbit'),
+    check(bool(m) and 'npc_findhero' in body and body.index('npc_findhero') < m.start(),
           '%s finds his killer before he writes to him' % b)
 # THE COMPILE-TIME LESSON, pinned so a tidy-up cannot undo it: route this write through a label or
 # a proc and the [ 'p_active_player' ] it needs lands on the CALL SITE, which is the trigger, where
 # npc_findhero has not run yet - "Attempt to access uninitialized pointer", and no way round it
 # except putting the write back where it is now.
 holders = [seg for seg in re.split(r'(?m)^(?=\[)', nocomment(RS2))
-           if 'setbit(%barrows_killed' in seg]
+           if re.search(r'%barrows_killed_\w+ = \^true', seg)]
 check(len(holders) == len(BROS)
       and all(h.startswith('[ai_queue3,barrows_') for h in holders),
       'the bit is written only inside the death triggers, never behind a label or a proc: %s'
       % [h.split(']', 1)[0] + ']' for h in holders])
 
-check(re.search(r'(?m)^protect=no$', VARP) and re.search(r'(?m)^scope=perm$', VARP),
-      '%barrows_killed is protect=no (an npc death can write it) and scope=perm (a run survives '
-      'a logout)')
-check('=barrows_killed' in read('pack/varp.pack'),
-      'and barrows_killed is in pack/varp.pack, without which it will not resolve at all')
 bits = {b: int(K['barrows_bit_' + b]) for b in BROS}
 check(sorted(bits.values()) == [0, 1, 2, 3, 4, 5],
       'the six bits are 0-5 with no collision: %s' % bits)
@@ -385,6 +390,405 @@ for b in BROS:
               and 'rangedstrength' not in read('scripts/engine.rs2'),
               '%s\'s +%d ranged strength has nowhere to go in this engine, and is not faked'
               % (b, s['aggressive']['rangedstrength']))
+
+# =============================================================================================
+print()
+print('--- the run is stored in the cache\'s own varbits, not in a var of ours')
+# =============================================================================================
+def varbits(txt):
+    out = {}
+    for b in re.split(r'(?m)^(?=\[)', txt):
+        m = re.match(r'\[(\w+)\]', b)
+        if not m:
+            continue
+        base = re.search(r'(?m)^basevar=(\w+)', b)
+        lo = re.search(r'(?m)^startbit=(\d+)', b)
+        hi = re.search(r'(?m)^endbit=(\d+)', b)
+        if base and lo and hi:
+            out[m.group(1)] = (base.group(1), int(lo.group(1)), int(hi.group(1)))
+    return out
+
+VB = varbits(ALLVARBIT)
+VB.update(varbits(VARBIT))
+VBPACK = [l.strip().split('=', 1)[1] for l in read('pack/varbit.pack').split('\n') if '=' in l]
+
+# THE CHECK THAT MAKES testbit(%barrows_kills, $bit) LEGITIMATE. Every read of a brother's kill
+# goes to the base var by bit number and every write goes through the named varbit, so the two
+# only agree while the cache's bit order and ^barrows_bit_* stay the same six in the same order.
+for b in BROS:
+    name = 'barrows_killed_' + b
+    check(VB.get(name) == ('barrows_kills', bits[b], bits[b]),
+          '%s is bit %d of %%barrows_kills, which is where ^barrows_bit_%s points: %s'
+          % (name, bits[b], b, VB.get(name)))
+mon = VB.get('barrows_killed_monster')
+check(mon and mon[0] == 'barrows_kills' and (1 << (mon[2] - mon[1] + 1)) > int(K['barrows_potential_cap']),
+      'barrows_killed_monster holds the reward potential and is wide enough for %s of it: bits %s'
+      % (K['barrows_potential_cap'], mon[1:] if mon else '-'))
+check(VB.get('barrows_chest_open', ('', 0, 0))[0] == 'barrows_kills',
+      'barrows_chest_open is the chest multiloc\'s own bit, on the same var')
+
+# The two this round added, and the only two it needed.
+check(VB.get('barrows_entry_crypt') == ('barrows', 0, 2),
+      'barrows_entry_crypt sits in %%barrows bits 0-2, below everything the cache uses: %s'
+      % (VB.get('barrows_entry_crypt'),))
+check(VB.get('barrows_chest_paid') == ('barrows', 3, 3),
+      'barrows_chest_paid sits in %%barrows bit 3: %s' % (VB.get('barrows_chest_paid'),))
+ours = {'barrows_entry_crypt', 'barrows_chest_paid'}
+theirs = [(n, v) for n, v in VB.items() if v[0] == 'barrows' and n not in ours]
+clash = [n for n, v in theirs
+         for o in ours if VB[o][1] <= v[2] and v[1] <= VB[o][2]]
+check(not clash, 'and neither overlaps a varbit the cache already had: %s' % (clash or 'none'))
+for n in sorted(ours):
+    check(n in VBPACK, '%s is in pack/varbit.pack, without which it will not resolve' % n)
+
+# THE INVENTED VAR IS GONE. %barrows_killed was a duplicate of barrows_killed_* written before
+# anybody looked at the cache's varbits; this is the check that keeps it from coming back.
+allrs2 = []
+for root, _, fs in os.walk(os.path.join(C, 'scripts')):
+    for f in sorted(fs):
+        if f.endswith('.rs2'):
+            allrs2.append((os.path.relpath(os.path.join(root, f), C),
+                           read(os.path.relpath(os.path.join(root, f), C))))
+check(not [p for p, t in allrs2 if '%barrows_killed ' in t or '%barrows_killed=' in t],
+      'nothing reads or writes a %barrows_killed varp any more')
+check('barrows_killed\n' not in read('pack/varp.pack')
+      and '=barrows_killed\n' not in read('pack/varp.pack'),
+      'and it is out of pack/varp.pack too')
+kills = ALLVARP.split('[barrows_kills]', 1)
+check(len(kills) == 2 and re.match(r'\s*protect=no', kills[1]),
+      '[barrows_kills] is protect=no, which is what lets a death write it at all')
+
+# =============================================================================================
+print()
+print('--- the maze is chosen from rows that the map says can be finished')
+# =============================================================================================
+def enumblock(name):
+    b = ENUM.split('[%s]' % name, 1)
+    return b[1].split('\n[', 1)[0] if len(b) == 2 else ''
+
+MZ = enumblock('barrows_mazes')
+masks = [int(v) for _, v in re.findall(r'(?m)^val=(\d+),(\d+)$', MZ)]
+ids = [int(k) for k, _ in re.findall(r'(?m)^val=(\d+),(\d+)$', MZ)]
+check(len(masks) == int(K['barrows_mazes']),
+      'barrows_mazes holds ^barrows_mazes = %s rows: %d' % (K['barrows_mazes'], len(masks)))
+check(ids == list(range(len(ids))), 'keyed 0..%d with no gap, which is what random() indexes'
+      % (len(ids) - 1))
+check(len(set(masks)) == len(masks), 'and no row is a duplicate of another')
+check(re.search(r'(?m)^default=0$', MZ),
+      'a miss opens every door rather than shutting one, because obj 0 of a maze is a run nobody '
+      'can finish')
+# RE-MEASURED, not trusted: every row is flood-filled against maps/m55_151.jm2 on every run.
+bad = [m for m in masks if not barrowsmaze.solves(m)]
+check(not bad, 'every maze still leaves all four ladders able to walk to the chest: %s'
+      % ['0x%04X' % m for m in bad])
+check(all(0 < m < 0xFFFF for m in masks),
+      'every maze shuts something and leaves something open')
+check(not barrowsmaze.solves(0xFFFF),
+      'and the map agrees that shutting all sixteen would NOT be finishable, so the check above '
+      'can fail')
+# The mask's bit order IS the varbits' bit order, which is the whole reason one write lays a maze.
+for i, L in enumerate(barrowsmaze.LETTERS):
+    want = int(K['barrows_door_first']) + i
+    check(VB.get('barrows_door_' + L) == ('barrows', want, want),
+          'gate %s is %%barrows bit %d, so bit %d of a mask is its lock: %s'
+          % (L, want, i, VB.get('barrows_door_' + L)))
+check(int(K['barrows_door_last']) - int(K['barrows_door_first']) + 1 == 16,
+      '^barrows_door_first..last is exactly sixteen bits wide')
+
+# =============================================================================================
+print()
+print('--- the twenty-four pieces, and only from a brother who was killed')
+# =============================================================================================
+EQ = enumblock('barrows_equipment')
+eq = dict((int(k), v) for k, v in re.findall(r'(?m)^val=(\d+),(\w+)$', EQ))
+check(len(eq) == len(BROS) * int(K['barrows_equip_pieces']),
+      'barrows_equipment holds four pieces for each of the six brothers: %d' % len(eq))
+check(re.search(r'(?m)^default=null$', EQ),
+      'and says null out loud on a miss, because obj 0 is a real item')
+objpack = set(l.strip().split('=', 1)[1] for l in read('pack/obj.pack').split('\n') if '=' in l)
+for i in range(len(BROS) * 4):
+    b = BROS[i // 4]
+    name = eq.get(i, '')
+    check(name.startswith('barrows_%s_' % b) and name in objpack,
+          'piece %d is one of %s\'s and is a real obj: %s' % (i, b, name or '-'))
+check(sorted(eq.values()) == sorted(set(eq.values())), 'no piece is listed twice')
+# The address the chest builds, brother*4 + 0..3, is the address this table is keyed on.
+check('multiply($bit, ^barrows_equip_pieces)' in CHEST
+      and 'random(^barrows_equip_pieces)' in CHEST,
+      'the chest addresses it as brother * four + a piece, the order it is written in')
+check('~barrows_nth_killed(random($brothers))' in CHEST,
+      'and picks the brother from the ones that are DEAD, evenly')
+nk = [nocomment(x) for x in CHEST.split('[proc,barrows_nth_killed]', 1)]
+check(len(nk) == 2 and 'testbit(%barrows_kills, $bit) = ^true' in nk[1],
+      '~barrows_nth_killed counts the killed bits rather than all six')
+nu = [nocomment(x) for x in TUN.split('[proc,barrows_nth_unkilled]', 1)]
+check(len(nu) == 2 and 'testbit(%barrows_kills, $bit) = ^false' in nu[1],
+      '...and its mirror, which a door uses, counts the live ones')
+
+# =============================================================================================
+print()
+print('--- the chest pays what the wiki says it pays')
+# =============================================================================================
+CS = CHESTSPEC
+check(int(K['barrows_rolls_base']) == CS['rolls']['base']
+      and int(K['barrows_rolls_max']) == CS['rolls']['max'],
+      'one roll to start and seven at most')
+check('min(add(^barrows_rolls_base, $brothers), ^barrows_rolls_max)' in CHEST,
+      'and a roll for every brother killed in between')
+check(int(K['barrows_equip_base']) == CS['equipment']['base']
+      and int(K['barrows_equip_step']) == CS['equipment']['step'],
+      'the armour chance is 1/(%d - %d * brothers)' % (CS['equipment']['base'],
+                                                       CS['equipment']['step']))
+for n, odds in sorted(CS['equipment']['odds'].items(), key=lambda kv: int(kv[0])):
+    got = int(K['barrows_equip_base']) - int(K['barrows_equip_step']) * int(n)
+    check(got == odds, 'which is 1/%d with %s brother(s) down: 1/%d' % (odds, n, got))
+check(int(K['barrows_potential_cap']) == CS['potential']['monster_cap']
+      and int(K['barrows_potential_brother']) == CS['potential']['per_brother']
+      and int(K['barrows_potential_max']) == CS['potential']['max'],
+      'the pool caps at %d, a brother is worth %d, and the two make %d'
+      % (CS['potential']['monster_cap'], CS['potential']['per_brother'], CS['potential']['max']))
+check(int(K['barrows_potential_cap'])
+      + len(BROS) * int(K['barrows_potential_brother']) == int(K['barrows_potential_max']),
+      '...and that is arithmetic rather than three numbers that happen to be written down')
+
+BANDS = [(r['item'], r['rp'], r['low'], r['high']) for r in CS['table']]
+KCONST = {'mindrune': 'mind', 'chaosrune': 'chaos', 'deathrune': 'death', 'bloodrune': 'blood',
+          'boltrack': 'boltrack', 'keyhalf': 'keyhalf', 'dragonmed': 'dragonmed'}
+for item, rp, lo, hi in BANDS:
+    if item == 'coins':
+        continue
+    c = K.get('barrows_rp_' + KCONST[item])
+    check(c is not None and int(c) == rp,
+          '%s needs %d reward potential before it can be rolled: %s' % (item, rp, c))
+edges = [1] + [rp for item, rp, _, _ in BANDS if item != 'coins'] + [int(K['barrows_potential_max']) + 1]
+widths = [edges[i + 1] - edges[i] for i in range(len(edges) - 1)]
+check(sum(widths) == int(K['barrows_potential_max']),
+      'the bands tile 1..%s with nothing left over: %s = %d'
+      % (K['barrows_potential_max'], ' + '.join(str(w) for w in widths), sum(widths)))
+check(widths == [380, 125, 125, 125, 125, 125, 6, 1],
+      'and they are the wiki\'s own widths: %s' % widths)
+for item, rp, lo, hi in BANDS:
+    key = 'coins' if item == 'coins' else KCONST[item]
+    if lo == hi == 1:
+        continue
+    check(int(K['barrows_loot_%s_low' % key]) == lo
+          and int(K['barrows_loot_%s_high' % key]) == hi,
+          '%s comes %d-%d at a time' % (item, lo, hi))
+# THE ORDER OF THE IF-CHAIN IS THE WHOLE TABLE. Tested ascending it would pay coins for every
+# roll, silently, and every band constant would still be right.
+chain = re.findall(r'\$roll >= \^barrows_rp_(\w+)', CHEST)
+check(chain == ['dragonmed', 'keyhalf', 'boltrack', 'blood', 'death', 'chaos', 'mind'],
+      'the chest tests the bands from the top down, or it would pay coins for everything: %s'
+      % chain)
+PAYS = {'dragonmed': 'dragon_med_helm', 'boltrack': 'barrows_karil_ammo', 'blood': 'bloodrune',
+        'death': 'deathrune', 'chaos': 'chaosrune', 'mind': 'mindrune'}
+for band, obj in sorted(PAYS.items()):
+    seg = CHEST.split('$roll >= ^barrows_rp_%s' % band, 1)
+    check(len(seg) == 2 and obj in seg[1].split('} else')[0],
+          'the %s band pays %s' % (band, obj))
+# The key band holds an if/else of its own for the two halves, so its branch ends at the next
+# BAND rather than at the next else - which is what the first version of this check cut on.
+seg = CHEST.split('$roll >= ^barrows_rp_keyhalf', 1)
+body = seg[1].split('} else if (', 1)[0] if len(seg) == 2 else ''
+check('keyhalf1' in body and 'keyhalf2' in body,
+      'the key band pays one half of the crystal key or the other')
+check('~obj_giveorbank(coins,' in CHEST, 'and everything below the first band is coins')
+check('add(random($potential), 1)' in CHEST,
+      'the roll is a value in 1..potential, inclusive at both ends, as the wiki words it')
+check('~barrows_between' in CHEST and 'add($low, random(add(sub($high, $low), 1)))' in CHEST,
+      'and so is every quantity')
+# Paying twice, and paying for nothing.
+check('%barrows_chest_paid = ^true;' in CHEST, 'looting marks the chest paid')
+loot = nocomment(CHEST.split('[oploc1,barrows_stone_chest_open]', 1)[1])
+check('%barrows_chest_paid = ^true' in loot
+      and loot.index('%barrows_chest_paid = ^true') < loot.index('~barrows_reward_roll'),
+      '...before it rolls anything, so an interrupted payout cannot be taken twice')
+check('%barrows_entry_crypt = ^barrows_entry_none | %barrows_chest_paid = ^true' in loot,
+      'and it refuses both a second search and a search with no run behind it')
+check('%barrows = 0' not in CHEST and '%barrows_kills = 0' not in CHEST,
+      'looting clears NOTHING, because the run is what holds the ladder the player still has to '
+      'climb and the brothers a door may still send')
+begin = nocomment(TUN.split('[proc,barrows_begin_run]', 1)[1].split('\n[', 1)[0])
+check(re.search(r'(?m)^%barrows_chest_paid = \^false;$', begin)
+      and re.search(r'(?m)^%barrows_kills = 0;$', begin)
+      and '~barrows_shut_ladders' in begin,
+      'the next dig is what clears the last run - its bits, its chest and its ladder')
+check('%barrows_entry_crypt ! ^barrows_entry_none & %barrows_chest_paid = ^false' in begin,
+      '...and a run still owed its chest is never cleared out from under the player')
+
+# =============================================================================================
+print()
+print('--- what comes through a door')
+# =============================================================================================
+D = CS['door_spawn']
+check(int(K['barrows_spawn_denom']) == D['_denominator'], 'the door rolls out of 128')
+check(int(K['barrows_spawn_brother']) == D['brother'],
+      'a brother on %d of them' % D['brother'])
+check(int(K['barrows_spawn_skeleton']) - int(K['barrows_spawn_brother']) == D['skeleton'],
+      'a skeleton on %d' % D['skeleton'])
+check(int(K['barrows_spawn_bloodworm']) - int(K['barrows_spawn_skeleton']) == D['bloodworm'],
+      'a bloodworm on %d' % D['bloodworm'])
+check(int(K['barrows_spawn_denom']) - int(K['barrows_spawn_bloodworm']) == D['crypt_rat'],
+      'and a crypt rat on the remaining %d' % D['crypt_rat'])
+check(int(K['barrows_spawn_crowd']) == D['crowd'],
+      'nothing comes through into a room already holding %d' % D['crowd'])
+spawn = nocomment(TUN.split('[proc,barrows_door_spawn]', 1)[1].split('\n[', 1)[0])
+check('%barrows_entry_crypt = ^barrows_entry_none' in spawn,
+      'a door with no run behind it lets nothing out')
+check('~barrows_crowd($where) >= ^barrows_spawn_crowd' in spawn,
+      'and neither does a crowded room')
+check(spawn.index('^barrows_spawn_crowd') < spawn.index('random(^barrows_spawn_denom)'),
+      '...checked before the roll, so a crowded room does not eat a brother')
+check('%barrows_chest_paid = ^true' in spawn and '$roll = 0;' in spawn,
+      'after the chest has paid, every door is a brother - the wiki\'s own guarantee')
+NPCPACK = set(l.strip().split('=', 1)[1] for l in read('pack/npc.pack').split('\n') if '=' in l)
+for n in ('barrows_skeleton_armed', 'barrows_skeleton_unarmed', 'barrows_bloodworm', 'barrows_rat'):
+    check(n in spawn and n in NPCPACK, '%s is real and is what a door can send' % n)
+sb = nocomment(TUN.split('[proc,barrows_spawn_brother]', 1)[1].split('\n[', 1)[0])
+check('~barrows_nth_unkilled(random($left))' in sb,
+      'a door\'s brother is one the player has NOT killed, picked evenly')
+check('sub(^barrows_brothers, ~barrows_brothers_killed)' in sb
+      and '$left <= 0' in sb,
+      '...and with all six down it sends something else rather than nothing or a seventh brother')
+
+# Every gate on the map has a lock bit, and the locked form is the one with no option on it -
+# which is why a locked door needs no handler and no "it will not budge" message.
+LOCB = blocks(ALLLOC)
+check('op1' in LOCB.get('barrows_door_unlocked_l', {})
+      and 'op1' in LOCB.get('barrows_door_unlocked_r', {}),
+      'the unlocked door carries Open')
+check(not [o for o in ('op1', 'op2', 'op3', 'op4', 'op5')
+           if o in LOCB.get('barrows_door_locked_l', {})
+           or o in LOCB.get('barrows_door_locked_r', {})],
+      'and the locked one carries no option at all, which is 377\'s own "this one will not open"')
+for half in ('l', 'r'):
+    check('[oploc1,barrows_door_unlocked_%s] ~barrows_door_through;' % half in TUN,
+          'the %s half of a doorway is handled' % half)
+for L in barrowsmaze.LETTERS:
+    for half in ('l', 'r'):
+        d = LOCB.get('barrows_door_%s_%s' % (L, half), {})
+        check(d.get('multivar', [None])[0] == 'barrows_door_' + L
+              and 'multiloc' in d,
+              'barrows_door_%s_%s reads gate %s\'s own bit' % (L, half, L))
+check('~agility_exactmove(human_walk_style' in TUN and 'p_teleport($end)' in TUN,
+      'a door is walked through rather than opened, because the cache has no open form of it')
+
+# =============================================================================================
+print()
+print('--- the passage in and the ladder out')
+# =============================================================================================
+walk, doors, ladders, chesttile = barrowsmaze.tunnel()
+for L in sorted(ladders):
+    c = coord(K['barrows_chamber_tile_' + L])
+    check(c and (c[0], c[1], c[2]) == (0, 55, 151),
+          'chamber %s\'s drop tile is on the tunnel level: %s' % (L, K['barrows_chamber_tile_' + L]))
+    check(c and (c[3], c[4]) in walk,
+          'chamber %s\'s drop tile is floor a player can stand on' % L)
+    lx, lz = ladders[L]
+    check(c and max(abs(c[3] - lx), abs(c[4] - lz)) == 1,
+          'chamber %s\'s drop tile is beside ITS OWN ladder' % L)
+ct = {L: coord(K['barrows_chamber_tile_' + L]) for L in sorted(ladders)}
+check(len(set((v[3], v[4]) for v in ct.values())) == len(ct), 'the four drop tiles are four tiles')
+idx = {L: int(K['barrows_chamber_' + L]) for L in sorted(ladders)}
+check(sorted(idx.values()) == list(range(int(K['barrows_chambers']))),
+      'the four chambers are numbered 0..%d, which is what random() rolls: %s'
+      % (int(K['barrows_chambers']) - 1, idx))
+for L in sorted(ladders):
+    m = re.search(r'case \^barrows_chamber_%s : return\(\^barrows_chamber_tile_(\w+)\);' % L,
+                  nocomment(TUN))
+    check(bool(m) and m.group(1) == L,
+          'chamber %s answers with %s\'s tile' % (L, m.group(1) if m else 'nothing'))
+    m = re.search(r'case \^barrows_chamber_%s : %%barrows_chamber_(\w+) = \^true;' % L,
+                  nocomment(TUN))
+    check(bool(m) and m.group(1) == L, 'and opening chamber %s lights %s\'s ladder'
+          % (L, m.group(1) if m else 'nothing'))
+check(LOCB.get('barrows_ladder_a', {}).get('multivar', [None])[0] == 'barrows_chamber_a',
+      'a ladder is a multiloc on its chamber\'s bit, so it does not exist until the run opens it')
+check('[oploc1,barrows_ladder]' in TUN,
+      'and all four resolve to one loc, which one handler serves')
+for b in BROS:
+    m = re.search(r'case \^barrows_bit_%s : return\(\^barrows_mound_(\w+)\);' % b,
+                  nocomment(TUN.split('[proc,barrows_entry_mound]', 1)[1]))
+    check(bool(m) and m.group(1) == b,
+          'the ladder puts a player who came in by %s\'s crypt back on %s\'s mound'
+          % (b, m.group(1) if m else 'nothing'))
+psg = nocomment(TUN.split('[proc,barrows_passage]', 1)[1].split('\n[', 1)[0])
+check('~barrows_open_chamber' in psg and '$chamber < 0' in psg,
+      'coming back down the same run reuses the chamber it opened rather than rolling a new one')
+check('enum(int, int, barrows_mazes, random(^barrows_mazes))' in psg,
+      'and the maze is laid once, on the way in')
+check('~barrows_passage' in RS2 and '%barrows_entry_crypt = add($bit, 1)' in RS2,
+      'the sarcophagus of the entry crypt gives the passage instead of its brother')
+check('~barrows_begin_run' in RS2.split('[proc,barrows_mound_dig]', 1)[1].split('\n[', 1)[0],
+      'and the run is drawn by the first dig, before any box is searched')
+
+# =============================================================================================
+print()
+print('--- reward potential')
+# =============================================================================================
+check('~barrows_potential;' in nocomment(DEATH),
+      '[proc,npc_death] pays reward potential, which is the one place every death passes through')
+check(nocomment(DEATH).index('~barrows_potential') > nocomment(DEATH).index('npc_arrivedelay'),
+      '...while the npc is still there to be asked what it was')
+pot = nocomment(TUN.split('[proc,barrows_potential]', 1)[1].split('\n[', 1)[0])
+check('inzone(^barrows_tunnel_sw, ^barrows_tunnel_ne, npc_coord)' in pot,
+      'and nothing outside the tunnels pays anything')
+check('~barrows_brother_bit(npc_type) >= 0' in pot,
+      'a BROTHER pays nothing into the pool: his two points are added by the chest off his own '
+      'bit, and the 1000 + 6*2 cap is what says he is worth two and not his combat level')
+check('npc_findhero = ^false' in pot and '%barrows_entry_crypt = ^barrows_entry_none' in pot,
+      'and a kill with no player or no run behind it pays nothing')
+check('min(add(%barrows_killed_monster, nc_vislevel(npc_type)), ^barrows_potential_cap)' in pot,
+      'what it pays is the dead thing\'s own combat level, capped at ^barrows_potential_cap')
+check('multiply($brothers, ^barrows_potential_brother)' in CHEST,
+      'and the chest is where the brothers\' two points each are added')
+NPCS = blocks(NPCCFG)
+for n, lvl in sorted(CS['tunnel_monsters'].items()):
+    got = NPCS.get(n, {}).get('vislevel', [None])[0]
+    check(got == str(lvl), '%s is combat %d, which is what it pays: %s' % (n, lvl, got))
+check(int(K['barrows_spawn_range']) > 0 and 'npc_findallany($where, ^barrows_spawn_range, 1)' in TUN,
+      'the crowd is counted with npc_findallany around the tile stepped onto')
+
+# =============================================================================================
+print()
+print('--- the Barrows teleport')
+# =============================================================================================
+T = CS['teleport']
+TOBJ = blocks(read('scripts/areas/area_barrows/configs/barrows.obj')).get('barrows_teleport', {})
+check(bool(TOBJ), 'barrows_teleport exists as an obj')
+check('barrows_teleport' in objpack, '...and is in pack/obj.pack')
+check(TOBJ.get('stackable', [None])[0] == 'yes', 'it stacks, which is the point of a tab')
+check(TOBJ.get('iop1', [None])[0] == 'Break', 'and its one option is Break')
+# THE SAME ICON CAMERA AS THE FOURTEEN LECTERN TABLETS, which is what makes it read as a tablet
+# in the pack rather than a thing of its own. Compared against a tablet, not against a number.
+TAB = blocks(read('scripts/skill_construction/configs/poh_tablets.obj')).get('poh_tab_varrock', {})
+for f in ('2dzoom', '2dxan', '2dyof'):
+    check(TOBJ.get(f) == TAB.get(f) and TOBJ.get(f) is not None,
+          'its %s is the lectern tablets\' own: %s' % (f, TOBJ.get(f, ['-'])[0]))
+check(TOBJ.get('model', [None])[0] == 'obj_barrows_teleport'
+      and 'obj_barrows_teleport' in set(l.strip().split('=', 1)[1]
+                                        for l in read('pack/model.pack').split('\n') if '=' in l),
+      'its model is imported, named and packed')
+check(os.path.exists(os.path.join(C, 'models/obj/obj_barrows_teleport.ob2')),
+      '...and the .ob2 is actually in the tree')
+check(K['barrows_tele_dest'] == T['destination'],
+      'it lands on %s, the tile Corey asked for: %s' % (T['destination'], K['barrows_tele_dest']))
+check(int(K['barrows_tele_rate']) == T['rate'],
+      'the chest pays one at 1/%d' % T['rate'])
+check(int(K['barrows_tele_low']) == T['low'] and int(K['barrows_tele_high']) == T['high'],
+      'and pays %d to %d of them' % (T['low'], T['high']))
+check('random(^barrows_tele_rate) = 0' in CHEST
+      and '~barrows_between(^barrows_tele_low, ^barrows_tele_high)' in CHEST,
+      'which is what the chest actually rolls')
+gives = sorted(p for p, t in allrs2
+               if re.search(r'(?:inv_add|obj_add|~obj_giveorbank)\([^;]*\bbarrows_teleport\b',
+                            nocomment(t)))
+check(gives == ['scripts/areas/area_barrows/scripts/barrows_chest.rs2'],
+      'the chest is the only thing in the game that hands one over: %s' % gives)
+check('[opheld1,barrows_teleport]' in TELE and 'inv_del(inv, barrows_teleport, 1);' in TELE,
+      'breaking one spends exactly one')
+check('~pre_tele_checks(coord) = false' in TELE and '~wilderness_level(coord) > 20' in TELE,
+      'and it is not a way out of deep wilderness, a duel or the trawler')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

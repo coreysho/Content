@@ -1,0 +1,19 @@
+// WHICH CRYPT THE PLAYER CAME IN BY, plus one, so that 0 means no run is in progress. Three bits
+// for six brothers, in the lowest bits of %barrows - the cache's own varbits on that var start at
+// bit 6 (barrows_chamber_a), so 0-5 were free and nothing in the client reads them.
+//
+// This is the only varbit the Barrows needed adding; everything else it stores was already here.
+[barrows_entry_crypt]
+basevar=barrows
+startbit=0
+endbit=2
+
+// WHETHER THIS RUN'S CHEST HAS ALREADY PAID. It cannot be %barrows_chest_open, because the open
+// chest carries Close as well as Search and a player who closes it would be able to open it and
+// loot it again; and it cannot be "clear the run on looting", because the run is what holds the
+// ladder the player still has to climb out by and the list of brothers a door is allowed to send.
+// So the loot sets this instead, and the next dig - not the ladder - is what starts a fresh run.
+[barrows_chest_paid]
+basevar=barrows
+startbit=3
+endbit=3
