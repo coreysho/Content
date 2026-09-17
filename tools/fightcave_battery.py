@@ -76,6 +76,22 @@ def entry_const():
     m = re.fullmatch(r'0_%s_(\d+)_(\d+)' % SPEC['arena']['square'], CONST['fightcave_entry'])
     return (int(m.group(1)), int(m.group(2))) if m else (-1, -1)
 
+def pack(name):
+    return {n: int(i) for i, n in (l.split('=', 1) for l in read('pack/' + name).split('\n') if '=' in l)}
+
+def npc_spawns(sq, name):
+    """Where one npc is spawned in a square. The .jm2 stores npc IDS, not names - grepping the name
+    finds nothing and reads as "no spawns anywhere"."""
+    want = pack('npc.pack').get(name)
+    out = []
+    t = read('maps/m%s.jm2' % sq)
+    if '==== NPC ====' not in t: return out
+    for l in t.split('==== NPC ====', 1)[1].split('\n====', 1)[0].split('\n'):
+        m = re.match(r'^\s*(\d+)\s+(\d+)\s+(\d+):\s*(\d+)', l)
+        if m and int(m.group(4)) == want:
+            out.append((int(m.group(1)), int(m.group(2)), int(m.group(3))))
+    return out
+
 def fits1(x, z):
     """Walkable in its own right, rather than merely being the tile the flood was seeded on - a
     flood counts its seed whether anything can stand there or not."""
@@ -305,6 +321,104 @@ check('~player_death_lose_items' not in FD and '~pvp_death_lose_items' not in FD
       '...and keeps the player\'s items, because the cave is safe')
 check('~fightcave_end(sub(%fightcave_wave, 1));' in FD,
       '...and pays for the waves that were survived, not the one they died on')
+
+# ============================================================================ 7
+print('7. Tokkul is worth having, and the pet exists')
+INV727 = blocks(read('scripts/_unpack/727/all.inv'))
+TRADERS = blocks(read('scripts/areas/area_karamja/configs/tzhaar_traders.npc'))
+SHOP = read('scripts/shop/scripts/shop.rs2')
+SHOPPARAM = read('scripts/shop/configs/shopkeeper.param')
+PETNPC = blocks(read('scripts/npc/configs/boss_pets.npc'))
+PETOBJ = blocks(read('scripts/npc/configs/boss_pets.obj'))
+PETSEQ = blocks(read('scripts/npc/configs/boss_pets.seq'))
+
+# --- the currency, which said "coins" in six places
+for what, needle in (('the till it counts', 'inv_total(inv, %shop_currency)'),
+                     ('what it takes', 'inv_del(inv, %shop_currency, $added_amt)'),
+                     ('what it pays', 'inv_add(inv, %shop_currency, $total_value)'),
+                     ('the space it checks', 'inv_itemspace(inv, %shop_currency,'),
+                     ('what it refuses to buy', '$item = %shop_currency'),
+                     ('what it says you are short of, in both places it prints it', None)):
+    if needle is None:
+        # TWICE, not once: the currency's name is printed in the price quote AND in "you don't have
+        # enough", and testing for presence let the second be replaced by the word coins unnoticed.
+        check(SHOP.count('oc_name(%shop_currency)') == 2,
+              'the shop reads its currency for %s: %d' % (what, SHOP.count('oc_name(%shop_currency)')))
+    else:
+        check(needle in SHOP, 'the shop reads its currency for %s' % what)
+check(SHOP.count('%shop_currency =') == 2,
+      '...and the currency is set in exactly those two places and nowhere else: %d'
+      % SHOP.count('%shop_currency ='))
+check('%shop_currency = coins;' in SHOP.split('[proc,openshop]', 1)[-1].split('\n[', 1)[0],
+      '~openshop still sets coins, so its 38 callers did not have to change')
+check('%shop_currency = npc_param(shop_currency);' in SHOP,
+      '...and a shopkeeper\'s own shop reads the param')
+cp = SHOPPARAM.split('[shop_currency]', 1)[-1].split('\n[', 1)[0]
+check('default=coins' in cp,
+      '...whose default is coins, so every shopkeeper that predates this keeps its till')
+
+# --- the three traders and the three shops that had nobody to open them
+WANT = {'tzhaar_shopkeeper_equipment': 'tzhaar_shop_equipment',
+        'tzhaar_shopkeeper_oreandgem': 'tzhaar_shop_oreandgem',
+        'tzhaar_shopkeeper_rune': 'tzhaar_shop_rune'}
+check(sorted(TRADERS) == sorted(WANT), 'there are three TzHaar traders and no strangers')
+for npc, shop in sorted(WANT.items()):
+    d = TRADERS.get(npc, {})
+    check(param(d, 'owned_shop') == shop, '%s owns %s' % (npc, shop))
+    check(param(d, 'shop_currency') == 'tzhaar_token', '...and trades in Tokkul')
+    check(d.get('category', [None])[0] == 'shop_keeper',
+          '...on the category the shop triggers hang off')
+    check(d.get('op3', [None])[0] == 'Trade' and d.get('op1', [None])[0] == 'Talk-to',
+          '...with Trade and Talk-to')
+    check('op2' not in d and d.get('vislevel', [None])[0] == 'hide',
+          '...and cannot be attacked, so you can stand beside it')
+    s = INV727.get(shop, {})
+    stock = sorted(int(k[5:]) for k in s if re.fullmatch(r'stock\d+', k))
+    check(stock == list(range(1, len(stock) + 1)),
+          '%s stock numbering has no gaps or duplicates: %d entries' % (shop, len(stock)))
+    check(len(stock) > 0, '...and it is not empty')
+    check(all(len(v[0].split(',')) == 3 for k, v in s.items() if re.fullmatch(r'stock\d+', k)),
+          '...and every line has its count and restock rate')
+# the rune shop was the one with every line commented out
+RUNE = INV727['tzhaar_shop_rune']
+check(len(RUNE) and sorted(v[0].split(',')[0] for k, v in RUNE.items() if k.startswith('stock'))
+      == ['airrune', 'bodyrune', 'chaosrune', 'deathrune', 'earthrune', 'firerune', 'mindrune', 'waterrune'],
+      'the rune shop sells the eight runes its own commented-out lines listed')
+# and the equipment shop still sells the whole obsidian set
+EQUIP = {v[0].split(',')[0] for k, v in INV727['tzhaar_shop_equipment'].items() if k.startswith('stock')}
+check(EQUIP == {'tzhaar_throwingring', 'tzhaar_splitsword', 'tzhaar_spikeshield', 'tzhaar_knife',
+                'tzhaar_staff', 'tzhaar_mace', 'tzhaar_maul', 'tzhaar_cape_obsidian'},
+      '...and the equipment shop the whole obsidian set: %d items' % len(EQUIP))
+# spawned, and somewhere a player can reach
+CITY = '38_80'
+for npc in sorted(WANT):
+    at = npc_spawns(CITY, npc)
+    check(len(at) == 1, '%s is spawned once in m%s' % (npc, CITY))
+
+# --- TzRek-Jad
+PET, ITEM = 'bosspet_tzrek_jad', 'bosspet_tzrek_jad_item'
+check(PET in PETNPC and ITEM in PETOBJ, 'TzRek-Jad exists as both an npc and an item')
+check(param(PETNPC[PET], 'pet_item_id') == ITEM, '...and the npc names the item')
+check(param(PETOBJ[ITEM], 'follower_id') == PET, '...and the item names the npc')
+check(PETNPC[PET].get('category', [None])[0] == 'bosspet'
+      and PETOBJ[ITEM].get('category', [None])[0] == 'bosspet',
+      '...both on the category the four follower triggers hang off')
+petseqs = [PETNPC[PET].get('readyanim', [''])[0], PETNPC[PET].get('walkanim', [''])[0]]
+check(all(s.startswith('osrs_seq_') for s in petseqs),
+      'both its animations are converted from OSRS, so they share a base and still walk-merge: %s'
+      % ', '.join(petseqs))
+check(all(s in PETSEQ for s in petseqs), '...and both are present in boss_pets.seq')
+check(PETNPC[PET].get('resizeh', [None])[0] == '20',
+      'and it is rendered at the cache\'s own 20, which is the joke')
+ROLL = REW.split('[proc,fightcave_pet_roll]', 1)[-1].split('\n[', 1)[0]
+check('random(^fightcave_pet_rate) ! 0' in ROLL, 'the pet rolls at ^fightcave_pet_rate')
+check(int(CONST['fightcave_pet_rate']) == 200, '...which is 200, the rate for a plain kill')
+check('~obj_gettotal(%s) > 0' % ITEM in ROLL and ('%%follower_obj = %s' % ITEM) in ROLL,
+      '...and never gives a second one, counting pack, bank, worn and the one out following you')
+check('~obj_giveorbank(%s, 1);' % ITEM in ROLL and 'obj_add' not in ROLL,
+      '...and hands it over rather than dropping it in an instance about to be deleted')
+check('~fightcave_pet_roll;' in REW.split('[proc,fightcave_reward]', 1)[-1].split('\n[', 1)[0],
+      'and killing Jad is what rolls it')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

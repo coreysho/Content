@@ -29,6 +29,10 @@ mes("You are awarded <tostring($tokkul)> Tokkul.");
 ~obj_giveorbank(tzhaar_cape_fire, 1);
 ~obj_giveorbank(tzhaar_token, ^fightcave_tokkul_jad);
 mes("You are awarded <tostring(^fightcave_tokkul_jad)> Tokkul, and TzHaar-Mej-Jal's respect.");
+// The pet, on its own roll. ~bosspet_roll would drop it on the floor of an instance that is about
+// to be deleted, so this does the framework's own three checks and then hands it over the same way
+// the cape is handed over.
+~fightcave_pet_roll;
 broadcast_mes(append(displayname(), " has defeated TzTok-Jad and claimed a Fire cape!"));
 
 // Pack first, bank second. Nothing here may fall on the floor: the instance is deleted moments
@@ -41,3 +45,19 @@ if (inv_freespace(inv) > 0 | inv_total(inv, $obj) > 0) {
 }
 inv_add(bank, $obj, $count);
 mes("<oc_name($obj)> has been sent to your bank.");
+
+// TzRek-Jad. The three guards are ~bosspet_roll's own (npc/scripts/boss_pets.rs2): one anywhere
+// already - pack, bank or worn - or one out following you, and there is no second.
+[proc,fightcave_pet_roll]
+if (random(^fightcave_pet_rate) ! 0) {
+    return;
+}
+if (~obj_gettotal(bosspet_tzrek_jad_item) > 0) {
+    return;
+}
+if (%follower_obj = bosspet_tzrek_jad_item) {
+    return;
+}
+~obj_giveorbank(bosspet_tzrek_jad_item, 1);
+mes("You have a funny feeling like you're being followed.");
+broadcast_mes(append(displayname(), " has a funny feeling like they would have been followed..."));

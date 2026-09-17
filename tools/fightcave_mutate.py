@@ -17,6 +17,13 @@ MRS2 = 'scripts/minigames/game_fightcave/scripts/fightcave_monsters.rs2'
 REW = 'scripts/minigames/game_fightcave/scripts/fightcave_reward.rs2'
 ALLNPC = 'scripts/_unpack/377/all.npc'
 SPEC = 'tools/fightcavespec.json'
+SHOP = 'scripts/shop/scripts/shop.rs2'
+SHOPPARAM = 'scripts/shop/configs/shopkeeper.param'
+TRADERS = 'scripts/areas/area_karamja/configs/tzhaar_traders.npc'
+INV727 = 'scripts/_unpack/727/all.inv'
+PETNPC = 'scripts/npc/configs/boss_pets.npc'
+PETOBJ = 'scripts/npc/configs/boss_pets.obj'
+CITYMAP = 'maps/m38_80.jm2'
 DEATH = 'scripts/player/scripts/death.rs2'
 MELEE = 'scripts/skill_combat/scripts/npc/npc_combat_melee.rs2'
 
@@ -135,6 +142,74 @@ if (multiply(npc_stat(hitpoints), 2) <= npc_basestat(hitpoints)) {
  (RS2, '~fightcave_end(sub(%fightcave_wave, 1));\n~stat_reset_all;',
         '~fightcave_end(%fightcave_wave);\n~stat_reset_all;',
   '6 ...and pays for the waves that were survived, not the one they died on'),
+ # 7 - Tokkul, the three shops and the pet
+ (SHOP, 'def_int $current_gp = inv_total(inv, %shop_currency);',
+        'def_int $current_gp = inv_total(inv, coins);',
+  '7 the shop reads its currency for the till it counts'),
+ (SHOP, 'inv_del(inv, %shop_currency, $added_amt);', 'inv_del(inv, coins, $added_amt);',
+  '7 the shop reads its currency for what it takes'),
+ (SHOP, 'inv_add(inv, %shop_currency, $total_value);', 'inv_add(inv, coins, $total_value);',
+  '7 the shop reads its currency for what it pays'),
+ (SHOP, 'inv_itemspace(inv, %shop_currency,', 'inv_itemspace(inv, coins,',
+  '7 the shop reads its currency for the space it checks'),
+ (SHOP, 'if ($item = %shop_currency) {', 'if ($item = coins) {',
+  '7 the shop reads its currency for what it refuses to buy'),
+ (SHOP, 'mes("You don\'t have enough <lowercase(oc_name(%shop_currency))>.");',
+        'mes("You don\'t have enough coins.");',
+  '7 the shop reads its currency for what it says you are short of, in both places it prints it'),
+ (SHOP, '%shop_currency = npc_param(shop_currency);',
+        '%shop_currency = npc_param(shop_currency);\n%shop_currency = coins;',
+  '7 ...and the currency is set in exactly those two places and nowhere else'),
+ (SHOP, '%shop_currency = coins;\n%shop = $shop;', '%shop = $shop;',
+  '7 ~openshop still sets coins, so its 38 callers did not have to change'),
+ (SHOP, '%shop_currency = npc_param(shop_currency);\n', '',
+  '7 ...and a shopkeeper\'s own shop reads the param'),
+ (SHOPPARAM, '[shop_currency]\ntype=namedobj\ndefault=coins',
+             '[shop_currency]\ntype=namedobj\ndefault=null',
+  '7 ...whose default is coins, so every shopkeeper that predates this keeps its till'),
+ # a trader pointed at the wrong shop, or taking the wrong money
+ (TRADERS, 'param=owned_shop,tzhaar_shop_rune', 'param=owned_shop,tzhaar_shop_general',
+  '7 tzhaar_shopkeeper_rune owns tzhaar_shop_rune'),
+ (TRADERS, 'param=shop_currency,tzhaar_token\nparam=shop_sell_multiplier,1000\nparam=shop_buy_multiplier,600\nparam=shop_delta,10\nparam=shop_title,TzHaar-Hur-Tel',
+           'param=shop_sell_multiplier,1000\nparam=shop_buy_multiplier,600\nparam=shop_delta,10\nparam=shop_title,TzHaar-Hur-Tel',
+  '7 ...and trades in Tokkul'),
+ (TRADERS, 'vislevel=hide\nop1=Talk-to\nop3=Trade\ncategory=shop_keeper\nparam=owned_shop,tzhaar_shop_equipment',
+           'vislevel=hide\nop1=Talk-to\nop3=Trade\nparam=owned_shop,tzhaar_shop_equipment',
+  '7 ...on the category the shop triggers hang off'),
+ (TRADERS, 'vislevel=hide\nop1=Talk-to\nop3=Trade\ncategory=shop_keeper\nparam=owned_shop,tzhaar_shop_oreandgem',
+           'vislevel=hide\nop1=Talk-to\nop2=Attack\nop3=Trade\ncategory=shop_keeper\nparam=owned_shop,tzhaar_shop_oreandgem',
+  '7 ...and cannot be attacked, so you can stand beside it'),
+ # the rune shop's numbering, which was broken in the file all along
+ (INV727, 'stock6=bodyrune,5000,100', 'stock5=bodyrune,5000,100',
+  '7 tzhaar_shop_rune stock numbering has no gaps or duplicates'),
+ (INV727, 'stock8=deathrune,250,100', 'stock8=deathrune,250',
+  '7 ...and every line has its count and restock rate'),
+ (INV727, 'stock1=firerune,5000,100', 'stock1=lavarune,5000,100',
+  '7 the rune shop sells the eight runes its own commented-out lines listed'),
+ (INV727, 'stock8=tzhaar_cape_obsidian,1,100', 'stock8=tzhaar_cape_fire,1,100',
+  '7 ...and the equipment shop the whole obsidian set'),
+ (CITYMAP, '0 9 48: 3944\n', '',
+  '7 tzhaar_shopkeeper_rune is spawned once in m38_80'),
+ # the pet
+ (PETNPC, 'param=pet_item_id,bosspet_tzrek_jad_item', 'param=pet_item_id,bosspet_kbd_item',
+  '7 ...and the npc names the item'),
+ (PETOBJ, 'param=follower_id,bosspet_tzrek_jad', 'param=follower_id,bosspet_kbd',
+  '7 ...and the item names the npc'),
+ (PETNPC, 'readyanim=osrs_seq_2650\nwalkanim=osrs_seq_5805',
+          'readyanim=lordmagmus_ready\nwalkanim=osrs_seq_5805',
+  '7 both its animations are converted from OSRS, so they share a base and still walk-merge'),
+ (PETNPC, 'resizeh=20\nresizev=20\nreadyanim=osrs_seq_2650',
+          'resizeh=40\nresizev=20\nreadyanim=osrs_seq_2650',
+  '7 and it is rendered at the cache\'s own 20, which is the joke'),
+ (CONST, '^fightcave_pet_rate = 200', '^fightcave_pet_rate = 100',
+  '7 ...which is 200, the rate for a plain kill'),
+ (REW, 'if (~obj_gettotal(bosspet_tzrek_jad_item) > 0) {\n    return;\n}\n', '',
+  '7 ...and never gives a second one, counting pack, bank, worn and the one out following you'),
+ (REW, '~obj_giveorbank(bosspet_tzrek_jad_item, 1);',
+        'obj_add(coord, bosspet_tzrek_jad_item, 1, 100);',
+  '7 ...and hands it over rather than dropping it in an instance about to be deleted'),
+ (REW, '~fightcave_pet_roll;\n', '',
+  '7 and killing Jad is what rolls it'),
 ]
 MUTS = [m for m in MUTS if len(m) == 4]
 
