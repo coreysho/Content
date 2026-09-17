@@ -31,6 +31,7 @@ FCOBJ = 'scripts/minigames/game_fightcave/configs/fightcave.obj'
 FCSEQ = 'scripts/minigames/game_fightcave/configs/fightcave.seq'
 ALLSEQ = 'scripts/_unpack/377/all.seq'
 MODELPACK = 'pack/model.pack'
+TEXPACK = 'pack/texture.pack'
 NPCPACK = 'pack/npc.pack'
 
 MUTS = [
@@ -294,11 +295,23 @@ if (multiply(npc_stat(hitpoints), 2) <= npc_basestat(hitpoints)) {
  (FCOBJ, 'param=prayerbonus,2', 'param=prayerbonus,2\nparam=magicdamage,5',
   '9 ...and it carries exactly the 12 bonuses and no invented thirteenth'),
  (SPEC, '"lava_faces": 30', '"lava_faces": 31',
-  '9 the inventory model carries its 30 lava faces on 377 texture 40'),
- (SPEC, '"fallback_hsl": 12818', '"fallback_hsl": 924',
+  '9 the inventory model carries its 30 crust faces'),
+ (SPEC, '"wrong_hsl": 12818', '"wrong_hsl": 924',
   '9 ...and no face of it is left on the olive green'),
  (SPEC, '"fire_cape_lava_faces": 25', '"fire_cape_lava_faces": 24',
-  '9 and the Fire cape still wears the same texture on its own 25 faces'),
+  '9 and the Fire cape still wears its own 25 lava faces'),
+ # the texture slot this fork added
+ (TEXPACK, '50=lavacrust', '50=lavacrusty',
+  '9 texture 50 is lavacrust in texture.pack'),
+ (TEXPACK, '49=canvas\n50=lavacrust', '49=canvas\n51=lavacrust',
+  '9 ...and the texture ids are contiguous'),
+ (SPEC, '"texture_pixels_sha1": "1f1fd2c9c972380c6db15d4ecdaa4b66a683d00b"',
+        '"texture_pixels_sha1": "0000000000000000000000000000000000000000"',
+  "9 ...and its pixels are OSRS sprite 318's own, unaltered"),
+ (SPEC, '"texture_colours": 204', '"texture_colours": 205',
+  '9 ...in 204 colours, under the 255 above which the packer quantises silently'),
+ (SPEC, '"local_texture": 50', '"local_texture": 40',
+  '9 the inventory model carries its 30 crust faces'),
  (PETOBJ, 'param=follower_id,bosspet_jalrek_jad', 'param=follower_id,bosspet_tzrek_jad',
   '9 ...and the two name each other'),
  (NPCPACK, '=bosspet_jalrek_jad\n', '=bosspet_jalrek_jad_notpacked\n',

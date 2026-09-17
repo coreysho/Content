@@ -666,25 +666,107 @@ check(FCOBJ[CAPE].get('tradeable', [None])[0] == 'no' == fire.get('tradeable', [
 check(len(FCOBJ[CAPE].get('param', [])) == len(EX['infernal_bonuses']),
       '...and it carries exactly the %d bonuses and no invented thirteenth'
       % len(EX['infernal_bonuses']))
-# the lava, which is the one substitution in the round
+# --- the cape's own texture, which is a slot this fork added
+INF = EX['infernal']
+TEXPACK = {int(l.split('=')[0]): l.split('=', 1)[1]
+           for l in read('pack/texture.pack').split('\n') if '=' in l}
+check(TEXPACK.get(INF['local_texture']) == INF['texture_name'],
+      'texture %d is %s in texture.pack' % (INF['local_texture'], INF['texture_name']))
+check(max(TEXPACK) == INF['local_texture'] and sorted(TEXPACK) == list(range(max(TEXPACK) + 1)),
+      '...and the texture ids are contiguous 0-%d, which the packer requires and the client\'s '
+      'own eviction loop assumes' % max(TEXPACK))
+texpng = os.path.join(C, 'textures', INF['texture_name'] + '.png')
+check(os.path.exists(texpng), '...and its image is in content/textures')
+if os.path.exists(texpng):
+    import hashlib, struct, zlib
+
+    def png_pixels(path):
+        """(width, height, RGBA bytes) from a non-interlaced 8-bit PNG, using zlib and nothing else.
+
+        THE PIXELS, NOT THE FILE. Hashing the file was the first thing tried and it was wrong: the
+        bridge that copies a file to the laptop re-encodes PNGs - same pixels, 5,770 more bytes -
+        so a file hash fails there for a reason that has nothing to do with the image."""
+        raw = open(path, 'rb').read()
+        if raw[:8] != b'\x89PNG\r\n\x1a\n':
+            raise ValueError('not a PNG')
+        w, h, depth, ctype, _, _, interlace = struct.unpack('>IIBBBBB', raw[16:29])
+        if (depth, interlace) != (8, 0) or ctype not in (2, 6):
+            raise ValueError('only 8-bit non-interlaced RGB/RGBA is read here')
+        chan = 4 if ctype == 6 else 3
+        idat, p = b'', 8
+        while p < len(raw):
+            n = struct.unpack('>I', raw[p:p + 4])[0]
+            if raw[p + 4:p + 8] == b'IDAT':
+                idat += raw[p + 8:p + 8 + n]
+            p += 12 + n
+        d = zlib.decompress(idat)
+        stride = w * chan
+        out = bytearray(); prev = bytearray(stride)
+        for y in range(h):
+            f = d[y * (stride + 1)]
+            line = bytearray(d[y * (stride + 1) + 1:(y + 1) * (stride + 1)])
+            for x in range(stride):
+                a = line[x - chan] if x >= chan else 0
+                b = prev[x]
+                c = prev[x - chan] if x >= chan else 0
+                if f == 1: line[x] = (line[x] + a) & 0xff
+                elif f == 2: line[x] = (line[x] + b) & 0xff
+                elif f == 3: line[x] = (line[x] + ((a + b) >> 1)) & 0xff
+                elif f == 4:
+                    pp = a + b - c
+                    pa, pb, pc = abs(pp - a), abs(pp - b), abs(pp - c)
+                    line[x] = (line[x] + (a if pa <= pb and pa <= pc else b if pb <= pc else c)) & 0xff
+                elif f != 0:
+                    raise ValueError('unknown PNG filter %d' % f)
+            out += line; prev = line
+        return w, h, bytes(out), chan
+
+    w, h, pix, chan = png_pixels(texpng)
+    check((w, h) == (128, 128), '...at 128x128, like the other 50: %dx%d' % (w, h))
+    check(hashlib.sha1(pix).hexdigest() == INF['texture_pixels_sha1'],
+          '...and its pixels are OSRS sprite %d\'s own, unaltered' % INF['osrs_sprite'])
+    cols = {pix[i:i + 3] for i in range(0, len(pix), chan)}
+    check(len(cols) == INF['texture_colours'] <= 255,
+          '...in %d colours, under the 255 above which the packer quantises silently' % len(cols))
+
 for m, n in (('obj_tzhaar_cape_infernal', 'the inventory model'),
              ('obj_tzhaar_cape_infernal_manwear', 'the male one'),
              ('obj_tzhaar_cape_infernal_womanwear', 'the female one')):
     info, col = ob2_faces('models/obj/' + m + '.ob2')
     lit = [c for c, i in zip(col, info) if i & 2]
     # Measured counts in the label, spec values in the comparison, because the mutations for
-    # these two move the SPEC - and a label quoting the spec would move with it.
-    check(len(lit) == EX['infernal']['lava_faces']
-          and set(lit) == {EX['infernal']['shared_lava_texture']},
-          '%s carries its %d lava faces on 377 texture %s, the Fire cape\'s own'
-          % (n, len(lit), ', '.join(str(x) for x in sorted(set(lit)))))
-    check(EX['infernal']['fallback_hsl'] not in col,
-          '...and no face of it is left on the olive green the importer paints a texture 377 does '
-          'not have')
+    # these move the SPEC - and a label quoting the spec would move with it.
+    check(len(lit) == INF['lava_faces'] and set(lit) == {INF['local_texture']},
+          '%s carries its %d crust faces on texture %s, OSRS %d\'s own image'
+          % (n, len(lit), ', '.join(str(x) for x in sorted(set(lit))), INF['osrs_texture']))
+    check(INF['wrong_hsl'] not in col,
+          '...and no face of it is left on the olive green that came of reading the OSRS texture '
+          'index by position')
 finfo, fcol = ob2_faces('models/obj/obj_tzhaar_cape_fire.ob2')
-check(sum(1 for i in finfo if i & 2) == EX['infernal']['fire_cape_lava_faces'],
-      'and the Fire cape still wears the same texture on its own %d faces, which is where the '
-      'substitution came from' % sum(1 for i in finfo if i & 2))
+check(sum(1 for i in finfo if i & 2) == INF['fire_cape_lava_faces'],
+      'and the Fire cape still wears its own %d lava faces, untouched by any of this'
+      % sum(1 for i in finfo if i & 2))
+
+# Nothing in the tree may name a texture slot that does not exist: that is the failure the
+# client's getTexels() guard exists to survive, and it should never be reached.
+worst, worstfile = -1, None
+for sub in ('npc', 'obj', 'loc', 'com', 'idk', 'spot'):
+    d = os.path.join(C, 'models', sub)
+    if not os.path.isdir(d):
+        continue
+    for f in sorted(os.listdir(d)):
+        if not f.endswith('.ob2'):
+            continue
+        try:
+            info, col = ob2_faces('models/%s/%s' % (sub, f))
+        except ValueError:
+            continue
+        for c, i in zip(col, info):
+            if i & 2 and c > worst:
+                worst, worstfile = c, '%s/%s' % (sub, f)
+check(worst <= max(TEXPACK),
+      'and the highest texture id any model in the tree names is %d (%s), which texture.pack has'
+      % (worst, worstfile))
 
 # --- JalRek-Jad
 JPET, JITEM = 'bosspet_jalrek_jad', 'bosspet_jalrek_jad_item'
