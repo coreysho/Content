@@ -236,10 +236,13 @@ def main():
          '// Black Dragon does. tools/obtainable.py reports them by name rather than being told to',
          '// ignore them.',
          '//',
-         '// A SCROLL OF IMBUING WORKS ON EVERY COLOUR, and Uncharge on every imbued colour hands',
-         '// that colour\'s plain helmet back with the scroll. Neither costs this file a trigger: the',
-         '// pairing is the param=imbue_into / param=imbue_from pair on each obj above, and',
+         '// A SCROLL OF IMBUING WORKS ON EVERY COLOUR, and costs this file no trigger: the pairing',
+         '// is the param=imbue_into / param=imbue_from pair on each obj above, and',
          '// skill_slayer/scripts/imbue_scroll.rs2 is one proc that reads them.',
+         '//',
+         '// NO COLOUR HAS AN UNCHARGE OP, because no slayer helmet in the OSRS cache has one - all',
+         '// twenty-six are Wear / Check / Disassemble. Getting a scroll back out of a helmet is',
+         '// Disassemble, which hands back the imbued black mask, and then Uncharge on the mask.',
          '//',
          '// THE IMBUE SURVIVES THE RECOLOUR IN BOTH DIRECTIONS. An imbued helmet recoloured stays',
          '// imbued, which is what the paired _i variants are for. Nothing here can turn an imbued',
@@ -291,13 +294,6 @@ def main():
     for key, c, imbued in made:
         r.append('[opheld3,%s] @slayer_helm_check;' % key)
     r.append('')
-    r += ['',
-          '// Uncharge, on the imbued half of every colour: op5, because Wear, Check and Disassemble',
-          '// are already taken. The label is in skill_slayer/scripts/imbue_scroll.rs2 and reads the',
-          "// colour's own param=imbue_from, so this loop needs to know nothing about pairs.", '']
-    for key, c, imbued in made:
-        if imbued:
-            r.append('[opheld5,%s] @imbue_uncharge;' % key)
     for key, c, imbued in made:
         mask = 'black_mask_i' if imbued else 'black_mask'
         if 'source' in c:

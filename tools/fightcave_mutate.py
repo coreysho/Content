@@ -258,10 +258,17 @@ if (multiply(npc_stat(hitpoints), 2) <= npc_basestat(hitpoints)) {
  (FCSEQ, '[osrs_seq_2618]', '[osrs_seq_2650]\nframe1=anim_osrs_12622_1\ndelay1=4\n\n[osrs_seq_2618]',
   '8 fightcave.seq holds 34 seqs and NOT osrs_seq_2650'),
  # ---------------------------------------------------------------------------- 9, the exchange
- (SPEC, '"cape": 100', '"cape": 200',
-  '9 ^fightcave_exchange_cape_rate is 100'),
+ (SPEC, '"cape": 300', '"cape": 200',
+  '9 ^fightcave_exchange_cape_rate is 300'),
  (SPEC, '"meta": 50', '"meta": 60',
   '9 ^fightcave_exchange_meta_rate is 50'),
+ (SPEC, '"pet": 25', '"pet": 30',
+  '9 ^fightcave_exchange_pet_rate is 25'),
+ # the ladder inverted: a cape commoner than a pet, still rolled first, quietly not the prize.
+ # In the SPEC, not the constant, because that is the side the rarest-first check reads - moving the
+ # constant fires the constant-equals-spec check above instead and the label lands on the wrong one.
+ (SPEC, '"cape": 300', '"cape": 20',
+  '9 ...rarest first'),
  (XRS2, 'if (random(^fightcave_exchange_cape_rate) = 0) {\n    ~obj_giveorbank(tzhaar_cape_infernal, 1);',
          'if (random(^fightcave_exchange_pet_rate) = 0) {\n    ~obj_giveorbank(tzhaar_cape_infernal, 1);',
   '9 ...and the roll asks in the order the rates were chosen for'),

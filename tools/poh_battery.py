@@ -3986,20 +3986,57 @@ for _r66 in ('berzerker_ring', 'warrior_ring', 'ranger_ring', 'seer_ring'):
         _ringbad.append((_r66, _pp, _ii))
 check(not _ringbad, 'each imbued ring is its plain ring doubled, stat for stat: %s'
       % (_ringbad or 'all four'))
+# ...and wears ITS OWN MESH. OSRS gives the four imbued rings models 21847-21850 where the plain
+# rings are 9930-9933 - the same topology with a pale, silvered band. They shipped pointing at the
+# plain rings' models, which is the same assumption that put the imbued slayer helmet in the plain
+# helmet's art a round earlier: "the imbued twin looks the same" is not a rule, it is a lookup.
+# blocks() gives every key as a LIST, so these compare against one-element lists - the same
+# shape the model comparison at the top of this group uses.
+_artbad = [_r66 for _r66 in ('berzerker_ring', 'warrior_ring', 'ranger_ring', 'seer_ring')
+           if _ALLOBJ.get(_r66 + '_i', {}).get('model') != ['obj_%s_i' % _r66]
+           or 'obj_%s_i' % _r66 not in MODELS]
+check(not _artbad,
+      'and wears its own imported mesh rather than the plain ring\'s: %s'
+      % (_artbad or 'all four'))
+# The cache also gives an imbued ring the PLAIN ring's examine text, word for word - so a "(i)"
+# suffix or an invented "It has been imbued." sentence is a change the cache does not make.
+_descbad = [_r66 for _r66 in ('berzerker_ring', 'warrior_ring', 'ranger_ring', 'seer_ring')
+            if _ALLOBJ.get(_r66 + '_i', {}).get('desc') != _ALLOBJ.get(_r66, {}).get('desc')]
+check(not _descbad, "...and the plain ring's examine text, which is what the cache does: %s"
+      % (_descbad or 'all four'))
 
-# EVERY IMBUED ITEM CAN BE UNCHARGED, which is OSRS's own rule for the scroll ("every item can be
-# uncharged to return the scroll in its original form") and is most of what one scroll is worth
-# when the scroll is a drop. One trigger per imbued obj, wherever it is written - six by hand and
-# the fourteen colours by tools/genslayerhelm.py.
+# UNCHARGING, AND WHICH ITEMS GET IT - which is the cache's answer and not "all of them". OSRS's
+# Black mask (i) and its four imbued rings carry Uncharge; NOT ONE slayer helmet in the cache does,
+# of any colour - all twenty-six are Wear / Check / Disassemble. A helmet is uncharged by taking it
+# apart into its imbued mask and uncharging that, which this build already does. The first version
+# of this round invented an iop5=Uncharge for fifteen helmets before anyone read the cache, so the
+# check is now the set, spelled out, and the helmets' route checked separately.
 _ALLRS2 = ''
 for _root66, _d66, _fs66 in os.walk(os.path.join(C, 'scripts')):
     for _fn66 in _fs66:
         if _fn66.endswith('.rs2'):
             _ALLRS2 += read(os.path.join(_root66, _fn66)[len(C) + 1:])
 _unch = set(re.findall(r'\[opheld\d,(\w+)\] @imbue_uncharge;', _ALLRS2))
-check(_unch == set(_from),
-      'all %d imbued items have an Uncharge trigger and nothing else does: %s'
-      % (len(_from), sorted(_unch ^ set(_from)) or 'exactly those'))
+_WANTUNCH = {'black_mask_i', 'berzerker_ring_i', 'warrior_ring_i', 'ranger_ring_i', 'seer_ring_i'}
+check(_unch == _WANTUNCH,
+      'Uncharge is on the five items the cache gives it to - the mask and the four rings - and on '
+      'nothing else: %s' % (sorted(_unch ^ _WANTUNCH) or 'exactly those'))
+# ...and the op sits in the slot the cache puts it in, which is 4, with 3 left empty
+_slots66 = set(re.findall(r'\[opheld(\d),\w+\] @imbue_uncharge;', _ALLRS2))
+_iop66 = {n for n in _WANTUNCH if _ALLOBJ.get(n, {}).get('iop4') == ['Uncharge']}
+check(_slots66 == {'4'} and _iop66 == _WANTUNCH,
+      '...in op slot 4, where OSRS puts it, and the trigger is on the same slot as the op: %s'
+      % (sorted(_WANTUNCH - _iop66) or 'all five'))
+# THE HELMETS' ROUTE OUT. No Uncharge op, so the scroll comes back out of a helmet the way OSRS
+# does it: Disassemble hands the imbued mask back, and the mask is what uncharges. Both halves of
+# that already exist and are checked below - this is the check that the helmets have not quietly
+# been left with no route at all.
+_helms66 = sorted(n for n in _from if n.startswith('slayer_helm'))
+_hasop = [n for n in _helms66
+          if any(v == ['Uncharge'] for v in _ALLOBJ.get(n, {}).values())]
+check(len(_helms66) == 15 and not _hasop and '[opheld4,slayer_helm_i]' in _HL,
+      'and no imbued helmet has one - all %d get the scroll back out through Disassemble, which is '
+      'what the cache says and what OSRS does: %s' % (len(_helms66), _hasop or 'none of them'))
 # ONE TRIGGER ON THE SCROLL, not twenty on the items - but an imbueable item may already have an
 # [opheldu] of its own, and then the engine finds THAT one when the item is the clicked half
 # (network/game/client/handler/OpHeldUHandler.ts looks the trigger up on the clicked obj first).

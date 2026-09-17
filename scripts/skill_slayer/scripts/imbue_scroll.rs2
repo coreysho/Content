@@ -66,15 +66,18 @@ inv_add(inv, $back, 1);
 inv_add(inv, slayer_imbue_scroll, 1);
 ~objbox(slayer_imbue_scroll, "You uncharge your <lowercase(oc_name($item))>. The scroll rolls itself back up, ready for something else.", 250, 0, 0);
 
-// Uncharge is op3 on the mask and the rings, which have only Wear above it, and op5 on the helmets,
-// which have Wear, Check and Disassemble. The fourteen recoloured helmets get their line from
-// tools/genslayerhelm.py, into slayer_helm_colours.rs2.
-[opheld3,black_mask_i] @imbue_uncharge;
-[opheld5,slayer_helm_i] @imbue_uncharge;
-[opheld3,berzerker_ring_i] @imbue_uncharge;
-[opheld3,warrior_ring_i] @imbue_uncharge;
-[opheld3,ranger_ring_i] @imbue_uncharge;
-[opheld3,seer_ring_i] @imbue_uncharge;
+// FIVE ITEMS, NOT TWENTY, and the cache is why. OSRS's Black mask (i) and its four imbued rings
+// carry Uncharge in op slot 3 - op4 here, with op3 left empty, exactly as the cache has it - and
+// NOT ONE slayer helmet of any colour carries it: all twenty-six in the cache are Wear / Check /
+// Disassemble. So a helmet is uncharged the way OSRS uncharges one, by Disassemble handing back the
+// imbued black mask (slayer_helm.rs2 already does that, and has since the imbue round) and then
+// Uncharge on the mask. That asymmetry is real and it is OSRS's: you can imbue a helmet directly
+// with a scroll, and you cannot take the scroll back out of one without first taking it apart.
+[opheld4,black_mask_i] @imbue_uncharge;
+[opheld4,berzerker_ring_i] @imbue_uncharge;
+[opheld4,warrior_ring_i] @imbue_uncharge;
+[opheld4,ranger_ring_i] @imbue_uncharge;
+[opheld4,seer_ring_i] @imbue_uncharge;
 
 // ---- where it comes from ----
 //

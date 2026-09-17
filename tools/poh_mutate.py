@@ -912,8 +912,32 @@ if (inv_total(inv, coins) < $cost) {
   '66 each imbued ring is its plain ring doubled, stat for stat'),
  # an imbued item you cannot get the scroll back out of
  ('scripts/skill_slayer/scripts/imbue_scroll.rs2',
-  '[opheld3,seer_ring_i] @imbue_uncharge;\n', '',
-  '66 all 20 imbued items have an Uncharge trigger and nothing else does'),
+  '[opheld4,seer_ring_i] @imbue_uncharge;\n', '',
+  '66 Uncharge is on the five items the cache gives it to'),
+ # an Uncharge op invented for the helmets, which no slayer helmet in the cache has
+ ('scripts/skill_slayer/scripts/imbue_scroll.rs2',
+  '[opheld4,black_mask_i] @imbue_uncharge;',
+  '[opheld4,black_mask_i] @imbue_uncharge;\n[opheld5,slayer_helm_i] @imbue_uncharge;',
+  '66 Uncharge is on the five items the cache gives it to'),
+ # ...and the op in a slot of its own invention rather than the cache's
+ ('scripts/skill_slayer/configs/imbue_scroll.obj',
+  'iop2=Wear\niop4=Uncharge\nmembers=yes\ntradeable=no\n2dxof=3\n2dyof=-15',
+  'iop2=Wear\niop3=Uncharge\nmembers=yes\ntradeable=no\n2dxof=3\n2dyof=-15',
+  '66 ...in op slot 4, where OSRS puts it, and the trigger is on the same slot as the op'),
+ # the helmets left with no route out at all: Disassemble stops handing the imbued mask back
+ ('scripts/skill_slayer/scripts/slayer_helm.rs2',
+  '[opheld4,slayer_helm_i] @slayer_helm_split(black_mask_i);',
+  '[opheld6,slayer_helm_i] @slayer_helm_split(black_mask_i);',
+  '66 and no imbued helmet has one - all 15 get the scroll back out through Disassemble'),
+ # the imbued rings back on the plain rings' meshes, which is how they shipped
+ ('scripts/skill_slayer/configs/imbue_scroll.obj',
+  'model=obj_seer_ring_i', 'model=obj_seer_ring',
+  "66 and wears its own imported mesh rather than the plain ring's"),
+ # an invented suffix on an imbued ring's examine text
+ ('scripts/skill_slayer/configs/imbue_scroll.obj',
+  'desc=A legendary ring once worn by Fremennik warriors.',
+  'desc=A legendary ring once worn by Fremennik warriors. It has been imbued.',
+  "66 ...and the plain ring's examine text, which is what the cache does"),
  # the handoff removed, so the scroll works in one click order and not the other
  ('scripts/skill_slayer/scripts/slayer_helm.rs2',
   'if (last_useitem = slayer_imbue_scroll) {\n    ~imbue_scroll_read(last_item);\n    return;\n}\n',

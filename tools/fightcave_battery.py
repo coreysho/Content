@@ -614,9 +614,16 @@ for key, const in (('cape', 'fightcave_exchange_cape_rate'), ('meta', 'fightcave
 order = [ROLL2.find(s) for s in ('^fightcave_exchange_cape_rate', '^fightcave_exchange_meta_rate',
                                  '^fightcave_exchange_pet_rate', '^fightcave_exchange_tokkul_min')]
 check(all(x > 0 for x in order) and order == sorted(order),
-      '...and the roll asks in the order the rates were chosen for - the 1/%d cape first, then '
-      'the two 1/%d pets, Tokkul last - so one cape buys one thing'
-      % (EX['rates']['cape'], EX['rates']['meta']))
+      '...and the roll asks in the order the rates were chosen for - the 1/%d cape first, then the '
+      '1/%d metamorphosis, then the 1/%d pet, Tokkul last - so one cape buys one thing'
+      % (EX['rates']['cape'], EX['rates']['meta'], EX['rates']['pet']))
+# ...and rarest first, which is what makes the order the RIGHT order rather than just an order.
+# Retuning the three is what this catches: a cape made commoner than a pet would still roll first
+# and would quietly stop being the prize.
+check([EX['rates'][k] for k in ('cape', 'meta', 'pet')]
+      == sorted((EX['rates'][k] for k in ('cape', 'meta', 'pet')), reverse=True),
+      '...rarest first: 1/%d, 1/%d, 1/%d'
+      % (EX['rates']['cape'], EX['rates']['meta'], EX['rates']['pet']))
 check(ROLL2.count('return;') == 3,
       '...with a return after each hit, so a cape cannot pay twice')
 check(int(CONST['fightcave_exchange_tokkul_min']) == EX['tokkul'][0]
