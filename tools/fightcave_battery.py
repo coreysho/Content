@@ -801,8 +801,12 @@ check(PETNPC2[JPET].get('resizeh', [None])[0] == str(EX['jalrek']['resize'])
 # --- who can roll what
 META = XRS2.split('[proc,fightcave_metamorphose]', 1)[-1].split('\n[', 1)[0]
 HAS = XRS2.split('[proc,fightcave_has_pet]', 1)[-1].split('\n[', 1)[0]
-check('~obj_gettotal($pet) > 0' in HAS and '%follower_obj = $pet' in HAS,
-      '"do they have this pet" counts pack, bank and worn AND the one out following them')
+# "Owns this pet" is ~pet_owned in npc/scripts/follower.rs2 now - one answer for the whole game,
+# counting the pack, the bank, what you are wearing, what is following you and what Probita is
+# holding after a death. What it counts is tools/follower_battery.py's business; that this asks it
+# rather than rolling its own two-thirds of the answer is this one's.
+check('return(~pet_owned($pet));' in HAS,
+      '"do they have this pet" delegates to ~pet_owned, the one answer in the tree')
 def guard(rate):
     """The eligibility line that wraps one rung of the ladder - the if whose body rolls that rate."""
     m = re.search(r'if \(([^\n]*)\) \{\n    if \(random\(\^fightcave_exchange_%s_rate\)' % rate,
@@ -816,15 +820,15 @@ check('~fightcave_has_pet(bosspet_tzrek_jad_item) = false' in guard('pet')
       and '~fightcave_has_pet(bosspet_jalrek_jad_item) = false' in guard('pet'),
       '...and the plain pet needs neither, so metamorphosing is never undone by a later roll')
 check('npc_finduid(%follower_uid) = true' in META and 'npc_del;' in META
-      and 'npc_add(coord, bosspet_jalrek_jad, ^max_32bit_int);' in META,
-      'the metamorphosis transforms the pet OUT FOLLOWING you in place, the same four lines '
-      '[opheld5,_bosspet] uses to put one down')
+      and '~follower_spawn(bosspet_jalrek_jad);' in META,
+      'the metamorphosis transforms the pet OUT FOLLOWING you in place, through the same '
+      '~follower_spawn every other pet spawn in the game goes through')
 check('inv_del(inv, bosspet_tzrek_jad_item, 1);' in META
       and 'inv_del(bank, bosspet_tzrek_jad_item, 1);' in META,
       '...and the pack and the bank as well, so all three places the pet can be are covered')
 check(META.count('inv_add(inv, bosspet_jalrek_jad_item, 1);')
       + META.count('inv_add(bank, bosspet_jalrek_jad_item, 1);') == 2
-      and 'inv_add' not in META.split('npc_setmode(playerfollow);', 1)[0],
+      and 'inv_add' not in META.split('~follower_spawn(bosspet_jalrek_jad);', 1)[0],
       '...and it never hands over a second pet: one goes out for every one that comes in')
 check('~obj_giveorbank(' in ROLL2 and 'obj_add' not in ROLL2,
       'everything the exchange pays goes to the pack or the bank, never the floor')

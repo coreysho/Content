@@ -1,0 +1,18 @@
+// Pets that were out when their owner died, waiting at Probita's in East Ardougne. See
+// npc/scripts/follower.rs2 for how they get here and npc/scripts/probita.rs2 for how they leave.
+//
+// scope=perm, because the whole point is that it is still there next login.
+//
+// size=24 is not a round number: it is exactly the number of slots in Probita's window
+// (probita_main:pets, 6 across by 4 down). A store slot her window cannot show would be a pet
+// nobody could ever reclaim. There are twenty pet items in the tree today, so four are spare, and
+// tools/follower_battery.py fails if the two numbers ever disagree or if a 21st pet item appears
+// without the window growing to hold it.
+//
+// Nothing stacks here and a pet cannot be lost twice - ~pet_owned counts this store as owning one,
+// so a second can never roll - which is why "used slots" is the same thing as "pets she is
+// holding", the sum ~probita_count does.
+[lostpet_store]
+scope=perm
+size=24
+protect=no

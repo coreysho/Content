@@ -1,0 +1,84 @@
+// Probita's pet insurance bureau, East Ardougne. The other end of ~follower_death in
+// npc/scripts/follower.rs2: a pet that was out when you died is waiting here, and taking it back
+// costs nothing.
+//
+// FREE IS THE OLD SCHOOL ANSWER, not a shortcut. Probita used to charge 500,000 coins to insure a
+// pet and 1,000,000 to reclaim one; since September 2025 every pet is insured the moment you get
+// it and reclaims are free. So there is no insurance step to build and no coin sink to balance -
+// the price of dying with a pet out is the walk to Ardougne.
+//
+// Her ops are the cache's own and so is what they do: op1 Talk-to, op3 Check, and Check is what
+// opens the window in Old School too.
+
+[opnpc1,probita] @probita_talk;
+[opnpc3,probita] ~probita_open;
+
+[label,probita_talk]
+~chatnpc("<p,happy>Hello there. I look after pets that have lost their|owners - and owners who have lost their pets.");
+def_int $choice = ~p_choice3("Have you got a pet of mine?", 1, "What does it cost?", 2,
+                             "No, thank you.", 3);
+if ($choice = 1) {
+    ~chatplayer("<p,neutral>Have you got a pet of mine?");
+    if (~probita_count = 0) {
+        ~chatnpc("<p,neutral>Not a one. You have not lost any - which is|how it should be.");
+        return;
+    }
+    ~chatnpc("<p,happy>I have. Take a look and take it home.");
+    ~probita_open;
+} else if ($choice = 2) {
+    ~chatplayer("<p,neutral>What does it cost?");
+    ~chatnpc("<p,happy>Nothing at all. Every pet is insured the moment|you get one, and I do not charge to hand one back.");
+} else if ($choice = 3) {
+    ~chatplayer("<p,neutral>No, thank you.");
+    ~chatnpc("<p,neutral>Mind how you go. And mind your pets.");
+}
+
+// ---------------------------------------------------------------- the window
+[proc,probita_open]
+if_close;
+inv_transmit(lostpet_store, probita_main:pets);
+~probita_refresh;
+if_openmain(probita_main);
+
+[if_close,probita_main]
+inv_stoptransmit(probita_main:pets);
+
+// How many pets she is holding. lostpet_store holds one of each pet and nothing stacks in it, so
+// the used slots ARE the pets - see npc/configs/follower.inv.
+[proc,probita_count]()(int)
+return(calc(inv_size(lostpet_store) - inv_freespace(lostpet_store)));
+
+// Everything about the window the client cannot work out for itself. Called on open and after
+// every reclaim, because the client redraws the ITEMS on its own but not the text.
+[proc,probita_refresh]
+def_int $n = ~probita_count;
+if ($n = 0) {
+    if_settext(probita_main:subtitle, "Probita is not holding anything for you.");
+    if_settext(probita_main:help, "");
+    return;
+}
+if ($n = 1) {
+    if_settext(probita_main:subtitle, "Probita is holding one pet for you.");
+} else {
+    if_settext(probita_main:subtitle, "Probita is holding <tostring($n)> pets for you.");
+}
+if_settext(probita_main:help, "Click a pet to take it back.");
+
+// ---------------------------------------------------------------- reclaiming
+// A free slot is required rather than banking the pet, which is what [opnpc1,_bosspet] does when
+// you pick a pet up off the ground: the two are the same act and should refuse for the same reason.
+[inv_button1,probita_main:pets]
+def_obj $pet = inv_getobj(lostpet_store, last_slot);
+if ($pet = null) {
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You don't have enough inventory space to take that.");
+    return;
+}
+// inv_moveitem, not a del and an add: one operation, so there is no tick in which the pet is in
+// both places or neither.
+inv_moveitem(lostpet_store, inv, $pet, 1);
+sound_synth(pick, 1, 0);
+mes("Probita hands over your <lowercase(oc_name($pet))>.");
+~probita_refresh;

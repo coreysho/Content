@@ -17,11 +17,9 @@ def_int $slot = last_slot;
 def_npc $type = oc_param(last_item, follower_id);
 inv_delslot(inv, $slot);
 sound_synth(put_down, 1, 0);
-npc_add(coord, $type, ^max_32bit_int);
-%follower_obj = nc_param(npc_type, pet_item_id);
-%follower_uid = npc_uid;
-%npc_attacking_uid = uid;
-npc_setmode(playerfollow);
+// The slot itself is claimed by ~follower_spawn in npc/scripts/follower.rs2 - the same four lines
+// the cats and the login respawn use, in one place.
+~follower_spawn($type);
 
 // Picking it back up. Mirrors [opnpc1,_petcat] including the ownership check, so you cannot pocket
 // somebody else's pet.
@@ -67,17 +65,15 @@ npc_del;
 // rather than a constant read in here, so a family that drops at a different rate has to say so at
 // the call site and cannot silently inherit another family's number.
 //
-// A player who already owns the pet - in the inventory, the bank, or currently following them -
-// cannot roll a second one, which is what stops them being farmed for a trade that tradeable=no
-// already forbids anyway.
+// A player who already owns the pet cannot roll a second one, which is what stops them being farmed
+// for a trade that tradeable=no already forbids anyway. ~pet_owned in npc/scripts/follower.rs2 is
+// the one answer to "owns" for every pet in the game - pack, bank, worn, following, and waiting at
+// Probita's after a death.
 [proc,bosspet_roll](namedobj $pet, int $rate)
 if (random($rate) ! 0) {
     return;
 }
-if (~obj_gettotal($pet) > 0) {
-    return;
-}
-if (%follower_obj = $pet) {
+if (~pet_owned($pet) = true) {
     return;
 }
 obj_add(npc_coord, $pet, 1, ^lootdrop_duration);

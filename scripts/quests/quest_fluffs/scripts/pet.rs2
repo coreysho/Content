@@ -13,6 +13,12 @@ if (%follower_uid = null) {
     return;
 }
 if (npc_finduid(%follower_uid) = true) {
+    // Retroactive: a save made before follower.rs2 existed may still carry this timer with a boss
+    // or skilling pet in the slot, and every 90 seconds it would say "Meow!". It stops here.
+    if (~follower_is_cat(nc_param(npc_type, pet_item_id)) = false) {
+        cleartimer(petcat_growth);
+        return;
+    }
     def_category $cat_cat = oc_category(nc_param(npc_type, pet_item_id));
     if ($cat_cat = overgrown) {
         cleartimer(petcat_growth);
@@ -234,41 +240,15 @@ inv_delslot(inv, last_slot);
 sound_synth(put_down, 1, 0);
 ~cat_spawn(oc_param(last_item, follower_id));
 
+// The slot itself is claimed by ~follower_spawn in npc/scripts/follower.rs2, shared with the boss
+// and skilling pets. What is left here is what is actually about cats: the miaow and the growth
+// timer that runs hunger, attention and growing up.
 [proc,cat_spawn](npc $type)
-npc_add(coord, $type, ^max_32bit_int);
-%follower_obj = nc_param(npc_type, pet_item_id);
-%follower_uid = npc_uid;
-%npc_attacking_uid = uid;
-npc_setmode(playerfollow);
+~follower_spawn($type);
 npc_say("Miaow!");
 settimer(petcat_growth, 150);
 
-[proc,follower_death]
-if (npc_finduid(%follower_uid) = true) {
-    %follower_uid = null;
-    %follower_obj = null;
-    %cat_growth = 0;
-    npc_del;
-}
-
-[proc,follower_logout]
-if (npc_finduid(%follower_uid) = true) {
-    npc_del;
-    %follower_uid = null;
-}
-
-[queue,follower_login] //cats get lost on f2p according to ash, no checks here
-if (%follower_obj ! null) {
-    if (oc_param(%follower_obj, follower_id) = null) { 
-        %follower_obj = null;
-        return;
-    }
-    if(npc_finduid(%follower_uid) = false) {
-        npc_add(coord, oc_param(%follower_obj, follower_id), ^max_32bit_int);
-        %npc_attacking_uid = uid;
-        %follower_uid = npc_uid;
-        npc_setmode(playerfollow);
-        npc_say("Meeeew!"); //youtu.be/6y_cOu5OQf4?t=110
-        settimer(petcat_growth, 150);
-    }
-}
+// ~follower_death, ~follower_logout and [queue,follower_login] used to be here, and every follower
+// in the game - cats, boss pets, skilling pets - went through them. They are npc/scripts/follower.rs2
+// now, with the cat parts dispatched on the item's category. Nothing about cats changed in the move.
+// "cats get lost on f2p according to ash, no checks here" is the note that was on the login one.

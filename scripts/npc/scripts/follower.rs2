@@ -1,0 +1,115 @@
+// The follower slot - the one thing cats, boss pets and skilling pets genuinely share.
+//
+// Before this file the whole lifecycle lived in quests/quest_fluffs/scripts/pet.rs2, the cat quest,
+// and every follower in the game went through it with the cat parts still attached. Two of those
+// parts were not subtle:
+//
+//   * [queue,follower_login] ended with npc_say("Meeeew!") and settimer(petcat_growth, 150), so a
+//     Prince black dragon said "Meow!" every 90 seconds. Drop the pet and it was silent; log out
+//     and back in and it was a cat.
+//   * ~follower_death deleted the follower and cleared %follower_obj without returning the item,
+//     so dying with a pet out DESTROYED it - a 1-in-3,000 drop, with no way to get it back.
+//
+// What is shared, and stays shared, is the slot itself: %follower_uid is the npc, %follower_obj is
+// the item it came from, and %npc_attacking_uid on the npc is the ownership marker. One slot means
+// one follower, which is why a cat and a boss pet cannot both be out. That rule is deliberate.
+//
+// The cat extras are dispatched on the ITEM's category, and dispatched POSITIVELY - a follower is
+// given them only if its item is a kitten, a cat or an overgrown cat. A family added later without
+// reading this file gets the plain path rather than the cat one, which is the direction a mistake
+// should fall in.
+
+[proc,follower_is_cat](namedobj $item)(boolean)
+if ($item = null) {
+    return(false);
+}
+if (oc_category($item) = kitten | oc_category($item) = cat | oc_category($item) = overgrown) {
+    return(true);
+}
+return(false);
+
+// Put a follower on the ground and claim the slot. Every family spawns through here: the cats'
+// ~cat_spawn, the pets' [opheld5,_bosspet], the login respawn below and the metamorphosis.
+// %follower_obj comes off the NPC's own pet_item_id rather than from the caller, so a form that
+// names the wrong item cannot be smuggled into the slot.
+[proc,follower_spawn](npc $type)
+npc_add(coord, $type, ^max_32bit_int);
+%follower_obj = nc_param(npc_type, pet_item_id);
+%follower_uid = npc_uid;
+%npc_attacking_uid = uid;
+npc_setmode(playerfollow);
+
+// Logout: the npc goes, the item the slot remembers does not. %follower_uid is scope=temp and would
+// be dropped anyway; clearing it here keeps the two in step for the rest of the logout script.
+[proc,follower_logout]
+if (npc_finduid(%follower_uid) = true) {
+    npc_del;
+    %follower_uid = null;
+}
+
+// Login: put back whatever the slot remembers. Queued from login.rs2 rather than run inline,
+// because npc_add wants the player's coord settled first.
+[queue,follower_login]
+if (%follower_obj = null) {
+    return;
+}
+// An item that is no longer a follower item - renamed, retired, or a save from before it existed -
+// empties the slot instead of spawning null.
+if (oc_param(%follower_obj, follower_id) = null) {
+    %follower_obj = null;
+    return;
+}
+if (npc_finduid(%follower_uid) = true) {
+    return;
+}
+~follower_spawn(oc_param(%follower_obj, follower_id));
+if (~follower_is_cat(%follower_obj) = true) {
+    npc_say("Meeeew!"); //youtu.be/6y_cOu5OQf4?t=110
+    settimer(petcat_growth, 150);
+}
+
+// Death. A pet out when you die is LOST - and lost means it goes to Probita's bureau in East
+// Ardougne, where you take it back for nothing. That is current Old School: every pet is insured
+// the moment you get one and reclaims have been free since September 2025, so the whole cost of
+// dying with a pet out is the walk to Ardougne. npc/scripts/probita.rs2 is the other end.
+//
+// Before this, the pet was simply DELETED here, item and all. A 1-in-3,000 drop, gone to a bad
+// tick of the Kalphite Queen, with nothing anywhere that could give it back.
+//
+// A CAT still goes for good, and that is upstream's behaviour left alone deliberately: Probita
+// insures pets, not cats, and a cat is replaceable at Gertrude's. Cats also never set timer= on
+// their npc records, so [ai_timer,_petcat] has never fired for one - a cat left standing at the
+// death spot would be stranded there. Fixing cats means giving them the timer first, and that is
+// a separate call with its own verification.
+[proc,follower_death]
+if (npc_finduid(%follower_uid) = false) {
+    return;
+}
+def_namedobj $pet = %follower_obj;
+%follower_uid = null;
+%follower_obj = null;
+npc_del;
+if (~follower_is_cat($pet) = true) {
+    %cat_growth = 0;
+    return;
+}
+// inv_add, not inv_put: one slot per pet and the store is sized for every pet in the tree, so a
+// full store would mean a pet lost twice - which ~pet_owned already makes impossible.
+inv_add(lostpet_store, $pet, 1);
+mes("Your pet is waiting for you at Probita's in East Ardougne.");
+
+// Does the player own this pet ANYWHERE - pack, bank, worn, out and following, or lost and waiting
+// at Probita's? The pet rolls all ask this before handing one over, and the last case is the one
+// that is easy to forget: without it, dying with a pet out would leave you free to roll a second
+// and then reclaim the first, which is two of something the game only ever gives you one of.
+[proc,pet_owned](namedobj $pet)(boolean)
+if (~obj_gettotal($pet) > 0) {
+    return(true);
+}
+if (%follower_obj = $pet) {
+    return(true);
+}
+if (inv_total(lostpet_store, $pet) > 0) {
+    return(true);
+}
+return(false);

@@ -1,0 +1,92 @@
+{
+  "notes": [
+    "The follower slot is one thing shared by three families - the pet cats, the boss pets and the",
+    "  skilling pets - and until this round the whole lifecycle lived inside the CAT QUEST",
+    "  (quests/quest_fluffs/scripts/pet.rs2). Every follower in the game went through it with the cat",
+    "  parts still attached, and two of those parts were not subtle: the login respawn ended with",
+    "  npc_say(\"Meeeew!\") and settimer(petcat_growth, 150), so a Prince black dragon said \"Meow!\"",
+    "  every 90 seconds; and ~follower_death deleted the follower and cleared %follower_obj without",
+    "  returning the item, so dying with a pet out DESTROYED a 1-in-3,000 drop. It is",
+    "  npc/scripts/follower.rs2 now, and the cat extras are dispatched POSITIVELY on the item's",
+    "  category, so a family added later without reading that file gets the plain path.",
+    "probita: dying with a pet out still loses it - that is Old School's shape - but lost means it is",
+    "  waiting at Probita's bureau in East Ardougne, and taking it back costs NOTHING. That is current",
+    "  Old School too: since September 2025 every pet is insured the moment you get one and reclaims",
+    "  are free, so there is no insurance step to build and no coin sink to balance.",
+    "  free is checked as CODE rather than prose - her dialogue says the word \"cost\" precisely in",
+    "  order to say there is not one - so the checks are that no currency symbol appears in her script",
+    "  and that the reclaim handler touches no inv but the store and the pack.",
+    "  Her art is OSRS npc 5906's own, seven body models and two chatheads on the 377 human",
+    "  animations - the same pairing the estate agent and the sawmill operator already use - and",
+    "  model_sha1 pins all nine, because they are a deterministic function of the cache.",
+    "  She stands in the empty one-room building immediately east of Aemad's Adventuring Supplies,",
+    "  which is where Old School puts her (\"the small building next to Aemad's\"). tile is that room's",
+    "  middle and aemad_tile is the shop's own spawn, both in maps/m40_51.jm2: the check that the two",
+    "  are within reach of each other is what makes the placement a measurement rather than a memory.",
+    "grid: lostpet_store's size and the window's slot count are ONE number. A store slot her window",
+    "  cannot show is a pet nobody can reclaim, so a 21st pet item has to grow both, and the check",
+    "  fails until it does.",
+    "cat_categories: the three categories the cache's own cat ITEMS carry. ~follower_is_cat names",
+    "  exactly these, every follower item in all.obj carries one of them, and no pet item carries any -",
+    "  which is what makes the dispatch safe in both directions."
+  ],
+  "cat_categories": [
+    "kitten",
+    "cat",
+    "overgrown"
+  ],
+  "lostpet": {
+    "inv": "lostpet_store",
+    "size": 24,
+    "grid_cols": 6,
+    "grid_rows": 4,
+    "pet_items": 20,
+    "scope": "perm"
+  },
+  "probita": {
+    "osrs": 5906,
+    "npc": "probita",
+    "models": 7,
+    "heads": 2,
+    "ops": {
+      "1": "Talk-to",
+      "3": "Check"
+    },
+    "map": "m40_51",
+    "tile": [
+      0,
+      58,
+      29
+    ],
+    "aemad_tile": [
+      0,
+      53,
+      30
+    ],
+    "reach": 6,
+    "iface": "probita_main",
+    "model_sha1": {
+      "npc_probita_1": "4a8237dc1c00caac5e8fc9e3ee83c76880c9f4d7",
+      "npc_probita_2": "e9c1395f521310c8c0dd94a69e96a239f04a5eb8",
+      "npc_probita_3": "9ce5bdf9ca0afd3c26725a77b9a0b9418dd9525a",
+      "npc_probita_4": "98675027381f14904d1b734c8a0941f1bde316a0",
+      "npc_probita_5": "a1f27146276e68fd40f07b1d2911ceb046dc924b",
+      "npc_probita_6": "0a86304f4caaf5c1e607416b1140b5cf1d55539a",
+      "npc_probita_7": "b3f1c233c382531106dbb3086e71020580f6e182",
+      "npc_probita_head1": "5483914a33ec97ef21d60605df716d626a8e76c0",
+      "npc_probita_head2": "19bc28b61b2134e572ec46af7c32d81a74073a62"
+    },
+    "free": {
+      "forbidden_symbols": [
+        "coins",
+        "tokkul"
+      ],
+      "reclaim_inv_ops": [
+        "inv_getobj",
+        "inv_freespace",
+        "inv_moveitem"
+      ]
+    }
+  },
+  "spawn_line": "%follower_uid = npc_uid;"
+}

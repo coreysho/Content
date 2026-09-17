@@ -81,14 +81,12 @@ def_int $tokkul = calc(^fightcave_exchange_tokkul_min
 // Owned anywhere at all: pack, bank, worn, or out following you. ~obj_gettotal covers the first
 // three; %follower_obj is the fourth, and it is the one a check written from the inventory alone
 // would miss - a player with the pet out would be handed a second one.
+// One line now: ~pet_owned in npc/scripts/follower.rs2 answers "owns this pet" for the whole game,
+// and it counts a pet lost on death and waiting at Probita's as owned. That matters here - the
+// metamorphosis rung needs TzRek-Jad and refuses a second one, and a pet at Probita's is still
+// yours.
 [proc,fightcave_has_pet](namedobj $pet)(boolean)
-if (~obj_gettotal($pet) > 0) {
-    return(true);
-}
-if (%follower_obj = $pet) {
-    return(true);
-}
-return(false);
+return(~pet_owned($pet));
 
 // The metamorphosis. It TRANSFORMS the pet rather than handing over a second one, which is what
 // "must already have TzRek-Jad" means, and it has to work in all three places the pet can be.
@@ -99,11 +97,7 @@ return(false);
 [proc,fightcave_metamorphose]
 if (%follower_obj = bosspet_tzrek_jad_item & npc_finduid(%follower_uid) = true) {
     npc_del;
-    npc_add(coord, bosspet_jalrek_jad, ^max_32bit_int);
-    %follower_obj = nc_param(npc_type, pet_item_id);
-    %follower_uid = npc_uid;
-    %npc_attacking_uid = uid;
-    npc_setmode(playerfollow);
+    ~follower_spawn(bosspet_jalrek_jad);
     ~mesbox("The flame washes over your pet. It comes out black and burning,|and entirely unbothered.");
     return;
 }

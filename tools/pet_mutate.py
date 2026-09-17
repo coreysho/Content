@@ -42,24 +42,20 @@ MUTS = [
   '1 and that sentinel is 0'),
  (ROLL, 'if ($chance < 1) {', 'if ($chance < -1) {',
   '1 the chance is floored at 1'),
- (ROLL, 'if (~obj_gettotal($pet) > 0) {\n    return;\n}\n', '',
-  '1 owning one already - pack, bank or worn - blocks a second'),
+ (ROLL, 'if (~pet_owned($pet) = true) {\n    return;\n}\n', '',
+  '1 owning one anywhere blocks a second, via ~pet_owned'),
  # the inv sweep moved in front of the roll - correct, but one sweep per ACTION rather than per pet
  # the guards moved in front of the roll: correct behaviour, but one inventory sweep per ACTION
  # rather than one per pet earned - a skilling hook runs on every log and every ore.
  (ROLL, '''if (random($chance) ! 0) {
     return;
-}
-// Owning one anywhere - pack, bank, worn - or having it out already, stops a second.
-if (~obj_gettotal($pet) > 0) {
-    return;
-}''', '''if (~obj_gettotal($pet) > 0) {
+}''', '''if (~pet_owned($pet) = true) {
     return;
 }
 if (random($chance) ! 0) {
     return;
 }''',
-  '1 those two run only after the roll succeeds'),
+  '1 and it runs only after the roll succeeds'),
  (ROLL, 'obj_add(coord, $pet, 1, ^lootdrop_duration);', 'mes("It escapes.");',
   '1 a full pack puts it on the floor rather than losing it'),
  # 2 - the boss rates

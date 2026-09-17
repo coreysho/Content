@@ -88,10 +88,13 @@ check('^skillpet_no_roll' in body and body.index('^skillpet_no_roll') < body.ind
 check(const(CONST, 'skillpet_no_roll') == 0,
       'and that sentinel is 0, so a missing table entry reads as "no pet" rather than "always"')
 check('$chance < 1' in body, 'the chance is floored at 1, so a base added carelessly cannot divide by nothing')
-check('~obj_gettotal($pet) > 0' in body, 'owning one already - pack, bank or worn - blocks a second')
-check('%follower_obj = $pet' in body, 'and so does having it out')
-check(body.index('~obj_gettotal') > body.index('random($chance)'),
-      'those two run only after the roll succeeds, which is one inv sweep per pet rather than per action')
+# ~pet_owned (npc/scripts/follower.rs2) is the one answer to "owns this pet" - pack, bank, worn,
+# following, and waiting at Probita's after a death. .find rather than .index: this check used to
+# say body.index('~obj_gettotal'), and when that call moved behind ~pet_owned the battery raised
+# ValueError instead of failing. A crash is not a catch.
+check('~pet_owned($pet) = true' in body, 'owning one anywhere blocks a second, via ~pet_owned')
+check(body.find('~pet_owned') > body.find('random($chance)') > -1,
+      'and it runs only after the roll succeeds, which is one inv sweep per pet rather than per action')
 check('inv_freespace(inv) > 0' in body and 'obj_add(coord' in body,
       'a full pack puts it on the floor rather than losing it')
 

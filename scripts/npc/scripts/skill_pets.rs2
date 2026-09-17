@@ -21,11 +21,9 @@ if ($chance < 1) {
 if (random($chance) ! 0) {
     return;
 }
-// Owning one anywhere - pack, bank, worn - or having it out already, stops a second.
-if (~obj_gettotal($pet) > 0) {
-    return;
-}
-if (%follower_obj = $pet) {
+// Owning one anywhere stops a second - see ~pet_owned in npc/scripts/follower.rs2, which counts
+// the pack, the bank, what you are wearing, what is following you, and what Probita is holding.
+if (~pet_owned($pet) = true) {
     return;
 }
 // It goes in the pack when there is room. When there is not it goes on the floor rather than
