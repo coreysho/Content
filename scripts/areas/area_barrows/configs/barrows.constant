@@ -1,0 +1,60 @@
+// The Barrows: the six mounds, the six crypts, and the state of a run.
+//
+// WHY THERE ARE COORDINATES IN HERE AT ALL. The six mounds are TERRAIN, not locs - Old School has
+// you dig into them with a spade and there is no staircase to click - so the only way a script can
+// know where a mound is, is to be told. They were not guessed: the mounds are the six local maxima
+// of the heightmap in m55_51, measured off the map (claude/barrows-survey.md has the measurement),
+// and each one is paired with a brother by the compass direction the wiki gives his crypt. Five
+// directions and a centre against five outer peaks and one central one, so the pairing is forced
+// rather than chosen:
+//
+//     Ahrim   centre       (3566, 3289) h=85    the highest and the most central, as the wiki says
+//     Dharok  north-east   (3576, 3299) h=76
+//     Guthan  south-east   (3578, 3283) h=77
+//     Karil   south        (3567, 3277) h=74
+//     Torag   south-west   (3554, 3284) h=75
+//     Verac   north-west   (3558, 3298) h=79
+^barrows_mound_ahrim = 0_55_51_46_25
+^barrows_mound_dharok = 0_55_51_56_35
+^barrows_mound_guthan = 0_55_51_58_19
+^barrows_mound_karil = 0_55_51_47_13
+^barrows_mound_torag = 0_55_51_34_20
+^barrows_mound_verac = 0_55_51_38_34
+
+// How close to a peak counts as standing on the mound. The mound tops measure three to seven tiles
+// across at the height that makes them peaks, so two tiles either side of the centre is the top of
+// one and not its slope.
+^barrows_mound_radius = 2
+
+// WHERE A DIG PUTS YOU, and it is not under the mound. The crypts are a compact layout of their own
+// at level 3 of m55_151 and they sit nowhere near their mounds, so each dig goes to the named crypt
+// rather than to the coordinate below the hole. Each of these is the free tile beside that crypt's
+// staircase which is nearest its sarcophagus - the inside of the room, derived from the map's own
+// occupancy rather than picked by eye, because the six staircases have four different rotations
+// between them and "the tile to the south" is a different side for each.
+^barrows_crypt_ahrim = 3_55_151_37_39
+^barrows_crypt_dharok = 3_55_151_36_54
+^barrows_crypt_guthan = 3_55_151_14_40
+^barrows_crypt_karil = 3_55_151_26_20
+^barrows_crypt_torag = 3_55_151_45_20
+^barrows_crypt_verac = 3_55_151_57_39
+
+// HOW LONG A WOKEN BROTHER LASTS if nobody finishes him. Old School ties him to the crypt you are
+// standing in and forgets him when you leave; there is no instance here, so he needs a lifetime, and
+// the quest_100 bosses' ^hundred_boss_lifetime = 1500 is the nearest precedent - fifteen minutes,
+// which is twenty times a fight and still a floor that cleans itself. A brother who times out leaves
+// his bit UNSET, so his sarcophagus is still full: he escaped rather than died, which is the honest
+// outcome for a player who dug him up and ran.
+^barrows_brother_life = 1500
+
+// One bit of %barrows_killed per brother: set when he dies, so his sarcophagus is empty for the
+// rest of the run. The run itself is cleared by looting the chest, which is the other half of this
+// round - until then the bits persist, which is the safe direction to be wrong in: a sarcophagus
+// that says it is empty is a puzzle, one that hands out a second Dharok is a farm.
+^barrows_bit_ahrim = 0
+^barrows_bit_dharok = 1
+^barrows_bit_guthan = 2
+^barrows_bit_karil = 3
+^barrows_bit_torag = 4
+^barrows_bit_verac = 5
+^barrows_brothers = 6

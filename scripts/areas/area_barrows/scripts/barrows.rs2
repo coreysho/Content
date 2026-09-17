@@ -1,0 +1,151 @@
+// The Barrows: getting into a crypt, getting back out, and waking a brother.
+//
+// WHAT WAS ALREADY HERE. Almost everything except the scripts. The six crypts are built at level 3
+// of maps/m55_151.jm2 with their sarcophagi and their staircases; the tunnels are built at level 0
+// with the reward chest in them and thirty-four monsters already spawned; all six brothers exist as
+// npc records with their own models and animations; the Strange Old Man is spawned on the surface.
+// Not one oploc handler existed for any of it, so every last click was dead.
+// See claude/barrows-survey.md for the full survey and its measurements.
+//
+// THE MOUNDS ARE TERRAIN. There is no staircase on the surface to click, because Old School has you
+// dig into the mound with a spade - so the entrance is a coordinate test and not a trigger, and the
+// six coordinates are in barrows.constant with the note on how they were measured. [opheld1,spade]
+// in general_use/scripts/spade.rs2 asks this file first, the same way it already asks the Pirate's
+// Treasure and the Zombie Queen mound.
+//
+// A DIG GOES TO THE NAMED CRYPT, not to the ground under the hole. The crypts are a compact layout
+// of their own and sit nowhere near their mounds.
+
+// ---------------------------------------------------------------------------------------------
+// Digging in
+// ---------------------------------------------------------------------------------------------
+// Returns true when the player was standing on a mound, so spade.rs2 knows the dig is spent and
+// must not fall through to a Treasure Trails clue or to "nothing interesting happens".
+[proc,barrows_mound_dig]()(boolean)
+def_coord $crypt = null;
+if (distance(coord, ^barrows_mound_ahrim) <= ^barrows_mound_radius) {
+    $crypt = ^barrows_crypt_ahrim;
+} else if (distance(coord, ^barrows_mound_dharok) <= ^barrows_mound_radius) {
+    $crypt = ^barrows_crypt_dharok;
+} else if (distance(coord, ^barrows_mound_guthan) <= ^barrows_mound_radius) {
+    $crypt = ^barrows_crypt_guthan;
+} else if (distance(coord, ^barrows_mound_karil) <= ^barrows_mound_radius) {
+    $crypt = ^barrows_crypt_karil;
+} else if (distance(coord, ^barrows_mound_torag) <= ^barrows_mound_radius) {
+    $crypt = ^barrows_crypt_torag;
+} else if (distance(coord, ^barrows_mound_verac) <= ^barrows_mound_radius) {
+    $crypt = ^barrows_crypt_verac;
+}
+if ($crypt = null) {
+    return(false);
+}
+p_arrivedelay;
+p_stopaction;
+mes("You dig into the mound...");
+anim(human_dig_long, 0);
+p_delay(2);
+p_telejump($crypt);
+mes("...and drop into the crypt below.");
+return(true);
+
+// ---------------------------------------------------------------------------------------------
+// Climbing back out
+// ---------------------------------------------------------------------------------------------
+// The six staircases carry op1=Climb-up in the cache and had handlers in ladders+stairs that fell
+// through to @unhandled_stairs. They send the player back to the top of their own mound, which is
+// where the hole they came in by is.
+[label,barrows_climb_out](coord $mound)
+p_arrivedelay;
+p_telejump($mound);
+mes("You climb out of the crypt.");
+
+// ---------------------------------------------------------------------------------------------
+// The sarcophagi
+// ---------------------------------------------------------------------------------------------
+// Search one and its brother climbs out of it. ONE BROTHER PER RUN: his bit in %barrows_killed is
+// set when he dies and the sarcophagus is empty until the run is cleared, so a brother cannot be
+// farmed by searching the same box twice. The bit is also why this is a proc rather than six
+// copies - the only thing that differs between the six is the npc, the bit and where he stands.
+//
+// He is added on the PLAYER'S tile rather than on the sarcophagus's, because the sarcophagus is a
+// 2x3 blocking loc and the player is standing on the one tile in the room that is certainly free -
+// the same tile the dig dropped them on, or the one they walked to in order to reach the box.
+[proc,barrows_search](npc $brother, int $bit)
+p_arrivedelay;
+p_stopaction;
+facesquare(loc_coord);
+if (testbit(%barrows_killed, $bit) = ^true) {
+    mes("You search the sarcophagus and find nothing but dust.");
+    return;
+}
+mes("You search the sarcophagus...");
+anim(human_openchest, 0);
+p_delay(1);
+npc_add(coord, $brother, ^barrows_brother_life);
+%npc_aggressive_player = uid;
+%aggressive_npc = npc_uid;
+npc_setmode(opplayer2);
+~mesbox("<nc_name($brother)> climbs out of the sarcophagus!");
+
+[oploc1,barrow_ahrim_sarcophagus] ~barrows_search(barrows_ahrim, ^barrows_bit_ahrim);
+[oploc1,barrow_dharok_sarcophagus] ~barrows_search(barrows_dharok, ^barrows_bit_dharok);
+[oploc1,barrow_guthan_sarcophagus] ~barrows_search(barrows_guthan, ^barrows_bit_guthan);
+[oploc1,barrow_karil_sarcophagus] ~barrows_search(barrows_karil, ^barrows_bit_karil);
+[oploc1,barrow_torag_sarcophagus] ~barrows_search(barrows_torag, ^barrows_bit_torag);
+[oploc1,barrow_verac_sarcophagus] ~barrows_search(barrows_verac, ^barrows_bit_verac);
+
+// ---------------------------------------------------------------------------------------------
+// Killing one
+// ---------------------------------------------------------------------------------------------
+// A brother drops nothing. That is not an omission: in Old School the brothers are the price of the
+// reward and the chest is where it comes from, so a brother who dropped loot would pay twice. What
+// a death does is set his bit, which empties his sarcophagus for the rest of the run.
+//
+// WHY THE SIX DEATHS ARE WRITTEN OUT instead of sharing a label. A script that writes a player var
+// needs [ 'p_active_player' ], and npc_findhero is what supplies it inside an ai_queue3 - but the
+// compiler only credits it to the script that calls it. Route the write through a label or a proc
+// and the requirement lands on the CALL SITE, which is the trigger, where nothing has been found
+// yet: that is the "Attempt to access uninitialized pointer" the first two versions of this file
+// died on. So the write stays in the trigger body, the shape mage_arena_2.rs2 and
+// temple_guardian.rs2 both use, and the bit comes from the trigger's own name rather than a lookup.
+[ai_queue3,barrows_ahrim]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+%barrows_killed = setbit(%barrows_killed, ^barrows_bit_ahrim);
+
+[ai_queue3,barrows_dharok]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+%barrows_killed = setbit(%barrows_killed, ^barrows_bit_dharok);
+
+[ai_queue3,barrows_guthan]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+%barrows_killed = setbit(%barrows_killed, ^barrows_bit_guthan);
+
+[ai_queue3,barrows_karil]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+%barrows_killed = setbit(%barrows_killed, ^barrows_bit_karil);
+
+[ai_queue3,barrows_torag]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+%barrows_killed = setbit(%barrows_killed, ^barrows_bit_torag);
+
+[ai_queue3,barrows_verac]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+%barrows_killed = setbit(%barrows_killed, ^barrows_bit_verac);
