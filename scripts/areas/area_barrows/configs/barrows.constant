@@ -83,6 +83,11 @@
 ^barrows_tunnel_sw = 0_55_151_0_0
 ^barrows_tunnel_ne = 0_55_151_63_63
 
+// And the crypts, which are the SAME map square one level up - m55_151 holds both, the six crypts
+// at level 3 and the tunnels at level 0, with nothing in between. The prayer drain asks about both.
+^barrows_crypt_sw = 3_55_151_0_0
+^barrows_crypt_ne = 3_55_151_63_63
+
 // WHICH CRYPT IS THE WAY IN. Old School picks one of the six per run - "searching a sarcophagus in
 // one of the six crypts randomly leads to a passage" - and that brother then turns up when the
 // chest is looted rather than out of his own box. %barrows_entry_crypt holds his bit PLUS ONE so
@@ -165,3 +170,51 @@
 ^barrows_tele_low = 4
 ^barrows_tele_high = 6
 ^barrows_tele_dest = 0_55_51_45_48
+
+// =============================================================================================
+// THE BROTHERS' OWN SET EFFECTS, AND THE PRAYER DRAIN
+// =============================================================================================
+// EVERY ONE OF THE SIX HAS AN EFFECT OF HIS OWN, which the first version of this content got
+// wrong twice over: it said Dharok's 57 belonged to the armour and not to him, and it gave Ahrim
+// and Karil the melee AI that every npc gets by default, so the mage walked up and swung a
+// quarterstaff. The wiki's own words, one brother at a time, are in tools/barrowsspec.json.
+//
+// THE CACHE ALREADY HAD THE ART FOR THE FOUR THAT NEED ANY: barrows_ahirm_blighted_aura (its
+// spelling, not mine), barrows_karil_tainted_shot, barrows_guthan_effect and barrows_torag_effect
+// are spotanims that nothing was using. Dharok's and Verac's effects are numbers, not pictures.
+^barrows_ahrim_effect_pct = 20
+^barrows_ahrim_strength_drain = 5
+^barrows_guthan_effect_pct = 25
+^barrows_karil_effect_pct = 25
+^barrows_karil_agility_pct = 20
+^barrows_torag_effect_pct = 25
+^barrows_torag_energy_pct = 20
+^barrows_verac_pierce_pct = 25
+
+// DHAROK'S WRETCHED STRENGTH is +1% of his max hit for every hitpoint he is MISSING, which takes
+// him from 29 to 57 at one hitpoint - and 29 is what this engine's own max-hit formula gives from
+// strength 100 and a bonus of 105, so both ends of the wiki's "29 (57 at 1 Hitpoints)" fall out of
+// numbers that were already in his record. There is no constant to write for it.
+
+// AHRIM CASTS, and what he casts is Iban's Blast: the cache has no projectile of Ahrim's own, and
+// of everything in the spell table it is the one whose casting, travel and impact graphics are the
+// dark purple burst his attack actually looks like. The max hit is FORCED to the wiki's 20 rather
+// than derived, because a magic max hit off his magic level alone is 11 - mage_arena_2.rs2 forces
+// its champions' the same way and for the same reason.
+^barrows_ahrim_maxhit = 20
+// He also throws Confuse, Weaken and Curse, which the wiki lists and which are real spells here,
+// so the debuffs land through the engine's own path. One cast in four is one of the three.
+^barrows_ahrim_debuff_odds = 4
+
+// KARIL'S +55 RANGED STRENGTH HAS A HOME AFTER ALL. The first version said this engine had no npc
+// param for it; param=rangebonus is exactly it, read by ~npc_ranged_maxhit, and 55 through that
+// formula gives a max hit of 20 - the wiki's number for him, from the wiki's own bonus. It was
+// only ever missing.
+
+// THE PRAYER DRAIN. A brother's face appears every 18 seconds underground and takes eight points,
+// plus one for every brother already killed, so the last of them costs fourteen. 18 seconds is 30
+// ticks. The face itself is not drawn: barrows_chathead_fade is in the cache for it, but putting a
+// chathead on screen means opening a dialogue interface, and a dialogue that opens itself every
+// thirty ticks in the middle of a fight is worse than no picture.
+^barrows_drain_interval = 30
+^barrows_drain_base = 8

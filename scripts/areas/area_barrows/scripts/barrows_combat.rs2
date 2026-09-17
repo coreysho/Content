@@ -1,0 +1,238 @@
+// How the six brothers fight: their styles, their own set effects, and the prayer drain that runs
+// the whole time you are underground.
+//
+// WHAT WAS WRONG BEFORE. Every npc in this engine gets melee AI by default - [ai_queue1,_] sets
+// opplayer2 and [ai_opplayer2,_] swings - so Ahrim walked up and hit people with his quarterstaff
+// and Karil did the same with a crossbow, however carefully their damagetype said magic and
+// ranged. A ranged or magic npc needs ~npc_default_retaliate_ap, which sets applayer2, and its own
+// [ai_applayer2] handler; troll throwers, dark wizards and every fight cave monster are all wired
+// that way already.
+//
+// AND ALL SIX HAVE A SET EFFECT OF THEIR OWN, which is not the armour's: the wiki gives each
+// brother his, and the 377 cache carries the spotanim for each of the four that need one.
+//
+// The six attack procs are written out rather than shared, because what differs between them is
+// not a parameter: Dharok's max hit is a function of his own health, Verac's hit skips the rolls
+// entirely, Ahrim casts and Karil shoots. What IS shared - the guard clauses, the effect roll and
+// the max hit - is a proc each.
+
+// ---------------------------------------------------------------------------------------------
+// The four who swing
+// ---------------------------------------------------------------------------------------------
+[ai_opplayer2,barrows_dharok] ~barrows_melee;
+[ai_opplayer2,barrows_guthan] ~barrows_melee;
+[ai_opplayer2,barrows_torag] ~barrows_melee;
+[ai_opplayer2,barrows_verac] ~barrows_melee;
+
+[proc,barrows_melee]
+if (~barrows_attack_ready = ^false) {
+    return;
+}
+anim(%com_defendanim, 0);
+npc_anim(npc_param(attack_anim), 0);
+if (npc_param(attack_sound) ! null) {
+    sound_synth(npc_param(attack_sound), 0, 0);
+}
+def_int $damage = ~barrows_melee_damage;
+~playerhit_n_melee($damage, npc_param(attackrate));
+~barrows_effect($damage);
+
+// VERAC IGNORES PRAYER AND ARMOUR ON A QUARTER OF HIS SWINGS, which is the only thing about him
+// that is not an ordinary melee npc: the attack roll is the one that does NOT return zero under
+// Protect from Melee, the defence roll is thrown away, and the hit is 1 to his max rather than
+// possibly nothing. Every other brother rolls the engine's own way.
+[proc,barrows_melee_damage]()(int)
+def_int $maxhit = ~barrows_maxhit;
+if (npc_type = barrows_verac & random(100) < ^barrows_verac_pierce_pct) {
+    return(add(random($maxhit), 1));
+}
+def_int $attack_roll = ~npc_melee_attack_roll;
+def_int $defence_roll = ~player_defence_roll_specific(npc_param(damagetype));
+if (randominc($attack_roll) > randominc($defence_roll)) {
+    return(randominc($maxhit));
+}
+return(0);
+
+// DHAROK'S WRETCHED STRENGTH: one per cent of his max hit for every hitpoint he is missing. 29 at
+// full health and 57 at one, which are both the wiki's numbers - the 29 falls out of the engine's
+// formula from his own strength and bonus, and this line is what makes the 57.
+[proc,barrows_maxhit]()(int)
+def_int $maxhit = ~npc_melee_maxhit;
+if (npc_type ! barrows_dharok) {
+    return($maxhit);
+}
+return(add($maxhit, scale(sub(npc_basestat(hitpoints), npc_stat(hitpoints)), 100, $maxhit)));
+
+// ---------------------------------------------------------------------------------------------
+// Ahrim, who casts
+// ---------------------------------------------------------------------------------------------
+[ai_queue1,barrows_ahrim] ~npc_default_retaliate_ap;
+[ai_opplayer2,barrows_ahrim] npc_setmode(applayer2);
+[ai_applayer2,barrows_ahrim] ~barrows_ahrim_cast;
+
+[proc,barrows_ahrim_cast]
+// One cast in four is Confuse, Weaken or Curse - the three the wiki says he throws - and they are
+// real spells here, so the debuff lands through the engine's own path rather than a copy of it.
+if (random(^barrows_ahrim_debuff_odds) = 0) {
+    ~npc_cast_spell(~barrows_ahrim_debuff, npc_param(attackrate));
+    return;
+}
+// THIS IS ~npc_cast_spell_with_forced_max_hit'S OWN BODY, minus the freeze and debuff guards that
+// Iban's Blast has no use for, and written out for one reason: that proc does not say whether the
+// spell connected, and the Blighted Aura is "per successful hit". ~npc_player_hit_roll is the roll
+// it makes internally, so asking it here is the same roll and not a second one.
+if (~npc_combat_spell_checks = ^false) {
+    return;
+}
+def_dbrow $spell = ~get_spell_data(^iban_blast);
+def_int $duration = ~npc_spell_cast($spell, npc_param(attackrate));
+if (~npc_player_hit_roll(^magic_style) = ^true) {
+    ~npc_spell_success($spell, ^barrows_ahrim_maxhit, $duration);
+    ~barrows_effect(1);
+} else {
+    ~npc_spell_fail($spell, $duration);
+}
+~npc_set_attack_vars;
+
+[proc,barrows_ahrim_debuff]()(int)
+switch_int (random(3)) {
+    case 0 : return(^confuse);
+    case 1 : return(^weaken);
+}
+return(^curse);
+
+// ---------------------------------------------------------------------------------------------
+// Karil, who shoots
+// ---------------------------------------------------------------------------------------------
+[ai_queue1,barrows_karil] ~npc_default_retaliate_ap;
+[ai_opplayer2,barrows_karil] npc_setmode(applayer2);
+[ai_applayer2,barrows_karil] ~barrows_karil_shoot;
+
+[proc,barrows_karil_shoot]
+if (~barrows_attack_ready = ^false) {
+    npc_setmode(applayer2);
+    return;
+}
+// ~npc_rangeattack'S OWN BODY, for the same reason Ahrim's cast is written out: it does not report
+// whether the bolt connected and the Tainted Shot is "per successful hit". Everything it reads is
+// on his record now - the crossbow fire animation, a bolt to fly, and param=rangebonus, which is
+// the ranged strength this content once claimed the engine had nowhere to put.
+def_int $attack_roll = ~npc_ranged_attack_roll;
+def_int $defence_roll = ~player_defence_roll_specific(npc_param(damagetype));
+def_int $maxhit = ~npc_ranged_maxhit;
+npc_anim(npc_param(attack_anim), 0);
+%npc_action_delay = add(map_clock, npc_param(attackrate));
+def_int $duration = ~player_projectile(npc_coord, coord, uid, npc_param(proj_travel), 40, 36, 32, 15, 0, 11, 5);
+def_int $damage = 0;
+if (randominc($attack_roll) > randominc($defence_roll)) {
+    $damage = randominc($maxhit);
+}
+~playerhit_n_ranged($damage, $duration, npc_param(attackrate));
+~barrows_effect($damage);
+
+// ---------------------------------------------------------------------------------------------
+// The guard clauses every brother shares
+// ---------------------------------------------------------------------------------------------
+// Lifted from ~npc_default_attack rather than called into it, because that proc ends by swinging.
+[proc,barrows_attack_ready]()(boolean)
+if (%death = ^true) {
+    npc_setmode(null);
+    return(^false);
+}
+if (%npc_action_delay > map_clock) {
+    return(^false);
+}
+if (~npc_check_notcombat = ^false) {
+    npc_setmode(null);
+    return(^false);
+}
+if (~npc_check_notcombat_self = ^false) {
+    return(^false);
+}
+return(^true);
+
+// ---------------------------------------------------------------------------------------------
+// The set effects
+// ---------------------------------------------------------------------------------------------
+// One roll per LANDED hit, which is what the wiki says for all four of them. The argument is the
+// damage that landed, because Guthan's effect heals him for exactly that; Ahrim's cast passes 1
+// instead, because ~npc_spell_success rolls the damage inside itself and does not hand it back,
+// and his effect does not need the number - only the fact that he connected.
+//
+// Every write reaches the player through a queue, the way the poison and prayer drains in
+// npc_combat_melee.rs2 do: an npc script has the player but not protected access to him.
+[proc,barrows_effect](int $damage)
+if ($damage <= 0) {
+    return;
+}
+switch_npc (npc_type) {
+    case barrows_ahrim :
+        if (random(100) < ^barrows_ahrim_effect_pct) {
+            spotanim_npc(barrows_ahirm_blighted_aura, 92, 0);
+            queue(barrows_ahrim_drain, 0, ^barrows_ahrim_strength_drain);
+        }
+    case barrows_guthan :
+        if (random(100) < ^barrows_guthan_effect_pct) {
+            spotanim_npc(barrows_guthan_effect, 92, 0);
+            npc_statheal(hitpoints, $damage, 0);
+        }
+    case barrows_karil :
+        if (random(100) < ^barrows_karil_effect_pct) {
+            spotanim_npc(barrows_karil_tainted_shot, 92, 0);
+            queue(barrows_karil_drain, 0, ^barrows_karil_agility_pct);
+        }
+    case barrows_torag :
+        if (random(100) < ^barrows_torag_effect_pct) {
+            spotanim_npc(barrows_torag_effect, 92, 0);
+            queue(barrows_torag_drain, 0, ^barrows_torag_energy_pct);
+        }
+}
+
+// Blighted Aura: five levels of Strength, flat.
+[queue,barrows_ahrim_drain](int $amount)
+if (stat(strength) <= 0) {
+    return;
+}
+stat_sub(strength, $amount, 0);
+mes("Ahrim's blighted aura saps your strength.");
+
+// Tainted Shot: a fifth of your Agility, which is a percentage and not a number of levels.
+[queue,barrows_karil_drain](int $percent)
+if (stat(agility) <= 0) {
+    return;
+}
+stat_sub(agility, 0, $percent);
+mes("Karil's tainted bolt leaves you unsteady on your feet.");
+
+// Corruption: a fifth of the run energy you have LEFT, not a fifth of the bar.
+[queue,barrows_torag_drain](int $percent)
+def_int $take = scale($percent, 100, runenergy);
+if ($take <= 0) {
+    return;
+}
+healenergy(sub(0, $take));
+mes("Torag's hammers drain your energy.");
+
+// ---------------------------------------------------------------------------------------------
+// The prayer drain
+// ---------------------------------------------------------------------------------------------
+// Eight points every eighteen seconds underground, plus one for each brother already killed. The
+// timer is started by the two ways in - the dig and the passage - and takes itself off the moment
+// the player is somewhere else, which is also what happens when they die or teleport out.
+[proc,barrows_drain_start]
+settimer(barrows_prayer_drain, ^barrows_drain_interval);
+
+[timer,barrows_prayer_drain]
+if (inzone(^barrows_crypt_sw, ^barrows_crypt_ne, coord) = ^false
+    & inzone(^barrows_tunnel_sw, ^barrows_tunnel_ne, coord) = ^false) {
+    cleartimer(barrows_prayer_drain);
+    return;
+}
+if (stat(prayer) = 0) {
+    return;
+}
+stat_sub(prayer, add(^barrows_drain_base, ~barrows_brothers_killed), 0);
+mes("A brother's face appears before you, and your prayers falter.");
+if (stat(prayer) = 0) {
+    mes("Your prayer has been drained.");
+}

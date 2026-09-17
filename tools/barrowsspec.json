@@ -1,10 +1,12 @@
 {
   "_what": "The six Barrows brothers as Old School's own monster infoboxes give them, so the battery has something to compare all.npc AGAINST rather than comparing it with itself.",
-  "_source": "https://oldschool.runescape.wiki/w/Ahrim_the_Blighted and the five sibling pages, monster infobox, read 2026-09-17",
+  "_source": "https://oldschool.runescape.wiki/w/Ahrim_the_Blighted and the five sibling pages, monster infobox and set-effect text, read 2026-09-17",
   "_notes": [
     "attackbonus is the infobox's single melee Attack bonus row, and it is +0 for all six - which is why no brother carries stabattack/slashattack/crushattack.",
-    "rangedstrength has no npc param in this engine (only strengthbonus exists), so Karil's +55 is recorded here and cannot be written.",
-    "Dharok's 57-at-1-hitpoint is the Wretched Strength SET EFFECT and belongs to the armour, so no max hit is recorded for him and none is checked for anyone."
+    "Dharok's 57-at-1-hitpoint is the Wretched Strength SET EFFECT and belongs to the armour, so no max hit is recorded for him and none is checked for anyone.",
+    "CORRECTION: an earlier round said this engine had no npc param for ranged strength. param=rangebonus is exactly it - ~npc_ranged_maxhit reads it - and Karil's +55 through that formula gives his max hit of 20. It was only ever missing from his record.",
+    "Every max hit below is CHECKED AGAINST THE ENGINE'S OWN FORMULA, not just stored: melee is (strength+9)*(bonus+64)+320 over 640, ranged the same with the ranged level and rangebonus. Guthan 24, Torag 23, Verac 23, Dharok 29 and Karil 20 all fall out of the bonuses the infoboxes give, which is what says the stat blocks are right.",
+    "Ahrim's 20 is FORCED rather than derived: a magic max hit off his magic level alone is 11. mage_arena_2.rs2 forces its champions' the same way."
   ],
   "mound_compass": {
     "ahrim": "centre",
@@ -16,40 +18,227 @@
   },
   "brothers": {
     "ahrim": {
-      "combat": 98, "speed": 6, "style": "magic",
-      "levels": {"hitpoints": 100, "attack": 1, "strength": 1, "defence": 100, "magic": 100, "ranged": 1},
-      "aggressive": {"attackbonus": 0, "strengthbonus": 68, "magicbonus": 73, "rangedbonus": -19, "rangedstrength": 0},
-      "defensive": {"stab": 103, "slash": 85, "crush": 117, "magic": 73, "ranged": 0}
+      "combat": 98,
+      "speed": 6,
+      "style": "magic",
+      "levels": {
+        "hitpoints": 100,
+        "attack": 1,
+        "strength": 1,
+        "defence": 100,
+        "magic": 100,
+        "ranged": 1
+      },
+      "aggressive": {
+        "attackbonus": 0,
+        "strengthbonus": 68,
+        "magicbonus": 73,
+        "rangedbonus": -19,
+        "rangedstrength": 0
+      },
+      "defensive": {
+        "stab": 103,
+        "slash": 85,
+        "crush": 117,
+        "magic": 73,
+        "ranged": 0
+      },
+      "effect": {
+        "name": "Blighted Aura",
+        "chance": 20,
+        "what": "lower the player's Strength by 5",
+        "spotanim": "barrows_ahirm_blighted_aura",
+        "style": "magic"
+      },
+      "maxhit": 20
     },
     "dharok": {
-      "combat": 115, "speed": 7, "style": "slash",
-      "levels": {"hitpoints": 100, "attack": 100, "strength": 100, "defence": 100, "magic": 1, "ranged": 1},
-      "aggressive": {"attackbonus": 0, "strengthbonus": 105, "magicbonus": -58, "rangedbonus": -18, "rangedstrength": 0},
-      "defensive": {"stab": 252, "slash": 250, "crush": 244, "magic": -11, "ranged": 249}
+      "combat": 115,
+      "speed": 7,
+      "style": "slash",
+      "levels": {
+        "hitpoints": 100,
+        "attack": 100,
+        "strength": 100,
+        "defence": 100,
+        "magic": 1,
+        "ranged": 1
+      },
+      "aggressive": {
+        "attackbonus": 0,
+        "strengthbonus": 105,
+        "magicbonus": -58,
+        "rangedbonus": -18,
+        "rangedstrength": 0
+      },
+      "defensive": {
+        "stab": 252,
+        "slash": 250,
+        "crush": 244,
+        "magic": -11,
+        "ranged": 249
+      },
+      "effect": {
+        "name": "Wretched Strength",
+        "chance": 100,
+        "what": "+1% max hit for each hitpoint he is missing",
+        "spotanim": null,
+        "style": "melee"
+      },
+      "maxhit": 29,
+      "maxhit_at_1": 57
     },
     "guthan": {
-      "combat": 115, "speed": 5, "style": "crush",
-      "levels": {"hitpoints": 100, "attack": 100, "strength": 100, "defence": 100, "magic": 1, "ranged": 1},
-      "aggressive": {"attackbonus": 0, "strengthbonus": 75, "magicbonus": -50, "rangedbonus": -19, "rangedstrength": 0},
-      "defensive": {"stab": 259, "slash": 257, "crush": 241, "magic": -11, "ranged": 250}
+      "combat": 115,
+      "speed": 5,
+      "style": "crush",
+      "levels": {
+        "hitpoints": 100,
+        "attack": 100,
+        "strength": 100,
+        "defence": 100,
+        "magic": 1,
+        "ranged": 1
+      },
+      "aggressive": {
+        "attackbonus": 0,
+        "strengthbonus": 75,
+        "magicbonus": -50,
+        "rangedbonus": -19,
+        "rangedstrength": 0
+      },
+      "defensive": {
+        "stab": 259,
+        "slash": 257,
+        "crush": 241,
+        "magic": -11,
+        "ranged": 250
+      },
+      "effect": {
+        "name": "Infestation",
+        "chance": 25,
+        "what": "heal himself for the damage dealt",
+        "spotanim": "barrows_guthan_effect",
+        "style": "melee"
+      },
+      "maxhit": 24
     },
     "karil": {
-      "combat": 98, "speed": 4, "style": "ranged",
-      "levels": {"hitpoints": 100, "attack": 1, "strength": 1, "defence": 100, "magic": 1, "ranged": 100},
-      "aggressive": {"attackbonus": 0, "strengthbonus": 0, "magicbonus": -26, "rangedbonus": 134, "rangedstrength": 55},
-      "defensive": {"stab": 79, "slash": 71, "crush": 90, "magic": 106, "ranged": 100}
+      "combat": 98,
+      "speed": 4,
+      "style": "ranged",
+      "levels": {
+        "hitpoints": 100,
+        "attack": 1,
+        "strength": 1,
+        "defence": 100,
+        "magic": 1,
+        "ranged": 100
+      },
+      "aggressive": {
+        "attackbonus": 0,
+        "strengthbonus": 0,
+        "magicbonus": -26,
+        "rangedbonus": 134,
+        "rangedstrength": 55
+      },
+      "defensive": {
+        "stab": 79,
+        "slash": 71,
+        "crush": 90,
+        "magic": 106,
+        "ranged": 100
+      },
+      "effect": {
+        "name": "Tainted Shot",
+        "chance": 25,
+        "what": "lower the player's Agility by 20%",
+        "spotanim": "barrows_karil_tainted_shot",
+        "style": "ranged"
+      },
+      "maxhit": 20
     },
     "torag": {
-      "combat": 115, "speed": 5, "style": "crush",
-      "levels": {"hitpoints": 100, "attack": 100, "strength": 100, "defence": 100, "magic": 1, "ranged": 1},
-      "aggressive": {"attackbonus": 0, "strengthbonus": 72, "magicbonus": -33, "rangedbonus": -11, "rangedstrength": 0},
-      "defensive": {"stab": 221, "slash": 235, "crush": 222, "magic": 0, "ranged": 221}
+      "combat": 115,
+      "speed": 5,
+      "style": "crush",
+      "levels": {
+        "hitpoints": 100,
+        "attack": 100,
+        "strength": 100,
+        "defence": 100,
+        "magic": 1,
+        "ranged": 1
+      },
+      "aggressive": {
+        "attackbonus": 0,
+        "strengthbonus": 72,
+        "magicbonus": -33,
+        "rangedbonus": -11,
+        "rangedstrength": 0
+      },
+      "defensive": {
+        "stab": 221,
+        "slash": 235,
+        "crush": 222,
+        "magic": 0,
+        "ranged": 221
+      },
+      "effect": {
+        "name": "Corruption",
+        "chance": 25,
+        "what": "lower the player's run energy by 20% of the current amount",
+        "spotanim": "barrows_torag_effect",
+        "style": "melee"
+      },
+      "maxhit": 23
     },
     "verac": {
-      "combat": 115, "speed": 5, "style": "stab",
-      "levels": {"hitpoints": 100, "attack": 100, "strength": 100, "defence": 100, "magic": 1, "ranged": 1},
-      "aggressive": {"attackbonus": 0, "strengthbonus": 72, "magicbonus": -42, "rangedbonus": -14, "rangedstrength": 0},
-      "defensive": {"stab": 227, "slash": 230, "crush": 221, "magic": 0, "ranged": 225}
+      "combat": 115,
+      "speed": 5,
+      "style": "stab",
+      "levels": {
+        "hitpoints": 100,
+        "attack": 100,
+        "strength": 100,
+        "defence": 100,
+        "magic": 1,
+        "ranged": 1
+      },
+      "aggressive": {
+        "attackbonus": 0,
+        "strengthbonus": 72,
+        "magicbonus": -42,
+        "rangedbonus": -14,
+        "rangedstrength": 0
+      },
+      "defensive": {
+        "stab": 227,
+        "slash": 230,
+        "crush": 221,
+        "magic": 0,
+        "ranged": 225
+      },
+      "effect": {
+        "name": "prayer pierce",
+        "chance": 25,
+        "what": "hit through Protection Prayers, ignoring prayer and armour",
+        "spotanim": null,
+        "style": "melee"
+      },
+      "maxhit": 23
     }
+  },
+  "prayer_drain": {
+    "interval_ticks": 30,
+    "interval_seconds": 18,
+    "base": 8,
+    "per_brother": 1,
+    "max": 14,
+    "_quote": "the brothers' faces will occasionally appear on-screen, draining a considerable amount of Prayer points every 18 seconds. The drain starts at eight points and increases by one for each brother killed, reaching a maximum of fourteen points once all six are defeated."
+  },
+  "ahrim_spell": {
+    "spell": "iban_blast",
+    "_note": "The cache has no projectile of Ahrim's own; of everything in the spell table, Iban's Blast is the dark purple burst his attack looks like. He also throws Confuse, Weaken and Curse, which the wiki lists and which are real spells here."
   }
 }

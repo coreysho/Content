@@ -28,6 +28,7 @@ ALLLOC = 'scripts/_unpack/377/all.loc'
 ALLSEQ = 'scripts/_unpack/377/all.seq'
 SKELTABLE = 'scripts/drop_tables/scripts/skeleton_barrows_skeleton_armed.rs2'
 COMBATPARAM = 'scripts/skill_combat/configs/npc_combat.param'
+COMBAT = 'scripts/areas/area_barrows/scripts/barrows_combat.rs2'
 CHESTSPEC = 'tools/barrowschestspec.json'
 RS2 = 'scripts/areas/area_barrows/scripts/barrows.rs2'
 STAIRS = 'scripts/ladders+stairs/scripts/stairs.rs2'
@@ -147,7 +148,7 @@ MUTS = [
   "9 torag's attack_anim is a real animation"),
  (ALLNPC, 'param=strengthbonus,105', 'param=strengthbonus,106',
   "9 dharok's strength bonus is"),
- (SPEC, '"combat": 98, "speed": 6', '"combat": 99, "speed": 6',
+ (SPEC, '"combat": 98,\n      "speed": 6,', '"combat": 99,\n      "speed": 6,',
   '9 ahrim is combat 99 on the right-click'),
  # --- the run's storage, which is the cache's and not ours
  (VARBIT, '[barrows_entry_crypt]\nbasevar=barrows\nstartbit=0\nendbit=2',
@@ -347,6 +348,75 @@ MUTS = [
   '22 and a box whose brother is already out hands over nobody'),
  (CHEST, 'npc_findall(coord, $brother, 64, 0);', 'npc_findall(coord, $brother, 64, 1);',
   '22 and it looks for him without needing to see him'),
+ # --- the brothers' styles, hits and effects
+ (ALLNPC, 'param=rangebonus,55\n', '',
+  "23 karil's max hit comes out of his own record"),
+ (SPEC, '"maxhit": 24', '"maxhit": 25', "23 guthan's max hit comes out of his own record"),
+ (CONST, '^barrows_ahrim_maxhit = 20', '^barrows_ahrim_maxhit = 19',
+  "23 ahrim's max hit comes out of his own record"),
+ (COMBAT, 'return(add($maxhit, scale(sub(npc_basestat(hitpoints), npc_stat(hitpoints)), 100, $maxhit)));',
+           'return($maxhit);',
+  '23 ...and that is the line that does it'),
+ (COMBAT, 'if (npc_type ! barrows_dharok) {\n    return($maxhit);\n}\n', '',
+  '23 and nobody else gets it'),
+ (COMBAT, '[ai_queue1,barrows_ahrim] ~npc_default_retaliate_ap;\n', '',
+  '23 ahrim retaliates AT RANGE'),
+ (COMBAT, '[ai_applayer2,barrows_karil] ~barrows_karil_shoot;',
+           '[ai_opplayer2_unused,barrows_karil] ~barrows_karil_shoot;',
+  '23 ...and both being walked up to and standing off send him to the same ranged attack'),
+ (COMBAT, '[ai_opplayer2,barrows_torag] ~barrows_melee;\n', '',
+  '23 torag swings, through his own handler'),
+ (COMBAT, 'def_int $damage = ~barrows_melee_damage;\n~playerhit_n_melee($damage, npc_param(attackrate));',
+           '~npc_meleeattack;',
+  '23 no brother goes through the plain melee attack'),
+ (CONST, '^barrows_verac_pierce_pct = 25', '^barrows_verac_pierce_pct = 30',
+  "23 verac's prayer pierce is 25%"),
+ (COMBAT, 'if (npc_type = barrows_verac & random(100) < ^barrows_verac_pierce_pct) {\n'
+          '    return(add(random($maxhit), 1));\n}\n', '',
+  '23 ...and a pierced hit is decided BEFORE the rolls'),
+ (COMBAT, 'return(add(random($maxhit), 1));', 'return(randominc($maxhit));',
+  '23 and it lands for one to his max, never nothing'),
+ (CONST, '^barrows_guthan_effect_pct = 25', '^barrows_guthan_effect_pct = 20',
+  "23 guthan's Infestation fires on 25% of his landed hits"),
+ (CONST, '^barrows_ahrim_effect_pct = 20', '^barrows_ahrim_effect_pct = 25',
+  "23 ahrim's Blighted Aura fires on 20% of his landed hits"),
+ (COMBAT, 'spotanim_npc(barrows_torag_effect, 92, 0);',
+           'spotanim_npc(barrows_guthan_effect, 92, 0);',
+  '23 ...and it is the one HIS case plays'),
+ (COMBAT, 'npc_statheal(hitpoints, $damage, 0);', 'npc_statheal(hitpoints, 1, 0);',
+  '23 Guthan heals for THE DAMAGE HE DEALT'),
+ (COMBAT, 'scale($percent, 100, runenergy)', 'scale($percent, 100, 100)',
+  "23 and Torag's fifth is a fifth of what is LEFT"),
+ (COMBAT, 'queue(barrows_karil_drain, 0, ^barrows_karil_agility_pct);',
+           'stat_sub(agility, 0, ^barrows_karil_agility_pct);',
+  '23 barrows_karil_drain reaches the player through his own queue'),
+ (COMBAT, '~get_spell_data(^iban_blast)', '~get_spell_data(^wind_blast)',
+  "23 Ahrim's attack is Iban's Blast"),
+ (COMBAT, '~npc_player_hit_roll(^magic_style)', '~npc_player_hit_roll(^melee_style)',
+  '23 ...and his aura rolls on THE SAME hit roll'),
+ (COMBAT, 'case 1 : return(^weaken);', 'case 1 : return(^confuse);',
+  '23 ...all three of them'),
+ # anchored on the line above it: crossbowbolt_travel is a projectile several npcs fire, and the
+ # runner replaces the FIRST match.
+ (ALLNPC, 'param=rangebonus,55\nparam=proj_travel,crossbowbolt_travel',
+          'param=rangebonus,55',
+  '23 ...and he has a bolt to fire'),
+
+ # --- the prayer drain
+ (CONST, '^barrows_drain_interval = 30', '^barrows_drain_interval = 50',
+  '24 a face appears every 30 ticks'),
+ (CONST, '^barrows_drain_base = 8', '^barrows_drain_base = 7',
+  '24 and takes 8 points before any brother is down'),
+ (COMBAT, 'add(^barrows_drain_base, ~barrows_brothers_killed)', '^barrows_drain_base',
+  '24 and the rise is one point per brother'),
+ (COMBAT, 'inzone(^barrows_crypt_sw, ^barrows_crypt_ne, coord) = ^false\n    & ', '',
+  '24 it drains in the crypts AND the tunnels'),
+ (COMBAT, 'cleartimer(barrows_prayer_drain);\n    return;', 'return;',
+  '24 ...and takes itself off the moment the player is anywhere else'),
+ (RS2, '~barrows_drain_start;\n', '',
+  '24 both ways underground start it'),
+ (CONST, '^barrows_crypt_sw = 3_55_151_0_0', '^barrows_crypt_sw = 3_55_152_0_0',
+  '24 and the two zones really are one square at two levels'),
 ]
 
 

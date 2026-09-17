@@ -44245,8 +44245,8 @@ vislevel=98
 // All six share 100 hitpoints and 100 Defence; what differs is the style, the speed and the
 // bonuses. Where the infobox gives no bonus for a style, none is written here rather than a
 // guess - the engine's default is 0 and an invented number would read as sourced.
-// Ahrim attacks with magic. Ranged strength is not written for any brother: this engine has no
-// npc param for it (only strengthbonus exists), so Karil's +55 has nowhere to go either.
+// Ahrim attacks with magic, and areas/area_barrows/scripts/barrows_combat.rs2 is what makes him
+// do it: a bare damagetype does not stop the engine handing him the melee AI every npc gets.
 hitpoints=100
 attack=1
 strength=1
@@ -44286,8 +44286,9 @@ vislevel=115
 // All six share 100 hitpoints and 100 Defence; what differs is the style, the speed and the
 // bonuses. Where the infobox gives no bonus for a style, none is written here rather than a
 // guess - the engine's default is 0 and an invented number would read as sourced.
-// Dharok attacks with slash, at 7 ticks - the slowest of the six. His 57 max hit at one hitpoint
-// is the Wretched Strength SET EFFECT and belongs to the armour, not to him; it is not here.
+// Dharok attacks with slash, at 7 ticks - the slowest of the six. His 29 max hit falls out of this
+// strength and bonus through the engine's own formula, and his 57 at one hitpoint is Wretched
+// Strength, which he has HIMSELF - barrows_combat.rs2 adds one per cent per hitpoint missing.
 hitpoints=100
 attack=100
 strength=100
@@ -44366,6 +44367,10 @@ vislevel=98
 // guess - the engine's default is 0 and an invented number would read as sourced.
 // Karil attacks with ranged, at 4 ticks - the fastest of the six. No defend anim: the cache has a
 // crossbow ready, fire, walk and run for him and no block, so there is nothing to name.
+// param=rangebonus IS the ranged strength this file once said the engine had nowhere to put: it is
+// what ~npc_ranged_maxhit reads, and the wiki's +55 through that formula gives his max hit of 20.
+// param=proj_travel is the bolt itself - the cache's own crossbow bolt, since barrows_karil_
+// tainted_shot is the SET EFFECT's graphic and not his ammunition.
 hitpoints=100
 attack=1
 strength=1
@@ -44375,6 +44380,8 @@ ranged=100
 param=attackrate,4
 param=magicattack,-26
 param=rangeattack,134
+param=rangebonus,55
+param=proj_travel,crossbowbolt_travel
 param=stabdefence,79
 param=slashdefence,71
 param=crushdefence,90

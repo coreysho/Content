@@ -36,6 +36,7 @@ RS2   = read('scripts/areas/area_barrows/scripts/barrows.rs2')
 TUN   = read('scripts/areas/area_barrows/scripts/barrows_tunnels.rs2')
 CHEST = read('scripts/areas/area_barrows/scripts/barrows_chest.rs2')
 TELE  = read('scripts/areas/area_barrows/scripts/barrows_teleport.rs2')
+COMBAT = read('scripts/areas/area_barrows/scripts/barrows_combat.rs2')
 DEATH = read('scripts/skill_combat/scripts/npc/npc_death.rs2')
 ALLVARP = read('scripts/_unpack/377/all.varp')
 ALLVARBIT = read('scripts/_unpack/377/all.varbit')
@@ -932,6 +933,166 @@ check(param(NPCS.get('death_drop_probe', {}), 'death_drop') is None
                     read('scripts/skill_combat/configs/npc_combat.param')
                     .split('[death_drop]', 1)[1].split('\n[', 1)[0]),
       'and death_drop really does default to bones, which is why the line above is needed')
+
+# =============================================================================================
+print()
+print('--- the brothers fight the way Old School says, and hit as hard')
+# =============================================================================================
+# THE MAX HITS ARE RE-DERIVED, not stored. Every one of them comes out of the engine's own formula
+# from the bonuses the infoboxes give, so this section is what says the stat blocks are right -
+# and it is the check that would have caught Karil's missing ranged strength, because without it
+# his max hit computes to 11 against the wiki's 20.
+def eff_stat(level):
+    # ~combat_effective_stat(level, 100) is scale(max(100,100), 100, level), which is level.
+    return level + 9  # the 'style bonus' of 1 that every npc gets
+
+def engine_maxhit(level, bonus):
+    # ~combat_maxhit(~combat_stat(...)) = (effective * (bonus + 64) + 320) / 640
+    return (eff_stat(level) * (bonus + 64) + 320) // 640
+
+for b in BROS:
+    sp = SPEC['brothers'][b]
+    d = NPC.get('barrows_' + b, {})
+    e = sp['effect']
+    if e['style'] == 'ranged':
+        got = engine_maxhit(sp['levels']['ranged'], int(param(d, 'rangebonus') or 0))
+    elif e['style'] == 'magic':
+        got = int(K['barrows_ahrim_maxhit'])
+    else:
+        got = engine_maxhit(sp['levels']['strength'], int(param(d, 'strengthbonus') or 0))
+    # The expected number stays OUT of the leading text: a mutation to the spec would otherwise
+    # rewrite the message this check is identified by.
+    check(got == sp['maxhit'],
+          "%s's max hit comes out of his own record through the engine's formula: %d, wiki %d"
+          % (b, got, sp['maxhit']))
+# Dharok at one hitpoint, which is the whole of Wretched Strength.
+dh = SPEC['brothers']['dharok']
+base = engine_maxhit(dh['levels']['strength'], 105)
+check(base + (99 * base) // 100 == dh['maxhit_at_1'],
+      "dharok at one hitpoint hits %d, which is his %d plus one per cent of it for each of the 99 "
+      'he is missing: %d' % (dh['maxhit_at_1'], base, base + (99 * base) // 100))
+check('scale(sub(npc_basestat(hitpoints), npc_stat(hitpoints)), 100, $maxhit)' in COMBAT,
+      '...and that is the line that does it')
+check(re.search(r'if \(npc_type ! barrows_dharok\) \{\s*return\(\$maxhit\);', COMBAT),
+      'and nobody else gets it')
+
+# THE AI. A bare damagetype does not stop the engine handing an npc the melee AI every npc gets:
+# [ai_queue1,_] sets opplayer2 and [ai_opplayer2,_] swings. This is the check for the bug Corey
+# found - Ahrim walking up and hitting people with his staff.
+for b in BROS:
+    st = SPEC['brothers'][b]['effect']['style']
+    if st == 'melee':
+        check('[ai_opplayer2,barrows_%s] ~barrows_melee;' % b in COMBAT,
+              '%s swings, through his own handler' % b)
+        check('[ai_queue1,barrows_%s]' % b not in COMBAT,
+              '...and keeps the default melee retaliate, which is the right one for him')
+    else:
+        check('[ai_queue1,barrows_%s] ~npc_default_retaliate_ap;' % b in COMBAT,
+              '%s retaliates AT RANGE, which is what sets applayer2' % b)
+        check('[ai_applayer2,barrows_%s]' % b in COMBAT
+              and '[ai_opplayer2,barrows_%s] npc_setmode(applayer2);' % b in COMBAT,
+              '...and both being walked up to and standing off send him to the same %s attack' % st)
+check('~npc_meleeattack' not in COMBAT,
+      'no brother goes through the plain melee attack, because every one of them has something '
+      'the plain one does not do')
+
+# VERAC'S PIERCE skips the rolls rather than weighting them: "ignoring prayer and armour" means
+# the attack roll that returns zero under Protect from Melee is never consulted, and neither is
+# the player's defence.
+pierce = nocomment(COMBAT.split('[proc,barrows_melee_damage]', 1)[1].split('\n[', 1)[0])
+check(int(K['barrows_verac_pierce_pct']) == SPEC['brothers']['verac']['effect']['chance'],
+      "verac's prayer pierce is %d%%" % SPEC['brothers']['verac']['effect']['chance'])
+check('npc_type = barrows_verac & random(100) < ^barrows_verac_pierce_pct' in pierce
+      and pierce.index('barrows_verac_pierce_pct') < pierce.index('~npc_melee_attack_roll'),
+      '...and a pierced hit is decided BEFORE the rolls, so neither prayer nor armour is asked')
+check('return(add(random($maxhit), 1));' in pierce,
+      'and it lands for one to his max, never nothing')
+
+# THE FOUR EFFECTS THAT NEED A PICTURE have one, and it is the cache's own - all four spotanims
+# were sitting in 377 unused.
+SPOT = set(l.strip().split('=', 1)[1] for l in read('pack/spotanim.pack').split('\n') if '=' in l)
+efx = nocomment(COMBAT.split('[proc,barrows_effect]', 1)[1].split('\n[', 1)[0])
+for b in BROS:
+    e = SPEC['brothers'][b]['effect']
+    got = int(K.get('barrows_%s_effect_pct' % b, -1)) if b != 'dharok' and b != 'verac' else e['chance']
+    if b not in ('dharok', 'verac'):
+        check(got == e['chance'], "%s's %s fires on %d%% of his landed hits: %s"
+              % (b, e['name'], e['chance'], got))
+    if e['spotanim']:
+        check(e['spotanim'] in SPOT, "%s's %s has the cache's own graphic: %s"
+              % (b, e['name'], e['spotanim']))
+        # Slice HIS case out of the switch rather than regexing across it: a lazy match that
+        # wandered into the next case would call any brother's graphic his.
+        seg = efx.split('case barrows_%s :' % b, 1)
+        seg = seg[1].split('\n    case ', 1)[0] if len(seg) == 2 else ''
+        plays = re.findall(r'spotanim_npc\((\w+),', seg)
+        check(plays == [e['spotanim']],
+              '...and it is the one HIS case plays: %s' % (plays or 'none'))
+    else:
+        check('case barrows_%s :' % b not in efx,
+              '%s has no case in the effect switch, because his effect is a number' % b)
+check(int(K['barrows_ahrim_strength_drain']) == 5, "Ahrim's aura takes five levels of Strength")
+check(int(K['barrows_karil_agility_pct']) == 20, "Karil's bolt takes a fifth of Agility")
+check(int(K['barrows_torag_energy_pct']) == 20, "Torag's hammers take a fifth of the energy left")
+check('npc_statheal(hitpoints, $damage, 0);' in efx,
+      'Guthan heals for THE DAMAGE HE DEALT, which is why the effect takes it as an argument')
+check('scale($percent, 100, runenergy)' in COMBAT,
+      "and Torag's fifth is a fifth of what is LEFT, not a fifth of the bar")
+# Every player-side write goes through a queue: an npc script has the player but not protected
+# access to him, which is the same wall the kill bits ran into.
+for q in ('barrows_ahrim_drain', 'barrows_karil_drain', 'barrows_torag_drain'):
+    check('[queue,%s]' % q in COMBAT and 'queue(%s, 0,' % q in COMBAT,
+          '%s reaches the player through his own queue' % q)
+check('stat_sub(strength, $amount, 0);' in COMBAT and 'stat_sub(agility, 0, $percent);' in COMBAT,
+      "and the two stat drains are flat for Ahrim's five levels and a percentage for Karil's fifth")
+
+# AHRIM CASTS A REAL SPELL, so the freeze and debuff paths are the engine's.
+check('~get_spell_data(^iban_blast)' in COMBAT
+      and SPEC['ahrim_spell']['spell'] == 'iban_blast',
+      "Ahrim's attack is Iban's Blast, the one dark burst in the spell table")
+check('~npc_player_hit_roll(^magic_style)' in COMBAT,
+      '...and his aura rolls on THE SAME hit roll the cast makes, not a second one')
+check('~npc_cast_spell(~barrows_ahrim_debuff' in COMBAT
+      and int(K['barrows_ahrim_debuff_odds']) == 4,
+      'and one cast in four is Confuse, Weaken or Curse, which the wiki lists')
+dbf = nocomment(COMBAT.split('[proc,barrows_ahrim_debuff]', 1)[1].split('\n[', 1)[0])
+check(sorted(re.findall(r'\^(confuse|weaken|curse)', dbf)) == ['confuse', 'curse', 'weaken'],
+      '...all three of them: %s' % sorted(re.findall(r'\^(\w+)\)', dbf)))
+check('param=rangebonus,55' in NPCCFG.replace('\r\n', '\n'),
+      "Karil's +55 ranged strength is on his record, which is the only reason his max hit is 20")
+check(param(NPC.get('barrows_karil', {}), 'proj_travel') == 'crossbowbolt_travel',
+      '...and he has a bolt to fire, which ~npc_rangeattack needs: %s'
+      % param(NPC.get('barrows_karil', {}), 'proj_travel'))
+
+# =============================================================================================
+print()
+print('--- the prayer drain')
+# =============================================================================================
+PD = SPEC['prayer_drain']
+check(int(K['barrows_drain_interval']) == PD['interval_ticks'],
+      'a face appears every %d ticks, which is the wiki\'s %d seconds'
+      % (PD['interval_ticks'], PD['interval_seconds']))
+check(int(K['barrows_drain_base']) == PD['base'],
+      'and takes %d points before any brother is down' % PD['base'])
+check(int(K['barrows_drain_base']) + len(BROS) * PD['per_brother'] == PD['max'],
+      '...rising to %d with all six dead, which is arithmetic and not a third number' % PD['max'])
+drain = nocomment(COMBAT.split('[timer,barrows_prayer_drain]', 1)[1].split('\n[', 1)[0])
+check('add(^barrows_drain_base, ~barrows_brothers_killed)' in drain,
+      'and the rise is one point per brother, counted off the kill bits')
+check('inzone(^barrows_crypt_sw, ^barrows_crypt_ne, coord)' in drain
+      and 'inzone(^barrows_tunnel_sw, ^barrows_tunnel_ne, coord)' in drain,
+      'it drains in the crypts AND the tunnels, which are the same map square two levels apart')
+check('cleartimer(barrows_prayer_drain);' in drain,
+      '...and takes itself off the moment the player is anywhere else')
+check('stat(prayer) = 0' in drain and drain.index('stat(prayer) = 0') < drain.index('stat_sub'),
+      'and a player with no prayer left is not told about it every eighteen seconds')
+check('~barrows_drain_start;' in nocomment(RS2) and '~barrows_drain_start;' in nocomment(TUN),
+      'both ways underground start it - the dig and the passage')
+check(coord(K['barrows_crypt_sw']) and coord(K['barrows_crypt_sw'])[0] == 3
+      and coord(K['barrows_tunnel_sw'])[0] == 0
+      and coord(K['barrows_crypt_sw'])[1:3] == coord(K['barrows_tunnel_sw'])[1:3],
+      'and the two zones really are one square at two levels: %s and %s'
+      % (K['barrows_crypt_sw'], K['barrows_tunnel_sw']))
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
