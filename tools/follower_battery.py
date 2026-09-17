@@ -556,8 +556,9 @@ allowed = trigger(META, 'proc,pet_form_allowed')
 check('if ($item ! skillpet_rift_guardian_item) {' in (allowed or '')
       and 'return(true);' in (allowed or ''),
       'only the rift guardian has to earn its colours; every other pet may wear all of its looks')
-check('testbit(%%rift_unlocked' % () in (allowed or ''),
-      '...and what it may wear is what %rift_unlocked says')
+check('~rift_locked(~pet_form_index($item, $form))' in (allowed or '')
+      and 'testbit(%rift_unlocked' in code(VAR),
+      '...and what it may wear is what %rift_unlocked says, read in exactly one place')
 lock = trigger(VAR, 'opnpc5,_bosspet')
 check(lock is not None and 'npc_param(pet_item_id) ! skillpet_rift_guardian_item' in lock,
       'Locking is the guardian\'s alone, and says so rather than silently doing nothing')
@@ -570,6 +571,61 @@ locked_recs = [n for n in PETRECS if 'op5=Locking' in PETRECS[n]]
 check(sorted(locked_recs) == sorted(gring),
       'op5=Locking is on all %d guardian records and on no other pet: %d records'
       % (len(gring), len(locked_recs)))
+
+# The picker window. Its cells ARE the ring, in ring order, which is what lets fifteen one-line
+# handlers stand in for a table - so the window drifting out of step with the ring is the failure
+# this checks for.
+PICK = blocks(read('scripts/npc/interfaces/rift_metamorph.if'))
+cellnums = sorted(int(n[4:]) for n in PICK if re.fullmatch(r'cell\d+', n))
+RUNENAME = {f: r for r, f in RIFT.items()}
+# A cell is named for its RING INDEX, not its position, and only the colours an altar in THIS
+# build can unlock get one: a cell for a colour nothing can ever reach is a dead square.
+want_cells = [i for i, f in enumerate(gring) if i == 0 or f in RUNENAME]
+check(cellnums == want_cells,
+      'the picker has a cell for the plain guardian and for each of the %d altars, and for nothing '
+      'else: %s' % (len(RIFT), cellnums if cellnums != want_cells else 'ring indices %s' % want_cells))
+check(re.search(r'\^rift_pickable_colours\s*=\s*%d' % len(want_cells), FORMCONST) is not None,
+      '...and ^rift_pickable_colours says %d too, which is what its subtitle counts against'
+      % len(want_cells))
+wrong = []
+for i in cellnums:
+    want = re.search(r'model1=(\S+)', PETRECS[gring[i]]).group(1)
+    got = re.search(r'model=(\S+)', PICK.get('model%d' % i, '') or 'model=-')
+    if not got or got.group(1) != want:
+        wrong.append((i, gring[i], got.group(1) if got else None))
+check(not wrong, '...each showing the model of the form at that ring index: %s'
+      % (wrong or 'all %d' % len(cellnums)))
+wrong = []
+for i in cellnums:
+    rune = RUNENAME.get(gring[i])
+    want = 'Plain' if i == 0 else rune[:-4].capitalize()
+    got = re.search(r'text=(.*)', PICK.get('name%d' % i, ''))
+    if not got or got.group(1).strip() != want:
+        wrong.append((i, want, got.group(1).strip() if got else None))
+check(not wrong, '...and labelled with the altar that unlocks it: %s'
+      % (wrong or 'all %d' % len(cellnums)))
+absent = [n for n in PICK if 'rift_metamorph:%s' % n not in ids]
+check('rift_metamorph' in ids and not absent,
+      '...with every one of its %d components in interface.pack: %s'
+      % (len(PICK), absent or 'all present'))
+op = trigger(META, 'opnpc4,_bosspet')
+check('if ($item = skillpet_rift_guardian_item) {' in op and '~rift_metamorph_open;' in op,
+      "the guardian's right-click opens that window instead of cycling")
+pc = code(VAR)
+hides = sorted(int(x) for x, y in
+               re.findall(r'if_sethide\(rift_metamorph:icon(\d+), ~rift_locked\((\d+)\)\);', pc)
+               if x == y)
+buttons = sorted(int(x) for x, y in
+                 re.findall(r'\[if_button,rift_metamorph:hit(\d+)\] ~rift_pick\((\d+)\);', pc)
+                 if x == y)
+check(hides == cellnums and buttons == cellnums,
+      '...and every cell is both hidden when locked and clickable, each naming its own ring index: '
+      '%d hides, %d buttons' % (len(hides), len(buttons)))
+pick = trigger(VAR, 'proc,rift_pick')
+check('~rift_locked($index) = true' in (pick or '') and 'mes(' in (pick or ''),
+      'choosing a colour you have not unlocked says so rather than doing nothing')
+check('~pet_form_walk(skillpet_rift_guardian_item, $index)' in (pick or ''),
+      '...and a cell is an index into the ring, walked the same way the login respawn walks it')
 
 print('\nALL PASS' if not fails else '\n%d FAILED' % fails)
 sys.exit(1 if fails else 0)

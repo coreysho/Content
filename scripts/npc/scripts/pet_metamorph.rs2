@@ -25,6 +25,13 @@ if (%npc_attacking_uid ! uid | %follower_uid ! npc_uid) {
     return;
 }
 def_namedobj $item = npc_param(pet_item_id);
+// The rift guardian gets a WINDOW rather than a cycle: Old School opens an interface of the
+// colours you have unlocked, and with fifteen of them a cycle is up to fourteen right-clicks to
+// get back to the one you wanted. npc/scripts/pet_variants.rs2 owns it.
+if ($item = skillpet_rift_guardian_item) {
+    ~rift_metamorph_open;
+    return;
+}
 def_npc $next = ~pet_form_nextallowed($item, npc_type);
 if ($next = null) {
     // Only records in a ring carry op4, so a null next is a config mistake rather than a player
@@ -71,18 +78,24 @@ return(null);
 if ($item ! skillpet_rift_guardian_item) {
     return(true);
 }
-if (testbit(%rift_unlocked, ~pet_form_index($item, $form)) = ^true) {
-    return(true);
+// ~rift_locked (npc/scripts/pet_variants.rs2) is the only place %rift_unlocked is read, so the
+// right-click and the picker window can never disagree about what you have earned.
+if (~rift_locked(~pet_form_index($item, $form)) = true) {
+    return(false);
 }
-return(false);
+return(true);
 
 // Which form the slot should bring back for this item: the base, walked forward by the remembered
 // number of steps. A cat, or any pet with no ring, walks nowhere and comes back as itself - which
 // is why the login respawn and the put-down can both call this without asking whether the pet has
 // a metamorphosis at all.
 [proc,pet_form](obj $item)(npc)
+return(~pet_form_walk($item, ~pet_form_get($item)));
+
+// The same walk with the step count given rather than remembered - what the rift guardian's
+// picker needs, since a cell IS an index into the ring.
+[proc,pet_form_walk](obj $item, int $steps)(npc)
 def_npc $at = oc_param($item, follower_id);
-def_int $steps = ~pet_form_get($item);
 def_int $i = 0;
 while ($i < $steps) {
     def_npc $next = nc_param($at, metamorph_next);

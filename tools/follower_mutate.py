@@ -36,6 +36,8 @@ RCRS2 = 'scripts/skill_runecraft/scripts/runecraft.rs2'
 RCTIARA = 'scripts/skill_runecraft/scripts/runecraft_tiaras.rs2'
 RCALTARS = 'scripts/skill_runecraft/scripts/runecraft_altars.rs2'
 OBJPACK = 'pack/obj.pack'
+PICKIF = 'scripts/npc/interfaces/rift_metamorph.if'
+FORMCONST2 = FORMCONST
 MODELPACK = 'pack/model.pack'
 NPCPACK = 'pack/npc.pack'
 IFPACK = 'pack/interface.pack'
@@ -313,6 +315,30 @@ MUTS = [
   '9 skillpet_rock_golem has enough of %pet_form to hold its 12 forms'),
  (META, '~pet_form_nextallowed($item, npc_type)', 'npc_param(metamorph_next)',
   '7 the right-click spawns the next ALLOWED form through ~follower_spawn'),
+ # 9 - the picker window
+ (PICKIF, '[cell13]\ntype=layer', '[cell14]\ntype=layer',
+  '9 the picker has a cell for the plain guardian and for each of the 11 altars, and for nothing else'),
+ (PICKIF, 'model=npc_skillpet_rift_guardian_f9_1', 'model=npc_skillpet_rift_guardian_f8_1',
+  '9 ...each showing the model of the form at that ring index'),
+ (PICKIF, 'text=Nature', 'text=Natures',
+  '9 ...and labelled with the altar that unlocks it'),
+ (FORMCONST, '^rift_pickable_colours = 12', '^rift_pickable_colours = 15',
+  '9 ...and ^rift_pickable_colours says 12 too, which is what its subtitle counts against'),
+ (IFPACK, '=rift_metamorph:name13\n', '=rift_metamorph:name13_renamed\n',
+  '9 ...with every one of its 138 components in interface.pack'),
+ (META, '~rift_metamorph_open;\n    return;\n', '',
+  "9 the guardian's right-click opens that window instead of cycling"),
+ (VAR, 'if_sethide(rift_metamorph:icon7, ~rift_locked(7));\n', '',
+  '9 ...and every cell is both hidden when locked and clickable, each naming its own ring index'),
+ (VAR, '[if_button,rift_metamorph:hit9] ~rift_pick(9);', '[if_button,rift_metamorph:hit9] ~rift_pick(8);',
+  '9 ...and every cell is both hidden when locked and clickable, each naming its own ring index'),
+ (VAR, 'if (~rift_locked($index) = true) {\n    mes("You have not unlocked that colour yet. Craft at its altar with your guardian out.");\n    return;\n}\n', '',
+  '9 choosing a colour you have not unlocked says so rather than doing nothing'),
+ (VAR, '~pet_form_walk(skillpet_rift_guardian_item, $index)',
+       '~pet_form(skillpet_rift_guardian_item)',
+  '9 ...and a cell is an index into the ring, walked the same way the login respawn walks it'),
+ (META, '~rift_locked(~pet_form_index($item, $form))', 'testbit(%rift_unlocked, 0)',
+  '9 ...and what it may wear is what %rift_unlocked says, read in exactly one place'),
 ]
 
 
