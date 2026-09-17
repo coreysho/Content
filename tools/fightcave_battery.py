@@ -742,6 +742,15 @@ for m, n in (('obj_tzhaar_cape_infernal', 'the inventory model'),
     check(INF['wrong_hsl'] not in col,
           '...and no face of it is left on the olive green that came of reading the OSRS texture '
           'index by position')
+# The winding, which is what made the cape invisible in game. A file hash is the right check
+# here: the three models are a deterministic function of the cache plus the reversal, and a
+# re-import that forgets the reversal changes every byte of all three.
+import hashlib as _h
+for m, sha in sorted(INF['model_sha1'].items()):
+    got = _h.sha1(open(os.path.join(C, 'models/obj', m + '.ob2'), 'rb').read()).hexdigest()
+    check(got == sha,
+          '%s is the reversed-winding build, so its visible side faces out' % m)
+
 finfo, fcol = ob2_faces('models/obj/obj_tzhaar_cape_fire.ob2')
 check(sum(1 for i in finfo if i & 2) == INF['fire_cape_lava_faces'],
       'and the Fire cape still wears its own %d lava faces, untouched by any of this'
