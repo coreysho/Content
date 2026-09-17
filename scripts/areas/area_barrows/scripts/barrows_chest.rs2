@@ -5,12 +5,22 @@
 // one-click loot Old School has, and each op does something - Open lets the last brother out and
 // starts the shaking, Search pays, Close shuts it again.
 //
+// BUT THE TRIGGER GOES ON THE SHELL, not on either child. Player.getOpTrigger looks the script up
+// on the type that is ON THE MAP and does not resolve the multiloc, so [oploc1,barrows_stone_chest_
+// closed] is a script that compiles and can never run - which is exactly what shipped, and why the
+// chest could not be opened at all. One op1 handler serves both states and branches on the same
+// bit the multiloc does.
+//
 // WHAT IT PAYS is tools/barrowschestspec.json, which quotes the wiki: one roll plus one per
 // brother killed to a ceiling of seven; per roll a piece of Barrows equipment at
 // 1/(450 - 58 * brothers) and only from brothers actually killed; otherwise a value rolled in
 // 1..potential and read against the bands, which ARE the "reward potential required" column.
 
-[oploc1,barrows_stone_chest_closed]
+[oploc1,barrows_stone_chest]
+if (%barrows_chest_open = ^true) {
+    ~barrows_chest_search;
+    return;
+}
 p_arrivedelay;
 p_stopaction;
 facesquare(loc_coord);
@@ -35,19 +45,22 @@ if (testbit(%barrows_kills, $bit) = ^false & ~barrows_brother_here($brother) = ^
     mes("The tunnels begin to shake and dust falls from the ceiling.");
 }
 
-[oploc2,barrows_stone_chest_open]
+[oploc2,barrows_stone_chest]
 p_arrivedelay;
 p_stopaction;
 facesquare(loc_coord);
 %barrows_chest_open = ^false;
 mes("You close the chest.");
 
-// Is he already down here? A door can send the entry brother before the chest is ever opened -
-// "if he did not already appear while travelling through the tunnels" - and two of him would be a
-// second set of armour. 64 tiles reaches the whole tunnel square and no brother stands anywhere
-// else in the world.
+// Is he already out? A door can send the entry brother before the chest is ever opened - "if he
+// did not already appear while travelling through the tunnels" - and two of him would be two sets
+// of armour for one fight. The sarcophagi ask this too, for the same reason.
+//
+// 64 tiles reaches a whole map square and no brother stands anywhere else in the world. The last
+// argument is HuntVis and it must be 0 = OFF: 1 is LINEOFSIGHT, which would answer "no" for a
+// brother two rooms away and hand out a second one.
 [proc,barrows_brother_here](npc $brother)(boolean)
-npc_findall(coord, $brother, 64, 1);
+npc_findall(coord, $brother, 64, 0);
 if (npc_findnext = true) {
     return(^true);
 }
@@ -56,7 +69,7 @@ return(^false);
 // ---------------------------------------------------------------------------------------------
 // The reward
 // ---------------------------------------------------------------------------------------------
-[oploc1,barrows_stone_chest_open]
+[proc,barrows_chest_search]
 p_arrivedelay;
 p_stopaction;
 facesquare(loc_coord);

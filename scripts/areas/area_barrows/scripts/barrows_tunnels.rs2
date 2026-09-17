@@ -95,9 +95,10 @@ return(null);
 // ---------------------------------------------------------------------------------------------
 // The way out
 // ---------------------------------------------------------------------------------------------
-// All four ladders are the same loc once their bit is set, so one handler serves them, and it puts
-// the player back on the mound of the crypt they came in by - the hole they dug is the way out.
-[oploc1,barrows_ladder]
+// All four ladders resolve to the same loc once their bit is set, but the trigger cannot go there
+// (see the doors below): the four shells carry category=barrows_ladder instead. It puts the player
+// back on the mound of the crypt they came in by - the hole they dug is the way out.
+[oploc1,_barrows_ladder]
 p_arrivedelay;
 p_stopaction;
 mes("You climb the ladder...");
@@ -130,8 +131,14 @@ return(^barrows_mound_ahrim);
 // the same model with no ops at all - so what a click does is carry the player through the
 // doorway, the way general_use/scripts/fence.rs2 carries them through a fence, and then let
 // something out behind them.
-[oploc1,barrows_door_unlocked_l] ~barrows_door_through;
-[oploc1,barrows_door_unlocked_r] ~barrows_door_through;
+// THE TRIGGER GOES ON THE LOC THAT IS ON THE MAP. Player.getOpTrigger looks the script up on
+// LocType.get(target.type) - the placed type - and does NOT resolve the multiloc first, even
+// though OpLocHandler resolved one a moment earlier to decide whether the op exists at all. So a
+// trigger on barrows_door_unlocked_l compiles, passes every check that only asks whether it is
+// written down, and never fires: the thing on the map is barrows_door_a_l. The thirty-two shells
+// carry category=barrows_door for this, which is the shape doors/scripts/open_and_close_double_
+// doors.rs2 already uses, and one handler serves all of them.
+[oploc1,_barrows_door] ~barrows_door_through;
 
 [proc,barrows_door_through]
 p_arrivedelay;

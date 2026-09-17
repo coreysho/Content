@@ -24,6 +24,10 @@ TOBJ = 'scripts/areas/area_barrows/configs/barrows.obj'
 DEATH = 'scripts/skill_combat/scripts/npc/npc_death.rs2'
 ALLVARP = 'scripts/_unpack/377/all.varp'
 ALLVARBIT = 'scripts/_unpack/377/all.varbit'
+ALLLOC = 'scripts/_unpack/377/all.loc'
+ALLSEQ = 'scripts/_unpack/377/all.seq'
+SKELTABLE = 'scripts/drop_tables/scripts/skeleton_barrows_skeleton_armed.rs2'
+COMBATPARAM = 'scripts/skill_combat/configs/npc_combat.param'
 CHESTSPEC = 'tools/barrowschestspec.json'
 RS2 = 'scripts/areas/area_barrows/scripts/barrows.rs2'
 STAIRS = 'scripts/ladders+stairs/scripts/stairs.rs2'
@@ -245,8 +249,8 @@ MUTS = [
   '15 after the chest has paid, every door is a brother'),
  (TUN, '~barrows_nth_unkilled(random($left))', '~barrows_nth_killed(random($left))',
   "15 a door's brother is one the player has NOT killed"),
- (TUN, '[oploc1,barrows_door_unlocked_r] ~barrows_door_through;\n', '',
-  '15 the r half of a doorway is handled'),
+ (TUN, '[oploc1,_barrows_door] ~barrows_door_through;\n', '',
+  '15 one handler serves every doorway'),
 
  # --- the passage and the ladder
  (CONST, '^barrows_chamber_tile_a = 0_55_151_15_48', '^barrows_chamber_tile_a = 0_55_151_14_48',
@@ -299,6 +303,50 @@ MUTS = [
   '18 breaking one spends exactly one'),
  (TELE, 'if (~pre_tele_checks(coord) = false) {\n    return;\n}', '',
   '18 and it is not a way out of deep wilderness'),
+ # --- a handler that cannot fire, which is what shipped
+ (TUN, '[oploc1,_barrows_door] ~barrows_door_through;',
+        '[oploc1,barrows_door_unlocked_l] ~barrows_door_through;',
+  '19 op1 on barrows_door_unlocked_l'),
+ (TUN, '[oploc1,_barrows_ladder]', '[oploc1,barrows_ladder]',
+  '19 op1 on barrows_ladder'),
+ (CHEST, '[oploc1,barrows_stone_chest]', '[oploc1,barrows_stone_chest_closed]',
+  '19 op1 on barrows_stone_chest_closed'),
+ (CHEST, '[oploc2,barrows_stone_chest]', '[oploc2,barrows_stone_chest_open]',
+  '19 op2 on barrows_stone_chest_open'),
+ (ALLLOC, '[barrows_door_e_l]\ncategory=barrows_door', '[barrows_door_e_l]',
+  '19 no Barrows loc on either map has an option nothing handles'),
+ (ALLLOC, '[barrows_ladder_g]\ncategory=barrows_ladder', '[barrows_ladder_g]',
+  '19 no Barrows loc on either map has an option nothing handles'),
+ (CHEST, '[oploc2,barrows_stone_chest]\np_arrivedelay;\np_stopaction;\n'
+         'facesquare(loc_coord);\n%barrows_chest_open = ^false;\nmes("You close the chest.");',
+         '',
+  '19 no Barrows loc on either map has an option nothing handles'),
+ (CHEST, '~barrows_chest_search;', 'mes("");',
+  '19 one op1 handler opens the chest and searches it'),
+
+ # --- the dig that would not stop
+ (RS2, 'anim(null, 0);\nreturn(true);', 'return(true);',
+  '20 the dig animation is stopped after the telejump'),
+ (ALLSEQ, '[human_dig_long]\nreplaceheldright=spade\nreplaceheldleft=hide\nloops=8',
+          '[human_dig_long]\nreplaceheldright=spade\nreplaceheldleft=hide',
+  '20 ...which is worth checking because the seq really does loop'),
+
+ # --- the tunnels paying out
+ (ALLNPC, '[barrows_rat]', '[barrows_rat]\nparam=death_drop,bones',
+  '21 barrows_rat drops nothing'),
+ (SKELTABLE, '[label,barrows_skeleton_armed_drop_table]',
+             '[ai_queue3,barrows_skeleton_armed] @barrows_skeleton_armed_drop_table;\n\n'
+             '[label,barrows_skeleton_armed_drop_table]',
+  '21 ...and has no death trigger of its own to put it back on a table'),
+ (COMBATPARAM, '[death_drop]\ntype=namedobj\ndefault=bones',
+               '[death_drop]\ntype=namedobj\ndefault=null',
+  '21 and death_drop really does default to bones'),
+ (RS2, 'if (~barrows_brother_here($brother) = ^true) {\n'
+       '    mes("You search the sarcophagus. It is empty - its occupant is already up.");\n'
+       '    return;\n}\n', '',
+  '22 and a box whose brother is already out hands over nobody'),
+ (CHEST, 'npc_findall(coord, $brother, 64, 0);', 'npc_findall(coord, $brother, 64, 1);',
+  '22 and it looks for him without needing to see him'),
 ]
 
 

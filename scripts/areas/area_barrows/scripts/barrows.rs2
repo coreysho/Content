@@ -47,8 +47,15 @@ p_stopaction;
 mes("You dig into the mound...");
 anim(human_dig_long, 0);
 p_delay(2);
+mes("You break through into a hollow space...");
+p_delay(1);
 p_telejump($crypt);
 mes("...and drop into the crypt below.");
+// human_dig_long is loops=8, so it keeps digging long past the two ticks this script waits -
+// and the telejump does not stop it, which is why the first version of this had the player
+// still shovelling away inside the crypt until they clicked something else. Ending an animation
+// that outlives its script is anim(null, 0), the way quest_zombiequeen.rs2's own long dig ends.
+anim(null, 0);
 return(true);
 
 // ---------------------------------------------------------------------------------------------
@@ -89,6 +96,12 @@ if (%barrows_entry_crypt = add($bit, 1)) {
 // counts them too. The deaths write through the named varbits; only the reads go to the base.
 if (testbit(%barrows_kills, $bit) = ^true) {
     mes("You search the sarcophagus and find nothing but dust.");
+    return;
+}
+// ...and he is not in there twice either. Searching a box whose brother is already out and still
+// alive used to add a second copy of him, which is two sets of armour for one fight.
+if (~barrows_brother_here($brother) = ^true) {
+    mes("You search the sarcophagus. It is empty - its occupant is already up.");
     return;
 }
 mes("You search the sarcophagus...");

@@ -293,6 +293,17 @@ check('^barrows_brother_life' in SEARCH and '^max_32bit_int' not in SEARCH,
       'a woken brother is added with ^barrows_brother_life, not forever')
 check('npc_setmode(opplayer2)' in SEARCH and '%aggressive_npc = npc_uid' in SEARCH,
       'and he comes out fighting, and interrupts what the player was doing')
+# A BROTHER WHO IS ALREADY UP IS NOT IN HIS BOX. The kill bit only says he is dead; searching the
+# sarcophagus of a brother who is out and still alive used to add a second copy of him, and two of
+# him is two sets of armour for one fight.
+check('~barrows_brother_here($brother) = ^true' in SEARCH
+      and SEARCH.index('~barrows_brother_here') < SEARCH.index('npc_add('),
+      'and a box whose brother is already out hands over nobody')
+here = nocomment(CHEST.split('[proc,barrows_brother_here]', 1)[1].split('\n[', 1)[0])
+# HuntVis: 0 is OFF, 1 is LINEOFSIGHT, 2 is LINEOFWALK. A presence test across a tunnel needs OFF,
+# or a brother two rooms away answers "not here" and a second one is handed out.
+check(re.search(r'npc_findall\(coord, \$brother, 64, 0\);', here),
+      'and it looks for him without needing to see him, which is HuntVis 0')
 
 # Every sarcophagus the CACHE has, not every one the script happens to mention.
 for b in BROS:
@@ -599,7 +610,10 @@ check('~barrows_between' in CHEST and 'add($low, random(add(sub($high, $low), 1)
       'and so is every quantity')
 # Paying twice, and paying for nothing.
 check('%barrows_chest_paid = ^true;' in CHEST, 'looting marks the chest paid')
-loot = nocomment(CHEST.split('[oploc1,barrows_stone_chest_open]', 1)[1])
+check('[oploc1,barrows_stone_chest]' in CHEST and '[oploc2,barrows_stone_chest]' in CHEST
+      and '~barrows_chest_search' in CHEST.split('[oploc1,barrows_stone_chest]', 1)[1],
+      'one op1 handler opens the chest and searches it, branching on the bit the multiloc reads')
+loot = nocomment(CHEST.split('[proc,barrows_chest_search]', 1)[1])
 check('%barrows_chest_paid = ^true' in loot
       and loot.index('%barrows_chest_paid = ^true') < loot.index('~barrows_reward_roll'),
       '...before it rolls anything, so an interrupted payout cannot be taken twice')
@@ -661,9 +675,8 @@ check(not [o for o in ('op1', 'op2', 'op3', 'op4', 'op5')
            if o in LOCB.get('barrows_door_locked_l', {})
            or o in LOCB.get('barrows_door_locked_r', {})],
       'and the locked one carries no option at all, which is 377\'s own "this one will not open"')
-for half in ('l', 'r'):
-    check('[oploc1,barrows_door_unlocked_%s] ~barrows_door_through;' % half in TUN,
-          'the %s half of a doorway is handled' % half)
+check('[oploc1,_barrows_door] ~barrows_door_through;' in TUN,
+      'one handler serves every doorway, through the category the shells carry')
 for L in barrowsmaze.LETTERS:
     for half in ('l', 'r'):
         d = LOCB.get('barrows_door_%s_%s' % (L, half), {})
@@ -704,8 +717,8 @@ for L in sorted(ladders):
           % (L, m.group(1) if m else 'nothing'))
 check(LOCB.get('barrows_ladder_a', {}).get('multivar', [None])[0] == 'barrows_chamber_a',
       'a ladder is a multiloc on its chamber\'s bit, so it does not exist until the run opens it')
-check('[oploc1,barrows_ladder]' in TUN,
-      'and all four resolve to one loc, which one handler serves')
+check('[oploc1,_barrows_ladder]' in TUN,
+      'and all four are served by one handler, through their own category')
 for b in BROS:
     m = re.search(r'case \^barrows_bit_%s : return\(\^barrows_mound_(\w+)\);' % b,
                   nocomment(TUN.split('[proc,barrows_entry_mound]', 1)[1]))
@@ -789,6 +802,136 @@ check('[opheld1,barrows_teleport]' in TELE and 'inv_del(inv, barrows_teleport, 1
       'breaking one spends exactly one')
 check('~pre_tele_checks(coord) = false' in TELE and '~wilderness_level(coord) > 20' in TELE,
       'and it is not a way out of deep wilderness, a duel or the trawler')
+
+# =============================================================================================
+print()
+print('--- every handler is on a loc that is actually on the map')
+# =============================================================================================
+# THE FAULT THIS SECTION EXISTS FOR. A multiloc has a shell on the map and children it resolves
+# to, and the ops the player sees come from the CHILD - so a trigger on the child looks right and
+# reads right. It never fires. Player.getOpTrigger looks the script up on
+# LocType.get(target.type), the type that is ON THE MAP, and does not resolve the multiloc,
+# even though OpLocHandler resolved one moments earlier to decide whether the op exists at all.
+# Three of this round's four handlers were written on children: both halves of every door, all
+# four ladders and the chest, so the tunnels had no working doors and the chest could not be
+# opened. Every check that existed asked whether the trigger was WRITTEN DOWN. This one asks
+# whether it can run.
+LOCCFG = {}
+for root, _, fs in os.walk(os.path.join(C, 'scripts')):
+    for f in sorted(fs):
+        if not f.endswith('.loc'):
+            continue
+        LOCCFG.update(blocks(read(os.path.relpath(os.path.join(root, f), C))))
+
+PLACED = set()
+for m in ('maps/m55_51.jm2', 'maps/m55_151.jm2'):
+    for line in read(m).split('==== LOC ====')[1].split('==== ')[0].split('\n'):
+        mm = re.match(r'^(\d+) (\d+) (\d+): (\d+) (\d+)(?: (\d+))?\s*$', line.strip())
+        if mm:
+            PLACED.add(LOCNAME.get(int(mm.group(4)), '?'))
+PLACEDCAT = {}
+for n in PLACED:
+    c = LOCCFG.get(n, {}).get('category', [None])[0]
+    if c:
+        PLACEDCAT.setdefault(c, []).append(n)
+
+def ops_of(name):
+    """Every op number the player can ever see on this loc, its multiloc children included."""
+    d = LOCCFG.get(name, {})
+    out = set()
+    for i in range(1, 6):
+        if 'op%d' % i in d:
+            out.add(i)
+    for mv in d.get('multiloc', []):
+        child = mv.split(',', 1)[1].strip() if ',' in mv else ''
+        cd = LOCCFG.get(child, {})
+        for i in range(1, 6):
+            if 'op%d' % i in cd:
+                out.add(i)
+    return out
+
+BARROWSRS2 = [('areas/area_barrows/scripts/barrows.rs2', RS2),
+              ('areas/area_barrows/scripts/barrows_tunnels.rs2', TUN),
+              ('areas/area_barrows/scripts/barrows_chest.rs2', CHEST),
+              ('ladders+stairs/scripts/stairs.rs2', STAIRS)]
+trigs = []
+for where, txt in BARROWSRS2:
+    for m in re.finditer(r'(?m)^\[oploc(\d),(\w+)\]', nocomment(txt)):
+        if 'barrow' in m.group(2):
+            trigs.append((where, int(m.group(1)), m.group(2)))
+check(len(trigs) >= 10, 'the Barrows declares %d loc handlers to check' % len(trigs))
+for where, op, name in trigs:
+    if name.startswith('_'):
+        cat = name[1:]
+        holders = PLACEDCAT.get(cat, [])
+        check(bool(holders),
+              'op%d on category %s: %d locs on the Barrows maps carry it'
+              % (op, cat, len(holders)))
+        for h in holders:
+            check(op in ops_of(h),
+                  '...and %s really has an op%d for it to catch: %s'
+                  % (h, op, sorted(ops_of(h)) or 'no ops at all'))
+    else:
+        check(name in PLACED,
+              'op%d on %s: that loc is on one of the Barrows maps' % (op, name))
+        check(op in ops_of(name),
+              '...and it has an op%d, on itself or on a multiloc child: %s'
+              % (op, sorted(ops_of(name)) or 'no ops at all'))
+# The reverse, which is the dead-click question: every op a Barrows loc on the map can show has
+# a handler somewhere in the tree.
+ALLTRIG = set()
+for p_, t in allrs2:
+    for m in re.finditer(r'(?m)^\[oploc(\d),(\w+)\]', nocomment(t)):
+        ALLTRIG.add((int(m.group(1)), m.group(2)))
+dead = []
+for n in sorted(PLACED):
+    if not n.startswith('barrow'):
+        continue
+    cat = LOCCFG.get(n, {}).get('category', [None])[0]
+    for op in sorted(ops_of(n)):
+        if (op, n) in ALLTRIG or (cat and (op, '_' + cat) in ALLTRIG):
+            continue
+        dead.append('%s op%d "%s"' % (n, op, (LOCCFG.get(n, {}).get('op%d' % op, ['?'])[0])))
+check(not dead, 'no Barrows loc on either map has an option nothing handles: %s' % (dead or 'none'))
+
+# =============================================================================================
+print()
+print('--- the dig ends, and the tunnels pay nothing')
+# =============================================================================================
+dig = nocomment(RS2.split('[proc,barrows_mound_dig]', 1)[1].split('\n[', 1)[0])
+# .rindex on a string that is not there RAISES, and a crash is not a catch - ninth time in this
+# project, so the membership test comes first.
+check('anim(human_dig_long, 0);' in dig and 'anim(null, 0);' in dig
+      and dig.rindex('anim(null, 0);') > dig.index('p_telejump'),
+      'the dig animation is stopped after the telejump - human_dig_long is loops=8 and outlives '
+      'the script that started it, so without this the player keeps digging inside the crypt')
+DIGSEQ = read('scripts/_unpack/377/all.seq').split('[human_dig_long]', 1)
+check(len(DIGSEQ) == 2 and re.search(r'(?m)^loops=[2-9]', DIGSEQ[1].split('\n[', 1)[0]),
+      '...which is worth checking because the seq really does loop: %s'
+      % (re.search(r'(?m)^loops=(\d+)', DIGSEQ[1].split('\n[', 1)[0]).group(1)
+         if len(DIGSEQ) == 2 and re.search(r'(?m)^loops=(\d+)', DIGSEQ[1].split('\n[', 1)[0])
+         else 'no loops line'))
+
+# NOTHING IN THE TUNNELS DROPS ANYTHING. The two skeletons were on the ordinary skeleton table -
+# coins, arrows, runes, a herb and a shot at the ultra-rare - in a place whose entire reward is
+# the chest. And death_drop DEFAULTS TO BONES, so a monster that says nothing still drops bones
+# through [ai_queue3,_] -> ~npc_default_death: saying null out loud is the only way to drop
+# nothing.
+TUNNELMON = sorted(CS['tunnel_monsters'])
+for n in TUNNELMON:
+    d = NPCS.get(n, {})
+    check(param(d, 'death_drop') == 'null',
+          '%s drops nothing, said out loud because death_drop defaults to bones: %s'
+          % (n, param(d, 'death_drop')))
+    owners = sorted(p_ for p_, t in allrs2
+                    if re.search(r'(?m)^\[ai_queue3,%s\]' % n, nocomment(t)))
+    check(not owners, '...and has no death trigger of its own to put it back on a table: %s'
+          % owners)
+check(param(NPCS.get('death_drop_probe', {}), 'death_drop') is None
+      and re.search(r'(?m)^default=bones$',
+                    read('scripts/skill_combat/configs/npc_combat.param')
+                    .split('[death_drop]', 1)[1].split('\n[', 1)[0]),
+      'and death_drop really does default to bones, which is why the line above is needed')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
