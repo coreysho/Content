@@ -742,14 +742,17 @@ for m, n in (('obj_tzhaar_cape_infernal', 'the inventory model'),
     check(INF['wrong_hsl'] not in col,
           '...and no face of it is left on the olive green that came of reading the OSRS texture '
           'index by position')
-# The winding, which is what made the cape invisible in game. A file hash is the right check
-# here: the three models are a deterministic function of the cache plus the reversal, and a
-# re-import that forgets the reversal changes every byte of all three.
+# The geometry, which the invisible cape was blamed on and was never at fault: the crust layer
+# was dying mid-draw on a negative palette index in the client (see fightcavespec's note), and
+# the reversed-winding build shipped to chase it turned the cape inside out - a plain red sheet,
+# the lining seen from outside. A file hash is the right check: each model is a deterministic
+# function of the cache, and both a re-import that "fixes" the winding again and one that picks
+# up a different source model change every byte.
 import hashlib as _h
 for m, sha in sorted(INF['model_sha1'].items()):
     got = _h.sha1(open(os.path.join(C, 'models/obj', m + '.ob2'), 'rb').read()).hexdigest()
     check(got == sha,
-          '%s is the reversed-winding build, so its visible side faces out' % m)
+          "%s is the cache's own geometry, %s" % (m, INF['winding']))
 
 finfo, fcol = ob2_faces('models/obj/obj_tzhaar_cape_fire.ob2')
 check(sum(1 for i in finfo if i & 2) == INF['fire_cape_lava_faces'],
