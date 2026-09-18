@@ -38,6 +38,9 @@ CHEST = read('scripts/areas/area_barrows/scripts/barrows_chest.rs2')
 TELE  = read('scripts/areas/area_barrows/scripts/barrows_teleport.rs2')
 COMBAT = read('scripts/areas/area_barrows/scripts/barrows_combat.rs2')
 SETS = read('scripts/areas/area_barrows/scripts/barrows_sets.rs2')
+PUZZLE = read('scripts/areas/area_barrows/scripts/barrows_puzzle.rs2')
+CHESTIF = read('scripts/areas/area_barrows/interfaces/barrows_chest.if')
+INVCFG = read('scripts/areas/area_barrows/configs/barrows.inv')
 ALLOBJ = read('scripts/_unpack/377/all.obj')
 PMELEE = read('scripts/skill_combat/scripts/player/player_melee.rs2')
 PRANGED = read('scripts/skill_combat/scripts/player/player_ranged.rs2')
@@ -612,7 +615,7 @@ seg = CHEST.split('$roll >= ^barrows_rp_keyhalf', 1)
 body = seg[1].split('} else if (', 1)[0] if len(seg) == 2 else ''
 check('keyhalf1' in body and 'keyhalf2' in body,
       'the key band pays one half of the crystal key or the other')
-check('~obj_giveorbank(coins,' in CHEST, 'and everything below the first band is coins')
+check('~barrows_reward_add(coins,' in CHEST, 'and everything below the first band is coins')
 check('add(random($potential), 1)' in CHEST,
       'the roll is a value in 1..potential, inclusive at both ends, as the wiki words it')
 check('~barrows_between' in CHEST and 'add($low, random(add(sub($high, $low), 1)))' in CHEST,
@@ -802,9 +805,11 @@ check(int(K['barrows_tele_low']) == T['low'] and int(K['barrows_tele_high']) == 
 check('random(^barrows_tele_rate) = 0' in CHEST
       and '~barrows_between(^barrows_tele_low, ^barrows_tele_high)' in CHEST,
       'which is what the chest actually rolls')
+# ~barrows_reward_add is in the list because the chest pays into its own store now, and
+# inv_add is what that proc does - so the store's own file would otherwise look like a source.
 gives = sorted(p for p, t in allrs2
-               if re.search(r'(?:inv_add|obj_add|~obj_giveorbank)\([^;]*\bbarrows_teleport\b',
-                            nocomment(t)))
+               if re.search(r'(?:inv_add|obj_add|~obj_giveorbank|~barrows_reward_add)'
+                            r'\([^;]*\bbarrows_teleport\b', nocomment(t)))
 check(gives == ['scripts/areas/area_barrows/scripts/barrows_chest.rs2'],
       'the chest is the only thing in the game that hands one over: %s' % gives)
 check('[opheld1,barrows_teleport]' in TELE and 'inv_del(inv, barrows_teleport, 1);' in TELE,
@@ -1244,12 +1249,14 @@ for L in barrowsmaze.LETTERS:
               '%s wears the %s double-door category' % (name, half))
         check(param(d, 'next_loc_stage') == 'barrows_door_inactive_%s' % half,
               '...and opens into barrows_door_inactive_%s, which is the same model with no ops' % half)
-        check('[oploc1,%s] ~barrows_door_open(^%s);' % (name, side) in TUN,
+        # The four gates into the chest room name the puzzle handler instead, which calls this
+        # one once the door has been answered.
+        check('[oploc1,%s] ~barrows_door_open(^%s);' % (name, side) in TUN
+              or '[oploc1,%s] ~barrows_door_puzzle(^%s);' % (name, side) in TUN,
               '...and names its own handler, so the generic door trigger never takes it')
-check(len(re.findall(r'(?m)^\[oploc1,barrows_door_\w+\] ~barrows_door_open\(\^(?:left|right)\);$',
-                     TUN)) == 32,
-      'all thirty-two doorway leaves are accounted for: %d'
-      % len(re.findall(r'(?m)^\[oploc1,barrows_door_\w+\] ~barrows_door_open', TUN)))
+DOORTRIG = r'(?m)^\[oploc1,barrows_door_\w_[lr]\] ~barrows_door_(?:open|puzzle)\(\^(?:left|right)\);$'
+check(len(re.findall(DOORTRIG, TUN)) == 32,
+      'all thirty-two doorway leaves are accounted for: %d' % len(re.findall(DOORTRIG, TUN)))
 check(not [o for o in ('op1', 'op2', 'op3', 'op4', 'op5')
            if o in LOCCFG.get('barrows_door_inactive_l', {})
            or o in LOCCFG.get('barrows_door_inactive_r', {})],
@@ -1262,6 +1269,159 @@ check('~agility_exactmove' not in nocomment(TUN) and 'p_teleport($end)' not in n
 check('~barrows_door_spawn(coord);' in dopen
       and dopen.index('~open_and_close_double_door') < dopen.index('~barrows_door_spawn'),
       'and what comes through does so after the door is open, on the tile the player ends on')
+
+# =============================================================================================
+print()
+print('--- the reward window')
+# =============================================================================================
+ivb = blocks(INVCFG).get('barrows_reward_store', {})
+check(bool(ivb), 'barrows_reward_store exists as an inv')
+check(ivb.get('scope', [None])[0] == 'perm',
+      '...and is scope=perm, because a disconnect between the roll and the last click must not '
+      'lose a set piece out of a run that is already over')
+size = int(ivb.get('size', [0])[0])
+check(size >= int(K['barrows_rolls_max']) + 1,
+      'it has room for every roll one chest can make plus the teleport tabs: %d slots for %s + 1'
+      % (size, K['barrows_rolls_max']))
+check('barrows_reward_store' in set(l.strip().split('=', 1)[1]
+                                    for l in read('pack/inv.pack').split('\n') if '=' in l),
+      'and it is in pack/inv.pack')
+
+# THE WINDOW REGENERATES BYTE-IDENTICAL. Group 35's lesson from the POH round: a generated file
+# nobody re-runs the generator over is a file that has quietly stopped matching its generator.
+import subprocess
+before = open(os.path.join(C, 'scripts/areas/area_barrows/interfaces/barrows_chest.if'), 'rb').read()
+packbefore = open(os.path.join(C, 'pack/interface.pack'), 'rb').read()
+orderbefore = open(os.path.join(C, 'pack/interface.order'), 'rb').read()
+r = subprocess.run([sys.executable, os.path.join(C, 'tools/genbarrowschest.py')],
+                   capture_output=True, text=True, cwd=os.path.join(C, 'tools'))
+after = open(os.path.join(C, 'scripts/areas/area_barrows/interfaces/barrows_chest.if'), 'rb').read()
+check(r.returncode == 0, 'tools/genbarrowschest.py runs: %s' % (r.stderr.strip()[-120:] or 'ok'))
+check(after == before, 'and the window it writes is byte-identical to the one in the tree')
+check(open(os.path.join(C, 'pack/interface.pack'), 'rb').read() == packbefore
+      and open(os.path.join(C, 'pack/interface.order'), 'rb').read() == orderbefore,
+      '...and so are both interface packs, which is what says the ids are stable')
+check('size=%d' % size in read('tools/genbarrowschest.py').replace('SIZE', '')
+      or 'inv_size()' in read('tools/genbarrowschest.py'),
+      'and the generator reads the slot count out of the inv config rather than repeating it')
+
+IFB = blocks(CHESTIF)
+check(IFB.get('loot', {}).get('type', [None])[0] == 'inv',
+      'the grid is the STORE - an inv component, so the client draws the icons, the counts and the '
+      'hover names for nothing')
+check(int(IFB['loot']['width'][0]) * int(IFB['loot']['height'][0]) == size,
+      'and it is exactly as big as the store: %s x %s for %d slots'
+      % (IFB['loot']['width'][0], IFB['loot']['height'][0], size))
+check('inv_transmit(barrows_reward_store, barrows_chest:loot);' in CHEST,
+      'and the script transmits one into the other')
+# NO DEAD CLICKS IN THE WINDOW, which is the same rule the POH round put on a house.
+opts = sorted(k for k in IFB['loot'] if re.fullmatch(r'option\d', k))
+for o in opts:
+    n = o[-1]
+    check('[inv_button%s,barrows_chest:loot]' % n in CHEST,
+          'the grid\'s %s ("%s") is handled' % (o, IFB['loot'][o][0]))
+check(IFB.get('takeall', {}).get('option', [None])[0] is not None
+      and '[if_button,barrows_chest:takeall]' in CHEST,
+      'and so is the Take everything button')
+check(IFB.get('close', {}).get('buttontype', [None])[0] == 'close',
+      'the close button is the client\'s own, which needs no handler')
+check('[if_close,barrows_chest]' in CHEST and 'inv_stoptransmit(barrows_chest:loot);' in CHEST,
+      'closing the window stops the transmit')
+clos = nocomment(CHEST.split('[if_close,barrows_chest]', 1)[1].split('\n[', 1)[0])
+check('~barrows_reward_flush;' in clos,
+      '...and banks whatever is left, which is the only ending that cannot cost a player a set '
+      'piece: the inventory may be full and the chest will not pay twice')
+search = nocomment(CHEST.split('[proc,barrows_chest_search]', 1)[1].split('\n[', 1)[0])
+check('~barrows_reward_flush;' in search
+      and search.index('~barrows_reward_flush') < search.index('~barrows_reward_roll'),
+      'and the store is emptied BEFORE a new chest rolls, so the window only ever shows one '
+      "chest's loot and there is always room for it")
+check('~obj_giveorbank' not in CHEST,
+      'nothing goes straight to the pack or the bank any more - every reward lands in the store')
+# Nine band payouts, a piece of equipment, and the teleport tabs.
+check(len(re.findall(r'~barrows_reward_add\(', CHEST)) == 11,
+      'and all eleven things the chest can pay go through one add: %d'
+      % len(re.findall(r'~barrows_reward_add\(', CHEST)))
+take = nocomment(CHEST.split('[proc,barrows_reward_take]', 1)[1].split('\n[', 1)[0])
+check('$take <= 0' in take and 'You do not have enough room' in take,
+      'a stack that will not fit at all says so and stays put rather than half-vanishing')
+check('if_settext(barrows_chest:subtitle' in CHEST and '~pluralise($rolls, "roll")' in CHEST,
+      'and the window says how many rolls it made and at what potential, which is the one thing '
+      'about a Barrows reward a player cannot work out by looking')
+
+# =============================================================================================
+print()
+print('--- the door before the chest')
+# =============================================================================================
+pz = VB.get('barrows_puzzle')
+check(pz and pz[0] == 'barrows' and (1 << (pz[2] - pz[1] + 1)) == int(K['barrows_puzzles']),
+      "%%barrows_puzzle's %d bits hold exactly ^barrows_puzzles = %s of them"
+      % ((pz[2] - pz[1] + 1) if pz else 0, K['barrows_puzzles']))
+check(VB.get('barrows_puzzle_solved') == ('barrows', 4, 4),
+      'barrows_puzzle_solved sits in %%barrows bit 4: %s'
+      % (VB.get('barrows_puzzle_solved'),))
+check('barrows_puzzle_solved' in VBPACK, '...and is in pack/varbit.pack')
+
+ask = nocomment(PUZZLE.split('[proc,barrows_puzzle_ask]', 1)[1].split('\n[', 1)[0])
+cases = re.findall(r'(?ms)case (\d+) :(.*?)(?=\n    case |\n\}|\Z)', ask)
+check(len(cases) == int(K['barrows_puzzles']),
+      'there are %s puzzles and %d of them are written' % (K['barrows_puzzles'], len(cases)))
+check(sorted(int(n) for n, _ in cases) == list(range(int(K['barrows_puzzles']))),
+      '...keyed 0..%d, which is what random() rolls' % (int(K['barrows_puzzles']) - 1))
+rights = []
+for n, body in cases:
+    # \s* rather than a space: an option and its value can fall either side of a line break.
+    vals = re.findall(r'"[^"]*",\s*(\d)', body)
+    check(len(vals) == 4, 'puzzle %s offers four answers: %d' % (n, len(vals)))
+    check(vals.count('1') == 1, '...exactly one of which is right: %s' % vals)
+    if vals.count('1') == 1:
+        rights.append(vals.index('1'))
+check(len(set(rights)) >= 3,
+      'and the right answer is not always in the same place: positions %s' % sorted(set(rights)))
+check(ask.rstrip().endswith('return(0);'),
+      'a puzzle number nothing matches is wrong rather than open')
+
+gate = nocomment(PUZZLE.split('[proc,barrows_puzzle_gate]', 1)[1].split('\n[', 1)[0])
+check('%barrows_puzzle_solved = ^true;' in gate and '~barrows_shift;' in gate,
+      'the right answer opens the door for the run and a wrong one shifts the tunnels')
+check('%barrows_entry_crypt = ^barrows_entry_none' in gate,
+      '...and a door opened with no run behind it asks nothing')
+shift = nocomment(PUZZLE.split('[proc,barrows_shift]', 1)[1].split('\n[', 1)[0])
+check('enum(int, int, barrows_mazes, random(^barrows_mazes))' in shift
+      and '%barrows_puzzle = random(^barrows_puzzles);' in shift
+      and '%barrows_puzzle_solved = ^false;' in shift,
+      'a shift re-lays the maze, re-rolls the puzzle and locks the door again - so a wrong answer '
+      'is not a free retry')
+check('%barrows_kills' not in shift and '%barrows_entry_crypt' not in shift,
+      '...and touches nothing about the run itself: the brothers you killed stay killed and the '
+      'reward potential stays earned')
+
+# WHICH GATES ASK IT, derived off the map rather than read off a list: the chest's own room is
+# joined to the rest of the tunnel by exactly four gates, and those are the four the puzzle
+# belongs on.
+want = sorted(barrowsmaze.chest_gates())
+check(len(want) == 4, "the chest's room is reached through four gates, by the map: %s" % want)
+asked = sorted(set(re.findall(r'\[oploc1,barrows_door_(\w)_[lr]\] ~barrows_door_puzzle\(',
+                              nocomment(TUN))))
+check(asked == want, 'and those are the four that ask the puzzle: %s' % asked)
+for L in want:
+    for half in ('l', 'r'):
+        check('[oploc1,barrows_door_%s_%s] ~barrows_door_puzzle(' % (L, half) in TUN,
+              'both halves of gate %s ask it, because either leaf opens the doorway' % L)
+plain = sorted(set(re.findall(r'\[oploc1,barrows_door_(\w)_[lr]\] ~barrows_door_open\(',
+                              nocomment(TUN))))
+check(not (set(plain) & set(want)),
+      'and no gate does both: %s' % sorted(set(plain) & set(want)))
+check(len(plain) + len(asked) == 16, 'all sixteen gates are one or the other: %d + %d'
+      % (len(plain), len(asked)))
+dp = nocomment(TUN.split('[proc,barrows_door_puzzle]', 1)[1].split('\n[', 1)[0])
+check('~barrows_puzzle_gate = ^false' in dp and 'return;' in dp
+      and dp.index('~barrows_puzzle_gate') < dp.index('~barrows_door_open'),
+      'and a wrong answer means the door does not open at all')
+check('%barrows_puzzle = random(^barrows_puzzles);' in nocomment(TUN),
+      'the puzzle is rolled with the maze, on the way in')
+check('%barrows_puzzle_solved = ^false;' in begin,
+      'and a new run locks the door again')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

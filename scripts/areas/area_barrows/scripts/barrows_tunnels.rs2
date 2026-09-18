@@ -30,6 +30,7 @@ if (%barrows_entry_crypt ! ^barrows_entry_none & %barrows_chest_paid = ^false) {
 %barrows_kills = 0;
 %barrows_chest_paid = ^false;
 %barrows_chest_open = ^false;
+%barrows_puzzle_solved = ^false;
 %barrows = setbit_range_toint(%barrows, 0, ^barrows_door_first, ^barrows_door_last);
 ~barrows_shut_ladders;
 
@@ -48,6 +49,7 @@ if ($chamber < 0) {
     $chamber = random(^barrows_chambers);
     ~barrows_open_ladder($chamber);
     %barrows = setbit_range_toint(%barrows, enum(int, int, barrows_mazes, random(^barrows_mazes)), ^barrows_door_first, ^barrows_door_last);
+    %barrows_puzzle = random(^barrows_puzzles);
     ~mesbox("You have found a passage into the Barrows tunnels!");
 } else {
     ~mesbox("You climb back down into the tunnels.");
@@ -155,22 +157,22 @@ return(^barrows_mound_ahrim);
 [oploc1,barrows_door_c_r] ~barrows_door_open(^right);
 [oploc1,barrows_door_d_l] ~barrows_door_open(^left);
 [oploc1,barrows_door_d_r] ~barrows_door_open(^right);
-[oploc1,barrows_door_e_l] ~barrows_door_open(^left);
-[oploc1,barrows_door_e_r] ~barrows_door_open(^right);
+[oploc1,barrows_door_e_l] ~barrows_door_puzzle(^left);
+[oploc1,barrows_door_e_r] ~barrows_door_puzzle(^right);
 [oploc1,barrows_door_f_l] ~barrows_door_open(^left);
 [oploc1,barrows_door_f_r] ~barrows_door_open(^right);
 [oploc1,barrows_door_g_l] ~barrows_door_open(^left);
 [oploc1,barrows_door_g_r] ~barrows_door_open(^right);
 [oploc1,barrows_door_h_l] ~barrows_door_open(^left);
 [oploc1,barrows_door_h_r] ~barrows_door_open(^right);
-[oploc1,barrows_door_i_l] ~barrows_door_open(^left);
-[oploc1,barrows_door_i_r] ~barrows_door_open(^right);
-[oploc1,barrows_door_j_l] ~barrows_door_open(^left);
-[oploc1,barrows_door_j_r] ~barrows_door_open(^right);
+[oploc1,barrows_door_i_l] ~barrows_door_puzzle(^left);
+[oploc1,barrows_door_i_r] ~barrows_door_puzzle(^right);
+[oploc1,barrows_door_j_l] ~barrows_door_puzzle(^left);
+[oploc1,barrows_door_j_r] ~barrows_door_puzzle(^right);
 [oploc1,barrows_door_k_l] ~barrows_door_open(^left);
 [oploc1,barrows_door_k_r] ~barrows_door_open(^right);
-[oploc1,barrows_door_l_l] ~barrows_door_open(^left);
-[oploc1,barrows_door_l_r] ~barrows_door_open(^right);
+[oploc1,barrows_door_l_l] ~barrows_door_puzzle(^left);
+[oploc1,barrows_door_l_r] ~barrows_door_puzzle(^right);
 [oploc1,barrows_door_m_l] ~barrows_door_open(^left);
 [oploc1,barrows_door_m_r] ~barrows_door_open(^right);
 [oploc1,barrows_door_n_l] ~barrows_door_open(^left);
@@ -179,6 +181,15 @@ return(^barrows_mound_ahrim);
 [oploc1,barrows_door_o_r] ~barrows_door_open(^right);
 [oploc1,barrows_door_p_l] ~barrows_door_open(^left);
 [oploc1,barrows_door_p_r] ~barrows_door_open(^right);
+
+// THE FOUR THAT OPEN INTO THE CHEST ROOM go through the puzzle first. Which four is not written
+// down here: e, i, j and l are what the map says the chest's own region is joined by, and
+// barrows_battery.py derives that set off maps/m55_151.jm2 and checks these triggers against it.
+[proc,barrows_door_puzzle](int $side)
+if (~barrows_puzzle_gate = ^false) {
+    return;
+}
+~barrows_door_open($side);
 
 [proc,barrows_door_open](int $side)
 p_arrivedelay;

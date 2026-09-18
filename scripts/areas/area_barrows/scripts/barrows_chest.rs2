@@ -88,6 +88,10 @@ if ($potential <= 0) {
 anim(human_openchest, 0);
 p_delay(1);
 %barrows_chest_paid = ^true;
+// Anything still sitting in the store belongs to a previous chest - a player who disconnected
+// with the window open. It goes to the bank before this chest rolls, so the window only ever
+// shows one chest's loot and there is always room for it.
+~barrows_reward_flush;
 def_int $rolls = min(add(^barrows_rolls_base, $brothers), ^barrows_rolls_max);
 def_int $n = 0;
 while ($n < $rolls) {
@@ -96,9 +100,88 @@ while ($n < $rolls) {
 }
 // COREY'S ADDITION, and the one thing here Old School does not have.
 if (random(^barrows_tele_rate) = 0) {
-    ~obj_giveorbank(barrows_teleport, ~barrows_between(^barrows_tele_low, ^barrows_tele_high));
+    ~barrows_reward_add(barrows_teleport,
+                        ~barrows_between(^barrows_tele_low, ^barrows_tele_high));
 }
-~mesbox("You loot the chest, and the tunnels shudder around you. Time to leave.");
+~barrows_chest_window($rolls, $potential);
+
+// ---------------------------------------------------------------------------------------------
+// The reward window
+// ---------------------------------------------------------------------------------------------
+// The chest pays into barrows_reward_store and the window IS that store - an inv component, so
+// the client draws the icons, the stack counts and the hover names for nothing. The alternative,
+// which is what shipped first, was a chatbox line and items appearing in the inventory: you could
+// not see what the run had paid, and a full inventory quietly sent things to the bank.
+//
+// The store is scope=perm for the same reason: a disconnect between the roll and the last click
+// must not lose a set piece out of a run that is already over.
+[proc,barrows_chest_window](int $rolls, int $potential)
+inv_transmit(barrows_reward_store, barrows_chest:loot);
+if_settext(barrows_chest:subtitle,
+           "<~pluralise($rolls, "roll")> at <tostring($potential)> reward potential");
+if_openmain(barrows_chest);
+
+[if_close,barrows_chest]
+inv_stoptransmit(barrows_chest:loot);
+~barrows_reward_flush;
+
+[inv_button1,barrows_chest:loot] ~barrows_reward_take(last_slot);
+[inv_button2,barrows_chest:loot] ~barrows_reward_takeall;
+[inv_button3,barrows_chest:loot] ~barrows_reward_bank(last_slot);
+[if_button,barrows_chest:takeall] ~barrows_reward_takeall;
+
+[proc,barrows_reward_add](namedobj $obj, int $count)
+inv_add(barrows_reward_store, $obj, $count);
+
+// One slot, as much of it as will fit. A stack that will not fit at all says so and stays put
+// rather than half-vanishing.
+[proc,barrows_reward_take](int $slot)
+def_obj $obj = inv_getobj(barrows_reward_store, $slot);
+if ($obj = null) {
+    return;
+}
+def_int $count = inv_getnum(barrows_reward_store, $slot);
+def_int $take = $count;
+if (oc_stackable($obj) = ^false) {
+    $take = min($count, inv_freespace(inv));
+} else if (inv_itemspace(inv, $obj, $count, inv_size(inv)) = ^false) {
+    $take = 0;
+}
+if ($take <= 0) {
+    mes("You do not have enough room to take that.");
+    return;
+}
+inv_moveitem(barrows_reward_store, inv, $obj, $take);
+
+[proc,barrows_reward_takeall]
+~storage_empty_to_inv(barrows_reward_store, "chest");
+
+[proc,barrows_reward_bank](int $slot)
+def_obj $obj = inv_getobj(barrows_reward_store, $slot);
+if ($obj = null) {
+    return;
+}
+inv_moveitem(barrows_reward_store, bank, $obj, inv_getnum(barrows_reward_store, $slot));
+mes("<oc_name($obj)> has been sent to your bank.");
+
+// WHAT IS LEFT IS NOT LOST. Closing the window banks the remainder, which is the only ending that
+// cannot cost a player a set piece: the inventory may be full, the run is over, and the chest
+// will not pay twice.
+[proc,barrows_reward_flush]
+def_int $slot = 0;
+def_int $moved = 0;
+while ($slot < inv_size(barrows_reward_store)) {
+    def_obj $obj = inv_getobj(barrows_reward_store, $slot);
+    if ($obj ! null) {
+        def_int $count = inv_getnum(barrows_reward_store, $slot);
+        inv_moveitem(barrows_reward_store, bank, $obj, $count);
+        $moved = add($moved, 1);
+    }
+    $slot = add($slot, 1);
+}
+if ($moved > 0) {
+    mes("The chest sent <~pluralise($moved, "item")> to your bank.");
+}
 
 [proc,barrows_reward_roll](int $brothers, int $potential)
 // A PIECE OF ARMOUR FIRST, and only from a brother who was killed: 1/(450 - 58 * brothers), which
@@ -107,34 +190,34 @@ def_int $odds = sub(^barrows_equip_base, multiply(^barrows_equip_step, $brothers
 if ($brothers > 0 & random($odds) = 0) {
     def_int $bit = ~barrows_nth_killed(random($brothers));
     def_int $piece = add(multiply($bit, ^barrows_equip_pieces), random(^barrows_equip_pieces));
-    ~obj_giveorbank(enum(int, namedobj, barrows_equipment, $piece), 1);
+    ~barrows_reward_add(enum(int, namedobj, barrows_equipment, $piece), 1);
     return;
 }
 // "A roll is performed for a value between 1 and your reward potential (each inclusive)", and the
 // reward is the last band that roll reached.
 def_int $roll = add(random($potential), 1);
 if ($roll >= ^barrows_rp_dragonmed) {
-    ~obj_giveorbank(dragon_med_helm, 1);
+    ~barrows_reward_add(dragon_med_helm, 1);
 } else if ($roll >= ^barrows_rp_keyhalf) {
     // "Key halves, 1 each" - the crystal key's tooth end and loop end, one or the other.
     if (random(2) = 0) {
-        ~obj_giveorbank(keyhalf1, 1);
+        ~barrows_reward_add(keyhalf1, 1);
     } else {
-        ~obj_giveorbank(keyhalf2, 1);
+        ~barrows_reward_add(keyhalf2, 1);
     }
 } else if ($roll >= ^barrows_rp_boltrack) {
-    ~obj_giveorbank(barrows_karil_ammo,
+    ~barrows_reward_add(barrows_karil_ammo,
                     ~barrows_between(^barrows_loot_boltrack_low, ^barrows_loot_boltrack_high));
 } else if ($roll >= ^barrows_rp_blood) {
-    ~obj_giveorbank(bloodrune, ~barrows_between(^barrows_loot_blood_low, ^barrows_loot_blood_high));
+    ~barrows_reward_add(bloodrune, ~barrows_between(^barrows_loot_blood_low, ^barrows_loot_blood_high));
 } else if ($roll >= ^barrows_rp_death) {
-    ~obj_giveorbank(deathrune, ~barrows_between(^barrows_loot_death_low, ^barrows_loot_death_high));
+    ~barrows_reward_add(deathrune, ~barrows_between(^barrows_loot_death_low, ^barrows_loot_death_high));
 } else if ($roll >= ^barrows_rp_chaos) {
-    ~obj_giveorbank(chaosrune, ~barrows_between(^barrows_loot_chaos_low, ^barrows_loot_chaos_high));
+    ~barrows_reward_add(chaosrune, ~barrows_between(^barrows_loot_chaos_low, ^barrows_loot_chaos_high));
 } else if ($roll >= ^barrows_rp_mind) {
-    ~obj_giveorbank(mindrune, ~barrows_between(^barrows_loot_mind_low, ^barrows_loot_mind_high));
+    ~barrows_reward_add(mindrune, ~barrows_between(^barrows_loot_mind_low, ^barrows_loot_mind_high));
 } else {
-    ~obj_giveorbank(coins, ~barrows_between(^barrows_loot_coins_low, ^barrows_loot_coins_high));
+    ~barrows_reward_add(coins, ~barrows_between(^barrows_loot_coins_low, ^barrows_loot_coins_high));
 }
 
 // Inclusive both ends, which is how every quantity in the wiki's table is written.

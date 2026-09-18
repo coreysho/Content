@@ -1,0 +1,90 @@
+// The door before the chest room.
+//
+// WHAT OLD SCHOOL HAS: a pattern puzzle on the last door, four candidate symbols, and "if you get
+// the puzzle wrong, the doors and rooms within the tunnels will shift around".
+//
+// WHAT THIS IS, AND WHY IT IS WORDS RATHER THAN SHAPES. The puzzle's art is not in the 377 cache -
+// its whole interface vocabulary is bank buttons, borders, stat icons and arrows, with nothing
+// shape-like to draw a pattern out of - and it cannot be imported from here either: sprite packing
+// is the one part of the build this environment cannot do at all (the media and title archives are
+// skipped, because jimp is stubbed), so new interface art could be added but never rendered or
+// verified. A drawn puzzle is a round of its own on a machine that can build sprites. So the gate
+// asks in the chat box, with the sequence written out, which is the same puzzle and the same
+// consequence for getting it wrong.
+//
+// EIGHT PUZZLES, in %barrows_puzzle - the cache's own three bits, which nothing was using. Rolled
+// with the maze and re-rolled every time the tunnels shift, so a wrong answer is not a free retry.
+//
+// WHICH DOORS ASK. The four gates that open into the chest room, which are e, i, j and l - the
+// four spokes of the tunnel's cross, measured off the map by tools/barrowsmaze.py rather than read
+// off the letters. One answer opens all four for the rest of the run.
+
+[proc,barrows_puzzle_gate]()(boolean)
+if (%barrows_entry_crypt = ^barrows_entry_none) {
+    return(^true);
+}
+if (%barrows_puzzle_solved = ^true) {
+    return(^true);
+}
+p_arrivedelay;
+p_stopaction;
+~mesbox("A pattern of symbols is carved into the door.");
+if (~barrows_puzzle_ask = 1) {
+    %barrows_puzzle_solved = ^true;
+    if_close;
+    ~mesbox("The symbols sink into the stone, and the door swings open.");
+    return(^true);
+}
+if_close;
+~mesbox("The symbols flare, and a grinding roar runs through the tunnels.|The doors have shifted.");
+~barrows_shift;
+return(^false);
+
+// THE EIGHT. Each is a sequence with one symbol missing and four ways to finish it, and the right
+// answer returns 1. Which of the four positions is right is different in every one, because four
+// puzzles whose answer is always the third option is one puzzle.
+//
+// Written out rather than driven by a table for a reason that is a rule here: a proc cannot return
+// a string in this codebase - battery check 24 enforces it - so the options cannot come out of an
+// enum, and eight switch cases of one call each is the honest shape.
+[proc,barrows_puzzle_ask]()(int)
+switch_int (%barrows_puzzle) {
+    case 0 :
+        return(~p_choice4_header("Four skulls", 0, "Three skulls", 1, "One skull", 0,
+                                 "Six skulls", 0,
+                                 "One skull, two skulls, ... , four skulls. What is missing?"));
+    case 1 :
+        return(~p_choice4_header("A circle", 0, "A cross", 0, "A triangle", 1, "A square", 0,
+                                 "Circle, square, circle, square, circle, ... What comes next?"));
+    case 2 :
+        return(~p_choice4_header("Two bones", 1, "Four bones", 0, "One bone", 0, "Five bones",
+                                 0, "Six bones, four bones, ... . What is missing?"));
+    case 3 :
+        return(~p_choice4_header("A skull", 0, "A bone", 0, "A coffin", 0, "A cross", 1,
+                                 "Cross, cross, skull, cross, cross, ... What comes next?"));
+    case 4 :
+        return(~p_choice4_header("Three coffins", 0, "Five coffins", 1, "Two coffins", 0,
+                                 "One coffin", 0,
+                                 "One coffin, three coffins, ... . What is missing?"));
+    case 5 :
+        return(~p_choice4_header("A square", 1, "A circle", 0, "A skull", 0, "A triangle", 0,
+                                 "Triangle, circle, square, triangle, circle, ...?"));
+    case 6 :
+        return(~p_choice4_header("Eight bones", 0, "Two bones", 0, "Four bones", 1,
+                                 "Three bones", 0,
+                                 "One bone, two bones, ... , eight bones. What is missing?"));
+    case 7 :
+        return(~p_choice4_header("A cross", 0, "A coffin", 1, "A circle", 0, "A skull", 0,
+                                 "Skull, coffin, skull, coffin, skull, ... What comes next?"));
+}
+return(0);
+
+// WHAT A WRONG ANSWER COSTS: a new maze and a new puzzle, which is the wiki's "the doors and rooms
+// within the tunnels will shift around". Nothing about the run's progress is touched - the
+// brothers you have killed stay killed and the reward potential stays earned.
+[proc,barrows_shift]
+%barrows = setbit_range_toint(%barrows,
+                              enum(int, int, barrows_mazes, random(^barrows_mazes)),
+                              ^barrows_door_first, ^barrows_door_last);
+%barrows_puzzle = random(^barrows_puzzles);
+%barrows_puzzle_solved = ^false;

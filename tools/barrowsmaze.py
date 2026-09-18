@@ -161,6 +161,36 @@ def generate(count, lo, hi, seed=377):
     return out
 
 
+def chest_gates(cache={}):
+    """The gates that open into the chest's own room, measured rather than listed.
+
+    With every gate shut the tunnel falls into rooms; the chest sits in one of them, and the gates
+    whose two sides straddle that room's edge are the ones the puzzle belongs on. On this map they
+    come out as e, i, j and l - the four spokes of the cross - and that is what the battery checks
+    barrows_tunnels.rs2's triggers against.
+    """
+    if 'g' in cache:
+        return cache['g']
+    walk, doors, ladders, chest = tunnel()
+    cuts = _cuts(0xFFFF, doors)
+    goal = set()
+    for dx in range(2):
+        for dz in range(2):
+            goal |= set(_beside((chest[0] + dx, chest[1] + dz), walk))
+    room = set()
+    for t in sorted(goal):
+        room |= reachable(t, walk, cuts)
+    out = set()
+    for L, places in doors.items():
+        for (x, z, rot) in places:
+            dx, dz = EDGE[rot]
+            sides = {(x, z), (x + dx, z + dz)}
+            if sides & room and not sides <= room:
+                out.add(L)
+    cache['g'] = out
+    return out
+
+
 def names(mask):
     return ''.join(L for i, L in enumerate(LETTERS) if (mask >> i) & 1)
 

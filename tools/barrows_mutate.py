@@ -30,6 +30,10 @@ SKELTABLE = 'scripts/drop_tables/scripts/skeleton_barrows_skeleton_armed.rs2'
 COMBATPARAM = 'scripts/skill_combat/configs/npc_combat.param'
 COMBAT = 'scripts/areas/area_barrows/scripts/barrows_combat.rs2'
 SETS = 'scripts/areas/area_barrows/scripts/barrows_sets.rs2'
+PUZZLE = 'scripts/areas/area_barrows/scripts/barrows_puzzle.rs2'
+CHESTIF = 'scripts/areas/area_barrows/interfaces/barrows_chest.if'
+INVCFG = 'scripts/areas/area_barrows/configs/barrows.inv'
+GENCHEST = 'tools/genbarrowschest.py'
 ALLOBJ = 'scripts/_unpack/377/all.obj'
 PMELEE = 'scripts/skill_combat/scripts/player/player_melee.rs2'
 PRANGED = 'scripts/skill_combat/scripts/player/player_ranged.rs2'
@@ -215,8 +219,8 @@ MUTS = [
  (CONST, '^barrows_loot_coins_high = 774', '^barrows_loot_coins_high = 775',
   '13 coins comes 2-774 at a time'),
  (CHESTSPEC, '"rp": 881', '"rp": 880', '13 boltrack needs 880 reward potential'),
- (CHEST, '} else if ($roll >= ^barrows_rp_blood) {\n    ~obj_giveorbank(bloodrune,',
-         '} else if ($roll >= ^barrows_rp_blood) {\n    ~obj_giveorbank(chaosrune,',
+ (CHEST, '} else if ($roll >= ^barrows_rp_blood) {\n    ~barrows_reward_add(bloodrune,',
+         '} else if ($roll >= ^barrows_rp_blood) {\n    ~barrows_reward_add(chaosrune,',
   '13 the blood band pays bloodrune'),
  (CHEST, 'if ($roll >= ^barrows_rp_dragonmed) {', 'if ($roll >= ^barrows_rp_mind) {',
   '13 the chest tests the bands from the top down'),
@@ -224,13 +228,13 @@ MUTS = [
   '13 the roll is a value in 1..potential'),
 
  # --- paying twice, and clearing the run
- (CHEST, '%barrows_chest_paid = ^true;\ndef_int $rolls',
-         'def_int $rolls',
+ (CHEST, 'p_delay(1);\n%barrows_chest_paid = ^true;', 'p_delay(1);',
   '14 looting marks the chest paid'),
  (CHEST, '%barrows_entry_crypt = ^barrows_entry_none | %barrows_chest_paid = ^true',
          '%barrows_entry_crypt = ^barrows_entry_none',
   '14 and it refuses both a second search'),
- (CHEST, '~mesbox("You loot the chest,', '%barrows_kills = 0;\n~mesbox("You loot the chest,',
+ (CHEST, '~barrows_chest_window($rolls, $potential);',
+         '%barrows_kills = 0;\n~barrows_chest_window($rolls, $potential);',
   '14 looting clears NOTHING'),
  (TUN, '%barrows_chest_paid = ^false;\n%barrows_chest_open = ^false;',
         '%barrows_chest_open = ^false;',
@@ -256,7 +260,7 @@ MUTS = [
   '15 after the chest has paid, every door is a brother'),
  (TUN, '~barrows_nth_unkilled(random($left))', '~barrows_nth_killed(random($left))',
   "15 a door's brother is one the player has NOT killed"),
- (TUN, '[oploc1,barrows_door_e_l] ~barrows_door_open(^left);\n', '',
+ (TUN, '[oploc1,barrows_door_d_l] ~barrows_door_open(^left);\n', '',
   '15 all thirty-two doorway leaves are accounted for'),
 
  # --- the passage and the ladder
@@ -303,8 +307,8 @@ MUTS = [
   '18 it lands on 0_55_51_45_48, the tile Corey asked for'),
  (CONST, '^barrows_tele_rate = 10', '^barrows_tele_rate = 8', '18 the chest pays one at 1/10'),
  (CONST, '^barrows_tele_high = 6', '^barrows_tele_high = 8', '18 and pays 4 to 6 of them'),
- (CHEST, 'if (random(^barrows_tele_rate) = 0) {\n    ~obj_giveorbank(barrows_teleport,'
-         ' ~barrows_between(^barrows_tele_low, ^barrows_tele_high));\n}', '',
+ (CHEST, 'if (random(^barrows_tele_rate) = 0) {\n    ~barrows_reward_add(barrows_teleport,\n'
+         '                        ~barrows_between(^barrows_tele_low, ^barrows_tele_high));\n}', '',
   '18 the chest is the only thing in the game that hands one over'),
  (TELE, 'inv_del(inv, barrows_teleport, 1);', 'mes("");',
   '18 breaking one spends exactly one'),
@@ -492,6 +496,67 @@ MUTS = [
   '26 ...and in pvp it skips the 40% prayer reduction as well'),
  (PRANGED, '~barrows_set_hit_npc($damage_capped, %damagetype);', '',
   '26 the player ranged path fires the sets'),
+ # --- the reward window
+ (INVCFG, '[barrows_reward_store]\nscope=perm', '[barrows_reward_store]\nscope=temp',
+  '27 ...and is scope=perm'),
+ (INVCFG, 'size=8', 'size=6',
+  '27 it has room for every roll one chest can make'),
+ ('pack/inv.pack', '414=barrows_reward_store\n', '',
+  '27 and it is in pack/inv.pack'),
+ # A mutation to the GENERATOR can only ever be caught by byte-identity, because the battery
+ # re-runs it in place before any other check reads the window - the same wall poh_mutate_spec.py
+ # was written for. The "every option has a handler" check is mutation-tested from the SCRIPT side
+ # instead, by taking one [inv_button] away.
+ (GENCHEST, "colour='0xFFFF00')", "colour='0x00FF00')",
+  '27 and the window it writes is byte-identical to the one in the tree'),
+ (GENCHEST, "com('takeall', type='text'", "com('takeall', type='rect'",
+  '27 and the window it writes is byte-identical to the one in the tree'),
+ (CHEST, '[inv_button3,barrows_chest:loot] ~barrows_reward_bank(last_slot);\n', '',
+  '27 the grid\'s option3 ("Bank") is handled'),
+ (CHEST, '[if_button,barrows_chest:takeall] ~barrows_reward_takeall;\n', '',
+  '27 and so is the Take everything button'),
+ (CHEST, 'inv_stoptransmit(barrows_chest:loot);\n~barrows_reward_flush;',
+          'inv_stoptransmit(barrows_chest:loot);',
+  '27 ...and banks whatever is left'),
+ (CHEST, '~barrows_reward_flush;\ndef_int $rolls', 'def_int $rolls',
+  '27 and the store is emptied BEFORE a new chest rolls'),
+ (CHEST, 'if ($take <= 0) {\n    mes("You do not have enough room to take that.");\n    return;\n}\n',
+          '',
+  '27 a stack that will not fit at all says so and stays put'),
+ (CHEST, '~barrows_reward_add(coins,', '~obj_giveorbank(coins,',
+  '27 nothing goes straight to the pack or the bank any more'),
+ (CHEST, 'inv_transmit(barrows_reward_store, barrows_chest:loot);\n', '',
+  '27 and the script transmits one into the other'),
+
+ # --- the door before the chest
+ (CONST, '^barrows_puzzles = 8', '^barrows_puzzles = 6',
+  "28 %barrows_puzzle's 3 bits hold exactly"),
+ (VARBIT, '[barrows_puzzle_solved]\nbasevar=barrows\nstartbit=4\nendbit=4',
+          '[barrows_puzzle_solved]\nbasevar=barrows\nstartbit=9\nendbit=9',
+  '28 barrows_puzzle_solved sits in %barrows bit 4'),
+ (PUZZLE, '"Two bones", 1, "Four bones", 0', '"Two bones", 1, "Four bones", 1',
+  '28 ...exactly one of which is right'),
+ (PUZZLE, '"A circle", 0, "A cross", 0, "A triangle", 1, "A square", 0',
+           '"A circle", 0, "A cross", 0, "A triangle", 0, "A square", 0',
+  '28 ...exactly one of which is right'),
+ (PUZZLE, 'case 7 :', 'case 9 :',
+  '28 ...keyed 0..7, which is what random() rolls'),
+ (PUZZLE, '~barrows_shift;\nreturn(^false);', 'return(^false);',
+  '28 the right answer opens the door for the run and a wrong one shifts the tunnels'),
+ (PUZZLE, '%barrows_puzzle_solved = ^false;\n', '',
+  '28 a shift re-lays the maze, re-rolls the puzzle and locks the door again'),
+ (PUZZLE, 'if (%barrows_entry_crypt = ^barrows_entry_none) {\n    return(^true);\n}\n', '',
+  '28 ...and a door opened with no run behind it asks nothing'),
+ (TUN, '[oploc1,barrows_door_j_l] ~barrows_door_puzzle(^left);',
+        '[oploc1,barrows_door_j_l] ~barrows_door_open(^left);',
+  '28 both halves of gate j ask it'),
+ (TUN, '[oploc1,barrows_door_c_l] ~barrows_door_open(^left);',
+        '[oploc1,barrows_door_c_l] ~barrows_door_puzzle(^left);',
+  '28 and those are the four that ask the puzzle'),
+ (TUN, 'if (~barrows_puzzle_gate = ^false) {\n    return;\n}\n', '',
+  '28 and a wrong answer means the door does not open at all'),
+ (TUN, '%barrows_puzzle = random(^barrows_puzzles);\n    ~mesbox("You have found', '~mesbox("You have found',
+  '28 the puzzle is rolled with the maze, on the way in'),
 ]
 
 
