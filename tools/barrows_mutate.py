@@ -50,6 +50,11 @@ SEQPACK = 'pack/seq.pack'
 ANIMPACK = 'pack/anim.pack'
 SETPACK = 'pack/animset.pack'
 BASEPACK = 'pack/base.pack'
+PZIF = 'scripts/areas/area_barrows/interfaces/barrows_puzzle.if'
+PZENUM = 'scripts/areas/area_barrows/configs/barrows_puzzle.enum'
+PZSPEC = 'tools/barrowspuzzlespec.json'
+PZOPT = 'sprites/meta/barrows_puzzle.opt'
+PZGEN = 'tools/genbarrowspuzzle.py'
 ALLNPC = 'scripts/_unpack/377/all.npc'
 SPEC = 'tools/barrowsspec.json'
 SURFACE = 'maps/m55_51.jm2'
@@ -522,9 +527,6 @@ MUTS = [
   '27 the grid\'s option3 ("Bank") is handled'),
  (CHEST, '[if_button,barrows_chest:takeall] ~barrows_reward_takeall;\n', '',
   '27 and so is the Take everything button'),
- (CHEST, 'inv_stoptransmit(barrows_chest:loot);\n~barrows_reward_flush;',
-          'inv_stoptransmit(barrows_chest:loot);',
-  '27 ...and banks whatever is left'),
  (CHEST, '~barrows_reward_flush;\ndef_int $rolls', 'def_int $rolls',
   '27 and the store is emptied BEFORE a new chest rolls'),
  (CHEST, 'if ($take <= 0) {\n    mes("You do not have enough room to take that.");\n    return;\n}\n',
@@ -541,13 +543,6 @@ MUTS = [
  (VARBIT, '[barrows_puzzle_solved]\nbasevar=barrows\nstartbit=4\nendbit=4',
           '[barrows_puzzle_solved]\nbasevar=barrows\nstartbit=9\nendbit=9',
   '28 barrows_puzzle_solved sits in %barrows bit 4'),
- (PUZZLE, '"Two bones", 1, "Four bones", 0', '"Two bones", 1, "Four bones", 1',
-  '28 ...exactly one of which is right'),
- (PUZZLE, '"A circle", 0, "A cross", 0, "A triangle", 1, "A square", 0',
-           '"A circle", 0, "A cross", 0, "A triangle", 0, "A square", 0',
-  '28 ...exactly one of which is right'),
- (PUZZLE, 'case 7 :', 'case 9 :',
-  '28 ...keyed 0..7, which is what random() rolls'),
  (PUZZLE, '~barrows_shift;\nreturn(^false);', 'return(^false);',
   '28 the right answer opens the door for the run and a wrong one shifts the tunnels'),
  (PUZZLE, '%barrows_puzzle_solved = ^false;\n', '',
@@ -622,6 +617,62 @@ MUTS = [
  (ALLNPC, 'param=rangebonus,55\nparam=proj_travel,crossbowbolt_travel',
           'param=rangebonus,55\nparam=proj_travel,crossbowbolt_launch',
   '...and Karil fires exactly that, so the two cannot drift'),
+ # ---- the crash: banking the chest's remainder from an if_close, which has no protected access
+ (CHEST, 'queue(barrows_reward_bank_rest, 0, 0);', '~barrows_reward_flush;',
+  'closing the window does NOT bank the remainder inline'),
+ (CHEST, 'queue(barrows_reward_bank_rest, 0, 0);\n', '',
+  '...it queues the banking instead, which runs with protected access on the next tick'),
+ (CHEST, '[queue,barrows_reward_bank_rest]\n~barrows_reward_flush;',
+         '[queue,barrows_reward_bank_rest]\nmes("nothing to do");',
+  '...and that queue is what does the banking'),
+ (CHEST, '~barrows_reward_flush;\ndef_int $rolls', 'def_int $rolls',
+  '...and the next chest flushes the store before it rolls'),
+
+ # ---- the picture puzzle
+ # the .if rather than the enum: this moves the answer SHAPE and leaves the enum and the spec
+ # agreeing with each other, which is the only way to reach the third of the three checks alone
+ (PZIF, '[set0pick0]\nlayer=set0\ntype=graphic\nx=172\ny=172\nwidth=32\nheight=32\ngraphic=barrows_puzzle,4',
+        '[set0pick0]\nlayer=set0\ntype=graphic\nx=172\ny=172\nwidth=32\nheight=32\ngraphic=barrows_puzzle,0',
+  '...and that slot is the one holding the right shape'),
+ (PZENUM, 'default=-1', 'default=0',
+  '...and a default of -1, so a puzzle number nothing matches can never be answered right'),
+ (PZENUM, 'val=7,1\n', '',
+  '...and the answer table is keyed 0..7, which is what random() rolls'),
+ (PZENUM, 'val=2,2', 'val=2,1',
+  'and the right answer is not always in the same place - every slot is the answer at least twice'),
+ # the spec's own slot field, which nothing used to read
+ (PZSPEC, '"slot": 0,\n      "candidates"', '"slot": 1,\n      "candidates"',
+  '...and the spec agrees with itself: candidate'),
+ (PZIF, '[set0pick0]\nlayer=set0\ntype=graphic', '[set0pick0]\nlayer=set0\ntype=rect',
+  'puzzle 0 draws its three candidates in the order the spec says'),
+ (PZIF, '[set3]\ntype=layer', '[set3]\ntype=graphic',
+  'puzzle 3 lives in a layer, because if_sethide only works on those'),
+ (PUZZLE, 'if_sethide(barrows_puzzle:set5, ^true);\n', '',
+  'showing a puzzle hides all 8 layers first'),
+ (PUZZLE, '    case 6 : if_sethide(barrows_puzzle:set6, ^false);\n', '',
+  '...and every puzzle number can then show its own'),
+ (PUZZLE, 'if_addresumebutton(barrows_puzzle:pick2);\n', '',
+  '...and slot 2 is registered as a resume button, or clicking it does nothing'),
+ (PUZZLE, 'if_openmain(barrows_puzzle);', 'if_openchat(barrows_puzzle);',
+  'the puzzle opens as a main modal'),
+ (PUZZLE, 'p_pausebutton;', 'p_delay(1);',
+  '...and p_pausebutton suspends the script until one is clicked'),
+ (PUZZLE, '    case barrows_puzzle:pick2 : return(~barrows_puzzle_right(2));\n}\nreturn(-1);',
+          '    case barrows_puzzle:pick2 : return(~barrows_puzzle_right(2));\n}\nreturn(0);',
+  'closing the window without answering returns -1, not a wrong answer'),
+ (PUZZLE, 'if ($answer = -1) {\n    return(^false);\n}\n', '',
+  '...and the gate returns without shifting the tunnels, so a misclick on Close costs nothing'),
+ (PUZZLE, 'if ($pick = enum(int, int, barrows_puzzle_answer, %barrows_puzzle)) {',
+          'if ($pick = 1) {',
+  'the pick is judged against the generated table, not a number written twice'),
+ (PZOPT, '32x32', '16x16',
+  '...and its .opt splits it into 32x32 tiles, or every index is wrong'),
+ (PZSPEC, '"cols": 6', '"cols": 4',
+  '...and the sheet is as many tiles wide as the spec says'),
+ (PZGEN, "raise SystemExit('puzzle %d offers its answer twice' % i)", 'pass',
+  'the generator refuses to emit a puzzle whose answer is also one of its wrong options'),
+ (PZGEN, "raise SystemExit('slot %d is the answer in only %d puzzle(s) - too guessable'", "print('slot %d is the answer in only %d puzzle(s) - fine'",
+  '...or a set where one slot is almost never the answer'),
 ]
 
 

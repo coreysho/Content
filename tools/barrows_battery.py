@@ -630,8 +630,12 @@ check('~barrows_between' in CHEST and 'add($low, random(add(sub($high, $low), 1)
       'and so is every quantity')
 # Paying twice, and paying for nothing.
 check('%barrows_chest_paid = ^true;' in CHEST, 'looting marks the chest paid')
+# nocomment() FIRST, and this check learned why the hard way: a comment added elsewhere in the
+# file mentioned ~barrows_chest_search by name, the raw-text grep found it after the marker, and
+# the check went green while the actual call was deleted. Same fault as the four slices that
+# swallowed the next block's comments - a check that greps source has to grep CODE.
 check('[oploc1,barrows_stone_chest]' in CHEST and '[oploc2,barrows_stone_chest]' in CHEST
-      and '~barrows_chest_search' in CHEST.split('[oploc1,barrows_stone_chest]', 1)[1],
+      and '~barrows_chest_search' in nocomment(CHEST).split('[oploc1,barrows_stone_chest]', 1)[1],
       'one op1 handler opens the chest and searches it, branching on the bit the multiloc reads')
 loot = nocomment(CHEST.split('[proc,barrows_chest_search]', 1)[1])
 check('%barrows_chest_paid = ^true' in loot
@@ -1336,9 +1340,24 @@ check(IFB.get('close', {}).get('buttontype', [None])[0] == 'close',
 check('[if_close,barrows_chest]' in CHEST and 'inv_stoptransmit(barrows_chest:loot);' in CHEST,
       'closing the window stops the transmit')
 clos = nocomment(CHEST.split('[if_close,barrows_chest]', 1)[1].split('\n[', 1)[0])
-check('~barrows_reward_flush;' in clos,
-      '...and banks whatever is left, which is the only ending that cannot cost a player a set '
-      'piece: the inventory may be full and the chest will not pay twice')
+# THE FLUSH IS QUEUED, NOT CALLED, and this check used to assert the opposite - which is how the
+# crash shipped. Player.closeModal runs an [if_close] with executeScript(script, FALSE), so an
+# if_close script has no protected access; barrows_reward_store and bank are both protect=yes and
+# INV_MOVEITEM checks both ends, so the direct call threw and took the session with it.
+# Player.processQueue runs a queue with executeScript(script, TRUE), so the move is legal a tick
+# later. Written from both sides: the call is NOT here, and the queue is.
+check('~barrows_reward_flush;' not in clos,
+      'closing the window does NOT bank the remainder inline - an if_close script has no '
+      'protected access and both invs require it')
+check('queue(barrows_reward_bank_rest, 0, 0);' in clos,
+      '...it queues the banking instead, which runs with protected access on the next tick')
+qbody = nocomment(CHEST.split('[queue,barrows_reward_bank_rest]', 1)[1].split('\n[', 1)[0])
+check('~barrows_reward_flush;' in qbody, '...and that queue is what does the banking')
+search = nocomment(CHEST.split('[proc,barrows_chest_search]', 1)[1].split('\n[', 1)[0])
+check('~barrows_reward_flush;' in search
+      and search.index('~barrows_reward_flush') < search.index('~barrows_reward_roll'),
+      '...and the next chest flushes the store before it rolls, so a player who logged out with '
+      'the window open loses nothing - the store is scope=perm')
 search = nocomment(CHEST.split('[proc,barrows_chest_search]', 1)[1].split('\n[', 1)[0])
 check('~barrows_reward_flush;' in search
       and search.index('~barrows_reward_flush') < search.index('~barrows_reward_roll'),
@@ -1370,24 +1389,142 @@ check(VB.get('barrows_puzzle_solved') == ('barrows', 4, 4),
       % (VB.get('barrows_puzzle_solved'),))
 check('barrows_puzzle_solved' in VBPACK, '...and is in pack/varbit.pack')
 
+# ---- THE PUZZLE IS PICTURES NOW, so what is checked is that the art, the answer table and the
+# script agree. All three come out of one run of tools/genbarrowspuzzle.py, and the point of these
+# checks is that they still do: the slot the script tests has to be the slot the picture puts the
+# right shape in, and nothing about the .if or the enum says which that is on its own.
+PZSPEC = json.load(open(os.path.join(C, 'tools/barrowspuzzlespec.json')))
+PZIF = read('scripts/areas/area_barrows/interfaces/barrows_puzzle.if')
+PZENUM = read('scripts/areas/area_barrows/configs/barrows_puzzle.enum')
+PZGEN = read('tools/genbarrowspuzzle.py')
+NPUZ = int(K['barrows_puzzles'])
+
+def ifcoms(txt):
+    out = {}
+    for chunk in re.split(r'(?m)^(?=\[)', txt):
+        m = re.match(r'\[(\w+)\]', chunk)
+        if not m:
+            continue
+        out[m.group(1)] = dict(re.findall(r'(?m)^(\w+)=(.*)$', chunk))
+    return out
+
+PZC = ifcoms(PZIF)
+
+check(len(PZSPEC['puzzles']) == NPUZ,
+      'there are %d puzzles and %d of them are drawn' % (NPUZ, len(PZSPEC['puzzles'])))
+
+# the answer table: one row per puzzle, keyed 0..n-1, and every value a real slot
+rows = {int(a): int(b) for a, b in re.findall(r'(?m)^val=(\d+),(\d+)$', PZENUM)}
+check(sorted(rows) == list(range(NPUZ)),
+      '...and the answer table is keyed 0..%d, which is what random() rolls: %s'
+      % (NPUZ - 1, sorted(rows)))
+check(all(0 <= v <= 2 for v in rows.values()),
+      '...with every answer a real slot: %s' % sorted(set(rows.values())))
+check('default=-1' in PZENUM,
+      '...and a default of -1, so a puzzle number nothing matches can never be answered right')
+
+# THE ONE THAT MATTERS: for every puzzle, the slot the enum names must be the slot the interface
+# put the answer shape in. This is the join between the picture and the script, and it is the only
+# thing here that a person could not see by looking at the window.
+def gfx(name):
+    """the sprite a component draws, and only if it is a graphic component at all. Asking for
+    'graphic' alone is not enough: a mutation that turned a candidate into a type=rect left the
+    graphic= line sitting there unread, and the check passed."""
+    c = PZC.get(name, {})
+    return c.get('graphic') if c.get('type') == 'graphic' else 'not a graphic: %s' % c.get('type')
+
+for i, p in enumerate(PZSPEC['puzzles']):
+    shown = [gfx('set%dpick%d' % (i, k)) for k in range(3)]
+    want = ['barrows_puzzle,%d' % PZSPEC['tiles'].index(t) for t in p['candidates']]
+    check(shown == want,
+          'puzzle %d draws its three candidates in the order the spec says (%s)'
+          % (i, 'ok' if shown == want else '%s vs %s' % (shown, want)))
+    answer = 'barrows_puzzle,%d' % PZSPEC['tiles'].index(p['answer'])
+    # THREE WAYS OF SAYING WHERE THE ANSWER IS, and all three have to agree: the spec's own slot
+    # field, the order the spec lists its candidates in, and the enum the script reads. The spec's
+    # slot used to be checked by nothing at all - a mutation moved it and the battery did not
+    # notice, because every other check happened to read 'candidates' instead.
+    check(p['candidates'][p['slot']] == p['answer'],
+          '...and the spec agrees with itself: candidate %d of puzzle %d IS its answer'
+          % (p['slot'], i))
+    check(rows.get(i) == p['slot'],
+          '...and the answer table says the same slot as the spec (%s vs %s)'
+          % (rows.get(i), p['slot']))
+    check(rows.get(i) is not None and shown[rows[i]] == answer,
+          '...and that slot is the one holding the right shape (slot %s)' % rows.get(i))
+    check(shown.count(answer) == 1,
+          '...which is the only slot holding it, so there is exactly one right answer')
+    seq = [gfx('set%dseq%d' % (i, k)) for k in range(3)]
+    check(all(x and x.startswith('barrows_puzzle,') for x in seq),
+          '...and its three sequence shapes are drawn: %s' % p['why'])
+
+# ONE check, not two: "every slot is the answer at least twice" already implies "all three slots
+# get used", and a single-row mutation can break it, where the weaker version needed two rows
+# changed at once and so could not be mutation-tested at all.
+_counts = [list(rows.values()).count(k) for k in (0, 1, 2)]
+check(min(_counts) >= 2,
+      'and the right answer is not always in the same place - every slot is the answer at least '
+      'twice: %s' % _counts)
+
+# every puzzle has a layer, and the script hides every layer it has
+for i in range(NPUZ):
+    check(PZC.get('set%d' % i, {}).get('type') == 'layer',
+          'puzzle %d lives in a layer, because if_sethide only works on those' % i)
+show = nocomment(PUZZLE.split('[proc,barrows_puzzle_show]', 1)[1].split('\n[', 1)[0])
+hidden = set(re.findall(r'if_sethide\(barrows_puzzle:set(\d+), \^true\);', show))
+shown_one = set(re.findall(r'if_sethide\(barrows_puzzle:set(\d+), \^false\);', show))
+check(hidden == {str(i) for i in range(NPUZ)},
+      'showing a puzzle hides all %d layers first: %d hidden' % (NPUZ, len(hidden)))
+check(shown_one == {str(i) for i in range(NPUZ)},
+      '...and every puzzle number can then show its own: %d cases' % len(shown_one))
+
+# the ask: a modal question answered without leaving the script
 ask = nocomment(PUZZLE.split('[proc,barrows_puzzle_ask]', 1)[1].split('\n[', 1)[0])
-cases = re.findall(r'(?ms)case (\d+) :(.*?)(?=\n    case |\n\}|\Z)', ask)
-check(len(cases) == int(K['barrows_puzzles']),
-      'there are %s puzzles and %d of them are written' % (K['barrows_puzzles'], len(cases)))
-check(sorted(int(n) for n, _ in cases) == list(range(int(K['barrows_puzzles']))),
-      '...keyed 0..%d, which is what random() rolls' % (int(K['barrows_puzzles']) - 1))
-rights = []
-for n, body in cases:
-    # \s* rather than a space: an option and its value can fall either side of a line break.
-    vals = re.findall(r'"[^"]*",\s*(\d)', body)
-    check(len(vals) == 4, 'puzzle %s offers four answers: %d' % (n, len(vals)))
-    check(vals.count('1') == 1, '...exactly one of which is right: %s' % vals)
-    if vals.count('1') == 1:
-        rights.append(vals.index('1'))
-check(len(set(rights)) >= 3,
-      'and the right answer is not always in the same place: positions %s' % sorted(set(rights)))
-check(ask.rstrip().endswith('return(0);'),
-      'a puzzle number nothing matches is wrong rather than open')
+check('if_openmain(barrows_puzzle);' in ask, 'the puzzle opens as a main modal')
+for i in range(3):
+    check('if_addresumebutton(barrows_puzzle:pick%d);' % i in ask,
+          '...and slot %d is registered as a resume button, or clicking it does nothing' % i)
+check('p_pausebutton;' in ask and 'switch_component (last_com)' in ask,
+      '...and p_pausebutton suspends the script until one is clicked, so the door handler keeps '
+      'its loc context and its protected access')
+check(ask.rstrip().endswith('return(-1);'),
+      'closing the window without answering returns -1, not a wrong answer')
+gate0 = nocomment(PUZZLE.split('[proc,barrows_puzzle_gate]', 1)[1].split('\n[', 1)[0])
+# .find(), not .index(): a mutation that deletes ~barrows_shift makes .index() RAISE, and the
+# harness reports a non-zero exit with no check named - "a crash is not a catch", which this
+# project has now written down ten times.
+check('if ($answer = -1) {' in gate0 and 0 <= gate0.find('$answer = -1') < gate0.find('~barrows_shift'),
+      '...and the gate returns without shifting the tunnels, so a misclick on Close costs nothing')
+right = nocomment(PUZZLE.split('[proc,barrows_puzzle_right]', 1)[1].split('\n[', 1)[0])
+check('enum(int, int, barrows_puzzle_answer, %barrows_puzzle)' in right,
+      'the pick is judged against the generated table, not a number written twice')
+
+# the sprite sheet the whole thing draws from
+PZPNG = os.path.join(C, 'sprites/barrows_puzzle.png')
+check(os.path.exists(PZPNG), 'sprites/barrows_puzzle.png exists - the packer scans sprites/*.png')
+check(read('sprites/meta/barrows_puzzle.opt').strip() == '%dx%d' % (PZSPEC['tile'], PZSPEC['tile']),
+      '...and its .opt splits it into %dx%d tiles, or every index is wrong'
+      % (PZSPEC['tile'], PZSPEC['tile']))
+from PIL import Image
+_im = Image.open(PZPNG).convert('RGB')
+_cols = {c for _, c in (_im.getcolors(65536) or [])}
+# the number trails rather than leads, so this check has the same NAME whether the sheet or the
+# spec was changed - a message built around the expected value cannot be attributed to itself
+check(_im.width == PZSPEC['cols'] * PZSPEC['tile'] and _im.height % PZSPEC['tile'] == 0,
+      '...and the sheet is as many tiles wide as the spec says, which is what fixes every sprite '
+      'index (spec %d, sheet %d)' % (PZSPEC['cols'], _im.width // PZSPEC['tile']))
+check((_im.width // PZSPEC['tile']) * (_im.height // PZSPEC['tile']) >= len(PZSPEC['tiles']),
+      '...with a cell for all %d tiles' % len(PZSPEC['tiles']))
+check((255, 0, 255) in _cols,
+      'the background is 0xFF00FF, which is the only colour the packer makes transparent')
+check(len(_cols) - 1 <= 255,
+      '...and %d other colours, under the 255 the palette holds before it quantizes' % (len(_cols) - 1))
+# the generator refuses to produce a puzzle with no right answer or two - checked because that
+# guarantee is the whole reason the art is drawn here rather than imported
+check('offers its answer twice' in PZGEN and 'duplicate candidates' in PZGEN,
+      'the generator refuses to emit a puzzle whose answer is also one of its wrong options')
+check('too guessable' in PZGEN,
+      '...or a set where one slot is almost never the answer')
 
 gate = nocomment(PUZZLE.split('[proc,barrows_puzzle_gate]', 1)[1].split('\n[', 1)[0])
 check('%barrows_puzzle_solved = ^true;' in gate and '~barrows_shift;' in gate,

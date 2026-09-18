@@ -121,8 +121,25 @@ if_settext(barrows_chest:subtitle,
            "<~pluralise($rolls, "roll")> at <tostring($potential)> reward potential");
 if_openmain(barrows_chest);
 
+// THE FLUSH CANNOT RUN HERE, and this cost a player his loot and his connection before it was
+// understood. Player.closeModal runs an [if_close] with executeScript(script, FALSE) - an if_close
+// script has no protected access, because the client is what asked for the close and the server
+// may be in the middle of anything. Both barrows_reward_store and bank are protect=yes, and
+// INV_MOVEITEM checks both ends, so the first inv_moveitem threw
+// "$inv requires protected access: barrows_reward_store" and took the session with it.
+//
+// A queue DOES get protected access - Player.processQueue runs it with executeScript(script, TRUE)
+// - so the banking happens one tick later instead. The trailing 0 is the unused int argument a
+// no-parameter queue is invoked with, as the thieving stalls do it.
+//
+// If the player logs out inside that one tick the queue never runs, and nothing is lost:
+// barrows_reward_store is scope=perm, so the loot is still in it next login and
+// ~barrows_chest_search flushes it before the next chest rolls. That backstop was already there.
 [if_close,barrows_chest]
 inv_stoptransmit(barrows_chest:loot);
+queue(barrows_reward_bank_rest, 0, 0);
+
+[queue,barrows_reward_bank_rest]
 ~barrows_reward_flush;
 
 [inv_button1,barrows_chest:loot] ~barrows_reward_take(last_slot);

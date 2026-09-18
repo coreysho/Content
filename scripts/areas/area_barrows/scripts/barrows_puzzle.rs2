@@ -1,16 +1,21 @@
 // The door before the chest room.
 //
-// WHAT OLD SCHOOL HAS: a pattern puzzle on the last door, four candidate symbols, and "if you get
-// the puzzle wrong, the doors and rooms within the tunnels will shift around".
+// WHAT OLD SCHOOL HAS, and what this is now: a sequence puzzle carved into the last door - three
+// symbols and a question mark, three candidates below, click the one that completes it. Get it
+// wrong and "the doors and rooms within the tunnels will shift around".
 //
-// WHAT THIS IS, AND WHY IT IS WORDS RATHER THAN SHAPES. The puzzle's art is not in the 377 cache -
-// its whole interface vocabulary is bank buttons, borders, stat icons and arrows, with nothing
-// shape-like to draw a pattern out of - and it cannot be imported from here either: sprite packing
-// is the one part of the build this environment cannot do at all (the media and title archives are
-// skipped, because jimp is stubbed), so new interface art could be added but never rendered or
-// verified. A drawn puzzle is a round of its own on a machine that can build sprites. So the gate
-// asks in the chat box, with the sequence written out, which is the same puzzle and the same
-// consequence for getting it wrong.
+// THE ART IS DRAWN, NOT IMPORTED. The 377 cache has no shape art to make a pattern out of - its
+// interface vocabulary is bank buttons, borders, stat icons and arrows - so tools/genbarrowspuzzle.py
+// draws the shapes into sprites/barrows_puzzle.png with PIL and builds the interface around them.
+// Drawing them rather than importing a sheet is what lets the puzzle SET be chosen here too, so
+// every sequence is guaranteed exactly one right answer among its three candidates. The generator
+// refuses to run if that is not true.
+//
+// WHY EIGHT LAYERS AND if_sethide. There is no if_setgraphic in this engine - a graphic
+// component's sprite is fixed at pack time (if_setobject and if_setmodel exist; sprites have no
+// equivalent). So all eight puzzles are built into the interface, one layer each, and
+// ~barrows_puzzle_show hides the seven that are not being asked. if_sethide only works on layers,
+// which is why each puzzle's six shapes live inside one.
 //
 // EIGHT PUZZLES, in %barrows_puzzle - the cache's own three bits, which nothing was using. Rolled
 // with the maze and re-rolled every time the tunnels shift, so a wrong answer is not a free retry.
@@ -28,56 +33,74 @@ if (%barrows_puzzle_solved = ^true) {
 }
 p_arrivedelay;
 p_stopaction;
-~mesbox("A pattern of symbols is carved into the door.");
-if (~barrows_puzzle_ask = 1) {
+def_int $answer = ~barrows_puzzle_ask;
+if_close;
+// 0 is a wrong answer and -1 is "closed the window without answering". Only a wrong ANSWER
+// shifts the tunnels: walking away from the door has to cost nothing, or a misclick on the
+// close button would re-lay the maze.
+if ($answer = -1) {
+    return(^false);
+}
+if ($answer = 1) {
     %barrows_puzzle_solved = ^true;
-    if_close;
     ~mesbox("The symbols sink into the stone, and the door swings open.");
     return(^true);
 }
-if_close;
 ~mesbox("The symbols flare, and a grinding roar runs through the tunnels.|The doors have shifted.");
 ~barrows_shift;
 return(^false);
 
-// THE EIGHT. Each is a sequence with one symbol missing and four ways to finish it, and the right
-// answer returns 1. Which of the four positions is right is different in every one, because four
-// puzzles whose answer is always the third option is one puzzle.
-//
-// Written out rather than driven by a table for a reason that is a rule here: a proc cannot return
-// a string in this codebase - battery check 24 enforces it - so the options cannot come out of an
-// enum, and eight switch cases of one call each is the honest shape.
+// THE ASK. if_addresumebutton plus p_pausebutton is how a modal question is asked without
+// leaving the script: the script suspends inside the [oploc1] that clicked the door - keeping its
+// loc context and its protected access - and resumes with last_com holding the button. Closing
+// the window instead of answering aborts the script, which is why the door handler treats a
+// missing answer as "nothing happened" rather than as a wrong one.
 [proc,barrows_puzzle_ask]()(int)
-switch_int (%barrows_puzzle) {
-    case 0 :
-        return(~p_choice4_header("Four skulls", 0, "Three skulls", 1, "One skull", 0,
-                                 "Six skulls", 0,
-                                 "One skull, two skulls, ... , four skulls. What is missing?"));
-    case 1 :
-        return(~p_choice4_header("A circle", 0, "A cross", 0, "A triangle", 1, "A square", 0,
-                                 "Circle, square, circle, square, circle, ... What comes next?"));
-    case 2 :
-        return(~p_choice4_header("Two bones", 1, "Four bones", 0, "One bone", 0, "Five bones",
-                                 0, "Six bones, four bones, ... . What is missing?"));
-    case 3 :
-        return(~p_choice4_header("A skull", 0, "A bone", 0, "A coffin", 0, "A cross", 1,
-                                 "Cross, cross, skull, cross, cross, ... What comes next?"));
-    case 4 :
-        return(~p_choice4_header("Three coffins", 0, "Five coffins", 1, "Two coffins", 0,
-                                 "One coffin", 0,
-                                 "One coffin, three coffins, ... . What is missing?"));
-    case 5 :
-        return(~p_choice4_header("A square", 1, "A circle", 0, "A skull", 0, "A triangle", 0,
-                                 "Triangle, circle, square, triangle, circle, ...?"));
-    case 6 :
-        return(~p_choice4_header("Eight bones", 0, "Two bones", 0, "Four bones", 1,
-                                 "Three bones", 0,
-                                 "One bone, two bones, ... , eight bones. What is missing?"));
-    case 7 :
-        return(~p_choice4_header("A cross", 0, "A coffin", 1, "A circle", 0, "A skull", 0,
-                                 "Skull, coffin, skull, coffin, skull, ... What comes next?"));
+~barrows_puzzle_show(%barrows_puzzle);
+if_openmain(barrows_puzzle);
+if_addresumebutton(barrows_puzzle:pick0);
+if_addresumebutton(barrows_puzzle:pick1);
+if_addresumebutton(barrows_puzzle:pick2);
+p_pausebutton;
+switch_component (last_com) {
+    case barrows_puzzle:pick0 : return(~barrows_puzzle_right(0));
+    case barrows_puzzle:pick1 : return(~barrows_puzzle_right(1));
+    case barrows_puzzle:pick2 : return(~barrows_puzzle_right(2));
+}
+return(-1);
+
+// The answer table is generated beside the art, so the slot the scripts check and the slot the
+// picture puts the right shape in cannot disagree - they come out of one run of one generator.
+[proc,barrows_puzzle_right](int $pick)(int)
+if ($pick = enum(int, int, barrows_puzzle_answer, %barrows_puzzle)) {
+    return(1);
 }
 return(0);
+
+// Show one puzzle and hide the other seven. Hide-all-then-show-one, in two straight runs of
+// if_sethide, for two reasons: if_sethide takes a component and nothing can compute one (an enum
+// cannot output a component type), and `$n ! 0` is not an expression in this language - `!` is
+// only a comparison inside an if condition, so the obvious one-liner does not compile. rs2check
+// accepts it; the server compiler is the one that says no.
+[proc,barrows_puzzle_show](int $n)
+if_sethide(barrows_puzzle:set0, ^true);
+if_sethide(barrows_puzzle:set1, ^true);
+if_sethide(barrows_puzzle:set2, ^true);
+if_sethide(barrows_puzzle:set3, ^true);
+if_sethide(barrows_puzzle:set4, ^true);
+if_sethide(barrows_puzzle:set5, ^true);
+if_sethide(barrows_puzzle:set6, ^true);
+if_sethide(barrows_puzzle:set7, ^true);
+switch_int ($n) {
+    case 0 : if_sethide(barrows_puzzle:set0, ^false);
+    case 1 : if_sethide(barrows_puzzle:set1, ^false);
+    case 2 : if_sethide(barrows_puzzle:set2, ^false);
+    case 3 : if_sethide(barrows_puzzle:set3, ^false);
+    case 4 : if_sethide(barrows_puzzle:set4, ^false);
+    case 5 : if_sethide(barrows_puzzle:set5, ^false);
+    case 6 : if_sethide(barrows_puzzle:set6, ^false);
+    case 7 : if_sethide(barrows_puzzle:set7, ^false);
+}
 
 // WHAT A WRONG ANSWER COSTS: a new maze and a new puzzle, which is the wiki's "the doors and rooms
 // within the tunnels will shift around". Nothing about the run's progress is touched - the
