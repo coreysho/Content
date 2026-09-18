@@ -44,6 +44,13 @@ RS2 = 'scripts/areas/area_barrows/scripts/barrows.rs2'
 STAIRS = 'scripts/ladders+stairs/scripts/stairs.rs2'
 SPADE = 'scripts/general_use/scripts/spade.rs2'
 ALLNPC = 'scripts/_unpack/377/all.npc'
+ANIMSPEC = 'tools/karilanimspec.json'
+XBOWSEQ = 'scripts/skill_combat/configs/ranged/osrs_crossbow_anims.seq'
+SEQPACK = 'pack/seq.pack'
+ANIMPACK = 'pack/anim.pack'
+SETPACK = 'pack/animset.pack'
+BASEPACK = 'pack/base.pack'
+ALLNPC = 'scripts/_unpack/377/all.npc'
 SPEC = 'tools/barrowsspec.json'
 SURFACE = 'maps/m55_51.jm2'
 VARPPACK = 'pack/varp.pack'
@@ -557,6 +564,64 @@ MUTS = [
   '28 and a wrong answer means the door does not open at all'),
  (TUN, '%barrows_puzzle = random(^barrows_puzzles);\n    ~mesbox("You have found', '~mesbox("You have found',
   '28 the puzzle is rolled with the maze, on the way in'),
+ # ---- Karil's OSRS crossbow animation
+ (ANIMSPEC, '"delays_identical": true', '"delays_identical": false',
+  "ahrim: the 377 animation is OSRS's frame for frame"),
+ (ALLNPC, 'param=attack_anim,barrows_quarterstaff_attack',
+          'param=attack_anim,osrs_karil_crossbow_fire',
+  '...and ahrim still names it'),
+ (ANIMSPEC, '"cache377_frames": 7', '"cache377_frames": 22',
+  'Karil is the exception: 377 gives the crossbow'),
+ (XBOWSEQ, '[osrs_karil_crossbow_fire]', '[osrs_karil_crossbow_fire_gone]',
+  '[osrs_karil_crossbow_fire] is in the generated .seq config'),
+ (SEQPACK, '=osrs_karil_crossbow_run\n', '=osrs_karil_crossbow_run_gone\n',
+  '...and registered in pack/seq.pack, or nothing can name it'),
+ (XBOWSEQ, 'frame22=anim_osrs_11654_1\ndelay22=3\n', '',
+  "...with OSRS seq 2075's 22 frames"),
+ # the one that is not cosmetic: a converted frame's own baked delay is 1, so a missing delay
+ # line does not fall back to OSRS's timing - it falls back to playing the animation flat out
+ (XBOWSEQ, 'frame8=anim_osrs_11654_8\ndelay8=6', 'frame8=anim_osrs_11654_8',
+  "...and a delay line per frame, equal to OSRS's"),
+ (XBOWSEQ, 'delay1=21', 'delay1=7',
+  "...and a delay line per frame, equal to OSRS's"),
+ (ANIMPACK, '=anim_osrs_11654_15\n', '=anim_osrs_11654_15_gone\n',
+  '...and every frame it names is in pack/anim.pack'),
+ (XBOWSEQ, '// OSRS seq 2075\nwalkmerge', '// OSRS seq 2075\npriority=1\nwalkmerge',
+  "...and OSRS's priority, once"),
+ (XBOWSEQ, '[osrs_karil_crossbow_walk]\n// OSRS seq 2076',
+           '[osrs_karil_crossbow_walk]\n// OSRS seq 2076\npriority=6',
+  "...and OSRS's priority, once"),
+ (SETPACK, '=anim_osrs_11654\n', '=anim_osrs_11654_gone\n',
+  '...and is registered in pack/animset.pack'),
+ (BASEPACK, '=base_osrs_11654\n', '=base_osrs_11654_gone\n',
+  '...and its base in pack/base.pack'),
+ (ALLOBJ, '[barrows_karil_weapon_50]', '[barrows_karil_weapon_50x]',
+  'the crossbows that can be held are exactly the five checked above'),
+ (ALLOBJ, 'param=rangeattack_anim,osrs_karil_crossbow_fire\nparam=defend_anim,human_unarmedblock\n'
+          'param=rangeattack_sound,crossbow\nparam=damagetype,^ranged_style\n'
+          'param=ready_baseanim,osrs_karil_crossbow_ready',
+          'param=rangeattack_anim,osrs_karil_crossbow_fire\nparam=defend_anim,human_unarmedblock\n'
+          'param=rangeattack_sound,crossbow\nparam=damagetype,^ranged_style\n'
+          'param=ready_baseanim,barrows_repeating_crossbow_ready',
+  'nothing still points at the 377 crossbow animations'),
+ # the degrade states, one at a time: the 25% bow left behind is the failure this group exists for
+ (ALLOBJ, '[barrows_karil_weapon_25]\nname=Karils x-bow 25',
+          '[barrows_karil_weapon_25]\nname=Karils x-bow 25\nparam=rangeattack_anim,barrow_dharok_slash',
+  'barrows_karil_weapon_25 fires with the OSRS animation'),
+ (ALLOBJ, '[barrows_karil_weapon_broken]\nname=Karils x-bow 0',
+          '[barrows_karil_weapon_broken]\nname=Karils x-bow 0\nparam=ready_baseanim,human_dh_weapon_ready',
+  '...and the one that cannot names no animation at all'),
+ (ALLOBJ, '// walk-merges two frames built on the same skeleton (Model.java: "if (!sameSkeleton(...))"',
+          '// walk-merges two frames built on the same base',
+  'and the obj records why the whole set had to move'),
+ (ALLOBJ, '[barrows_karil_ammo]\nname=Bolt rack', '[barrows_karil_ammo]\nname=Bolt bundle',
+  "...and it really is the bolt rack"),
+ # anchored on the line above it: 'param=proj_travel,crossbowbolt_travel' appears on THREE npcs
+ # in all.npc, and the unanchored version of this mutation edited one of the other two and was
+ # quite correctly not caught. param=rangebonus,55 is Karil's alone.
+ (ALLNPC, 'param=rangebonus,55\nparam=proj_travel,crossbowbolt_travel',
+          'param=rangebonus,55\nparam=proj_travel,crossbowbolt_launch',
+  '...and Karil fires exactly that, so the two cannot drift'),
 ]
 
 

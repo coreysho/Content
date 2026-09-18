@@ -59,6 +59,14 @@ STAIRS = read('scripts/ladders+stairs/scripts/stairs.rs2')
 SPADE  = read('scripts/general_use/scripts/spade.rs2')
 NPCCFG = read('scripts/_unpack/377/all.npc')
 
+def objblock(name):
+    """The raw text of one [name] block in all.obj - the whole block, comments and all, because
+    some of what is checked about the crossbows IS the comment recording why."""
+    return ALLOBJ.split('[' + name + ']', 1)[1].split('\n[', 1)[0] if '[' + name + ']' in ALLOBJ else ''
+
+def npcblock(name):
+    return NPCCFG.split('[' + name + ']', 1)[1].split('\n[', 1)[0] if '[' + name + ']' in NPCCFG else ''
+
 def consts(txt):
     return {m.group(1): m.group(2).strip()
             for m in re.finditer(r'(?m)^\^(\w+)\s*=\s*(.+?)\s*$', txt)}
@@ -1422,6 +1430,124 @@ check('%barrows_puzzle = random(^barrows_puzzles);' in nocomment(TUN),
       'the puzzle is rolled with the maze, on the way in')
 check('%barrows_puzzle_solved = ^false;' in begin,
       'and a new run locks the door again')
+
+print('--- Karil shoots with the OSRS animation')
+# The one Barrows attack animation that actually differs between the two caches. Everything here
+# is compared against tools/karilanimspec.json, which was written by decoding BOTH caches before
+# any of it was imported - so a check passing means the server agrees with OSRS, not with itself.
+ANIMSPEC = json.load(open(os.path.join(C, 'tools/karilanimspec.json')))
+SEQCFG = read('scripts/skill_combat/configs/ranged/osrs_crossbow_anims.seq')
+SEQPACK = read('pack/seq.pack')
+ANIMPACK = read('pack/anim.pack')
+SETPACK = read('pack/animset.pack')
+BASEPACK = read('pack/base.pack')
+
+def seqblock(name):
+    return SEQCFG.split('[' + name + ']', 1)[1].split('\n[', 1)[0] if '[' + name + ']' in SEQCFG else ''
+
+# the five that were deliberately left alone, and the measurement that says why
+for who, d in ANIMSPEC['unchanged'].items():
+    check(d['delays_identical'],
+          '%s: the 377 animation is OSRS\'s frame for frame and delay for delay '
+          '(%d frames, %d ticks), so it was left alone' % (who, d['frames'], d['ticks']))
+    check('param=attack_anim,%s' % d['seq'] in npcblock('barrows_' + who),
+          '...and %s still names it' % who)
+
+# ...and the one that is not
+fire = ANIMSPEC['imported']['osrs_karil_crossbow_fire']
+check(fire['differs'] and fire['cache377_frames'] == 7 and fire['osrs_frames'] == 22,
+      'Karil is the exception: 377 gives the crossbow %d frames over %d ticks where OSRS gives '
+      '%d over %d' % (fire['cache377_frames'], fire['cache377_ticks'],
+                      fire['osrs_frames'], fire['osrs_ticks']))
+
+for name, d in ANIMSPEC['imported'].items():
+    blk = seqblock(name)
+    check(blk != '', '[%s] is in the generated .seq config' % name)
+    check('%s\n' % name in SEQPACK or SEQPACK.rstrip().endswith('=' + name),
+          '...and registered in pack/seq.pack, or nothing can name it')
+    frames = re.findall(r'(?m)^frame\d+=(\S+)$', blk)
+    delays = [int(x) for x in re.findall(r'(?m)^delay\d+=(\d+)$', blk)]
+    check(len(frames) == d['osrs_frames'],
+          '...with OSRS seq %d\'s %d frames (%d)' % (d['osrs_seq'], d['osrs_frames'], len(frames)))
+    # EVERY frame needs its own delay line here, and that is not cosmetic: a converted frame's
+    # OWN baked delay is 1, because animconvosrs puts OSRS's timing in the seq where OSRS keeps
+    # it. A missing delay line falls back to that 1 and the animation plays several times too
+    # fast - which is exactly the failure a 377 seq with no delay lines does NOT have.
+    check(delays == d['osrs_delays'],
+          '...and a delay line per frame, equal to OSRS\'s (%d ticks)' % d['osrs_ticks'])
+    missing = [f for f in frames if '=' + f + '\n' not in ANIMPACK + '\n']
+    check(not missing, '...and every frame it names is in pack/anim.pack (%s)'
+          % (missing[:3] or 'all %d' % len(frames)))
+    # EXACTLY ONE priority line, and only where OSRS has one. The first version of this asked
+    # whether 'priority=6' appeared anywhere in the block, and a mutation that ADDED priority=1
+    # above it passed - the old line was still there. Counting the lines catches both.
+    prios = re.findall(r'(?m)^priority=(\d+)$', blk)
+    check(prios == ([str(d['osrs_priority'])] if d['osrs_priority'] is not None else []),
+          '...and OSRS\'s priority, once: %s (got %s)'
+          % (d['osrs_priority'] if d['osrs_priority'] is not None else 'none', prios))
+
+groups = sorted(set(re.findall(r'frame\d+=anim_osrs_(\d+)_\d+', SEQCFG)), key=int)
+check(len(groups) == 4, 'the four animations come from four frame groups (%s)' % groups)
+for g in groups:
+    check(os.path.exists(os.path.join(C, 'models/anim_osrs_%s.anim' % g)),
+          'models/anim_osrs_%s.anim exists' % g)
+    check('=anim_osrs_%s\n' % g in SETPACK + '\n', '...and is registered in pack/animset.pack' )
+    check('=base_osrs_%s\n' % g in BASEPACK + '\n',
+          '...and its base in pack/base.pack - an OSRS frame plays on the OSRS skeleton, not '
+          'the 377 one')
+
+# THE DEGRADE STATES. Five crossbow objs, not one: the pristine item and the four charge states.
+# Miss one and the animation changes as the crossbow wears out.
+XBOWS = ('barrows_karil_weapon', 'barrows_karil_weapon_100', 'barrows_karil_weapon_75',
+         'barrows_karil_weapon_50', 'barrows_karil_weapon_25')
+for w in XBOWS:
+    blk = nocomment(objblock(w))
+    # ONE line per param, not "the right value appears somewhere in the block". A mutation that
+    # ADDED a second rangeattack_anim naming a 377 animation passed the substring version of this
+    # check, and a duplicate param is a real config error in its own right - the packer takes one
+    # of the two and which one is not obvious from reading the file.
+    got = dict()
+    for k in ('rangeattack_anim', 'ready_baseanim', 'walk_f_baseanim', 'walk_b_baseanim',
+              'walk_l_baseanim', 'walk_r_baseanim', 'running_baseanim'):
+        got[k] = re.findall(r'(?m)^param=%s,(\S+)$' % k, blk)
+    check(got['rangeattack_anim'] == ['osrs_karil_crossbow_fire'],
+          '%s fires with the OSRS animation, and names it once (%s)'
+          % (w, got['rangeattack_anim']))
+    check(got['ready_baseanim'] == ['osrs_karil_crossbow_ready']
+          and all(got['walk_%s_baseanim' % d] == ['osrs_karil_crossbow_walk'] for d in 'fblr')
+          and got['running_baseanim'] == ['osrs_karil_crossbow_run'],
+          '...and its ready, four walks and run come across with it, once each')
+# EVERY crossbow that can be held, not just the pristine one: there are six objs and the sixth,
+# barrows_karil_weapon_broken ("Karils x-bow 0"), carries no iop2=Wield and no animation params at
+# all, because a fully degraded crossbow cannot be wielded. Counting to five would have passed by
+# luck; this asks the objs which of them can be held. The first version of this check DID count to
+# five, and went red on the broken one - which is how the exclusion came to be stated rather than
+# assumed.
+allxbow = [n for n in re.findall(r'(?m)^\[(barrows_karil_weapon\w*)\]$', ALLOBJ)]
+wieldable = [n for n in allxbow if 'iop2=Wield' in objblock(n)]
+check(sorted(wieldable) == sorted(XBOWS),
+      'the crossbows that can be held are exactly the five checked above (%d objs, %d wieldable)'
+      % (len(allxbow), len(wieldable)))
+check(all('_anim,' not in objblock(n) and '_baseanim,' not in objblock(n)
+          for n in allxbow if n not in wieldable),
+      '...and the one that cannot names no animation at all: %s'
+      % ([n for n in allxbow if n not in wieldable] or 'none'))
+# WHY the whole set moves and not just the attack: the client only walk-merges two frames built on
+# the same skeleton, so an OSRS fire against a 377 walk drops one of the two.
+check('sameSkeleton' in nocomment(objblock('barrows_karil_weapon')) or 'sameSkeleton' in objblock('barrows_karil_weapon'),
+      'and the obj records why the whole set had to move, not just the attack')
+check(not re.search(r'param=\w+,barrows_repeating_crossbow_\w+', ALLOBJ + NPCCFG),
+      'nothing still points at the 377 crossbow animations')
+
+# The bolt itself is the AMMUNITION's, not a choice made here.
+ammo = objblock('barrows_karil_ammo')
+check('param=proj_travel,crossbowbolt_travel' in ammo,
+      'the bolt rack says what it looks like in flight: crossbowbolt_travel')
+check('param=proj_travel,crossbowbolt_travel' in npcblock('barrows_karil'),
+      '...and Karil fires exactly that, so the two cannot drift')
+check('name=Bolt rack' in ammo,
+      '...and it really is the bolt rack - OSRS\'s ammunition for this crossbow, already in the '
+      'cache, so there was nothing to import')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
