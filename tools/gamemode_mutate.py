@@ -19,6 +19,9 @@ W = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'gamemode_mutate_work')
 FOREIGN = {
     'engine:src/engine/entity/Player.ts': ENGINE,
     'engine:src/network/game/client/handler/ClientCheatHandler.ts': ENGINE,
+    # the XP lock's bit layout is checked against the packer's own stat list, so that list has to
+    # be in the work tree AND has to be mutable - a check whose anchor cannot move is not anchored
+    'engine:tools/pack/config/ParamConfig.ts': ENGINE,
 }
 
 CONST = 'scripts/gamemodes/configs/gamemode.constant'
@@ -32,8 +35,85 @@ IPACK = 'pack/interface.pack'
 PLAYER = 'engine:src/engine/entity/Player.ts'
 CHEAT = 'engine:src/network/game/client/handler/ClientCheatHandler.ts'
 FLETCH = 'scripts/skill_fletching/scripts/arrows.rs2'
+XPLOCK = 'scripts/gamemodes/scripts/xplock.rs2'
+GENLOCK = 'tools/genxplock.py'
+STATSIF = 'scripts/interfaces/stats.if'
+LOGIN = 'scripts/login_logout/scripts/login.rs2'
+PARAMCFG = 'engine:tools/pack/config/ParamConfig.ts'
 
 MUTS = [
+ # ---- 8 the lock bits
+ (CONST, '^xplock_attack = 0', '^xplock_attack = 1',
+  "every ^xplock_ bit is that skill's own index in the engine's list"),
+ (CONST, '^xplock_construction = 21', '^xplock_construction = 20',
+  "every ^xplock_ bit is that skill's own index in the engine's list"),
+ (CONST, '^xplock_skills = 22', '^xplock_skills = 21',
+  '^xplock_skills is the number of stats the engine has'),
+ (GENLOCK, "'attack', 'defence', 'strength'", "'defence', 'attack', 'strength'",
+  "tools/genxplock.py's STAT_ORDER is the engine's list, in order"),
+ # the anchor moving is the case this is all for: the engine renames a stat and the bits follow
+ (PARAMCFG, "    'runecraft',\n    'construction'", "    'construction',\n    'runecraft'",
+  "every ^xplock_ bit is that skill's own index in the engine's list"),
+
+ # ---- 9 the engine
+ (PLAYER, '        if (allowMulti && this.xpLocked(stat)) {\n            this.warnXpLocked(stat);\n            return;\n        }\n\n',
+          '',
+  'addXp asks whether the skill is locked'),
+ (PLAYER, '        return ((this.vars[Player.xpLockedVarp] >>> stat) & 1) === 1;',
+          '        return ((this.vars[Player.xpLockedVarp] >>> 0) & 1) === 1;',
+  '...testing bit `stat` itself, so the engine keeps no table of its own'),
+ (PLAYER, ' || stat < 0 || stat >= PLAYER_STAT_COUNT', '',
+  '...with the stat id railed, because a bitmask shifted past 31 wraps'),
+ (PLAYER, "            Player.xpLockedVarp = VarPlayerType.getId('xp_locked');",
+          '            Player.xpLockedVarp = 1177;',
+  '...and finds the varp by NAME, so content owns which varp it is'),
+ (PLAYER, 'private static xpLockedVarp: number = -2;', 'private static xpLockedVarp: number = -1;',
+  '...behind the same -2 sentinel xp_rate uses'),
+ (PLAYER, 'World.currentTick - last < 100', 'World.currentTick - last < 0',
+  '...at most once a minute a skill, so training a locked skill is not a wall of text'),
+ (PLAYER, 'private xpLockWarned: Int32Array = new Int32Array(PLAYER_STAT_COUNT);',
+          'private xpLockWarned: Int32Array = new Int32Array(22);',
+  '...throttled by a plain field sized to the stat count, not by a varp'),
+ (VARP, '[xp_locked]\nscope=perm', '[xp_locked]\nscope=temp',
+  "the lock is perm - it is the account's until the player lifts it"),
+ (VARP, '[xp_locked]\nscope=perm', '[xp_locked]\nscope=perm\ntransmit=yes',
+  '...and not transmitted: the client never reads it'),
+ (VARPPACK, '1177=xp_locked\n', '',
+  'xp_locked is the newest varp id, so nothing already saved moved under it'),
+
+ # ---- 10 the stats tab
+ (STATSIF, '[xplock_attack]\ntype=text\nx=0\ny=2\nbuttontype=normal\nwidth=64\nheight=31\noverlayer=com_122\noption=Toggle @or1@Attack @whi@XP-lock\n\n',
+           '',
+  'one lock button per skill box'),
+ # THE ONE THIS ROUND EXISTS FOR: a lock button no longer paired with its own box, which is the
+ # same shape as one emitted after the guide button - the left click would stop being the guide.
+ (STATSIF, '[com_68]\ntype=text\nx=0\ny=2\nbuttontype=normal\nwidth=64\nheight=31\noverlayer=com_122',
+           '[com_68]\ntype=text\nx=0\ny=2\nbuttontype=normal\nwidth=64\nheight=31\noverlayer=com_164',
+  'each one is emitted BEFORE its guide button, so left click still opens the guide'),
+ (STATSIF, 'option=Toggle @or1@Attack @whi@XP-lock', 'option=Toggle @or1@Defence @whi@XP-lock',
+  'no two say the same thing'),
+ (IPACK, '20576=stats:xplock_attack\n', '',
+  'every one has an id in interface.pack'),
+ (XPLOCK, '        if_settext(stats:com_125, "Next Level At:");',
+          '        if_settext(stats:com_131, "Next Level At:");',
+  "and rewrites a label inside its own skill's hover panel"),
+
+ # ---- 11 the lock is not a loophole
+ (LOGIN, '~xplock_restore;', '//~xplock_restore;',
+  'login re-marks the tab, because the client loads its text from the cache'),
+ (XPLOCK, 'if (%xp_locked = 0) {', 'if (%xp_locked = 99) {',
+  '...and sends nothing at all for an account with nothing locked'),
+ (FLETCH, 'stat_advance(fletching, multiply($arrow_count, 10));',
+          'stat_advance(fletching, multiply($arrow_count, %xp_locked));',
+  '%xp_locked is read nowhere else in the content tree'),
+ (FLETCH, 'stat_advance(fletching, multiply($arrow_count, 10));',
+          'stat_advance(fletching, multiply($arrow_count, ^xplock_attack));',
+  'no ^xplock_ constant is used outside it either'),
+
+ # ---- 12 reproducibility
+ (XPLOCK, '// The per-skill XP lock.', '// The per-skill XP lock (hand edited).',
+  're-running it changes nothing'),
+
  # ---- 1 the rates
  (CONST, '^xprate_unset = 0', '^xprate_unset = 2',
   '"never chosen" is 0, which is what a varp reads as before anybody touches it'),

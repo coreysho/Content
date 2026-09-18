@@ -10,3 +10,13 @@
 // use for the number; the engine reads it server-side in Player.addXp.
 [xp_rate]
 scope=perm
+
+// Which skills refuse experience, one bit each, at the skill's own index in the
+// engine's stat order - see ^xplock_* in gamemode.constant. Read by Player.addXp,
+// which returns before the experience is added.
+//
+// scope=perm because a lock is the account's until the player lifts it. NOT
+// transmitted: the client has no use for it, and the stats tab's LOCKED markers are
+// pushed as text by ~xplock_restore at login rather than driven from a varp.
+[xp_locked]
+scope=perm

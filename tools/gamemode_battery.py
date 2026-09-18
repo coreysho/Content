@@ -32,6 +32,18 @@ def check(ok, what):
 def code(txt): return '\n'.join(l.split('//')[0] for l in txt.split('\n'))
 def block(txt, n):
     return txt.split('[' + n + ']', 1)[1].split('\n[', 1)[0] if '[' + n + ']' in txt else ''
+def varpblock(txt, n):
+    """A .varp block ends at the first BLANK LINE, not at the next [name]. block() would run on
+    through the comment that introduces the next block - which is how adding [xp_locked] made the
+    'xp_rate is not transmitted' check go red over a comment about xp_locked."""
+    if '[' + n + ']' not in txt:
+        return ''
+    out = []
+    for l in txt.split('[' + n + ']', 1)[1].split('\n')[1:]:
+        if not l.strip() or l.startswith('['):
+            break
+        out.append(l)
+    return '\n'.join(out)
 
 CONST = read('scripts/gamemodes/configs/gamemode.constant')
 VARP = read('scripts/gamemodes/configs/gamemode.varp')
@@ -77,7 +89,7 @@ check(const(CONST, 'xprate_modes') == 3, 'there are three modes')
 
 # ============================================================================ 2
 print('2. where the rate lives')
-xp = block(VARP, 'xp_rate')
+xp = varpblock(VARP, 'xp_rate')
 check('scope=perm' in xp, "the rate is perm - it is the account's for good")
 check('transmit' not in xp,
       '...and NOT transmitted: the window is only ever open while the rate is unset, so the '
@@ -235,6 +247,184 @@ check('%xp_rate' not in dbg,
       '...and does not write the varp inline, which is a build error rather than a surprise')
 q = code(block(RS2, 'queue,xprate_debug_set'))
 check('%xp_rate = $rate;' in q, '...and the queue is what writes it')
+
+# ============================================================================ 8
+print('8. the lock bits are the engine\'s own stat order, read from the engine')
+# THE ANCHOR. Everything else about the lock is this round's own work checking this round's own
+# work; the bit layout is the one thing with an outside source, and it is the one thing that
+# silently ruins the feature if it drifts - a wrong bit locks the wrong skill and nothing errors.
+# ParamConfig.ts is the list the PACKER resolves a `stat` symbol through, so it is what decides
+# what number the engine's addXp is handed.
+PARAMCFG = readat(ENGINE, 'tools/pack/config/ParamConfig.ts')
+XPLOCK = read('scripts/gamemodes/scripts/xplock.rs2')
+GENLOCK = read('tools/genxplock.py')
+STATSIF = read('scripts/interfaces/stats.if')
+if PARAMCFG is None:
+    check(False, 'the engine repo is not beside content - pass its path as argv[1]')
+else:
+    m = re.search(r'const stats: \(string \| null\)\[\] = \[(.*?)\];', PARAMCFG, re.S)
+    check(m is not None, 'ParamConfig.ts still declares the stat list the packer resolves through')
+    engine_stats = re.findall(r"'([a-z]+)'", m.group(1)) if m else []
+    mine = dict((k, int(v)) for k, v in re.findall(r'(?m)^\^xplock_([a-z]+) = (\d+)$', CONST)
+                if k != 'skills')
+    check(len(engine_stats) == len(mine),
+          'there is one ^xplock_ constant per stat: %d constants, %d stats'
+          % (len(mine), len(engine_stats)))
+    wrong = [(k, v, engine_stats.index(k) if k in engine_stats else None)
+             for k, v in sorted(mine.items()) if engine_stats[v:v + 1] != [k]]
+    check(not wrong, 'every ^xplock_ bit is that skill\'s own index in the engine\'s list: %s'
+          % (wrong[:3] or 'all %d agree' % len(mine)))
+    check(const(CONST, 'xplock_skills') == len(engine_stats),
+          '^xplock_skills is the number of stats the engine has')
+    # and the generator's transcription of that list is the same list
+    g = re.search(r'STAT_ORDER = \[(.*?)\]', GENLOCK, re.S)
+    gen_stats = re.findall(r"'([a-z]+)'", g.group(1)) if g else []
+    check(gen_stats == engine_stats,
+          'tools/genxplock.py\'s STAT_ORDER is the engine\'s list, in order')
+
+# ============================================================================ 9
+print('9. the engine refuses a locked skill\'s experience, and only that')
+lk = varpblock(VARP, 'xp_locked')
+check('scope=perm' in lk, "the lock is perm - it is the account's until the player lifts it")
+check('transmit' not in lk, '...and not transmitted: the client never reads it')
+if PLAYER is None:
+    check(False, 'the engine repo is not beside content')
+else:
+    guard = 'if (allowMulti && this.xpLocked(stat)) {'
+    check(guard in PLAYER, 'addXp asks whether the skill is locked')
+    check(PLAYER.index(guard) < PLAYER.index('const multi = allowMulti'),
+          '...before it works out the multiplier, so a locked skill costs nothing to refuse')
+    check(PLAYER.index('if (xp == 0) {') < PLAYER.index(guard),
+          '...and after the zero-xp early out, so a no-op cannot print a warning')
+    lock = PLAYER.split('xpLocked(stat: number): boolean {', 1)[1].split('\n    }', 1)[0] \
+        if 'xpLocked(stat: number): boolean {' in PLAYER else ''
+    check(lock != '', 'Player.xpLocked() exists')
+    check("VarPlayerType.getId('xp_locked')" in lock,
+          '...and finds the varp by NAME, so content owns which varp it is')
+    check('Player.xpLockedVarp === -2' in lock and 'private static xpLockedVarp: number = -2;' in PLAYER,
+          '...behind the same -2 sentinel xp_rate uses')
+    check('Player.xpLockedVarp < 0' in lock and 'return false;' in lock,
+          '...and a MISSING varp locks nothing, rather than locking everything')
+    check('>>> stat) & 1' in lock,
+          '...testing bit `stat` itself, so the engine keeps no table of its own')
+    check('stat >= PLAYER_STAT_COUNT' in lock,
+          '...with the stat id railed, because a bitmask shifted past 31 wraps')
+    # ::setlevel must still work on a locked skill - it is not the player earning anything
+    check('player.addXp(stat, getExpByLevel(parseInt(args[1])), false);' in (CHEAT or ''),
+          '::setlevel still passes allowMulti=false, so it works on a locked skill')
+    warn = PLAYER.split('private warnXpLocked(stat: number): void {', 1)[1].split('\n    }', 1)[0] \
+        if 'private warnXpLocked(stat: number): void {' in PLAYER else ''
+    check(warn != '', 'it says so rather than refusing in silence')
+    check('World.currentTick - last < 100' in warn,
+          '...at most once a minute a skill, so training a locked skill is not a wall of text')
+    check('private xpLockWarned: Int32Array = new Int32Array(PLAYER_STAT_COUNT);' in PLAYER,
+          '...throttled by a plain field sized to the stat count, not by a varp')
+
+# ============================================================================ 10
+print('10. the stats tab: 22 second options that cannot become the left click')
+IFS = []
+for chunk in re.split(r'(?m)^(?=\[)', STATSIF):
+    mm = re.match(r'\[(\w+)\]', chunk)
+    if mm:
+        IFS.append((mm.group(1), dict(re.findall(r'(?m)^(\w+)=(.*)$', chunk))))
+pos = {n: i for i, (n, _) in enumerate(IFS)}
+byn = dict(IFS)
+locks = [n for n, _ in IFS if n.startswith('xplock_')]
+guides = [(n, d) for n, d in IFS if d.get('buttontype') == 'normal' and 'overlayer' in d
+          and not n.startswith('xplock_')]
+check(len(locks) == len(guides) == 22,
+      'one lock button per skill box: %d locks, %d boxes' % (len(locks), len(guides)))
+bad = [n for n in locks if 'option' not in byn[n] or byn[n].get('buttontype') != 'normal']
+check(not bad, 'every one is a normal button with an option: %s' % (bad or 'all 22'))
+# THE CHECK THIS ROUND EXISTS FOR. Client.java: the left-click action is menuOption[menuSize - 1],
+# the LAST option appended, and components are walked in child order - so a lock button after its
+# guide button would make LOCKING the left click on a skill box.
+late = []
+for n in locks:
+    same = [g for g, d in guides if d['overlayer'] == byn[n]['overlayer']]
+    if not same or pos[n] > pos[same[0]]:
+        late.append(n)
+check(not late, 'each one is emitted BEFORE its guide button, so left click still opens the '
+                'guide: %s' % (late or 'all 22'))
+def guide_for(n):
+    same = [g for g, d in guides if d['overlayer'] == byn[n]['overlayer']]
+    return same[0] if same else None
+geom = [n for n in locks
+        if guide_for(n) is None
+        or any(byn[n][k] != byn[guide_for(n)][k] for k in ('x', 'y', 'width', 'height'))]
+check(not geom, 'each one covers exactly its own skill box: %s' % (geom or 'all 22'))
+names = [byn[n]['option'] for n in locks]
+check(len(set(names)) == len(names), 'no two say the same thing: %d distinct' % len(set(names)))
+packed = dict(l.split('=', 1)[::-1] for l in IPACK.split('\n') if '=' in l)
+missing = [n for n in locks if 'stats:' + n not in packed]
+check(not missing, 'every one has an id in interface.pack: %s' % (missing or 'all 22'))
+ordered = {l.strip() for l in IORDER.split('\n') if l.strip()}
+missing = [n for n in locks if packed.get('stats:' + n) not in ordered]
+check(not missing, '...and is in interface.order: %s' % (missing or 'all 22'))
+driven = sorted(set(re.findall(r'\[if_button,stats:(\w+)\]', XPLOCK)))
+check(driven == sorted(locks), 'every button has a trigger and every trigger has a button')
+# the label each trigger rewrites has to belong to that skill's OWN hover panel
+crossed = []
+for n in locks:
+    body = XPLOCK.split('[if_button,stats:%s]' % n, 1)[1].split('\n[', 1)[0]
+    ov = byn[n]['overlayer']
+    for lab in set(re.findall(r'if_settext\(stats:(\w+),', body)):
+        if byn.get(lab, {}).get('layer') != ov:
+            crossed.append((n, lab))
+check(not crossed, 'and rewrites a label inside its own skill\'s hover panel: %s'
+      % (crossed[:3] or 'all 22'))
+
+# ============================================================================ 11
+print('11. a lock never waives a requirement')
+# Corey's constraint, as a check rather than a claim. A lock can only become a loophole if
+# something branches on it, so the strong version is that nothing outside the file that owns it
+# can see it at all - the same shape as the %xp_rate check above.
+readers, writers = [], []
+for dp, dn, fn in os.walk(os.path.join(C, 'scripts')):
+    for f in fn:
+        if not f.endswith(('.rs2', '.constant', '.varp')):
+            continue
+        rel = os.path.join(dp, f)[len(C) + 1:].replace(os.sep, '/')
+        if rel.startswith('scripts/gamemodes/'):
+            continue
+        txt = code(open(os.path.join(C, rel), newline='', errors='replace').read())
+        if '%xp_locked' in txt:
+            readers.append(rel)
+        if re.search(r'\^xplock_', txt):
+            writers.append(rel)
+check(not readers, '%%xp_locked is read nowhere else in the content tree: %s'
+      % (readers or 'only scripts/gamemodes/'))
+check(not writers, 'and no ^xplock_ constant is used outside it either: %s'
+      % (writers or 'only scripts/gamemodes/'))
+check('stat(' not in code(XPLOCK), 'xplock.rs2 never reads a level, so it cannot gate on one')
+check('~xplock_restore;' in code(read('scripts/login_logout/scripts/login.rs2')),
+      'login re-marks the tab, because the client loads its text from the cache')
+rest = code(block(XPLOCK, 'proc,xplock_restore'))
+check('if (%xp_locked = 0) {' in rest,
+      '...and sends nothing at all for an account with nothing locked')
+
+# ============================================================================ 12
+print('12. the generator still produces exactly what is checked in')
+import subprocess as _sp
+kept = {f: open(os.path.join(C, f), 'rb').read() for f in [
+    'scripts/interfaces/stats.if',
+    'scripts/gamemodes/scripts/xplock.rs2',
+    'scripts/gamemodes/configs/gamemode.constant',
+    'scripts/gamemodes/configs/gamemode.varp',
+    'pack/interface.pack',
+    'pack/interface.order']}
+r = _sp.run([sys.executable, os.path.join(C, 'tools/genxplock.py')], capture_output=True,
+            text=True, cwd=C)
+check(r.returncode == 0, 'tools/genxplock.py runs clean'
+      + ('' if r.returncode == 0 else ': ' + (r.stderr or r.stdout)[-400:]))
+moved = [f for f in kept if open(os.path.join(C, f), 'rb').read() != kept[f]]
+for f in moved:
+    open(os.path.join(C, f), 'wb').write(kept[f])
+check(not moved, 're-running it changes nothing: %s' % (moved or 'byte-identical'))
+vp = [l for l in VARPPACK.split('\n') if l.strip()]
+check(vp[-1].endswith('=xp_locked'),
+      'xp_locked is the newest varp id, so nothing already saved moved under it')
+check(len(set(l.split('=', 1)[0] for l in vp)) == len(vp), 'no varp id is used twice')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
