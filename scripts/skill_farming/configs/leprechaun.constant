@@ -1,0 +1,57 @@
+// The tool leprechaun's store (Corey, 2026-09-18) - see claude/leprechaun-storage.md.
+//
+// OSRS's numbers, from tools/leprechaunspec.json: 100 of each tool, 1000 of each bucket or cure,
+// and ONE watering can and ONE bottomless compost bucket. Ultracompost and Gricoller's can are on
+// the wiki's list and are not here, because neither obj exists in this cache.
+//
+// WHY AN INV AND NOT VARPS. The store this replaces was bit-packed into one varp, three bits per
+// tool, so it could hold seven of anything - and 100 needs seven bits, 1000 needs ten, and six
+// items' worth of that does not fit in a varp at all. An inv holds an obj and a count per slot,
+// which is exactly the shape of the answer, and it can be transmitted to an interface, which is
+// how the window costs almost nothing.
+
+^leprechaun_slots = 12
+
+// The slot each item lives in. FIXED, because the window should look the same on every visit -
+// the same tool in the same square - rather than in whatever order things were handed over.
+// Keeping that true is free: every empty slot holds a PLACEHOLDER of its item (the obj with a
+// count of zero), so a stacking deposit always finds its own slot and never a different one.
+^leprechaun_slot_rake = 0
+^leprechaun_slot_spade = 1
+^leprechaun_slot_dibber = 2
+^leprechaun_slot_secateurs = 3
+^leprechaun_slot_magic = 4
+^leprechaun_slot_trowel = 5
+^leprechaun_slot_can = 6
+^leprechaun_slot_bottomless = 7
+^leprechaun_slot_cure = 8
+^leprechaun_slot_bucket = 9
+^leprechaun_slot_compost = 10
+^leprechaun_slot_supercompost = 11
+
+^leprechaun_cap_tool = 100
+^leprechaun_cap_supply = 1000
+^leprechaun_cap_single = 1
+
+// The watering can slot takes any of the nine doses and the bottomless bucket slot takes either
+// the empty or the filled item, so both caps are ONE ACROSS THE VARIANTS. ~leprechaun_held is
+// what makes that true: it counts every variant of a slot, not just the obj asked about.
+^leprechaun_can_doses = 9
+
+// ---- the store this replaces, kept only long enough to empty it
+// farming.varp's bit layout, so ~leprechaun_migrate can read it once and zero it. Three bits per
+// tool is where the old cap of seven came from. Only rake, dibber and spade were ever reachable
+// from the dialogue; the rest are migrated anyway because it costs two lines and a varp somebody
+// set by hand would otherwise be silently dropped.
+^leprechaun_old_rake_lo = 0
+^leprechaun_old_rake_hi = 2
+^leprechaun_old_dibber_lo = 3
+^leprechaun_old_dibber_hi = 5
+^leprechaun_old_spade_lo = 6
+^leprechaun_old_spade_hi = 8
+^leprechaun_old_trowel_lo = 9
+^leprechaun_old_trowel_hi = 11
+^leprechaun_old_secateurs_lo = 12
+^leprechaun_old_secateurs_hi = 14
+^leprechaun_old_can_lo = 15
+^leprechaun_old_can_hi = 18

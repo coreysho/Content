@@ -1,0 +1,54 @@
+{
+  "_source": "https://oldschool.runescape.wiki/w/Tool_Leprechaun, read 2026-09-18. Everything here is a fact about OSRS written down BEFORE the content was built, so the battery compares the server with the wiki rather than with itself.",
+
+  "_capacity_note": "The wiki's list, verbatim: 100 rakes, 100 spades, 100 seed dibbers, 100 pairs of secateurs or magic secateurs, 100 gardening trowels, 1 watering can (any water level) or Gricoller's can, 1 bottomless compost bucket, 1000 plant cures, 1000 empty buckets, 1000 buckets of compost, 1000 buckets of supercompost, 1000 buckets of ultracompost.",
+
+  "store": [
+    { "slot": 0,  "obj": "rake",                "cap": 100,  "kind": "tool" },
+    { "slot": 1,  "obj": "spade",               "cap": 100,  "kind": "tool" },
+    { "slot": 2,  "obj": "dibber",              "cap": 100,  "kind": "tool" },
+    { "slot": 3,  "obj": "secateurs",           "cap": 100,  "kind": "tool" },
+    { "slot": 4,  "obj": "fairy_enchanted_secateurs",     "cap": 100,  "kind": "tool" },
+    { "slot": 5,  "obj": "gardening_trowel",    "cap": 100,  "kind": "tool" },
+    { "slot": 6,  "obj": "watering_can_8",      "cap": 1,    "kind": "single" },
+    { "slot": 7,  "obj": "bottomless_bucket",   "cap": 1,    "kind": "single" },
+    { "slot": 8,  "obj": "plant_cure",          "cap": 1000, "kind": "supply" },
+    { "slot": 9,  "obj": "bucket_empty",        "cap": 1000, "kind": "supply" },
+    { "slot": 10, "obj": "bucket_compost",      "cap": 1000, "kind": "supply" },
+    { "slot": 11, "obj": "bucket_supercompost", "cap": 1000, "kind": "supply" }
+  ],
+
+  "_magic_secateurs": "The wiki's 'magic secateurs' are fairy_enchanted_secateurs (7409) here. osrs_items.obj also declares a magic_secateurs (8109) that came in with a later-cache import and that nothing wires - tools/poh_battery.py exists partly to keep anything from naming it, and the farming speed bonus reads the 7409 one.",
+
+  "_variants": "The watering can slot takes any of watering_can_0..8 and the bottomless bucket slot takes either bottomless_bucket or bottomless_bucket_filled, because OSRS stores 'a watering can (any water level)' and one bucket whichever state it is in. Both are capped at one ACROSS their variants, not one each.",
+
+  "not_in_this_cache": {
+    "ultracompost": "a 2019 OSRS item; there is no ultracompost obj and no ultracompost content on this server, so the slot is not invented",
+    "gricollers_can": "same - a Farming Guild reward with no content here"
+  },
+
+  "no_note_form": ["fairy_enchanted_secateurs", "bottomless_bucket", "bottomless_bucket_filled", "watering_can_1", "watering_can_2", "watering_can_3", "watering_can_4", "watering_can_5", "watering_can_6", "watering_can_7", "watering_can_8"],
+
+  "behaviour": {
+    "noted_deposits": "'Noted versions of these items can be stored as long as there is space available' - so a deposit goes through inv_moveitem_uncert and a noted stack stores as the plain item.",
+    "withdraw_as_note": "'right-click the item in storage to withdraw as a note' - an op on the slot, not a mode toggle.",
+    "deposit_all": "The interface has a Deposit-all that 'immediately deposits all storable items at once' (added June 2026).",
+    "one_store": "There is ONE store, not one per patch: he holds your tools anywhere in the world.",
+    "fills_can": "He fills a watering can to full, which the server already did before this round.",
+    "notes_produce": "Using farming produce on him exchanges it for banknotes, which the server already did before this round."
+  },
+
+  "legacy": {
+    "varp": "farming_store_tools",
+    "_note": "The store this replaces: bit-packed counts in one varp, three bits per tool, so a maximum of SEVEN of each, and only rake/dibber/spade were ever reachable from the dialogue. The bits, as farming.varp documented them: 0-2 rakes, 3-5 seed dibbers, 6-8 spades, 9-11 gardening trowels, 12-14 secateurs, 15-18 watering can (0 = none, 1..9 = a can holding 0..8 doses).",
+    "bits": {
+      "rake": [0, 2],
+      "dibber": [3, 5],
+      "spade": [6, 8],
+      "gardening_trowel": [9, 11],
+      "secateurs": [12, 14],
+      "watering_can": [15, 18]
+    },
+    "max_per_tool": 7
+  }
+}

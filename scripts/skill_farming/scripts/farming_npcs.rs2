@@ -232,64 +232,15 @@ if (~farming_protectable($a) = false) {
 //
 // He stores your tools anywhere in the world (there is one store, not one per patch), fills your
 // watering can, and turns farming produce into banknotes. Twenty-five of him are already spawned.
-
-[proc,farming_store_get](int $bit_start, int $bit_end)(int)
-return(getbit_range(%farming_store_tools, $bit_start, $bit_end));
-
-[proc,farming_store_set](int $value, int $bit_start, int $bit_end)
-%farming_store_tools = setbit_range_toint(%farming_store_tools, $value, $bit_start, $bit_end);
-
-[proc,farming_store_tool](namedobj $tool, int $bit_start, int $bit_end)
-if (inv_total(inv, $tool) < 1) {
-    ~chatnpc("<p,neutral>You haven't got <lowercase(oc_name($tool))> to give me.");
-    return;
-}
-def_int $held = ~farming_store_get($bit_start, $bit_end);
-if ($held >= 7) {
-    ~chatnpc("<p,neutral>I'm not carrying any more of those for you.");
-    return;
-}
-inv_del(inv, $tool, 1);
-~farming_store_set(add($held, 1), $bit_start, $bit_end);
-mes("You hand the <lowercase(oc_name($tool))> to the leprechaun.");
-
-[proc,farming_withdraw_tool](namedobj $tool, int $bit_start, int $bit_end)
-def_int $held = ~farming_store_get($bit_start, $bit_end);
-if ($held < 1) {
-    ~chatnpc("<p,neutral>I'm not holding one of those for you.");
-    return;
-}
-if (inv_freespace(inv) < 1) {
-    ~chatnpc("<p,neutral>You've no room for it.");
-    return;
-}
-~farming_store_set(sub($held, 1), $bit_start, $bit_end);
-inv_add(inv, $tool, 1);
-mes("The leprechaun hands you <lowercase(oc_name($tool))>.");
-
-[proc,farming_leprechaun_tools]
-def_int $choice = ~p_choice3("Rake", 1, "Seed dibber", 2, "Spade", 3);
-switch_int($choice) {
-    case 1 : ~farming_leprechaun_toolmenu(rake, 0, 2);
-    case 2 : ~farming_leprechaun_toolmenu(dibber, 3, 5);
-    case 3 : ~farming_leprechaun_toolmenu(spade, 6, 8);
-    case default : return;
-}
-
-[proc,farming_leprechaun_toolmenu](namedobj $tool, int $bit_start, int $bit_end)
-~chatnpc(append(append("<p,neutral>I'm holding ", tostring(~farming_store_get($bit_start, $bit_end))), " of those for you."));
-def_int $choice = ~p_choice2("Take one out.", 1, "Put one in.", 2);
-if ($choice = 1) {
-    ~farming_withdraw_tool($tool, $bit_start, $bit_end);
-    return;
-}
-~farming_store_tool($tool, $bit_start, $bit_end);
+//
+// The store itself, its window and its caps live in scripts/leprechaun.rs2. What is left here is
+// the dialogue, the watering can, and the noting - the three things that were never about storage.
 
 [opnpc1,farming_tools_leprechaun]
 ~chatnpc("<p,happy>Top o' the mornin'! Need a hand with your tools?");
 def_int $choice = ~p_choice3("My tools, please.", 1, "Fill my watering can.", 2, "Nothing, thanks.", 3);
 switch_int($choice) {
-    case 1 : ~farming_leprechaun_tools;
+    case 1 : ~leprechaun_window;
     case 2 : ~farming_leprechaun_fill_can;
     case default : ~chatplayer("<p,neutral>Nothing, thanks.");
 }
@@ -375,8 +326,20 @@ switch_obj($item) {
 }
 return(null);
 
+// Using something on him. STORAGE FIRST: OSRS hands a tool straight over rather than making you
+// open the window for it, and a rake is not produce so the two cannot be confused. ~leprechaun_slot
+// answers -1 for anything he will not keep, which is what sends the rest on to the noting below.
 [opnpcu,farming_tools_leprechaun]
 def_obj $item = last_useitem;
+if (~leprechaun_slot(oc_uncert($item)) >= 0) {
+    def_int $stored = ~leprechaun_deposit($item, inv_total(inv, $item));
+    if ($stored < 1) {
+        ~chatnpc("<p,neutral>I'm not carrying any more of those for you.");
+        return;
+    }
+    mes("The leprechaun takes <tostring($stored)> x <oc_name(oc_uncert($item))>.");
+    return;
+}
 def_namedobj $note = ~farming_note_obj($item);
 if ($note = null) {
     ~chatnpc("<p,neutral>That's not something I grew, so it's not something I'll note.");

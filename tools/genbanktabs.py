@@ -39,6 +39,18 @@ MARK_B = '// ---- end bank tabs ----'
 
 TABS = 9
 CLIENTCODE_BASE = 207        # 206 is the bank grid itself; the client keys off these
+GRID_W = 8                   # columns in the bank grid; matches width=8 on the [bank] component
+
+
+def bank_slots():
+    """^bank_total_slots, read from the config rather than repeated here. The grid has to have a
+    cell for every slot, so this number and the row count below must never be allowed to drift."""
+    src = open(os.path.join(ROOT, 'scripts/interface_bank/configs/bank.constant'),
+               encoding='utf-8').read()
+    m = re.search(r'^\^bank_total_slots = (\d+)', src, re.M)
+    if not m:
+        sys.exit('cannot find ^bank_total_slots in bank.constant')
+    return int(m.group(1))
 
 # Geometry. The grid layer com_92 gives up 30px of height to make room; it keeps its
 # bottom edge at y=284 so the Swap/Insert and Item/Note rows below are untouched.
@@ -50,13 +62,19 @@ ROW_Y, ROW_H = 56, 32
 TAB_X0, TAB_W, TAB_PITCH = 37, 44, 47
 GRID_Y, GRID_H = 90, 194
 
-# The grid gains rows it did not need before. In the "all items" view each tab starts on a fresh
-# row, so eight ragged tabs can burn up to 7 padding cells each - 56 in total - and a 44-row grid
-# (8 x 44 = 352, exactly the inv size) would push the last 56 slots off the bottom where they
-# could not be scrolled to. 51 rows is 408 cells: 352 items plus the worst-case padding, exactly.
-# The extra cells sit past the end of the inv, draw nothing, and are rejected by the engine's
-# validSlot check if anyone manages to click one.
-GRID_ROWS = 51
+# The grid needs a row for every slot AND for the padding. In the "all items" view each tab starts
+# on a fresh row, so eight ragged tabs can burn up to 7 padding cells each - 56 in total - and a
+# grid sized to the inv alone would push the last 56 slots off the bottom where they could not be
+# scrolled to. So the row count is ceil((slots + 56) / 8), read from bank.constant rather than
+# written down twice: 1410 + 56 = 1466 cells, 184 rows, 1472 cells. The six spare cells sit past
+# the end of the inv, draw nothing, and are rejected by the engine's validSlot check if anyone
+# manages to click one.
+#
+# The row count is what the grid costs to DRAW, and it is drawn every frame: the client walks all
+# width x height cells of an inv component, but the icon work is behind a clip test
+# (var20 > Pix2D.left - 32 && ... in drawInterface), so an off-screen cell costs two comparisons.
+SLOT_PAD = (TABS - 1) * (GRID_W - 1)     # 8 numbered tabs x up to 7 wasted cells
+GRID_ROWS = -(-(bank_slots() + SLOT_PAD) // GRID_W)
 
 COL_OFF = '0x3E3529'         # unselected tab
 COL_ON  = '0x6F6250'         # selected tab - matches the window's lit chrome
@@ -123,7 +141,11 @@ def main():
     body = src.replace('\r\n', '\n')
 
     # drop any previous generated block, so a second run reuses the same ids
-    body = re.sub(re.escape(MARK_A) + r'.*?' + re.escape(MARK_B) + r'\n?', '', body, flags=re.S)
+    # the \n* eats the blank lines the block was sitting behind as well. Without it the hole
+    # left by the drop is added to by the '\n\n' the re-append puts back, and the file grows two
+    # blank lines on every round trip - which is a whole-file diff waiting to happen the next
+    # time somebody reformats, and is why this generator and genbankbar were not idempotent.
+    body = re.sub(r'\n*' + re.escape(MARK_A) + r'.*?' + re.escape(MARK_B) + r'\n?', '', body, flags=re.S)
 
     # shrink + lower the grid layer, keeping its bottom edge where it was
     m = re.search(r'\[com_92\]\ntype=layer\nx=37\ny=(\d+)\nwidth=427\nheight=(\d+)\n(?:scroll=\d+\n)?', body)

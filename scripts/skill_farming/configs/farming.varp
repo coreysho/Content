@@ -271,8 +271,9 @@ scope=perm
 [farming_last_tick]
 scope=perm
 
-// Tool leprechaun storage. He keeps things for you anywhere in the world, so this is one
-// player-wide store rather than one per farming area.
+// DEAD as of 2026-09-18: the tool leprechaun's store is [leprechaun_store], an inv. This varp is
+// kept only so ~leprechaun_migrate can empty it into that inv once and set it to zero - three bits
+// per tool is where the old cap of seven came from, and OSRS's cap is a hundred.
 //   bits 0-2 rakes, 3-5 seed dibbers, 6-8 spades, 9-11 gardening trowels, 12-14 secateurs,
 //   bits 15-18 watering can (0 = none stored, 1..9 = a can holding 0..8 doses)
 [farming_store_tools]
@@ -284,6 +285,9 @@ scope=perm
 [farming_seedling_time]
 scope=perm
 
+// Declared for the old leprechaun store and never read or written by anything. Left in place
+// rather than deleted: a perm varp's id is how a saved value is found, so freeing an id invites
+// whatever is given it next to inherit somebody's stale number.
 [farming_store_buckets]
 scope=perm
 

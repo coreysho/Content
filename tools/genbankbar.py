@@ -203,7 +203,11 @@ def main():
     crlf = '\r\n' in src
     body = src.replace('\r\n', '\n')
 
-    body = re.sub(re.escape(MARK_A) + r'.*?' + re.escape(MARK_B) + r'\n?', '', body, flags=re.S)
+    # the \n* eats the blank lines the block was sitting behind as well. Without it the hole
+    # left by the drop is added to by the '\n\n' the re-append puts back, and the file grows two
+    # blank lines on every round trip - which is a whole-file diff waiting to happen the next
+    # time somebody reformats, and is why this generator and genbankbar were not idempotent.
+    body = re.sub(r'\n*' + re.escape(MARK_A) + r'.*?' + re.escape(MARK_B) + r'\n?', '', body, flags=re.S)
 
     # restyle the components that keep their ids
     for com, i, icon, name, kind in KEEP:

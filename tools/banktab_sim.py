@@ -9,10 +9,33 @@ rs2 cannot assert for itself.
 
 Transcribed from scripts/interface_bank/scripts/bank_tabs.rs2 - if that changes, change this.
 """
-import random, sys
+import os, random, re, sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 TABS = 8
-SIZE = 352
+
+def _const(name):
+    """Read a ^constant out of bank.constant. The bank's capacity and the grid's row count are the
+    two numbers this file's capacity proof is ABOUT, so reading them beats writing them down again:
+    a sim that carried its own 352 would have gone on passing after the bank was made bigger."""
+    src = open(os.path.join(ROOT, 'scripts/interface_bank/configs/bank.constant'),
+               encoding='utf-8').read()
+    m = re.search(r'^\^%s = (\d+)' % name, src, re.M)
+    if not m:
+        sys.exit('cannot find ^%s in bank.constant' % name)
+    return int(m.group(1))
+
+def _grid_rows():
+    """height= on the [bank] inv component, i.e. what tools/genbanktabs.py last wrote."""
+    src = open(os.path.join(ROOT, 'scripts/interface_bank/interfaces/bank_main.if'),
+               encoding='utf-8').read()
+    m = re.search(r'^\[bank\]\n(?:.*\n)*?height=(\d+)$', src, re.M)
+    if not m:
+        sys.exit('cannot find the bank grid height in bank_main.if')
+    return int(m.group(1))
+
+SIZE = _const('bank_total_slots')
 
 class Bank:
     def __init__(s):
@@ -295,10 +318,14 @@ print('an untabbed deposit lands at the end of the untabbed block, ahead of ever
 # Transcribed from Component.rebuildCellMap in the client. This is the half that can silently HIDE
 # an item: the breaks push everything down, and if the map ran off the end of the grid an item would
 # simply stop being drawn with nothing to say so.
-# 51 rows, not 44: the breaks need room for up to 56 padding cells on top of the 352 real slots.
-WIDTH, ROWS = 8, 51
+# The grid needs room for up to 56 padding cells on top of the real slots, so it is taller than
+# the inv. Both numbers are read rather than written down - see _const.
+WIDTH, ROWS = 8, _grid_rows()
 CELLS = WIDTH * ROWS
-SLOTS = 352
+SLOTS = SIZE
+assert CELLS >= SLOTS + (TABS * (WIDTH - 1)), (
+    'the grid is too short for %d slots plus %d cells of worst-case tab padding: %d cells'
+    % (SLOTS, TABS * (WIDTH - 1), CELLS))
 
 def cellmap_drop(first, count, breaks):
     """The DROP map from Component.rebuildCellMap: same as cellmap, except the blank cells that pad
@@ -390,7 +417,7 @@ print('worst case (8 tabs x 1 item): the untabbed block leads, then 8 rows of on
 
 # and the capacity cost of the breaks at full tilt
 # the capacity question the extra rows exist to answer: a FULL bank, eight tabs each ragged
-# enough to waste the maximum 7 cells. Every one of the 352 slots must still be reachable.
+# enough to waste the maximum 7 cells. Every one of the slots must still be reachable.
 b = Bank(); b.items = list(range(SLOTS))
 for t in range(1, 9):
     b.c[t] = 9          # 9 items = 2 rows, 7 cells wasted per tab, 56 wasted in total
@@ -398,7 +425,7 @@ m, _ = all_view(b)
 shown = [s for s in m if s >= 0]
 assert shown[:SLOTS] == list(range(SLOTS)), \
     f'full bank + worst-case padding loses items: only {len(shown)} of {SLOTS} reachable'
-print(f'full bank (352) with 8 maximally ragged tabs: all 352 reachable in {CELLS} cells '
+print(f'full bank ({SLOTS}) with 8 maximally ragged tabs: all {SLOTS} reachable in {CELLS} cells '
       f'({CELLS - SLOTS} spare)')
 print('ALL PASS')
 

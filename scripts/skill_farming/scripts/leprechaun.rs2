@@ -1,0 +1,246 @@
+// The tool leprechaun's store (Corey, 2026-09-18) - see claude/leprechaun-storage.md.
+//
+// He keeps your farming kit anywhere in the world. OSRS's capacities, from
+// tools/leprechaunspec.json: 100 of each of the five tools plus magic secateurs, 1000 plant cures,
+// 1000 empty buckets, 1000 compost and 1000 supercompost, and exactly ONE watering can (at
+// whatever dose) and ONE bottomless compost bucket. Ultracompost and Gricoller's can are on the
+// wiki's list and are not here because neither obj exists in this cache.
+//
+// WHAT THIS REPLACES. The old store was three bits per tool in %farming_store_tools, so the cap
+// was seven of anything, and only rake, dibber and spade were ever reachable - the dialogue asked
+// which of three, then whether to put one in or take one out, two menus deep for one rake.
+// ~leprechaun_migrate empties that varp into the inv the first time a player opens the window.
+//
+// HOW THE WINDOW STAYS TIDY. Each item has a FIXED slot (^leprechaun_slot_*), and every slot he is
+// holding nothing in keeps a PLACEHOLDER: the obj with a count of zero, which the client draws
+// faded with the number suppressed. That does two jobs at once. The window shows what he will take
+// before you have given him anything, and because Inventory.add looks for a slot already holding
+// the same obj id before it looks for an empty one, a deposit always lands in that item's own
+// square instead of wherever there happened to be room. Nothing has to sort anything.
+//
+// The one case that needs help is a slot whose placeholder is a DIFFERENT variant of the same
+// thing - a full watering can standing in for the empty one you are handing over - so a deposit
+// clears the placeholder in its target slot first and lets the add take the only free slot there
+// then is. ~leprechaun_placeholders puts every missing placeholder back afterwards, which is also
+// what repairs a slot emptied by a withdrawal.
+
+// ============================================================================ what he will hold
+
+// The slot an obj belongs in, or -1 if he will not take it. Every variant of the watering can and
+// both states of the bottomless bucket answer the same slot, which is what makes their cap of one
+// a cap across the variants rather than one of each.
+[proc,leprechaun_slot](obj $obj)(int)
+switch_obj ($obj) {
+    case rake : return(^leprechaun_slot_rake);
+    case spade : return(^leprechaun_slot_spade);
+    case dibber : return(^leprechaun_slot_dibber);
+    case secateurs : return(^leprechaun_slot_secateurs);
+    case fairy_enchanted_secateurs : return(^leprechaun_slot_magic);
+    case gardening_trowel : return(^leprechaun_slot_trowel);
+    case watering_can_0, watering_can_1, watering_can_2, watering_can_3, watering_can_4,
+        watering_can_5, watering_can_6, watering_can_7, watering_can_8 : return(^leprechaun_slot_can);
+    case bottomless_bucket, bottomless_bucket_filled : return(^leprechaun_slot_bottomless);
+    case plant_cure : return(^leprechaun_slot_cure);
+    case bucket_empty : return(^leprechaun_slot_bucket);
+    case bucket_compost : return(^leprechaun_slot_compost);
+    case bucket_supercompost : return(^leprechaun_slot_supercompost);
+    case default : return(-1);
+}
+return(-1);
+
+[proc,leprechaun_cap](int $slot)(int)
+switch_int ($slot) {
+    case ^leprechaun_slot_can, ^leprechaun_slot_bottomless : return(^leprechaun_cap_single);
+    case ^leprechaun_slot_cure, ^leprechaun_slot_bucket, ^leprechaun_slot_compost,
+        ^leprechaun_slot_supercompost : return(^leprechaun_cap_supply);
+    case default : return(^leprechaun_cap_tool);
+}
+return(^leprechaun_cap_tool);
+
+// How many he is holding in a slot. A placeholder is a count of zero, so this answers 0 for an
+// empty slot whether or not there is an icon in it - which is exactly what the caps want.
+[proc,leprechaun_held](int $slot)(int)
+return(inv_getnum(leprechaun_store, $slot));
+
+[proc,leprechaun_room](int $slot)(int)
+return(sub(~leprechaun_cap($slot), ~leprechaun_held($slot)));
+
+// Put a placeholder in every empty slot. Called after anything that can empty one, and on open,
+// so the window always shows all twelve squares and a deposit always has its own slot to find.
+[proc,leprechaun_placeholders]
+def_int $slot = 0;
+while ($slot < inv_size(leprechaun_store)) {
+    if (inv_getobj(leprechaun_store, $slot) = null) {
+        inv_placeholder(leprechaun_store, $slot, enum(int, namedobj, leprechaun_items, $slot));
+    }
+    $slot = add($slot, 1);
+}
+
+// ============================================================================ handing things over
+
+// Move up to $count of $obj out of the inventory and into the store; answer how many went.
+// A NOTED stack counts: oc_uncert picks the slot and inv_moveitem_uncert stores the plain item,
+// which is OSRS's rule ("noted versions of these items can be stored").
+[proc,leprechaun_deposit](obj $obj, int $count)(int)
+def_int $slot = ~leprechaun_slot(oc_uncert($obj));
+if ($slot < 0 | $count < 1) {
+    return(0);
+}
+def_int $n = min($count, ~leprechaun_room($slot));
+if ($n < 1) {
+    return(0);
+}
+// clear the target slot's placeholder, so the slot the add is looking for is the only free one
+if (~leprechaun_held($slot) = 0) {
+    inv_placeholder(leprechaun_store, $slot, null);
+}
+inv_moveitem_uncert(inv, leprechaun_store, $obj, $n);
+~leprechaun_placeholders;
+return($n);
+
+// One kind of thing, loose and noted. Used by Deposit-everything.
+[proc,leprechaun_deposit_kind](namedobj $obj)(int)
+def_int $moved = ~leprechaun_deposit($obj, inv_total(inv, $obj));
+def_obj $note = oc_cert($obj);
+if ($note ! $obj) {
+    $moved = add($moved, ~leprechaun_deposit($note, inv_total(inv, $note)));
+}
+return($moved);
+
+// OSRS's Deposit-all: everything he will take, in one click. It walks HIS slots rather than the
+// player's inventory, because sweeping the inventory while deleting out of it skips whatever
+// shuffles down into a slot already passed.
+[proc,leprechaun_deposit_all]
+def_int $moved = 0;
+def_int $slot = 0;
+while ($slot < inv_size(leprechaun_store)) {
+    $moved = add($moved, ~leprechaun_deposit_kind(enum(int, namedobj, leprechaun_items, $slot)));
+    $slot = add($slot, 1);
+}
+// the variants the enum cannot name: its can row is a full one, and its bucket row is the empty one
+$moved = add($moved, ~leprechaun_deposit_kind(watering_can_0));
+$moved = add($moved, ~leprechaun_deposit_kind(watering_can_1));
+$moved = add($moved, ~leprechaun_deposit_kind(watering_can_2));
+$moved = add($moved, ~leprechaun_deposit_kind(watering_can_3));
+$moved = add($moved, ~leprechaun_deposit_kind(watering_can_4));
+$moved = add($moved, ~leprechaun_deposit_kind(watering_can_5));
+$moved = add($moved, ~leprechaun_deposit_kind(watering_can_6));
+$moved = add($moved, ~leprechaun_deposit_kind(watering_can_7));
+$moved = add($moved, ~leprechaun_deposit_kind(bottomless_bucket_filled));
+if ($moved < 1) {
+    mes("You have nothing the leprechaun will look after.");
+    return;
+}
+mes("You hand <~pluralise($moved, "item")> to the leprechaun.");
+
+// ============================================================================ taking things back
+
+[proc,leprechaun_withdraw](int $slot, int $count, boolean $note)
+def_obj $obj = inv_getobj(leprechaun_store, $slot);
+if ($obj = null) {
+    return;
+}
+def_int $held = ~leprechaun_held($slot);
+if ($held < 1) {
+    mes("The leprechaun isn't holding <lowercase(oc_name($obj))> for you.");
+    return;
+}
+def_int $want = min($count, $held);
+// what will actually reach the inventory - the note if one was asked for and exists
+def_obj $give = $obj;
+if ($note = true) {
+    $give = oc_cert($obj);
+    if ($give = $obj) {
+        mes("This item can not be withdrawn as a note."); // the bank's wording, 2005
+        return;
+    }
+}
+def_int $take = $want;
+if (oc_stackable($give) = false) {
+    $take = min($want, inv_freespace(inv));
+} else {
+    $take = sub($want, inv_itemspace2(inv, $give, $want, inv_size(inv)));
+}
+if ($take < 1) {
+    mes("You don't have enough inventory space.");
+    return;
+}
+if ($note = true) {
+    inv_moveitem_cert(leprechaun_store, inv, $obj, $take);
+} else {
+    inv_moveitem(leprechaun_store, inv, $obj, $take);
+}
+~leprechaun_placeholders;
+
+// ============================================================================ the window
+
+[proc,leprechaun_window]
+~leprechaun_migrate;
+~leprechaun_placeholders;
+inv_transmit(leprechaun_store, leprechaun_window:store);
+if_openmain(leprechaun_window);
+
+[if_close,leprechaun_window]
+inv_stoptransmit(leprechaun_window:store);
+
+[inv_button1,leprechaun_window:store] ~leprechaun_withdraw(last_slot, 1, false);
+[inv_button2,leprechaun_window:store] ~leprechaun_withdraw(last_slot, 5, false);
+[inv_button3,leprechaun_window:store] ~leprechaun_withdraw(last_slot, 10, false);
+[inv_button4,leprechaun_window:store] ~leprechaun_withdraw(last_slot, ^max_32bit_int, false);
+[inv_button5,leprechaun_window:store] ~leprechaun_withdraw(last_slot, ^max_32bit_int, true);
+[if_button,leprechaun_window:depositall] ~leprechaun_deposit_all;
+
+// ============================================================================ the old store
+
+// %farming_store_tools held three bits per tool - which is where the cap of seven came from - and
+// four for a watering can (0 = none, 1..9 = a can at 0..8 doses). Empty it into the inv once and
+// zero it, so the varp is dead from then on and a player who had tools with him does not lose them.
+[proc,leprechaun_migrate]
+if (%farming_store_tools = 0) {
+    return;
+}
+~leprechaun_migrate_tool(rake, ^leprechaun_old_rake_lo, ^leprechaun_old_rake_hi);
+~leprechaun_migrate_tool(dibber, ^leprechaun_old_dibber_lo, ^leprechaun_old_dibber_hi);
+~leprechaun_migrate_tool(spade, ^leprechaun_old_spade_lo, ^leprechaun_old_spade_hi);
+~leprechaun_migrate_tool(gardening_trowel, ^leprechaun_old_trowel_lo, ^leprechaun_old_trowel_hi);
+~leprechaun_migrate_tool(secateurs, ^leprechaun_old_secateurs_lo, ^leprechaun_old_secateurs_hi);
+def_int $can = getbit_range(%farming_store_tools, ^leprechaun_old_can_lo, ^leprechaun_old_can_hi);
+if ($can > 0 & $can <= ^leprechaun_can_doses) {
+    ~leprechaun_migrate_tool(~leprechaun_can_obj(sub($can, 1)), 0, 0);
+}
+%farming_store_tools = 0;
+mes("The leprechaun puts everything he was keeping for you into his new store.");
+
+// $lo = $hi = 0 means "one of it", which is the watering can: its old field is a dose, not a count.
+[proc,leprechaun_migrate_tool](namedobj $obj, int $lo, int $hi)
+def_int $count = 1;
+if ($hi > $lo) {
+    $count = getbit_range(%farming_store_tools, $lo, $hi);
+}
+if ($count < 1) {
+    return;
+}
+def_int $slot = ~leprechaun_slot($obj);
+def_int $n = min($count, ~leprechaun_room($slot));
+if ($n < 1) {
+    return;
+}
+if (~leprechaun_held($slot) = 0) {
+    inv_placeholder(leprechaun_store, $slot, null);
+}
+inv_add(leprechaun_store, $obj, $n);
+~leprechaun_placeholders;
+
+[proc,leprechaun_can_obj](int $doses)(namedobj)
+switch_int ($doses) {
+    case 1 : return(watering_can_1);
+    case 2 : return(watering_can_2);
+    case 3 : return(watering_can_3);
+    case 4 : return(watering_can_4);
+    case 5 : return(watering_can_5);
+    case 6 : return(watering_can_6);
+    case 7 : return(watering_can_7);
+    case 8 : return(watering_can_8);
+    case default : return(watering_can_0);
+}
+return(watering_can_0);
