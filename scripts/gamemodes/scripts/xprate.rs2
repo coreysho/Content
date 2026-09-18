@@ -1,0 +1,76 @@
+// XP rate modes: realism, 5x and 10x, chosen once on Tutorial Island.
+//
+// WHERE THE MULTIPLYING HAPPENS: nowhere in here. Player.addXp reads %xp_rate and multiplies by
+// it, which is the only honest place for it - there are 288 stat_advance call sites across 122
+// files and no content wrapper they all pass through, so a content-side multiplier would have had
+// to be added to each one and would be missed by the next skill anybody writes. addXp already had
+// a world-wide Environment.NODE_XPRATE in exactly that spot; this makes it per-player.
+//
+// THE VARP HOLDS THE RATE, not a mode number, so the engine needs no table of modes and the three
+// values in gamemode.constant are the only place they are written down.
+//
+// WHY TUTORIAL ISLAND, AND WHY ONLY THERE. A mode that could be changed later is not a mode, it
+// is a button that says "give me ten times the experience". The guide asks before the tutorial
+// hands out its first point of XP - the survival instructor is the first thing that does, and he
+// is two rooms away - and ~xprate_choose refuses to ask once %tutorial has reached
+// ^tutorial_complete, so a finished account can never move itself up.
+
+[proc,xprate_choose]
+// Already chosen: nothing to ask. This is what makes the call safe from every path through the
+// guide - the welcome, the come-back-later label, and the skip-the-tutorial branch.
+if (%xp_rate ! ^xprate_unset) {
+    return;
+}
+// THE LOCK. Anyone who has finished the tutorial is past the point where this is a choice, and
+// the island is walk-back-to-able, so without this a maxed account could talk to the guide and
+// pick 10x.
+if (%tutorial >= ^tutorial_complete) {
+    return;
+}
+p_arrivedelay;
+if_openmain(xprate_choose);
+if_addresumebutton(xprate_choose:pick0);
+if_addresumebutton(xprate_choose:pick1);
+if_addresumebutton(xprate_choose:pick2);
+p_pausebutton;
+// Closing the window instead of choosing aborts this script, so nothing below runs, %xp_rate
+// stays 0 - which the engine reads as the authentic 1x - and the guide asks again. Self-healing
+// on purpose: a mandatory window with no way out is a window that can strand a player.
+switch_component (last_com) {
+    case xprate_choose:pick0 : ~xprate_set(^xprate_realism);
+    case xprate_choose:pick1 : ~xprate_set(^xprate_5x);
+    case xprate_choose:pick2 : ~xprate_set(^xprate_10x);
+}
+if_close;
+
+[proc,xprate_set](int $rate)
+%xp_rate = $rate;
+~mesbox("You will earn experience at <tostring($rate)>x the normal rate.|This cannot be changed later.");
+
+// What to call a rate in a sentence. Realism is the one that reads badly as a number - "1x" is
+// not what a player picked, they picked the authentic rates.
+[proc,xprate_name](int $rate)(string)
+if ($rate = ^xprate_realism | $rate = ^xprate_unset) {
+    return("Realism");
+}
+return("<tostring($rate)>x");
+
+[proc,xprate_current]()(int)
+if (%xp_rate = ^xprate_unset) {
+    return(^xprate_realism);
+}
+return(%xp_rate);
+
+// For testing the faster modes without making a new character every time. staffModLevel 4 only,
+// which is what the engine's debugproc gate requires.
+// IT QUEUES THE WRITE, and it has to. ClientCheatHandler runs a debugproc with
+// executeScript(script, FALSE), so a debugproc has NO protected access - the same rule that made
+// the Barrows chest crash out of its [if_close]. Writing a protect=yes varp directly from here is
+// "Attempt to access uninitialized pointer [ 'p_active_player' ]" at build time, which is the
+// build catching it rather than a player finding it. A queue runs with protected access.
+[debugproc,xprate](int $rate)
+queue(xprate_debug_set, 0, $rate);
+
+[queue,xprate_debug_set](int $rate)
+%xp_rate = $rate;
+mes("xp_rate is now <tostring(%xp_rate)> (<~xprate_name(~xprate_current)>).");

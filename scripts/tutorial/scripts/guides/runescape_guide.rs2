@@ -1,5 +1,13 @@
 [opnpc1,newbie_basics_instructor]
 
+// THE XP RATE IS CHOSEN HERE, before the tutorial hands out a single point of experience - the
+// survival instructor is the first thing that does, and he is two rooms away. Called before the
+// switch rather than inside one branch so that every path through this npc covers it: the
+// welcome, the come-back-later label, and the skip-the-tutorial branch below. ~xprate_choose
+// returns immediately once a rate is set, and refuses to ask at all once the tutorial is
+// complete - see gamemodes/scripts/xprate.rs2.
+~xprate_choose;
+
 switch_int(%tutorial) {
     case ^newbie_basics_instructor_designed_character : @newbie_basics_instructor_welcome;
     //case ^2 : @newbie_basics_instructor_spanner;

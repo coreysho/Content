@@ -1,0 +1,17 @@
+// XP rate modes (Corey, 2026-09-18) - see claude/xp-rate-modes.md.
+//
+// THE VARP HOLDS THE RATE ITSELF, not a mode index. That is the whole trick: Player.addXp reads
+// the number and multiplies by it, so the ENGINE needs no table of modes and these three values
+// are the only place the rates are written down. A mode index would have meant the same three
+// numbers living in the engine too, where content cannot see them drift.
+//
+// 0 means never chosen, and the engine reads it as 1 - the authentic rate, which is exactly what
+// the server did before this existed. So every character that already exists is untouched, and a
+// player who closes the window without choosing plays at 1x and is asked again.
+^xprate_unset = 0
+^xprate_realism = 1
+^xprate_5x = 5
+^xprate_10x = 10
+
+// The three the chooser offers, in the order it draws them. Read by tools/genxpratechooser.py.
+^xprate_modes = 3
