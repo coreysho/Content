@@ -147,9 +147,15 @@ def rewrite_stats(blocks, sk):
     first = next(i for i, (n, _, _) in enumerate(kept) if n == sk[0]['button'])
     buttons = []
     for s in sk:
+        # font= AND shadowed= even though this text draws nothing. PackShared's nameToFont returns
+        # -1 for a missing font, p1(-1) is the byte 255, and Component.decode does
+        # `com.font = fonts[font]` on an array of FOUR - so the client dies with
+        # "loaderror Unpacking interfaces 95" before it reaches the login screen. Shipped without
+        # them once, on the reasoning that a text with no text needs no font; the guide button
+        # these copy their geometry from carries both, which was the clue that was there to read.
         buttons += com(PREFIX + s['skill'], type='text', x=s['x'], y=s['y'],
                        buttontype='normal', width=s['width'], height=s['height'],
-                       overlayer=s['overlayer'],
+                       overlayer=s['overlayer'], font='p12_full', shadowed='yes',
                        option='Toggle @or1@%s @whi@XP-lock' % title(s['skill']))
     out = []
     for i, (n, kv, buf) in enumerate(kept):

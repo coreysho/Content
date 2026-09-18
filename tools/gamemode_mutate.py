@@ -82,7 +82,7 @@ MUTS = [
   'xp_locked is the newest varp id, so nothing already saved moved under it'),
 
  # ---- 10 the stats tab
- (STATSIF, '[xplock_attack]\ntype=text\nx=0\ny=2\nbuttontype=normal\nwidth=64\nheight=31\noverlayer=com_122\noption=Toggle @or1@Attack @whi@XP-lock\n\n',
+ (STATSIF, '[xplock_attack]\ntype=text\nx=0\ny=2\nbuttontype=normal\nwidth=64\nheight=31\noverlayer=com_122\nfont=p12_full\nshadowed=yes\noption=Toggle @or1@Attack @whi@XP-lock\n\n',
            '',
   'one lock button per skill box'),
  # THE ONE THIS ROUND EXISTS FOR: a lock button no longer paired with its own box, which is the
@@ -92,6 +92,9 @@ MUTS = [
   'each one is emitted BEFORE its guide button, so left click still opens the guide'),
  (STATSIF, 'option=Toggle @or1@Attack @whi@XP-lock', 'option=Toggle @or1@Defence @whi@XP-lock',
   'no two say the same thing'),
+ (STATSIF, 'overlayer=com_122\nfont=p12_full\nshadowed=yes\noption=Toggle @or1@Attack',
+           'overlayer=com_122\nshadowed=yes\noption=Toggle @or1@Attack',
+  'and names a font the packer knows, or the client dies unpacking interfaces'),
  (IPACK, '20576=stats:xplock_attack\n', '',
   'every one has an id in interface.pack'),
  (XPLOCK, '            if_settext(stats:com_125, "Next Level At:");',

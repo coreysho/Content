@@ -811,6 +811,10 @@ inv_add(inv, probe_obj, 1);
 """,
     "probe_clean.dbrow": "\n[probe_clean_row]\ntable=probe_table\ndata=probe_text,\"one, two\"\n",
     "probe_clean.enum": "\n[probe_int_enum]\ninputtype=int\noutputtype=int\nval=0,1\n",
+    # rule 20: a type=text with no font, which packs as fonts[255] and kills the client on load
+    "probe.if": "type=overlay\n\n[probe_nofont]\ntype=text\nx=0\ny=0\nwidth=10\nheight=10\n",
+    "probe_clean.if": ("type=overlay\n\n[probe_ok]\ntype=text\nx=0\ny=0\nwidth=10\nheight=10\n"
+                       "font=p12_full\nshadowed=yes\n"),
 }
 # rule 12 is bytes, not text: \r\r is what a line-ending pass applied twice leaves behind
 FIXTURE_BYTES = {
@@ -859,6 +863,10 @@ ALL_RULES = {
     15:   ("probe.rs2", 19),
     16:   ("model.pack", 2),
     17:   ("probe.enum", 2),
+    # 20 is the newest: a type=text with no font=. PackShared writes -1 as the byte 255 and
+    # Component.decode indexes an array of four with it, so the CLIENT dies on load - "loaderror
+    # Unpacking interfaces 95" - with no server-side symptom at all. Cost one deploy.
+    20:   ("probe.if", 3),
 }
 
 
@@ -911,6 +919,7 @@ def selftest():
         check_duplicates(T)
         check_models()
         check_enum_defaults()
+        check_interfaces()
         got = {}
         for sev, path, line, rule, msg in findings:
             got.setdefault(rule, []).append((sev, path, line, msg))
@@ -954,6 +963,56 @@ def selftest():
 
 # --------------------------------------------------------------------------- main
 
+
+# --------------------------------------------------------------------------- rule 20
+
+# PackShared.nameToFont returns -1 for a font it does not know - INCLUDING a missing one - and
+# p1(-1) is the byte 255. Component.decode then does `com.font = fonts[font]` on an array of
+# FOUR, so the client dies inside Component.unpack with
+#
+#     loaderror Unpacking interfaces 95
+#
+# before it reaches the login screen. There is no server-side symptom at all: the pack builds
+# clean and the world comes up. Cost one deploy on 2026-09-18, from 22 buttons that draw no text
+# and were given no font on the reasoning that they did not need one.
+IF_FONTS = {"p11_full", "p12_full", "b12_full", "q8_full"}
+IF_TYPES = {"layer", "overlay", "inv", "rect", "text", "graphic", "model", "invtext", "8"}
+
+
+def check_interfaces():
+    for path in walk({".if"}):
+        cur, kv, start = None, {}, 0
+
+        def finish():
+            if cur is None:
+                return
+            t = kv.get("type")
+            if t is not None and t not in IF_TYPES:
+                report("ERROR", path, start, 20,
+                       "[%s] type=%s is not a type the packer knows" % (cur, t))
+            # comType 4 (text) and 1 - the two branches Component.decode reads a font for
+            if t == "text":
+                f = kv.get("font")
+                if f is None:
+                    report("ERROR", path, start, 20,
+                           "[%s] is type=text with no font= - the client reads fonts[255] and "
+                           "dies unpacking interfaces" % cur)
+                elif f not in IF_FONTS:
+                    report("ERROR", path, start, 20,
+                           "[%s] font=%s is not one of %s" % (cur, f, sorted(IF_FONTS)))
+
+        for n, raw, _ in stripped_lines(text(path)):
+            m = re.match(r"^\[([A-Za-z0-9_]+)\]\s*$", raw)
+            if m:
+                finish()
+                cur, kv, start = m.group(1), {}, n
+                continue
+            if "=" in raw and cur:
+                k, v = raw.split("=", 1)
+                kv.setdefault(k.strip(), v.strip())
+        finish()
+
+
 def main(argv):
     if "--selftest" in argv:
         return selftest()
@@ -974,6 +1033,7 @@ def main(argv):
         check_duplicates(T)
         check_models()
         check_enum_defaults()
+        check_interfaces()
 
     errors = [f for f in findings if f[0] == "ERROR"]
     checks = [f for f in findings if f[0] == "CHECK"]

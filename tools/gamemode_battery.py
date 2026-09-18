@@ -386,6 +386,14 @@ for n in locks:
         unprot.append(n)
 check(not unprot, 'and takes protected access FIRST, because an [if_button] is not handed it: %s'
       % (unprot[:3] or 'all 22'))
+# THE CHECK THE SECOND DEPLOY EARNED. A type=text with no font= packs as fonts[255] and kills the
+# CLIENT on load - "loaderror Unpacking interfaces 95" - with no server-side symptom at all.
+# rs2check rule 20 holds this repo-wide now; this one is here because these 22 are the components
+# that taught it.
+IF_FONTS = {'p11_full', 'p12_full', 'b12_full', 'q8_full'}
+nofont = [n for n in locks if byn[n].get('font') not in IF_FONTS]
+check(not nofont, 'and names a font the packer knows, or the client dies unpacking interfaces: %s'
+      % (nofont[:3] or 'all 22'))
 outside = [n for n in locks
            if re.search(r'(?m)^%xp_locked = ', code(XPLOCK.split('[if_button,stats:%s]' % n, 1)[1]
                                                     .split('\n[', 1)[0]))]
