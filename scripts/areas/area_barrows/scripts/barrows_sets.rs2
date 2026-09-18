@@ -1,0 +1,136 @@
+// The six Barrows ARMOUR set effects - the ones a player gets for wearing a full set, which are a
+// different six from the brothers' own in barrows_combat.rs2. None of them existed in the build.
+//
+// A full set is four pieces: helm, body, legs and weapon, all from one brother, at any state of
+// degradation. That last part is why the set is not tested by item name: a "Dharoks helm 50" is a
+// different obj from a "Dharoks helm", and there are a hundred and twenty degraded stages. Every
+// one of them already carries param=fixed pointing back at the piece it repairs into, so
+// ~barrows_set_piece asks a piece for its set and asks again through param=fixed when the answer
+// is nothing.
+//
+// WHAT THE WIKI GIVES EACH SET, and which of them can do anything to a MONSTER:
+//   Ahrim    25% of successful magic attacks lower the enemy's Strength by 5     - works on npcs
+//   Dharok   attacks do more damage the lower the player's own hitpoints         - works on npcs
+//   Guthan   25% of attacks heal the player for the damage dealt                 - works on npcs
+//   Karil    25% of successful ranged attacks lower the enemy's Agility by 20%   - PLAYERS ONLY
+//   Torag    25% of successful melee attacks lower the victim's run energy by 20% - PLAYERS ONLY
+//   Verac    25% of attacks ignore armour, Defence and protection prayers        - works on npcs
+// Karil's and Torag's are not missing: a monster has no Agility and no run energy, so in Old
+// School they do nothing to one either. They are wired on the player-versus-player paths, where
+// there is something to drain.
+
+// ---------------------------------------------------------------------------------------------
+// Which set is worn
+// ---------------------------------------------------------------------------------------------
+[proc,barrows_set_piece](int $slot)(int)
+def_obj $item = inv_getobj(worn, $slot);
+if ($item = null) {
+    return(0);
+}
+def_int $set = oc_param($item, barrows_set);
+if ($set ! 0) {
+    return($set);
+}
+def_namedobj $base = oc_param($item, fixed);
+if ($base = null) {
+    return(0);
+}
+return(oc_param($base, barrows_set));
+
+[proc,barrows_set_worn](int $set)(boolean)
+if (~barrows_set_piece(^wearpos_hat) ! $set) {
+    return(^false);
+}
+if (~barrows_set_piece(^wearpos_torso) ! $set) {
+    return(^false);
+}
+if (~barrows_set_piece(^wearpos_legs) ! $set) {
+    return(^false);
+}
+if (~barrows_set_piece(^wearpos_rhand) ! $set) {
+    return(^false);
+}
+return(^true);
+
+// ---------------------------------------------------------------------------------------------
+// Dharok's Wretched Strength
+// ---------------------------------------------------------------------------------------------
+// The player's version is not the brother's. His adds one per cent of his max hit for every
+// hitpoint he is missing; the ARMOUR's scales with the player's maximum hitpoints as well, which
+// is what the wiki means by "the damage bonus per hitpoint increases based on the player's maximum
+// hitpoints":
+//
+//     damage x (1 + missing/100 x maximum/100)
+//
+// At 99 hitpoints and one left that is 1 + 98/100 x 99/100 = 1.97, the wiki's "up to 98% extra".
+// At 10 hitpoints and one left it is only 1 + 9/100 x 10/100 = 1.009, which is the point of the
+// second term - the effect belongs to high-level players.
+[proc,barrows_dharok_maxhit](int $maxhit)(int)
+if (~barrows_set_worn(^barrows_set_dharok) = ^false) {
+    return($maxhit);
+}
+def_int $max = stat_base(hitpoints);
+def_int $missing = sub($max, stat(hitpoints));
+if ($missing <= 0) {
+    return($maxhit);
+}
+return(add($maxhit, divide(multiply(multiply($maxhit, $missing), $max), 10000)));
+
+// ---------------------------------------------------------------------------------------------
+// Verac's
+// ---------------------------------------------------------------------------------------------
+// "Attacks have a 25% chance of ignoring any armour, Defence, and protection prayers." All three
+// of those live inside the hit roll, so ignoring them is ignoring the roll: the caller treats a
+// true here as a hit that landed.
+[proc,barrows_verac_ignores]()(boolean)
+if (~barrows_set_worn(^barrows_set_verac) = ^false) {
+    return(^false);
+}
+if (random(100) < ^barrows_set_effect_pct) {
+    return(^true);
+}
+return(^false);
+
+// ---------------------------------------------------------------------------------------------
+// The effects that fire on a landed hit
+// ---------------------------------------------------------------------------------------------
+// Against a MONSTER: Guthan's heal, and Ahrim's Strength drain - npc_statsub is what makes the
+// second one possible at all, and player_ranged.rs2 already uses it for holy water.
+[proc,barrows_set_hit_npc](int $damage, int $style)
+if ($damage <= 0) {
+    return;
+}
+if ($style = ^magic_style & ~barrows_set_worn(^barrows_set_ahrim) = ^true
+    & random(100) < ^barrows_set_effect_pct) {
+    spotanim_npc(barrows_ahirm_blighted_aura, 92, 0);
+    npc_statsub(strength, ^barrows_ahrim_strength_drain, 0);
+}
+if (~barrows_set_worn(^barrows_set_guthan) = ^true & random(100) < ^barrows_set_effect_pct) {
+    spotanim_pl(barrows_guthan_effect, 92, 0);
+    stat_heal(hitpoints, $damage, 0);
+}
+
+// Against a PLAYER: the same two, plus the two that have nothing to drain on a monster.
+[proc,barrows_set_hit_player](int $damage, int $style)
+if ($damage <= 0) {
+    return;
+}
+if ($style = ^magic_style & ~barrows_set_worn(^barrows_set_ahrim) = ^true
+    & random(100) < ^barrows_set_effect_pct) {
+    .spotanim_pl(barrows_ahirm_blighted_aura, 92, 0);
+    .stat_sub(strength, ^barrows_ahrim_strength_drain, 0);
+}
+if (~barrows_set_worn(^barrows_set_guthan) = ^true & random(100) < ^barrows_set_effect_pct) {
+    spotanim_pl(barrows_guthan_effect, 92, 0);
+    stat_heal(hitpoints, $damage, 0);
+}
+if ($style = ^ranged_style & ~barrows_set_worn(^barrows_set_karil) = ^true
+    & random(100) < ^barrows_set_effect_pct) {
+    .spotanim_pl(barrows_karil_tainted_shot, 92, 0);
+    .stat_sub(agility, 0, ^barrows_karil_agility_pct);
+}
+if (($style = ^melee_style | $style = ^stab_style | $style = ^slash_style | $style = ^crush_style)
+    & ~barrows_set_worn(^barrows_set_torag) = ^true & random(100) < ^barrows_set_effect_pct) {
+    .spotanim_pl(barrows_torag_effect, 92, 0);
+    .healenergy(sub(0, scale(^barrows_torag_energy_pct, 100, .runenergy)));
+}

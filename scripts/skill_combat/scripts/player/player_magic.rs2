@@ -364,6 +364,8 @@ if ($maxhit ! null) {
     def_int $damage_capped = min($damage, npc_stat(hitpoints));
     ~give_combat_experience($damagestyle, $damage_capped, %npc_combat_xp_multiplier);
     npc_heropoints($damage_capped);
+    // Ahrim's Strength drain, which is magic-only, and Guthan's heal, which is not.
+    ~barrows_set_hit_npc($damage_capped, ^magic_style);
     // Ancient Magicks - Blood spells heal the caster by heal_percent% of the damage dealt, Smoke spells
     // have a poison_chance in poison_chance (1-in-N) chance to poison for poison_severity. Data-driven
     // off the dbrow columns rather than a spell-name switch, so any future spell can opt in via data

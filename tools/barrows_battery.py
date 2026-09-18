@@ -37,6 +37,14 @@ TUN   = read('scripts/areas/area_barrows/scripts/barrows_tunnels.rs2')
 CHEST = read('scripts/areas/area_barrows/scripts/barrows_chest.rs2')
 TELE  = read('scripts/areas/area_barrows/scripts/barrows_teleport.rs2')
 COMBAT = read('scripts/areas/area_barrows/scripts/barrows_combat.rs2')
+SETS = read('scripts/areas/area_barrows/scripts/barrows_sets.rs2')
+ALLOBJ = read('scripts/_unpack/377/all.obj')
+PMELEE = read('scripts/skill_combat/scripts/player/player_melee.rs2')
+PRANGED = read('scripts/skill_combat/scripts/player/player_ranged.rs2')
+PMAGIC = read('scripts/skill_combat/scripts/player/player_magic.rs2')
+VMELEE = read('scripts/skill_combat/scripts/pvp/pvp_melee.rs2')
+VRANGED = read('scripts/skill_combat/scripts/pvp/pvp_ranged.rs2')
+VMAGIC = read('scripts/skill_combat/scripts/pvp/pvp_magic.rs2')
 DEATH = read('scripts/skill_combat/scripts/npc/npc_death.rs2')
 ALLVARP = read('scripts/_unpack/377/all.varp')
 ALLVARBIT = read('scripts/_unpack/377/all.varbit')
@@ -676,16 +684,16 @@ check(not [o for o in ('op1', 'op2', 'op3', 'op4', 'op5')
            if o in LOCB.get('barrows_door_locked_l', {})
            or o in LOCB.get('barrows_door_locked_r', {})],
       'and the locked one carries no option at all, which is 377\'s own "this one will not open"')
-check('[oploc1,_barrows_door] ~barrows_door_through;' in TUN,
-      'one handler serves every doorway, through the category the shells carry')
+check('[oploc1,_barrows_door]' not in TUN,
+      'no category trigger is left over from when one handler served every doorway')
 for L in barrowsmaze.LETTERS:
     for half in ('l', 'r'):
         d = LOCB.get('barrows_door_%s_%s' % (L, half), {})
         check(d.get('multivar', [None])[0] == 'barrows_door_' + L
               and 'multiloc' in d,
               'barrows_door_%s_%s reads gate %s\'s own bit' % (L, half, L))
-check('~agility_exactmove(human_walk_style' in TUN and 'p_teleport($end)' in TUN,
-      'a door is walked through rather than opened, because the cache has no open form of it')
+check('~open_and_close_double_door' in nocomment(TUN),
+      'a door is opened rather than walked through')
 
 # =============================================================================================
 print()
@@ -1093,6 +1101,167 @@ check(coord(K['barrows_crypt_sw']) and coord(K['barrows_crypt_sw'])[0] == 3
       and coord(K['barrows_crypt_sw'])[1:3] == coord(K['barrows_tunnel_sw'])[1:3],
       'and the two zones really are one square at two levels: %s and %s'
       % (K['barrows_crypt_sw'], K['barrows_tunnel_sw']))
+
+# =============================================================================================
+print()
+print('--- the six armour sets')
+# =============================================================================================
+AS = CHESTSPEC['armour_sets']
+SLOTS = ('head', 'body', 'legs', 'weapon')
+OBJB = blocks(ALLOBJ)
+# THE SET IS NOT TESTED BY ITEM NAME, because a "Dharoks helm 50" is a different obj from a
+# "Dharoks helm" and there are a hundred and twenty degraded stages. The twenty-four undamaged
+# pieces carry param=barrows_set; every stage already carried param=fixed pointing back at the
+# piece it repairs into, which is the second half of the lookup.
+for b in BROS:
+    want = AS['sets'][b]['id']
+    check(int(K['barrows_set_' + b]) == want,
+          '%s is set %d, which is his bit plus one' % (b, want))
+    for slot in SLOTS:
+        d = OBJB.get('barrows_%s_%s' % (b, slot), {})
+        check(param(d, 'barrows_set') == str(want),
+              'barrows_%s_%s carries set %d' % (b, slot, want))
+stages = [n for n in OBJB if re.fullmatch(r'barrows_(%s)_(%s)_\w+' % ('|'.join(BROS),
+                                                                      '|'.join(SLOTS)), n)]
+check(len(stages) == len(BROS) * len(SLOTS) * 5,
+      'the six sets have %d degraded stages between them: %d'
+      % (len(BROS) * len(SLOTS) * 5, len(stages)))
+badfix = [n for n in stages
+          if param(OBJB[n], 'fixed') is None
+          or param(OBJB.get(param(OBJB[n], 'fixed'), {}), 'barrows_set') is None]
+check(not badfix,
+      'and every one of them resolves to a piece that knows its set, through param=fixed: %s'
+      % (badfix[:3] or 'all of them'))
+tagged = sorted(n for n, d in OBJB.items() if param(d, 'barrows_set') not in (None, '0'))
+check(len(tagged) == len(BROS) * len(SLOTS),
+      'nothing outside the twenty-four carries a set id: %d' % len(tagged))
+# A 0% piece cannot satisfy a set effect however it resolves, because it cannot be worn.
+broken = ['barrows_%s_%s_broken' % (b, s) for b in BROS for s in SLOTS]
+check(not [n for n in broken if 'iop2' in OBJB.get(n, {})],
+      'and a 0% piece has no Wear option, so it can never be in the worn inventory at all')
+
+worn = nocomment(SETS.split('[proc,barrows_set_worn]', 1)[1].split('\n[', 1)[0])
+for slot in ('hat', 'torso', 'legs', 'rhand'):
+    check('~barrows_set_piece(^wearpos_%s) ! $set' % slot in worn,
+          'a full set means the %s slot too, and all four from ONE brother' % slot)
+piece = nocomment(SETS.split('[proc,barrows_set_piece]', 1)[1].split('\n[', 1)[0])
+check('oc_param($item, barrows_set)' in piece and 'oc_param($item, fixed)' in piece
+      and piece.index('barrows_set') < piece.index('fixed'),
+      '...and a piece is asked for its set first and resolved through param=fixed only if it has '
+      'none, which is what makes every degradation stage count')
+check('$item = null' in piece and piece.index('$item = null') < piece.index('oc_param'),
+      'and an empty slot is answered before anything is asked of it, because oc_param(null) is '
+      'not a question this engine likes')
+
+check(int(K['barrows_set_effect_pct']) == AS['chance'],
+      'five of the six fire on %d%% of qualifying hits, which is one number and not five'
+      % AS['chance'])
+guarded = sorted(set(re.findall(r'\^barrows_set_(\w+)\) = \^true\s*\n?\s*& random\(100\) < \^barrows_set_effect_pct', SETS)
+                     + re.findall(r'barrows_set_(\w+)\) = \^false\) \{\s*\n\s*return\(\^false\);\s*\n\}\s*\nif \(random\(100\) < \^barrows_set_effect_pct', SETS)))
+check(guarded == ['ahrim', 'guthan', 'karil', 'torag', 'verac'],
+      '...and it is the gate on exactly those five sets: %s' % guarded)
+check('^barrows_set_effect_pct' not in nocomment(SETS).split('[proc,barrows_dharok_maxhit]', 1)[1]
+      .split('\n[', 1)[0],
+      "and Dharok's is not one of them, because his is arithmetic on every hit")
+
+# DHAROK'S FORMULA, computed rather than quoted: damage x (1 + missing/100 x maximum/100).
+dh = nocomment(SETS.split('[proc,barrows_dharok_maxhit]', 1)[1].split('\n[', 1)[0])
+check('divide(multiply(multiply($maxhit, $missing), $max), 10000)' in dh,
+      "Dharok's bonus is maxhit x missing x maximum / 10000, which is the wiki's formula with "
+      'both hundreds folded into one divide')
+D = AS['sets']['dharok']
+for maxhp, hp, want in ((99, 1, D['at_99_and_1']), (10, 1, D['at_10_and_1']), (99, 99, 0)):
+    got = ((maxhp - hp) * maxhp) // 100
+    check(got == want, 'at %d hitpoints with %d left that is +%d%%, and the wiki says +%d%%'
+          % (maxhp, hp, got, want))
+check('stat_base(hitpoints)' in dh and 'stat(hitpoints)' in dh,
+      '...off the player\'s own maximum and current hitpoints')
+check('$missing <= 0' in dh,
+      'and a player at full health gets nothing rather than a divide on zero')
+
+# WHICH STYLES EACH EFFECT ANSWERS TO. Getting this wrong is the kind of thing that never looks
+# broken: Ahrim's staff can be swung, and a melee hit with it must not drain Strength.
+npchit = nocomment(SETS.split('[proc,barrows_set_hit_npc]', 1)[1].split('\n[', 1)[0])
+plhit = nocomment(SETS.split('[proc,barrows_set_hit_player]', 1)[1].split('\n[', 1)[0])
+check('$style = ^magic_style & ~barrows_set_worn(^barrows_set_ahrim)' in npchit,
+      "Ahrim's drain answers only to a magic hit, on the monster path")
+check('~barrows_set_worn(^barrows_set_guthan)' in npchit
+      and '$style' not in npchit.split('barrows_set_guthan', 1)[1].split('\n}', 1)[0],
+      "Guthan's heal answers to any hit, which is what the wiki says")
+check('barrows_set_karil' not in npchit and 'barrows_set_torag' not in npchit,
+      "and neither Karil's nor Torag's is on the monster path, because a monster has no Agility "
+      'and no run energy')
+check('$style = ^ranged_style & ~barrows_set_worn(^barrows_set_karil)' in plhit,
+      "Karil's drain answers only to a ranged hit, on the player path")
+check('^melee_style | $style = ^stab_style | $style = ^slash_style | $style = ^crush_style' in plhit
+      and 'barrows_set_torag' in plhit,
+      "Torag's answers to any of the melee styles, which is what %damagetype actually holds")
+check('npc_statsub(strength, ^barrows_ahrim_strength_drain, 0);' in npchit,
+      "Ahrim's five levels come off a monster with npc_statsub, which is what makes the effect "
+      'possible on one at all')
+check('.stat_sub(agility, 0, ^barrows_karil_agility_pct);' in plhit
+      and '.healenergy(sub(0, scale(^barrows_torag_energy_pct, 100, .runenergy)));' in plhit,
+      "and Karil's fifth of Agility and Torag's fifth of the energy LEFT come off the other player")
+check('$damage <= 0' in npchit and '$damage <= 0' in plhit,
+      'and nothing fires on a hit that did not land')
+
+# THE HOOKS. Six paths, and the monster ones must not call the player one or the other way round.
+for name, txt, hook in (('player melee', PMELEE, '~barrows_set_hit_npc($damage_capped, %damagetype);'),
+                        ('player ranged', PRANGED, '~barrows_set_hit_npc($damage_capped, %damagetype);'),
+                        ('player magic', PMAGIC, '~barrows_set_hit_npc($damage_capped, ^magic_style);'),
+                        ('pvp melee', VMELEE, '~barrows_set_hit_player($damage, %damagetype);'),
+                        ('pvp ranged', VRANGED, '~barrows_set_hit_player($damage, %damagetype);'),
+                        ('pvp magic', VMAGIC, '~barrows_set_hit_player($damage, ^magic_style);')):
+    check(hook in nocomment(txt), 'the %s path fires the sets' % name)
+check('~barrows_set_hit_player' not in nocomment(PMELEE) + nocomment(PRANGED) + nocomment(PMAGIC),
+      'and no monster path fires the player version')
+check('~barrows_set_hit_npc' not in nocomment(VMELEE) + nocomment(VRANGED) + nocomment(VMAGIC),
+      'nor the other way round')
+check('~barrows_dharok_maxhit($maxhit);' in nocomment(PMELEE)
+      and '~barrows_dharok_maxhit(%com_maxhit)' in nocomment(VMELEE),
+      "Dharok's scaling is on both melee paths and only the melee paths")
+check('~barrows_dharok_maxhit' not in nocomment(PRANGED) + nocomment(PMAGIC),
+      '...because his weapon is a greataxe')
+check('| ~barrows_verac_ignores = true) {' in nocomment(PMELEE),
+      "Verac's pierce is an alternative to the monster hit roll, not a change to it")
+vm = nocomment(VMELEE)
+check('$verac = ~barrows_verac_ignores;' in vm
+      and '~pvp_hit_roll(%damagetype) = true | $verac = true' in vm
+      and '^melee_style) = true & $verac = false' in vm,
+      "...and in pvp it skips the 40% prayer reduction as well, because a prayer it ignores cannot "
+      'also halve the hit')
+
+# =============================================================================================
+print()
+print('--- the doors open like doors')
+# =============================================================================================
+DR = CHESTSPEC['doors']
+for L in barrowsmaze.LETTERS:
+    for half, side in (('l', 'left'), ('r', 'right')):
+        name = 'barrows_door_%s_%s' % (L, half)
+        d = LOCCFG.get(name, {})
+        check(d.get('category', [None])[0] == DR['categories'][half],
+              '%s wears the %s double-door category' % (name, half))
+        check(param(d, 'next_loc_stage') == 'barrows_door_inactive_%s' % half,
+              '...and opens into barrows_door_inactive_%s, which is the same model with no ops' % half)
+        check('[oploc1,%s] ~barrows_door_open(^%s);' % (name, side) in TUN,
+              '...and names its own handler, so the generic door trigger never takes it')
+check(len(re.findall(r'(?m)^\[oploc1,barrows_door_\w+\] ~barrows_door_open\(\^(?:left|right)\);$',
+                     TUN)) == 32,
+      'all thirty-two doorway leaves are accounted for: %d'
+      % len(re.findall(r'(?m)^\[oploc1,barrows_door_\w+\] ~barrows_door_open', TUN)))
+check(not [o for o in ('op1', 'op2', 'op3', 'op4', 'op5')
+           if o in LOCCFG.get('barrows_door_inactive_l', {})
+           or o in LOCCFG.get('barrows_door_inactive_r', {})],
+      'and the opened form carries no option, because it is already open')
+dopen = nocomment(TUN.split('[proc,barrows_door_open]', 1)[1].split('\n[', 1)[0])
+check('~open_and_close_double_door(~check_axis_locactive(coord), $side);' in dopen,
+      "the door is opened by the game's own double-door proc, not by a copy of it")
+check('~agility_exactmove' not in nocomment(TUN) and 'p_teleport($end)' not in nocomment(TUN),
+      '...and nothing steps the player through a shut door any more')
+check('~barrows_door_spawn(coord);' in dopen
+      and dopen.index('~open_and_close_double_door') < dopen.index('~barrows_door_spawn'),
+      'and what comes through does so after the door is open, on the tile the player ends on')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

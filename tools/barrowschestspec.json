@@ -110,5 +110,80 @@
     "low": 4,
     "high": 6,
     "_note": "Corey's addition, not Old School's: the chest pays a Barrows teleport at 1/10 on a looted chest, four to six of them. The destination is the tile he asked for."
+  },
+  "armour_sets": {
+    "_source": "https://oldschool.runescape.wiki/w/Barrows_equipment, read 2026-09-18",
+    "_full_set": "Each set requires all four pieces (helmet, body armor, leg armor, and weapon) to activate the set effect.",
+    "chance": 25,
+    "sets": {
+      "ahrim": {
+        "id": 1,
+        "quote": "Successful magical attacks have a 25% chance of lowering the enemy's Strength by 5 levels.",
+        "style": "magic",
+        "acts_on": [
+          "npc",
+          "player"
+        ],
+        "amount": 5
+      },
+      "dharok": {
+        "id": 2,
+        "quote": "Attacks do more damage as the player's Hitpoints decrease. The damage bonus per hitpoint increases based on the player's maximum hitpoints.",
+        "style": "melee",
+        "acts_on": [
+          "npc",
+          "player"
+        ],
+        "formula": "damage x (1 + missing/100 x maximum/100)",
+        "at_99_and_1": 97,
+        "at_10_and_1": 0
+      },
+      "guthan": {
+        "id": 3,
+        "quote": "Attacks have a 25% chance of replenishing the player's health equal to the damage dealt.",
+        "style": "any",
+        "acts_on": [
+          "npc",
+          "player"
+        ]
+      },
+      "karil": {
+        "id": 4,
+        "quote": "Successful ranged attacks have a 25% chance of lowering the enemy's Agility level by 20%.",
+        "style": "ranged",
+        "acts_on": [
+          "player"
+        ],
+        "percent": 20
+      },
+      "torag": {
+        "id": 5,
+        "quote": "Successful melee attacks have a 25% chance of lowering the victim's run energy by 20%.",
+        "style": "melee",
+        "acts_on": [
+          "player"
+        ],
+        "percent": 20
+      },
+      "verac": {
+        "id": 6,
+        "quote": "Attacks have a 25% chance of ignoring any armour, Defence, and protection prayers.",
+        "style": "melee",
+        "acts_on": [
+          "npc",
+          "player"
+        ]
+      }
+    },
+    "_pvm_note": "Karil's and Torag's are not missing from the monster path: a monster has no Agility and no run energy, so in Old School they do nothing to one either. Both are wired on the player-versus-player paths, where there is something to drain."
+  },
+  "doors": {
+    "_what": "The tunnel doors open as real double doors rather than carrying the player across the threshold.",
+    "open_form": "barrows_door_inactive_l / _r - the same model with no ops on it, which is what an already-opened door should offer",
+    "categories": {
+      "l": "double_door_open_and_close_left",
+      "r": "double_door_open_and_close_right"
+    },
+    "_note": "doors/scripts/doubledoors.rs2 finds a doorway's other leaf by looking for those two category names beside it, and they are baked into that code - so the shells wear them, and each shell names its own handler explicitly because a loc carries exactly one category."
   }
 }

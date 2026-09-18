@@ -32,8 +32,12 @@ if (~black_mask_on_task = true) {
 }
 
 // check hit, give combat xp
+// Verac's set: "a 25% chance of ignoring any armour, Defence, and protection prayers", all three
+// of which live inside the hit roll - so ignoring them is ignoring the roll.
+// ~barrows_verac_ignores is in areas/area_barrows/scripts/barrows_sets.rs2.
 def_int $damage = 0;
-if (~player_npc_hit_roll_boosted(%damagetype, $mask_num, $mask_div) = true) {
+if (~player_npc_hit_roll_boosted(%damagetype, $mask_num, $mask_div) = true
+    | ~barrows_verac_ignores = true) {
     def_int $maxhit = %com_maxhit;
     if (npc_type = count_draynor & inv_total(inv, garlic) > 0) {
         $maxhit = add($maxhit, 1);
@@ -44,6 +48,8 @@ if (~player_npc_hit_roll_boosted(%damagetype, $mask_num, $mask_div) = true) {
     // After silverlight, which assigns from %com_maxhit and would otherwise discard this, and
     // before the blocks below that zero $maxhit outright.
     $maxhit = scale($mask_num, $mask_div, $maxhit);
+    // Dharok's set: more damage the lower the player's own hitpoints, scaled by their maximum.
+    $maxhit = ~barrows_dharok_maxhit($maxhit);
     if((npc_param(slayer_category) = ^slayer_kurask | npc_param(slayer_category) = ^slayer_turoth) & inv_total(worn, slayer_leafbladed_spear) = 0) {
         $maxhit = 0;
     }
@@ -58,6 +64,9 @@ if (~player_npc_hit_roll_boosted(%damagetype, $mask_num, $mask_div) = true) {
     def_int $damage_capped = min($damage, npc_stat(hitpoints));
     ~give_combat_experience(%damagestyle, $damage_capped, %npc_combat_xp_multiplier);
     npc_heropoints($damage_capped);
+    // Guthan's heal, and Ahrim's Strength drain when the hit was a magic one. Karil's and Torag's
+    // do nothing to a monster in Old School either - a monster has no Agility and no run energy.
+    ~barrows_set_hit_npc($damage_capped, %damagetype);
 }
 
 def_obj $weapon = inv_getobj(worn, ^wearpos_rhand);

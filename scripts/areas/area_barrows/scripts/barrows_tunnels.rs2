@@ -128,50 +128,63 @@ return(^barrows_mound_ahrim);
 // message: the client draws it darker and it has no option, which is 377's own answer to "not all
 // of the doors in these tunnels can be opened".
 //
-// The door does not swing. There is no open form of it in the cache - barrows_door_inactive_l is
-// the same model with no ops at all - so what a click does is carry the player through the
-// doorway, the way general_use/scripts/fence.rs2 carries them through a fence, and then let
-// something out behind them.
+// A REAL DOUBLE DOOR. The first version carried the player across the threshold with
+// ~agility_exactmove and never touched the loc, because the cache looked to have no open form of
+// the door - but barrows_door_inactive_l/r IS that form: the same model with no ops on it, which
+// is exactly what an already-opened door should offer. So both leaves swing to the next tile edge
+// for three ticks and shut behind the player, the way every other door in the game works.
+//
 // THE TRIGGER GOES ON THE LOC THAT IS ON THE MAP. Player.getOpTrigger looks the script up on
-// LocType.get(target.type) - the placed type - and does NOT resolve the multiloc first, even
-// though OpLocHandler resolved one a moment earlier to decide whether the op exists at all. So a
-// trigger on barrows_door_unlocked_l compiles, passes every check that only asks whether it is
-// written down, and never fires: the thing on the map is barrows_door_a_l. The thirty-two shells
-// carry category=barrows_door for this, which is the shape doors/scripts/open_and_close_double_
-// doors.rs2 already uses, and one handler serves all of them.
-[oploc1,_barrows_door] ~barrows_door_through;
+// LocType.get(target.type) - the placed type - and does NOT resolve the multiloc, even though
+// OpLocHandler resolved one a moment earlier to decide whether the op exists at all. So a trigger
+// on barrows_door_unlocked_l compiles, reads correctly, and never fires: the thing on the map is
+// barrows_door_a_l.
+//
+// AND IT IS WRITTEN OUT THIRTY-TWO TIMES rather than served by one category trigger, because the
+// shells have to wear the DOUBLE DOOR categories: doors/scripts/doubledoors.rs2 finds a doorway's
+// other leaf by looking for double_door_open_and_close_left/right beside it, and those two names
+// are baked into that code. A loc carries exactly one category, so the Barrows doors wear those
+// and each shell names its own handler. An explicit trigger beats a category one, which is what
+// keeps ~barrows_door_open in front of the generic door handler - and a shell that ever lost its
+// line would quietly open with no monster behind it, so the battery counts all thirty-two.
+[oploc1,barrows_door_a_l] ~barrows_door_open(^left);
+[oploc1,barrows_door_a_r] ~barrows_door_open(^right);
+[oploc1,barrows_door_b_l] ~barrows_door_open(^left);
+[oploc1,barrows_door_b_r] ~barrows_door_open(^right);
+[oploc1,barrows_door_c_l] ~barrows_door_open(^left);
+[oploc1,barrows_door_c_r] ~barrows_door_open(^right);
+[oploc1,barrows_door_d_l] ~barrows_door_open(^left);
+[oploc1,barrows_door_d_r] ~barrows_door_open(^right);
+[oploc1,barrows_door_e_l] ~barrows_door_open(^left);
+[oploc1,barrows_door_e_r] ~barrows_door_open(^right);
+[oploc1,barrows_door_f_l] ~barrows_door_open(^left);
+[oploc1,barrows_door_f_r] ~barrows_door_open(^right);
+[oploc1,barrows_door_g_l] ~barrows_door_open(^left);
+[oploc1,barrows_door_g_r] ~barrows_door_open(^right);
+[oploc1,barrows_door_h_l] ~barrows_door_open(^left);
+[oploc1,barrows_door_h_r] ~barrows_door_open(^right);
+[oploc1,barrows_door_i_l] ~barrows_door_open(^left);
+[oploc1,barrows_door_i_r] ~barrows_door_open(^right);
+[oploc1,barrows_door_j_l] ~barrows_door_open(^left);
+[oploc1,barrows_door_j_r] ~barrows_door_open(^right);
+[oploc1,barrows_door_k_l] ~barrows_door_open(^left);
+[oploc1,barrows_door_k_r] ~barrows_door_open(^right);
+[oploc1,barrows_door_l_l] ~barrows_door_open(^left);
+[oploc1,barrows_door_l_r] ~barrows_door_open(^right);
+[oploc1,barrows_door_m_l] ~barrows_door_open(^left);
+[oploc1,barrows_door_m_r] ~barrows_door_open(^right);
+[oploc1,barrows_door_n_l] ~barrows_door_open(^left);
+[oploc1,barrows_door_n_r] ~barrows_door_open(^right);
+[oploc1,barrows_door_o_l] ~barrows_door_open(^left);
+[oploc1,barrows_door_o_r] ~barrows_door_open(^right);
+[oploc1,barrows_door_p_l] ~barrows_door_open(^left);
+[oploc1,barrows_door_p_r] ~barrows_door_open(^right);
 
-[proc,barrows_door_through]
+[proc,barrows_door_open](int $side)
 p_arrivedelay;
 p_stopaction;
-def_coord $start = loc_coord;
-def_coord $end = ~movecoord_loc_return(~door_open(loc_angle, loc_shape));
-def_int $dir;
-switch_int (loc_angle) {
-    case ^loc_west : $dir = ^exact_west;
-    case ^loc_north : $dir = ^exact_north;
-    case ^loc_east : $dir = ^exact_east;
-    case ^loc_south : $dir = ^exact_south;
-}
-if (~check_axis(coord, loc_coord, loc_angle) = false) {
-    $start = ~movecoord_loc_return(~door_open(loc_angle, loc_shape));
-    $end = loc_coord;
-    switch_int (loc_angle) {
-        case ^loc_west : $dir = ^exact_east;
-        case ^loc_north : $dir = ^exact_south;
-        case ^loc_east : $dir = ^exact_west;
-        case ^loc_south : $dir = ^exact_north;
-    }
-}
-if (coord ! $start) {
-    p_teleport($start);
-    p_delay(1);
-}
-facesquare($end);
-p_delay(0);
-~agility_exactmove(human_walk_style, 0, 2, $start, $end, 0, 76, $dir, true);
-p_teleport($end);
-~barrows_door_spawn($end);
+~open_and_close_double_door(~check_axis_locactive(coord), $side);
+~barrows_door_spawn(coord);
 
 // WHAT COMES THROUGH WITH YOU, out of 128 and from the wiki: 12 a brother you have not killed, 52
 // a skeleton, 32 a bloodworm, 32 a crypt rat - unless the room is already holding eleven, in which

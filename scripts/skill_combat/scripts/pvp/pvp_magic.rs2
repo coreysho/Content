@@ -270,6 +270,8 @@ $damage = min($damage, .stat(hitpoints));
 // didnt have a flinch anim until sept 20 2006: https://oldschool.runescape.wiki/w/Update:Slug_Menace
 ~give_combat_experience_pvp($damagestyle, $damage, ~pvp_xp_multiplier(~.player_combat_level));
 both_heropoints($damage);
+// Ahrim's Strength drain, and Guthan's heal, which is not style-restricted.
+~barrows_set_hit_player($damage, ^magic_style);
 
 .spotanim_pl(db_getfield($spell_data, magic_spell_table:spotanim_target, 0), $duration);
 .queue*(pvp_retaliate, calc($duration / 30 + 1))(uid);

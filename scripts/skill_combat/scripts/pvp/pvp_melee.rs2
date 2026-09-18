@@ -26,14 +26,20 @@ if ($rhand = null) {
 def_int $damage = 0;
 // not sure if xp multipler exists for us or not?!
 // https://oldschool.runescape.wiki/w/Combat#PvP_bonus_experience
-if (~pvp_hit_roll(%damagetype) = true) {
-    def_int $maxhit = %com_maxhit;
-    if (~.check_protect_prayer(^melee_style) = true) {
+// Verac's set ignores armour, Defence and protection prayers on a quarter of its attacks, which
+// here means skipping the roll AND the 40% prayer reduction below it. Dharok's scales the max hit
+// with the wearer's missing health. Both are in areas/area_barrows/scripts/barrows_sets.rs2.
+def_boolean $verac = ~barrows_verac_ignores;
+if (~pvp_hit_roll(%damagetype) = true | $verac = true) {
+    def_int $maxhit = ~barrows_dharok_maxhit(%com_maxhit);
+    if (~.check_protect_prayer(^melee_style) = true & $verac = false) {
         $maxhit = scale(6, 10, $maxhit); // reduction of 40%
     }
     $damage = min(randominc($maxhit), .stat(hitpoints)); // tick eating existed! https://oldschool.runescape.wiki/w/Update:The_Wintertodt
     ~give_combat_experience_pvp(%damagestyle, $damage, ~pvp_xp_multiplier(~.player_combat_level));
     both_heropoints($damage);
+    // Guthan's heal and Torag's energy drain.
+    ~barrows_set_hit_player($damage, %damagetype);
 }
 
 anim(%com_attackanim, 0);

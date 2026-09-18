@@ -73,6 +73,8 @@ if (~player_npc_hit_roll_boosted(%damagetype, $mask_num, $mask_div) = true) {
     }
     $damage = randominc(min($maxhit, npc_param(max_dealt)));
     def_int $damage_capped = min($damage, npc_stat(hitpoints));
+    // Guthan's heal is "attacks", not "melee attacks", so it fires here too.
+    ~barrows_set_hit_npc($damage_capped, %damagetype);
     ~give_combat_experience(%damagestyle, $damage_capped, %npc_combat_xp_multiplier);
     npc_heropoints($damage_capped);
 }

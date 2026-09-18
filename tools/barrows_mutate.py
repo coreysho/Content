@@ -29,6 +29,12 @@ ALLSEQ = 'scripts/_unpack/377/all.seq'
 SKELTABLE = 'scripts/drop_tables/scripts/skeleton_barrows_skeleton_armed.rs2'
 COMBATPARAM = 'scripts/skill_combat/configs/npc_combat.param'
 COMBAT = 'scripts/areas/area_barrows/scripts/barrows_combat.rs2'
+SETS = 'scripts/areas/area_barrows/scripts/barrows_sets.rs2'
+ALLOBJ = 'scripts/_unpack/377/all.obj'
+PMELEE = 'scripts/skill_combat/scripts/player/player_melee.rs2'
+PRANGED = 'scripts/skill_combat/scripts/player/player_ranged.rs2'
+PMAGIC = 'scripts/skill_combat/scripts/player/player_magic.rs2'
+VMELEE = 'scripts/skill_combat/scripts/pvp/pvp_melee.rs2'
 CHESTSPEC = 'tools/barrowschestspec.json'
 RS2 = 'scripts/areas/area_barrows/scripts/barrows.rs2'
 STAIRS = 'scripts/ladders+stairs/scripts/stairs.rs2'
@@ -250,8 +256,8 @@ MUTS = [
   '15 after the chest has paid, every door is a brother'),
  (TUN, '~barrows_nth_unkilled(random($left))', '~barrows_nth_killed(random($left))',
   "15 a door's brother is one the player has NOT killed"),
- (TUN, '[oploc1,_barrows_door] ~barrows_door_through;\n', '',
-  '15 one handler serves every doorway'),
+ (TUN, '[oploc1,barrows_door_e_l] ~barrows_door_open(^left);\n', '',
+  '15 all thirty-two doorway leaves are accounted for'),
 
  # --- the passage and the ladder
  (CONST, '^barrows_chamber_tile_a = 0_55_151_15_48', '^barrows_chamber_tile_a = 0_55_151_14_48',
@@ -305,8 +311,8 @@ MUTS = [
  (TELE, 'if (~pre_tele_checks(coord) = false) {\n    return;\n}', '',
   '18 and it is not a way out of deep wilderness'),
  # --- a handler that cannot fire, which is what shipped
- (TUN, '[oploc1,_barrows_door] ~barrows_door_through;',
-        '[oploc1,barrows_door_unlocked_l] ~barrows_door_through;',
+ (TUN, '[oploc1,barrows_door_a_l] ~barrows_door_open(^left);',
+        '[oploc1,barrows_door_unlocked_l] ~barrows_door_open(^left);',
   '19 op1 on barrows_door_unlocked_l'),
  (TUN, '[oploc1,_barrows_ladder]', '[oploc1,barrows_ladder]',
   '19 op1 on barrows_ladder'),
@@ -314,7 +320,11 @@ MUTS = [
   '19 op1 on barrows_stone_chest_closed'),
  (CHEST, '[oploc2,barrows_stone_chest]', '[oploc2,barrows_stone_chest_open]',
   '19 op2 on barrows_stone_chest_open'),
- (ALLLOC, '[barrows_door_e_l]\ncategory=barrows_door', '[barrows_door_e_l]',
+ # The doors no longer answer to a category of their own - they wear the double-door ones - so the
+ # dead-click check is fed from the ladder side instead. Note that removing ONE door's explicit
+ # trigger would NOT show up here: the generic double-door handler would quietly take it, which is
+ # why the thirty-two are counted separately.
+ (TUN, '[oploc1,_barrows_ladder]\np_arrivedelay;', 'p_arrivedelay;',
   '19 no Barrows loc on either map has an option nothing handles'),
  (ALLLOC, '[barrows_ladder_g]\ncategory=barrows_ladder', '[barrows_ladder_g]',
   '19 no Barrows loc on either map has an option nothing handles'),
@@ -417,6 +427,71 @@ MUTS = [
   '24 both ways underground start it'),
  (CONST, '^barrows_crypt_sw = 3_55_151_0_0', '^barrows_crypt_sw = 3_55_152_0_0',
   '24 and the two zones really are one square at two levels'),
+ # --- the doors
+ (ALLLOC, '[barrows_door_c_r]\ncategory=double_door_open_and_close_right',
+          '[barrows_door_c_r]\ncategory=double_door_open_and_close_left',
+  '25 barrows_door_c_r wears the r double-door category'),
+ (ALLLOC, 'param=next_loc_stage,barrows_door_inactive_r',
+          'param=next_loc_stage,barrows_door_unlocked_r',
+  '25 ...and opens into barrows_door_inactive_r'),
+ (TUN, '~open_and_close_double_door(~check_axis_locactive(coord), $side);', 'p_teleport(coord);',
+  "25 the door is opened by the game's own double-door proc"),
+ (TUN, '~open_and_close_double_door(~check_axis_locactive(coord), $side);\n~barrows_door_spawn(coord);',
+        '~barrows_door_spawn(coord);\n~open_and_close_double_door(~check_axis_locactive(coord), $side);',
+  '25 and what comes through does so after the door is open'),
+ (ALLLOC, '[barrows_door_inactive_l]\nname=Door', '[barrows_door_inactive_l]\nop1=Open\nname=Door',
+  '25 and the opened form carries no option'),
+
+ # --- the armour sets
+ (ALLOBJ, '[barrows_guthan_body]\nparam=barrows_set,3',
+          '[barrows_guthan_body]\nparam=barrows_set,4',
+  '26 barrows_guthan_body carries set 3'),
+ (ALLOBJ, '[barrows_torag_weapon]\nparam=barrows_set,5\n',
+          '[barrows_torag_weapon]\n',
+  '26 barrows_torag_weapon carries set 5'),
+ (ALLOBJ, '[barrows_karil_head_50]\nname=Karils coif 50',
+          '[barrows_karil_head_50]\nparam=barrows_set,4\nname=Karils coif 50',
+  '26 nothing outside the twenty-four carries a set id'),
+ (CONST, '^barrows_set_guthan = 3', '^barrows_set_guthan = 7',
+  '26 guthan is set 3, which is his bit plus one'),
+ (CONST, '^barrows_set_effect_pct = 25', '^barrows_set_effect_pct = 20',
+  '26 five of the six fire on 25% of qualifying hits'),
+ (SETS, 'if (~barrows_set_piece(^wearpos_rhand) ! $set) {\n    return(^false);\n}\n', '',
+  '26 a full set means the rhand slot too'),
+ (SETS, 'def_int $set = oc_param($item, barrows_set);\nif ($set ! 0) {\n    return($set);\n}\n', '',
+  '26 ...and a piece is asked for its set first'),
+ (SETS, 'if ($item = null) {\n    return(0);\n}\n', '',
+  '26 and an empty slot is answered before anything is asked of it'),
+ (SETS, 'divide(multiply(multiply($maxhit, $missing), $max), 10000)',
+         'divide(multiply($maxhit, $missing), 100)',
+  "26 Dharok's bonus is maxhit x missing x maximum / 10000"),
+ (SETS, 'if ($missing <= 0) {\n    return($maxhit);\n}\n', '',
+  '26 and a player at full health gets nothing'),
+ (SETS, '$style = ^magic_style & ~barrows_set_worn(^barrows_set_ahrim) = ^true\n    & random(100)',
+         '~barrows_set_worn(^barrows_set_ahrim) = ^true\n    & random(100)',
+  "26 Ahrim's drain answers only to a magic hit, on the monster path"),
+ (SETS, 'npc_statsub(strength, ^barrows_ahrim_strength_drain, 0);',
+         'npc_statsub(defence, ^barrows_ahrim_strength_drain, 0);',
+  "26 Ahrim's five levels come off a monster with npc_statsub"),
+ (SETS, '.healenergy(sub(0, scale(^barrows_torag_energy_pct, 100, .runenergy)));',
+         '.healenergy(sub(0, ^barrows_torag_energy_pct));',
+  "26 and Karil's fifth of Agility and Torag's fifth of the energy LEFT"),
+ (SETS, 'if ($damage <= 0) {\n    return;\n}\nif ($style = ^magic_style & ~barrows_set_worn(^barrows_set_ahrim)',
+         'if ($style = ^magic_style & ~barrows_set_worn(^barrows_set_ahrim)',
+  '26 and nothing fires on a hit that did not land'),
+ (PMELEE, '~barrows_set_hit_npc($damage_capped, %damagetype);', '',
+  '26 the player melee path fires the sets'),
+ (PMAGIC, '~barrows_set_hit_npc($damage_capped, ^magic_style);',
+           '~barrows_set_hit_player($damage_capped, ^magic_style);',
+  '26 and no monster path fires the player version'),
+ (PMELEE, '$maxhit = ~barrows_dharok_maxhit($maxhit);\n', '',
+  "26 Dharok's scaling is on both melee paths"),
+ (PMELEE, '| ~barrows_verac_ignores = true) {', ') {',
+  "26 Verac's pierce is an alternative to the monster hit roll"),
+ (VMELEE, '^melee_style) = true & $verac = false', '^melee_style) = true',
+  '26 ...and in pvp it skips the 40% prayer reduction as well'),
+ (PRANGED, '~barrows_set_hit_npc($damage_capped, %damagetype);', '',
+  '26 the player ranged path fires the sets'),
 ]
 
 
