@@ -94,9 +94,15 @@ MUTS = [
   'no two say the same thing'),
  (IPACK, '20576=stats:xplock_attack\n', '',
   'every one has an id in interface.pack'),
- (XPLOCK, '        if_settext(stats:com_125, "Next Level At:");',
-          '        if_settext(stats:com_131, "Next Level At:");',
+ (XPLOCK, '            if_settext(stats:com_125, "Next Level At:");',
+          '            if_settext(stats:com_131, "Next Level At:");',
   "and rewrites a label inside its own skill's hover panel"),
+ # the build failure this round shipped with, as a mutation
+ (XPLOCK, 'if (p_finduid(uid) = true) {\n    if (~xplock_is(^xplock_attack) = true) {',
+          'if (true) {\n    if (~xplock_is(^xplock_attack) = true) {',
+  'and takes protected access FIRST, because an [if_button] is not handed it'),
+ (VARP, '[xp_locked]\nscope=perm', '[xp_locked]\nscope=perm\nprotect=no',
+  '...so the varp stays protected rather than being opened up to get round it'),
 
  # ---- 11 the lock is not a loophole
  (LOGIN, '~xplock_restore;', '//~xplock_restore;',

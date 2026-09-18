@@ -373,6 +373,27 @@ for n in locks:
             crossed.append((n, lab))
 check(not crossed, 'and rewrites a label inside its own skill\'s hover panel: %s'
       % (crossed[:3] or 'all 22'))
+# THE CHECK THE BUILD EARNED. An [if_button] is handed active_player and NOT p_active_player
+# (claude/rs2-player-pointer-contexts.md). Without p_finduid these bodies fail TWICE: ~p_choice2
+# reaches p_pausebutton, which is a build error, and writing a protect=yes varp from an
+# unprotected script compiles clean and drops the connection when it runs. Nothing offline caught
+# it - the server build did, on all 22 at once.
+unprot = []
+for n in locks:
+    body = XPLOCK.split('[if_button,stats:%s]' % n, 1)[1].split('\n[', 1)[0]
+    lines = [l for l in code(body).split('\n') if l.strip()]
+    if not lines or lines[0].strip() != 'if (p_finduid(uid) = true) {':
+        unprot.append(n)
+check(not unprot, 'and takes protected access FIRST, because an [if_button] is not handed it: %s'
+      % (unprot[:3] or 'all 22'))
+outside = [n for n in locks
+           if re.search(r'(?m)^%xp_locked = ', code(XPLOCK.split('[if_button,stats:%s]' % n, 1)[1]
+                                                    .split('\n[', 1)[0]))]
+check(not outside, '...with every %%xp_locked write inside that branch, not beside it: %s'
+      % (outside[:3] or 'all 22'))
+lkv = varpblock(VARP, 'xp_locked')
+check('protect=no' not in lkv,
+      '...so the varp stays protected rather than being opened up to get round it')
 
 # ============================================================================ 11
 print('11. a lock never waives a requirement')

@@ -219,6 +219,10 @@ RS2_HEAD = '''// The per-skill XP lock.
 // a lock never touches a level - which is the whole point of Corey's constraint: locking a skill
 // must not be a way to be handed the dragon mace or the better gloves.
 //
+// WHAT AN [if_button] IS NOT HANDED. p_active_player. It gets active_player and nothing more, so
+// every one of these bodies opens with p_finduid - see claude/rs2-player-pointer-contexts.md, which
+// says so in a table this round did not read until the build refused twenty-two scripts.
+//
 // WHAT THE HOVER PANEL SHOWS. A locked skill's second row says "XP locked" where it said
 // "Next Level At:". That is the whole display: blank is the cache state, so an account with
 // nothing locked pushes nothing at login, and the restore string is the interface's own.
@@ -253,18 +257,26 @@ def emit_rs2(sk):
         name = title(s['skill'])
         mark = 'stats:%s' % s['label']
         o += ['[if_button,stats:%s%s]' % (PREFIX, s['skill']),
-              'if (~xplock_is(^xplock_%s) = true) {' % s['skill'],
-              '    if (~p_choice2("Unlock %s experience?", 1, "No, keep it locked.", 2) = 1) {' % name,
-              '        %%xp_locked = clearbit(%%xp_locked, ^xplock_%s);' % s['skill'],
-              '        if_settext(%s, "%s");' % (mark, s['label_text']),
-              '        mes("Your %s experience is no longer locked.");' % name,
+              '// p_finduid FIRST. An [if_button] is handed active_player and NOT p_active_player -',
+              '// see claude/rs2-player-pointer-contexts.md - so both halves of this body need it:',
+              '// ~p_choice2 reaches p_pausebutton, which is a build error without it, and writing a',
+              '// protect=yes varp from an unprotected script compiles fine and DROPS THE CONNECTION',
+              '// when it runs. Taking the pointer fixes both and keeps the varp protected. Same shape',
+              '// as [label,magic_teleport], which the spellbook buttons reach.',
+              'if (p_finduid(uid) = true) {',
+              '    if (~xplock_is(^xplock_%s) = true) {' % s['skill'],
+              '        if (~p_choice2("Unlock %s experience?", 1, "No, keep it locked.", 2) = 1) {' % name,
+              '            %%xp_locked = clearbit(%%xp_locked, ^xplock_%s);' % s['skill'],
+              '            if_settext(%s, "%s");' % (mark, s['label_text']),
+              '            mes("Your %s experience is no longer locked.");' % name,
+              '        }',
+              '        return;',
               '    }',
-              '    return;',
-              '}',
-              'if (~p_choice2("Lock %s experience?", 1, "No, leave it.", 2) = 1) {' % name,
-              '    %%xp_locked = setbit(%%xp_locked, ^xplock_%s);' % s['skill'],
-              '    if_settext(%s, "%s");' % (mark, MARKER_TEXT),
-              '    mes("Your %s experience is locked. You will gain no more of it.");' % name,
+              '    if (~p_choice2("Lock %s experience?", 1, "No, leave it.", 2) = 1) {' % name,
+              '        %%xp_locked = setbit(%%xp_locked, ^xplock_%s);' % s['skill'],
+              '        if_settext(%s, "%s");' % (mark, MARKER_TEXT),
+              '        mes("Your %s experience is locked. You will gain no more of it.");' % name,
+              '    }',
               '}',
               '']
     return o
