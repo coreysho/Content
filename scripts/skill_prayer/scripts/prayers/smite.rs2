@@ -2,8 +2,26 @@
 if_close;
 if (p_finduid(uid) = true) {
     @activate_prayer_smite;
+    return;
 }
-%prayer17 = %prayer17;
+// PRESSED WHILE DELAYED USED TO DO NOTHING AT ALL. p_finduid(uid) fails whenever canAccess()
+// does - Player.busy() is delayed || containsModalInterface - so a prayer pressed during a spec,
+// a teleport or a skilling swing fell straight through to the resync that used to be here, and
+// the orb the client had already lit flicked back off. Reported from play 2026-09-21 as "prayer
+// activation has bad delays".
+//
+// A queue gets protected access AND only runs once canAccess() is true again (Player.processQueue
+// checks it every tick), so the prayer comes on the moment the delay ends rather than being
+// thrown away. The button is buttontype=toggle with pushvar, so the CLIENT flips the varp on
+// every press - queueing one toggle per press keeps the parity the player can see, and the
+// activate label writes the varp itself either way, which is the resync.
+//
+// This does NOT change whether praying interrupts what you were doing; see the
+// p_clearpendingaction below, which upstream cites period footage for.
+queue(retry_prayer_smite, 0, 0);
+
+[queue,retry_prayer_smite]
+@activate_prayer_smite;
 
 [label,activate_prayer_smite]
 p_clearpendingaction;

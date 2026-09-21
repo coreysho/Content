@@ -131,5 +131,48 @@ check('%iban_staff_charges = 120;' in UPASS,
       'and Underground Pass is still what fills it, at 120')
 
 print()
+print('4. a prayer pressed while you are busy')
+
+# Player.busy() is delayed || containsModalInterface, and p_finduid fails whenever canAccess()
+# does - so a prayer pressed during a spec, a teleport or a skilling swing used to fall through to
+# a resync and the orb flicked back off. The queue gets protected access and only runs once
+# canAccess() is true again, so the press survives the delay instead of being thrown away.
+import glob as _glob
+_PRAY = sorted(_glob.glob(os.path.join(C, 'scripts/skill_prayer/scripts/prayers/*.rs2')))
+check(len(_PRAY) == 18, 'all %d prayers are here' % len(_PRAY))
+_bad, _noclear, _stale = [], [], []
+for _f in _PRAY:
+    _t = open(_f, newline='').read().replace('\r\n', '\n')
+    _name = os.path.basename(_f)
+    _btn = re.search(r'\[if_button,prayer:(\w+)\]', _t)
+    _lbl = re.search(r'\[label,(activate_\w+)\]', _t)
+    if not _btn or not _lbl:
+        _bad.append((_name, 'no button or no activate label')); continue
+    _b, _l = _btn.group(1), _lbl.group(1)
+    if 'queue(retry_%s, 0, 0);' % _b not in _t:
+        _bad.append((_name, 'does not queue a retry'))
+    if '[queue,retry_%s]\n@%s;' % (_b, _l) not in _t:
+        _bad.append((_name, 'the retry does not run the same activate label'))
+    # the success path must RETURN, or a prayer that worked would queue a second toggle and
+    # turn itself straight back off
+    if 'if (p_finduid(uid) = true) {\n    @%s;\n    return;\n}' % _l not in _t:
+        _bad.append((_name, 'the direct path does not return, so it would toggle twice'))
+    if re.search(r'^%\w+ = %\w+;', _t, re.M):
+        _stale.append(_name)
+    # UPSTREAM CITES PERIOD FOOTAGE FOR THIS ONE (three videos, in clarity.rs2), so it is pinned
+    # rather than removed - if it goes, that should be a decision and not a tidy-up.
+    if 'p_clearpendingaction;' not in _t:
+        _noclear.append(_name)
+check(not _bad, 'every prayer queues its own retry and returns on the direct path: %s'
+      % (_bad[:3] or 'all 18'))
+check(not _stale, 'and none of them still falls through to a bare varp resync: %s'
+      % (_stale[:3] or 'none'))
+check(not _noclear, 'p_clearpendingaction is still on all 18 - upstream cites three videos for it '
+      'in clarity.rs2, so removing it is a decision: %s' % (_noclear[:3] or 'all 18 intact'))
+_clarity = open(os.path.join(C, 'scripts/skill_prayer/scripts/prayers/clarity.rs2'), newline='').read()
+check('youtu' in _clarity.split('p_clearpendingaction;', 1)[1].split('\n', 1)[0],
+      '...and the evidence for it is still written beside it')
+
+print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
 sys.exit(1 if fails else 0)

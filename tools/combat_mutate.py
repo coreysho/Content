@@ -20,6 +20,8 @@ OBSIDIAN = 'scripts/skill_combat/configs/melee/obsidian.obj'
 SECATEURS = 'scripts/general/configs/osrs_items.obj'
 IBANPVM = 'scripts/skill_combat/scripts/player/spells/scripts/ibans_blast.rs2'
 STAFFIF = 'scripts/skill_combat/interfaces/magic/combat_staff_2.if'
+ROCKSKIN = 'scripts/skill_prayer/scripts/prayers/rockskin.rs2'
+CLARITY = 'scripts/skill_prayer/scripts/prayers/clarity.rs2'
 
 MUTS = [
  # ---- 1, the autocast arming: the papercut behind "autocasting fire wave" then a melee swing
@@ -90,6 +92,31 @@ data=spotanim_target,gunthix_claw,92''',
   '4 a cast at an npc costs one charge and is refused at zero'),
  (IBANPVM, 'if (%iban_staff_charges < 1) {', 'if (%iban_staff_charges < 0) {',
   '4 a cast at an npc costs one charge and is refused at zero'),
+
+ # ---- 5, the prayer press that used to be thrown away
+ (ROCKSKIN, 'queue(retry_prayer_rockskin, 0, 0);', '%prayer3 = %prayer3;',
+  '5 every prayer queues its own retry and returns on the direct path'),
+ # the success path forgetting to return - it would queue a second toggle and turn the prayer
+ # straight back off again, which looks exactly like the bug being fixed
+ (ROCKSKIN, '    @activate_prayer_rockskin;\n    return;\n}',
+            '    @activate_prayer_rockskin;\n}',
+  '5 every prayer queues its own retry and returns on the direct path'),
+ # the retry pointed at somebody else's prayer, which is what copying eighteen files invites
+ (ROCKSKIN, '[queue,retry_prayer_rockskin]\n@activate_prayer_rockskin;',
+            '[queue,retry_prayer_rockskin]\n@activate_prayer_thickskin;',
+  '5 every prayer queues its own retry and returns on the direct path'),
+ # the resync coming back beside the queue, so the orb is corrected off before the queue can run
+ (ROCKSKIN, 'queue(retry_prayer_rockskin, 0, 0);',
+            'queue(retry_prayer_rockskin, 0, 0);\n%prayer3 = %prayer3;',
+  '5 and none of them still falls through to a bare varp resync'),
+ # THE PINNED ONE: upstream cites three videos for this, so it may only leave on purpose
+ (ROCKSKIN, 'p_clearpendingaction;\n', '',
+  '5 p_clearpendingaction is still on all 18'),
+ # the citation tidied away, which is how a deliberate behaviour becomes one nobody can defend
+ (CLARITY, 'p_clearpendingaction; // https://youtu.be/j-Z-43CzpZQ?t=120, '
+           'https://youtu.be/NT74s7nJwAo?t=21, https://www.youtube.com/watch?v=fcRgR_4ZbdA',
+           'p_clearpendingaction;',
+  '5 and the evidence for it is still written beside it'),
 ]
 
 
