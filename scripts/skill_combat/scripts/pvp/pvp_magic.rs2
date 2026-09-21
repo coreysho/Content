@@ -165,8 +165,10 @@ return(true);
 
 
 [proc,pvp_freeze_allowed](dbrow $spell_data)(boolean)
-// check if player is already frozen
-if (db_getfield($spell_data, magic_spell_table:freeze_time, 0) > 0) {
+// Only the hold spells (Bind, Snare, Entangle - maxhit -1) are refused on a held or immune target, or
+// in a no-movement duel. Ice spells are cast and do their damage; pvp_freeze_effect skips only their
+// freeze. See pvm_freeze_allowed in player_magic.rs2.
+if (db_getfield($spell_data, magic_spell_table:freeze_time, 0) > 0 & db_getfield($spell_data, magic_spell_table:maxhit, 0) < 1) {
     if (.%frozen > map_clock) {
         mes("Your target is already held by a magical force.");
         return(false);
@@ -234,7 +236,8 @@ while ($i < db_getfieldcount($spell_data, magic_spell_table:stat_change)) {
 
 [proc,pvp_freeze_effect](dbrow $spell_data)
 def_int $freeze_time = db_getfield($spell_data, magic_spell_table:freeze_time, 0);
-if ($freeze_time > 0) {
+// not on a player already held, in the five immune ticks after a hold, or in a no-movement duel
+if ($freeze_time > 0 & calc(.%frozen + 5) <= map_clock & .getwalktrigger() ! duel_arena_no_move) {
     if (~.check_protect_prayer(^magic_style) = true) {
         $freeze_time = divide($freeze_time, 2); // 50% reduction https://oldschool.runescape.wiki/w/Update:RS2_bugfixes_-_part_4
     }
