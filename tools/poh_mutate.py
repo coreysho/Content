@@ -1145,6 +1145,103 @@ MUTS += [
 ]
 
 
+# ---- 64b, second pass: Graceful pays 50% and the numbers are checked without a build ---------
+_G_OBJ = 'scripts/skilling_outfits/configs/outfits.obj'
+_G_CON = 'scripts/skilling_outfits/configs/outfits.constant'
+_G_EFF = 'scripts/skilling_outfits/scripts/outfit_effects.rs2'
+_G_SPEC = 'tools/gracefulspec.json'
+_G_BAT = 'tools/poh_battery.py'
+
+# WHAT CHANGED SINCE THE NOTE ABOVE. That note says the artefact and engine checks cannot be
+# mutated from this tree, and that is still true. But the sandbox CAN build now, so the checks
+# added in this round read the configs and tools/gracefulspec.json and every one of them is
+# reachable from here.
+#
+# The anchors below were each confirmed to appear EXACTLY ONCE in their file before being written
+# down. This harness replaces the first match and has no uniqueness rule of its own - the rule
+# lives in tools/follower_mutate.py and tools/gamemode_mutate.py - so it is done by hand here.
+#
+# A NOTE ON DOUBLE CATCHES. A mutation to the spec makes tools/objpacked.py go red too, because
+# that tool compares the real artefact against the spec in THIS tree. That is not a problem: the
+# harness attributes by matching the named check's own text against the FAIL lines, so the entry
+# is still reported as caught by its own check. It is written down because a reader seeing two
+# red lines should know why.
+MUTS += [
+ # --- the spec has to add up before anything is compared to it
+ (_G_SPEC, '"graceful_cape": 8,', '"graceful_capelet": 8,',
+  "64b the spec names all six Graceful pieces and nothing else"),
+ (_G_SPEC, '"total_pct": 50,', '"total_pct": 45,',
+  "64b the spec's per-piece numbers add up to the total it claims"),
+ # sum AND claimed total moved together to 45, so the only thing wrong is that 45 is not the
+ # number Corey asked for - which is the one check this entry is for
+ (_G_SPEC,
+  '"graceful_legs": 10,\n      "graceful_top": 10,\n      "graceful_boots": 8,\n'
+  '      "graceful_cape": 8,\n      "graceful_hood": 7,\n      "graceful_gloves": 7\n'
+  '    },\n    "total_pct": 50,',
+  '"graceful_legs": 9,\n      "graceful_top": 9,\n      "graceful_boots": 7,\n'
+  '      "graceful_cape": 7,\n      "graceful_hood": 7,\n      "graceful_gloves": 6\n'
+  '    },\n    "total_pct": 45,',
+  "64b and that total is the 50 percent Corey asked for by name"),
+ (_G_SPEC, '"full_set_total_pct": 30,', '"full_set_total_pct": 40,',
+  "64b with OSRS's own figures recorded beside it as the thing being departed from"),
+
+ # --- the configs agree with the spec, piece by piece
+ # TWO PIECES SWAPPED, total untouched: 10+10 becomes 13+7. This is the mutation the per-piece
+ # check exists for - a total-only check would call this correct.
+ (_G_SPEC, '"graceful_legs": 10,\n      "graceful_top": 10,',
+        '"graceful_legs": 13,\n      "graceful_top": 7,',
+  "64b each piece's energy_restore in outfits.obj is the number the spec derived for it"),
+ (_G_OBJ, 'param=energy_restore,7\ncost=30', 'param=energy_restore,9\ncost=30',
+  "64b and the six together come to the full-set total, read out of the config"),
+ (_G_OBJ, 'param=energy_restore,7\ncost=35', 'cost=35',
+  "64b all six Graceful blocks carry one weight= and one energy_restore line"),
+
+ # --- the shape, read off the config's own weight lines
+ # legs take the most weight off and would recover the least
+ (_G_OBJ, 'weight=-6kg\nparam=energy_restore,10', 'weight=-6kg\nparam=energy_restore,6',
+  "64b recovery never goes down as the weight reduction goes up"),
+ # boots and the cape both take 4kg off; only the cape's recovery moves
+ (_G_OBJ, 'param=energy_restore,8\ncost=40\nmembers=yes\ntradeable=no\niop2=Wear\n'
+       'category=armour_cape',
+       'param=energy_restore,7\ncost=40\nmembers=yes\ntradeable=no\niop2=Wear\n'
+       'category=armour_cape',
+  "64b and two pieces that take the same weight off recover the same"),
+ (_G_OBJ, 'weight=-6kg', 'weight=-7kg',
+  "64b every piece's weight= is still exactly OSRS's"),
+
+ # --- the sweeps, and their guards
+ # THE GUARD IS MUTATED IN THE CHECKER ITSELF, which is the only place it can be: a guard that
+ # says "the sweep found something" is a claim about the sweep, not about the tree.
+ (_G_BAT, "for _rel, _t in _walk('.obj'):", "for _rel, _t in _walk('.obj-nothing'):",
+  "64b the sweep below actually walked the obj configs"),
+ (_G_OBJ, '[rogue_mask]', '[rogue_mask]\nparam=energy_restore,5',
+  "64b and no other obj config in the tree carries energy_restore"),
+ (_G_BAT, "for _rel, _t in _walk('.rs2'):", "for _rel, _t in _walk('.rs2-nothing'):",
+  "64b and that sweep read the whole script tree rather than a handful"),
+ (_G_EFF, '[proc,zealots_saves]',
+        '[proc,graceful_restore_of](obj $obj)(int)\n'
+        'return(oc_param($obj, energy_restore));\n\n[proc,zealots_saves]',
+  "64b and no script anywhere reads energy_restore"),
+
+ # --- the departure is written down where somebody would look
+ (_G_CON, 'DEPARTURE', 'Departure',
+  "64b outfits.constant's Graceful note says what this build pays and what OSRS pays"),
+ (_G_EFF, '+50% natural run energy recovery (OSRS pays 30%).',
+       '+50% natural run energy recovery.',
+  "64b and the header of outfit_effects.rs2"),
+ (_G_CON, 'tools/gracefulspec.json', 'the notes somewhere',
+  "64b and points at the spec that holds the arithmetic"),
+
+ # --- the model of the engine's arithmetic notices when the engine's arithmetic moves
+ # The quoted line is broken in the SIM, which is the same thing as the engine's line changing as
+ # far as the sim can tell - it compares the two and has nothing else to go on.
+ ('tools/gracefulsim.py',
+  "LOSS = 'const loss = (67 + (67 * clampWeight) / 64) | 0;'",
+  "LOSS = 'const loss = (67 + (67 * clampWeight) / 65) | 0;'",
+  "64b gracefulsim.py still recognises every line of updateEnergy() it models"),
+]
+
+
 # ---- 68: every obj can be got, or says why not -----------------------------------------------
 MUTS += [
  ('tools/nosourcespec.json', '"macro_mime_mask": {', '"macro_mime_mask_GONE": {',

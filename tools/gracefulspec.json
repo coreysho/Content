@@ -1,0 +1,66 @@
+{
+  "_what": "Graceful's run-energy recovery, per piece. External facts first, then the departure Corey chose and the arithmetic that turns it into six whole numbers. Written before any config was edited; tools/outfit_battery checks in gamemode_battery.py group 64b read this file, so a number changed here without the config changing goes red, and vice versa.",
+
+  "osrs": {
+    "_source": "https://oldschool.runescape.wiki/w/Graceful_outfit, read 2026-09-21",
+    "_note": "Re-read rather than taken from the earlier round's notes, because this round rewrites the comment that states it.",
+    "per_piece_pct": {
+      "graceful_hood": 3,
+      "graceful_top": 4,
+      "graceful_legs": 4,
+      "graceful_gloves": 3,
+      "graceful_boots": 3,
+      "graceful_cape": 3
+    },
+    "per_piece_total_pct": 20,
+    "full_set_bonus_pct": 10,
+    "full_set_total_pct": 30,
+    "weight_kg": {
+      "graceful_hood": -3,
+      "graceful_top": -5,
+      "graceful_legs": -6,
+      "graceful_gloves": -3,
+      "graceful_boots": -4,
+      "graceful_cape": -4
+    },
+    "weight_total_kg": -25
+  },
+
+  "departure": {
+    "_who": "Corey, backlog item 5: \"Graceful gives +50% energy recovery\".",
+    "full_set_total_pct": 50,
+    "replaces_not_adds": true,
+    "_replaces_not_adds": "50 is the new total, not 50 on top of the 20 it paid before. Asked and answered before anything was built.",
+    "shape": "per_piece",
+    "_shape": "The whole 50 comes from the pieces' own params, so a partial set pays its share and there is no full-set bonus at all. The alternative - OSRS's per-piece numbers plus a large set bonus - was offered and not chosen, and it would have cost the set mechanism the engine deliberately does not have: calculateRunWeight() sums a param over worn gear and knows nothing about which outfit a piece belongs to.",
+    "osrs_set_bonus_dropped": true,
+    "_osrs_set_bonus_dropped": "OSRS's own +10% for all six is still not implemented and now does not need to be: the 50 already exceeds OSRS's 30 by twenty points, so a set bonus on top would be a departure on a departure."
+  },
+
+  "scaling": {
+    "factor": 2.5,
+    "_factor": "50 / 20. Applied to OSRS's per-piece numbers so the relative shape survives: a 4% piece stays worth more than a 3% piece, in the same proportion.",
+    "exact": {"3": 7.5, "4": 10.0},
+    "_rounding": "3 x 2.5 is 7.5, which is not a whole percent. The two 4% pieces land on 10 exactly. The four 3% pieces have to sum to 30, so two take 8 and two take 7.",
+    "tie_break": "weight",
+    "_tie_break": "Which of the four take 8 is decided by the piece's own weight reduction, not by taste: boots and cape reduce 4 kg and take 8, hood and gloves reduce 3 kg and take 7. This is OSRS's own principle at a finer grain - its 4% pieces are its two heaviest reductions (-6 and -5) and its 3% pieces are the -4s and -3s - and it makes the result a checkable property rather than a choice: recovery is non-decreasing in weight reduction, and equal reductions get equal recovery."
+  },
+
+  "result": {
+    "per_piece_pct": {
+      "graceful_legs": 10,
+      "graceful_top": 10,
+      "graceful_boots": 8,
+      "graceful_cape": 8,
+      "graceful_hood": 7,
+      "graceful_gloves": 7
+    },
+    "total_pct": 50,
+    "_engine": "No engine change. calculateRunWeight() already sums the energy_restore param over worn equipment into runrestore, and updateEnergy() already scales natural recovery by it: natural + ((natural * runrestore) / 100 | 0).",
+    "effect_per_tick": {
+      "_formula": "natural = (agility_base / 6 | 0) + 8, out of 10000",
+      "agility_1": {"bare": 8, "full_graceful": 12},
+      "agility_99": {"bare": 24, "full_graceful": 36}
+    }
+  }
+}

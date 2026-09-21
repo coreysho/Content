@@ -45,13 +45,21 @@
 // instead is below, and outfit_effects.rs2 is where two of the three are wired.
 
 // GRACEFUL is not here at all, and that is the point: -25kg is the pieces' own weight= lines and
-// +20% recovery is their energy_restore param, both read by the engine. A continuous effect
+// +50% recovery is their energy_restore param, both read by the engine. A continuous effect
 // belongs in the numbers the engine already reads every tick, not in a script pretending to.
 //
-// OSRS gives a further +10% for wearing all six, for 30% rather than 20%. That is the one
-// deliberate departure here: the engine sums a param over worn equipment and knows nothing about
-// which outfit a piece belongs to, and teaching it about sets to buy the last ten points was not
-// worth the mechanism. The per-piece 3/4/4/3/3/3 is exactly OSRS's.
+// THE 50% IS A DEPARTURE, and a large one, asked for by name: OSRS pays 3/4/4/3/3/3 for the six
+// pieces and a further +10% for wearing all of them, so 30% at most. Corey asked for 50, and for
+// it to be the total rather than 50 on top of the 20 this used to pay.
+//
+// It is spent PER PIECE, so a partial set pays its share and there is no set bonus at all - not
+// even OSRS's own +10%, which the engine still could not pay without being taught what a set is.
+// The numbers are OSRS's shape x 2.5: 4% -> 10, and 3% -> 7.5, which is not a whole percent, so
+// the four 3% pieces take two 8s and two 7s to land the total on 50 exactly. WHICH two is decided
+// by the piece's own weight reduction and not by taste - boots and cape reduce 4kg and take 8,
+// hood and gloves reduce 3kg and take 7 - which keeps recovery non-decreasing in weight reduction,
+// the same way OSRS's own numbers are. tools/gracefulspec.json holds the arithmetic and the wiki
+// figures it came from; battery group 64b holds it to them.
 
 // ROGUE OUTFIT: a chance that a pickpocket's loot is doubled. OSRS pays 15/30/45/60/100 for one
 // through five pieces - note the jump. The fifth piece is worth forty points and not fifteen,

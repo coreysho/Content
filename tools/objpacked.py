@@ -21,7 +21,7 @@ Needs a build to have run: it reads ../engine/data/pack/server/obj.dat.
     python3 tools/objpacked.py                 # the graceful/outfit report, and the checks
     python3 tools/objpacked.py <name> [...]    # dump what the artefact says about these objs
 """
-import io, os, struct, sys
+import io, json, os, struct, sys
 
 C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # WHERE THE ENGINE IS. In order: an explicit path argument, then $LOSTCITY_ENGINE, then a sibling
@@ -143,9 +143,19 @@ def load(path):
 
 
 def packnames(kind):
-    """id -> name from a tracked pack file."""
+    """id -> name from a pack file, or None when it is not there to be read.
+
+    obj.pack is tracked, but param.pack is GENERATED - the deploy deletes it and the build writes
+    it again - so a fresh clone with no build has one and not the other. This used to raise
+    FileNotFoundError from inside main(), which the battery reported as a bare non-zero exit with
+    no line saying why. A check whose own condition raises is a crash and not a check; this
+    returns None and lets main() say what is missing.
+    """
+    fp = os.path.join(C, 'pack', '%s.pack' % kind)
+    if not os.path.exists(fp):
+        return None
     out = {}
-    for line in io.open(os.path.join(C, 'pack', '%s.pack' % kind), encoding='utf-8'):
+    for line in io.open(fp, encoding='utf-8'):
         if '=' in line:
             a, b = line.strip().split('=', 1)
             out[int(a)] = b
@@ -160,7 +170,13 @@ def main():
 
     objs, count = load(path)
     names = packnames('obj')
-    params = {v: k for k, v in packnames('param').items()}
+    _params = packnames('param')
+    missing = [k for k, v in (('obj', names), ('param', _params)) if v is None]
+    if missing:
+        print('no %s in pack/ - it is generated, so run the build first'
+              % ' or '.join('%s.pack' % m for m in missing))
+        return 2
+    params = {v: k for k, v in _params.items()}
 
     # ---- the proof that the decode is aligned, before anything else is reported
     decoded = {i: o.get('debugname') for i, o in enumerate(objs) if o.get('debugname')}
@@ -190,8 +206,17 @@ def main():
     # ---- Graceful, which is the round this was written for
     print()
     print('Graceful, as the server will read it')
-    GRACE = {'graceful_hood': (-3000, 3), 'graceful_top': (-5000, 4), 'graceful_legs': (-6000, 4),
-             'graceful_gloves': (-3000, 3), 'graceful_boots': (-4000, 3), 'graceful_cape': (-4000, 3)}
+    # THE EXPECTED NUMBERS ARE NOT WRITTEN HERE. They come out of tools/gracefulspec.json, which
+    # is where the wiki figures, Corey's chosen total and the arithmetic that turns it into six
+    # whole percents all live. A number typed twice is a number that drifts once: this file asks
+    # whether the ARTEFACT agrees with the spec, and poh_battery.py group 64b asks whether
+    # the CONFIGS do, so a spec edited alone goes red in both directions.
+    spec = json.load(open(os.path.join(C, 'tools', 'gracefulspec.json')))
+    GRACE = {n: (int(round(spec['osrs']['weight_kg'][n] * 1000)), pct)
+             for n, pct in spec['result']['per_piece_pct'].items()}
+    WANT_TOTAL = spec['result']['total_pct']
+    WANT_WEIGHT = int(round(spec['osrs']['weight_total_kg'] * 1000))
+    OSRS_TOTAL = spec['osrs']['full_set_total_pct']
     restore = params.get('energy_restore')
     check(restore is not None, 'the energy_restore param is in pack/param.pack, so an obj can '
                                'carry it at all')
@@ -211,11 +236,13 @@ def main():
 
     tot_w = sum(byname[n].get('weight', 0) for n in GRACE if n in byname)
     tot_p = sum(byname[n]['params'].get(restore, 0) for n in GRACE if n in byname)
-    check(tot_w == -25000, 'the six together take OSRS\'s weight off a player, read back out of '
-                           'the artefact rather than added up from the config: %s grams' % tot_w)
-    check(tot_p == 20, 'and restore run energy by OSRS\'s per-piece total, which is the figure '
-                       'this build stops at - the extra for the full set is not implemented: '
-                       '%s percent' % tot_p)
+    check(tot_w == WANT_WEIGHT, 'the six together take OSRS\'s weight off a player, read back out '
+                                'of the artefact rather than added up from the config: %s grams, '
+                                'wanted %s' % (tot_w, WANT_WEIGHT))
+    check(tot_p == WANT_TOTAL, 'and the six restore run energy by the spec\'s total, read out of '
+                               'the artefact - a departure above OSRS\'s own %s%% full set, asked '
+                               'for by name: %s percent, wanted %s'
+                               % (OSRS_TOTAL, tot_p, WANT_TOTAL))
 
     # ---- nothing else in the game carries the param by accident
     others = sorted(n for n, o in byname.items()

@@ -3677,6 +3677,153 @@ check(not [g for g in _GRACE_PIECES if g in OEFF_CODE],
       'recovery are numbers the engine reads and not an action to hook: %s'
       % ([g for g in _GRACE_PIECES if g in OEFF_CODE] or 'none of the six'))
 
+# ---- GRACEFUL: the numbers, checked where they can be checked WITHOUT a build
+# The artefact check below is the authority on what the server reads, and it needs data/pack to
+# exist - which it does not in the sandbox, where nothing compiles. So these read the configs and
+# tools/gracefulspec.json instead. They are not a substitute for the artefact check: they cannot
+# see whether a negative weight survived p2. They are the half that still runs when it cannot.
+_GSPEC = _json.load(open(os.path.join(C, 'tools/gracefulspec.json')))
+_OBJ = read('scripts/skilling_outfits/configs/outfits.obj')
+
+def _gobj(name):
+    """The weight in grams and the energy_restore percent that outfits.obj gives one piece.
+
+    Returns (None, None) when the block or either line is missing, so a caller says FAIL rather
+    than raising - a check whose condition raises is a crash and not a check.
+    """
+    m = re.search(r'^\[' + re.escape(name) + r'\]$', _OBJ, re.M)
+    if not m:
+        return None, None
+    nxt = re.search(r'^\[', _OBJ[m.end():], re.M)
+    blk = _OBJ[m.end():m.end() + nxt.start()] if nxt else _OBJ[m.end():]
+    blk = strip(blk)
+    w = re.findall(r'^weight=(-?\d+)kg$', blk, re.M)
+    r = re.findall(r'^param=energy_restore,(\d+)$', blk, re.M)
+    if len(w) != 1 or len(r) != 1:
+        return None, None
+    return int(w[0]) * 1000, int(r[0])
+
+_GCFG = {g: _gobj(g) for g in _GRACE_PIECES}
+
+# THE SPEC HAS TO ADD UP BEFORE IT IS WORTH COMPARING ANYTHING TO IT. Its own claimed total is
+# checked against its own per-piece numbers, so a spec edited in one field alone is caught here
+# rather than making every check below wrong in the same direction.
+_swant = _GSPEC['result']['per_piece_pct']
+check(sorted(_swant) == sorted(_GRACE_PIECES),
+      'the spec names all six Graceful pieces and nothing else: %s'
+      % (sorted(set(_swant) ^ set(_GRACE_PIECES)) or 'exactly the six'))
+check(sum(_swant.values()) == _GSPEC['result']['total_pct'],
+      "the spec's per-piece numbers add up to the total it claims, so its own arithmetic is not "
+      'taken on trust: %s against %s' % (sum(_swant.values()), _GSPEC['result']['total_pct']))
+check(_GSPEC['result']['total_pct'] == 50,
+      'and that total is the 50 percent Corey asked for by name, not OSRS\'s %s: %s'
+      % (_GSPEC['osrs']['full_set_total_pct'], _GSPEC['result']['total_pct']))
+check(_GSPEC['osrs']['full_set_total_pct'] == 30
+      and sum(_GSPEC['osrs']['per_piece_pct'].values()) == 20,
+      'with OSRS\'s own figures recorded beside it as the thing being departed from - 20 per '
+      'piece and 30 for the set, off the wiki: %s and %s'
+      % (sum(_GSPEC['osrs']['per_piece_pct'].values()), _GSPEC['osrs']['full_set_total_pct']))
+
+# THE CONFIGS AGREE WITH THE SPEC, piece by piece. Named per piece rather than as one total,
+# because two pieces swapped would leave the total right and the outfit wrong.
+_gbad = ['%s: config %s, spec %s' % (g, _GCFG[g][1], _swant[g])
+         for g in _GRACE_PIECES if _GCFG[g][1] != _swant[g]]
+check(not _gbad,
+      "each piece's energy_restore in outfits.obj is the number the spec derived for it: %s"
+      % (_gbad[:3] or 'all six agree'))
+check(all(v[1] is not None for v in _GCFG.values())
+      and sum(v[1] for v in _GCFG.values()) == _GSPEC['result']['total_pct'],
+      'and the six together come to the full-set total, read out of the config: %s'
+      % (sum(v[1] for v in _GCFG.values() if v[1] is not None)))
+
+# THE SHAPE, checked off the config's OWN weight lines rather than off the spec. This is the
+# tie-break that decided which of the four 3%-in-OSRS pieces take 8 and which take 7, and it is
+# the reason that choice is a property and not a preference: a bigger weight reduction never
+# recovers less, and two pieces that reduce the same weight recover the same.
+_pairs = [(w, r, g) for g, (w, r) in _GCFG.items() if w is not None]
+check(len(_pairs) == 6, 'all six Graceful blocks carry one weight= and one energy_restore line, '
+                        'so the shape below is read off the file: %d of 6' % len(_pairs))
+_mono = [(a[2], b[2]) for a in _pairs for b in _pairs
+         if a[0] < b[0] and a[1] < b[1]]          # a takes MORE weight off but recovers LESS
+check(not _mono,
+      'recovery never goes down as the weight reduction goes up, which is OSRS\'s own ordering '
+      'at a finer grain: %s' % (_mono[:3] or 'monotonic across all six'))
+_ties = [(a[2], b[2]) for a in _pairs for b in _pairs
+         if a[0] == b[0] and a[1] != b[1] and a[2] < b[2]]
+check(not _ties,
+      'and two pieces that take the same weight off recover the same, so nothing was decided by '
+      'taste: %s' % (_ties[:3] or 'every tie matched'))
+
+# THE WEIGHTS ARE STILL OSRS'S. This round changed the recovery and nothing else, and -25kg is
+# the number the earlier round took off the wiki.
+_wbad = ['%s: config %s, OSRS %s' % (g, _GCFG[g][0], int(_GSPEC['osrs']['weight_kg'][g] * 1000))
+         for g in _GRACE_PIECES if _GCFG[g][0] != int(_GSPEC['osrs']['weight_kg'][g] * 1000)]
+check(not _wbad,
+      "every piece's weight= is still exactly OSRS's, because this round changed the recovery and "
+      'nothing else: %s' % (_wbad[:3] or 'all six unchanged'))
+
+# NOBODY ELSE CARRIES THE PARAM, config-side. The artefact check says the same thing about the
+# packed table; this one still answers when there is no packed table to read.
+# WALK THE TREE, not this battery's own FILES list - src{} is a fixed handful and "no other obj
+# carries it" is a claim about every .obj there is.
+def _walk(ext):
+    for _root, _dirs, _files in os.walk(os.path.join(C, 'scripts')):
+        for _fn in _files:
+            if _fn.endswith(ext):
+                _fp = os.path.join(_root, _fn)
+                yield os.path.relpath(_fp, C), strip(read(os.path.relpath(_fp, C)))
+
+_allobj = {}
+_objfiles = 0
+for _rel, _t in _walk('.obj'):
+    _objfiles += 1
+    _cur = None
+    for _line in _t.split('\n'):
+        _m = re.match(r'^\[(\w+)\]$', _line)
+        if _m:
+            _cur = _m.group(1)
+        elif _cur and re.match(r'^param=energy_restore,', _line):
+            _allobj[_cur] = _rel
+check(_objfiles > 1 and 'graceful_hood' in _allobj,
+      'the sweep below actually walked the obj configs and found the Graceful pieces in them, so '
+      'an empty result means nothing else carries the param rather than that nothing was read: '
+      '%d files' % _objfiles)
+_extra = sorted(n for n in _allobj if n not in _GRACE_PIECES)
+check(not _extra,
+      'and no other obj config in the tree carries energy_restore, so the bonus cannot be picked '
+      'up from something unintended: %s' % (_extra[:5] or 'the six and nothing else'))
+
+# THE DEPARTURE IS WRITTEN DOWN WHERE SOMEBODY WOULD LOOK, and says both numbers. A departure
+# this size that is only in a spec file is a departure nobody reading the configs will find.
+_GCONST = read('scripts/skilling_outfits/configs/outfits.constant')
+check('50%' in _GCONST and '30%' in _GCONST and 'DEPARTURE' in _GCONST,
+      "outfits.constant's Graceful note says what this build pays and what OSRS pays, and calls "
+      'the difference a departure')
+check('+50%' in OEFF and '30%' in OEFF.split('GRACEFUL IS NOT IN THIS FILE', 1)[0],
+      'and the header of outfit_effects.rs2, which lists what the three unpaid outfits give '
+      'instead, carries the same two numbers')
+check('gracefulspec.json' in _GCONST,
+      'and points at the spec that holds the arithmetic, so the next person changing the number '
+      'finds the reasoning rather than re-deriving it')
+
+# AND IT IS STILL NOT A SCRIPT. The check above says no piece is NAMED in outfit_effects.rs2;
+# this one says the param itself is read by no rs2 anywhere - the moment a script reads it, the
+# engine has stopped being the only thing that knows the number.
+_rs2files = 0
+_ineff = []
+for _rel, _t in _walk('.rs2'):
+    _rs2files += 1
+    if 'energy_restore' in _t:
+        _ineff.append(_rel)
+_ineff.sort()
+check(_rs2files > 100,
+      'and that sweep read the whole script tree rather than a handful, so the result below means '
+      'something: %d .rs2 files' % _rs2files)
+check(not _ineff,
+      'and no script anywhere reads energy_restore - it is the engine\'s number, and a script '
+      'reading it would be a second place for it to drift: %s'
+      % ([os.path.basename(f) for f in _ineff][:3] or 'no script reads it'))
+
 # ASK THE ARTEFACT, NOT THE CONFIG. tools/objpacked.py decodes data/pack/server/obj.dat - the file
 # the server loads - and checks the six weights and params there. The config saying weight=-3kg
 # is not evidence that a negative weight survives p2; this is. It needs a build to have run.
@@ -3685,8 +3832,13 @@ _op = _sp.run([sys.executable, os.path.join(C, 'tools/objpacked.py')],
 check(_op.returncode == 0,
       "the packed obj table agrees about Graceful's weights and its energy_restore params, read "
       'out of the artefact the server loads rather than the config it was built from'
+      # INCLUDE THE "nothing to read" LINE, not just the FAIL lines. objpacked exits 2 with a
+      # plain sentence when the packed table or a generated pack file is not there - which is
+      # every fresh clone before a build - and without this the battery printed a FAIL with an
+      # empty explanation and read like a real disagreement about the numbers.
       + ('' if _op.returncode == 0 else ':\n' + '\n'.join(
-          l for l in _op.stdout.split('\n') if 'FAIL' in l or 'no packed' in l)[:400]))
+          l for l in _op.stdout.split('\n')
+          if 'FAIL' in l or l.startswith('no '))[:400]))
 
 # ---- GRACEFUL: and the engine end of it
 # The engine clone is a sibling, under either of the two names it goes by. If it is not there this
@@ -3726,6 +3878,19 @@ if _ENG:
         check('runrestore' not in _hbody,
               'but an energy potion is not scaled by it, because a potion is not you catching '
               'your breath')
+
+    # AND A MODEL OF THE TWO BRANCHES, so the in-game check has numbers rather than a feeling.
+    # tools/gracefulsim.py quotes all four lines of updateEnergy()'s arithmetic and refuses to
+    # print anything if any of them has moved, so a zero exit here is a statement about the
+    # engine's current source and not about a copy of it made once.
+    _gs = _sp.run([sys.executable, os.path.join(C, 'tools/gracefulsim.py')],
+                  capture_output=True, text=True, cwd=C,
+                  env=dict(os.environ, LOSTCITY_ENGINE=os.path.dirname(
+                      os.path.dirname(os.path.dirname(os.path.dirname(_ENG))))))
+    check(_gs.returncode == 0,
+          "gracefulsim.py still recognises every line of updateEnergy() it models, so the tick "
+          'counts the in-game check compares against are the ones this engine produces'
+          + ('' if _gs.returncode == 0 else ': ' + (_gs.stdout.strip().split('\n') or [''])[0][:200]))
 
 # ---- ROGUE OUTFIT: doubled pickpocket loot
 _after = strip(THIEF).split('[proc,pick_pocket_check_for_reward]', 1)[1].split('\n[', 1)[0]
