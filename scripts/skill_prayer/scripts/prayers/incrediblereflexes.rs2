@@ -24,7 +24,17 @@ queue(retry_prayer_incrediblereflexes, 0, 0);
 @activate_prayer_incrediblereflexes;
 
 [label,activate_prayer_incrediblereflexes]
-p_clearpendingaction;
+// A PRAYER TOGGLE NO LONGER STOPS WHAT YOU WERE DOING. p_clearpendingaction used to sit here and
+// it nulls Player.target, so turning a prayer on dropped whatever you were attacking - half of
+// "actions get cancelled for doing anything", reported from play 2026-09-21.
+//
+// THIS IS A DELIBERATE DIVERGENCE FROM UPSTREAM, decided by Corey on 2026-09-21, and upstream had
+// evidence: clarity.rs2 carried three pieces of period footage for the line. The argument for
+// keeping it was 2006 authenticity; the argument for removing it is that this server should feel
+// like Old School, where prayers are free and 1-tick flicking is ordinary. The videos are kept in
+// clarity.rs2 beside the decision so the next reader can see what was traded away.
+//
+// combat_battery group 4 pins the new behaviour the way it used to pin the old one.
 def_dbrow $data = ~get_prayer_data(^prayer_incrediblereflexes);
 if ($data = null) {
     return;

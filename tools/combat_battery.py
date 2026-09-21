@@ -159,19 +159,22 @@ for _f in _PRAY:
         _bad.append((_name, 'the direct path does not return, so it would toggle twice'))
     if re.search(r'^%\w+ = %\w+;', _t, re.M):
         _stale.append(_name)
-    # UPSTREAM CITES PERIOD FOOTAGE FOR THIS ONE (three videos, in clarity.rs2), so it is pinned
-    # rather than removed - if it goes, that should be a decision and not a tidy-up.
-    if 'p_clearpendingaction;' not in _t:
+    # AND IT MUST NOT COME BACK. p_clearpendingaction nulls Player.target, so a prayer toggle
+    # dropped whatever you were attacking. Upstream cites three period videos for it and Corey
+    # chose Old School feel over 2006 authenticity on 2026-09-21; the citation is kept in
+    # clarity.rs2 beside the decision. An EXECUTABLE line is what counts - every one of these
+    # files now says the words in a comment.
+    if [l for l in _t.split('\n') if l.split('//')[0].strip().startswith('p_clearpendingaction')]:
         _noclear.append(_name)
 check(not _bad, 'every prayer queues its own retry and returns on the direct path: %s'
       % (_bad[:3] or 'all 18'))
 check(not _stale, 'and none of them still falls through to a bare varp resync: %s'
       % (_stale[:3] or 'none'))
-check(not _noclear, 'p_clearpendingaction is still on all 18 - upstream cites three videos for it '
-      'in clarity.rs2, so removing it is a decision: %s' % (_noclear[:3] or 'all 18 intact'))
+check(not _noclear, 'and none of them clears your pending action any more, so praying does not '
+      'drop what you were attacking: %s' % (_noclear[:3] or 'all 18 clean'))
 _clarity = open(os.path.join(C, 'scripts/skill_prayer/scripts/prayers/clarity.rs2'), newline='').read()
-check('youtu' in _clarity.split('p_clearpendingaction;', 1)[1].split('\n', 1)[0],
-      '...and the evidence for it is still written beside it')
+check(_clarity.count('youtu') >= 3,
+      '...with the three videos upstream cited kept beside the decision, not deleted with the line')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

@@ -109,14 +109,16 @@ data=spotanim_target,gunthix_claw,92''',
  (ROCKSKIN, 'queue(retry_prayer_rockskin, 0, 0);',
             'queue(retry_prayer_rockskin, 0, 0);\n%prayer3 = %prayer3;',
   '5 and none of them still falls through to a bare varp resync'),
- # THE PINNED ONE: upstream cites three videos for this, so it may only leave on purpose
- (ROCKSKIN, 'p_clearpendingaction;\n', '',
-  '5 p_clearpendingaction is still on all 18'),
- # the citation tidied away, which is how a deliberate behaviour becomes one nobody can defend
- (CLARITY, 'p_clearpendingaction; // https://youtu.be/j-Z-43CzpZQ?t=120, '
-           'https://youtu.be/NT74s7nJwAo?t=21, https://www.youtube.com/watch?v=fcRgR_4ZbdA',
-           'p_clearpendingaction;',
-  '5 and the evidence for it is still written beside it'),
+ # THE PINNED ONE, now pinned the other way round: the interrupt coming BACK, which is what an
+ # upstream merge would quietly do to this file
+ (ROCKSKIN, '[label,activate_prayer_rockskin]\n',
+            '[label,activate_prayer_rockskin]\np_clearpendingaction;\n',
+  '5 and none of them clears your pending action any more'),
+ # the citation tidied away with the line, which is how a traded-away behaviour becomes one
+ # nobody can remember the reason for
+ (CLARITY, '// https://youtu.be/j-Z-43CzpZQ?t=120, '
+           'https://youtu.be/NT74s7nJwAo?t=21, https://www.youtube.com/watch?v=fcRgR_4ZbdA', '',
+  '5 with the three videos upstream cited kept beside the decision'),
 ]
 
 
