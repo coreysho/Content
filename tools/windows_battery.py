@@ -218,6 +218,10 @@ vp = nocomment(read('scripts/skill_crafting/configs/leather/tan_window.varp'))
 check('scope=temp' in vp and 'protect=no' in vp,
       'and that varp is scope=temp protect=no, the pair skill_guide.varp carries for the same reason',
       'yes')
+# A VARP IS AN int UNLESS IT SAYS type=boolean, and this one is read and written as a boolean. The
+# first version left the type off and the build refused three lines in one file. rs2check rule 24
+# is the general version; this is the local one.
+check('type=boolean' in vp, 'and it is type=boolean, because the script reads it as one', 'yes')
 tp = read('scripts/skill_crafting/interfaces/tan_window.if')
 cells = [n for n, kv, _ in blocks(tp) if kv.get('type') == 'layer']
 check(len(cells) == 8, 'the panel has eight cells', 8)

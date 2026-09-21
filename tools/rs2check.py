@@ -162,7 +162,8 @@ def build_tables():
         "labels": {},
         "triggers": defaultdict(list),   # "[trig,subject]" -> [(path,line)]
         "constants": set(),
-        "player_varps": {},  # name -> protected(bool)
+        "player_varps": {},
+        "varp_types": {},   # name -> declared type= ("int" when the block does not say)
         "other_vars": set(),
         "dbcolumns": {},    # "table:column" -> arity
         "packs": {},        # kind -> set(names)
@@ -215,6 +216,8 @@ def build_tables():
                 t["player_varps"][cur] = True
             elif cur and raw.strip().replace(" ", "") == "protect=no":
                 t["player_varps"][cur] = False
+            elif cur and raw.strip().startswith("type="):
+                t["varp_types"][cur] = raw.split("=", 1)[1].strip()
     for path in walk({".varn", ".vars", ".varbit"}):
         for raw in text(path).split("\n"):
             h = re.match(r"^\[([^\]]+)\]", raw)
@@ -964,6 +967,46 @@ def check_castable_buttons():
                % (name, act, iface, name))
 
 
+# --------------------------------------------------------------------------- rule 24
+
+# A varp used as a boolean that is not declared as one.
+#
+# A VARP IS AN int UNLESS ITS BLOCK SAYS type=boolean. The four-cache-windows round wrote
+#
+#     %tan_window_canifis = false;
+#
+# against an untyped varp and the server build refused it three times in one file - "Type mismatch:
+# 'boolean' was given but 'int' was expected", and on the comparison "Operator '=' cannot be applied
+# to 'int', 'boolean'". There is nothing wrong with the script; the declaration is what is missing,
+# and the error does not say so.
+#
+# bees.varp and quest_fishingcompo.varp are the two files that got it right, so the shape is
+# already in the repo - which is the usual story: the precedent existed and nobody read it.
+#
+# This is a narrow rule on purpose. It does not try to type-check varps in general; it asks one
+# question with one answer, about the literals `true` and `false`, where the compiler's message
+# points at the script rather than at the config.
+BOOL_USE = re.compile(r"%([a-zA-Z_0-9]+)\s*(?:=|!)\s*(?:true|false)\b|"
+                      r"\b(?:true|false)\s*(?:=|!)\s*%([a-zA-Z_0-9]+)")
+
+
+def check_varp_booleans(T):
+    for path in walk({".rs2"}):
+        for n, raw in enumerate(text(path).split("\n"), 1):
+            line = raw.split("//")[0]
+            for m in BOOL_USE.finditer(line):
+                name = m.group(1) or m.group(2)
+                if name not in T["player_varps"]:
+                    continue
+                declared = T["varp_types"].get(name, "int")
+                if declared != "boolean":
+                    report("ERROR", path, n, 24,
+                           "%%%s is compared or assigned against true/false but its varp block "
+                           "declares type=%s - a varp is an int unless it says otherwise, and the "
+                           "build fails with 'boolean was given but int was expected'"
+                           % (name, declared))
+
+
 def check_duplicates(T):
     for trig, places in sorted(T["triggers"].items()):
         if len(places) > 1:
@@ -1115,6 +1158,9 @@ inv_add(inv, probe_obj, 1);
                           "width=20\nheight=20\ngraphic=magicoff,0\nactivegraphic=magicon,0\n"
                           "buttontype=target\nactionverb=Cast on\nactiontarget=heldobj\n"
                           "action=Probe Uncastable\n",
+    # rule 24: a varp used as a boolean whose block does not declare type=boolean
+    "probe_bool.varp": "\n[probe_untyped_bool]\nscope=temp\nprotect=no\n",
+    "probe_bool.rs2": "\n[proc,probe_bool]\n%probe_untyped_bool = true;\n",
     "probe_clean.if": ("type=overlay\n\n[probe_ok]\ntype=text\nx=0\ny=0\nwidth=10\nheight=10\n"
                        "font=p12_full\nshadowed=yes\n"),
 }
@@ -1182,6 +1228,13 @@ ALL_RULES = {
     # and Amulet of fury sitting unreachable in the obj pack - plus the four teleother/teleblock
     # buttons and the real ancient spellbook, which the server does not use at all.
     23:   ("probe_spellbook.if", 3),
+    # 24 is the newest, and it is the compiler's own error moved earlier. A varp is an int unless
+    # its block says type=boolean, and `%x = false` against an untyped one fails the build with
+    # "boolean was given but int was expected" - pointing at the script, where nothing is wrong.
+    # Cost a deploy in the four-cache-windows round, three errors in one file, with bees.varp and
+    # quest_fishingcompo.varp sitting in the repo having got it right. The value of a rule like
+    # this is ENTIRELY that the cloud sandbox cannot run a build; the compiler already catches it.
+    24:   ("probe_bool.rs2", 3),
 }
 
 
@@ -1239,6 +1292,7 @@ def selftest():
         check_spell_row_fields()
         check_interfaces()
         check_castable_buttons()
+        check_varp_booleans(T)
         got = {}
         for sev, path, line, rule, msg in findings:
             got.setdefault(rule, []).append((sev, path, line, msg))
@@ -1357,6 +1411,7 @@ def main(argv):
         check_spell_row_fields()
         check_interfaces()
         check_castable_buttons()
+        check_varp_booleans(T)
 
     errors = [f for f in findings if f[0] == "ERROR"]
     checks = [f for f in findings if f[0] == "CHECK"]

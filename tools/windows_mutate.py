@@ -48,8 +48,11 @@ MUTS = [
     # Anchored on the block header as well as the field: the file's own comment explains why
     # scope=temp is there, so 'scope=temp' alone appears twice and the harness refuses it. Fourth
     # time a check or a mutation in this project has found its own comment.
-    ('scripts/skill_crafting/configs/leather/tan_window.varp', '[tan_window_canifis]\nscope=temp',
-     '[tan_window_canifis]\nscope=perm',
+    ('scripts/skill_crafting/configs/leather/tan_window.varp', '[tan_window_canifis]\ntype=boolean\n',
+     '[tan_window_canifis]\n',
+     'and it is type=boolean, because the script reads it as one'),
+    ('scripts/skill_crafting/configs/leather/tan_window.varp', '[tan_window_canifis]\ntype=boolean\nscope=temp',
+     '[tan_window_canifis]\ntype=boolean\nscope=perm',
      'and that varp is scope=temp protect=no, the pair skill_guide.varp carries for the same reason'),
     ('tools/genwindows.py', "'if_sethide(tan_window:cell%d, true);' % i]",
      "'if_sethide(tan_window:cell%d, false);' % i]",
