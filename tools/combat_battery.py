@@ -177,5 +177,51 @@ check(_clarity.count('youtu') >= 3,
       '...with the three videos upstream cited kept beside the decision, not deleted with the line')
 
 print()
+print('5. the obsidian staff stands like a person')
+
+# thzaar_staff_ready and thzaar_staff_walk are the animations a TZHAAR wielding a staff uses.
+# They were on the player's base anims for the Toktz-mej-tal, on a human skeleton - reported from
+# play 2026-09-21 as "broken animation and stance". The evidence that it was wrong is the other
+# 32 staves, not an opinion: every one of them uses human_staffready, and NOT ONE overrides the
+# walk, because a one-handed staff walks the way the player walks.
+_ALLOBJ = read('scripts/_unpack/377/all.obj')
+def _params(txt, name):
+    b = txt.split('[%s]\n' % name, 1)[1].split('\n[', 1)[0] if '[%s]\n' % name in txt else ''
+    return {l[6:].split(',')[0]: l[6:].split(',', 1)[1]
+            for l in b.split('\n') if l.startswith('param=')}
+_obby = _params(_ALLOBJ, 'tzhaar_staff')
+check(_obby.get('ready_baseanim') == 'human_staffready',
+      'the obsidian staff is held the way the other 32 staves are held')
+check(not [k for k in _obby if k.startswith('walk_') or k.startswith('running')],
+      'and walks the way the player walks, with no base anim of its own: %s'
+      % ([k for k in _obby if k.startswith('walk_') or k.startswith('running')] or 'none'))
+check(not [k for k, v in _obby.items() if v.startswith('thzaar')],
+      '...and carries no TzHaar animation at all - those are npc animations: %s'
+      % ([k for k, v in _obby.items() if v.startswith('thzaar')] or 'none'))
+check(_obby.get('crushattack_anim') == 'human_stafforb_pummel'
+      and _obby.get('defend_anim') == 'human_stafforb_block',
+      'its attack and defend are the human_stafforb pair 23 other staves use, untouched')
+
+# and the invariant the outlier was found against, so the next staff cannot repeat it
+_staves, _overrides = 0, []
+_cur, _cat, _p = None, None, {}
+for _line in _ALLOBJ.split('\n') + ['[end]']:
+    _t = _line.split('//')[0].strip()
+    if _t.startswith('[') and _t.endswith(']'):
+        if _cat == 'weapon_staff':
+            _staves += 1
+            _bad = [k for k in _p if k.startswith('walk_') or k.startswith('running')]
+            if _bad:
+                _overrides.append((_cur, _bad))
+        _cur, _cat, _p = _t[1:-1], None, {}
+    elif _t.startswith('category='):
+        _cat = _t.split('=', 1)[1]
+    elif _t.startswith('param='):
+        _p[_t[6:].split(',')[0]] = _t[6:].split(',', 1)[1]
+check(_staves > 20 and not _overrides,
+      'and no weapon_staff in the cache dump overrides its walk or run: %d checked, %s'
+      % (_staves, _overrides[:2] or 'none do'))
+
+print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)
 sys.exit(1 if fails else 0)

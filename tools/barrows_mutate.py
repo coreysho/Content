@@ -69,7 +69,7 @@ MUTS = [
  (CONST, '^barrows_mound_torag = 0_55_51_34_20', '^barrows_mound_torag = 0_55_52_34_20',
   '1 all six sit on level 0 of m55_51'),
  (SPEC, '"dharok": "north-east"', '"dharok": "south-east"',
-  "1 dharok's mound lies south-east"),
+  "1 dharok's mound lies north-east of the middle"),
  (CONST, '^barrows_mound_radius = 2', '^barrows_mound_radius = 8',
   '1 no two mounds are within two radii'),
  # a seventh hill, raised on the map itself - the check counts them rather than trusting six
@@ -81,7 +81,7 @@ MUTS = [
 
  # --- the crypt tiles, re-measured against the map's own loc occupancy
  (CONST, '^barrows_crypt_ahrim = 3_55_151_37_39', '^barrows_crypt_ahrim = 3_55_151_35_34',
-  "2 ahrim's drop tile (35,34) is free floor"),
+  "2 ahrim's drop tile (37,39) is free floor"),
  (CONST, '^barrows_crypt_ahrim = 3_55_151_37_39', '^barrows_crypt_ahrim = 3_55_151_36_39',
   "2 ahrim's drop tile is beside HIS OWN staircase"),
  (CONST, '^barrows_crypt_torag = 3_55_151_45_20', '^barrows_crypt_torag = 3_55_151_26_20',
@@ -171,7 +171,7 @@ MUTS = [
  (ALLNPC, 'param=strengthbonus,105', 'param=strengthbonus,106',
   "9 dharok's strength bonus is"),
  (SPEC, '"combat": 98,\n      "speed": 6,', '"combat": 99,\n      "speed": 6,',
-  '9 ahrim is combat 99 on the right-click'),
+  '9 ahrim is combat 98 on the right-click'),
  # --- the run's storage, which is the cache's and not ours
  (VARBIT, '[barrows_entry_crypt]\nbasevar=barrows\nstartbit=0\nendbit=2',
           '[barrows_entry_crypt]\nbasevar=barrows\nstartbit=6\nendbit=8',
@@ -199,8 +199,8 @@ MUTS = [
  (ENUM, 'default=0', 'default=1', '11 a miss opens every door rather than shutting one'),
  (ENUM, 'val=3,33073', 'val=3,0', '11 every maze shuts something'),
  (CONST, '^barrows_mazes = 24', '^barrows_mazes = 23',
-  '11 barrows_mazes holds ^barrows_mazes = 23 rows'),
- (CONST, '^barrows_door_first = 10', '^barrows_door_first = 11', '11 gate a is %barrows bit 11'),
+  '11 barrows_mazes holds ^barrows_mazes = 24 rows'),
+ (CONST, '^barrows_door_first = 10', '^barrows_door_first = 11', '11 gate a is %barrows bit 10'),
  (CONST, '^barrows_door_last = 25', '^barrows_door_last = 24',
   '11 ^barrows_door_first..last is exactly sixteen bits wide'),
 
@@ -230,7 +230,7 @@ MUTS = [
   '13 keyhalf needs 1006 reward potential'),
  (CONST, '^barrows_loot_coins_high = 774', '^barrows_loot_coins_high = 775',
   '13 coins comes 2-774 at a time'),
- (CHESTSPEC, '"rp": 881', '"rp": 880', '13 boltrack needs 880 reward potential'),
+ (CHESTSPEC, '"rp": 881', '"rp": 880', '13 boltrack needs 881 reward potential'),
  (CHEST, '} else if ($roll >= ^barrows_rp_blood) {\n    ~barrows_reward_add(bloodrune,',
          '} else if ($roll >= ^barrows_rp_blood) {\n    ~barrows_reward_add(chaosrune,',
   '13 the blood band pays bloodrune'),
@@ -242,9 +242,12 @@ MUTS = [
  # --- paying twice, and clearing the run
  (CHEST, 'p_delay(1);\n%barrows_chest_paid = ^true;', 'p_delay(1);',
   '14 looting marks the chest paid'),
- (CHEST, '%barrows_entry_crypt = ^barrows_entry_none | %barrows_chest_paid = ^true',
-         '%barrows_entry_crypt = ^barrows_entry_none',
-  '14 and it refuses both a second search'),
+ (CHEST, 'if (%barrows_chest_paid = ^true) {\n    if (~barrows_reward_held > 0) {',
+         'if (%barrows_chest_paid = ^false) {\n    if (~barrows_reward_held > 0) {',
+  '14 and a chest that has paid and been emptied says the same rather than rolling again'),
+ (CHEST, 'if (%barrows_entry_crypt = ^barrows_entry_none) {\n    mes("You search the chest and find nothing of interest.");\n    return;\n}\n',
+         '',
+  '14 a search with no run behind it still finds nothing of interest'),
  (CHEST, '~barrows_chest_window($rolls, $potential);',
          '%barrows_kills = 0;\n~barrows_chest_window($rolls, $potential);',
   '14 looting clears NOTHING'),
@@ -284,13 +287,13 @@ MUTS = [
   '16 the four chambers are numbered 0..3'),
  (TUN, 'case ^barrows_chamber_c : return(^barrows_chamber_tile_c);',
         'case ^barrows_chamber_c : return(^barrows_chamber_tile_g);',
-  '16 chamber c answers with g\'s tile'),
+  '16 chamber g answers with g\'s tile'),
  (TUN, 'case ^barrows_chamber_i : %barrows_chamber_i = ^true;',
         'case ^barrows_chamber_i : %barrows_chamber_a = ^true;',
-  '16 and opening chamber i lights a\'s ladder'),
+  '16 and opening chamber i lights i\'s ladder'),
  (TUN, 'case ^barrows_bit_torag : return(^barrows_mound_torag);',
         'case ^barrows_bit_torag : return(^barrows_mound_karil);',
-  "16 the ladder puts a player who came in by torag's crypt back on karil's mound"),
+  "16 the ladder puts a player who came in by torag's crypt back on torag's mound"),
  (TUN, 'def_int $chamber = ~barrows_open_chamber;', 'def_int $chamber = -1;',
   '16 coming back down the same run reuses the chamber'),
  (RS2, 'if (%barrows_entry_crypt = add($bit, 1)) {', 'if (%barrows_entry_crypt = $bit) {',
@@ -309,7 +312,7 @@ MUTS = [
  (CONST, '^barrows_potential_cap = 1000', '^barrows_potential_cap = 1001',
   '17 the pool caps at 1000'),
  (CHESTSPEC, '"barrows_bloodworm": 52', '"barrows_bloodworm": 53',
-  '17 barrows_bloodworm is combat 53'),
+  '17 barrows_bloodworm is combat 52'),
 
  # --- the teleport
  (TOBJ, 'stackable=yes', 'stackable=no', '18 it stacks, which is the point of a tab'),
@@ -329,13 +332,13 @@ MUTS = [
  # --- a handler that cannot fire, which is what shipped
  (TUN, '[oploc1,barrows_door_a_l] ~barrows_door_open(^left);',
         '[oploc1,barrows_door_unlocked_l] ~barrows_door_open(^left);',
-  '19 op1 on barrows_door_unlocked_l'),
+  '19 op1 on barrows_door_n_r'),
  (TUN, '[oploc1,_barrows_ladder]', '[oploc1,barrows_ladder]',
-  '19 op1 on barrows_ladder'),
+  '19 op1 on category barrows_ladder'),
  (CHEST, '[oploc1,barrows_stone_chest]', '[oploc1,barrows_stone_chest_closed]',
-  '19 op1 on barrows_stone_chest_closed'),
+  '19 op1 on barrows_stone_chest'),
  (CHEST, '[oploc2,barrows_stone_chest]', '[oploc2,barrows_stone_chest_open]',
-  '19 op2 on barrows_stone_chest_open'),
+  '19 op2 on barrows_stone_chest'),
  # The doors no longer answer to a category of their own - they wear the double-door ones - so the
  # dead-click check is fed from the ladder side instead. Note that removing ONE door's explicit
  # trigger would NOT show up here: the generic double-door handler would quietly take it, which is
@@ -528,7 +531,7 @@ MUTS = [
  (CHEST, '[if_button,barrows_chest:takeall] ~barrows_reward_takeall;\n', '',
   '27 and so is the Take everything button'),
  (CHEST, '~barrows_reward_flush;\ndef_int $rolls', 'def_int $rolls',
-  '27 and the store is emptied BEFORE a new chest rolls'),
+  '27 the flush survives in exactly one place, immediately before a new chest rolls'),
  (CHEST, 'if ($take <= 0) {\n    mes("You do not have enough room to take that.");\n    return;\n}\n',
           '',
   '27 a stack that will not fit at all says so and stays put'),
@@ -618,15 +621,32 @@ MUTS = [
           'param=rangebonus,55\nparam=proj_travel,crossbowbolt_launch',
   '...and Karil fires exactly that, so the two cannot drift'),
  # ---- the crash: banking the chest's remainder from an if_close, which has no protected access
- (CHEST, 'queue(barrows_reward_bank_rest, 0, 0);', '~barrows_reward_flush;',
+ (CHEST, 'inv_stoptransmit(barrows_chest:loot);\n', 'inv_stoptransmit(barrows_chest:loot);\n~barrows_reward_flush;\n',
   'closing the window does NOT bank the remainder inline'),
- (CHEST, 'queue(barrows_reward_bank_rest, 0, 0);\n', '',
-  '...it queues the banking instead, which runs with protected access on the next tick'),
- (CHEST, '[queue,barrows_reward_bank_rest]\n~barrows_reward_flush;',
-         '[queue,barrows_reward_bank_rest]\nmes("nothing to do");',
-  '...and that queue is what does the banking'),
+ # ---- and the fix for that crash, which let a MONSTER bank your loot by closing the window
+ (CHEST, 'inv_stoptransmit(barrows_chest:loot);\n',
+         'inv_stoptransmit(barrows_chest:loot);\nqueue(barrows_reward_bank_rest, 0, 0);\n',
+  'and does not queue it either: the chest keeps what it paid until you take it'),
+ # the flush escaping back out of the one place it belongs
+ (CHEST, '~barrows_reward_flush;\ndef_int $rolls',
+         '~barrows_reward_flush;\n~barrows_reward_flush;\ndef_int $rolls',
+  'the flush survives in exactly one place, immediately before a new chest rolls'),
+ # handing the loot back AFTER banking it, which is the same bug with extra steps
+ (CHEST, 'if (~barrows_reward_held > 0) {\n        ~barrows_chest_reopen;\n        return;\n    }\n',
+         '',
+  'and a chest that has already paid hands its loot back before anything is banked'),
+ (CHEST, '    ~barrows_chest_reopen;\n', '    mes("The chest is empty.");\n',
+  'by reopening the window, so being attacked costs you nothing but the walk back'),
+ # "is there anything left" answered from a varp instead of from the store it is about
+ (CHEST, 'if (inv_getobj(barrows_reward_store, $slot) ! null) {',
+         'if (%barrows_chest_paid = ^true) {',
+  'and "is there anything left" is asked of the store itself, slot by slot'),
+ # a reopen that rolls again - a second chest for the price of being interrupted
+ (CHEST, '[proc,barrows_chest_reopen]\ninv_transmit',
+         '[proc,barrows_chest_reopen]\n~barrows_reward_roll(1, 1);\ninv_transmit',
+  'reopening transmits and opens and does NOT roll again'),
  (CHEST, '~barrows_reward_flush;\ndef_int $rolls', 'def_int $rolls',
-  '...and the next chest flushes the store before it rolls'),
+  'the flush survives in exactly one place, immediately before a new chest rolls'),
 
  # ---- the picture puzzle
  # the .if rather than the enum: this moves the answer SHAPE and leaves the enum and the spec

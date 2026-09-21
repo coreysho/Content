@@ -73,7 +73,19 @@ return(^false);
 p_arrivedelay;
 p_stopaction;
 facesquare(loc_coord);
-if (%barrows_entry_crypt = ^barrows_entry_none | %barrows_chest_paid = ^true) {
+if (%barrows_entry_crypt = ^barrows_entry_none) {
+    mes("You search the chest and find nothing of interest.");
+    return;
+}
+// ALREADY ROLLED, BUT NOT NECESSARILY EMPTIED. Being attacked closes the reward window, and
+// until now that banked everything and left the chest saying it had nothing of interest -
+// reported from play 2026-09-21 as the reward disappearing. The chest keeps what it paid until
+// you take it, so searching it again hands it back rather than rolling a second one.
+if (%barrows_chest_paid = ^true) {
+    if (~barrows_reward_held > 0) {
+        ~barrows_chest_reopen;
+        return;
+    }
     mes("You search the chest and find nothing of interest.");
     return;
 }
@@ -121,31 +133,51 @@ if_settext(barrows_chest:subtitle,
            "<~pluralise($rolls, "roll")> at <tostring($potential)> reward potential");
 if_openmain(barrows_chest);
 
-// THE FLUSH CANNOT RUN HERE, and this cost a player his loot and his connection before it was
-// understood. Player.closeModal runs an [if_close] with executeScript(script, FALSE) - an if_close
-// script has no protected access, because the client is what asked for the close and the server
-// may be in the middle of anything. Both barrows_reward_store and bank are protect=yes, and
-// INV_MOVEITEM checks both ends, so the first inv_moveitem threw
-// "$inv requires protected access: barrows_reward_store" and took the session with it.
+// CLOSING THE WINDOW NO LONGER EMPTIES THE CHEST. It used to queue a flush that banked whatever
+// was left, and the close is not always the player's doing: being attacked closes the modal, so a
+// monster could take your loot off the screen and put it somewhere you had not asked for -
+// reported from play 2026-09-21 as the reward disappearing. Worse, INV_MOVEITEM drops the
+// overflow ON THE FLOOR when the destination is full (InvOps.ts, World.addObj with a 200-tick
+// despawn), so a full bank turned an interruption into a pile of Barrows loot lying in a crypt
+// while something was hitting you.
 //
-// A queue DOES get protected access - Player.processQueue runs it with executeScript(script, TRUE)
-// - so the banking happens one tick later instead. The trailing 0 is the unused int argument a
-// no-parameter queue is invoked with, as the thieving stalls do it.
+// The chest keeps it instead. barrows_reward_store is scope=perm so it survives a logout, and
+// ~barrows_chest_search hands it straight back when you search the chest again. The flush still
+// exists and still runs in exactly one place - immediately before a NEW chest rolls - so the
+// window only ever shows one chest's loot.
 //
-// If the player logs out inside that one tick the queue never runs, and nothing is lost:
-// barrows_reward_store is scope=perm, so the loot is still in it next login and
-// ~barrows_chest_search flushes it before the next chest rolls. That backstop was already there.
+// (The reason the flush is not inline here at all: Player.closeModal runs an [if_close] with
+// executeScript(script, FALSE), so it has no protected access, and both invs are protect=yes.
+// The first inv_moveitem threw "$inv requires protected access: barrows_reward_store" and took
+// the session with it. A queue would have fixed that; not banking at all fixes more.)
 [if_close,barrows_chest]
 inv_stoptransmit(barrows_chest:loot);
-queue(barrows_reward_bank_rest, 0, 0);
-
-[queue,barrows_reward_bank_rest]
-~barrows_reward_flush;
 
 [inv_button1,barrows_chest:loot] ~barrows_reward_take(last_slot);
 [inv_button2,barrows_chest:loot] ~barrows_reward_takeall;
 [inv_button3,barrows_chest:loot] ~barrows_reward_bank(last_slot);
 [if_button,barrows_chest:takeall] ~barrows_reward_takeall;
+
+// How many slots of this chest's payout are still sitting in it. inv_total would want an obj;
+// this is "is there anything at all", which is what deciding whether to reopen needs.
+[proc,barrows_reward_held]()(int)
+def_int $slot = 0;
+def_int $held = 0;
+while ($slot < inv_size(barrows_reward_store)) {
+    if (inv_getobj(barrows_reward_store, $slot) ! null) {
+        $held = add($held, 1);
+    }
+    $slot = add($slot, 1);
+}
+return($held);
+
+// Reopening after an interruption. No roll, no reward potential - the subtitle says what this is
+// rather than repeating numbers from a roll that already happened and would have to be stored
+// somewhere to be quoted accurately.
+[proc,barrows_chest_reopen]
+inv_transmit(barrows_reward_store, barrows_chest:loot);
+if_settext(barrows_chest:subtitle, "what you have not taken yet");
+if_openmain(barrows_chest);
 
 [proc,barrows_reward_add](namedobj $obj, int $count)
 inv_add(barrows_reward_store, $obj, $count);

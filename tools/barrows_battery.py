@@ -641,8 +641,15 @@ loot = nocomment(CHEST.split('[proc,barrows_chest_search]', 1)[1])
 check('%barrows_chest_paid = ^true' in loot
       and loot.index('%barrows_chest_paid = ^true') < loot.index('~barrows_reward_roll'),
       '...before it rolls anything, so an interrupted payout cannot be taken twice')
-check('%barrows_entry_crypt = ^barrows_entry_none | %barrows_chest_paid = ^true' in loot,
-      'and it refuses both a second search and a search with no run behind it')
+# THE TWO REFUSALS SPLIT APART when an already-paid chest learned to hand its loot back: a
+# search with no run behind it still finds nothing, but a chest that has paid and not been
+# emptied reopens instead. They used to be one condition and the check used to read it as one.
+check('%barrows_entry_crypt = ^barrows_entry_none' in loot
+      and loot.index('%barrows_entry_crypt = ^barrows_entry_none') < loot.index('%barrows_chest_paid = ^true'),
+      'a search with no run behind it still finds nothing of interest')
+check('%barrows_chest_paid = ^true' in loot
+      and 'find nothing of interest' in loot.split('%barrows_chest_paid = ^true', 1)[1].split('~barrows_reward_roll', 1)[0],
+      '...and a chest that has paid and been emptied says the same rather than rolling again')
 check('%barrows = 0' not in CHEST and '%barrows_kills = 0' not in CHEST,
       'looting clears NOTHING, because the run is what holds the ladder the player still has to '
       'climb and the brothers a door may still send')
@@ -1340,29 +1347,41 @@ check(IFB.get('close', {}).get('buttontype', [None])[0] == 'close',
 check('[if_close,barrows_chest]' in CHEST and 'inv_stoptransmit(barrows_chest:loot);' in CHEST,
       'closing the window stops the transmit')
 clos = nocomment(CHEST.split('[if_close,barrows_chest]', 1)[1].split('\n[', 1)[0])
-# THE FLUSH IS QUEUED, NOT CALLED, and this check used to assert the opposite - which is how the
-# crash shipped. Player.closeModal runs an [if_close] with executeScript(script, FALSE), so an
-# if_close script has no protected access; barrows_reward_store and bank are both protect=yes and
-# INV_MOVEITEM checks both ends, so the direct call threw and took the session with it.
-# Player.processQueue runs a queue with executeScript(script, TRUE), so the move is legal a tick
-# later. Written from both sides: the call is NOT here, and the queue is.
+# CLOSING THE WINDOW MUST NOT EMPTY THE CHEST, and this check has now asserted three different
+# things - which is the point of writing it from both sides each time. It first asserted the flush
+# was called here (that crashed: an if_close has no protected access and both invs are protect=yes).
+# Then it asserted the flush was queued. Being attacked closes the modal, so that let a monster
+# bank your loot for you - and INV_MOVEITEM drops the overflow ON THE FLOOR when the destination
+# is full, which turned an interruption into Barrows loot lying in a crypt. Now nothing about
+# banking happens on close at all.
 check('~barrows_reward_flush;' not in clos,
       'closing the window does NOT bank the remainder inline - an if_close script has no '
       'protected access and both invs require it')
-check('queue(barrows_reward_bank_rest, 0, 0);' in clos,
-      '...it queues the banking instead, which runs with protected access on the next tick')
-qbody = nocomment(CHEST.split('[queue,barrows_reward_bank_rest]', 1)[1].split('\n[', 1)[0])
-check('~barrows_reward_flush;' in qbody, '...and that queue is what does the banking')
+check('queue(' not in clos and 'barrows_reward_bank_rest' not in CHEST,
+      '...and does not queue it either: the chest keeps what it paid until you take it')
 search = nocomment(CHEST.split('[proc,barrows_chest_search]', 1)[1].split('\n[', 1)[0])
-check('~barrows_reward_flush;' in search
+# THE ONE PLACE THE FLUSH STILL RUNS. A new run resets %barrows_chest_paid (barrows_begin_run),
+# so an old chest's loot is banked immediately before a new chest rolls and the window only ever
+# shows one chest's payout.
+check(CHEST.count('~barrows_reward_flush;') == 1 and '~barrows_reward_flush;' in search
       and search.index('~barrows_reward_flush') < search.index('~barrows_reward_roll'),
-      '...and the next chest flushes the store before it rolls, so a player who logged out with '
-      'the window open loses nothing - the store is scope=perm')
-search = nocomment(CHEST.split('[proc,barrows_chest_search]', 1)[1].split('\n[', 1)[0])
-check('~barrows_reward_flush;' in search
-      and search.index('~barrows_reward_flush') < search.index('~barrows_reward_roll'),
-      'and the store is emptied BEFORE a new chest rolls, so the window only ever shows one '
-      "chest's loot and there is always room for it")
+      'the flush survives in exactly one place, immediately before a new chest rolls')
+check('~barrows_reward_held' in search
+      and search.index('~barrows_reward_held') < search.index('~barrows_reward_flush'),
+      '...and a chest that has already paid hands its loot back before anything is banked')
+check('~barrows_chest_reopen;' in search,
+      '...by reopening the window, so being attacked costs you nothing but the walk back')
+held = nocomment(CHEST.split('[proc,barrows_reward_held]', 1)[1].split('\n[', 1)[0])
+check('inv_getobj(barrows_reward_store' in held and 'inv_size(barrows_reward_store)' in held,
+      'and "is there anything left" is asked of the store itself, slot by slot')
+reopen = nocomment(CHEST.split('[proc,barrows_chest_reopen]', 1)[1].split('\n[', 1)[0])
+check('inv_transmit(barrows_reward_store, barrows_chest:loot);' in reopen
+      and 'if_openmain(barrows_chest);' in reopen and '~barrows_reward_roll' not in reopen,
+      'reopening transmits and opens and does NOT roll again')
+# (The "emptied BEFORE a new chest rolls" check that used to sit here is gone: the one above
+# already asserts the ordering AND that there is exactly one flush, so the two overlapped and a
+# mutation to the flush could only ever be attributed to one of them. Same fault the TzHaar shop
+# round found - a blanket check sitting on top of a precise one.)
 check('~obj_giveorbank' not in CHEST,
       'nothing goes straight to the pack or the bank any more - every reward lands in the store')
 # Nine band payouts, a piece of equipment, and the teleport tabs.
