@@ -24,6 +24,11 @@ npc_arrivedelay; // arrivedelay for up to two ticks (current osrs too) https://y
 // build error, so there is no per-boss hook to use. ~boss_kill_record returns immediately for
 // everything that is not one of the twelve, which is almost everything that dies.
 ~boss_kill_record;
+// AND THE DROP-RATE BOOST, third hook, same funnel, same reason: the 214 drop tables are triggers
+// rather than procs, so there is no way to add a draw to one of them from outside. ~droprate_bonus
+// returns immediately unless this monster's own table reaches the shared rare table AND the player
+// credited with the kill is on a boosted rate, which is most kills by most players.
+~droprate_bonus;
 if (finduid(%npc_aggressive_player) = true) {
     if (npc_param(death_sound) ! null) {
         ~sound_within_distance(npc_param(death_sound), 0, npc_coord, 12); // osrs

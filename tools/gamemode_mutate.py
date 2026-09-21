@@ -40,8 +40,37 @@ GENLOCK = 'tools/genxplock.py'
 STATSIF = 'scripts/interfaces/stats.if'
 LOGIN = 'scripts/login_logout/scripts/login.rs2'
 PARAMCFG = 'engine:tools/pack/config/ParamConfig.ts'
+DROPRS = 'scripts/gamemodes/scripts/droprate.rs2'
+DROPENUM = 'scripts/gamemodes/configs/droprate.enum'
+DEATH = 'scripts/skill_combat/scripts/npc/npc_death.rs2'
+BLACKDEMON = 'scripts/drop_tables/scripts/black_demon.rs2'
 
 MUTS = [
+ # ---- the drop-rate boost
+ (CONST, '^droprate_bonus_10x = 0', '^droprate_bonus_10x = 1',
+  '10x gets no bonus roll'),
+ (CONST, '^droprate_bonus_realism = 2\n^droprate_bonus_5x = 1',
+  '^droprate_bonus_realism = 1\n^droprate_bonus_5x = 2',
+  'the slower the rate the more rolls it gets'),
+ (DROPENUM, 'val=black_dragon,1\n', '',
+  'droprate_shared_rare is exactly the'),
+ (DROPENUM, 'val=cyclops,1', 'val=goblin,1',
+  'droprate_shared_rare is exactly the'),
+ (DROPENUM, '[droprate_shared_rare]\ninputtype=npc\noutputtype=int',
+  '[droprate_shared_rare]\ninputtype=npc\noutputtype=int\ndefault=null',
+  'it carries NO default= on purpose'),
+ (DROPRS, 'if (enum(npc, int, droprate_shared_rare, npc_type) ! 1) {\n    return;\n}\n', '',
+  'the boost checks the gate'),
+ (DROPRS, 'obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);',
+  'obj_add(npc_coord, ~megararetable, ^lootdrop_duration);',
+  'the boost rolls nothing of its own'),
+ (DROPRS, 'return(^droprate_bonus_realism);', 'return(^droprate_bonus_10x);',
+  'realism is the DEFAULT branch'),
+ (DEATH, '~droprate_bonus;\n', '',
+  'the hook is in [proc,npc_death] exactly once'),
+ (BLACKDEMON, '[ai_queue3,_black_demon]', '[ai_queue3,black_demon]',
+  'droprate_shared_rare is exactly the'),
+
  # ---- 8 the lock bits
  (CONST, '^xplock_attack = 0', '^xplock_attack = 1',
   "every ^xplock_ bit is that skill's own index in the engine's list"),
