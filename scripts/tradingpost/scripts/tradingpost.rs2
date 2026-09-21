@@ -144,7 +144,7 @@ if (%tp_tab = $tab) {
 ~tp_lists;
 
 [if_button,tradingpost:search]
-mes("Type part of an item's name to search the trading post for it.");
+p_dialogprompt("Search the trading post for:");
 p_namedialog;
 def_string $query = last_string;
 if (string_length($query) = 0) return;
@@ -200,6 +200,7 @@ switch_int (%tp_tab) {
 [inv_button3,tradingpost:grid]
 if (%tp_tab ! ^tp_tab_box) return;
 def_int $slot = last_slot;
+p_dialogprompt("How many do you want to collect?");
 p_countdialog;
 if (last_int <= 0) return;
 ~tp_collect($slot, last_int, false);
@@ -509,7 +510,7 @@ if_settext(tradingpost_offer:coins, "Coins: <~tp_gp(%tp_coins)>");
 %tp_coins = 0;
 
 [if_button,tradingpost_offer:setcoins]
-mes("How many coins do you want to offer?");
+p_dialogprompt("How many coins do you want to offer?");
 p_countdialog;
 if (last_int < 0) return;
 def_int $have = inv_total(inv, coins);
@@ -529,6 +530,7 @@ if (last_int > $have) {
 [proc,tp_barter_remove](int $slot, int $amount)
 if (inv_getobj(tp_barter, $slot) = null) return;
 if ($amount <= 0) {
+    p_dialogprompt("How many do you want to take back out?");
     p_countdialog;
     if (last_int <= 0) return;
     $amount = last_int;
@@ -573,6 +575,7 @@ if (%tp_window = ^tp_window_offer) {
 [proc,tp_barter_add](int $slot, int $amount)
 if (inv_getobj(inv, $slot) = null) return;
 if ($amount <= 0) {
+    p_dialogprompt("How many do you want to offer?");
     p_countdialog;
     if (last_int <= 0) return;
     $amount = last_int;
@@ -617,12 +620,14 @@ if (oc_tradeable(oc_uncert($obj)) = false) {
 def_int $have = inv_total(inv, $obj);
 def_int $count = 1;
 if ($have > 1) {
-    mes("How many do you want to sell? You have <~tp_gp($have)>.");
+    // The question is the dialog's own prompt, not a mes() above it: with the window open the
+    // chatbox shows the dialog and nothing else, so both questions used to read "Enter amount:".
+    p_dialogprompt("How many do you want to sell? (You have <~tp_gp($have)>)");
     p_countdialog;
     if (last_int <= 0) return;
     $count = min(last_int, $have);
 }
-mes("Set a buy-now price for <~tp_desc($obj, $count)>, in coins - or 0 to take offers only.");
+p_dialogprompt("Buy-now price in coins (0 = offers only):");
 p_countdialog;
 if (last_int < 0) return;
 def_int $buyout = last_int;
