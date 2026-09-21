@@ -1,0 +1,52 @@
+// ELEMENTAL WEAKNESSES and the TWINFLAME STAFF (2026-09-21), both OSRS's.
+//
+// Elemental weakness (oldschool.runescape.wiki/w/Elemental_weakness): a monster weak to an element
+// takes, from a strike, bolt, blast or wave of that element, 1% more accuracy and 1% of the spell's
+// max hit on top for every percent of weakness. Standard spellbook only - nothing from the Ancients,
+// and not the god spells or Iban's. The per-monster figures are the wiki's, matched to this build by
+// name in configs/magic/elemental_weakness.enum (tools/genelementalweakness.py).
+//
+// The twinflame staff (oldschool.runescape.wiki/w/Twinflame_staff): +10% accuracy and damage with any
+// standard-spellbook spell, and a bolt, blast or wave cast with it hits twice - the second a tick
+// later, for 40% of the first, rounded down, with no experience for it.
+
+// 1 air, 2 water, 3 earth, 4 fire - the enum's numbering - or 0 for a spell with no element.
+[proc,spell_element](int $spell)(int)
+switch_int ($spell) {
+    case ^wind_strike, ^wind_bolt, ^wind_blast, ^wind_wave : return(1);
+    case ^water_strike, ^water_bolt, ^water_blast, ^water_wave : return(2);
+    case ^earth_strike, ^earth_bolt, ^earth_blast, ^earth_wave : return(3);
+    case ^fire_strike, ^fire_bolt, ^fire_blast, ^fire_wave : return(4);
+}
+return(0);
+
+// The current npc's weakness to $spell, in percent, or 0.
+[proc,elemental_weakness_pct](int $spell)(int)
+def_int $element = ~spell_element($spell);
+if ($element = 0) {
+    return(0);
+}
+def_int $w = enum(npc, int, elemental_weakness, npc_type);
+if (divide($w, 1000) ! $element) {
+    return(0);
+}
+return(modulo($w, 1000));
+
+// Every percent a cast gains against the current npc: its weakness, and the twinflame staff's 10%
+// for a standard-spellbook spell (ids under 100: the Ancients start at 200).
+[proc,spell_bonus_pct](int $spell)(int)
+def_int $pct = ~elemental_weakness_pct($spell);
+if (inv_getobj(worn, ^wearpos_rhand) = twinflame_staff & $spell < 100) {
+    $pct = add($pct, 10);
+}
+return($pct);
+
+// Bolts, blasts and waves - strike and surge are left out, as in OSRS.
+[proc,twinflame_second_hit](int $spell)(boolean)
+if (inv_getobj(worn, ^wearpos_rhand) ! twinflame_staff) {
+    return(false);
+}
+if ($spell >= ^wind_bolt & $spell <= ^fire_wave) {
+    return(true);
+}
+return(false);

@@ -148,7 +148,7 @@ if (~player_npc_hit_roll_boosted(^magic_style, $mask_num, $mask_div) = true) {
     ~npc_retaliate(calc($duration / 30 + 1));
     npc_queue(2, $damage, calc($duration / 30 + 1));
     npc_anim(npc_param(defend_anim), $duration);
-    ~give_combat_experience(^style_magic_normal, $damage_capped, %npc_combat_xp_multiplier);
+    ~give_combat_experience(~trident_xp_style, $damage_capped, %npc_combat_xp_multiplier);
     npc_heropoints($damage_capped);
     ~barrows_set_hit_npc($damage_capped, ^magic_style);
     sound_synth(waterwave_hit, 0, $duration);
@@ -169,3 +169,20 @@ if (%trident_charges = 100) {
     mes("@red@Your trident has 100 charges left.");
 }
 p_opnpc(2);
+
+// Accurate trains Magic, Longrange Magic and Defence - the tab's own damagestyle. Anything else (an
+// uncharged trident wielded, then charged, keeps the style it had) counts as Accurate.
+[proc,trident_xp_style]()(int)
+if (%damagestyle = ^style_magic_defensive) {
+    return(^style_magic_defensive);
+}
+return(^style_magic_normal);
+
+// A powered staff with nothing in it does nothing, as in OSRS: its tab has no melee style to fall
+// back on.
+[proc,trident_uncharged_wielded]()(boolean)
+def_obj $rhand = inv_getobj(worn, ^wearpos_rhand);
+if ($rhand = trident_of_the_seas_uncharged | ($rhand = trident_of_the_seas & %trident_charges <= 0)) {
+    return(true);
+}
+return(false);

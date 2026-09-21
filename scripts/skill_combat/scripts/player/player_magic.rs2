@@ -88,13 +88,18 @@ if (~black_mask_imbued_on_task = true) {
     $mask_num = 23;
     $mask_div = 20;
 }
+// Elemental weakness and the twinflame staff: their percent onto the accuracy roll here, and onto
+// the max hit below as a flat share of the spell's own (skill_combat/scripts/player/elemental_weakness.rs2).
+def_int $bonus = ~spell_bonus_pct($spell);
 // if player DOESNT splash:
-if (~player_npc_hit_roll_boosted(^magic_style, $mask_num, $mask_div) = true) {
+if (~player_npc_hit_roll_boosted(^magic_style, multiply($mask_num, add(100, $bonus)), multiply($mask_div, 100)) = true) {
     def_int $maxhit = ~magic_spell_maxhit($spell_data);
+    def_int $base = $maxhit;
     if (npc_type = count_draynor & inv_total(inv, garlic) > 0) {
         $maxhit = add($maxhit, 1);
     }
     $maxhit = scale($mask_num, $mask_div, $maxhit);
+    $maxhit = add($maxhit, scale($bonus, 100, $base));
     if((npc_param(slayer_category) = ^slayer_kurask | npc_param(slayer_category) = ^slayer_turoth) & $spell ! ^magic_dart) {
         $maxhit = 0;
     }    
@@ -358,6 +363,11 @@ if ($maxhit ! null) {
     // damage npc
     //mes("Duration: <tostring($duration)>, Duration (ticks): <tostring(calc($duration / 30))>");
     npc_queue(2, $damage, calc($duration / 30 + 1)); // delayed an extra tick in osrs
+    // The twinflame staff's second hit: a tick after the first, 40% of it rounded down, no xp.
+    if ($damage > 0 & ~twinflame_second_hit(db_getfield($spell_data, magic_spell_table:spell, 0)) = true) {
+        npc_queue(2, divide(multiply(min($damage, npc_stat(hitpoints)), 40), 100), calc($duration / 30 + 2));
+        spotanim_npc(db_getfield($spell_data, magic_spell_table:spotanim_target, 0), add($duration, 30));
+    }
     // npcs didnt have a flinch anim until sept 20 2006. https://youtu.be/UFgMqvI4to8
     // https://oldschool.runescape.wiki/w/Update:Slug_Menace
     npc_anim(npc_param(defend_anim), $duration); // delay npc this tick

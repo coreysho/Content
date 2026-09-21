@@ -1,0 +1,60 @@
+// THE ARKAN BLADE's special attack (2026-09-21), OSRS's "Flames of Ralos"
+// (oldschool.runescape.wiki/w/Arkan_blade): 30% energy, one slash at +50% accuracy and +50% damage,
+// and on a hit a strong burn - 10 damage over 40 ticks, as 2 every 8 - which stacks with itself.
+// The burn has no hitsplat colour of its own in 377, so it lands as ordinary damage.
+
+[label,pvm_arkan_blade_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+def_boolean $hit = false;
+def_int $damage = 0;
+def_int $damage_capped = 0;
+$hit, $damage, $damage_capped = ~pvm_spec_roll(150, 150, ^slash_style);
+anim(sp_attack_dragon_scimitar, 0);
+sound_synth(oc_param(inv_getobj(worn, ^wearpos_rhand), slash_sound), 1, 0);
+~pvm_spec_land($damage, 0);
+if ($hit = true) {
+    spotanim_npc(firewave_impact, 92, 30);
+    npc_queue(15, ^arkan_burn_hits, ^arkan_burn_interval);
+}
+
+[label,pvp_arkan_blade_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+~set_pk_vars;
+def_boolean $hit = false;
+def_int $damage = 0;
+$hit, $damage = ~pvp_spec_roll(150, 150, ^slash_style);
+anim(sp_attack_dragon_scimitar, 0);
+~pvp_spec_land($damage, oc_param(inv_getobj(worn, ^wearpos_rhand), slash_sound));
+if ($hit = true) {
+    .spotanim_pl(firewave_impact, 92, 30);
+    .queue(arkan_burn, ^arkan_burn_interval, ^arkan_burn_hits);
+}
+
+// A monster burning. Queue slot 15 is free for every npc; each queue entry is one burn, so two
+// specials are two burns, each counting down its own hits.
+[ai_queue15,_]
+if (npc_stat(hitpoints) = 0) {
+    return;
+}
+npc_damage(^hitmark_damage, min(^arkan_burn_damage, npc_stat(hitpoints)));
+if (npc_stat(hitpoints) = 0) {
+    npc_queue(3, 0, 0);
+    return;
+}
+if (last_int > 1) {
+    npc_queue(15, sub(last_int, 1), ^arkan_burn_interval);
+}
+
+// A player burning.
+[queue,arkan_burn](int $left)
+if (stat(hitpoints) = 0) {
+    return;
+}
+damage(uid, ^hitmark_damage, min(^arkan_burn_damage, stat(hitpoints)));
+if (stat(hitpoints) = 0) {
+    ~player_die;
+    return;
+}
+if ($left > 1) {
+    queue(arkan_burn, ^arkan_burn_interval, sub($left, 1));
+}
