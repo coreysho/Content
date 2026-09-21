@@ -1,0 +1,100 @@
+// THE BOSS KILL COUNTS. GENERATED - do not hand-edit.
+//   python3 tools/genbosskills.py
+//
+// ~boss_kill_record is called from [proc,npc_death], which is the one funnel every death
+// in the game passes through - and the only one available, because a second [ai_queue3]
+// on an npc that already has one is a hard build error and eight of these twelve already
+// have theirs for a drop table. ~barrows_potential hangs off the same place for the same
+// reason, and is the template for the whole shape of this file.
+//
+// CREDIT IS npc_findhero, the test every drop table in this tree opens with, so a kill
+// counts for exactly the player the loot went to. %npc_aggressive_player is the LAST
+// attacker and is a different thing. Slayer deliberately SPLITS a task kill when those
+// two differ; a kill count is not split, because two players each being told they killed
+// the same boss is a wrong number rather than a generous one.
+//
+// THE MESSAGE IS QUEUED because mes() wants a player context an npc-context death does
+// not have. The COUNTER is not queued: protect=no on the varps is what lets it be
+// written from here, and boss_kills.varp says why at length. Four builds were spent
+// moving this guard, inlining a switch and dropping a queue before the varp
+// declaration turned out to be the answer - the same answer %barrows_killed_monster
+// has had the whole time, on a base varp that carries protect=no.
+//
+// THE GUARD IS THE FIRST THING IN THE PROC, and it is about CREDIT rather than about
+// the pointer. Without it the counter would be written for whoever the death context
+// happened to be pointing at. It went missing for one build while the pointer error was
+// being chased, and the build went GREEN with it gone - which is the whole reason the
+// battery checks for it by name.
+[proc,boss_kill_record]
+if (npc_findhero = ^false) {
+    return;
+}
+def_int $slot = enum(npc, int, boss_kill_index, npc_type);
+if ($slot = ^boss_kills_none) {
+    return;
+}
+// TWELVE CASES IN THE OPEN. This is what "the engine cannot pick a varp at runtime"
+// costs, and there is no way to spend less: no %vars[$i], no enum that outputs a varp.
+// A default case, so a slot outside the table does nothing rather than incrementing the
+         // first boss's counter.
+switch_int ($slot) {
+    case 0 : %boss_kc_jad = add(%boss_kc_jad, 1);
+    case 1 : %boss_kc_kril = add(%boss_kc_kril, 1);
+    case 2 : %boss_kc_graardor = add(%boss_kc_graardor, 1);
+    case 3 : %boss_kc_zilyana = add(%boss_kc_zilyana, 1);
+    case 4 : %boss_kc_kreearra = add(%boss_kc_kreearra, 1);
+    case 5 : %boss_kc_kq = add(%boss_kc_kq, 1);
+    case 6 : %boss_kc_chaos_elemental = add(%boss_kc_chaos_elemental, 1);
+    case 7 : %boss_kc_dag_rex = add(%boss_kc_dag_rex, 1);
+    case 8 : %boss_kc_dag_supreme = add(%boss_kc_dag_supreme, 1);
+    case 9 : %boss_kc_dag_prime = add(%boss_kc_dag_prime, 1);
+    case 10 : %boss_kc_kbd = add(%boss_kc_kbd, 1);
+    case 11 : %boss_kc_mole = add(%boss_kc_mole, 1);
+    case default : return;
+}
+queue(boss_kill_announce, 0, $slot);
+
+// THE MESSAGE IS QUEUED, because mes() wants a player context an npc-context death does
+// not have. The queue re-reads the count rather than being handed it, so the number the
+// player is told is the number that is stored.
+[queue,boss_kill_announce](int $slot)
+mes("Your <enum(int, string, boss_kill_name, $slot)> kill count is: <tostring(~boss_kill_get($slot))>.");
+
+// THE READ-BACK SWITCH. This is the other half of what "no runtime varp index" costs:
+// twelve cases to read one counter. A default of 0, so a slot outside the table reads
+// as no kills rather than as the first boss's.
+[proc,boss_kill_get](int $slot)(int)
+switch_int ($slot) {
+    case 0 : return(%boss_kc_jad);
+    case 1 : return(%boss_kc_kril);
+    case 2 : return(%boss_kc_graardor);
+    case 3 : return(%boss_kc_zilyana);
+    case 4 : return(%boss_kc_kreearra);
+    case 5 : return(%boss_kc_kq);
+    case 6 : return(%boss_kc_chaos_elemental);
+    case 7 : return(%boss_kc_dag_rex);
+    case 8 : return(%boss_kc_dag_supreme);
+    case 9 : return(%boss_kc_dag_prime);
+    case 10 : return(%boss_kc_kbd);
+    case 11 : return(%boss_kc_mole);
+    case default : return(0);
+}
+
+// THE WINDOW. Opened from the row this generator appends to questlist.if, which is the
+// same idiom every quest row already uses to open its journal.
+[if_button,questlist:boss_kills] ~boss_kills_open;
+
+[proc,boss_kills_open]
+if_openmain(boss_kills);
+if_settext(boss_kills:count0, tostring(~boss_kill_get(0)));
+if_settext(boss_kills:count1, tostring(~boss_kill_get(1)));
+if_settext(boss_kills:count2, tostring(~boss_kill_get(2)));
+if_settext(boss_kills:count3, tostring(~boss_kill_get(3)));
+if_settext(boss_kills:count4, tostring(~boss_kill_get(4)));
+if_settext(boss_kills:count5, tostring(~boss_kill_get(5)));
+if_settext(boss_kills:count6, tostring(~boss_kill_get(6)));
+if_settext(boss_kills:count7, tostring(~boss_kill_get(7)));
+if_settext(boss_kills:count8, tostring(~boss_kill_get(8)));
+if_settext(boss_kills:count9, tostring(~boss_kill_get(9)));
+if_settext(boss_kills:count10, tostring(~boss_kill_get(10)));
+if_settext(boss_kills:count11, tostring(~boss_kill_get(11)));

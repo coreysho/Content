@@ -19,6 +19,11 @@ npc_arrivedelay; // arrivedelay for up to two ticks (current osrs too) https://y
 // their drop table and a second trigger on the same npc is a hard build error, so there is no
 // per-monster hook to use. ~barrows_potential returns immediately anywhere but down there.
 ~barrows_potential;
+// AND THE BOSS KILL COUNTS, for the same reason and in the same place. Eight of the twelve bosses
+// already carry an [ai_queue3] for their drop table and a second trigger on one npc is a hard
+// build error, so there is no per-boss hook to use. ~boss_kill_record returns immediately for
+// everything that is not one of the twelve, which is almost everything that dies.
+~boss_kill_record;
 if (finduid(%npc_aggressive_player) = true) {
     if (npc_param(death_sound) ! null) {
         ~sound_within_distance(npc_param(death_sound), 0, npc_coord, 12); // osrs

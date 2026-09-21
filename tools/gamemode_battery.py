@@ -450,10 +450,22 @@ moved = [f for f in kept if open(os.path.join(C, f), 'rb').read() != kept[f]]
 for f in moved:
     open(os.path.join(C, f), 'wb').write(kept[f])
 check(not moved, 're-running it changes nothing: %s' % (moved or 'byte-identical'))
-vp = [l for l in VARPPACK.split('\n') if l.strip()]
-check(vp[-1].endswith('=xp_locked'),
-      'xp_locked is the newest varp id, so nothing already saved moved under it')
-check(len(set(l.split('=', 1)[0] for l in vp)) == len(vp), 'no varp id is used twice')
+# WHAT THIS ACTUALLY CARES ABOUT is that xp_locked was APPENDED and never inserted, because a
+# varp id is part of what a save file means and inserting one moves every varp above it. The first
+# version asserted it was the LAST line in varp.pack, which is a proxy that stops being true the
+# moment any later round adds a varp - the boss kill counts took 1178 and up, and this check went
+# red on correct code. It pins the id instead.
+_vp = {n: int(i) for i, n in re.findall(r'^(\d+)=(\S+)$', VARPPACK, re.M)}
+check(_vp.get('xp_locked') == 1177,
+      'xp_locked is still varp 1177, the id it was appended at, so nothing has been inserted '
+      'under it - a varp id is part of what a save file means. (Later rounds append ABOVE it; '
+      'the boss kill counts took 1178 and up.): %s' % _vp.get('xp_locked'))
+check(_vp.get('xp_rate') == 1176,
+      '...and xp_rate is still 1176, the id before it, for the same reason: %s'
+      % _vp.get('xp_rate'))
+_vpl = [l for l in VARPPACK.split('\n') if l.strip()]
+check(len(set(l.split('=', 1)[0] for l in _vpl)) == len(_vpl), 'no varp id is used twice')
+check(len(_vp) == len(_vpl), '...and no varp NAME is used twice either')
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

@@ -79,7 +79,10 @@ MUTS = [
  (VARP, '[xp_locked]\nscope=perm', '[xp_locked]\nscope=perm\ntransmit=yes',
   '...and not transmitted: the client never reads it'),
  (VARPPACK, '1177=xp_locked\n', '',
-  'xp_locked is the newest varp id, so nothing already saved moved under it'),
+  # The check was reworded in the boss killcount round: "the newest varp id" stopped being true
+  # the moment another round appended a varp, and the property it stood for - nothing INSERTED
+  # under it - is now pinned to the id itself.
+  'xp_locked is still varp 1177'),
 
  # ---- 10 the stats tab
  (STATSIF, '[xplock_attack]\ntype=text\nx=0\ny=2\nbuttontype=normal\nwidth=64\nheight=31\noverlayer=com_122\nfont=p12_full\nshadowed=yes\noption=Toggle @or1@Attack @whi@XP-lock\n\n',

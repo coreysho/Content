@@ -1,0 +1,77 @@
+// ONE PERM VARP PER BOSS. GENERATED - do not hand-edit.
+//   python3 tools/genbosskills.py
+//
+// Twelve separate varps rather than bits in one, because a kill count has no ceiling a
+// bit range could hold - four bits stop at fifteen - and a varp is a full int.
+//
+// NOT TRANSMITTED. The window is filled by if_settext when it opens, so the client never
+// needs the numbers; nothing reads them client-side and nothing draws from them.
+//
+// protect=no IS WHAT MAKES THIS WORK AT ALL, and it cost four builds to find. Varps are
+// PROTECTED by default, and writing a protected varp needs the p_active_player pointer -
+// which an npc-context death does not have, whatever npc_findhero returns. The build
+// failed with "Attempt to access corrupted pointer" at the call site in npc_death.rs2,
+// and moving the guard, inlining the switch and dropping the queue all changed nothing
+// because none of them was the cause. skill_guide.varp explains the same rule for
+// [if_button] triggers, and %barrows_killed_monster - the closest thing in the tree, and
+// the template for this whole round - is a varbit on a base varp that carries it.
+
+// TzTok-Jad (tzhaar_fightcave_swarm_boss, level 702)
+[boss_kc_jad]
+scope=perm
+protect=no
+
+// K'ril Tsutsaroth (kril, level 650)
+[boss_kc_kril]
+scope=perm
+protect=no
+
+// General Graardor (graardor, level 624)
+[boss_kc_graardor]
+scope=perm
+protect=no
+
+// Commander Zilyana (zilyana, level 596)
+[boss_kc_zilyana]
+scope=perm
+protect=no
+
+// Kree'arra (kreearra, level 580)
+[boss_kc_kreearra]
+scope=perm
+protect=no
+
+// Kalphite Queen (kalphite_flyingqueen, level 333)
+[boss_kc_kq]
+scope=perm
+protect=no
+
+// Chaos Elemental (chaoselemental, level 305)
+[boss_kc_chaos_elemental]
+scope=perm
+protect=no
+
+// Dagannoth Rex (dagcave_melee_boss, level 303)
+[boss_kc_dag_rex]
+scope=perm
+protect=no
+
+// Dagannoth Supreme (dagcave_ranged_boss, level 303)
+[boss_kc_dag_supreme]
+scope=perm
+protect=no
+
+// Dagannoth Prime (dagcave_magic_boss, level 303)
+[boss_kc_dag_prime]
+scope=perm
+protect=no
+
+// King black dragon (king_dragon, level 276)
+[boss_kc_kbd]
+scope=perm
+protect=no
+
+// Giant Mole (mole_giant, level 230)
+[boss_kc_mole]
+scope=perm
+protect=no
