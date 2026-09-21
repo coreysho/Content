@@ -34,9 +34,25 @@ GAP = 40                      # extra pixels between icons, which is what margin
 STEP = ICON + GAP
 GRID_Y = 100
 
+SHOP = os.path.join(ROOT, 'scripts/shop/interfaces/shop_template.if')
+
 
 def read(p):
     return open(p, newline='').read().replace('\r\n', '\n')
+
+
+def shop_frame():
+    """Every graphic in the shop window, as (name, {key: value}) in file order."""
+    out, cur = [], None
+    for line in read(SHOP).split('\n'):
+        line = line.strip()
+        if line.startswith('[') and line.endswith(']'):
+            cur = (line[1:-1], {})
+            out.append(cur)
+        elif '=' in line and cur is not None:
+            k, v = line.split('=', 1)
+            cur[1][k] = v
+    return [(n, kv) for n, kv in out if kv.get('type') == 'graphic']
 
 
 def inv_size():
@@ -58,33 +74,20 @@ def main():
             out.append('%s=%s' % (k.rstrip('_'), v))
         out.append('')
 
-    n = 0
-    for y in range(PANEL_Y, PANEL_Y + PANEL_H, TILE_H):
-        for x in range(PANEL_X, PANEL_X + PANEL_W, TILE_W):
-            com('frame%d' % n, type='graphic', x=x, y=y,
-                width=min(TILE_W, PANEL_X + PANEL_W - x), height=TILE_H,
-                graphic='tradebacking,0')
-            n += 1
-    for i, (x, y) in enumerate(((12, 20), (475, 20), (12, 290), (475, 290))):
-        com('corner%d' % i, type='graphic', x=x, y=y, width=25, height=30,
-            graphic='steelborder,%d' % i)
-    for i, x in enumerate(range(37, 476, 36)):
-        com('top%d' % i, type='graphic', x=x, y=5, width=36, height=36, graphic='steelborder2,0')
-        com('bottom%d' % i, type='graphic', x=x, y=299, width=36, height=36,
-            graphic='miscgraphics,3')
-    for i, y in enumerate(range(49, 290, 36)):
-        com('left%d' % i, type='graphic', x=-3, y=y, width=36, height=36, graphic='miscgraphics,2')
-        com('right%d' % i, type='graphic', x=479, y=y, width=36, height=36,
-            graphic='steelborder2,1')
+    # THE SHOP'S FRAME, every graphic of shop_template.if borrowed whole - the backing, the steel
+    # border round the viewport and the bar under the title - as tools/gentradingpost.py does. The
+    # first version tiled its own backing and border, a few pixels off the shop's, and sat off-centre.
+    for nm, kv in shop_frame():
+        com('frame_' + nm.replace('com_', ''), **kv)
 
-    com('title', type='text', x=12, y=30, width=488, height=14, center='yes', font='b12_full',
+    com('title', type='text', x=12, y=29, width=488, height=14, center='yes', font='b12_full',
         shadowed='yes', text='Barrows chest', colour='0xFFFF00')
     # Set by the script: how many rolls the chest made and the reward potential they were made at,
     # which is the one thing about a Barrows reward a player cannot work out by looking.
-    com('subtitle', type='text', x=12, y=50, width=488, height=14, center='yes', font='p12_full',
+    com('subtitle', type='text', x=12, y=60, width=488, height=14, center='yes', font='p12_full',
         shadowed='yes', text='', colour='0xFF981F')
-    com('close', type='text', x=424, y=28, buttontype='close', width=68, height=11,
-        font='p11_full', shadowed='yes', text='Close Window', colour='0xC00000',
+    com('close', type='text', x=420, y=29, buttontype='close', width=68, height=11,
+        font='p11_full', shadowed='yes', text='Close Window', colour='0x808080',
         overcolour='0xFFFFFF')
     # THE STORE ITSELF, not a row of model components: an inv component is transmitted and the
     # client draws the icons, the stack counts and the hover text for nothing, and its options come
