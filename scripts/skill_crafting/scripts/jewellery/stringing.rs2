@@ -55,6 +55,12 @@ if (last_useitem = ball_of_wool) {
 [label,string_amulet](int $last)
 def_obj $unstrung = inv_getobj(inv, $last);
 def_struct $struct = oc_param($unstrung, crafting_jewelry_struct);
+// Nothing is taken until we know what it becomes. The onyx amulet once had no struct, and this
+// deleted the amulet and the wool and then failed on struct_param, so both were simply lost.
+if ($struct = null) {
+    ~displaymessage(^dm_default);
+    return;
+}
 
 // delete items
 inv_del(inv, $unstrung, 1);
