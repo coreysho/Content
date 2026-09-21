@@ -1,0 +1,678 @@
+// THE TRADING POST. A board in Edgeville where players list items for sale, buy them outright, or
+// make offers - coins, items, or both - that the seller can accept or decline.
+//
+// THE MARKET IS IN THE ENGINE (engine/src/engine/market/TradingPost.ts, the tp_* commands). It
+// holds what is listed and what is offered, so a trade completes whether or not the other player
+// is online, and it puts whatever a player is owed in their COLLECTION BOX. Nothing here moves a
+// listed or offered item itself: every tp_ action checks, moves, records and saves in one step, and
+// returns '' or the line to tell the player. This file is the windows.
+//
+// THREE MAIN WINDOWS, one inventory beside them (tools/gentradingpost.py):
+//   tradingpost          the lists - Browse, My listings, My offers, Collection box
+//   tradingpost_listing  one listing, its offers, and the seller's Accept / Decline
+//   tradingpost_offer    an offer being built; its items wait in tp_barter until it is made
+// The barter window is the only one holding real items, and [if_close,tradingpost_offer] hands
+// them back whatever closes it - Back, Close Window, walking off, logging out.
+//
+// THE THREE CLICKS THAT CANNOT BE UNDONE - Buy now, Accept, Take down - each want a second click
+// on the same button: the first arms %tp_confirm and the button says what the second will do.
+
+// ---- the post itself ----
+
+[oploc1,trading_post] ~tp_open(^tp_tab_browse);
+[oploc2,trading_post] ~tp_open(^tp_tab_mine);
+[oploc3,trading_post] ~tp_open(^tp_tab_box);
+
+// Use an item on the post to see who is selling one.
+[oplocu,trading_post]
+def_int $found = tp_browse_obj(tp_view, last_useitem, 0);
+%tp_tab = ^tp_tab_browse;
+%tp_page = 0;
+~tp_lists;
+
+[proc,tp_open](int $tab)
+// a fresh visit starts on everything for sale, not on whatever was searched last time
+def_int $found = tp_browse(tp_view, "", 0);
+%tp_tab = $tab;
+%tp_page = 0;
+%tp_listing = -1;
+%tp_offer = -1;
+~tp_lists;
+
+// ---- the lists window ----
+
+[proc,tp_lists]
+%tp_window = ^tp_window_lists;
+%tp_confirm = ^tp_confirm_none;
+if_openmain_side(tradingpost, tradingpost_side);
+inv_transmit(inv, tradingpost_side:inv);
+~tp_side_ops_list;
+~tp_tab_colours;
+
+if_sethide(tradingpost:search, true);
+if_sethide(tradingpost:showall, true);
+if_sethide(tradingpost:prev, true);
+if_sethide(tradingpost:next, true);
+if_sethide(tradingpost:collectall, true);
+
+def_int $total = 0;
+def_string $query = "";
+def_string $status = "";
+def_string $empty = "";
+def_string $hint = "Click an item in your inventory to sell it.";
+
+switch_int (%tp_tab) {
+    case ^tp_tab_browse :
+        inv_transmit(tp_view, tradingpost:grid);
+        $total = tp_repage(tp_view, %tp_page);
+        // a page that has emptied under the player - the last listing on it sold - steps back
+        if ($total > 0 & calc(%tp_page * ^tp_page_size) >= $total) {
+            %tp_page = calc(($total - 1) / ^tp_page_size);
+            $total = tp_repage(tp_view, %tp_page);
+        }
+        $query = tp_query;
+        ~tp_grid_ops("Inspect", "Buy-now", "", "");
+        if_sethide(tradingpost:search, false);
+        if (string_length($query) > 0) if_sethide(tradingpost:showall, false);
+        if (%tp_page > 0) if_sethide(tradingpost:prev, false);
+        if (calc((%tp_page + 1) * ^tp_page_size) < $total) if_sethide(tradingpost:next, false);
+        if ($total > 0) {
+            $status = "Listings <tostring(calc(%tp_page * ^tp_page_size + 1))>-<tostring(min($total, calc((%tp_page + 1) * ^tp_page_size)))> of <tostring($total)>";
+            if (string_length($query) > 0) $status = "<$status> for '<$query>'";
+        } else if (string_length($query) > 0) {
+            $empty = "Nobody is selling anything called '<$query>'.";
+        } else {
+            $empty = "Nothing is for sale yet. Be the first!";
+        }
+        $hint = "Click an item in your inventory to sell it. Use an item on the post to find more.";
+    case ^tp_tab_mine :
+        inv_transmit(tp_view, tradingpost:grid);
+        $total = tp_mine(tp_view);
+        ~tp_grid_ops("Inspect", "", "", "");
+        $status = "Your listings: <tostring($total)> of <tostring(^tp_max_listings)>";
+        $empty = "You have nothing for sale.";
+    case ^tp_tab_offers :
+        inv_transmit(tp_view, tradingpost:grid);
+        $total = tp_myoffers(tp_view);
+        ~tp_grid_ops("Inspect", "Withdraw-offer", "", "");
+        $status = "Listings you have an offer on: <tostring($total)>";
+        $empty = "You are not waiting on any offers.";
+        $hint = "Coins and items you offer are held by the post until the seller answers.";
+    case ^tp_tab_box :
+        inv_transmit(tp_box, tradingpost:grid);
+        $total = tp_box(tp_box);
+        ~tp_grid_ops("Collect", "Collect-noted", "Collect-X", "");
+        if ($total > 0) if_sethide(tradingpost:collectall, false);
+        if ($total > 0) $status = "Waiting for you: <~text_plural($total, "item", "items")>";
+        $empty = "Your collection box is empty.";
+        $hint = "Coins and items from your trades wait here until you collect them.";
+}
+
+if_settext(tradingpost:status, $status);
+if_settext(tradingpost:empty, $empty);
+if_settext(tradingpost:hint, $hint);
+
+// if_setinvop is not sticky - the client rebuilds the options from the cache whenever the window
+// loads - so every open sets all four.
+[proc,tp_grid_ops](string $op1, string $op2, string $op3, string $op4)
+if_setinvop(tradingpost:grid, 1, $op1);
+if_setinvop(tradingpost:grid, 2, $op2);
+if_setinvop(tradingpost:grid, 3, $op3);
+if_setinvop(tradingpost:grid, 4, $op4);
+
+[proc,tp_tab_colours]
+~tp_tab_colour(tradingpost:tab_browse, ^tp_tab_browse);
+~tp_tab_colour(tradingpost:tab_mine, ^tp_tab_mine);
+~tp_tab_colour(tradingpost:tab_offers, ^tp_tab_offers);
+~tp_tab_colour(tradingpost:tab_box, ^tp_tab_box);
+
+[proc,tp_tab_colour](component $com, int $tab)
+if (%tp_tab = $tab) {
+    if_setcolour($com, ^white_rgb);
+} else {
+    if_setcolour($com, ^tp_orange);
+}
+
+[if_button,tradingpost:tab_browse] ~tp_tab(^tp_tab_browse);
+[if_button,tradingpost:tab_mine] ~tp_tab(^tp_tab_mine);
+[if_button,tradingpost:tab_offers] ~tp_tab(^tp_tab_offers);
+[if_button,tradingpost:tab_box] ~tp_tab(^tp_tab_box);
+
+[proc,tp_tab](int $tab)
+%tp_tab = $tab;
+%tp_page = 0;
+~tp_lists;
+
+[if_button,tradingpost:search]
+mes("Type part of an item's name to search the trading post for it.");
+p_namedialog;
+def_string $query = last_string;
+if (string_length($query) = 0) return;
+def_int $found = tp_browse(tp_view, $query, 0);
+%tp_tab = ^tp_tab_browse;
+%tp_page = 0;
+~tp_lists;
+
+[if_button,tradingpost:showall]
+def_int $found = tp_browse(tp_view, "", 0);
+%tp_page = 0;
+~tp_lists;
+
+[if_button,tradingpost:prev]
+%tp_page = max(0, calc(%tp_page - 1));
+~tp_lists;
+
+[if_button,tradingpost:next]
+%tp_page = calc(%tp_page + 1);
+~tp_lists;
+
+[inv_button1,tradingpost:grid]
+if (%tp_tab = ^tp_tab_box) {
+    ~tp_collect(last_slot, ^max_32bit_int, false);
+    return;
+}
+~tp_inspect(tp_slot(last_slot));
+
+[inv_button2,tradingpost:grid]
+def_int $slot = last_slot;
+def_int $listing = tp_slot($slot);
+def_string $err = "";
+switch_int (%tp_tab) {
+    case ^tp_tab_browse :
+        // straight to the listing with Buy now already armed: one more click pays
+        if ($listing = -1) return;
+        ~tp_inspect($listing);
+        if (tp_listing_buyout($listing) > 0 & tp_listing_mine($listing) = false) {
+            %tp_confirm = ^tp_confirm_buynow;
+            ~tp_listing_show;
+        }
+    case ^tp_tab_offers :
+        $err = tp_withdraw(tp_listing_myoffer($listing), inv);
+        if (string_length($err) > 0) {
+            mes($err);
+        } else {
+            mes("You take your offer back.");
+        }
+        ~tp_lists;
+    case ^tp_tab_box : ~tp_collect($slot, ^max_32bit_int, true);
+}
+
+[inv_button3,tradingpost:grid]
+if (%tp_tab ! ^tp_tab_box) return;
+def_int $slot = last_slot;
+p_countdialog;
+if (last_int <= 0) return;
+~tp_collect($slot, last_int, false);
+
+[proc,tp_collect](int $slot, int $count, boolean $noted)
+def_string $err = tp_collect(inv, $slot, $count, $noted);
+if (string_length($err) > 0) mes($err);
+~tp_lists;
+
+// Noted, where there is a note: an armful of unnoted platebodies is the one thing a player never
+// wants from "all".
+[if_button,tradingpost:collectall]
+def_int $total = tp_box(tp_box);
+def_int $i = 0;
+def_string $err = "";
+while ($i < min($total, ^tp_page_size)) {
+    $err = tp_collect(inv, $i, ^max_32bit_int, true);
+    if (string_length($err) > 0) {
+        mes($err);
+        $i = $total;
+    }
+    $i = calc($i + 1);
+}
+~tp_lists;
+
+// ---- one listing ----
+
+[proc,tp_inspect](int $listing)
+if ($listing = -1) return;
+%tp_listing = $listing;
+%tp_offer = -1;
+%tp_confirm = ^tp_confirm_none;
+~tp_listing_show;
+
+[proc,tp_listing_show]
+if (tp_listing_open(%tp_listing) = false) {
+    mes("That is no longer on the trading post.");
+    ~tp_lists;
+    return;
+}
+%tp_window = ^tp_window_listing;
+if_openmain_side(tradingpost_listing, tradingpost_side);
+inv_transmit(tp_item, tradingpost_listing:item);
+inv_transmit(tp_offerview, tradingpost_listing:offer_items);
+inv_transmit(inv, tradingpost_side:inv);
+~tp_side_ops_list;
+
+def_namedobj $obj = tp_listing_obj(%tp_listing);
+def_int $count = tp_listing_count(%tp_listing);
+def_int $buyout = tp_listing_buyout(%tp_listing);
+def_boolean $mine = tp_listing_mine(%tp_listing);
+def_int $myoffer = tp_listing_myoffer(%tp_listing);
+def_int $offers = tp_listing_offers(%tp_listing);
+
+inv_clear(tp_item);
+inv_setslot(tp_item, 0, $obj, $count);
+if_settext(tradingpost_listing:title, oc_name($obj));
+if_settext(tradingpost_listing:info0, ~tp_desc($obj, $count));
+if_settext(tradingpost_listing:info1, "Sold by: <tp_listing_seller(%tp_listing)>");
+if ($buyout > 0) {
+    if_settext(tradingpost_listing:info2, "Buy now: <~tp_gp($buyout)> coins");
+} else {
+    if_settext(tradingpost_listing:info2, "No buy-now price - offers only");
+}
+if_settext(tradingpost_listing:info3, "Offers waiting: <tostring($offers)>");
+if ($mine = true) {
+    if_settext(tradingpost_listing:info4, "This is your listing.");
+} else if ($myoffer ! -1) {
+    if_settext(tradingpost_listing:info4, "Your offer: <tp_offer_text($myoffer)>");
+} else {
+    if_settext(tradingpost_listing:info4, "");
+}
+
+// what the viewer can do - all hidden, then the ones that apply shown
+if_sethide(tradingpost_listing:cancel, true);
+if_sethide(tradingpost_listing:buynow, true);
+if_sethide(tradingpost_listing:makeoffer, true);
+if_sethide(tradingpost_listing:withdraw, true);
+if ($mine = true) {
+    if_sethide(tradingpost_listing:cancel, false);
+} else {
+    if ($buyout > 0) if_sethide(tradingpost_listing:buynow, false);
+    if ($myoffer = -1) {
+        if_sethide(tradingpost_listing:makeoffer, false);
+    } else {
+        if_sethide(tradingpost_listing:withdraw, false);
+    }
+}
+if (%tp_confirm = ^tp_confirm_buynow) {
+    if_settext(tradingpost_listing:buynow, "Click again to pay <~tp_gp($buyout)> coins");
+} else {
+    if_settext(tradingpost_listing:buynow, "Buy now");
+}
+if (%tp_confirm = ^tp_confirm_cancel) {
+    if_settext(tradingpost_listing:cancel, "Click again to take it down");
+} else {
+    if_settext(tradingpost_listing:cancel, "Take down this listing");
+}
+
+// the offers - public, so a buyer can see what they are bidding against
+if ($offers > 0) {
+    if_settext(tradingpost_listing:offers_title, "Offers (<tostring($offers)>)");
+} else {
+    if_settext(tradingpost_listing:offers_title, "Offers");
+}
+if ($offers > 0) {
+    if_sethide(tradingpost_listing:offers_none, true);
+} else {
+    if_sethide(tradingpost_listing:offers_none, false);
+}
+~tp_row(tradingpost_listing:row0, 0);
+~tp_row(tradingpost_listing:row1, 1);
+~tp_row(tradingpost_listing:row2, 2);
+~tp_row(tradingpost_listing:row3, 3);
+~tp_row(tradingpost_listing:row4, 4);
+~tp_row(tradingpost_listing:row5, 5);
+~tp_row(tradingpost_listing:row6, 6);
+~tp_row(tradingpost_listing:row7, 7);
+
+// the offer the seller has picked - an offer withdrawn since it was picked shows as nothing
+def_int $shown = 0;
+if ($mine = true & %tp_offer ! -1) {
+    $shown = tp_offer_show(%tp_offer, tp_offerview);
+    if ($shown = 0) %tp_offer = -1;
+} else {
+    inv_clear(tp_offerview);
+}
+if_sethide(tradingpost_listing:sel_title, true);
+if_sethide(tradingpost_listing:offer_items, true);
+if_sethide(tradingpost_listing:accept, true);
+if_sethide(tradingpost_listing:decline, true);
+if ($shown > 0) {
+    if_sethide(tradingpost_listing:sel_title, false);
+    if_sethide(tradingpost_listing:offer_items, false);
+    if_sethide(tradingpost_listing:accept, false);
+    if_sethide(tradingpost_listing:decline, false);
+    if_settext(tradingpost_listing:sel_title, "<tp_offer_buyer(%tp_offer)>'s offer");
+    if (%tp_confirm = ^tp_confirm_accept) {
+        if_settext(tradingpost_listing:accept, "Sure?");
+    } else {
+        if_settext(tradingpost_listing:accept, "Accept");
+    }
+}
+
+if (%tp_confirm = ^tp_confirm_buynow) {
+    if_settext(tradingpost_listing:hint, "Click Buy now again to pay <~tp_gp($buyout)> coins.");
+} else if (%tp_confirm = ^tp_confirm_accept) {
+    if_settext(tradingpost_listing:hint, "Click Accept again to trade with <tp_offer_buyer(%tp_offer)>.");
+} else if (%tp_confirm = ^tp_confirm_cancel) {
+    if_settext(tradingpost_listing:hint, "Click again to take it down - every offer goes back to its buyer.");
+} else if ($mine = true & $offers > 0 & $shown = 0) {
+    if_settext(tradingpost_listing:hint, "Pick an offer to see what is in it.");
+} else if ($mine = false & $offers > 0) {
+    if_settext(tradingpost_listing:hint, "Anyone can see the offers. Only the seller can accept one.");
+} else {
+    if_settext(tradingpost_listing:hint, "");
+}
+
+[proc,tp_row](component $row, int $n)
+def_int $offer = tp_offer(%tp_listing, $n);
+if ($offer = -1) {
+    if_sethide($row, true);
+    return;
+}
+if_sethide($row, false);
+if_settext($row, "<tp_offer_buyer($offer)> - <tp_offer_text($offer)>");
+if ($offer = %tp_offer) {
+    if_setcolour($row, ^white_rgb);
+} else {
+    if_setcolour($row, ^tp_orange);
+}
+
+[if_button,tradingpost_listing:row0] ~tp_pick(0);
+[if_button,tradingpost_listing:row1] ~tp_pick(1);
+[if_button,tradingpost_listing:row2] ~tp_pick(2);
+[if_button,tradingpost_listing:row3] ~tp_pick(3);
+[if_button,tradingpost_listing:row4] ~tp_pick(4);
+[if_button,tradingpost_listing:row5] ~tp_pick(5);
+[if_button,tradingpost_listing:row6] ~tp_pick(6);
+[if_button,tradingpost_listing:row7] ~tp_pick(7);
+
+[proc,tp_pick](int $n)
+if (tp_listing_mine(%tp_listing) = false) {
+    mes("Only the seller can open an offer.");
+    return;
+}
+%tp_offer = tp_offer(%tp_listing, $n);
+%tp_confirm = ^tp_confirm_none;
+~tp_listing_show;
+
+[if_button,tradingpost_listing:buynow]
+if (%tp_confirm ! ^tp_confirm_buynow) {
+    %tp_confirm = ^tp_confirm_buynow;
+    ~tp_listing_show;
+    return;
+}
+%tp_confirm = ^tp_confirm_none;
+def_int $price = tp_listing_buyout(%tp_listing);
+def_string $what = ~tp_desc(tp_listing_obj(%tp_listing), tp_listing_count(%tp_listing));
+def_string $err = tp_buynow(%tp_listing, inv);
+if (string_length($err) > 0) {
+    mes($err);
+    ~tp_listing_show;
+    return;
+}
+mes("You buy <$what> for <~tp_gp($price)> coins.");
+~tp_lists;
+
+[if_button,tradingpost_listing:makeoffer]
+%tp_coins = 0;
+%tp_confirm = ^tp_confirm_none;
+~tp_offer_open;
+
+[if_button,tradingpost_listing:withdraw]
+def_string $err = tp_withdraw(tp_listing_myoffer(%tp_listing), inv);
+if (string_length($err) > 0) {
+    mes($err);
+} else {
+    mes("You take your offer back.");
+}
+%tp_confirm = ^tp_confirm_none;
+~tp_listing_show;
+
+[if_button,tradingpost_listing:cancel]
+if (%tp_confirm ! ^tp_confirm_cancel) {
+    %tp_confirm = ^tp_confirm_cancel;
+    ~tp_listing_show;
+    return;
+}
+%tp_confirm = ^tp_confirm_none;
+def_string $err = tp_cancel(%tp_listing, inv);
+if (string_length($err) > 0) {
+    mes($err);
+    ~tp_listing_show;
+    return;
+}
+mes("You take your listing down.");
+%tp_tab = ^tp_tab_mine;
+~tp_lists;
+
+[if_button,tradingpost_listing:accept]
+if (%tp_offer = -1) return;
+if (%tp_confirm ! ^tp_confirm_accept) {
+    %tp_confirm = ^tp_confirm_accept;
+    ~tp_listing_show;
+    return;
+}
+%tp_confirm = ^tp_confirm_none;
+def_string $buyer = tp_offer_buyer(%tp_offer);
+def_string $err = tp_accept(%tp_offer);
+if (string_length($err) > 0) {
+    mes($err);
+    %tp_offer = -1;
+    ~tp_listing_show;
+    return;
+}
+mes("You accept <$buyer>'s offer. What they gave you is in your collection box.");
+%tp_offer = -1;
+%tp_tab = ^tp_tab_box;
+~tp_lists;
+
+[if_button,tradingpost_listing:decline]
+if (%tp_offer = -1) return;
+def_string $buyer = tp_offer_buyer(%tp_offer);
+def_string $err = tp_decline(%tp_offer);
+if (string_length($err) > 0) {
+    mes($err);
+} else {
+    mes("You decline <$buyer>'s offer.");
+}
+%tp_offer = -1;
+%tp_confirm = ^tp_confirm_none;
+~tp_listing_show;
+
+[if_button,tradingpost_listing:back] ~tp_lists;
+
+// ---- making an offer ----
+
+[proc,tp_offer_open]
+if (tp_listing_open(%tp_listing) = false) {
+    mes("That is no longer on the trading post.");
+    ~tp_lists;
+    return;
+}
+%tp_window = ^tp_window_offer;
+if_openmain_side(tradingpost_offer, tradingpost_side);
+inv_transmit(tp_barter, tradingpost_offer:barter);
+inv_transmit(inv, tradingpost_side:inv);
+if_setinvop(tradingpost_side:inv, 1, "Offer");
+if_setinvop(tradingpost_side:inv, 2, "Offer-5");
+if_setinvop(tradingpost_side:inv, 3, "Offer-All");
+if_setinvop(tradingpost_side:inv, 4, "Offer-X");
+if_settext(tradingpost_offer:title, "Make an offer");
+~tp_offer_refresh;
+
+// Text only. Opening the window again would close it first, and closing it hands the items back.
+[proc,tp_offer_refresh]
+def_string $what = "<tp_listing_seller(%tp_listing)>'s <~tp_desc(tp_listing_obj(%tp_listing), tp_listing_count(%tp_listing))>";
+def_int $buyout = tp_listing_buyout(%tp_listing);
+if ($buyout > 0) {
+    if_settext(tradingpost_offer:info, "For <$what> (buy now: <~tp_gp($buyout)> coins)");
+} else {
+    if_settext(tradingpost_offer:info, "For <$what> (offers only)");
+}
+if_settext(tradingpost_offer:coins, "Coins: <~tp_gp(%tp_coins)>");
+
+// WHATEVER CLOSES IT - Back, Close Window, the listing window opening over it, logging out - the
+// items go back. tp_makeoffer has already emptied tp_barter when an offer was made, so this finds
+// nothing to move then.
+[if_close,tradingpost_offer]
+~moveallinv(tp_barter, inv);
+%tp_coins = 0;
+
+[if_button,tradingpost_offer:setcoins]
+mes("How many coins do you want to offer?");
+p_countdialog;
+if (last_int < 0) return;
+def_int $have = inv_total(inv, coins);
+if (last_int > $have) {
+    mes("You only have <~tp_gp($have)> coins.");
+    %tp_coins = $have;
+} else {
+    %tp_coins = last_int;
+}
+~tp_offer_refresh;
+
+[inv_button1,tradingpost_offer:barter] ~tp_barter_remove(last_slot, 1);
+[inv_button2,tradingpost_offer:barter] ~tp_barter_remove(last_slot, 5);
+[inv_button3,tradingpost_offer:barter] ~tp_barter_remove(last_slot, ^max_32bit_int);
+[inv_button4,tradingpost_offer:barter] ~tp_barter_remove(last_slot, 0);
+
+[proc,tp_barter_remove](int $slot, int $amount)
+if (inv_getobj(tp_barter, $slot) = null) return;
+if ($amount <= 0) {
+    p_countdialog;
+    if (last_int <= 0) return;
+    $amount = last_int;
+}
+def_obj $obj = inv_getobj(tp_barter, $slot);
+if ($obj = null) return;
+inv_moveitem(tp_barter, inv, $obj, min($amount, inv_total(tp_barter, $obj)));
+
+[if_button,tradingpost_offer:submit]
+def_string $seller = tp_listing_seller(%tp_listing);
+def_string $err = tp_makeoffer(%tp_listing, %tp_coins, inv, tp_barter);
+if (string_length($err) > 0) {
+    mes($err);
+    return;
+}
+mes("Your offer is on the board. <$seller> will be told.");
+%tp_coins = 0;
+~tp_listing_show;
+
+[if_button,tradingpost_offer:back] ~tp_listing_show;
+
+// ---- the inventory beside every window ----
+
+[proc,tp_side_ops_list]
+if_setinvop(tradingpost_side:inv, 1, "List");
+if_setinvop(tradingpost_side:inv, 2, "");
+if_setinvop(tradingpost_side:inv, 3, "");
+if_setinvop(tradingpost_side:inv, 4, "");
+
+[inv_button1,tradingpost_side:inv] ~tp_side(last_slot, 1);
+[inv_button2,tradingpost_side:inv] ~tp_side(last_slot, 5);
+[inv_button3,tradingpost_side:inv] ~tp_side(last_slot, ^max_32bit_int);
+[inv_button4,tradingpost_side:inv] ~tp_side(last_slot, 0);
+
+[proc,tp_side](int $slot, int $amount)
+if (%tp_window = ^tp_window_offer) {
+    ~tp_barter_add($slot, $amount);
+} else if ($amount = 1) {
+    ~tp_list_item($slot);
+}
+
+[proc,tp_barter_add](int $slot, int $amount)
+if (inv_getobj(inv, $slot) = null) return;
+if ($amount <= 0) {
+    p_countdialog;
+    if (last_int <= 0) return;
+    $amount = last_int;
+}
+def_obj $obj = inv_getobj(inv, $slot);
+if ($obj = null) return;
+def_int $have = inv_total(inv, $obj);
+// Coins are the offer's coins, not one of its items: clicking them adds to the amount. They stay
+// in the inventory until the offer is made.
+if ($obj = coins) {
+    if ($amount > calc($have - %tp_coins)) $amount = calc($have - %tp_coins);
+    %tp_coins = calc(%tp_coins + $amount);
+    ~tp_offer_refresh;
+    return;
+}
+if (oc_tradeable(oc_uncert($obj)) = false) {
+    mes("You can't trade that.");
+    return;
+}
+def_int $n = min($amount, $have);
+// the barter inv is twelve slots, and anything that does not fit must stay where it is
+$n = calc($n - inv_itemspace2(tp_barter, $obj, $n, inv_size(tp_barter)));
+if ($n <= 0) {
+    mes("Your offer has no room for more items.");
+    return;
+}
+inv_moveitem(inv, tp_barter, $obj, $n);
+
+// Selling: how many, then the buy-now price. The engine checks everything again when it lists -
+// the inventory can change while a dialog is open.
+[proc,tp_list_item](int $slot)
+def_obj $obj = inv_getobj(inv, $slot);
+if ($obj = null) return;
+if ($obj = coins) {
+    mes("You can't sell coins on the trading post.");
+    return;
+}
+if (oc_tradeable(oc_uncert($obj)) = false) {
+    mes("You can't trade that.");
+    return;
+}
+def_int $have = inv_total(inv, $obj);
+def_int $count = 1;
+if ($have > 1) {
+    mes("How many do you want to sell? You have <~tp_gp($have)>.");
+    p_countdialog;
+    if (last_int <= 0) return;
+    $count = min(last_int, $have);
+}
+mes("Set a buy-now price for <~tp_desc($obj, $count)>, in coins - or 0 to take offers only.");
+p_countdialog;
+if (last_int < 0) return;
+def_int $buyout = last_int;
+def_string $err = tp_list(inv, $obj, $count, $buyout);
+if (string_length($err) > 0) {
+    mes($err);
+    return;
+}
+if ($buyout > 0) {
+    mes("You put <~tp_desc($obj, $count)> on the trading post, to buy now for <~tp_gp($buyout)> coins.");
+} else {
+    mes("You put <~tp_desc($obj, $count)> on the trading post, for offers.");
+}
+%tp_tab = ^tp_tab_mine;
+%tp_page = 0;
+~tp_lists;
+
+// ---- login ----
+
+// Read out what happened while the player was away, and remind them of anything uncollected.
+[proc,tp_login]
+if (tp_login > 0) {
+    mes("You have items waiting in your trading post collection box.");
+}
+
+// ---- text ----
+
+[proc,tp_desc](obj $obj, int $count)(string)
+if ($count = 1) return(oc_name($obj));
+return("<~tp_gp($count)> x <oc_name($obj)>");
+
+// 1234567 -> "1,234,567"
+[proc,tp_gp](int $n)(string)
+if ($n < 1000) return(tostring($n));
+def_string $out = "";
+def_int $part = 0;
+while ($n >= 1000) {
+    $part = modulo($n, 1000);
+    if ($part < 10) {
+        $out = ",00<tostring($part)><$out>";
+    } else if ($part < 100) {
+        $out = ",0<tostring($part)><$out>";
+    } else {
+        $out = ",<tostring($part)><$out>";
+    }
+    $n = divide($n, 1000);
+}
+return("<tostring($n)><$out>");

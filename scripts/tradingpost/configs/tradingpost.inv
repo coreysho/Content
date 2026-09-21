@@ -1,0 +1,38 @@
+// THE TRADING POST'S INVS. Every one is temp: the market itself lives in the engine's database
+// (engine/src/engine/market/TradingPost.ts), and these are only what a window shows.
+//
+// The four DISPLAY invs are written by tp_* commands one slot at a time - one listing per slot, in
+// order - so two listings of the same thing are two slots, and nothing here stacks them together.
+// protect=no because the if_close handlers that clear them run without protected access.
+
+// a page of listings: the lists window's 8 x 4 grid
+[tp_view]
+size=32
+stackall=yes
+protect=no
+
+// the one item on the listing window
+[tp_item]
+size=1
+stackall=yes
+protect=no
+
+// what is in the offer the seller has picked: coins first, then up to twelve items
+[tp_offerview]
+size=13
+stackall=yes
+protect=no
+
+// what the player is owed
+[tp_box]
+size=32
+stackall=yes
+protect=no
+
+// THE BARTER INV, where an offer's items wait while it is being built. The only one of these that
+// holds real items: [if_close,tradingpost_offer] hands them back, and tp_makeoffer takes them all.
+// protect=no for the same reason tradeoffer is - if_close runs unprotected, and it must be able
+// to empty this back into the inventory whatever closed the window.
+[tp_barter]
+size=12
+protect=no

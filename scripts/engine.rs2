@@ -167,6 +167,8 @@
 [command,last_com]()(component)
 // info: Get the last int (number) that was input
 [command,last_int]()(int)
+// info: custom (2026-09-21) - what the player typed into p_namedialog, underscores for spaces (a-z, 0-9, _; twelve at most)
+[command,last_string]()(string)
 // info: Get the last item that was selected
 [command,last_item]()(obj) // unconfirmed, inferred from useitem and useslot
 // info: Get the last item's slot
@@ -189,6 +191,8 @@
 [command,p_arrivedelay]
 // info: Requires protected access - open a number input dialog
 [command,p_countdialog]
+// info: custom (2026-09-21) - the chatbox "Enter name:" prompt; the answer is last_string
+[command,p_namedialog]
 // info: Requires protected access - delay this script/the player for $delay cycles
 [command,p_delay](int $delay)
 // info: Requires protected access - delay this script/the secondary player for $delay cycles
@@ -1088,6 +1092,41 @@
 // info: dynamic arg (indexed key)
 [command,db_find_refine](dbrow $row)
 [command,db_listall](dbtable $table)
+
+// Trading post ops (7600-7699) - custom (2026-09-21). engine/src/engine/market/TradingPost.ts.
+// A LISTING is an item held by the post for its seller; an OFFER is coins and/or items held by the
+// post for a buyer. Views: tp_browse/tp_mine/tp_myoffers write one listing per slot into a display
+// inv and remember which is which, for tp_slot. Actions return '' or a line to mes().
+[command,tp_browse](inv $inv, string $query, int $page)(int)
+[command,tp_browse_obj](inv $inv, obj $obj, int $page)(int)
+[command,tp_repage](inv $inv, int $page)(int)
+[command,tp_query]()(string)
+[command,tp_mine](inv $inv)(int)
+[command,tp_myoffers](inv $inv)(int)
+[command,tp_slot](int $slot)(int)
+[command,tp_listing_obj](int $listing)(namedobj)
+[command,tp_listing_count](int $listing)(int)
+[command,tp_listing_buyout](int $listing)(int)
+[command,tp_listing_seller](int $listing)(string)
+[command,tp_listing_open](int $listing)(boolean)
+[command,tp_listing_mine](int $listing)(boolean)
+[command,tp_listing_offers](int $listing)(int)
+[command,tp_listing_myoffer](int $listing)(int)
+[command,tp_offer](int $listing, int $n)(int)
+[command,tp_offer_buyer](int $offer)(string)
+[command,tp_offer_coins](int $offer)(int)
+[command,tp_offer_text](int $offer)(string)
+[command,tp_offer_show](int $offer, inv $inv)(int)
+[command,tp_list](inv $inv, obj $obj, int $count, int $buyout)(string)
+[command,tp_buynow](int $listing, inv $inv)(string)
+[command,tp_makeoffer](int $listing, int $coins, inv $inv, inv $barter)(string)
+[command,tp_accept](int $offer)(string)
+[command,tp_decline](int $offer)(string)
+[command,tp_withdraw](int $offer, inv $inv)(string)
+[command,tp_cancel](int $listing, inv $inv)(string)
+[command,tp_box](inv $inv)(int)
+[command,tp_collect](inv $inv, int $slot, int $count, boolean $noted)(string)
+[command,tp_login]()(int)
 
 // Debug ops (10000-11000)
 // info: Raise a script error on the server
