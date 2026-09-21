@@ -195,7 +195,7 @@ if (multiply(npc_stat(hitpoints), 2) <= npc_basestat(hitpoints)) {
   '7 the rune shop sells the eight runes its own commented-out lines listed'),
  (INV727, 'stock8=tzhaar_cape_obsidian,1,100', 'stock8=tzhaar_cape_fire,1,100',
   '7 ...and the equipment shop the whole obsidian set'),
- (CITYMAP, '0 9 48: 3944\n', '',
+ (CITYMAP, '0 30 5: 3944\n', '',
   '7 tzhaar_shopkeeper_rune is spawned once in m38_80'),
  # the pet
  (PETNPC, 'param=pet_item_id,bosspet_tzrek_jad_item', 'param=pet_item_id,bosspet_kbd_item',
