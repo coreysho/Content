@@ -52,9 +52,28 @@ p_delay(2);
 %viking = ^viking_complete;
 queue(viking_quest_complete, 0, 0);
 
+// This queue used to be session_log + ~send_quest_complete and nothing else: no stat_advance, no
+// inv_add anywhere in it, so six trials' worth of work paid out three quest points and a reward
+// screen. The XP below is the quest's own: 2,812 in each of the ten skills it trains, written in
+// the x10 form stat_advance takes throughout this codebase.
+//
+// No item is granted here deliberately. The scroll shows viking_helmet as its display object and
+// the reward line says "Fremennik equipment", but what the trials actually unlock is the right to
+// wear it and to trade in Rellekka, not a handout - so the text is accurate as written and is left
+// alone rather than backed with an invented item.
 [queue,viking_quest_complete]
 session_log(^log_adventure, "Quest complete: The Fremennik Trials");
-~send_quest_complete(questlist:viking, viking_helmet, 250, ^viking_questpoints, "You have completed\\nThe Fremennik Trials!", "A Fremennik name|Rellekka's trust|Fremennik equipment");
+stat_advance(agility, 28120);
+stat_advance(attack, 28120);
+stat_advance(crafting, 28120);
+stat_advance(defence, 28120);
+stat_advance(fishing, 28120);
+stat_advance(fletching, 28120);
+stat_advance(hitpoints, 28120);
+stat_advance(strength, 28120);
+stat_advance(thieving, 28120);
+stat_advance(woodcutting, 28120);
+~send_quest_complete(questlist:viking, viking_helmet, 250, ^viking_questpoints, "You have completed\\nThe Fremennik Trials!", "A Fremennik name|Rellekka's trust|2,812 XP in ten skills|Fremennik equipment");
 
 // A hand-picked list rather than a generated one: the real quest asks you to choose from a short
 // set of Fremennik names, and this keeps the flavour without an interface to pick from. Keyed off

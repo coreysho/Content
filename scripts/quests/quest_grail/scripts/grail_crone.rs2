@@ -1,13 +1,19 @@
+// Talking to the Crone directly used to stop at "Um... hello." - everything she actually knows,
+// including the %grail advance below, was reachable only by going back through the High Priest of
+// Entrana (high_priest_of_entrana.rs2:12). A player who spawned her, wandered off and later
+// clicked her got a dead end with no hint that the High Priest was the way back in.
 [opnpc1,grail_crone]
 ~chatnpc("<p,happy>Hello deary.");
 ~chatplayer("<p,confused>Um... hello.");
+@grail_crone;
 
 [label,grail_crone]
 ~chatnpc("<p,quiz>Did you say the Grail?|You are a Grail knight, yes?|Well you'd better hurry. A Fisher King is in pain.");
 ~chatplayer("<p,angry>Well I would, but I don't know where I am going!");
 ~chatnpc("<p,neutral>Go to where the six heads face,|blow the whistle and away you go!");
 if(%grail = ^grail_spoken_merlin) {
-    %grail = 4;
+    // Was a bare `4` - the one stage write in this quest that did not go through its constant.
+    %grail = ^grail_spoken_crone;
 }
 @multi4("What are the six heads?", grail_crone_six_heads, "What's a Fisher King?", grail_crone_fisherking, "Ok, I will go searching.", grail_crone_searching, "What do you mean by the whistle?", grail_crone_whistle);
 

@@ -49,6 +49,12 @@ if (%murderquest = ^murder_started) {
 
 // Source for completion: https://i.imgur.com/OR5vhcI.png
 if (%murderquest = ^murder_complete) {
+    // append onto an empty $text: the opening paragraph is only ever assigned inside the
+    // ^murder_started block above, which a completed player skips, so the finished journal used to
+    // start mid-sentence at "One of the guards asked me...".
+    $text = "@str@Lord Sinclair, a prominent nobleman, had been horribly|";
+    $text = append($text, "@str@murdered at his mansion. The guards had been sent to|");
+    $text = append($text, "@str@investigate his murder, but have been completely stuck.|");
     $text = append($text, "@str@One of the guards asked me for my help in solving the|");
     $text = append($text, "@str@murder. After careful examination of the crime scene and|");
     $text = append($text, "@str@interrogating all suspects, I worked out who was guilty. I|");

@@ -190,9 +190,14 @@ npc_queue(6, 0, 30);
 [proc,hundred_finale_finish]
 ~hundred_finale_clear_wizard;
 npc_add(^hundred_arena_wizard, hundred_culinaromancer_dead, 12);
-~mesbox("The Culinaromancer swells, goes a colour no cook should ever go, and stops being anywhere at all. The tiles under your feet start to fade.");
+// The award goes down BEFORE the mesbox, not after. Every ~mesbox ends in p_pausebutton and
+// aborts the script if the player dismisses it, so with the old order a dismissed box left the
+// Culinaromancer dead, the quest not complete and no lamp given - the exact policy quest_rd.rs2
+// states for itself and this one file did not follow. Aris re-offers the fight, so it was a
+// re-run rather than a dead end, but the reward screen was skipped for no reason.
 ~hundred_award_subquest(^hundred_bit_culinaromancer);
 %hundred_main_quest_var = ^hundred_complete;
+~mesbox("The Culinaromancer swells, goes a colour no cook should ever go, and stops being anywhere at all. The tiles under your feet start to fade.");
 p_delay(3);
 p_teleport(^hundred_dining_room_after);
 ~mesbox("The dining hall is a dining hall again. Nine people are talking at once and the Duke is asking, loudly, what happened to his lunch.");

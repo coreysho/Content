@@ -115,12 +115,20 @@ if(last_useitem = softclay) {
         mes("You can't see a way to put the instructions in the golem's skkull.");
         return;
     }
+    // The program was never consumed and the stage was never checked, so a finished player still
+    // holding it could use it on the golem again and re-queue golem_complete - another 1,000
+    // Crafting and 1,000 Thieving XP, and another completion screen, as often as they liked.
+    if (%golem_a >= ^golem_complete) {
+        mes("The golem already has its new instructions.");
+        return;
+    }
     sound_synth(golem_program, 1, 0);
     def_string $golem_name = ~get_golem_name;
     def_npc $golem_npc = ~get_golem_state;
     ~chatnpc_specific($golem_name, $golem_npc, "<p,confused>New instructions...|Updating program....");
     ~chatnpc_specific($golem_name, $golem_npc, "<p,happy>Task complete!");
     ~chatnpc_specific($golem_name, $golem_npc, "<p,happy>Thank you. Now my mind is at rest.");
+    inv_del(inv, golem_program, 1);
     queue(golem_complete, 0, 0);
 } else if(last_useitem = golem_golemkey) {
     if(%golem_head_open = 0) {

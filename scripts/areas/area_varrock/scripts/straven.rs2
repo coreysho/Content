@@ -81,10 +81,24 @@ if(inv_total(inv, intelligence_report) > 0) {
 ~chatnpc("<p,neutral>You need to kill Jonny the Beard,|who should be in the Blue Moon Inn.");
 
 [label,straven_gangmember]
-if (%heroquest >= ^hero_phoenix_obtained_armband & ~obj_gettotal(master_thief_armband) < 1) {
+// Both gang branches share one linear %heroquest, and the whole Black Arm branch (7-13) sits ABOVE
+// ^hero_phoenix_obtained_armband (6). A `>=` test therefore read every Black Arm member as a
+// Phoenix one: the rival gang leader greeted them as a colleague, and case 1 below handed them a
+// free master_thief_armband on request.
+//
+// That was a full branch skip, not a cosmetic leak. Achietties completes the quest on the three
+// ITEMS alone - feather, armband, lava eel (achietties.rs2:12) - and never looks at the stage, so
+// a Black Arm player could take the armband here and walk past Trobert, the ID papers, Garv, Grip
+// and the treasure chest entirely.
+//
+// Katrine's mirror check does not leak, because ^hero_blackarm_obtained_armband (13) is above
+// every Phoenix stage, so only this side needed bounding. The replacement is now offered at
+// exactly the stage that earns it; the greeting still covers a finished player of either gang,
+// which costs nothing since the armband is consumed on completion.
+if (%heroquest = ^hero_phoenix_obtained_armband & ~obj_gettotal(master_thief_armband) < 1) {
     @straven_gangmember_dialogues(1);
 } 
-else if (%heroquest < ^hero_started | %heroquest >= ^hero_phoenix_obtained_armband) {
+else if (%heroquest < ^hero_started | %heroquest = ^hero_phoenix_obtained_armband | %heroquest >= ^hero_complete) {
     ~chatnpc("<p,neutral>Greetings fellow gang member.");
     if(inv_total(inv, phoenixkey2) = 0 & ~obj_gettotal(phoenixkey2) < 1) {
         @straven_gangmember_dialogues(2);

@@ -231,13 +231,13 @@ switch_int($constellation_numb) {
     case ^sign_libra :
         // https://web.archive.org/web/20050521225136/http://www.runeweb.net/index.php?page=rs2-quest-observator mentions it in text
         ~chatnpc("<p,happy>Libra the scales.|The scales of justice award you with law runes.");
-        inv_add(inv, lawrune, 3);
+        ~itgronigen_reward(lawrune, 3);
     case ^sign_aquarius :
         ~chatnpc("<p,happy>Aquarius the water-bearer.|The Gods of water award you with water runes.");
-        inv_add(inv, waterrune, 25);
+        ~itgronigen_reward(waterrune, 25);
     case ^sign_scorpio :
         ~chatnpc("<p,happy>Scorpio the scorpion.|The scorpion gives you poison from it's sting.");
-        inv_add(inv, weapon_poison, 1);
+        ~itgronigen_reward(weapon_poison, 1);
     case ^sign_leo :
         ~chatnpc("<p,happy>Leo the lion.|The power of the lion has increased your hitpoints.");
         stat_advance(hitpoints, 8750);
@@ -246,26 +246,37 @@ switch_int($constellation_numb) {
         stat_advance(attack, 8750);
     case ^sign_sagittarius :
         ~chatnpc("<p,happy>Sagittarius the Centaur.|The Gods award you a maple longbow.");
-        inv_add(inv, maple_longbow, 1);
+        ~itgronigen_reward(maple_longbow, 1);
     case ^sign_gemini :
         ~chatnpc("<p,happy>Gemini the twins.|The double nature of Gemini awards you a two-handed weapon.");
-        inv_add(inv, black_2h_sword, 1);
+        ~itgronigen_reward(black_2h_sword, 1);
     case ^sign_pisces :
         ~chatnpc("<p,happy>Pisces the fish.|The gods rain food from the sea on you.");
-        inv_add(inv, tuna, 3);
+        ~itgronigen_reward(tuna, 3);
     case ^sign_taurus :
         ~chatnpc("<p,happy>Taurus the bull.|You are given the strength of a bull.");
-        inv_add(inv, 1dose2strength, 1);
+        ~itgronigen_reward(1dose2strength, 1);
     case ^sign_cancer :
         ~chatnpc("<p,happy>Cancer the crab.|The armoured crab gives you an amulet of defence.");
-        inv_add(inv, amulet_of_defence, 1);
+        ~itgronigen_reward(amulet_of_defence, 1);
 }
 stat_advance(crafting, 22500);
-inv_add(inv, uncut_sapphire, 1);
+~itgronigen_reward(uncut_sapphire, 1);
 %itgronigen = ^itgronigen_complete;
 %qp = calc(%qp + ^itgronigen_questpoints);
 queue(itgronigen_quest_complete, 0, 0);
 @professor_friend_of_gods;
+
+// The constellation payout and the uncut sapphire were plain inv_adds, and ^itgronigen_complete is
+// set on the line after them - so a full inventory destroyed the reward with no way to ask for it
+// again. Dropping to the player's feet keeps the one-shot completion intact either way.
+[proc,itgronigen_reward](namedobj $obj, int $count)
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, $obj, $count);
+    return;
+}
+obj_add(coord, $obj, $count, ^lootdrop_duration);
+mes("You have no room for your reward, so it falls to the ground.");
 
 [queue,itgronigen_quest_complete]
 session_log(^log_adventure, "Quest complete: Observatory");
