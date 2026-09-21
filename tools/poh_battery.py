@@ -4128,8 +4128,10 @@ check(not _oneway,
 # ...and it is the whole list this build can have: the mask, the helmet and its fourteen colours,
 # and the four Fremennik rings. Anything else with a param would be an item that can be imbued and
 # was never thought about; anything missing would be one the scroll silently refuses.
+# The magic shortbow is the one addition past OSRS's scroll list, asked for on 2026-09-21: OSRS
+# imbues it with its own Nightmare Zone scroll, and this build has one scroll for everything.
 _WANT66 = ({'black_mask', 'slayer_helm', 'berzerker_ring', 'warrior_ring', 'ranger_ring',
-            'seer_ring'}
+            'seer_ring', 'magic_shortbow'}
            | {n for n in _ALLOBJ
               if re.fullmatch(r'slayer_helm_[a-z]+', n) and n != 'slayer_helm_i'})
 check(set(_into) == _WANT66,
@@ -4182,7 +4184,8 @@ for _root66, _d66, _fs66 in os.walk(os.path.join(C, 'scripts')):
         if _fn66.endswith('.rs2'):
             _ALLRS2 += read(os.path.join(_root66, _fn66)[len(C) + 1:])
 _unch = set(re.findall(r'\[opheld\d,(\w+)\] @imbue_uncharge;', _ALLRS2))
-_WANTUNCH = {'black_mask_i', 'berzerker_ring_i', 'warrior_ring_i', 'ranger_ring_i', 'seer_ring_i'}
+_WANTUNCH = {'black_mask_i', 'berzerker_ring_i', 'warrior_ring_i', 'ranger_ring_i', 'seer_ring_i',
+             'magic_shortbow_i'}  # the bow: this build's scroll comes back out of everything it imbues
 check(_unch == _WANTUNCH,
       'Uncharge is on the five items the cache gives it to - the mask and the four rings - and on '
       'nothing else: %s' % (sorted(_unch ^ _WANTUNCH) or 'exactly those'))
