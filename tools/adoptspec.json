@@ -1,0 +1,387 @@
+{
+  "_comment": [
+    "Cache panels this fork has adopted, and how each one's components get their names.",
+    "",
+    "A panel out of scripts/interfaces/ is named inter_<id> with every component com_<n>, so a",
+    "script that used it would read if_settext(inter_53:com_21, ...) and nobody could tell what",
+    "that was. Adopting one means renaming it and its components and moving the file where the",
+    "skill lives. tools/genadopt.py does that, and it derives every name FROM THE PANEL'S OWN",
+    "TEXT rather than from a hand-written list - so a component that moves, or a panel that is",
+    "not the one we think it is, fails the join instead of quietly renaming the wrong thing.",
+    "",
+    "Each panel: src (the cache file), dst, iface (the new interface name), and rules. A rule",
+    "matches components on a field pattern; the pattern's named groups feed the name template.",
+    "`order` numbers matches left-to-right by x then y when the template needs an index.",
+    "Anything no rule matches keeps its com_<n>, because nothing names it."
+  ],
+  "panels": [
+    {
+      "iface": "smelt_window",
+      "src": "scripts/interfaces/inter_53.if",
+      "dst": "scripts/skill_smithing/interfaces/smelt_window.if",
+      "what": "The furnace's own Smelt window. Eight bars, four counts each.",
+      "rules": [
+        {
+          "why": "the 32 smelt buttons. Each one says which bar and how many, so the button's own option is the key - and that is also what fixes the column order, which is NOT the order smelting.struct lists the bars in (the panel puts Silver before Steel).",
+          "field": "option",
+          "pattern": "^Smelt (?P<count>X|10|5|1) @lre@(?P<bar>[A-Za-z]+)$",
+          "name": "smelt_{count}_{bar}",
+          "lower": true,
+          "expect": 32
+        },
+        {
+          "why": "the eight bar icons. They all ship as obj_bronze_bar and the server sets the real one, so there is no text on them to join with - they are taken left to right, and a check ties each to the button column at the same x.",
+          "field": "model",
+          "pattern": "^obj_bronze_bar$",
+          "name": "icon{order}",
+          "expect": 8
+        }
+      ],
+      "content": {
+        "_why": "Which bar each column is. The KEY is the word in the button's own option text, so this table cannot disagree with the panel - genadopt names the buttons from the same words. Everything else about a bar (level, ores, xp, every message) is read at runtime from the smelting_struct the obj already carries, so there is not a single number here.",
+        "bars": [
+          {
+            "column": "bronze",
+            "obj": "bronze_bar"
+          },
+          {
+            "column": "iron",
+            "obj": "iron_bar"
+          },
+          {
+            "column": "silver",
+            "obj": "silver_bar"
+          },
+          {
+            "column": "steel",
+            "obj": "steel_bar"
+          },
+          {
+            "column": "gold",
+            "obj": "gold_bar"
+          },
+          {
+            "column": "mithril",
+            "obj": "mithril_bar"
+          },
+          {
+            "column": "adamant",
+            "obj": "adamantite_bar"
+          },
+          {
+            "column": "rune",
+            "obj": "runite_bar"
+          }
+        ],
+        "_order_note": "This is the PANEL's order, left to right: silver is the third column and steel the fourth. smelting.struct lists them bronze, iron, steel, silver - the other way round. A hand-written list would have swapped them and nothing would have noticed."
+      }
+    },
+    {
+      "iface": "tan_window",
+      "src": "scripts/interfaces/inter_306.if",
+      "dst": "scripts/skill_crafting/interfaces/tan_window.if",
+      "what": "The tanner's window. Eight cells the server fills; Hide and Cost are placeholder labels.",
+      "rules": [
+        {
+          "why": "the eight cells. The panel is generic - which hide sits in which cell is the server's choice at runtime - so the cells are numbered, not named after a hide.",
+          "field": "type",
+          "pattern": "^layer$",
+          "name": "cell{order}",
+          "expect": 8
+        },
+        {
+          "why": "one hide model per cell.",
+          "field": "type",
+          "pattern": "^model$",
+          "name": "hide{order}",
+          "expect": 8
+        },
+        {
+          "why": "the label that says which hide. Jagex left the word Hide in it as a placeholder; the server overwrites it. A LABEL, never a number - there is no %1 in it.",
+          "field": "text",
+          "pattern": "^Hide$",
+          "name": "name{order}",
+          "expect": 8
+        },
+        {
+          "why": "the label that says what it costs. Same placeholder rule.",
+          "field": "text",
+          "pattern": "^Cost$",
+          "name": "cost{order}",
+          "expect": 8
+        },
+        {
+          "why": "the four buttons per cell. File order inside a cell is All, X, 5, 1 - so 1 is appended last, which makes Tan 1 the left click and the top menu row, which is what the live game does. They are numbered by CELL, not 1..32, because a trigger wants to say which hide it is tanning.",
+          "field": "option",
+          "pattern": "^Tan @or2@(?P<count>All|X|5|1)$",
+          "name": "tan_{count}_{cell}",
+          "lower": true,
+          "expect": 32,
+          "group": 4
+        }
+      ],
+      "content": {
+        "_why": "The eight cells the panel draws, filled top-left to bottom-right. Six are tannable in this build; the two snake hides have no obj in pack/obj.pack, so their cells are hidden with if_sethide rather than drawn dead. Both cost constants are named here because Canifis is not a fixed markup on Al Kharid - it is 2/5/45 against 1/3/20 - so the window has to read the pair and pick by npc_type.",
+        "rows": [
+          {
+            "hide": "cow_hide",
+            "leather": "leather",
+            "alkharid": "tanner_soft_leather_cost",
+            "canifis": "werewolftanner_soft_leather_cost",
+            "label": "Soft leather"
+          },
+          {
+            "hide": "cow_hide",
+            "leather": "hard_leather",
+            "alkharid": "tanner_hard_leather_cost",
+            "canifis": "werewolftanner_hard_leather_cost",
+            "label": "Hard leather"
+          },
+          {
+            "hide": "dragonhide_green",
+            "leather": "dragon_leather",
+            "alkharid": "tanner_dragonhide_cost",
+            "canifis": "werewolftanner_dragonhide_cost",
+            "label": "Green d'hide"
+          },
+          {
+            "hide": "dragonhide_blue",
+            "leather": "dragon_leather_blue",
+            "alkharid": "tanner_dragonhide_cost",
+            "canifis": "werewolftanner_dragonhide_cost",
+            "label": "Blue d'hide"
+          },
+          {
+            "hide": "dragonhide_red",
+            "leather": "dragon_leather_red",
+            "alkharid": "tanner_dragonhide_cost",
+            "canifis": "werewolftanner_dragonhide_cost",
+            "label": "Red d'hide"
+          },
+          {
+            "hide": "dragonhide_black",
+            "leather": "dragon_leather_black",
+            "alkharid": "tanner_dragonhide_cost",
+            "canifis": "werewolftanner_dragonhide_cost",
+            "label": "Black d'hide"
+          }
+        ],
+        "cells": 8,
+        "costs": {
+          "al_kharid": "tanner",
+          "canifis": "werewolftanner"
+        }
+      }
+    },
+    {
+      "iface": "silver_casting",
+      "src": "scripts/interfaces/inter_282.if",
+      "dst": "scripts/skill_crafting/interfaces/silver_casting.if",
+      "what": "The furnace's Silver Casting window. Seven products, each with a make state and a you-need-the-mould state.",
+      "rules": [
+        {
+          "why": "the product slot: a 1x1 inv carrying Make 1 / Make 5 / Make 10, which is the inv_button1..3 shape the Castle Wars ticket exchange already uses. File order is product order, and the products block asserts which product each one is against the cache's own Make text.",
+          "field": "type",
+          "pattern": "^inv$",
+          "name": "slot_{product}",
+          "expect": 7
+        },
+        {
+          "why": "the layer the slot lives in. This is the state shown when you HAVE the mould; if_sethide picks between it and the need layer, and if_sethide only works on layers.",
+          "field": "type",
+          "pattern": "^inv$",
+          "target": "parent",
+          "name": "make_{product}",
+          "expect": 7
+        },
+        {
+          "why": "the layer shown when you do not have the mould, found by its own you-need text.",
+          "field": "text",
+          "pattern": "^You need",
+          "target": "parent",
+          "name": "need_{product}",
+          "expect": 7
+        }
+      ],
+      "products": [
+        {
+          "key": "holy_symbol",
+          "make": "Make\\n Saradomin \\nSymbol",
+          "need": "You need a \\nHoly Symbol\\n mould to make\\n this item.",
+          "obj": "nostringstar",
+          "mould": "holy_symbol_mould",
+          "struct": "unstrung_symbol",
+          "inv": "silvercast_holysymbol"
+        },
+        {
+          "key": "unholy_symbol",
+          "make": "Make\\n Zamorak\\nSymbol",
+          "need": "You need an \\nUnholy Symbol\\n mould to make\\n this item.",
+          "obj": "nostringsnake",
+          "mould": "unholy_symbol_mould",
+          "struct": "unstrung_emblem",
+          "inv": "silvercast_unholysymbol"
+        },
+        {
+          "key": "silver_sickle",
+          "make": "Make\\nSilver\\nSickle",
+          "need": "You need a \\nsickle mould\\n to make\\n this item.",
+          "obj": "silver_sickle",
+          "mould": "sickle_mould",
+          "struct": "silver_sickle",
+          "inv": "silvercast_sickle"
+        },
+        {
+          "key": "lightning_rod",
+          "make": "Make\\nLightning\\nRod",
+          "need": "You need a \\nlightning \\nrod mould\\n to make\\n this item.",
+          "obj": "fenk_conductor",
+          "mould": "fenk_lightning_mould",
+          "struct": null,
+          "inv": "silvercast_lightning"
+        },
+        {
+          "key": "tiara",
+          "make": "Make\\nTiara",
+          "need": "You need a\\n Tiara Mould \\nto make\\n a tiara.",
+          "obj": "tiara",
+          "mould": "tiara_mould",
+          "struct": "tiara",
+          "inv": "silvercast_tiara"
+        },
+        {
+          "key": "silvthrill_rod",
+          "make": "Make \\nSilvthrill \\nRod",
+          "need": "You need a \\n Rod mould \\nto make this \\nitem.",
+          "obj": "burgh_rod_command1",
+          "mould": null,
+          "struct": null,
+          "inv": "silvercast_commandrod"
+        },
+        {
+          "key": "demonic_sigil",
+          "make": "Make demonic\\nsigil",
+          "need": "You need a\\n demonic sigil\\nmould to make\\nthis item.",
+          "obj": "agrith_sigil",
+          "mould": "agrith_sigil_mould",
+          "struct": null,
+          "inv": "silvercast_agrith"
+        }
+      ],
+      "_products_why": "THE SEVEN PRODUCTS ARE JAGEX'S OWN, not a reading of the panel's labels. scripts/_unpack/727/all.inv carries silvercast_holysymbol, silvercast_unholysymbol, silvercast_sickle, silvercast_lightning, silvercast_tiara, silvercast_agrith and silvercast_commandrod - seven single-slot inventories, one per slot of this panel, each stocking the product it shows - and all seven already have ids in pack/inv.pack. Nothing in this fork had ever used one. They name the three products the panel's own English does not: the lightning rod is fenk_conductor, the demonic sigil is agrith_sigil and the silvthrill rod is burgh_rod_command1. AN EARLIER DRAFT OF THIS ROUND SAID THOSE THREE HAD NO OBJ IN THIS BUILD AND WOULD STAY DEAD. That was a negative from a hand-guessed name: it searched for lightning_rod, silvthrill_rod and demonic_sigil_mould, none of which is what any of them is called. All six objs and both extra moulds are in pack/obj.pack.",
+      "_wired_why": "Four of the seven are wired. The other three are quest steps - Creature of Fenkenstrain, In Aid of the Myreque and Shadow of the Storm - with no Crafting level and no Crafting experience anywhere to copy, and inventing either would be writing a number from nowhere. Their moulds are packed but nothing in this build hands one out, so their slots stay on the you-need-the-mould side by themselves. No code makes that happen and none should."
+    },
+    {
+      "iface": "churn_milk",
+      "src": "scripts/interfaces/inter_317.if",
+      "dst": "scripts/skill_cooking/interfaces/churn_milk.if",
+      "what": "The churn window a bucket of milk opens: milk makes all three.",
+      "rules": [
+        {
+          "why": "one button per product, keyed on its own option.",
+          "field": "option",
+          "pattern": "^Churn (?P<product>Cream|Butter|Cheese)$",
+          "name": "churn_{product}",
+          "lower": true,
+          "expect": 3
+        },
+        {
+          "why": "the product icons.",
+          "field": "type",
+          "pattern": "^model$",
+          "name": "icon{order}",
+          "expect": 3
+        }
+      ],
+      "content": {
+        "_why": "Three products, and the three panels ARE the three inputs: milk makes all three, cream makes butter and cheese, butter makes cheese. Level is the product's, whatever it was made from; experience is the pair's. Every figure below is from that product's own OSRS wiki page, fetched 2026-09-21, and the three pages agree with each other.",
+        "products": [
+          {
+            "key": "cream",
+            "obj": "pot_of_cream",
+            "level": 21,
+            "from": {
+              "bucket_milk": 180
+            }
+          },
+          {
+            "key": "butter",
+            "obj": "pot_of_butter",
+            "level": 38,
+            "from": {
+              "bucket_milk": 405,
+              "pot_of_cream": 225
+            }
+          },
+          {
+            "key": "cheese",
+            "obj": "cheese",
+            "level": 48,
+            "from": {
+              "bucket_milk": 640,
+              "pot_of_cream": 460,
+              "pot_of_butter": 235
+            }
+          }
+        ],
+        "inputs": {
+          "churn_milk": "bucket_milk",
+          "churn_cream": "pot_of_cream",
+          "churn_butter": "pot_of_butter"
+        },
+        "locs": [
+          "loc_10093",
+          "loc_10094"
+        ],
+        "_xp_note": "Experience is written x10, the way every productexp in this repo is: the wiki's 40.5 is 405.",
+        "_obj_note": "pot_of_butter is the cache's block name for the item called 'Pat of butter'. An earlier draft of this round said it was the one product with no id in pack/obj.pack and that the round would take one; it is id 6697 and has been all along - the draft had searched for 'pat_of_butter', which is the item's NAME and not its block name. All three products were already packed and this round adds no obj id at all."
+      }
+    },
+    {
+      "iface": "churn_cream",
+      "src": "scripts/interfaces/inter_316.if",
+      "dst": "scripts/skill_cooking/interfaces/churn_cream.if",
+      "what": "The churn window a pot of cream opens: cream makes butter and cheese.",
+      "rules": [
+        {
+          "why": "one button per product.",
+          "field": "option",
+          "pattern": "^Churn (?P<product>Butter|Cheese)$",
+          "name": "churn_{product}",
+          "lower": true,
+          "expect": 2
+        },
+        {
+          "why": "the product icons.",
+          "field": "type",
+          "pattern": "^model$",
+          "name": "icon{order}",
+          "expect": 2
+        }
+      ]
+    },
+    {
+      "iface": "churn_butter",
+      "src": "scripts/interfaces/inter_315.if",
+      "dst": "scripts/skill_cooking/interfaces/churn_butter.if",
+      "what": "The churn window a pat of butter opens: butter makes cheese only.",
+      "rules": [
+        {
+          "why": "the one button.",
+          "field": "option",
+          "pattern": "^Churn (?P<product>Cheese)$",
+          "name": "churn_{product}",
+          "lower": true,
+          "expect": 1
+        },
+        {
+          "why": "the product icon.",
+          "field": "type",
+          "pattern": "^model$",
+          "name": "icon{order}",
+          "expect": 1
+        }
+      ]
+    }
+  ]
+}

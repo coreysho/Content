@@ -2,7 +2,10 @@
 switch_obj (last_useitem)
 {
     case gold_bar, perfect_gold_bar : @craft_gold_interface;
-    case silver_bar : @craft_silver;
+    // The Silver Casting panel out of the cache, not the seven-branch p_choice cascade that
+    // used to be here. This is the one trigger in the round where the window REPLACED the
+    // old path rather than joining it, because they are the same click. See silver_casting.rs2.
+    case silver_bar : ~silver_casting_open;
     case slayer_gem : @slayer_craft_ring; // Ring Bling (skill_slayer/scripts/slayer_rewards.rs2)
     case steel_bar : @smelt_cannonballs;
     case bucket_sand, soda_ash : @smelt_glass;
@@ -62,46 +65,7 @@ if (afk_event = ^true) {
     ~macro_event_general_spawn(~macro_event_set_random);
     return;
 }
-anim(human_furnace, 0);
-sound_synth(furnace, 1, 0);
-
-// display process message
-mes(struct_param($struct, processmessage));
-
-p_delay(3);
-
-// delete main ore
-inv_del(inv, struct_param($struct, ingredient), struct_param($struct, bar_count));
-// delete secondary ore
-if (struct_param($struct, ingredient_secondary) ! null) {
-    inv_del(inv, struct_param($struct, ingredient_secondary), struct_param($struct, ingredient_secondary_count));
-}
-
-if ($bar = iron_bar) {
-    // if player is wearing ring of forging
-    if (inv_total(worn, ring_of_forging) > 0 & map_members = ^true) {
-        ~lose_charge_ring_of_forging;
-    } else if (randominc(1) = 1) { // else assume 50% chance of success
-        mes("The ore is too impure and you fail to refine it.");
-        return;
-    }
-}
-
-// If player is wearing gold smith gauntlets, 2.5x xp. The multiplier was 1.5x in RSC,
-// earliest mention of 2.5x (56.2) xp is in aug 2004: https://web.archive.org/web/20040820223401/http://runevillage.net/ThePub/viewtopic.php?p=1257194&amp
-// No mentioned updates to Family Crest or the gauntlets in that period. 
-// Was likely changed when ported to rs2.
-def_int $xp = struct_param($struct, productexp);
-if ($bar = gold_bar & (inv_total(worn, gauntlets_of_goldsmithing) > 0 | ~skillcape_worn(smithing) = true)) { // Smithing cape counts as the gauntlets
-    $xp = scale(5, 2, $xp); // 2.5x
-}
-
-~smithing_xp($xp);
-
-// add bar
-inv_add(inv, $bar, 1);
-// display product message
-mes(struct_param($struct, productmessage));
+~smelt_bar($struct, $bar);
 //----------------------------
 
 //************* WEAKQUEUES DIDNT EXIST UNTIL SEPT 2004 *************
@@ -186,3 +150,51 @@ mes(struct_param($struct, productmessage));
 // ~smithing_xp($xp);
 // //----------------------------
 //************* WEAKQUEUES DIDNT EXIST UNTIL SEPT 2004 *************
+
+
+// The act of smelting one bar, lifted out of [label,smelt_ore] unchanged so that the furnace's
+// own Smelt window can do exactly what using an ore on the furnace does. Two paths that each
+// carried their own copy of the animation, the delay, the ore deletion, the iron-bar failure
+// roll and the goldsmith-gauntlet multiplier would be two paths that drift; smelt_window.rs2
+// calls this and nothing else. smelting_battery asserts there is no second copy.
+[proc,smelt_bar](struct $struct, namedobj $bar)
+anim(human_furnace, 0);
+sound_synth(furnace, 1, 0);
+
+// display process message
+mes(struct_param($struct, processmessage));
+
+p_delay(3);
+
+// delete main ore
+inv_del(inv, struct_param($struct, ingredient), struct_param($struct, bar_count));
+// delete secondary ore
+if (struct_param($struct, ingredient_secondary) ! null) {
+    inv_del(inv, struct_param($struct, ingredient_secondary), struct_param($struct, ingredient_secondary_count));
+}
+
+if ($bar = iron_bar) {
+    // if player is wearing ring of forging
+    if (inv_total(worn, ring_of_forging) > 0 & map_members = ^true) {
+        ~lose_charge_ring_of_forging;
+    } else if (randominc(1) = 1) { // else assume 50% chance of success
+        mes("The ore is too impure and you fail to refine it.");
+        return;
+    }
+}
+
+// If player is wearing gold smith gauntlets, 2.5x xp. The multiplier was 1.5x in RSC,
+// earliest mention of 2.5x (56.2) xp is in aug 2004: https://web.archive.org/web/20040820223401/http://runevillage.net/ThePub/viewtopic.php?p=1257194&amp
+// No mentioned updates to Family Crest or the gauntlets in that period. 
+// Was likely changed when ported to rs2.
+def_int $xp = struct_param($struct, productexp);
+if ($bar = gold_bar & (inv_total(worn, gauntlets_of_goldsmithing) > 0 | ~skillcape_worn(smithing) = true)) { // Smithing cape counts as the gauntlets
+    $xp = scale(5, 2, $xp); // 2.5x
+}
+
+~smithing_xp($xp);
+
+// add bar
+inv_add(inv, $bar, 1);
+// display product message
+mes(struct_param($struct, productmessage));
