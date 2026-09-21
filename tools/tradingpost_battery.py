@@ -97,6 +97,15 @@ named = set(re.findall(r'\b(tradingpost(?:_listing|_offer|_side)?):(\w+)', RS2))
 for iface, com in sorted(named):
     check(re.search(r'^\[%s\]$' % re.escape(com), IFS[iface], re.M) is not None, '%s:%s exists' % (iface, com))
 
+print('everything hidden is a layer')
+# The 377 client honours hide only on a layer (Client.drawInterface): a hidden text or inv is drawn
+# anyway. The first build hid the buttons themselves, and they all drew on top of each other.
+for iface, com in sorted(set(re.findall(r'if_sethide\((tradingpost(?:_listing|_offer|_side)?):(\w+),', RS2))):
+    body = re.search(r'^\[%s\]\n((?:[^\n]+\n)*)' % re.escape(com), IFS[iface] + '\n', re.M)
+    check(body is not None and 'type=layer' in body.group(1), '%s:%s is a layer' % (iface, com))
+check('if_sethide($box,' in block(RS2, '[proc,tp_row]') and 'if_sethide($row,' not in RS2,
+      "an offer row is hidden by its layer, not by the row")
+
 print('the post')
 loc = read('scripts/tradingpost/configs/tradingpost.loc')
 check('model=trading_post' in loc and 'width=2' in loc and 'forceapproach=south' in loc, 'the loc is the two-tile board, used from its front')

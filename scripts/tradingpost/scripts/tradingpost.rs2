@@ -49,11 +49,11 @@ inv_transmit(inv, tradingpost_side:inv);
 ~tp_side_ops_list;
 ~tp_tab_colours;
 
-if_sethide(tradingpost:search, true);
-if_sethide(tradingpost:showall, true);
-if_sethide(tradingpost:prev, true);
-if_sethide(tradingpost:next, true);
-if_sethide(tradingpost:collectall, true);
+if_sethide(tradingpost:search_box, true);
+if_sethide(tradingpost:showall_box, true);
+if_sethide(tradingpost:prev_box, true);
+if_sethide(tradingpost:next_box, true);
+if_sethide(tradingpost:collectall_box, true);
 
 def_int $total = 0;
 def_string $query = "";
@@ -72,10 +72,10 @@ switch_int (%tp_tab) {
         }
         $query = tp_query;
         ~tp_grid_ops("Inspect", "Buy-now", "", "");
-        if_sethide(tradingpost:search, false);
-        if (string_length($query) > 0) if_sethide(tradingpost:showall, false);
-        if (%tp_page > 0) if_sethide(tradingpost:prev, false);
-        if (calc((%tp_page + 1) * ^tp_page_size) < $total) if_sethide(tradingpost:next, false);
+        if_sethide(tradingpost:search_box, false);
+        if (string_length($query) > 0) if_sethide(tradingpost:showall_box, false);
+        if (%tp_page > 0) if_sethide(tradingpost:prev_box, false);
+        if (calc((%tp_page + 1) * ^tp_page_size) < $total) if_sethide(tradingpost:next_box, false);
         if ($total > 0) {
             $status = "Listings <tostring(calc(%tp_page * ^tp_page_size + 1))>-<tostring(min($total, calc((%tp_page + 1) * ^tp_page_size)))> of <tostring($total)>";
             if (string_length($query) > 0) $status = "<$status> for '<$query>'";
@@ -102,7 +102,7 @@ switch_int (%tp_tab) {
         inv_transmit(tp_box, tradingpost:grid);
         $total = tp_box(tp_box);
         ~tp_grid_ops("Collect", "Collect-noted", "Collect-X", "");
-        if ($total > 0) if_sethide(tradingpost:collectall, false);
+        if ($total > 0) if_sethide(tradingpost:collectall_box, false);
         if ($total > 0) $status = "Waiting for you: <~text_plural($total, "item", "items")>";
         $empty = "Your collection box is empty.";
         $hint = "Coins and items from your trades wait here until you collect them.";
@@ -260,7 +260,7 @@ if_settext(tradingpost_listing:title, oc_name($obj));
 if_settext(tradingpost_listing:info0, ~tp_desc($obj, $count));
 if_settext(tradingpost_listing:info1, "Sold by: <tp_listing_seller(%tp_listing)>");
 if ($buyout > 0) {
-    if_settext(tradingpost_listing:info2, "Buy now: <~tp_gp($buyout)> coins");
+    if_settext(tradingpost_listing:info2, "Buy now: <~tp_coins($buyout)>");
 } else {
     if_settext(tradingpost_listing:info2, "No buy-now price - offers only");
 }
@@ -274,22 +274,22 @@ if ($mine = true) {
 }
 
 // what the viewer can do - all hidden, then the ones that apply shown
-if_sethide(tradingpost_listing:cancel, true);
-if_sethide(tradingpost_listing:buynow, true);
-if_sethide(tradingpost_listing:makeoffer, true);
-if_sethide(tradingpost_listing:withdraw, true);
+if_sethide(tradingpost_listing:cancel_box, true);
+if_sethide(tradingpost_listing:buynow_box, true);
+if_sethide(tradingpost_listing:makeoffer_box, true);
+if_sethide(tradingpost_listing:withdraw_box, true);
 if ($mine = true) {
-    if_sethide(tradingpost_listing:cancel, false);
+    if_sethide(tradingpost_listing:cancel_box, false);
 } else {
-    if ($buyout > 0) if_sethide(tradingpost_listing:buynow, false);
+    if ($buyout > 0) if_sethide(tradingpost_listing:buynow_box, false);
     if ($myoffer = -1) {
-        if_sethide(tradingpost_listing:makeoffer, false);
+        if_sethide(tradingpost_listing:makeoffer_box, false);
     } else {
-        if_sethide(tradingpost_listing:withdraw, false);
+        if_sethide(tradingpost_listing:withdraw_box, false);
     }
 }
 if (%tp_confirm = ^tp_confirm_buynow) {
-    if_settext(tradingpost_listing:buynow, "Click again to pay <~tp_gp($buyout)> coins");
+    if_settext(tradingpost_listing:buynow, "Click again to pay <~tp_coins($buyout)>");
 } else {
     if_settext(tradingpost_listing:buynow, "Buy now");
 }
@@ -306,18 +306,18 @@ if ($offers > 0) {
     if_settext(tradingpost_listing:offers_title, "Offers");
 }
 if ($offers > 0) {
-    if_sethide(tradingpost_listing:offers_none, true);
+    if_sethide(tradingpost_listing:offers_none_box, true);
 } else {
-    if_sethide(tradingpost_listing:offers_none, false);
+    if_sethide(tradingpost_listing:offers_none_box, false);
 }
-~tp_row(tradingpost_listing:row0, 0);
-~tp_row(tradingpost_listing:row1, 1);
-~tp_row(tradingpost_listing:row2, 2);
-~tp_row(tradingpost_listing:row3, 3);
-~tp_row(tradingpost_listing:row4, 4);
-~tp_row(tradingpost_listing:row5, 5);
-~tp_row(tradingpost_listing:row6, 6);
-~tp_row(tradingpost_listing:row7, 7);
+~tp_row(tradingpost_listing:row0_box, tradingpost_listing:row0, 0);
+~tp_row(tradingpost_listing:row1_box, tradingpost_listing:row1, 1);
+~tp_row(tradingpost_listing:row2_box, tradingpost_listing:row2, 2);
+~tp_row(tradingpost_listing:row3_box, tradingpost_listing:row3, 3);
+~tp_row(tradingpost_listing:row4_box, tradingpost_listing:row4, 4);
+~tp_row(tradingpost_listing:row5_box, tradingpost_listing:row5, 5);
+~tp_row(tradingpost_listing:row6_box, tradingpost_listing:row6, 6);
+~tp_row(tradingpost_listing:row7_box, tradingpost_listing:row7, 7);
 
 // the offer the seller has picked - an offer withdrawn since it was picked shows as nothing
 def_int $shown = 0;
@@ -327,15 +327,9 @@ if ($mine = true & %tp_offer ! -1) {
 } else {
     inv_clear(tp_offerview);
 }
-if_sethide(tradingpost_listing:sel_title, true);
-if_sethide(tradingpost_listing:offer_items, true);
-if_sethide(tradingpost_listing:accept, true);
-if_sethide(tradingpost_listing:decline, true);
+if_sethide(tradingpost_listing:sel_box, true);
 if ($shown > 0) {
-    if_sethide(tradingpost_listing:sel_title, false);
-    if_sethide(tradingpost_listing:offer_items, false);
-    if_sethide(tradingpost_listing:accept, false);
-    if_sethide(tradingpost_listing:decline, false);
+    if_sethide(tradingpost_listing:sel_box, false);
     if_settext(tradingpost_listing:sel_title, "<tp_offer_buyer(%tp_offer)>'s offer");
     if (%tp_confirm = ^tp_confirm_accept) {
         if_settext(tradingpost_listing:accept, "Sure?");
@@ -345,7 +339,7 @@ if ($shown > 0) {
 }
 
 if (%tp_confirm = ^tp_confirm_buynow) {
-    if_settext(tradingpost_listing:hint, "Click Buy now again to pay <~tp_gp($buyout)> coins.");
+    if_settext(tradingpost_listing:hint, "Click Buy now again to pay <~tp_coins($buyout)>.");
 } else if (%tp_confirm = ^tp_confirm_accept) {
     if_settext(tradingpost_listing:hint, "Click Accept again to trade with <tp_offer_buyer(%tp_offer)>.");
 } else if (%tp_confirm = ^tp_confirm_cancel) {
@@ -358,13 +352,14 @@ if (%tp_confirm = ^tp_confirm_buynow) {
     if_settext(tradingpost_listing:hint, "");
 }
 
-[proc,tp_row](component $row, int $n)
+// A hide goes on the row's layer, not the row: the 377 client ignores hide on anything else.
+[proc,tp_row](component $box, component $row, int $n)
 def_int $offer = tp_offer(%tp_listing, $n);
 if ($offer = -1) {
-    if_sethide($row, true);
+    if_sethide($box, true);
     return;
 }
-if_sethide($row, false);
+if_sethide($box, false);
 if_settext($row, "<tp_offer_buyer($offer)> - <tp_offer_text($offer)>");
 if ($offer = %tp_offer) {
     if_setcolour($row, ^white_rgb);
@@ -405,7 +400,7 @@ if (string_length($err) > 0) {
     ~tp_listing_show;
     return;
 }
-mes("You buy <$what> for <~tp_gp($price)> coins.");
+mes("You buy <$what> for <~tp_coins($price)>.");
 ~tp_lists;
 
 [if_button,tradingpost_listing:makeoffer]
@@ -500,7 +495,7 @@ if_settext(tradingpost_offer:title, "Make an offer");
 def_string $what = "<tp_listing_seller(%tp_listing)>'s <~tp_desc(tp_listing_obj(%tp_listing), tp_listing_count(%tp_listing))>";
 def_int $buyout = tp_listing_buyout(%tp_listing);
 if ($buyout > 0) {
-    if_settext(tradingpost_offer:info, "For <$what> (buy now: <~tp_gp($buyout)> coins)");
+    if_settext(tradingpost_offer:info, "For <$what> (buy now: <~tp_coins($buyout)>)");
 } else {
     if_settext(tradingpost_offer:info, "For <$what> (offers only)");
 }
@@ -519,7 +514,7 @@ p_countdialog;
 if (last_int < 0) return;
 def_int $have = inv_total(inv, coins);
 if (last_int > $have) {
-    mes("You only have <~tp_gp($have)> coins.");
+    mes("You only have <~tp_coins($have)>.");
     %tp_coins = $have;
 } else {
     %tp_coins = last_int;
@@ -637,7 +632,7 @@ if (string_length($err) > 0) {
     return;
 }
 if ($buyout > 0) {
-    mes("You put <~tp_desc($obj, $count)> on the trading post, to buy now for <~tp_gp($buyout)> coins.");
+    mes("You put <~tp_desc($obj, $count)> on the trading post, to buy now for <~tp_coins($buyout)>.");
 } else {
     mes("You put <~tp_desc($obj, $count)> on the trading post, for offers.");
 }
@@ -658,6 +653,11 @@ if (tp_login > 0) {
 [proc,tp_desc](obj $obj, int $count)(string)
 if ($count = 1) return(oc_name($obj));
 return("<~tp_gp($count)> x <oc_name($obj)>");
+
+// "1 coin", "1,500 coins"
+[proc,tp_coins](int $n)(string)
+if ($n = 1) return("1 coin");
+return("<~tp_gp($n)> coins");
 
 // 1234567 -> "1,234,567"
 [proc,tp_gp](int $n)(string)
