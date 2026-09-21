@@ -188,7 +188,36 @@ hide = vals[rows[2]['canifis']] - vals[rows[2]['alkharid']]
 check(soft != hide,
       'and not by a fixed markup, which is why both constants are read rather than one plus an offset',
       'soft +%d, dragonhide +%d' % (soft, hide))
-check('npc_type = werewolftanner' in nocomment(tw), 'the npc in front of you picks the column', 'yes')
+# THE POINTER, WHICH COST A BUILD. npc_type needs the active_npc pointer. [opnpc3,...] has it and
+# [if_button,...] does not, so the first version of this window asked npc_type inside ~tan_window_cost
+# - reached from all 32 buttons - and the server build refused it 32 times over.
+#
+# A general rs2check rule for this was written and MEASURED before being dropped: following every
+# button-family trigger through its calls to a read of npc_type gives NINE hits on a tree that
+# compiles, all of them through ~chatnpc, which is allowed there for a reason this round did not
+# work out. Second pointer lint attempted and abandoned; the compiler is the checker, and the fact
+# that this sandbox cannot run one is the real gap rather than a missing rule. So the check below
+# is narrow and about this round's own files, where it cannot cry wolf.
+check(nocomment(tw).count('npc_type') == 1,
+      'tan_window.rs2 reads npc_type exactly once', nocomment(tw).count('npc_type'))
+opener = nocomment(tw).split('[proc,tan_window_open]', 1)[-1].split('\n[', 1)[0]
+check('npc_type' in opener,
+      'and it is inside [proc,tan_window_open], which an opnpc3 trigger reaches with the npc still in scope',
+      'yes')
+check('%tan_window_canifis' in nocomment(tw),
+      'the answer is kept in a varp so the buttons never have to ask', 'yes')
+for f, t in RS2.items():
+    if 'tan_window' in f or 'smelt_window' in f or 'silver_casting' in f or 'churn' in f:
+        after = nocomment(t).split('[if_button', 1)[-1] if '[if_button' in t else ''
+        check('npc_type' not in after,
+              'nothing after the first button trigger in %s reads npc_type' % os.path.basename(f), 'yes')
+# nocomment, because that file's own comment explains WHY scope=temp is there - so a check reading
+# the raw text stays green when the block itself is changed. Third time in this round that a check
+# or a mutation has found its own comment instead of its code.
+vp = nocomment(read('scripts/skill_crafting/configs/leather/tan_window.varp'))
+check('scope=temp' in vp and 'protect=no' in vp,
+      'and that varp is scope=temp protect=no, the pair skill_guide.varp carries for the same reason',
+      'yes')
 tp = read('scripts/skill_crafting/interfaces/tan_window.if')
 cells = [n for n, kv, _ in blocks(tp) if kv.get('type') == 'layer']
 check(len(cells) == 8, 'the panel has eight cells', 8)

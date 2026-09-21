@@ -152,9 +152,16 @@ def tan(panel):
     # hard build error - rs2check rule 2 caught this on the first run. That one now calls the same
     # proc, so both tanners open the same window.
     b = ['[opnpc3,ellis_tanner]', '~tan_window_open;', '']
-    b += ['// Fill the cells this build can tan, hide the rest.',
+    b += ["// ASK WHICH TANNER HERE, NOT IN A BUTTON. npc_type needs the active_npc pointer. An",
+          "// [opnpc3,...] trigger has it; an [if_button,...] trigger does not, and the build says",
+          "// so on all 32 buttons at once. So the question is asked once, while the npc is still",
+          "// in scope, and the answer lives in %tan_window_canifis until the window closes.",
           '[proc,tan_window_open]',
-          'def_int $cost;']
+          'def_int $cost;',
+          '%tan_window_canifis = false;',
+          'if (npc_type = werewolftanner) {',
+          '    %tan_window_canifis = true;',
+          '}']
     for i, r in enumerate(rows, 1):
         b += ['if_sethide(tan_window:cell%d, false);' % i,
               'if_setobject(tan_window:hide%d, %s, ^tan_window_scale);' % (i, r['hide']),
@@ -167,9 +174,10 @@ def tan(panel):
               'if_sethide(tan_window:cell%d, true);' % i]
     b += ['if_openmain(tan_window);', '']
     b += ["// Which tanner's prices. Canifis is not a markup on Al Kharid - it is 2/5/45 against",
-          '// 1/3/20 - so both constants are read and the npc in front of you picks.',
+          '// 1/3/20 - so both constants are read and the tanner that opened the window picks.',
+          '// This reads the varp and NOT npc_type, because the buttons reach it with no npc.',
           '[proc,tan_window_cost](int $al_kharid, int $canifis)(int)',
-          'if (npc_type = werewolftanner) {',
+          'if (%tan_window_canifis = true) {',
           '    return($canifis);',
           '}',
           'return($al_kharid);',

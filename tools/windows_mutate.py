@@ -42,9 +42,15 @@ MUTS = [
     ('scripts/areas/area_alkharid/configs/tanner.constant', '^werewolftanner_dragonhide_cost = 45',
      '^werewolftanner_dragonhide_cost = 21',
      'and not by a fixed markup, which is why both constants are read rather than one plus an offset'),
-    ('tools/genwindows.py', "'if (npc_type = werewolftanner) {',",
-     "'if (false = true) {',",
-     'the npc in front of you picks the column'),
+    ('tools/genwindows.py', "          'if (%tan_window_canifis = true) {',",
+     "          'if (npc_type = werewolftanner) {',",
+     'tan_window.rs2 reads npc_type exactly once'),
+    # Anchored on the block header as well as the field: the file's own comment explains why
+    # scope=temp is there, so 'scope=temp' alone appears twice and the harness refuses it. Fourth
+    # time a check or a mutation in this project has found its own comment.
+    ('scripts/skill_crafting/configs/leather/tan_window.varp', '[tan_window_canifis]\nscope=temp',
+     '[tan_window_canifis]\nscope=perm',
+     'and that varp is scope=temp protect=no, the pair skill_guide.varp carries for the same reason'),
     ('tools/genwindows.py', "'if_sethide(tan_window:cell%d, true);' % i]",
      "'if_sethide(tan_window:cell%d, false);' % i]",
      'cell 7 is hidden rather than left dead'),

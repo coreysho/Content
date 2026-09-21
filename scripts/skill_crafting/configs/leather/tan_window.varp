@@ -1,0 +1,16 @@
+// WHICH TANNER YOU ARE STANDING IN FRONT OF, REMEMBERED FROM WHEN THE WINDOW OPENED.
+//
+// Canifis charges 2/5/45 and Al Kharid 1/3/20, so the window has to know which npc opened it. The
+// obvious way to ask is npc_type - and that needs the active_npc pointer, which an [opnpc3,...]
+// trigger has and an [if_button,...] trigger does NOT. The build says so, at the call site, on all
+// 32 buttons:
+//
+//     ERROR: Attempt to access uninitialized pointer [ 'active_npc' ].
+//
+// So the question is asked once, in ~tan_window_open, where the npc is still in scope, and the
+// answer is kept here. scope=temp because it means nothing between sessions; protect=no because
+// [if_button] reads it. skill_guide.varp and game_options.varp carry the same pair for the same
+// reason and say so in their own comments.
+[tan_window_canifis]
+scope=temp
+protect=no
