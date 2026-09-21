@@ -125,12 +125,34 @@ def apply_frame(m, groups, base, flags, vals):
         p += 2
         return v - 16384
 
+    def pivot(i, dx, dy, dz):
+        nonlocal ox, oy, oz
+        hit = [g for g in glabels[i] if g in groups]
+        idx = np.concatenate([groups[g] for g in hit]) if hit else None
+        if idx is not None and len(idx):
+            ox = int(m.vx[idx].mean()) + dx
+            oy = int(m.vy[idx].mean()) + dy
+            oz = int(m.vz[idx].mean()) + dz
+        else:
+            ox, oy, oz = dx, dy, dz
+
+    last = -1
     for i, f in enumerate(flags):
         if f == 0:
             continue
         if i >= size:
             raise SystemExit('frame addresses group %d, base has %d' % (i, size))
         t = types[i]
+        # THE IMPLIED PIVOT (AnimFrame.unpack): a transform with no pivot of its own since the last
+        # one the frame wrote gets the nearest earlier pivot group, at a zero offset. A frame may leave
+        # every pivot out - OSRS's Toktz-xil-ul throw and Tzhaar-ket-om swing do - and without this
+        # each rotation turned about the feet: arms three times their length, the head on a pole.
+        if t != 0:
+            for g in range(i - 1, last, -1):
+                if types[g] == 0:
+                    pivot(g, 0, 0, 0)
+                    break
+        last = i
         dflt = 128 if t == 3 else 0
         dx = nxt() if f & 1 else dflt
         dy = nxt() if f & 2 else dflt
@@ -138,12 +160,7 @@ def apply_frame(m, groups, base, flags, vals):
         hit = [g for g in glabels[i] if g in groups]
         idx = np.concatenate([groups[g] for g in hit]) if hit else None
         if t == 0:
-            if idx is not None and len(idx):
-                ox = int(m.vx[idx].mean()) + dx
-                oy = int(m.vy[idx].mean()) + dy
-                oz = int(m.vz[idx].mean()) + dz
-            else:
-                ox, oy, oz = dx, dy, dz
+            pivot(i, dx, dy, dz)
         elif idx is None or not len(idx):
             continue
         elif t == 1:
