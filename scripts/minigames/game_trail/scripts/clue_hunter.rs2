@@ -1,0 +1,94 @@
+// WHAT THE CLUE HUNTER OUTFIT DOES. GENERATED - do not hand-edit.
+//   python3 tools/gencluehunter.py
+//
+// NONE OF THIS IS OSRS'S. There the outfit has leather-armour stats, counts as warm
+// clothing, and does nothing at all for clues - no casket bonus, no step reduction. All
+// three effects below were asked for by name, and tools/cluehunterspec.json records that
+// under what_osrs_actually_does so nobody later reads them as canon.
+//
+// WHERE EACH ONE IS HOOKED, and why there:
+//   ~clue_hunter_doubles   the three ~trail_clue_<tier>_reward procs, right after they
+//                          work out how many times to roll - which is the only place a
+//                          "double casket" can mean anything precise.
+//   ~clue_hunter_skips     ~trail_clue_progress in trail_clue_helper.rs2, which every
+//                          tier goes through, so one hook covers easy, medium and hard.
+//   ~clue_hunter_droproll  inside the same reward loop, once per roll. It does NOT ask
+//                          whether the set is worn, for the obvious reason.
+
+// ALL SIX, EACH IN THE SLOT IT IS ACTUALLY WORN IN. Corey asked for a full-set effect, so
+// a partial set does nothing beyond its stats. Looking a piece up in the wrong slot is
+// the mistake the Rogue outfit battery check was written for, and clue_battery.py checks
+// this the same way - against the wearpos in the obj config, not against a list here.
+[proc,clue_hunter_worn]()(boolean)
+if (inv_getobj(worn, ^wearpos_hat) ! helm_of_raedwald) {
+    return(false);
+}
+if (inv_getobj(worn, ^wearpos_torso) ! clue_hunter_garb) {
+    return(false);
+}
+if (inv_getobj(worn, ^wearpos_hands) ! clue_hunter_gloves) {
+    return(false);
+}
+if (inv_getobj(worn, ^wearpos_legs) ! clue_hunter_trousers) {
+    return(false);
+}
+if (inv_getobj(worn, ^wearpos_feet) ! clue_hunter_boots) {
+    return(false);
+}
+if (inv_getobj(worn, ^wearpos_back) ! clue_hunter_cloak) {
+    return(false);
+}
+return(true);
+
+// A DOUBLED CASKET IS TWICE THE ROLLS. A casket rolls 2 + random(3) times, so doubling
+// the count gives 4, 6 or 8 - exactly two caskets' worth of the same table, rather than
+// a second roll on a different one.
+[proc,clue_hunter_doubles]()(boolean)
+if (~clue_hunter_worn = false) {
+    return(false);
+}
+if (random(100) < ^clue_hunter_double_pct) {
+    return(true);
+}
+return(false);
+
+// A SKIPPED STEP advances the trail twice for one hand-in. This is not a new idea in the
+// file: ~trail_clue_<tier>_complete already finishes a trail early when progress + 2
+// reaches maxsteps and a coin flip agrees, so early completion predates the outfit.
+[proc,clue_hunter_skips]()(boolean)
+if (~clue_hunter_worn = false) {
+    return(false);
+}
+if (random(100) < ^clue_hunter_skip_pct) {
+    return(true);
+}
+return(false);
+
+// THE SET COMES OUT OF CASKETS, one roll per piece per casket roll, and only for a piece
+// the player does not already have somewhere - inventory, bank or worn. Two reasons: an
+// untradeable outfit piece arriving twice is pure clutter, and skipping the ones already
+// owned is what makes the rate for a given piece exactly 1/^clue_hunter_drop_denom until
+// it is found, which is the number that was asked for.
+//
+// DELIBERATELY NOT IN THE RARE TABLES. Those reach 1/97 a roll through arithmetic that
+// is derived and commented in the reward scripts, and six new entries would move every
+// existing rare's rate and make that comment wrong.
+[proc,clue_hunter_droproll]
+if (~obj_gettotal(helm_of_raedwald) = 0 & random(^clue_hunter_drop_denom) = 0) {
+    inv_add(trail_rewardinv, helm_of_raedwald, 1);
+}
+if (~obj_gettotal(clue_hunter_garb) = 0 & random(^clue_hunter_drop_denom) = 0) {
+    inv_add(trail_rewardinv, clue_hunter_garb, 1);
+}
+if (~obj_gettotal(clue_hunter_gloves) = 0 & random(^clue_hunter_drop_denom) = 0) {
+    inv_add(trail_rewardinv, clue_hunter_gloves, 1);
+}
+if (~obj_gettotal(clue_hunter_trousers) = 0 & random(^clue_hunter_drop_denom) = 0) {
+    inv_add(trail_rewardinv, clue_hunter_trousers, 1);
+}
+if (~obj_gettotal(clue_hunter_boots) = 0 & random(^clue_hunter_drop_denom) = 0) {
+    inv_add(trail_rewardinv, clue_hunter_boots, 1);
+}
+if (~obj_gettotal(clue_hunter_cloak) = 0 & random(^clue_hunter_drop_denom) = 0) {
+    inv_add(trail_rewardinv, clue_hunter_cloak, 1);
+}

@@ -1,0 +1,244 @@
+{
+ "_what": "The clue hunter outfit, and the three things Corey asked it to do. Written before any config was edited. tools/clue_battery.py reads this file, so a number changed here without the configs or scripts changing goes red, and the other way round.",
+ "_sources": {
+  "osrs_item_table": "C:\\\\LostCityServer\\\\caches\\\\newest cache, index 2 group 10, decoded by tools/models/objconfig474.py. Every bonus, model id, wearpos, weight and 2d camera below is read out of it.",
+  "wiki": "https://oldschool.runescape.wiki/w/Clue_hunter_outfit, read 2026-09-21."
+ },
+ "what_osrs_actually_does": {
+  "effects": [
+   "stats identical to leather armour",
+   "five of the six count as warm clothing (not the Helm of Raedwald)"
+  ],
+  "casket_effect": null,
+  "step_effect": null,
+  "_note": "NOTHING FOR CLUES. No casket bonus, no step reduction, no drop-rate effect. The wiki page lists the stats and the warm clothing and stops. So every effect below is a departure of this build's own, and is written down as one rather than dressed up as OSRS behaviour.",
+  "obtained_in_osrs": "Dug up at five fixed spots with a spade, the helm needing a nature rune, leather boots and a superantipoison as well. Three of those five places do not exist in this build (Shayzien, and the 2015 Fishing Guild oak), so the source below is Corey's instead."
+ },
+ "departures": {
+  "_who": "Corey, backlog item 7: \"Chance of a double casket or of shortening a clue's steps. Needs the full set, and the set comes from any clue scroll's loot.\" Shape and numbers chosen when asked.",
+  "shape": "both, one roll each",
+  "_shape": "Two independent effects. They fire at different moments - the skip when a clue is handed in, the double when one is finished - so they never share a random draw and each is checkable on its own.",
+  "double_casket_pct": 10,
+  "_double_casket": "With the full set worn, a one-in-ten chance the casket rolls twice as many times. A casket rolls 2 + random(3), so a doubled one rolls 4, 6 or 8 - exactly two caskets' worth, which is what 'double casket' means.",
+  "skip_step_pct": 10,
+  "_skip_step": "With the full set worn, a one-in-ten chance that handing in a clue advances the trail by two steps instead of one. Easy trails are 4 steps, medium 5, hard 6, so this takes about half a step off a hard clue on average. It extends a mechanism that already exists: ~trail_clue_<tier>_complete already finishes early when progress + 2 >= maxsteps and a coin flip comes up, so early completion is not something this round invents.",
+  "full_set_only": true,
+  "_full_set_only": "Corey's brief. A per-piece version was offered and not chosen, so a partial set does nothing at all beyond its leather-armour stats."
+ },
+ "source": {
+  "where": "the casket reward roll, in all three tiers",
+  "denominator": 750,
+  "_denominator": "Per casket ROLL - not per casket - each piece the player does not already own has a 1/750 chance. Corey named 1/1500 first and then halved it to land the full set at about 600 caskets rather than 1,200.",
+  "not_the_rare_table": "The pieces deliberately do NOT go in the existing rare tables. Those reach 1/97 per roll through arithmetic that is derived and commented in the reward scripts - 1/13 to the rare table over 108 rewards in OSRS, worked back to 1/97 here - and adding six entries would move every existing rare's rate and invalidate that comment. A separate roll hits the asked-for number exactly and leaves the tables alone.",
+  "no_duplicates": "A piece already in the inventory, the bank or worn is not rolled for, so an untradeable outfit piece never arrives twice. That also makes the rate for a given piece exactly 1/1500 until it is owned, which is what the number means.",
+  "expected_rolls_for_the_set": 1837,
+  "_expected": "Six independent waits at 1/750, so 750 x H(6) = 1837 rolls for the set. Divided by each tier's average roll count that is about 612 easy caskets, 459 medium or 367 hard. Corey asked for about 600, which easy clues hit; the harder tiers are faster because they roll more times. Every figure here is recomputed by tools/clue_battery.py from the denominator and the piece count, so the spec cannot quietly disagree with itself.",
+  "expected_caskets_for_the_set": {
+   "easy": 612,
+   "medium": 459,
+   "hard": 367
+  },
+  "rolls_per_casket": {
+   "easy": [
+    2,
+    4
+   ],
+   "medium": [
+    3,
+    5
+   ],
+   "hard": [
+    4,
+    6
+   ]
+  },
+  "_rolls_per_casket": "Read out of the three reward scripts, which are not the same: easy rolls 2 + random(3), medium 3 + random(3), hard 4 + random(3). So the number of caskets the set takes depends on which tier is being farmed, and a single figure would have been wrong for two of the three."
+ },
+ "conventions_this_build_imposes": {
+  "destroy_op": "OSRS gives every piece a Destroy option at inventory op 5. Not carried over: in this build opheld5 is Drop, served globally by player/scripts/drop.rs2, so a Destroy there would take Drop off the item. Same reason the Max cape folded its Spellbook op into Features. The pieces are tradeable=no instead, which is how this fork ships an earned set.",
+  "warm_clothing": "Five of the six are warm clothing in OSRS. There is no cold-damage mechanic in this build - no Wintertodt - so there is nothing for that to do, and no param is invented for it."
+ },
+ "pieces": [
+  {
+   "local": "helm_of_raedwald",
+   "osrs_id": 19687,
+   "osrs_name": "Helm of Raedwald",
+   "desc": "An ancient helmet of King Raedwald Indanorf. First discovered by Pikachu Yip.",
+   "model": 31641,
+   "manwear": 31625,
+   "womanwear": 31632,
+   "manhead": 31639,
+   "womanhead": 31639,
+   "wearpos": "hat",
+   "wearpos2": "head",
+   "weight": 1000,
+   "cost": 1,
+   "zoom2d": 656,
+   "xan2d": 71,
+   "yan2d": 2,
+   "xof2d": null,
+   "yof2d": -2,
+   "iops": {
+    "1": "Wear",
+    "4": "Destroy"
+   },
+   "bonuses": {
+    "magicattack": -6,
+    "rangeattack": -2,
+    "stabdefence": 6,
+    "slashdefence": 7,
+    "crushdefence": 5,
+    "magicdefence": -1,
+    "rangedefence": 6
+   }
+  },
+  {
+   "local": "clue_hunter_garb",
+   "osrs_id": 19689,
+   "osrs_name": "Clue hunter garb",
+   "desc": "Stark and full of vigour.",
+   "model": 31644,
+   "manwear": 31630,
+   "womanwear": 31637,
+   "manhead": null,
+   "womanhead": null,
+   "wearpos": "torso",
+   "wearpos2": "arms",
+   "weight": 2000,
+   "cost": 1,
+   "zoom2d": 1476,
+   "xan2d": 550,
+   "yan2d": null,
+   "xof2d": null,
+   "yof2d": 4,
+   "iops": {
+    "1": "Wear",
+    "4": "Destroy"
+   },
+   "bonuses": {
+    "magicattack": -2,
+    "rangeattack": 2,
+    "stabdefence": 8,
+    "slashdefence": 9,
+    "crushdefence": 10,
+    "magicdefence": 4,
+    "rangedefence": 9
+   }
+  },
+  {
+   "local": "clue_hunter_gloves",
+   "osrs_id": 19691,
+   "osrs_name": "Clue hunter gloves",
+   "desc": "Warm leather gloves lined with wolf fur.",
+   "model": 31640,
+   "manwear": 31627,
+   "womanwear": 31634,
+   "manhead": null,
+   "womanhead": null,
+   "wearpos": "hands",
+   "wearpos2": null,
+   "weight": 500,
+   "cost": 1,
+   "zoom2d": 789,
+   "xan2d": 609,
+   "yan2d": 111,
+   "xof2d": 1,
+   "yof2d": null,
+   "iops": {
+    "1": "Wear",
+    "4": "Destroy"
+   },
+   "bonuses": {
+    "slashdefence": 1,
+    "crushdefence": 2
+   }
+  },
+  {
+   "local": "clue_hunter_trousers",
+   "osrs_id": 19693,
+   "osrs_name": "Clue hunter trousers",
+   "desc": "A promising pair of trousers.",
+   "model": 31643,
+   "manwear": 31628,
+   "womanwear": 31635,
+   "manhead": null,
+   "womanhead": null,
+   "wearpos": "legs",
+   "wearpos2": null,
+   "weight": 2000,
+   "cost": 1,
+   "zoom2d": 1720,
+   "xan2d": 450,
+   "yan2d": null,
+   "xof2d": null,
+   "yof2d": 13,
+   "iops": {
+    "1": "Wear",
+    "4": "Destroy"
+   },
+   "bonuses": {
+    "rangeattack": 4,
+    "stabdefence": 2,
+    "slashdefence": 2,
+    "crushdefence": 1
+   }
+  },
+  {
+   "local": "clue_hunter_boots",
+   "osrs_id": 19695,
+   "osrs_name": "Clue hunter boots",
+   "desc": "Warm leather boots lined with wolf fur.",
+   "model": 31642,
+   "manwear": 31631,
+   "womanwear": 31638,
+   "manhead": null,
+   "womanhead": null,
+   "wearpos": "feet",
+   "wearpos2": null,
+   "weight": 700,
+   "cost": 1,
+   "zoom2d": 1084,
+   "xan2d": 164,
+   "yan2d": 156,
+   "xof2d": 3,
+   "yof2d": -7,
+   "iops": {
+    "1": "Wear",
+    "4": "Destroy"
+   },
+   "bonuses": {
+    "slashdefence": 1,
+    "crushdefence": 1
+   }
+  },
+  {
+   "local": "clue_hunter_cloak",
+   "osrs_id": 19697,
+   "osrs_name": "Clue hunter cloak",
+   "desc": "Winter is coming.",
+   "model": 31645,
+   "manwear": 31626,
+   "womanwear": 31633,
+   "manhead": null,
+   "womanhead": null,
+   "wearpos": "back",
+   "wearpos2": null,
+   "weight": 1000,
+   "cost": 1,
+   "zoom2d": 1380,
+   "xan2d": 208,
+   "yan2d": 1907,
+   "xof2d": -4,
+   "yof2d": -15,
+   "iops": {
+    "1": "Wear",
+    "4": "Destroy"
+   },
+   "bonuses": {
+    "slashdefence": 1,
+    "crushdefence": 1,
+    "rangedefence": 2
+   }
+  }
+ ]
+}

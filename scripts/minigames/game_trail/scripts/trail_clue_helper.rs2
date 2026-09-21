@@ -39,6 +39,17 @@ if(testbit(%trail_status, 4) = ^true) {
     %trail_status = clearbit(%trail_status, 4);
 }
 %trail_status = setbit_range_toint(%trail_status, calc(~get_trail_progress + 1), 0, 3);
+// THE CLUE HUNTER OUTFIT'S SKIPPED STEP, and this is the only place it needs to be: every tier's
+// ~progress_clue_<tier> comes through here, so easy, medium and hard are covered by one hook and
+// a fourth tier would be too. It advances the trail a second time, which is what "a step shorter"
+// means when steps are a counter - and the completeness test right after it in the caller reads
+// the higher number, so a skip can finish the trail outright.
+//
+// Nothing to guard against overflowing: bits 0-3 hold 0-15 and the longest trail is 6 steps.
+if (~clue_hunter_skips = true) {
+    %trail_status = setbit_range_toint(%trail_status, calc(~get_trail_progress + 1), 0, 3);
+    mes("Your knowledge of the trails lets you skip a step.");
+}
 
 // bits 0-3 will store the progress of the clue, bit 4 is used to flag if the clue guardian (just zamorak wizard in version 225)
 // has been killed, bits 5-7 to store the progress of the "miniquest" to get sextant/chart/watch (possible this didnt use a varp in 225, it does in osrs

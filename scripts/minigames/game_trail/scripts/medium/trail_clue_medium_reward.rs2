@@ -3,6 +3,13 @@
 // otherwise these inv_adds overflow a still-full size=9 inv and the loot is lost.
 ~trail_prepare_rewardinv;
 def_int $rolls = calc(3 + random(3));
+// THE CLUE HUNTER OUTFIT'S DOUBLE CASKET. Twice the rolls on this same table is exactly two
+// caskets' worth, which is the only precise reading of "double casket" when a casket is a roll
+// count. Asked for by name; OSRS's outfit does nothing like it.
+if (~clue_hunter_doubles = true) {
+    $rolls = calc($rolls * 2);
+    mes("Your clue hunter outfit turns up a second casket's worth of loot!");
+}
 def_int $roll = 0;
 def_int $rare = 0;
 
@@ -17,6 +24,10 @@ while ($roll < $rolls) {
         gosub(trail_clue_medium_normal);
     }
 
+    // AND THE OUTFIT'S OWN PIECES, once per roll, for whichever the player still lacks. Not in
+    // the rare table above: that table's 1/97 is derived arithmetic with a comment explaining it,
+    // and six new entries would move every existing rare's rate and make the comment wrong.
+    ~clue_hunter_droproll;
     $roll = calc($roll + 1);
 }
 if ($rare > 0) {
