@@ -31,6 +31,7 @@ mistakes shipped with an off-by-one mistake, and only a probe file with a known 
 answer found it. There is a --selftest for that reason.
 """
 
+import json
 import io
 import os
 import re
@@ -889,6 +890,80 @@ def check_spell_rows():
                            "session on the first cast" % (m.group(1), m.group(1)))
 
 
+# --------------------------------------------------------------------------- rule 23
+
+# A spellbook button the cache draws, with a real action on it, that nothing can cast.
+#
+# The 377 interfaces are in this repo verbatim, and they are AHEAD of the content: the client
+# already offers spells the server was never taught. Lvl-6 Enchant sat there for the whole life of
+# this fork as [com_549] with action=Enchant Lvl-6 Jewelry, its real level check (magic > 86) and
+# its real rune checks, while Ring of stone and Amulet of fury sat in the obj pack unreachable.
+# Trollheim, Bones to Peaches and Ape Atoll were the same story and were each found by accident.
+#
+# Nothing found them on purpose, because the symptom is silence: the button is drawn, the player
+# clicks it, and the server has no trigger for that component, so absolutely nothing happens. No
+# error, no log line, no failing check. This rule is the thing that looks.
+#
+# A button counts as castable if any trigger header in any .rs2 names it - [opheldt,magic:x],
+# [if_button,magic:x], [apnpct,...], anything. The known-unbuilt ones live in
+# tools/unwiredspells.json with a reason each, so the rule is green today and goes red on the
+# next one rather than on the backlog.
+UNWIRED_SPEC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "unwiredspells.json")
+
+
+def _spellbook_buttons():
+    """(interface, component, line, action, path) for every button drawn from a magic sprite."""
+    for path in walk({".if"}):
+        iface = os.path.basename(path)[:-3]
+        cur, start, kv = None, 0, {}
+        lines = text(path).split("\n")
+        blocks = []
+        for n, raw in enumerate(lines, 1):
+            s = raw.split("//")[0].strip()
+            if s.startswith("[") and s.endswith("]"):
+                if cur:
+                    blocks.append((cur, start, kv))
+                cur, start, kv = s[1:-1], n, {}
+            elif "=" in s and cur:
+                k, v = s.split("=", 1)
+                kv.setdefault(k.strip(), v.strip())
+        if cur:
+            blocks.append((cur, start, kv))
+        for name, n, kv in blocks:
+            if not kv.get("graphic", "").startswith("magicoff"):
+                continue
+            act = kv.get("action") or kv.get("option")
+            if act:
+                yield iface, name, n, act, path
+
+
+def check_castable_buttons():
+    spec = {}
+    try:
+        with open(UNWIRED_SPEC) as f:
+            spec = {k: v for k, v in json.load(f).items() if not k.startswith("_")}
+    except Exception as e:      # a missing or broken spec must not silently excuse everything
+        report("ERROR", UNWIRED_SPEC, 0, 23, "cannot read the unwired-spell spec: %s" % e)
+        return
+    buttons = list(_spellbook_buttons())
+    if not buttons:
+        return
+    wired = set()
+    trig = re.compile(r"^\s*\[[a-z_]+\s*,\s*([a-z0-9_]+):([a-z0-9_]+)\s*\]", re.M)
+    for path in walk({".rs2"}):
+        for m in trig.finditer(text(path)):
+            wired.add((m.group(1), m.group(2)))
+    for iface, name, n, act, path in buttons:
+        if (iface, name) in wired:
+            continue
+        if "%s:%s" % (iface, name) in spec or "%s:*" % iface in spec:
+            continue
+        report("ERROR", path, n, 23,
+               "[%s] is a spellbook button the cache draws with action=\"%s\", and no trigger in "
+               "any .rs2 names %s:%s - the client offers the spell and clicking it does nothing"
+               % (name, act, iface, name))
+
+
 def check_duplicates(T):
     for trig, places in sorted(T["triggers"].items()):
         if len(places) > 1:
@@ -1033,6 +1108,13 @@ inv_add(inv, probe_obj, 1);
     "probe_clean.enum": "\n[probe_int_enum]\ninputtype=int\noutputtype=int\nval=0,1\n",
     # rule 20: a type=text with no font, which packs as fonts[255] and kills the client on load
     "probe.if": "type=overlay\n\n[probe_nofont]\ntype=text\nx=0\ny=0\nwidth=10\nheight=10\n",
+    # rule 23: a spellbook button drawn from the magic sprite sheet, with a real action on it,
+    # that no trigger in the fixture names. tools/unwiredspells.json is read from the real tools
+    # directory even in the selftest, so this interface name must stay out of it.
+    "probe_spellbook.if": "type=overlay\n\n[probe_uncastable]\ntype=graphic\nx=0\ny=0\n"
+                          "width=20\nheight=20\ngraphic=magicoff,0\nactivegraphic=magicon,0\n"
+                          "buttontype=target\nactionverb=Cast on\nactiontarget=heldobj\n"
+                          "action=Probe Uncastable\n",
     "probe_clean.if": ("type=overlay\n\n[probe_ok]\ntype=text\nx=0\ny=0\nwidth=10\nheight=10\n"
                        "font=p12_full\nshadowed=yes\n"),
 }
@@ -1095,6 +1177,11 @@ ALL_RULES = {
     # 21 found four session-killers the hour it was written, on top of the one that prompted it.
     21:   ("probe_spell.rs2", 3),
     22:   ("probe.dbrow", 15),
+    # 23 is the newest: a spellbook button the client draws and the server has no trigger for.
+    # Found Lvl-6 Enchant the day it was written - drawn since the fork began, with Ring of stone
+    # and Amulet of fury sitting unreachable in the obj pack - plus the four teleother/teleblock
+    # buttons and the real ancient spellbook, which the server does not use at all.
+    23:   ("probe_spellbook.if", 3),
 }
 
 
@@ -1151,6 +1238,7 @@ def selftest():
         check_spell_rows()
         check_spell_row_fields()
         check_interfaces()
+        check_castable_buttons()
         got = {}
         for sev, path, line, rule, msg in findings:
             got.setdefault(rule, []).append((sev, path, line, msg))
@@ -1268,6 +1356,7 @@ def main(argv):
         check_spell_rows()
         check_spell_row_fields()
         check_interfaces()
+        check_castable_buttons()
 
     errors = [f for f in findings if f[0] == "ERROR"]
     checks = [f for f in findings if f[0] == "CHECK"]
