@@ -63,16 +63,17 @@ MUTS = [
  (DBROW, 'data=convertobj,strung_onyx_amulet,enchanted_onyx_amulet,',
          'data=convertobj,unstrung_onyx_amulet,enchanted_onyx_amulet,',
   '2 ...and cannot be enchanted while unstrung'),
- (OBJPACK, '6585=enchanted_onyx_amulet', '6585=berserker_necklace',
-  '2 there is still no berserker necklace obj in this cache'),
- (DBROW, 'data=additional_reqmessage,This spell can only be cast on onyx rings and amulets.',
-         'data=convertobj,onyx_necklace,onyx_necklace,human_cast_enchantring,enchant_ring,enchant_onyx_ring',
-  '2 ...so the onyx necklace has no row, rather than one pointing at nothing'),
+ (OBJPACK, '=berserker_necklace\n', '=berserker_necklace_gone\n',
+  '2 the berserker necklace is an obj in this build'),
+ (DBROW, 'data=convertobj,onyx_necklace,berserker_necklace,', 'data=convertobj,onyx_necklace,onyx_necklace,',
+  '2 ...and Lvl-6 Enchant turns an onyx necklace into it'),
 
  # ---- 3, the effects
- (DBROW, 'human_enchantamuletlvl3,enchant_amulet2_lvl6', 'human_enchantamuletlvl9,enchant_amulet2_lvl6',
+ # BOTH onyx lines at once - the amulet's and the necklace's share this seq and spotanim, so either
+ # alone still leaves the row using it and the check green.
+ (DBROW, 'enchanted_onyx_amulet,human_enchantamuletlvl3,enchant_amulet2_lvl6,enchant_onyx_amulet\ndata=convertobj,onyx_necklace,berserker_necklace,human_enchantamuletlvl3,enchant_amulet2_lvl6,', 'enchanted_onyx_amulet,human_enchantamuletlvl9,enchant_amulet2_lvl6,enchant_onyx_amulet\ndata=convertobj,onyx_necklace,berserker_necklace,human_enchantamuletlvl9,enchant_amulet2_lvl6,',
   '3 seq human_enchantamuletlvl3 is in seq.pack and the row uses it'),
- (DBROW, 'enchant_amulet2_lvl6,enchant_onyx_amulet', 'enchant_amulet2_lvl7,enchant_onyx_amulet',
+ (DBROW, 'enchanted_onyx_amulet,human_enchantamuletlvl3,enchant_amulet2_lvl6,enchant_onyx_amulet\ndata=convertobj,onyx_necklace,berserker_necklace,human_enchantamuletlvl3,enchant_amulet2_lvl6,', 'enchanted_onyx_amulet,human_enchantamuletlvl3,enchant_amulet2_lvl7,enchant_onyx_amulet\ndata=convertobj,onyx_necklace,berserker_necklace,human_enchantamuletlvl3,enchant_amulet2_lvl7,',
   '3 spotanim enchant_amulet2_lvl6 is in spotanim.pack and the row uses it'),
  (DBROW, 'enchant_ring,enchant_onyx_ring', 'enchant_ring,enchant_onyx_band',
   '3 synth enchant_onyx_ring is in synth.pack and the row uses it'),

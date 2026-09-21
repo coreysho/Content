@@ -125,23 +125,22 @@ data=spotanim_target,gunthix_claw,92''',
  # human_stafforb_pummel + human_stafforb_block run of params, and replace(find, repl, 1) takes
  # the FIRST match - so the first version of these edited a DIFFERENT staff and the obby-specific
  # checks stayed green. Same fault as the Magic Dart mutation in round 2.
- (ALLOBJ, '// staves use, so they are untouched.\nparam=ready_baseanim,human_staffready',
-          '// staves use, so they are untouched.\nparam=ready_baseanim,thzaar_staff_ready',
+ # Anchored on the end of the obby's second comment (the walk round), which no other staff carries.
+ (ALLOBJ, 'so it was built for another skeleton.\nparam=ready_baseanim,human_staffready',
+          'so it was built for another skeleton.\nparam=ready_baseanim,thzaar_staff_ready',
   '6 the obsidian staff is held the way the other 32 staves are held'),
- (ALLOBJ, '// staves use, so they are untouched.\nparam=ready_baseanim,human_staffready',
-          '// staves use, so they are untouched.\nparam=ready_baseanim,human_staffready\n'
-          'param=walk_f_baseanim,thzaar_staff_walk',
-  '6 and walks the way the player walks, with no base anim of its own'),
- (ALLOBJ, '// staves use, so they are untouched.\nparam=ready_baseanim,human_staffready\nparam=crushattack_anim,human_stafforb_pummel',
-          '// staves use, so they are untouched.\nparam=ready_baseanim,human_staffready\n'
-          'param=crushattack_anim,barrows_quarterstaff_attack',
+ (ALLOBJ, 'so it was built for another skeleton.\nparam=ready_baseanim,human_staffready\nparam=walk_f_baseanim,human_halberdwalk_f',
+          'so it was built for another skeleton.\nparam=ready_baseanim,human_staffready\nparam=walk_f_baseanim,thzaar_staff_walk',
+  '6 and, being two-handed, walks, runs and turns the way the halberds do'),
+ (ALLOBJ, 'param=turnonspot_baseanim,human_halberdturnonspot\nparam=crushattack_anim,human_stafforb_pummel',
+          'param=turnonspot_baseanim,human_halberdturnonspot\nparam=crushattack_anim,barrows_quarterstaff_attack',
   '6 its attack and defend are the human_stafforb pair 23 other staves use, untouched'),
  # A DIFFERENT STAFF - Iban's - so the obby-specific checks above cannot be what catches it. This
  # is the invariant the outlier was found against and it has to hold for the next staff too.
  (ALLOBJ, 'param=crushattack_anim,human_blunt_pound\n// All three staff styles are crush',
           'param=running_baseanim,thzaar_staff_walk\nparam=crushattack_anim,human_blunt_pound\n'
           '// All three staff styles are crush',
-  '6 and no weapon_staff in the cache dump overrides its walk or run'),
+  '6 and no weapon_staff walks other than as the player (one-handed) or a halberd (two-handed)'),
 ]
 
 

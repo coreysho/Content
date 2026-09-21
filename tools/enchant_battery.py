@@ -92,12 +92,12 @@ check(objname('enchanted_onyx_amulet') == 'Amulet of fury', '...which the cache 
 check('data=specificobj_reqmessage,unstrung_onyx_amulet,' in ROW,
       'an unstrung one is told to get a string on it first')
 check('convertobj,unstrung_onyx_amulet' not in ROW, '...and cannot be enchanted while unstrung')
-# The one Corey asked for and the one this cache cannot have. If a berserker necklace is ever
-# imported, this check goes red and the row below it should be written.
-check(not re.search(r'^\d+=berserker_necklace$', OBJPACK, re.M),
-      'there is still no berserker necklace obj in this cache')
-check('convertobj,onyx_necklace' not in ROW,
-      '...so the onyx necklace has no row, rather than one pointing at nothing')
+# The one Corey asked for. Imported from OSRS on 2026-09-21 (skill_magic/configs/berserker_necklace.obj);
+# before that this cache had no berserker necklace, and a crafted onyx necklace could not be enchanted.
+check(re.search(r'^\d+=berserker_necklace$', OBJPACK, re.M) is not None,
+      'the berserker necklace is an obj in this build')
+check('data=convertobj,onyx_necklace,berserker_necklace,' in ROW,
+      '...and Lvl-6 Enchant turns an onyx necklace into it')
 
 print('3. every effect the row names is really in the packs')
 for kind, pack, names in (

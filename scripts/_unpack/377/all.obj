@@ -56189,7 +56189,10 @@ weight=18g
 category=bolts
 param=rangebonus,55
 param=levelrequire,70
-param=proj_launch,crossbowbolt_launch
+// the firing flash is OSRS spotanim 28, imported as osrs_crossbowbolt_launch (skill_combat/configs/ranged);
+// the 377 crossbowbolt_launch every other bolt keeps was a generic dart, the one part of Karil's
+// crossbow still not OSRS after the attack animation and the bolt itself were
+param=proj_launch,osrs_crossbowbolt_launch
 param=proj_travel,crossbowbolt_travel
 param=ammo_no_drop,yes
 
@@ -81981,7 +81984,21 @@ param=attackrate,6
 // the walk at all: a one-handed staff walks the way the player walks. This one was alone on both
 // counts. Its attack and defend animations were already the same human_stafforb pair 23 other
 // staves use, so they are untouched.
+//
+// AND IT WALKS WITH IT IN BOTH HANDS (second round, same day). The first round gave it the plain
+// player walk, as the other staves have - but they are one-handed, and this one is TWO-handed
+// (wearpos2=lefthand): walking with the empty-handed walk swung the off hand through the staff,
+// which was still "broken animation and stance". It takes the two-handed polearm walk the halberds
+// use, and upstream gives every staff. The attack stays the stafforb pummel: seq 2555, the cache's
+// other 12-frame priority-6 candidate, poses a human with the head off and the legs splayed (checked
+// with tools/pose377.py on npc_2028), so it was built for another skeleton.
 param=ready_baseanim,human_staffready
+param=walk_f_baseanim,human_halberdwalk_f
+param=walk_b_baseanim,human_halberdwalk_b
+param=walk_l_baseanim,human_halberdwalk_l
+param=walk_r_baseanim,human_halberdwalk_r
+param=running_baseanim,human_halberdrunning
+param=turnonspot_baseanim,human_halberdturnonspot
 param=crushattack_anim,human_stafforb_pummel
 param=defend_anim,human_stafforb_block
 param=crush_sound,staff_hit
