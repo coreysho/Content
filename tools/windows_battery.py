@@ -70,7 +70,8 @@ for dp, _, fs in os.walk('scripts'):
         continue
     for f in fs:
         if f.endswith('.rs2'):
-            RS2[os.path.join(dp, f)] = read(os.path.join(dp, f))
+            # keyed with forward slashes, so the lookups below work on Windows as well as in CI
+            RS2[os.path.join(dp, f).replace(os.sep, '/')] = read(os.path.join(dp, f))
 ALLRS2 = nocomment('\n'.join(RS2.values()))
 LOC = read('scripts/_unpack/377/all.loc')
 NPC = read('scripts/_unpack/377/all.npc')

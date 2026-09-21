@@ -81,7 +81,10 @@ def smelt(panel):
           '[proc,smelt_window_open]']
     for i, bar in enumerate(bars, 1):
         b.append('if_setobject(smelt_window:icon%d, %s, ^smelt_window_scale);' % (i, bar['obj']))
-    b += ['if_openmain(smelt_window);', '']
+    # IN THE CHATBOX. The cache's panel is 481 x 90 with the sword-decor header - a chatbox
+    # window, drawn on the chatbox's own background. Opened with if_openmain it floated over the
+    # game view with nothing behind it, and was reported as transparent.
+    b += ['if_openchat(smelt_window);', '']
     for bar in bars:
         for suffix, count in SMELT_COUNTS:
             com = 'smelt_%s_%s' % (suffix, bar['column'])
@@ -345,19 +348,21 @@ def churn(spec):
     for loc in c['locs']:
         b += ['[oploc1,%s]' % loc, '~churn_open;', '']
     b += [
+        '// In the chatbox, like the furnace\'s: the three churn panels are chatbox windows (sword-decor',
+        '// header, 478 wide), and as main windows they floated over the game view with no background.',
         '// Which window to open is decided by what you are carrying, richest input first, because',
         '// milk can become anything and butter can only become cheese.',
         '[proc,churn_open]',
         'if (inv_total(inv, bucket_milk) > 0) {',
-        '    if_openmain(churn_milk);',
+        '    if_openchat(churn_milk);',
         '    return;',
         '}',
         'if (inv_total(inv, pot_of_cream) > 0) {',
-        '    if_openmain(churn_cream);',
+        '    if_openchat(churn_cream);',
         '    return;',
         '}',
         'if (inv_total(inv, pot_of_butter) > 0) {',
-        '    if_openmain(churn_butter);',
+        '    if_openchat(churn_butter);',
         '    return;',
         '}',
         'mes("You have nothing to churn.");',
