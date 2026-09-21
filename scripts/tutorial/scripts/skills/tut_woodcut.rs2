@@ -36,7 +36,9 @@ if (inv_total(inv, newbielogs) > 2) {
     return;
 }
 
-if (inv_total(inv, bronze_axe) = 0) {
+// Worn counts too, as it does for every other tree: the equipment tab is hidden this early, so a
+// player who wields the axe cannot take it off, and an inventory-only check here left them stuck.
+if (~tutorial_has_obj_on_person(bronze_axe) = false) {
     ~mesbox("You need an axe to chop this tree.|Talk to the survival expert to get one.");
     return;
 }
