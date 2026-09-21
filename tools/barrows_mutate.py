@@ -539,6 +539,12 @@ MUTS = [
   '27 nothing goes straight to the pack or the bank any more'),
  (CHEST, 'inv_transmit(barrows_reward_store, barrows_chest:loot);\n', '',
   '27 and the script transmits one into the other'),
+ # THE SECOND TRANSMIT, and it needs the proc header in the pattern to reach it: the replace above
+ # takes the FIRST occurrence, and for a while that was the only one either side tested. Deleting
+ # one while the other stood is exactly what walked through the old blanket check.
+ (CHEST, '[proc,barrows_chest_reopen]\ninv_transmit(barrows_reward_store, barrows_chest:loot);\n',
+         '[proc,barrows_chest_reopen]\n',
+  '27 reopening transmits and opens and does NOT roll again'),
 
  # --- the door before the chest
  (CONST, '^barrows_puzzles = 8', '^barrows_puzzles = 6',

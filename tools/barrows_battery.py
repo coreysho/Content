@@ -1331,7 +1331,15 @@ check(IFB.get('loot', {}).get('type', [None])[0] == 'inv',
 check(int(IFB['loot']['width'][0]) * int(IFB['loot']['height'][0]) == size,
       'and it is exactly as big as the store: %s x %s for %d slots'
       % (IFB['loot']['width'][0], IFB['loot']['height'][0], size))
-check('inv_transmit(barrows_reward_store, barrows_chest:loot);' in CHEST,
+# SCOPED TO THE WINDOW PROC, not to the whole file. It used to read `in CHEST`, and the mutation
+# harness walked straight through deleting this transmit: there are TWO of them, one here and one
+# in the reopen proc, so a blanket `in CHEST` stayed true on the strength of the other one - and
+# the reopen check, which IS scoped, stayed true on the strength of itself. Same fault as the
+# flush check below and the TzHaar shop round before it: a blanket check sitting on top of a
+# precise one catches nothing the precise one does not already catch.
+window = nocomment(CHEST.split('[proc,barrows_chest_window]', 1)[1].split('\n[', 1)[0])
+check('inv_transmit(barrows_reward_store, barrows_chest:loot);' in window
+      and 'if_openmain(barrows_chest);' in window,
       'and the script transmits one into the other')
 # NO DEAD CLICKS IN THE WINDOW, which is the same rule the POH round put on a house.
 opts = sorted(k for k in IFB['loot'] if re.fullmatch(r'option\d', k))

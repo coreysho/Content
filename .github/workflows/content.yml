@@ -154,6 +154,10 @@ jobs:
         - boss_battery.py
         - enchant_battery.py
         - ancientbook_battery.py
+        # barrows and follower need nothing but content, so they are plain matrix rows. gamemode
+        # and leprechaun want sibling checkouts and run in the job below.
+        - barrows_battery.py
+        - follower_battery.py
         # banktab_sim is a simulator, not a battery, but it also holds the CONTENT half of a
         # contract with Client.java - the bank grid's option wording, which is what the client
         # gates the placeholder Release option on. It was never in this matrix.
@@ -172,6 +176,54 @@ jobs:
       run: pip install pillow numpy
 
     - run: python tools/${{ matrix.script }}
+
+  batteries-with-repos:
+    name: ${{ matrix.script }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # THE FOUR THAT WERE IN NEITHER LIST are in both now. These two are here rather than in the
+        # matrix above because they read a SIBLING repo: gamemode_battery reads Player.ts for the
+        # xp multiplier and the xp lock's bit test, and leprechaun_battery reads the client too.
+        # A battery that only checks the content half of a contract checks the half least likely to
+        # be wrong - the engine is a separate checkout and is what gets left behind.
+        script:
+        - gamemode_battery.py
+        - leprechaun_battery.py
+
+    # NO ARGUMENTS BELOW, on purpose. Both batteries default to dirname(content)/engine and
+    # dirname(content)/client, which is exactly this layout - so the paths cannot be passed wrong,
+    # and running them here is the same command as running them on a laptop with the three repos
+    # side by side.
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        path: content
+
+    - uses: actions/checkout@v4
+      with:
+        repository: coreysho/Engine-TS
+        ref: 377-wip
+        path: engine
+
+    - uses: actions/checkout@v4
+      with:
+        repository: coreysho/Client-Java
+        ref: dev-logging
+        path: client
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install the renderers the batteries import
+      run: pip install pillow numpy
+
+    - name: ${{ matrix.script }}
+      working-directory: content
+      run: python tools/${{ matrix.script }}
 
   mutations:
     name: ${{ matrix.script }}
@@ -204,13 +256,19 @@ jobs:
         - boss_mutate.py
         - enchant_mutate.py
         - ancientbook_mutate.py
-
-    # NOT IN EITHER LIST, and it is not deliberate: gamemode, barrows, leprechaun and follower all
-    # have a battery and a mutation harness and none of the four is here, so the XP rate modes, the
-    # XP lock, the Barrows and the leprechaun are checked only when somebody remembers to run them
-    # by hand. Noted in claude/requests-backlog.md rather than fixed in a round about clue scrolls:
-    # barrows_mutate alone is 237 entries at about five minutes, which needs a sharding decision
-    # rather than a line.
+        # THE OTHER HALF OF THE FOUR. barrows_mutate is 243 entries and was left out over a
+        # sharding decision that turned out not to be needed: MEASURED end to end at about fifteen
+        # minutes whole, well inside this job's timeout. The backlog's note read as "five minutes
+        # an entry" and meant "five minutes for 105".
+        #
+        # Running it whole for the first time is also what paid for this round: one mutation
+        # survived - deleting the chest window's inv_transmit - because the check was written
+        # `in CHEST` and the reopen proc has a second transmit that kept it true. Scoped, and a
+        # mutation added for the second one. A harness nobody runs is a harness nobody trusts.
+        - barrows_mutate.py
+        - follower_mutate.py
+        - gamemode_mutate.py
+        - leprechaun_mutate.py
 
     # THE SAME SETUP AS THE pack JOB, copied rather than trimmed per harness. Every harness spawns
     # a checker, and poh_battery among them reads the engine source AND the packed cache - so a
@@ -227,6 +285,13 @@ jobs:
         repository: coreysho/Engine-TS
         ref: 377-wip
         path: engine
+
+    # leprechaun_mutate spawns leprechaun_battery, which reads the client as well as the engine.
+    - uses: actions/checkout@v4
+      with:
+        repository: coreysho/Client-Java
+        ref: dev-logging
+        path: client
 
     - uses: actions/setup-python@v5
       with:
