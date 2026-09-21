@@ -382,6 +382,42 @@
           "expect": 1
         }
       ]
+    },
+    {
+      "iface": "teleother",
+      "src": "scripts/interfaces/inter_251.if",
+      "dst": "scripts/skill_magic/interfaces/teleother.if",
+      "what": "Jagex's Teleport Option panel: who is offering, where to, Accept and Decline. unwiredspells.json said this dialogue did not exist. See claude/teleother.md.",
+      "rules": [
+        {
+          "why": "the two buttons, named from the words printed on them. They are the only two components in the panel carrying an option= at all, which is what makes expect:1 each a join and not a guess.",
+          "field": "option",
+          "pattern": "^Accept$",
+          "name": "accept",
+          "expect": 1
+        },
+        {
+          "why": "the other one.",
+          "field": "option",
+          "pattern": "^Decline$",
+          "name": "decline",
+          "expect": 1
+        },
+        {
+          "why": "the caster's name. %1 and %2 are the cache's own placeholder slots and neither says what it holds, so the join is POSITIONAL - and the position is fixed by the panel's own fixed text, which reads %1, then \"...wants to teleport you to...\", then %2. teleother_battery.py asserts that ordering by y coordinate rather than taking it on trust.",
+          "field": "text",
+          "pattern": "^%1$",
+          "name": "caster",
+          "expect": 1
+        },
+        {
+          "why": "the destination, the slot under the \"...wants to teleport you to...\" line.",
+          "field": "text",
+          "pattern": "^%2$",
+          "name": "destination",
+          "expect": 1
+        }
+      ]
     }
   ]
 }

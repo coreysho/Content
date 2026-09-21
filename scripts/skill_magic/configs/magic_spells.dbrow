@@ -264,6 +264,57 @@ data=experience,740
 data=tele_coord,0_43_42_50_17
 
 // ============================================================
+// Teleother (Corey, 2026-09-21)
+// ============================================================
+// EVERY LEVEL AND EVERY RUNE COUNT BELOW IS READ OFF THE CACHE'S OWN BUTTON, not written from
+// memory. magic.if's teleother_lumbridge carries script1=gt,0 on soulrune, script2=gt,0 on
+// lawrune, script3=gt,0 on earthrune and script4=gt,73 on magic level - which is 1/1/1 and level
+// 74 - and teleother_camelot carries script1=gt,1 on soulrune, so 2 souls. The client has been
+// greying these buttons correctly since the unpack; only the server did not know the numbers.
+// teleother_battery.py re-derives all nine values from magic.if and compares them to these rows,
+// so the two cannot drift.
+//
+// tele_coord is THE SAME COORD as the ordinary teleport to that town, deliberately and checked:
+// Teleother sends someone to Lumbridge, not to a Teleother-only Lumbridge. The battery asserts
+// each row's coord equals the matching magic_spell_teleport_* row's.
+//
+// Experience is the one number the cache does not carry - it is not in a button script - so these
+// three are OSRS's (84 / 92 / 100) and are labelled as such rather than derived.
+//
+// spellcom is set, which the plain teleport rows do not bother with, because it is the join the
+// battery uses to get from a row to its button. Nothing casts these by autocast.
+
+[magic_spell_teleother_lumbridge]
+table=magic_spell_table
+data=spell,^teleother_lumbridge
+data=spellcom,magic:teleother_lumbridge
+data=members,true
+data=levelrequired,74
+data=runesrequired,earthrune,1,soulrune,1,lawrune,1
+data=experience,840
+data=tele_coord,0_50_50_21_18
+
+[magic_spell_teleother_falador]
+table=magic_spell_table
+data=spell,^teleother_falador
+data=spellcom,magic:teleother_falador
+data=members,true
+data=levelrequired,82
+data=runesrequired,waterrune,1,soulrune,1,lawrune,1
+data=experience,920
+data=tele_coord,0_46_52_21_50
+
+[magic_spell_teleother_camelot]
+table=magic_spell_table
+data=spell,^teleother_camelot
+data=spellcom,magic:teleother_camelot
+data=members,true
+data=levelrequired,90
+data=runesrequired,soulrune,2,lawrune,1,null,null
+data=experience,1000
+data=tele_coord,0_43_54_5_22
+
+// ============================================================
 // Ancient Magicks teleports (Corey, 2026-09-07)
 // ============================================================
 //

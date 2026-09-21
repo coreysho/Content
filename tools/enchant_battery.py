@@ -142,7 +142,16 @@ for raw in MAGICIF.split('\n'):
 if cur and kv.get('graphic', '').startswith('magicoff'):
     buttons[cur] = kv
 spec_keys = [k for k in SPEC if not k.startswith('_')]
-check(len(spec_keys) == 5, 'the spec excuses five things and no more')
+# PINNED, and the pin moves when the spec legitimately does - it was 5 until the Teleother round
+# retired magic:com_511, com_521 and com_541 by building them (2026-09-21). The point of the pin
+# is that an entry cannot be ADDED without somebody editing this line, which is the only thing
+# standing between "we excused it" and "we forgot it". The wording deliberately carries no number:
+# a count in a check's message is a mutation label that has to be edited in two files every time
+# the count moves, and a label that no longer matches its check is a mutation nobody is testing.
+SPEC_PINNED = 2
+check(len(spec_keys) == SPEC_PINNED,
+      'the spec excuses exactly the entries it is pinned to, and no more'
+      + ('' if len(spec_keys) == SPEC_PINNED else ' - it now holds %s' % sorted(spec_keys)))
 wired = set()
 for dp, _d, fs in os.walk(os.path.join(C, 'scripts')):
     for fn in fs:

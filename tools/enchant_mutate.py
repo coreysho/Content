@@ -99,17 +99,19 @@ MUTS = [
  (RS2, '        check_interfaces()\n        check_castable_buttons()\n\n    errors',
        '        check_interfaces()\n\n    errors',
   '5 ...and main() actually runs it'),
- (SPEC, '"Teleother Lumbridge, level 74. Needs the teleother accept/decline dialogue and '
-         'target consent - none of that exists yet."', '""',
-  '5 magic:com_511 carries a reason'),
- (SPEC, '"magic:com_521"', '"magic:com_5210"', '5 every key names a component that exists'),
+ # RETARGETED 2026-09-21: the three Teleother keys these used to point at are gone, because the
+ # Teleother round built the spells. Tele Block is the entry that remains, and its note is the
+ # accurate kind - it needs a mechanism, not a panel.
+ (SPEC, '"magic:com_531": "Tele Block, level 85. Needs a teleport-blocked timer on the target and the wilderness teleport paths to honour it. The three Teleother buttons used to sit beside this one saying the accept/decline dialogue did not exist; it did, as inter_251.if, and all three are built (2026-09-21). This one\'s note is the accurate kind: what it needs is a mechanism, not a panel."', '"magic:com_531": ""',
+  '5 magic:com_531 carries a reason'),
+ (SPEC, '"magic:com_531"', '"magic:com_5310"', '5 every key names a component that exists'),
  (SPEC, '"magic:com_531"', '"magic:enchant_lvl6"',
   '5 nothing in the spec is excusing a button that is wired'),
  (SPEC, 'ancient_magic.if is a hand-built reconstruction with an invented layout, made when '
          'this file could not be found', 'the server uses something else',
   '5 and the real ancient spellbook is named in it rather than quietly skipped'),
- (SPEC, '  "magic:com_541": ', '  "magic:com_542": "spare",\n  "magic:com_541": ',
-  '5 the spec excuses five things and no more'),
+ (SPEC, '  "inter_267:*": ', '  "magic:com_542": "spare",\n  "inter_267:*": ',
+  '5 the spec excuses exactly the entries it is pinned to, and no more'),
 ]
 
 

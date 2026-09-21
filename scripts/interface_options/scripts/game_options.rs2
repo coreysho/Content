@@ -97,10 +97,17 @@ if_close;
 if_close;
 %option_pm = 0;
 
+// ACCEPT AID, and these two were setting the WRONG VARP. options.if's com_52 and com_53 are the
+// Accept Aid Yes/No pair - both carry `script1op1=pushvar,option_aid` - but the handlers here set
+// %option_pm, which belongs to com_47/com_48 above, the Split Private-chat pair. So clicking
+// "Accept Aid: Yes" turned your private chat split ON and left aid exactly where it was, and
+// nothing in the build read %option_aid at all, so nobody could see it. The low-detail tab
+// (game_options_ld.rs2) had it right all along, which is what made the pair readable as a slip
+// rather than a design.
 [if_button,options:com_52]
 if_close;
-%option_pm = 1;
+%option_aid = ^aid_yes;
 
 [if_button,options:com_53]
 if_close;
-%option_pm = 0;
+%option_aid = ^aid_no;

@@ -1,0 +1,28 @@
+// The pending Teleother offer, held on the TARGET (Corey, 2026-09-21).
+//
+// All three are scope=temp, which is the default and is the point: an offer must not survive a
+// logout. A player who logs out with the panel open and back in an hour later must not still be
+// one click from being teleported out of wherever they now are.
+//
+// protect=no on all three because the caster writes them through the secondary pointer
+// (.%teleother_caster = ...) from inside [opplayert], which is the same thing trade.varp does for
+// .%tradestatus and for the same reason.
+
+// Who offered. player_uid, so ~finduid can get back to them to say the offer was answered.
+[teleother_caster]
+type=player_uid
+protect=no
+
+// Which of the three. Read back as a magic_spell_table row so Accept needs no destination of its
+// own - the row's tele_coord is the destination, and it is the same coord the ordinary teleport
+// to that town uses.
+[teleother_spell]
+type=int
+protect=no
+
+// map_clock tick the offer stops being valid on. The softtimer closes the panel, but the accept
+// path checks this too: a softtimer is one more thing that can be missed, and an offer that has
+// expired must not teleport anyone even if the button somehow still gets pressed.
+[teleother_expires]
+type=int
+protect=no

@@ -56,10 +56,13 @@ if_close;
 if_close;
 %option_pm = 0;
 
+// The tri-state, not 1/0 - see game_options.constant. 0 now means "never chosen", so a save that
+// has never opened this tab is accepting aid, which is OSRS's default and is what makes Teleother
+// work the first time anyone casts it.
 [if_button,options_ld:com_33]
 if_close;
-%option_aid = 1;
+%option_aid = ^aid_yes;
 
 [if_button,options_ld:com_34]
 if_close;
-%option_aid = 0;
+%option_aid = ^aid_no;

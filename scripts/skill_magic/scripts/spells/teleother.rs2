@@ -1,0 +1,199 @@
+// Teleother: Lumbridge (74), Falador (82) and Camelot (90).
+// Corey, 2026-09-21. See claude/teleother.md.
+//
+// WHAT WAS ACTUALLY MISSING. tools/unwiredspells.json said of all three that they need "the
+// teleother accept/decline dialogue and target consent - none of that exists yet". The dialogue
+// existed: scripts/interfaces/inter_251.if, now scripts/skill_magic/interfaces/teleother.if, is
+// Jagex's own "Teleport Option" panel - the caster's name, "...wants to teleport you to...", the
+// destination, "Do you accept?", an Accept button and a Decline button, with the teleother models
+// already animating in two corners. The buttons in magic.if were fully drawn too, with
+// buttontype=target, actiontarget=npc,player and the real rune and level checks. What was missing
+// was the FLOW, not the screen, and not the numbers.
+//
+// THE COST IS PAID ON CAST, win or lose (Corey's call, and OSRS's). The runes go and the XP lands
+// the moment the spell is cast; a Decline costs the caster the runes. That makes this a spell you
+// ask permission for out loud first, and it means there is exactly one code path - nothing to
+// refund, and no second requirements check racing an inventory that has changed underneath it.
+//
+// ACCEPT AID is the gate in front of the panel. %option_aid was already a varp, already perm,
+// already drawn in both options tabs - and nothing in the build had ever read it, while the
+// high-detail tab's two buttons wrote %option_pm by mistake. Both are fixed in
+// scripts/interface_options; this is the first thing that reads the setting.
+
+[opplayert,magic:teleother_lumbridge] @teleother_cast(^teleother_lumbridge, "Lumbridge");
+[applayert,magic:teleother_lumbridge] @teleother_cast(^teleother_lumbridge, "Lumbridge");
+[opplayert,magic:teleother_falador] @teleother_cast(^teleother_falador, "Falador");
+[applayert,magic:teleother_falador] @teleother_cast(^teleother_falador, "Falador");
+[opplayert,magic:teleother_camelot] @teleother_cast(^teleother_camelot, "Camelot");
+[applayert,magic:teleother_camelot] @teleother_cast(^teleother_camelot, "Camelot");
+
+// NO DEAD CLICKS. All three buttons carry actiontarget=npc,player, so the client offers "Cast on"
+// over every npc in the game as well as over players. Without these six the spell would be a
+// silent no-op on an npc, which is the one thing the POH round's rule forbids.
+[opnpct,magic:teleother_lumbridge] @teleother_on_npc;
+[apnpct,magic:teleother_lumbridge] @teleother_on_npc;
+[opnpct,magic:teleother_falador] @teleother_on_npc;
+[apnpct,magic:teleother_falador] @teleother_on_npc;
+[opnpct,magic:teleother_camelot] @teleother_on_npc;
+[apnpct,magic:teleother_camelot] @teleother_on_npc;
+
+[label,teleother_on_npc]
+mes("You can only cast this spell on other players.");
+
+// ---------------------------------------------------------------------------------------------
+// The cast
+// ---------------------------------------------------------------------------------------------
+// $destination is the town the panel names. It is a literal here rather than a column on the row
+// because it is presentation, not spell data - but it is not unanchored: the cache's own button
+// carries action=Teleother Lumbridge, and teleother_battery.py checks each of these three strings
+// is the tail of that button's own action text.
+
+[label,teleother_cast](int $spell, string $destination)
+if_close;
+if (.uid = uid) {
+    mes("You can't cast that on yourself.");
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data($spell);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+// The gate. ^aid_no is 2, not 0 - see scripts/interface_options/configs/game_options.constant.
+// A save that has never opened the options tab holds 0 and is accepting, which is OSRS's default
+// and is what stops this spell failing for everyone on the day it ships.
+if (.%option_aid = ^aid_no) {
+    mes("<.displayname> is not accepting aid.");
+    return;
+}
+if (.busy = true) {
+    mes("<.displayname> is busy at the moment.");
+    return;
+}
+// One offer at a time. Without this, two casters could each pay and the second would quietly
+// overwrite the first's offer - the first caster's runes gone against a panel nobody ever saw.
+if (.%teleother_expires > map_clock) {
+    mes("<.displayname> already has a teleport offer to answer.");
+    return;
+}
+// THE WILDERNESS RULE IS THE ORDINARY TELEPORT RULE, and it is asked of BOTH coords. The target's
+// is the one that matters - the spell moves them, not the caster - but the caster is still casting
+// a teleport, and every other teleport in this build stops at level 20. Asking both also closes
+// the obvious hole: standing at level 1 and pulling somebody out of level 40.
+if (~wilderness_level(.coord) > 20 | ~wilderness_level(coord) > 20) {
+    mes("A mysterious force blocks your teleport spell!");
+    mes("You can't use this teleport after level 20 wilderness.");
+    return;
+}
+// PAID HERE, before the target has said anything. Everything above this line is a reason not to
+// cast; from here the spell has been cast and the runes are spent whatever the answer is.
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+p_stopaction;
+sound_synth(teleport_all, 1, 0);
+anim(human_teleport_other_casting, 0);
+spotanim_pl(teleport_other_casting, 92, 0);
+
+.%teleother_caster = uid;
+.%teleother_spell = $spell;
+.%teleother_expires = add(map_clock, ^teleother_offer_ticks);
+.clearsofttimer(teleother_expire);
+.softtimer(teleother_expire, ^teleother_offer_ticks);
+.if_settext(teleother:caster, "<displayname>");
+.if_settext(teleother:destination, $destination);
+.if_openmain(teleother);
+mes("You offer to teleport <.displayname>.");
+
+// ---------------------------------------------------------------------------------------------
+// The answer
+// ---------------------------------------------------------------------------------------------
+// CLOSING THE WINDOW IS DECLINING, and that is the whole design rather than a convenience. Being
+// attacked closes a modal, and an offer left standing after the panel is gone is an offer that can
+// still teleport somebody ten seconds later from wherever the fight moved them. So [if_close] is
+// the decline, the Decline button is nothing but a close, and Accept CONSUMES the offer before it
+// closes anything - which is why ~teleother_clear runs above if_close in the handler below rather
+// than after it. Get that order wrong and the close handler wipes the offer out from under the
+// accept that is still reading it. (The Barrows chest round is the other half of this lesson: an
+// [if_close] has no protected access. Nothing here needs any - all three varps are protect=no and
+// nothing in this half moves a player.)
+
+[if_button,teleother:accept]
+// EXPIRY IS CHECKED HERE AS WELL AS BY THE SOFTTIMER, on purpose. The timer closes the panel, but
+// a timer is one more thing that can be missed - a lost tick, a reconnect - and an offer that has
+// run out must not move anybody even if the button somehow still arrives. This is the check that
+// makes the ten seconds true; the timer only makes it visible.
+if (%teleother_expires <= map_clock) {
+    if_close;
+    mes("That teleport offer has expired.");
+    return;
+}
+// Read out of the offer BEFORE it is cleared. Radius 2 and a line-of-walk check, exactly as
+// ~magic_teleport does it, so two people sent to the same town do not land on the same tile.
+def_coord $dest = map_findsquare(db_getfield(~get_spell_data(%teleother_spell),
+                                             magic_spell_table:tele_coord, 0),
+                                 0, 2, ^map_findsquare_lineofwalk);
+~teleother_answer_caster("<displayname> accepts your teleport offer.");
+~teleother_clear;
+if_close;
+// AN if_button IS NOT HANDED p_active_player - the XP lock round paid two deploys for that - and
+// everything below this line is protected: the delay, the jump, and the mesboxes pre_tele_checks
+// opens when it refuses. ~magic_teleport re-acquires the pointer the same way.
+if (p_finduid(uid) = true) {
+    // RE-ASKED AT ACCEPT, because ten seconds is long enough to walk somewhere this is not
+    // allowed. The caster has already been told the offer was accepted, which is true: it was.
+    if (~wilderness_level(coord) > 20) {
+        mes("A mysterious force blocks your teleport spell!");
+        return;
+    }
+    // The same gauntlet every other teleport runs - the duel arena, Castle Wars, the trawler, the
+    // Monkey Madness monkey, Ana in a barrel. It talks to the player itself when it refuses,
+    // which is why nothing is printed here.
+    if (~pre_tele_checks(coord) = false) {
+        return;
+    }
+    p_stopaction;
+    sound_synth(teleport_all, 1, 0);
+    anim(human_teleport_other_impact, 0);
+    spotanim_pl(teleport_other_impact, 92, 0);
+    p_delay(2);
+    ~p_telejump_safe($dest);
+}
+
+// Nothing but a close. The decline itself lives in [if_close,teleother] below, so that pressing
+// Decline, pressing the X and being attacked all do exactly the same thing.
+[if_button,teleother:decline]
+if_close;
+
+[if_close,teleother]
+if (%teleother_expires <= map_clock) {
+    // Already answered, already expired, or this close belongs to an offer that is long gone.
+    ~teleother_clear;
+    return;
+}
+~teleother_answer_caster("<displayname> declines your teleport offer.");
+~teleother_clear;
+
+[softtimer,teleother_expire]
+if (%teleother_expires > map_clock) {
+    // Somebody offered again while this timer was still armed and re-armed it; the later offer
+    // owns the panel now, so this firing is stale and must not close it.
+    return;
+}
+~teleother_answer_caster("<displayname> did not answer your teleport offer.");
+~teleother_clear;
+if_close;
+
+[proc,teleother_clear]
+%teleother_caster = null;
+%teleother_spell = 0;
+%teleother_expires = 0;
+clearsofttimer(teleother_expire);
+
+// Say something to whoever made the offer, if they are still logged in. ~finduid sets the
+// SECONDARY pointer, which is how trade.rs2 gets back to the other half of a deal.
+[proc,teleother_answer_caster](string $message)
+if (%teleother_caster = null) {
+    return;
+}
+if (.finduid(%teleother_caster) = true) {
+    .mes($message);
+}
