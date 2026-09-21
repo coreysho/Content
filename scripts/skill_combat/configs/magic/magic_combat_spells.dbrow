@@ -539,6 +539,140 @@ data=sound_cast,magic_dart_fire
 data=continue_by_autocast,yes
 data=runesrequired,mindrune,4,deathrune,1,null,null
 
+// IBAN BLAST. There was no row here at all, so ~get_spell_data(^iban_blast) hit its own
+// error("$spell_data is null.") and took the session with it the moment the spell was clicked -
+// reported from play 2026-09-21. Both halves of the spell were already written
+// (player/spells/scripts/ibans_blast.rs2 and the pvp one beside it), the component exists at
+// magic:iban_blast, the charges varp is set to 120 by Underground Pass, and every piece of art is
+// sitting in the cache unused: human_castibanblast, ibanblast_casting/_travel/_impact. The only
+// thing missing was the table row.
+//
+// Numbers are the wiki's, read 2026-09-21: 50 Magic, 5 fire and 1 death, 30 experience (stored
+// x100 the way every other row here is), max 25, and the staff must be wielded. The projectile
+// params are the same 43,31,51,16,-5,64,10 every other combat spell uses.
+//
+// NO sound_cast, deliberately. pack/synth.pack:256 is "iban lightning" - a name with a SPACE in
+// it, one of only two in the whole pack and referenced by nothing. Every sound_cast read is
+// guarded by db_getfieldcount, so leaving the field out is the supported way to have no sound;
+// spelling a space into a config to find out what the packer does with it is not.
+[magic_combat_iban_blast]
+table=magic_spell_table
+data=spell,^iban_blast
+data=members,true
+data=name,"Iban Blast"
+data=spellcom,magic:iban_blast
+data=levelrequired,50
+data=experience,3000
+data=maxhit,25
+data=anim,human_castibanblast
+data=spotanim_origin,ibanblast_casting
+data=spotanim_proj,ibanblast_travel,43,31,51,16,-5,64,10
+data=spotanim_target,ibanblast_impact,92
+data=wornrequired,ibanstaff
+data=worn_reqmessage,"You need Iban's staff to cast this spell."
+data=continue_by_autocast,yes
+data=runesrequired,firerune,5,deathrune,1,null,null
+
+// ============================================================
+// FOUR MORE SPELLS THAT HAD NO ROW. Iban Blast above was reported from play; rs2check rule 21 -
+// written to stop that happening again - immediately found these four in the same state. Every one
+// has a finished script, a real interface component and its own art, and every one called
+// ~get_spell_data on an id the table did not contain, so it hit that proc's own
+// error("$spell_data is null.") and ENDED THE SESSION on the first cast. Nobody had cast them.
+//
+// The three god spells' scripts are the most finished of the lot - the Mage Arena gate, the god
+// cape and staff check, the 3/2 damage scaling while charged, Guthix draining defence and Zamorak
+// draining magic - all of it written and none of it reachable.
+//
+// Numbers are the wiki's, read 2026-09-21, experience stored x100 as every row here does.
+// spotanim_target is NOT optional: player_magic.rs2:389 calls spotanim_npc with it unguarded,
+// unlike spotanim_origin and spotanim_proj either side of it.
+// ============================================================
+
+// 39 Magic, 2 air 2 earth 1 chaos, 24.5xp, max 15. Undead only, which the script enforces itself.
+// Its art is complete and unused in the cache: a cast animation of its own and a casting/travel/
+// impact triple. continue_by_autocast is yes because player_magic.rs2 says in its own comment that
+// crumble undead is the one stat-affecting spell Old School lets autocast carry on through.
+[magic_combat_crumble_undead]
+table=magic_spell_table
+data=spell,^crumble_undead
+data=members,false
+data=name,"Crumble Undead"
+data=spellcom,magic:crumble_undead
+data=levelrequired,39
+data=experience,2450
+data=maxhit,15
+data=anim,human_castcrumbleundead
+data=spotanim_origin,crumbleundead_casting
+data=spotanim_proj,crumbleundead_travel,43,31,51,16,-5,64,10
+data=spotanim_target,crumbleundead_impact,92
+data=continue_by_autocast,yes
+data=runesrequired,airrune,2,earthrune,2,chaosrune,1
+
+// THE THREE GOD SPELLS. 60 Magic, 2 blood each, 35xp each, max 20 - and 30 with the matching cape
+// while charged, which their scripts already do with scale(3, 2, $maxhit).
+//
+// NO PROJECTILE, which is right: a god spell lands on the target in Old School rather than flying
+// there, so these carry spotanim_target and nothing else. The three impacts are in the cache and
+// sit next to each other - saradomin_lightning, gunthix_claw (the cache's own spelling) and
+// zamorak_flame - and nothing in the spell table had ever used them.
+//
+// THE CAST ANIMATION IS A SUBSTITUTION, flagged the way the Ancients rows above flag theirs: this
+// cache has no god-spell cast animation. human_castzap is the closest real one - a generic
+// spellcast that only Melzar and Ungadulu use, and the only cast animation in all.seq that no
+// player spell claims. Swap it out if the real tag turns up.
+//
+// continue_by_autocast is no on all three: Old School only autocasts these from a staff of light,
+// a staff of balance or a staff of the dead, and the only god staves in this cache are the plain
+// ones, which cannot.
+[magic_combat_saradomin_strike]
+table=magic_spell_table
+data=spell,^saradomin_strike
+data=members,true
+data=name,"Saradomin Strike"
+data=spellcom,magic:saradomin_strike
+data=levelrequired,60
+data=experience,3500
+data=maxhit,20
+data=anim,human_castzap
+data=spotanim_target,saradomin_lightning,92
+data=wornrequired,saradomin_staff
+data=worn_reqmessage,"You need a Saradomin staff to cast this spell."
+data=continue_by_autocast,no
+data=runesrequired,airrune,4,firerune,2,bloodrune,2
+
+[magic_combat_claws_of_guthix]
+table=magic_spell_table
+data=spell,^claws_of_guthix
+data=members,true
+data=name,"Claws of Guthix"
+data=spellcom,magic:claws_of_guthix
+data=levelrequired,60
+data=experience,3500
+data=maxhit,20
+data=anim,human_castzap
+data=spotanim_target,gunthix_claw,92
+data=wornrequired,guthix_staff
+data=worn_reqmessage,"You need a Guthix staff to cast this spell."
+data=continue_by_autocast,no
+data=runesrequired,airrune,4,firerune,1,bloodrune,2
+
+[magic_combat_flames_of_zamorak]
+table=magic_spell_table
+data=spell,^flames_of_zamorak
+data=members,true
+data=name,"Flames of Zamorak"
+data=spellcom,magic:flames_of_zamorak
+data=levelrequired,60
+data=experience,3500
+data=maxhit,20
+data=anim,human_castzap
+data=spotanim_target,zamorak_flame,92
+data=wornrequired,zamorak_staff
+data=worn_reqmessage,"You need a Zamorak staff to cast this spell."
+data=continue_by_autocast,no
+data=runesrequired,airrune,1,firerune,4,bloodrune,2
+
 // ============================================================
 // Ancient Magicks (16) - real OSRS release 27 Sept 2005. Icons/travel/impact spotanims and rune
 // objects all confirmed directly against all.obj/all.seq/all.spotanim. Two things are NOT verifiable

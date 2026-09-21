@@ -1,0 +1,151 @@
+#!/usr/bin/env python3
+"""Mutation test for tools/combat_battery.py and for rs2check's rules 19, 21 and 22.
+
+Every entry breaks one of the 2026-09-21 play fixes and expects the named check to go red. Entries
+whose name ends in (rs2check) are run against tools/rs2check.py instead of the battery, because the
+general case of each bug lives in a rule rather than in a check here.
+
+    python3 tools/combat_mutate.py              # all of them
+    python3 tools/combat_mutate.py "autocast"   # just the ones whose name contains that
+"""
+import os, shutil, subprocess, sys
+
+C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+W = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'combat_mutate_work')
+
+AUTO = 'scripts/skill_combat/scripts/player/auto_cast.rs2'
+ROWS = 'scripts/skill_combat/configs/magic/magic_combat_spells.dbrow'
+ALLOBJ = 'scripts/_unpack/377/all.obj'
+OBSIDIAN = 'scripts/skill_combat/configs/melee/obsidian.obj'
+SECATEURS = 'scripts/general/configs/osrs_items.obj'
+IBANPVM = 'scripts/skill_combat/scripts/player/spells/scripts/ibans_blast.rs2'
+STAFFIF = 'scripts/skill_combat/interfaces/magic/combat_staff_2.if'
+
+MUTS = [
+ # ---- 1, the autocast arming: the papercut behind "autocasting fire wave" then a melee swing
+ (AUTO, '    %autocast_set = 1;\n', '',
+  '1 autocast is turned ON by choosing, the way OSRS does it'),
+ (AUTO, '''    %autocast_set = 1;
+    if_settext''', '''    if_settext''',
+  '1 autocast is turned ON by choosing, the way OSRS does it'),
+ # arming BEFORE the requirement check, so a spell you cannot cast still lights the lamp
+ (AUTO, '''    def_dbrow $spell_data = ~get_spell_data($spell);
+    if (~check_spell_requirements($spell_data) = false) {
+        return;
+    }''', '''    %autocast_set = 1;
+    def_dbrow $spell_data = ~get_spell_data($spell);
+    if (~check_spell_requirements($spell_data) = false) {
+        return;
+    }''',
+  '1 after the requirement check, so a spell you cannot cast does not arm it'),
+ # the lamp and the state disagreeing - the button would read a bit nothing writes
+ (STAFFIF, 'script1op1=testbit,lastcastspell,0', 'script1op1=testbit,lastcastspell,1',
+  '1 which is the bit the toggle button reads, so the lamp matches the state'),
+
+ # ---- 2, the five rows. Removing one is the exact bug that was reported.
+ (ROWS, 'data=spell,^iban_blast\n', 'data=spell,^iban_blast_gone\n',
+  '2 iban_blast has a row under its own spell id - this is the whole bug'),
+ (ROWS, 'data=spell,^saradomin_strike\n', 'data=spell,^saradomin_strike_gone\n',
+  '2 saradomin_strike has a row under its own spell id - this is the whole bug'),
+ # ...and rs2check is what finds it in a repo nobody has cast anything in
+ (ROWS, 'data=spell,^crumble_undead\n', 'data=spell,^crumble_undead_gone\n',
+  '2 a spell script asking for a row that is not there (rs2check)'),
+ # a number that is not the wiki's
+ # ANCHORED ON THE ROW. magic_dart is also level 50 for 3000xp and sits ABOVE iban_blast in the
+ # file, so the first version of this mutation edited the wrong spell and the battery - which does
+ # not check magic_dart - stayed green.
+ (ROWS, '''data=spellcom,magic:iban_blast
+data=levelrequired,50''', '''data=spellcom,magic:iban_blast
+data=levelrequired,55''',
+  '2 iban_blast: level 50, 30.0 xp, max 25'),
+ (ROWS, 'data=runesrequired,firerune,5,deathrune,1,null,null',
+        'data=runesrequired,firerune,4,deathrune,1,null,null',
+  '2 and costs firerune,5,deathrune,1'),
+ (ROWS, 'data=wornrequired,saradomin_staff\n', '',
+  '2 and needs saradomin_staff wielded, with a message saying so'),
+ # a god spell given a projectile it should not have
+ (ROWS, '''data=spotanim_target,gunthix_claw,92''',
+        '''data=spotanim_proj,ibanblast_travel,43,31,51,16,-5,64,10
+data=spotanim_target,gunthix_claw,92''',
+  '2 no god spell carries a projectile - in OSRS they land on the target'),
+ # two god spells sharing one impact, which is the copy-paste this file is full of the shape of
+ (ROWS, 'data=spotanim_target,zamorak_flame,92', 'data=spotanim_target,saradomin_lightning,92',
+  '2 and each has its own impact effect, not one shared between them'),
+ # the field player_magic.rs2 reads with no guard
+ (ROWS, 'data=anim,human_castcrumbleundead\n', '',
+  '2 a combat row missing a field the code reads unguarded (rs2check)'),
+
+ # ---- 3, the attack sounds. The reported crash, and the two the sweep found beside it.
+ (ALLOBJ, 'param=crush_sound,staff_hit\nparam=defend_anim,human_blunt_block\ntradeable=no',
+          'param=defend_anim,human_blunt_block\ntradeable=no',
+  '3 a weapon swung on a style it has no sound for (rs2check)'),
+ (OBSIDIAN, 'param=crush_sound,mace_crush\ncategory=weapon_crush',
+            'param=slash_sound,mace_crush\ncategory=weapon_crush',
+  '3 a sound filed under a style the weapon is never swung on (rs2check)'),
+ (SECATEURS, 'param=stab_sound,hacksword_stab\n', '',
+  '3 half a weapon\'s styles left silent (rs2check)'),
+
+ # ---- 4, the charges
+ (IBANPVM, '%iban_staff_charges = sub(%iban_staff_charges, 1);', '',
+  '4 a cast at an npc costs one charge and is refused at zero'),
+ (IBANPVM, 'if (%iban_staff_charges < 1) {', 'if (%iban_staff_charges < 0) {',
+  '4 a cast at an npc costs one charge and is refused at zero'),
+]
+
+
+def main():
+    if os.path.exists(W):
+        shutil.rmtree(W)
+    shutil.copytree(C, W, ignore=shutil.ignore_patterns('.git', '__pycache__'))
+    only = sys.argv[1] if len(sys.argv) > 1 else None
+    muts = [m for m in MUTS if not only or only in m[3]]
+    fails = loose = 0
+    for path, find, repl, why in muts:
+        p = os.path.join(W, path)
+        original = open(p, 'rb').read()
+        raw = original.decode('utf-8')
+        nl = '\r\n' if raw.count('\r\n') > raw.count('\n') / 2 else '\n'
+        f, r2 = find.replace('\n', nl), repl.replace('\n', nl)
+        if f not in raw:
+            print('  SKIP (pattern not found) %-34s %s' % (os.path.basename(path), why))
+            fails += 1
+            continue
+        open(p, 'w', newline='').write(raw.replace(f, r2, 1))
+        # rs2check REFUSES TO RUN ANYWHERE BUT content/scripts - see the note beside engine.rs2 in it
+        if why.endswith('(rs2check)'):
+            cmd, cwd = [sys.executable, os.path.join(W, 'tools', 'rs2check.py')], os.path.join(W, 'scripts')
+        else:
+            cmd, cwd = [sys.executable, os.path.join(W, 'tools', 'combat_battery.py')], W
+        r = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
+        open(p, 'wb').write(original)
+        ok = r.returncode != 0
+        named = why.split(' ', 1)[1] if why[:1].isdigit() else why
+        if named.endswith(' (rs2check)'):
+            named = named[:-len(' (rs2check)')]
+        if why.endswith('(rs2check)'):
+            # the rule number is the claim; an ERROR line carrying one of the three is on point
+            fired = [l for l in r.stdout.split('\n') if l.startswith('ERROR')]
+            onpoint = any((' rule 19 ' in l or ' rule 21 ' in l or ' rule 22 ' in l) for l in fired)
+        else:
+            fired = [l.strip()[5:].strip() for l in r.stdout.split('\n') if l.strip().startswith('FAIL')]
+            onpoint = any(named in x for x in fired)
+        if not ok:
+            state, note = 'GREEN', 'NOT CAUGHT'; fails += 1
+        elif onpoint:
+            state, note = 'red', 'caught by its own check'
+        else:
+            state, note = 'red', 'caught, but by: %s' % (fired[0][:52] if fired else 'a non-zero exit')
+            loose += 1
+        print('  %-5s %-64s %s' % (state, why, note))
+    print()
+    if fails:
+        print('%d MUTATIONS SURVIVED' % fails)
+    elif loose:
+        print('every mutation was caught, but %d by a check other than its own' % loose)
+    else:
+        print('every mutation was caught, each by its own check')
+    return 1 if fails else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

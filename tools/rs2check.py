@@ -696,6 +696,199 @@ def check_enum_defaults():
                        % (k, v["out"], v["out"]))
 
 
+# --------------------------------------------------------------------------- rule 19
+#
+# A WEAPON YOU CAN SWING ON A STYLE IT HAS NO SOUND FOR LOGS THE PLAYER OUT.
+#
+# player_melee.rs2 and player_ranged.rs2 play %com_attacksound unguarded, and that varp is set by
+# ~combat_swing_anim_and_synth, which returns oc_param($weapon, <style>_sound) for whichever
+# damagetype the style resolved to. A weapon with no param for that style hands sound_synth a null,
+# the script errors, and the SESSION ENDS - reported from play on 2026-09-21 with Iban's staff:
+#
+#   script error: sound_synth An input number was null(-1).
+#   1: [label,player_melee_attack] - player_melee.rs2:74
+#
+# Six weapons were in that state and one of them, the castle wars banner, had already been worked
+# around locally with `if (%com_attacksound ! null)` in castlewars_maindoor.rs2 - a symptom patched
+# where it was noticed rather than where it came from.
+#
+# WHICH STYLES A WEAPON CAN REACH IS NOT ITS CATEGORY NAME. combat.rs2's own switch maps a category
+# to a combat_style_table row, and the mapping is not one-to-one: weapon_javelin uses the THROWN
+# row, and weapon_crush is not in the switch at all so it falls to the UNARMED row - which is why
+# the Tzhaar-ket-em, whose params all say slash_, is swung as a crush weapon and has neither a
+# sound nor an animation for it. So the switch is read out of the script rather than guessed from
+# the name: a rule that assumed weapon_<x> uses weapon_<x>_table would have agreed with the config
+# and missed two of the six.
+#
+# The sound is an ERROR because it ends the session. A missing ANIMATION for a reachable style is a
+# CHECK: anim() tolerates a null and the player simply stands there swinging nothing.
+
+SOUND_FOR = {"^stab_style": "stab_sound", "^slash_style": "slash_sound",
+             "^crush_style": "crush_sound", "^ranged_style": "rangeattack_sound"}
+ANIM_FOR = {"^stab_style": "stabattack_anim", "^slash_style": "slashattack_anim",
+            "^crush_style": "crushattack_anim", "^ranged_style": "rangeattack_anim"}
+
+
+def _style_rows():
+    """{category: dbrow name} out of combat.rs2's switch, plus the default row.
+
+    Found by CONTENT rather than by path: a rule that goes quiet because the file it hardcodes got
+    moved is the inert-rule failure this file exists to prevent, and it lets the selftest hand it
+    one flat fixture file instead of a directory tree.
+    """
+    for path in walk({".rs2"}):
+        t = text(path)
+        if "[proc,combat_get_weapon_style_data]" not in t:
+            continue
+        body = t.split("[proc,combat_get_weapon_style_data]", 1)[1].split("\n[", 1)[0]
+        cases = dict(re.findall(r"case\s+(\w+)\s*:\s*return\((\w+)\)", body))
+        if cases:
+            return cases, cases.pop("default", None)
+    return None, None
+
+
+def _style_damagetypes():
+    """{dbrow name: [damagetype, ...]} for every combat_style_table row in the tree."""
+    out = {}
+    for path in walk({".dbrow"}):
+        cur = None
+        for line in text(path).split("\n"):
+            t = line.split("//")[0].strip()
+            if t.startswith("[") and t.endswith("]"):
+                cur = t[1:-1]
+                out[cur] = {"table": None, "types": []}
+            elif cur and t.startswith("table="):
+                out[cur]["table"] = t.split("=", 1)[1].strip()
+            elif cur and t.startswith("data=damagetype,"):
+                out[cur]["types"].append(t.split(",", 1)[1].strip())
+    return {k: v["types"] for k, v in out.items()
+            if v["table"] == "combat_style_table" and v["types"]}
+
+
+def check_weapon_sounds():
+    cases, default = _style_rows()
+    rows = _style_damagetypes()
+    if not cases or not rows:
+        return
+    for path in walk({".obj"}):
+        cur, line_of, params, cat = None, 0, set(), None
+
+        def finish():
+            if cur is None or cat is None or not cat.startswith("weapon_"):
+                return
+            row = cases.get(cat, default)
+            for dt in sorted(set(rows.get(row, []))):
+                snd, anm = SOUND_FOR.get(dt), ANIM_FOR.get(dt)
+                if snd and snd not in params:
+                    report("ERROR", path, line_of, 19,
+                           "[%s] is a %s, which %s makes a %s - and it has no param=%s, so "
+                           "sound_synth gets a null and the session ends"
+                           % (cur, cat, row, dt.strip("^").replace("_style", ""), snd))
+                if anm and anm not in params:
+                    report("CHECK", path, line_of, 19,
+                           "[%s] can be swung as %s and has no param=%s"
+                           % (cur, dt.strip("^").replace("_style", ""), anm))
+
+        for n, line in enumerate(text(path).split("\n"), 1):
+            t = line.split("//")[0].strip()
+            if t.startswith("[") and t.endswith("]"):
+                finish()
+                cur, line_of, params, cat = t[1:-1], n, set(), None
+            elif cur and t.startswith("param="):
+                params.add(t.split("=", 1)[1].split(",")[0].strip())
+            elif cur and t.startswith("category="):
+                cat = t.split("=", 1)[1].strip()
+        finish()
+
+
+# --------------------------------------------------------------------------- rule 21
+#
+# A SPELL SCRIPT THAT ASKS FOR A ROW THE TABLE DOES NOT HAVE ENDS THE SESSION.
+#
+# ~get_spell_data in magic.rs2 calls error("$spell_data is null.") when db_find comes back empty,
+# and an error ends the script and the connection. Reported from play on 2026-09-21 casting Iban
+# Blast, whose script, interface component, charges varp and art all existed and whose table row
+# did not:
+#
+#   script error: error $spell_data is null.
+#   2: [proc,pvm_iban_blast] - ibans_blast.rs2:5
+#
+# Writing this rule found FOUR MORE in the same state - Crumble Undead and all three god spells -
+# every one of them a finished script nobody had ever successfully cast. A spell is the one kind of
+# content where the script and the data live in different files and neither mentions the other by a
+# name a compiler checks, so nothing was ever going to notice.
+#
+# Only call sites naming a ^constant can be checked; ~get_spell_data($spell) and
+# ~get_spell_data(%autocast_spell) are resolved at runtime and are skipped rather than guessed at.
+# That is 11 of 27 call sites, and it is the 11 that hardcode one spell each - which is exactly
+# where this mistake lives.
+
+
+# --------------------------------------------------------------------------- rule 22
+#
+# ...AND A COMBAT SPELL ROW MISSING A FIELD THE CODE READS UNGUARDED ENDS IT THE SAME WAY.
+#
+# player_magic.rs2 guards most of the table with db_getfieldcount - sound_cast, sound_hit,
+# spotanim_origin, spotanim_proj, wornrequired are all optional. TWO ARE NOT: line 286 calls
+# anim(db_getfield(..., anim, 0), 0) and line 389 calls spotanim_npc(db_getfield(...,
+# spotanim_target, 0), $duration), both with no count check at all. A combat row without either
+# hands a null to a command that will not take one.
+#
+# All 47 combat rows have both today. This is here so the forty-eighth does.
+
+
+def _spell_rows_by_name():
+    out, cur, table = {}, None, None
+    for path in walk({".dbrow"}):
+        for n, line in enumerate(text(path).split("\n"), 1):
+            t = line.split("//")[0].strip()
+            if t.startswith("[") and t.endswith("]"):
+                cur, table = t[1:-1], None
+                out[cur] = {"_path": path, "_line": n, "_fields": set()}
+            elif cur and t.startswith("table="):
+                table = t.split("=", 1)[1].strip()
+                out[cur]["_table"] = table
+            elif cur and t.startswith("data="):
+                out[cur]["_fields"].add(t[5:].split(",", 1)[0].strip())
+    return {k: v for k, v in out.items() if v.get("_table") == "magic_spell_table"}
+
+
+def check_spell_row_fields():
+    for name, d in sorted(_spell_rows_by_name().items()):
+        if "maxhit" not in d["_fields"]:
+            continue   # not a combat spell - it never reaches pvm_spell_success
+        for field, where in (("anim", "anim()"), ("spotanim_target", "spotanim_npc()")):
+            if field not in d["_fields"]:
+                report("ERROR", d["_path"], d["_line"], 22,
+                       "[%s] is a combat spell with no data=%s - player_magic.rs2 passes it "
+                       "straight to %s with no db_getfieldcount guard" % (name, field, where))
+
+
+def check_spell_rows():
+    rows, cur, table = set(), None, None
+    for path in walk({".dbrow"}):
+        for line in text(path).split("\n"):
+            t = line.split("//")[0].strip()
+            if t.startswith("[") and t.endswith("]"):
+                cur, table = t[1:-1], None
+            elif t.startswith("table="):
+                table = t.split("=", 1)[1].strip()
+            elif t.startswith("data=spell,") and table == "magic_spell_table":
+                rows.add(t.split(",", 1)[1].strip())
+    if not rows:
+        return
+    for path in walk({".rs2"}):
+        for n, line in enumerate(text(path).split("\n"), 1):
+            if line.split("//")[0].count("get_spell_data") == 0:
+                continue
+            for m in re.finditer(r"~get_spell_data\(\s*(\^[a-zA-Z0-9_]+)\s*\)", line.split("//")[0]):
+                if m.group(1) not in rows:
+                    report("ERROR", path, n, 21,
+                           "~get_spell_data(%s) but no row in magic_spell_table has "
+                           "data=spell,%s - ~get_spell_data error()s on a miss, which ends the "
+                           "session on the first cast" % (m.group(1), m.group(1)))
+
+
 def check_duplicates(T):
     for trig, places in sorted(T["triggers"].items()):
         if len(places) > 1:
@@ -768,8 +961,35 @@ if (1 = 1) {
     "probe_dup_a.rs2": "\n[opheld2,probe_obj]\nmes(\"a\");\n",
     "probe_dup_b.rs2": "\n[opheld2,probe_obj]\nmes(\"b\");\n",
     # rule 13: a prose comma in a one-value column
-    "probe.dbtable": "\n[probe_table]\ncolumn=probe_text,string\n",
-    "probe.dbrow": "\n[probe_row]\ntable=probe_table\ndata=probe_text,one, two\n",
+    "probe.dbtable": ("\n[probe_table]\ncolumn=probe_text,string\n"
+                      "\n[combat_style_table]\ncolumn=damagestyle,int\ncolumn=damagetype,int\n"
+                      "\n[magic_spell_table]\ncolumn=spell,int\n"),
+    "probe.dbrow": ("\n[probe_row]\ntable=probe_table\ndata=probe_text,one, two\n"
+                    "\n[probe_style_row]\ntable=combat_style_table\n"
+                    "data=damagestyle,^style_melee_accurate\ndata=damagetype,^crush_style\n"
+                    # rule 21 needs a real spell row to exist, or it has no table to miss from -
+                    # and the spell the probe script asks for must not be this one
+                    "\n[probe_spell_row]\ntable=magic_spell_table\ndata=spell,^probe_real_spell\n"
+                    # rule 22: a combat row (it has maxhit) with no spotanim_target
+                    "\n[probe_spell_nofx]\ntable=magic_spell_table\n"
+                    "data=spell,^probe_fx_spell\ndata=maxhit,10\ndata=anim,human_castzap\n"),
+    # rule 19: a weapon whose category resolves to a style it carries no sound for. Needs all three
+    # halves the real rule reads - the switch in a script, the style row, and the weapon itself.
+    "probe_combat.rs2": """
+[proc,combat_get_weapon_style_data](obj $weapon)(dbrow)
+switch_category(oc_category($weapon)) {
+    case weapon_probe : return(probe_style_row);
+    case default : return(probe_style_row);
+}
+""",
+    "probe_weapon.obj": ("\n[probe_weapon]\nname=Probe weapon\ncategory=weapon_probe\n"
+                         "param=crushattack_anim,human_blunt_pound\n"),
+    # rule 21: a spell script asking for a row the table does not have
+    "probe_spell.rs2": """
+[proc,probe_spell]
+def_dbrow $d = ~get_spell_data(^probe_no_such_spell);
+mes("cast");
+""",
     # rule 17: a namedobj enum with no default, where a miss returns obj 0 rather than null
     "probe.enum": "\n[probe_enum]\ninputtype=int\noutputtype=namedobj\nval=0,probe_obj\n",
     # AND THE OTHER HALF: a file that is entirely correct and must produce NOTHING. A rule that
@@ -867,6 +1087,14 @@ ALL_RULES = {
     # Component.decode indexes an array of four with it, so the CLIENT dies on load - "loaderror
     # Unpacking interfaces 95" - with no server-side symptom at all. Cost one deploy.
     20:   ("probe.if", 3),
+    # 19 is the newest: a weapon you can swing on a style it has no sound for. Reported from play
+    # on 2026-09-21 - Iban's staff, whose three styles are all crush and which had no crush_sound,
+    # so the first swing handed sound_synth a null and logged the player out. Six weapons were in
+    # that state, and one of them had already been worked around in the script that noticed it.
+    19:   ("probe_weapon.obj", 2),
+    # 21 found four session-killers the hour it was written, on top of the one that prompted it.
+    21:   ("probe_spell.rs2", 3),
+    22:   ("probe.dbrow", 15),
 }
 
 
@@ -919,6 +1147,9 @@ def selftest():
         check_duplicates(T)
         check_models()
         check_enum_defaults()
+        check_weapon_sounds()
+        check_spell_rows()
+        check_spell_row_fields()
         check_interfaces()
         got = {}
         for sev, path, line, rule, msg in findings:
@@ -1033,6 +1264,9 @@ def main(argv):
         check_duplicates(T)
         check_models()
         check_enum_defaults()
+        check_weapon_sounds()
+        check_spell_rows()
+        check_spell_row_fields()
         check_interfaces()
 
     errors = [f for f in findings if f[0] == "ERROR"]
