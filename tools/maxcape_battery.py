@@ -29,6 +29,19 @@ def before(hay, a, b):
     """
     return a in hay and b in hay and hay.index(a) < hay.index(b)
 
+def nocomment(txt):
+    """The code with // comments and string bodies taken out.
+
+    WRITTEN BECAUSE MY OWN COMMENT PASSED A CHECK. Two checks below quote the exact thing they
+    forbid - return(a = b), and a second [opheldu,max_cape] - and the comments beside the code
+    explain the trap by naming it, so a raw-text search found the comment and called it the code.
+    Third time in this project. A check has to read the code.
+    """
+    out = []
+    for line in txt.split('\n'):
+        out.append(re.sub(r'"[^"]*"', '""', line).split('//')[0])
+    return '\n'.join(out)
+
 def pack(name):
     out = {}
     for line in read('pack/' + name).split('\n'):
@@ -166,7 +179,9 @@ check(not bad, 'and every one of those capes has both an emote and a graphic: %s
 bad = [s for s in STATS.values() if capes_t[s] not in eseq or capes_t[s] not in espot]
 check(not bad, 'trimmed included: %s' % (bad or 'yes'))
 emote = SHOP.split('[if_button,controls:skillcape]', 1)[1].split('\n[', 1)[0]
-check('if ($cape = max_cape)' in emote, 'the emote button knows about the Max cape')
+check('$cape = max_cape' in emote, 'the emote button knows about the Max cape')
+check('maxvariant_source' in emote,
+      '...and about the variants, which keep the emote and almost nothing else')
 check('enum(int, stat, stats, calc(random(enum_getoutputcount(stats)) + 1))' in emote,
       'and picks one of the 22 skills, 1-based like the enum')
 check(sorted(int(k) for k in STATS) == list(range(1, len(STATS) + 1)),
@@ -370,6 +385,273 @@ if altars and spots:
     lvls = sorted({(z - 3520) // 8 + 1 for z in wild})
     check(max(lvls) <= 20, 'in wilderness levels %s - inside the 20 that teleports still work in'
           % '-'.join(str(l) for l in (lvls[0], lvls[-1])))
+
+print('13. the eight Max cape variants: sixteen items, and none of them is a Max cape')
+
+import json as _json
+import subprocess as _sp
+
+VSPEC = _json.loads(read('tools/maxcapevariantspec.json'))
+VOBJ = blocks(read('scripts/skillcapes/configs/max_cape_variants.obj'))
+VENUM = read('scripts/skillcapes/configs/max_cape_variants.enum')
+GENUM = read('scripts/areas/area_mage_arena/configs/god_cape.enum')
+VRS2 = read('scripts/skillcapes/scripts/max_cape_variants.rs2')
+PERKS = read('scripts/skillcapes/scripts/skillcape_perks.rs2')
+GODGEAR = read('scripts/areas/area_mage_arena/scripts/god_gear.rs2')
+MACONST = read('scripts/areas/area_mage_arena/configs/mage_arena.constant')
+KEYS = [v['key'] for v in VSPEC['variants']]
+NAMES = ['%s_max_%s' % (k, part) for k in KEYS for part in ('cape', 'hood')]
+
+# ---- the sixteen exist, and only the sixteen
+check(sorted(VOBJ) == sorted(NAMES),
+      'the generated config holds exactly the sixteen pieces the spec names, eight capes and '
+      'eight hoods: %s' % (sorted(set(VOBJ) ^ set(NAMES)) or 'exactly the sixteen'))
+check(all(n in OBJP for n in NAMES),
+      'every one has an id in pack/obj.pack, so the packer can see it: %s'
+      % ([n for n in NAMES if n not in OBJP][:3] or 'all sixteen'))
+_missing_models = []
+for n, f in VOBJ.items():
+    for k in ('model', 'manwear', 'womanwear', 'manhead', 'womanhead'):
+        for v in f.get(k, []):
+            mdl = v.split(',')[0]
+            if mdl not in MODELP or not os.path.exists(os.path.join(C, 'models/obj', mdl + '.ob2')):
+                _missing_models.append('%s/%s=%s' % (n, k, mdl))
+check(not _missing_models,
+      'and every model those sixteen name is in model.pack AND on disk: %s'
+      % (_missing_models[:3] or 'all of them'))
+
+# ---- A VARIANT'S BONUSES ARE ITS SOURCE CAPE'S, read off the SOURCE rather than written twice.
+# This is the whole definition of a variant, so it is checked against the other config and not
+# against the spec: the spec comparison is a separate check below, and the two catch different
+# mistakes - this one catches a variant drifting from its cape, that one catches both drifting
+# together away from OSRS.
+ALLOBJ = {}
+for _rel in ('scripts/_unpack/377/all.obj',
+             'scripts/minigames/game_fightcave/configs/fightcave.obj',
+             'scripts/areas/area_mage_arena/configs/mage_arena_2.obj'):
+    ALLOBJ.update(blocks(read(_rel)))
+def _params(f):
+    out = {}
+    for v in f.get('param', []):
+        k, _, n = v.partition(',')
+        if n.lstrip('-').isdigit():
+            out[k] = int(n)
+    return out
+_bad = []
+for v in VSPEC['variants']:
+    src = ALLOBJ.get(v['source_cape'])
+    var = VOBJ.get('%s_max_cape' % v['key'])
+    if src is None or var is None:
+        _bad.append('%s: cannot find both records' % v['key'])
+        continue
+    want = _params(src)
+    got = _params(var)
+    if got != want:
+        _bad.append('%s: variant %s, source %s' % (v['key'], got, want))
+check(not _bad,
+      "each variant cape's combat bonuses are exactly its SOURCE cape's, compared record to "
+      'record: %s' % (_bad[:2] or 'all eight match their source'))
+_sbad = []
+for v in VSPEC['variants']:
+    got = _params(VOBJ.get('%s_max_cape' % v['key'], {}))
+    if got != {k: int(x) for k, x in v['bonuses'].items()}:
+        _sbad.append('%s: config %s, spec %s' % (v['key'], got, v['bonuses']))
+check(not _sbad,
+      "...and the same numbers the spec took out of OSRS's item table, so source and variant "
+      'cannot have drifted together: %s' % (_sbad[:2] or 'all eight'))
+check(not [n for n, f in VOBJ.items() if n.endswith('_max_hood') and f.get('param')],
+      'no hood carries a combat bonus, which is what every skillcape hood in this build does')
+
+# ---- NONE OF THEM IS A MAX CAPE. This is the perk-stripping, from the item side.
+_ops = [(n, k) for n, f in VOBJ.items() for k in f if k in ('iop3', 'iop4', 'iop5')]
+check(not _ops,
+      'not one of the sixteen carries iop3, iop4 or iop5 - no Teleports and no Features - which '
+      "is OSRS's own list for all eight of them where the plain cape has four ops: %s"
+      % (_ops[:3] or 'Wear and nothing else'))
+check(all(f.get('iop2') == ['Wear'] for f in VOBJ.values()),
+      '...and every one does carry Wear, so they can be put on at all')
+check(all(f.get('tradeable') == ['no'] for f in VOBJ.values()),
+      'and none of them is tradeable, like the Max cape they are made from')
+
+# ---- the perk allowlist
+_worn = PERKS.split('[proc,skillcape_worn]', 1)[1].split('\n[', 1)[0] if \
+    '[proc,skillcape_worn]' in PERKS else ''
+check('enum(obj, namedobj, maxvariant_source, $back) ! null' in nocomment(_worn),
+      '~skillcape_worn asks maxvariant_source whether the worn cape is a variant, rather than '
+      'carrying a list of the eight that would need editing when a ninth arrives')
+check(before(nocomment(_worn), '$back = max_cape', 'maxvariant_source'),
+      '...and the plain Max cape is answered BEFORE that branch, so it keeps every perk while the '
+      'variants keep four - the order is what decides it')
+# EXACTLY these four, not "these four are among them". The first version searched for the four
+# names and passed while a mutation added agility beside them - a check that cannot see an extra
+# is not checking a list, it is checking a subset.
+_allow = nocomment(_worn).split('switch_stat', 1)[1].split('}', 1)[0] \
+    if 'switch_stat' in nocomment(_worn) else ''
+_cases = re.findall(r'^\s*case ([^:]+):', _allow, re.M)
+_skills = sorted(x.strip() for c in _cases if 'default' not in c for x in c.split(','))
+check(_skills == ['cooking', 'crafting', 'firemaking', 'runecraft'],
+      'the four skills a variant still answers true for are exactly Cooking, Crafting, Runecraft '
+      "and Firemaking - the Cooks' Guild, the Crafting Guild, essence pouches and warm clothing: "
+      '%s' % (_skills or 'none found'))
+check('case default : return(false)' in _allow.replace('  ', ' '),
+      '...and every other skill is refused by a default case, so a perk added to this file later '
+      'is inherited by the Max cape and NOT by a variant, which is the right way round')
+_emote = read('scripts/skillcapes/scripts/skillcape_shop.rs2')
+check('$cape = max_cape | enum(obj, namedobj, maxvariant_source, $cape) ! null' in _emote,
+      'the skillcape emote treats a variant like the Max cape, which is the one other thing OSRS '
+      'lets a variant keep - and it is the same line, not a second copy of the random pick')
+
+# ---- THE GOD TABLE: twelve capes, not six
+_gblock = GENUM.split('[god_cape_god]', 1)[1].split('\n[', 1)[0] if '[god_cape_god]' in GENUM else ''
+_gvals = dict(re.findall(r'^val=(\w+),\^god_(\w+)$', _gblock, re.M))
+_wantgod = {}
+for _g in ('saradomin', 'guthix', 'zamorak'):
+    _wantgod['%s_cape' % _g] = _g
+    _wantgod['imbued_%s_cape' % _g] = _g
+    _wantgod['%s_max_cape' % _g] = _g
+    _wantgod['imbued_%s_max_cape' % _g] = _g
+check(_gvals == _wantgod,
+      'god_cape_god maps TWELVE capes to their god - three plain, three imbued and the six Max '
+      'cape variants - and nothing else: %s'
+      % (sorted(set(_gvals.items()) ^ set(_wantgod.items()))[:3] or 'exactly the twelve'))
+_sblock = GENUM.split('[god_staff_god]', 1)[1].split('\n[', 1)[0] if '[god_staff_god]' in GENUM else ''
+_svals = dict(re.findall(r'^val=(\w+),\^god_(\w+)$', _sblock, re.M))
+check(_svals == {'saradomin_staff': 'saradomin', 'guthix_staff': 'guthix',
+                 'zamorak_staff': 'zamorak'},
+      'and god_staff_god maps the three staves, which is the other half of every god test')
+check(all(('^god_%s = ' % g) in MACONST for g in ('none', 'saradomin', 'guthix', 'zamorak')),
+      'all four god ids are defined in mage_arena.constant, including ^god_none, which is what a '
+      'cape belonging to no god answers')
+_ids = dict(re.findall(r'\^god_(\w+) = (\d+)', MACONST))
+check(_ids.get('none') == '0' and len(set(_ids.values())) == len(_ids),
+      '...with ^god_none at zero and no two gods sharing a number: %s' % _ids)
+check(all(n in OBJP for n in _wantgod),
+      'and every cape the table names is a real obj: %s'
+      % ([n for n in _wantgod if n not in OBJP][:3] or 'all twelve'))
+
+# ---- THE NINE SITES GO THROUGH ONE PROC. The strong form: the old shape appears nowhere.
+_sites = []
+for _root, _dirs, _files in os.walk(os.path.join(C, 'scripts')):
+    for _fn in _files:
+        if not _fn.endswith('.rs2'):
+            continue
+        _rel = os.path.relpath(os.path.join(_root, _fn), C)
+        _t = '\n'.join(l.split('//')[0] for l in read(_rel).split('\n'))
+        if re.search(r'inv_total\(worn, (saradomin|guthix|zamorak)_cape\)', _t):
+            _sites.append(_rel)
+check(len(_sites) == 0,
+      'no script anywhere still tests for a god cape by name - all nine sites that did go through '
+      '~god_cape_and_staff, so a cape added to the table is accepted by all of them at once: %s'
+      % (_sites[:3] or 'none left'))
+# COUNT THE CALLS, not the files. Nine sites were rewired: three god spells x two copies, plus
+# three battle mages in one file. A per-file check passed while a mutation deleted one of the
+# three calls inside battle_mage.rs2, because the file still contained the other two.
+_users = {}
+for _root, _dirs, _files in os.walk(os.path.join(C, 'scripts')):
+    for _fn in _files:
+        if _fn.endswith('.rs2'):
+            _rel = os.path.relpath(os.path.join(_root, _fn), C)
+            _n = nocomment(read(_rel)).count('~god_cape_and_staff(')
+            if _n:
+                # KEYED BY PATH, NOT BASENAME. The player and pvp copies of each god spell have
+                # the SAME file name in different folders, so a basename key collapsed six files
+                # into three and the count came out half.
+                _users[_rel.replace('\\', '/')] = _n
+check(sum(_users.values()) == 9 and len(_users) == 7 and _users.get(
+        'scripts/areas/area_mage_arena/scripts/battle_mage.rs2') == 3,
+      'and all nine rewired sites call it - the three god spells once each in the player copy and '
+      'once each in the pvp one, and the battle mages three times in one file: %d calls across '
+      '%d files' % (sum(_users.values()), len(_users)))
+check('return(~god_worn_staff = $god)' not in nocomment(GODGEAR)
+      and '[proc,god_cape_and_staff](int $god)(boolean)' in GODGEAR,
+      'the god test is a proc that writes both comparisons out, because `=` is a comparison '
+      'inside an if and not an expression - the server compiler rejects return(a = b) where '
+      'rs2check does not')
+check('check_conflicting_god_cape' not in GODGEAR
+      and 'check_conflicting_god_staff' not in GODGEAR,
+      'the two pair-at-a-time conflict procs are gone: they named capes two at a time, which '
+      'does not survive a fourth cape per god')
+_gcape_triggers = re.findall(r'^\[opheld2,(\w+)\] @god_cape_equip\(\^god_(\w+)\);$',
+                             GODGEAR + '\n' + VRS2, re.M)
+check(sorted(_gcape_triggers) == sorted((n, g) for n, g in _wantgod.items()),
+      'and all twelve god capes have an equip trigger that refuses the staff of another god - the '
+      'six new ones in max_cape_variants.rs2 calling the same label: %d of 12'
+      % len(_gcape_triggers))
+_gstaff = re.findall(r'^\[opheld2,(\w+)\] @god_staff_equip\(\^god_(\w+)\);$',
+                     nocomment(GODGEAR), re.M)
+check(sorted(_gstaff) == [('guthix_staff', 'guthix'), ('saradomin_staff', 'saradomin'),
+                          ('zamorak_staff', 'zamorak')],
+      'and all three god staves have the mirror trigger, refusing the cape of another god - the '
+      'other half of the conflict, and nothing was checking it until a mutation deleted one: %s'
+      % sorted(_gstaff))
+check(len(re.findall(r'^\[opheld2,\w+_max_cape\] @god_cape_equip', VRS2, re.M)) == 6,
+      '...and exactly the six god variants get one, not the fire and infernal ones, which have '
+      'no god to conflict with and fall through to [opheld2,_]')
+
+# ---- THE COMBINE AND THE KNIFE are exact inverses
+_comb = VRS2.split('[label,maxvariant_combine]', 1)[1].split('\n[', 1)[0] if \
+    '[label,maxvariant_combine]' in VRS2 else ''
+_split = VRS2.split('[label,maxvariant_split]', 1)[1].split('\n[', 1)[0] if \
+    '[label,maxvariant_split]' in VRS2 else ''
+check(all(x in _comb for x in ('inv_del(inv, max_cape, 1)', 'inv_del(inv, max_hood, 1)',
+                               'inv_del(inv, $source, 1)')),
+      'combining consumes all three items - the cape, the hood and the source cape - which is '
+      "OSRS's own requirement and the reason the hood has to be with you")
+check('inv_add(inv, $variant, 1)' in _comb and 'inv_add(inv, $hood, 1)' in _comb,
+      '...and hands back the variant and its own hood, because the Max hood became the new one')
+check(all(x in _split for x in ('inv_add(inv, max_cape, 1)', 'inv_add(inv, max_hood, 1)',
+                                'inv_add(inv, $source, 1)')),
+      'a knife gives back exactly those three, so the pair of operations is lossless')
+check('last_useitem ! knife' in _split,
+      '...and only a knife does it - anything else on a variant falls through to the default '
+      'message')
+check(len(re.findall(r'^\[opheldu,\w+_max_cape\] @maxvariant_split;$', VRS2, re.M)) == 8,
+      'all eight variants answer the knife, declared on the CAPES rather than on the knife '
+      'because [opheldu,knife] is already taken by the fruit-cutting handler: %d of 8'
+      % len(re.findall(r'^\[opheldu,\w+_max_cape\] @maxvariant_split;$', VRS2, re.M)))
+check(nocomment(VRS2).count('[opheldu,max_cape]') == 1,
+      'and the combine is ONE trigger on the Max cape rather than eight, because OpHeldUHandler '
+      "tries the target item's trigger first and the used item's second")
+check('inv_freespace(inv) < 1' in _comb and 'inv_freespace(inv) < 1' in _split,
+      'both directions check for room first, since both end up holding more items than they '
+      'started with at the moment the swap happens')
+
+# ---- THE SOURCE CAPES ARE UNTOUCHED, which is the point after a wrong finding.
+# I claimed both Tzhaar capes were missing param=rangeattack,1 and "fixed" them; both already had
+# it, and the grep that said otherwise could not match the word. fightcave_battery caught the
+# duplicate. The spec records the whole thing under a_finding_of_mine_that_was_wrong. This check
+# is what stops it coming back: a variant is derived from its source, so the source must not have
+# been edited to make the derivation come out.
+_srcbad = []
+for v in VSPEC['variants']:
+    src = ALLOBJ.get(v['source_cape'])
+    if src is None:
+        _srcbad.append('%s missing' % v['source_cape'])
+        continue
+    if len(src.get('param', [])) != len(set(src.get('param', []))):
+        _srcbad.append('%s has a duplicate param line' % v['source_cape'])
+check(not _srcbad,
+      'no source cape carries a duplicated param line - which is what "fixing" a bonus that was '
+      'already there looks like in a config: %s' % (_srcbad[:3] or 'all eight clean'))
+check('a_finding_of_mine_that_was_wrong' in VSPEC,
+      '...and the wrong finding is written down in the spec rather than quietly dropped, with the '
+      'regex that caused it')
+
+# ---- the generators reproduce what is checked in
+_gen = _sp.run([sys.executable, os.path.join(C, 'tools/genmaxvariants.py'), '--check'],
+               capture_output=True, text=True, cwd=C)
+check(_gen.returncode == 0,
+      'tools/genmaxvariants.py --check: the four generated files and both pack files are already '
+      'what it writes, so nothing here was hand-edited%s'
+      % ('' if _gen.returncode == 0 else ': ' + _gen.stdout.strip()[:220]))
+_ren = _sp.run([sys.executable, os.path.join(C, 'tools/maxvariantrender.py')],
+               capture_output=True, text=True, cwd=C)
+check(_ren.returncode == 0,
+      'and tools/maxvariantrender.py: every recolour source still matches faces on the model it '
+      'is applied to, apart from the two OSRS itself leaves inert on a hood - a source that '
+      'matches nothing is a piece that renders as a plain Max cape%s'
+      % ('' if _ren.returncode == 0 else ': ' + '\n'.join(
+          l for l in _ren.stdout.split('\n') if 'FAIL' in l)[:300]))
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

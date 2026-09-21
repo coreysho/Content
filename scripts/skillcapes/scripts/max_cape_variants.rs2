@@ -1,0 +1,93 @@
+// COMBINING AND TAKING APART THE MAX CAPE VARIANTS. GENERATED - do not hand-edit.
+//   python3 tools/genmaxvariants.py
+//
+// HOW OSRS DOES IT: use the source cape on the Max cape with the Max HOOD in your
+// inventory too, and all three become the variant cape and its own hood. It is free, and
+// a knife on the variant gives the three back. tools/maxcapevariantspec.json quotes the
+// wiki for both halves.
+//
+// ONE TRIGGER FOR THE COMBINE, not eight. OpHeldUHandler tries the target item's trigger
+// first and the used item's second, so [opheldu,max_cape] fires whichever way round the
+// player does it, and maxvariant_cape turns the other item into the answer. The knife
+// half has to go the other way - on the variants - because [opheldu,knife] is already
+// taken by the gnome cooking fruit-cutting handler and may only be declared once.
+
+[opheldu,max_cape]
+def_namedobj $variant = enum(obj, namedobj, maxvariant_cape, last_useitem);
+if ($variant = null) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@maxvariant_combine($variant);
+
+// THE HOOD IS A REQUIREMENT, NOT A COURTESY. OSRS asks for cape, hood and source cape,
+// and the reason is that the variant has its own hood to hand back - there is nothing to
+// turn into a Fire max hood if the Max hood is in the bank.
+[label,maxvariant_combine](namedobj $variant)
+def_namedobj $source = enum(obj, namedobj, maxvariant_source, $variant);
+def_namedobj $hood = enum(obj, namedobj, maxvariant_hood, $variant);
+if (inv_total(inv, max_hood) = 0) {
+    mes("You need the Max hood with you as well - the new cape comes with its own.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("You do not have enough inventory space to do that.");
+    return;
+}
+inv_del(inv, max_cape, 1);
+inv_del(inv, max_hood, 1);
+inv_del(inv, $source, 1);
+inv_add(inv, $variant, 1);
+inv_add(inv, $hood, 1);
+~doubleobjbox($variant, $hood, "You fuse the two capes together. The Max cape takes on a new form, and the hood with it.", 200);
+
+// A KNIFE TAKES IT APART, which is OSRS's own free way back - Mac also buys a variant
+// back for coins there, and that is not implemented because Mac does not sell the
+// variants here in the first place.
+[label,maxvariant_split]
+if (last_useitem ! knife) {
+    ~displaymessage(^dm_default);
+    return;
+}
+// last_item is an obj, not a namedobj - rs2check rule 7 said so before the build
+// did. inv_del takes an obj anyway; only inv_add needs the narrower type, and the
+// two things added back come out of the enums already typed namedobj.
+def_obj $variant = last_item;
+def_namedobj $source = enum(obj, namedobj, maxvariant_source, $variant);
+def_namedobj $hood = enum(obj, namedobj, maxvariant_hood, $variant);
+if (inv_total(inv, $hood) = 0) {
+    mes("You need the matching hood with you - it goes back to being a Max hood.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("You do not have enough inventory space to do that.");
+    return;
+}
+inv_del(inv, $variant, 1);
+inv_del(inv, $hood, 1);
+inv_add(inv, max_cape, 1);
+inv_add(inv, max_hood, 1);
+inv_add(inv, $source, 1);
+// human_fletching: the knife-in-hand animation viking_olaf.rs2 uses for the same
+// gesture. There is no human_craft in all.seq - rs2check rule 14 caught that too.
+anim(human_fletching, 0);
+~doubleobjbox(max_cape, $source, "You cut the capes apart. The Max cape and its hood are whole again.", 200);
+
+[opheldu,fire_max_cape] @maxvariant_split;
+[opheldu,infernal_max_cape] @maxvariant_split;
+[opheldu,saradomin_max_cape] @maxvariant_split;
+[opheldu,guthix_max_cape] @maxvariant_split;
+[opheldu,zamorak_max_cape] @maxvariant_split;
+[opheldu,imbued_saradomin_max_cape] @maxvariant_split;
+[opheldu,imbued_guthix_max_cape] @maxvariant_split;
+[opheldu,imbued_zamorak_max_cape] @maxvariant_split;
+
+// THE SIX GOD VARIANTS EQUIP LIKE A GOD CAPE, so the staff of another god refuses them.
+// The other two need no trigger at all: [opheld2,_] in player/scripts/equip.rs2 wears
+// anything that has nothing more specific to say.
+[opheld2,saradomin_max_cape] @god_cape_equip(^god_saradomin);
+[opheld2,guthix_max_cape] @god_cape_equip(^god_guthix);
+[opheld2,zamorak_max_cape] @god_cape_equip(^god_zamorak);
+[opheld2,imbued_saradomin_max_cape] @god_cape_equip(^god_saradomin);
+[opheld2,imbued_guthix_max_cape] @god_cape_equip(^god_guthix);
+[opheld2,imbued_zamorak_max_cape] @god_cape_equip(^god_zamorak);

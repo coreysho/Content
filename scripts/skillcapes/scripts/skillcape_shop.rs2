@@ -149,7 +149,11 @@ def_obj $cape = inv_getobj(worn, ^wearpos_back);
 // guessing at an unseen asset costs). The cape that stands for all 22 skills performs one of their
 // emotes instead, picked at random each time. Every skill in the stats enum has a cape with both an
 // emote and a graphic - battery check 8 holds that - so the pick can never come up empty.
-if ($cape = max_cape) {
+// A VARIANT emotes the same way, which is the one thing OSRS lets a variant keep besides the
+// four guild-and-warmth perks. Written as one condition with the plain cape rather than a second
+// copy of the random pick: the variant IS a Max cape underneath, and if the real animation is ever
+// identified there is still only one line to change.
+if ($cape = max_cape | enum(obj, namedobj, maxvariant_source, $cape) ! null) {
     $cape = enum(stat, namedobj, skillcape_cape, enum(int, stat, stats, calc(random(enum_getoutputcount(stats)) + 1)));
 }
 def_seq $seq = null;

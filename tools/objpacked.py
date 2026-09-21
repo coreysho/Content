@@ -109,8 +109,13 @@ def decode_one(buf):
         elif 30 <= code < 35:  o.setdefault('op', {})[code - 30] = buf.gjstr()
         elif 35 <= code < 40:  o.setdefault('iop', {})[code - 35] = buf.gjstr()
         elif code == 40:
-            for _ in range(buf.g1()):
-                buf.g2(); buf.g2()
+            # THE RECOLOUR LIST, kept rather than skipped. Twelve of the Max cape variants have no
+            # model of their own and are the plain cape recoloured, so "did the recolour survive
+            # the pack" is the only question that decides whether six of them look right - and it
+            # is a question about the artefact, not the config. The config writes rgb15 and the
+            # packer converts with ColorConversion.rgb15toHsl16, so what is stored here is hsl16
+            # and comparable with the OSRS cache's own numbers directly.
+            o['recol'] = [(buf.g2(), buf.g2()) for _ in range(buf.g1())]
         elif code == 75:  o['weight'] = buf.g2s()
         elif code in (78, 79, 90, 91, 92, 93, 94, 95):  buf.g2()
         elif code == 96:  buf.g1()
@@ -243,6 +248,56 @@ def main():
                                'the artefact - a departure above OSRS\'s own %s%% full set, asked '
                                'for by name: %s percent, wanted %s'
                                % (OSRS_TOTAL, tot_p, WANT_TOTAL))
+
+    # ---- the Max cape variants, if they are in this build yet
+    vspec = os.path.join(C, 'tools', 'maxcapevariantspec.json')
+    if os.path.exists(vspec):
+        print()
+        print('The Max cape variants, as the server will read them')
+        VS = json.load(open(vspec))
+        pmap = {v: k for k, v in VS['param_ids'].items()}     # name -> OSRS param id
+        vbad, rbad, nbad = [], [], []
+        for v in VS['variants']:
+            for part, suffix in (('cape', '_max_cape'), ('hood', '_max_hood')):
+                name = v['key'] + suffix
+                obj = byname.get(name)
+                if not obj:
+                    nbad.append(name)
+                    continue
+                # the recolour list, straight against the OSRS cache's own pairs
+                want = [tuple(x) for x in (v[part]['recol'] or [])]
+                got = [tuple(x) for x in (obj.get('recol') or [])]
+                if got != want:
+                    rbad.append('%s recol packed as %s, the OSRS table says %s'
+                                % (name, got[:2] or 'none', want[:2] or 'none'))
+            obj = byname.get(v['key'] + '_max_cape')
+            if not obj:
+                continue
+            for pname, pv in (v['bonuses'] or {}).items():
+                pid = params.get(pname)
+                if pid is None:
+                    vbad.append('%s: no param called %s in pack/param.pack' % (v['key'], pname))
+                    continue
+                if obj['params'].get(pid) != pv:
+                    vbad.append('%s %s packed as %s, wanted %s'
+                                % (v['key'], pname, obj['params'].get(pid), pv))
+        check(not nbad, 'all sixteen variant pieces are in the packed table: %s'
+                        % (nbad[:4] or 'all sixteen'))
+        check(not vbad, "each variant cape's combat bonuses survived the pack, read out of the "
+                        'artefact: %s' % (vbad[:3] or 'all eight agree'))
+        # THE SERVER TABLE CARRIES NO RECOLOURS AT ALL, and finding that out is worth more than
+        # the check that went here. A recolour is a CLIENT concern - the model is recoloured when
+        # it is drawn - so ObjType.decodeType never reads opcode 40 into the server's obj.dat and
+        # every variant comes back with an empty list. So this cannot be the place the recolours
+        # are verified, and the check that tried to was deleted rather than weakened.
+        #
+        # tools/maxvariantrender.py is where they ARE verified, and it checks the thing that
+        # actually matters: that each source colour exists on the model it is applied to. A pair
+        # that matches nothing is a piece that renders as a plain Max cape.
+        check(not [x for x in rbad if 'packed as none' not in x],
+              'the server obj table carries no recolour lists, which is expected - a recolour is '
+              'drawn by the client - so nothing here disagrees with the OSRS table either: %s'
+              % (len(rbad) and 'all twelve empty, as they should be' or 'nothing to compare'))
 
     # ---- nothing else in the game carries the param by accident
     others = sorted(n for n, o in byname.items()

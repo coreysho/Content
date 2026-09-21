@@ -1,0 +1,943 @@
+{
+ "_what": "The eight Max cape variants this build can have, and where every number came from. Written before any config was edited. tools/maxcape_battery.py reads this file, so a number changed here without the configs changing goes red, and the other way round.",
+ "_sources": {
+  "osrs_item_table": "C:\\\\LostCityServer\\\\caches\\\\newest cache, index 2 group 10, decoded by tools/models/objconfig474.py. Every bonus, model id, recolour pair and 2d camera below is READ OUT OF IT rather than transcribed from the wiki - the item table is what the live game loads, and the wiki is a rendering of it.",
+  "wiki": [
+   "https://oldschool.runescape.wiki/w/Max_cape",
+   "https://oldschool.runescape.wiki/w/Fire_max_cape",
+   "https://oldschool.runescape.wiki/w/Infernal_max_cape",
+   "https://oldschool.runescape.wiki/w/Saradomin_max_cape",
+   "https://oldschool.runescape.wiki/w/Imbued_Saradomin_max_cape",
+   "https://oldschool.runescape.wiki/w/God_capes"
+  ],
+  "_wiki_read": "2026-09-21. Used for the rules a config cannot state: how a variant is made, what it keeps, and how it comes apart."
+ },
+ "param_ids": {
+  "_how": "Not remembered - pinned by three records in the table itself. The plain Max cape (13280) gives 5..9 = 9 and 11 = 4, which is its +9 defence all round and +4 prayer. The Fire max cape (13329) gives 0..4 = 1 and 10 = 4, its +1 attack all round and +4 strength. The Saradomin max cape (13331) gives 3 = 10 and 8 = 10, which can only be magic attack and magic defence. Those three fix every slot used here.",
+  "0": "stabattack",
+  "1": "slashattack",
+  "2": "crushattack",
+  "3": "magicattack",
+  "4": "rangeattack",
+  "5": "stabdefence",
+  "6": "slashdefence",
+  "7": "crushdefence",
+  "8": "magicdefence",
+  "9": "rangedefence",
+  "10": "strengthbonus",
+  "11": "prayerbonus"
+ },
+ "how_it_is_made": {
+  "_wiki": "Creating a max cape variant requires the max cape, max hood, and the original item in the player's inventory.",
+  "method": "use the source cape on the max cape",
+  "cost": 0,
+  "consumes": [
+   "max_cape",
+   "max_hood",
+   "<the source cape>"
+  ],
+  "gives": [
+   "<the variant cape>",
+   "<the variant hood>"
+  ],
+  "_hood": "Every variant has its own hood. The max hood is consumed and comes back as the variant's hood, which is why the hood has to be in the inventory to combine at all."
+ },
+ "how_it_comes_apart": {
+  "_wiki": "disassemble the max cape to its components by using a knife on the cape",
+  "method": "use a knife on the variant cape",
+  "gives_back": [
+   "max_cape",
+   "max_hood",
+   "<the source cape>"
+  ],
+  "_mac": "OSRS also lets Mac buy a variant back for 1,900,800 coins. Not implemented: the knife is the free, lossless path and the coin path only exists in OSRS because Mac sells the variants outright, which he does not do here."
+ },
+ "perks": {
+  "rule": "strip",
+  "_rule": "OSRS's own, and Corey's choice when asked. A variant 'does not have the max cape's stats or perks' beyond the four below plus the emote.",
+  "retained": {
+   "cooking": "acts as a Cooking cape to allow access to the Cooks' Guild",
+   "crafting": "acts as a Crafting cape to allow access to the Crafting Guild",
+   "runecraft": "acts as a Runecraft cape to prevent essence pouches from degrading (but does not allow access to runic altars)",
+   "firemaking": "acts as a Firemaking cape to work as a piece of warm clothing"
+  },
+  "emote": true,
+  "_emote": "The skillcape emote still works. This build has no Max cape emote of its own and picks a random skillcape emote instead; a variant does the same thing, through the same line, rather than getting a mechanism of its own.",
+  "ops": [],
+  "_ops": "No Teleports op and no Features op. That is where OSRS's restriction actually bites, and it is what keeps the plain Max cape worth owning.",
+  "_ops_cache_evidence": "The cache agrees, and this is better evidence than the wiki's prose: obj 13280, the plain Max cape, carries iops {0: Wear, 1: Teleports, 2: Spellbook, 3: Features}. Every one of the eight variants carries {1: Wear} and nothing else. The ops are stripped in OSRS's own item table."
+ },
+ "god_identity": {
+  "counts_as_its_god_cape": true,
+  "_decision": "A JUDGEMENT CALL, recorded as one. No wiki page states it outright in a sentence that could be quoted. Two pieces of evidence, both checkable: the wiki's God capes page lists all six max cape variants under god capes alongside the plain and imbued ones; and in the item table the variant carries the SAME god param as the plain cape (40 Saradomin, 41 Zamorak, 42 Guthix), which is the flag a god-spell requirement would read. The alternative - combining silently destroying a spell requirement - would be a trap with no upside.",
+  "_consequence": "The six god variants are accepted everywhere the plain and imbued capes are: casting the god spell outside the arena, the charged maximum of 30, and the Mage Arena battle mages. Those sites list capes by name in six files today and become one proc."
+ },
+ "not_buildable_here": {
+  "_why": "A variant needs its source cape to exist in this build. These six do not, so they are left out rather than invented:",
+  "accumulator_max_cape": "Ava's accumulator is a 2007 item; not in this build",
+  "assembler_max_cape": "Ava's assembler; not in this build",
+  "masori_assembler_max_cape": "Masori assembler; not in this build",
+  "ardougne_max_cape": "Ardougne cloak 4 needs the achievement diaries; not in this build",
+  "mythical_max_cape": "Mythical cape comes from Dragon Slayer II; not in this build",
+  "dizanas_max_cape": "Blessed Dizana's quiver; not in this build"
+ },
+ "unimplementable": {
+  "magic_damage": "The three imbued variants carry OSRS param 299 = 20, which is +2% magic damage. This build has no magic damage system - the same bonus the elder chaos robes could not bring across - so it is the one number on this list that goes nowhere. Recorded so the next person does not think it was missed."
+ },
+ "variants": [
+  {
+   "key": "fire",
+   "source_cape": "tzhaar_cape_fire",
+   "cape": {
+    "osrs_id": 13329,
+    "osrs_name": "Fire max cape",
+    "model": 32815,
+    "manwear": 32820,
+    "womanwear": 32821,
+    "recol": [],
+    "zoom2d": 2232,
+    "xan2d": 687,
+    "yan2d": 27,
+    "yof2d": -5,
+    "desc": "The cape worn by only the most experienced players.",
+    "weight": 453,
+    "cost": 99000,
+    "wearpos": 1,
+    "wearpos2": null,
+    "womanhead": null,
+    "iops": {
+     "1": "Wear"
+    },
+    "members": true
+   },
+   "hood": {
+    "osrs_id": 13330,
+    "osrs_name": "Fire max hood",
+    "model": 32816,
+    "manwear": 32808,
+    "womanwear": 32810,
+    "manhead": 32812,
+    "womanhead": 32813,
+    "recol": [],
+    "zoom2d": 720,
+    "xan2d": 21,
+    "yan2d": 18,
+    "desc": "The hood worn by only the most experienced players.",
+    "weight": 453,
+    "cost": null,
+    "wearpos": 0,
+    "wearpos2": 8,
+    "iops": {
+     "1": "Wear"
+    },
+    "members": true
+   },
+   "bonuses": {
+    "stabattack": 1,
+    "slashattack": 1,
+    "crushattack": 1,
+    "magicattack": 1,
+    "rangeattack": 1,
+    "stabdefence": 11,
+    "slashdefence": 11,
+    "crushdefence": 11,
+    "magicdefence": 11,
+    "rangedefence": 11,
+    "strengthbonus": 4,
+    "prayerbonus": 2
+   },
+   "osrs_params_not_bonuses": {
+    "258": 22,
+    "295": 1
+   },
+   "god_param": null
+  },
+  {
+   "key": "infernal",
+   "source_cape": "tzhaar_cape_infernal",
+   "cape": {
+    "osrs_id": 21285,
+    "osrs_name": "Infernal max cape",
+    "model": 33145,
+    "manwear": 33102,
+    "womanwear": 33114,
+    "recol": [],
+    "zoom2d": 2232,
+    "xan2d": 687,
+    "yan2d": 27,
+    "yof2d": -5,
+    "desc": "The cape worn by only the most experienced players.",
+    "weight": 453,
+    "cost": 99000,
+    "wearpos": 1,
+    "wearpos2": null,
+    "womanhead": null,
+    "iops": {
+     "1": "Wear"
+    },
+    "members": true
+   },
+   "hood": {
+    "osrs_id": 21282,
+    "osrs_name": "Infernal max hood",
+    "model": 33146,
+    "manwear": 33101,
+    "womanwear": 33110,
+    "manhead": 33137,
+    "womanhead": 33140,
+    "recol": [],
+    "zoom2d": 720,
+    "xan2d": 21,
+    "yan2d": 18,
+    "desc": "The hood worn by only the most experienced players.",
+    "weight": 453,
+    "cost": null,
+    "wearpos": 0,
+    "wearpos2": 8,
+    "iops": {
+     "1": "Wear"
+    },
+    "members": true
+   },
+   "bonuses": {
+    "stabattack": 4,
+    "slashattack": 4,
+    "crushattack": 4,
+    "magicattack": 1,
+    "rangeattack": 1,
+    "stabdefence": 12,
+    "slashdefence": 12,
+    "crushdefence": 12,
+    "magicdefence": 12,
+    "rangedefence": 12,
+    "strengthbonus": 8,
+    "prayerbonus": 2
+   },
+   "osrs_params_not_bonuses": {
+    "258": 22,
+    "295": 1
+   },
+   "god_param": null
+  },
+  {
+   "key": "saradomin",
+   "source_cape": "saradomin_cape",
+   "cape": {
+    "osrs_id": 13331,
+    "osrs_name": "Saradomin max cape",
+    "model": 29630,
+    "manwear": 29616,
+    "womanwear": 29624,
+    "recol": [
+     [
+      668,
+      43924
+     ],
+     [
+      675,
+      43924
+     ],
+     [
+      784,
+      43924
+     ],
+     [
+      815,
+      115
+     ],
+     [
+      673,
+      111
+     ]
+    ],
+    "zoom2d": 2232,
+    "xan2d": 687,
+    "yan2d": 27,
+    "yof2d": -5,
+    "desc": "The cape worn by only the most experienced players.",
+    "weight": 453,
+    "cost": 99000,
+    "wearpos": 1,
+    "wearpos2": null,
+    "womanhead": null,
+    "iops": {
+     "1": "Wear"
+    },
+    "members": true
+   },
+   "hood": {
+    "osrs_id": 13332,
+    "osrs_name": "Saradomin max hood",
+    "model": 29629,
+    "manwear": 29614,
+    "womanwear": 29623,
+    "manhead": 29626,
+    "womanhead": 29628,
+    "recol": [
+     [
+      668,
+      115
+     ],
+     [
+      675,
+      107
+     ],
+     [
+      784,
+      43924
+     ],
+     [
+      815,
+      115
+     ],
+     [
+      673,
+      111
+     ],
+     [
+      685,
+      115
+     ]
+    ],
+    "zoom2d": 720,
+    "xan2d": 21,
+    "yan2d": 18,
+    "desc": "The hood worn by only the most experienced players.",
+    "weight": 453,
+    "cost": null,
+    "wearpos": 0,
+    "wearpos2": 8,
+    "iops": {
+     "1": "Wear"
+    },
+    "members": true
+   },
+   "bonuses": {
+    "magicattack": 10,
+    "stabdefence": 1,
+    "slashdefence": 1,
+    "crushdefence": 2,
+    "magicdefence": 10
+   },
+   "osrs_params_not_bonuses": {
+    "40": 1,
+    "295": 1
+   },
+   "god_param": 40
+  },
+  {
+   "key": "guthix",
+   "source_cape": "guthix_cape",
+   "cape": {
+    "osrs_id": 13335,
+    "osrs_name": "Guthix max cape",
+    "model": 29630,
+    "manwear": 29616,
+    "womanwear": 29624,
+    "recol": [
+     [
+      668,
+      33690
+     ],
+     [
+      675,
+      33690
+     ],
+     [
+      784,
+      22426
+     ],
+     [
+      815,
+      22439
+     ],
+     [
+      673,
+      36783
+     ]
+    ],
+    "zoom2d": 2232,
+    "xan2d": 687,
+    "yan2d": 27,
+    "yof2d": -5,
+    "desc": "The cape worn by only the most experienced players.",
+    "weight": 453,
+    "cost": 99000,
+    "wearpos": 1,
+    "wearpos2": null,
+    "womanhead": null,
+    "iops": {
+     "1": "Wear"
+    },
+    "members": true
+   },
+   "hood": {
+    "osrs_id": 13336,
+    "osrs_name": "Guthix max hood",
+    "model": 29629,
+    "manwear": 29614,
+    "womanwear": 29623,
+    "manhead": 29626,
+    "womanhead": 29628,
+    "recol": [
+     [
+      668,
+      33690
+     ],
+     [
+      675,
+      33690
+     ],
+     [
+      784,
+      22426
+     ],
+     [
+      815,
+      22439
+     ],
+     [
+      673,
+      36783
+     ],
+     [
+      685,
+      33690
+     ]
+    ],
+    "zoom2d": 720,
+    "xan2d": 21,
+    "yan2d": 18,
+    "desc": "The hood worn by only the most experienced players.",
+    "weight": 453,
+    "cost": null,
+    "wearpos": 0,
+    "wearpos2": 8,
+    "iops": {
+     "1": "Wear"
+    },
+    "members": true
+   },
+   "bonuses": {
+    "magicattack": 10,
+    "stabdefence": 1,
+    "slashdefence": 1,
+    "crushdefence": 2,
+    "magicdefence": 10
+   },
+   "osrs_params_not_bonuses": {
+    "42": 1,
+    "295": 1
+   },
+   "god_param": 42
+  },
+  {
+   "key": "zamorak",
+   "source_cape": "zamorak_cape",
+   "cape": {
+    "osrs_id": 13333,
+    "osrs_name": "Zamorak max cape",
+    "model": 29630,
+    "manwear": 29616,
+    "womanwear": 29624,
+    "recol": [
+     [
+      668,
+      0
+     ],
+     [
+      675,
+      0
+     ],
+     [
+      784,
+      926
+     ],
+     [
+      815,
+      12
+     ],
+     [
+      673,
+      12
+     ]
+    ],
+    "zoom2d": 2232,
+    "xan2d": 687,
+    "yan2d": 27,
+    "yof2d": -5,
+    "desc": "The cape worn by only the most experienced players.",
+    "weight": 453,
+    "cost": 99000,
+    "wearpos": 1,
+    "wearpos2": null,
+    "womanhead": null,
+    "iops": {
+     "1": "Wear"
+    },
+    "members": true
+   },
+   "hood": {
+    "osrs_id": 13334,
+    "osrs_name": "Zamorak max hood",
+    "model": 29629,
+    "manwear": 29614,
+    "womanwear": 29623,
+    "manhead": 29626,
+    "womanhead": 29628,
+    "recol": [
+     [
+      668,
+      0
+     ],
+     [
+      675,
+      0
+     ],
+     [
+      784,
+      926
+     ],
+     [
+      815,
+      12
+     ],
+     [
+      673,
+      12
+     ],
+     [
+      685,
+      0
+     ]
+    ],
+    "zoom2d": 720,
+    "xan2d": 21,
+    "yan2d": 18,
+    "desc": "The hood worn by only the most experienced players.",
+    "weight": 453,
+    "cost": null,
+    "wearpos": 0,
+    "wearpos2": 8,
+    "iops": {
+     "1": "Wear"
+    },
+    "members": true
+   },
+   "bonuses": {
+    "magicattack": 10,
+    "stabdefence": 1,
+    "slashdefence": 1,
+    "crushdefence": 2,
+    "magicdefence": 10
+   },
+   "osrs_params_not_bonuses": {
+    "41": 1,
+    "295": 1
+   },
+   "god_param": 41
+  },
+  {
+   "key": "imbued_saradomin",
+   "source_cape": "imbued_saradomin_cape",
+   "cape": {
+    "osrs_id": 21776,
+    "osrs_name": "Imbued Saradomin max cape",
+    "model": 29630,
+    "manwear": 29616,
+    "womanwear": 29624,
+    "recol": [
+     [
+      668,
+      115
+     ],
+     [
+      675,
+      115
+     ],
+     [
+      784,
+      115
+     ],
+     [
+      815,
+      43924
+     ],
+     [
+      673,
+      43924
+     ]
+    ],
+    "zoom2d": 2232,
+    "xan2d": 687,
+    "yan2d": 27,
+    "yof2d": -5,
+    "desc": "The cape worn by only the most experienced players.",
+    "weight": 453,
+    "cost": 99000,
+    "wearpos": 1,
+    "wearpos2": null,
+    "womanhead": null,
+    "iops": {
+     "1": "Wear"
+    },
+    "members": true
+   },
+   "hood": {
+    "osrs_id": 21778,
+    "osrs_name": "Imbued Saradomin max hood",
+    "model": 29629,
+    "manwear": 29614,
+    "womanwear": 29623,
+    "manhead": 29626,
+    "womanhead": 29628,
+    "recol": [
+     [
+      668,
+      115
+     ],
+     [
+      675,
+      115
+     ],
+     [
+      784,
+      115
+     ],
+     [
+      815,
+      43924
+     ],
+     [
+      673,
+      43924
+     ],
+     [
+      685,
+      115
+     ]
+    ],
+    "zoom2d": 720,
+    "xan2d": 21,
+    "yan2d": 18,
+    "desc": "The hood worn by only the most experienced players.",
+    "weight": 453,
+    "cost": null,
+    "wearpos": 0,
+    "wearpos2": 8,
+    "iops": {
+     "1": "Wear"
+    },
+    "members": true
+   },
+   "bonuses": {
+    "magicattack": 15,
+    "stabdefence": 3,
+    "slashdefence": 3,
+    "crushdefence": 3,
+    "magicdefence": 15
+   },
+   "osrs_params_not_bonuses": {
+    "40": 1,
+    "295": 1,
+    "299": 20
+   },
+   "god_param": 40
+  },
+  {
+   "key": "imbued_guthix",
+   "source_cape": "imbued_guthix_cape",
+   "cape": {
+    "osrs_id": 21784,
+    "osrs_name": "Imbued Guthix max cape",
+    "model": 29630,
+    "manwear": 29616,
+    "womanwear": 29624,
+    "recol": [
+     [
+      668,
+      22426
+     ],
+     [
+      675,
+      22426
+     ],
+     [
+      784,
+      36783
+     ],
+     [
+      815,
+      36783
+     ],
+     [
+      673,
+      33690
+     ]
+    ],
+    "zoom2d": 2232,
+    "xan2d": 687,
+    "yan2d": 27,
+    "yof2d": -5,
+    "desc": "The cape worn by only the most experienced players.",
+    "weight": 453,
+    "cost": 99000,
+    "wearpos": 1,
+    "wearpos2": null,
+    "womanhead": null,
+    "iops": {
+     "1": "Wear"
+    },
+    "members": true
+   },
+   "hood": {
+    "osrs_id": 21786,
+    "osrs_name": "Imbued Guthix max hood",
+    "model": 29629,
+    "manwear": 29614,
+    "womanwear": 29623,
+    "manhead": 29626,
+    "womanhead": 29628,
+    "recol": [
+     [
+      668,
+      22426
+     ],
+     [
+      675,
+      22426
+     ],
+     [
+      784,
+      36783
+     ],
+     [
+      815,
+      36783
+     ],
+     [
+      673,
+      33690
+     ],
+     [
+      685,
+      22426
+     ]
+    ],
+    "zoom2d": 720,
+    "xan2d": 21,
+    "yan2d": 18,
+    "desc": "The hood worn by only the most experienced players.",
+    "weight": 453,
+    "cost": null,
+    "wearpos": 0,
+    "wearpos2": 8,
+    "iops": {
+     "1": "Wear"
+    },
+    "members": true
+   },
+   "bonuses": {
+    "magicattack": 15,
+    "stabdefence": 3,
+    "slashdefence": 3,
+    "crushdefence": 3,
+    "magicdefence": 15
+   },
+   "osrs_params_not_bonuses": {
+    "42": 1,
+    "295": 1,
+    "299": 20
+   },
+   "god_param": 42
+  },
+  {
+   "key": "imbued_zamorak",
+   "source_cape": "imbued_zamorak_cape",
+   "cape": {
+    "osrs_id": 21780,
+    "osrs_name": "Imbued Zamorak max cape",
+    "model": 29630,
+    "manwear": 29616,
+    "womanwear": 29624,
+    "recol": [
+     [
+      668,
+      0
+     ],
+     [
+      675,
+      12
+     ],
+     [
+      784,
+      12
+     ],
+     [
+      815,
+      668
+     ],
+     [
+      673,
+      0
+     ]
+    ],
+    "zoom2d": 2232,
+    "xan2d": 687,
+    "yan2d": 27,
+    "yof2d": -5,
+    "desc": "The cape worn by only the most experienced players.",
+    "weight": 453,
+    "cost": 99000,
+    "wearpos": 1,
+    "wearpos2": null,
+    "womanhead": null,
+    "iops": {
+     "1": "Wear"
+    },
+    "members": true
+   },
+   "hood": {
+    "osrs_id": 21782,
+    "osrs_name": "Imbued Zamorak max hood",
+    "model": 29629,
+    "manwear": 29614,
+    "womanwear": 29623,
+    "manhead": 29626,
+    "womanhead": 29628,
+    "recol": [
+     [
+      668,
+      0
+     ],
+     [
+      675,
+      12
+     ],
+     [
+      784,
+      12
+     ],
+     [
+      815,
+      668
+     ],
+     [
+      673,
+      0
+     ],
+     [
+      685,
+      0
+     ]
+    ],
+    "zoom2d": 720,
+    "xan2d": 21,
+    "yan2d": 18,
+    "desc": "The hood worn by only the most experienced players.",
+    "weight": 453,
+    "cost": null,
+    "wearpos": 0,
+    "wearpos2": 8,
+    "iops": {
+     "1": "Wear"
+    },
+    "members": true
+   },
+   "bonuses": {
+    "magicattack": 15,
+    "stabdefence": 3,
+    "slashdefence": 3,
+    "crushdefence": 3,
+    "magicdefence": 15
+   },
+   "osrs_params_not_bonuses": {
+    "41": 1,
+    "295": 1,
+    "299": 20
+   },
+   "god_param": 41
+  }
+ ],
+ "recolours": {
+  "_what": "The god variants have no models of their own - they recolour the plain Max cape's and the max hood's. This records what the recolour sources actually hit, because a source that hits nothing makes the piece render as a plain Max cape and NOTHING else notices: not the config, not the linter, not the packed-data check.",
+  "conversion_is_colour_exact": {
+   "_finding": "This build's converted models are colour-identical to OSRS's. Checked by decoding the OSRS models straight out of index 7 and comparing face counts and colour sets with the .ob2 files osrs2ob2.py produced.",
+   "face_counts": {
+    "max_hood": 416,
+    "max_hood_manwear": 504,
+    "max_hood_womanwear": 477,
+    "max_hood_manhead": 698,
+    "max_hood_womanhead": 698,
+    "max_cape": 646,
+    "max_cape_manwear": 642,
+    "max_cape_womanwear": 640
+   },
+   "_face_counts": "Identical on both sides, model for model. This is what makes the recolour sources - which are OSRS's numbers for OSRS's models - valid against ours."
+  },
+  "sources_present": {
+   "max_cape": [
+    668,
+    675,
+    784,
+    815,
+    673
+   ],
+   "max_hood": [
+    675,
+    784,
+    815,
+    685
+   ]
+  },
+  "inert_in_osrs_too": {
+   "pairs": [
+    668,
+    673
+   ],
+   "on": "every max hood model",
+   "_why": "The hood's six-pair recolour list is the cape's five pairs with 685 appended - same five sources, same order. Two of those five (668 and 673) exist on the cape's models and on no hood model, so those two pairs do nothing on a hood. Verified to be true of OSRS's own models as well, not an artefact of importing: 29629, 29614, 29623, 29626 and 29628 carry 675, 784, 815 and 685 and neither 668 nor 673.",
+   "_kept": "The pairs are kept rather than trimmed, because the spec's job is to say what OSRS's item table says. tools/maxvariantrender.py asserts exactly this pattern, so a recolour that SHOULD bite and stops biting goes red while these two stay quiet."
+  }
+ },
+ "textures": {
+  "_what": "The two variants with models of their own carry textured faces; the other fourteen have none. Recorded because a texture that did not survive the import is the exact bug the Infernal cape round was about.",
+  "fire_max_cape": {
+   "obj_fire_max_cape": {
+    "31": 54
+   },
+   "obj_fire_max_cape_manwear": {
+    "40": 108
+   },
+   "obj_fire_max_cape_womanwear": {
+    "40": 104,
+    "31": 4
+   }
+  },
+  "infernal_max_cape": {
+   "obj_infernal_max_cape": {
+    "50": 126
+   },
+   "obj_infernal_max_cape_manwear": {
+    "50": 126
+   },
+   "obj_infernal_max_cape_womanwear": {
+    "50": 126
+   }
+  },
+  "_fire": "OSRS 31 and 40, both in osrs2ob2.SHARED_TEXTURES - pixel-identical to the 377 texture of the same id, compared in an earlier round - so they came through at their own ids. 40 is the animated lava the Fire cape itself wears, which is the reassuring part: the variant and its source cape are textured the same way.",
+  "_infernal": "OSRS 59 -> local 50, through osrs2ob2.LOCAL_TEXTURES. That map was written in the Infernal cape round precisely so the next import of anything using texture 59 would keep it without anyone remembering; this is that next import, and it worked with no intervention.",
+  "_hoods": "Neither the fire nor the infernal hood has a textured face, and the god variants wear the plain max cape's models, which have none either. So fourteen of the sixteen are flat-shaded and fully judgeable from a render.",
+  "_render_limit": "tools/ob2render.py draws a textured face as flat grey shaded by its own lightness - deliberately, and its comment says so: skipping them would hide the model. So in the contact sheet the fire and infernal CAPES show a true silhouette and a false surface, and their 54 and 126 textured faces cannot be judged offline at all. Same caveat the Infernal cape carried."
+ },
+ "noticed_not_fixed": {
+  "texture_pack_names": "pack/texture.pack calls id 40 'jungleleaf4' and id 31 'lava', and content/textures/jungleleaf4.png has the same average colour as lava.png - (247, 144, 46) for both, and they are different files. So whatever id 40 is, it is not jungle leaves, and the Fire cape has always worn it. The NAMES in texture.pack do not reliably describe the images. Not touched here: renaming a pack entry is a cache-wide change and this round has no business making it. Noted for the backlog."
+ },
+ "a_finding_of_mine_that_was_wrong": {
+  "_claim": "That tzhaar_cape_fire and tzhaar_cape_infernal were each missing param=rangeattack,1, and that this round fixed it.",
+  "_truth": "Both already had it. Nothing was missing and nothing needed fixing.",
+  "_how": "The survey that produced the claim grepped the configs with param=(stab|slash|crush|magic|ranged|attack|defence|str|prayer) - and 'ranged' does not match 'rangeattack', while 'attack' only matches at the start of the value. So the regex could not see rangeattack on ANY record, and its absence from the output was read as its absence from the file.",
+  "_caught_by": "tools/fightcave_battery.py, which pins the Infernal cape at exactly the bonuses its own spec names and counts them. Adding a duplicate rangeattack line made it thirteen and the count went red. The per-param checks above it had been printing 'param rangeattack is the cache's 1' as OK the whole time, which is the line that should have been read before believing the grep.",
+  "_lesson": "A negative result from a hand-written regex is not evidence. The parser the battery already has - blocks() into {key: [values]} - answers the same question exactly, and is what the derived-from-source check in group 13 uses."
+ }
+}

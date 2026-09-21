@@ -1,31 +1,70 @@
-[opheld2,saradomin_cape] if (~check_conflicting_god_staff(zamorak_staff, guthix_staff) = true) ~equip(last_slot);
-[opheld2,zamorak_cape] if (~check_conflicting_god_staff(saradomin_staff, guthix_staff) = true) ~equip(last_slot);
-[opheld2,guthix_cape] if (~check_conflicting_god_staff(saradomin_staff, zamorak_staff) = true) ~equip(last_slot);
-// Mage Arena II imbued capes follow the same rule as the plain ones.
-[opheld2,imbued_saradomin_cape] if (~check_conflicting_god_staff(zamorak_staff, guthix_staff) = true) ~equip(last_slot);
-[opheld2,imbued_zamorak_cape] if (~check_conflicting_god_staff(saradomin_staff, guthix_staff) = true) ~equip(last_slot);
-[opheld2,imbued_guthix_cape] if (~check_conflicting_god_staff(saradomin_staff, zamorak_staff) = true) ~equip(last_slot);
+// WHICH GOD IS ON YOUR BACK, AND IN YOUR HAND. Both answer ^god_none when there is nothing
+// there and when what is there belongs to no god, which is the whole reason this is a table
+// lookup and not a list of names: god_cape.enum holds TWELVE capes now - three plain, three
+// imbued, and the six Max cape variants - and the old shape named them in pairs, two at a time,
+// which does not survive a fourth cape per god.
+[proc,god_worn_cape]()(int)
+def_obj $back = inv_getobj(worn, ^wearpos_back);
+if ($back = null) {
+    return(^god_none);
+}
+return(enum(obj, int, god_cape_god, $back));
 
-[opheld2,saradomin_staff] if (~check_conflicting_god_cape(zamorak_cape, guthix_cape) = true & ~check_conflicting_god_cape(imbued_zamorak_cape, imbued_guthix_cape) = true) ~equip(last_slot);
-[opheld2,zamorak_staff] if (~check_conflicting_god_cape(saradomin_cape, guthix_cape) = true & ~check_conflicting_god_cape(imbued_saradomin_cape, imbued_guthix_cape) = true) ~equip(last_slot);
-[opheld2,guthix_staff] if (~check_conflicting_god_cape(saradomin_cape, zamorak_cape) = true & ~check_conflicting_god_cape(imbued_saradomin_cape, imbued_zamorak_cape) = true) ~equip(last_slot);
+[proc,god_worn_staff]()(int)
+def_obj $hand = inv_getobj(worn, ^wearpos_rhand);
+if ($hand = null) {
+    return(^god_none);
+}
+return(enum(obj, int, god_staff_god, $hand));
 
-
-[proc,check_conflicting_god_cape](namedobj $item1, namedobj $item2)(boolean)
-if (inv_total(worn, $item1) > 0 | inv_total(worn, $item2) > 0) {
-    mes("You may not wield this staff whilst wearing the cape of another god.");
-    mes("The conflicting powers of staff and cape drive them apart.");
+// THE GOD SPELL TEST, in one place instead of nine. A god spell needs that god's cape AND that
+// god's staff; the same pair is what Charge's raised maximum reads. The six spell scripts, the
+// three battle mages and this file all come through here, so a cape added to god_cape.enum is
+// accepted by all of them at once.
+//
+// BOTH TESTS ARE WRITTEN OUT because `=` is a COMPARISON INSIDE AN IF and not an expression -
+// return(~god_worn_staff = $god) is a syntax error the server compiler rejects and rs2check does
+// not. Same trap as `$n ! 0` in the Barrows puzzle round; the compiler is the authority.
+[proc,god_cape_and_staff](int $god)(boolean)
+if (~god_worn_cape ! $god) {
     return(false);
 }
-return(true);
+if (~god_worn_staff = $god) {
+    return(true);
+}
+return(false);
 
-[proc,check_conflicting_god_staff](namedobj $item1, namedobj $item2)(boolean)
-if (inv_total(worn, $item1) > 0 | inv_total(worn, $item2) > 0) {
+// Wearing a cape: refuse it if the staff in hand belongs to a DIFFERENT god. ^god_none is not a
+// different god - an ordinary staff, or an empty hand, conflicts with nothing.
+[label,god_cape_equip](int $god)
+if (~god_worn_staff ! ^god_none & ~god_worn_staff ! $god) {
     mes("You may not wear this cape whilst wielding the staff of another god.");
     mes("The conflicting powers of staff and cape drive them apart.");
-    return(false);
+    return;
 }
-return(true);
+~equip(last_slot);
+
+[label,god_staff_equip](int $god)
+if (~god_worn_cape ! ^god_none & ~god_worn_cape ! $god) {
+    mes("You may not wield this staff whilst wearing the cape of another god.");
+    mes("The conflicting powers of staff and cape drive them apart.");
+    return;
+}
+~equip(last_slot);
+
+[opheld2,saradomin_cape] @god_cape_equip(^god_saradomin);
+[opheld2,zamorak_cape] @god_cape_equip(^god_zamorak);
+[opheld2,guthix_cape] @god_cape_equip(^god_guthix);
+// Mage Arena II imbued capes follow the same rule as the plain ones. So do the six Max cape
+// variants - their triggers live beside the rest of the variant handling, in
+// skillcapes/scripts/max_cape_variants.rs2, and call these same two labels.
+[opheld2,imbued_saradomin_cape] @god_cape_equip(^god_saradomin);
+[opheld2,imbued_zamorak_cape] @god_cape_equip(^god_zamorak);
+[opheld2,imbued_guthix_cape] @god_cape_equip(^god_guthix);
+
+[opheld2,saradomin_staff] @god_staff_equip(^god_saradomin);
+[opheld2,zamorak_staff] @god_staff_equip(^god_zamorak);
+[opheld2,guthix_staff] @god_staff_equip(^god_guthix);
 
 [opheld5,saradomin_cape] @drop_god_cape;
 [opheld5,zamorak_cape] @drop_god_cape;

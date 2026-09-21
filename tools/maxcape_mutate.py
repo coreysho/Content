@@ -51,8 +51,12 @@ MUTS = [
  ('scripts/skillcapes/configs/skillcape.enum',
   'val=construction_cape,skillcape_construction\n', '',
   '4 and every one of those capes has both an emote and a graphic'),
+ # The condition gained the variants in the Max-cape-variants round, so the anchor moved with it.
+ # It SKIPped for one run first, which is the harness saying the mutation no longer describes the
+ # code - the right failure for it to have.
  ('scripts/skillcapes/scripts/skillcape_shop.rs2',
-  'if ($cape = max_cape) {', 'if ($cape = max_hood) {',
+  'if ($cape = max_cape | enum(obj, namedobj, maxvariant_source, $cape) ! null) {',
+  'if ($cape = max_hood) {',
   '4 the emote button knows about the Max cape'),
  ('scripts/skillcapes/scripts/skillcape_perks.rs2',
   'if ($back = max_cape) {\n    return(true);\n}\n',
@@ -139,6 +143,123 @@ MUTS = [
   '12 and the spawn count is what it was'),
 ]
 
+# ---- 13: the eight Max cape variants -----------------------------------------------------------
+# Appended rather than written into the literal above because these entries carry rs2 source with
+# brackets at column 0, and there is no reliable way to find that list's end by text.
+#
+# EVERY ANCHOR BELOW WAS CONFIRMED TO APPEAR EXACTLY ONCE in its file before being written down.
+# This harness replaces the first match and has no uniqueness rule of its own - that lives in
+# tools/follower_mutate.py and tools/gamemode_mutate.py and is still worth backporting.
+_VOBJ = 'scripts/skillcapes/configs/max_cape_variants.obj'
+_VEN = 'scripts/skillcapes/configs/max_cape_variants.enum'
+_VRS = 'scripts/skillcapes/scripts/max_cape_variants.rs2'
+_GEN = 'scripts/areas/area_mage_arena/configs/god_cape.enum'
+_GGR = 'scripts/areas/area_mage_arena/scripts/god_gear.rs2'
+_MAC = 'scripts/areas/area_mage_arena/configs/mage_arena.constant'
+_PRK = 'scripts/skillcapes/scripts/skillcape_perks.rs2'
+_SHP = 'scripts/skillcapes/scripts/skillcape_shop.rs2'
+_SPL = 'scripts/skill_combat/scripts/player/spells/scripts/saradomin_strike.rs2'
+_BMG = 'scripts/areas/area_mage_arena/scripts/battle_mage.rs2'
+_SPC = 'tools/maxcapevariantspec.json'
+
+MUTS += [
+ # --- a variant's bonuses are its source cape's, and OSRS's
+ (_VOBJ, 'param=strengthbonus,8', 'param=strengthbonus,7',
+  "13 each variant cape's combat bonuses are exactly its SOURCE cape's"),
+ (_SPC, '"strengthbonus": 8', '"strengthbonus": 7',
+  "13 ...and the same numbers the spec took out of OSRS's item table"),
+ (_VOBJ, '[imbued_zamorak_max_hood]', '[imbued_zamorak_max_hoodie]',
+  '13 the generated config holds exactly the sixteen pieces the spec names'),
+ (_VOBJ, 'model=obj_max_hood\nmanwear=obj_max_hood_manwear,0',
+         'model=obj_max_hoodie\nmanwear=obj_max_hood_manwear,0',
+  '13 and every model those sixteen name is in model.pack AND on disk'),
+
+ # --- a variant is not a Max cape
+ (_VOBJ, 'category=armour_cape\nparam=stabattack,1',
+         'category=armour_cape\niop3=Teleports\nparam=stabattack,1',
+  '13 not one of the sixteen carries iop3, iop4 or iop5'),
+ (_PRK, 'case cooking, crafting, runecraft, firemaking : return(true);',
+        'case cooking, crafting, runecraft, firemaking, agility : return(true);',
+  '13 the four skills a variant still answers true for are exactly Cooking'),
+ (_PRK, 'case default : return(false);\n    }\n}',
+        'case default : return(true);\n    }\n}',
+  '13 ...and every other skill is refused by a default case'),
+ (_PRK, 'if (enum(obj, namedobj, maxvariant_source, $back) ! null) {',
+        'if (false = true) {',
+  '13 ~skillcape_worn asks maxvariant_source whether the worn cape is a variant'),
+ # THE ORDER CHECK: moving the variant branch ABOVE the plain cape's makes a Max cape answer
+ # true for four skills only - the bug the order exists to prevent.
+ (_PRK, 'if ($back = max_cape) {\n    return(true);\n}',
+        '',
+  '13 ...and the plain Max cape is answered BEFORE that branch'),
+ (_SHP, 'if ($cape = max_cape | enum(obj, namedobj, maxvariant_source, $cape) ! null) {',
+        'if ($cape = max_cape) {',
+  '13 ...and about the variants, which keep the emote and almost nothing else'),
+
+ # --- the god table
+ (_GEN, 'val=imbued_guthix_max_cape,^god_guthix', 'val=imbued_guthix_max_cape,^god_zamorak',
+  '13 god_cape_god maps TWELVE capes to their god'),
+ (_GEN, 'val=zamorak_staff,^god_zamorak', 'val=zamorak_staff,^god_guthix',
+  '13 and god_staff_god maps the three staves'),
+ (_MAC, '^god_none = 0', '^god_none = 1',
+  '13 ...with ^god_none at zero and no two gods sharing a number'),
+
+ # --- the nine sites go through one proc
+ (_SPL, 'if (~god_cape_and_staff(^god_saradomin) = true) {',
+        'if (inv_total(worn, saradomin_cape) > 0) {',
+  '13 no script anywhere still tests for a god cape by name'),
+ (_BMG, 'if (~god_cape_and_staff(^god_zamorak) = true & %npc_aggressive_player ! uid) {',
+        'if (%npc_aggressive_player ! uid) {',
+  '13 and all nine rewired sites call it'),
+ # The syntax error the compiler rejects and rs2check does not - put back, to prove the check
+ # that forbids it reads the CODE and not the comment that explains it.
+ (_GGR, 'if (~god_worn_staff = $god) {\n    return(true);\n}\nreturn(false);',
+        'return(~god_worn_staff = $god);',
+  '13 the god test is a proc that writes both comparisons out'),
+ # THIS ENTRY WAS MIS-AIMED and survived: it deletes a STAFF trigger and named the check about
+ # CAPE triggers, which correctly did not fire. The staff half had no check at all until then.
+ (_GGR, '[opheld2,guthix_staff] @god_staff_equip(^god_guthix);', '',
+  '13 and all three god staves have the mirror trigger'),
+ (_VRS, '[opheld2,imbued_guthix_max_cape] @god_cape_equip(^god_guthix);', '',
+  '13 and all twelve god capes have an equip trigger that refuses the staff of another god'),
+ (_VRS, '[opheld2,imbued_zamorak_max_cape] @god_cape_equip(^god_zamorak);', '',
+  '13 ...and exactly the six god variants get one'),
+
+ # --- combine and knife are exact inverses
+ (_VRS, 'inv_del(inv, max_hood, 1);', '',
+  '13 combining consumes all three items'),
+ (_VRS, 'inv_add(inv, $hood, 1);\n~doubleobjbox($variant',
+        '~doubleobjbox($variant',
+  '13 ...and hands back the variant and its own hood'),
+ (_VRS, 'inv_add(inv, $source, 1);', '',
+  '13 a knife gives back exactly those three'),
+ (_VRS, 'if (last_useitem ! knife) {', 'if (false = true) {',
+  '13 ...and only a knife does it'),
+ (_VRS, '[opheldu,fire_max_cape] @maxvariant_split;', '',
+  '13 all eight variants answer the knife'),
+ (_VRS, '[opheldu,max_cape]\ndef_namedobj', '[opheldu,max_cape]\n[opheldu,max_cape]\ndef_namedobj',
+  '13 and the combine is ONE trigger on the Max cape rather than eight'),
+
+ # --- the enums the whole thing hangs off
+ (_VEN, 'val=tzhaar_cape_infernal,infernal_max_cape', 'val=tzhaar_cape_infernal,fire_max_cape',
+  '13 tools/genmaxvariants.py --check'),
+ (_VEN, 'val=guthix_max_cape,guthix_cape', 'val=guthix_max_cape,zamorak_cape',
+  '13 tools/genmaxvariants.py --check'),
+
+ # --- the source capes stay untouched. A duplicate param line is exactly what my own wrong
+ # "fix" put there, so that is what this mutation puts back.
+ ('scripts/_unpack/377/all.obj', 'param=rangeattack,1\nparam=stabdefence,11',
+  'param=rangeattack,1\nparam=rangeattack,1\nparam=stabdefence,11',
+  '13 no source cape carries a duplicated param line'),
+ (_SPC, '"a_finding_of_mine_that_was_wrong"', '"a_finding_of_mine_that_was_quietly_dropped"',
+  '13 ...and the wrong finding is written down in the spec rather than quietly dropped'),
+
+ # --- the recolours, which decide whether six of them look like anything
+ (_VOBJ, 'recol1s=12354\nrecol1d=10', 'recol1s=12355\nrecol1d=10',
+  '13 and tools/maxvariantrender.py'),
+]
+
+
 def main():
     if os.path.exists(W):
         shutil.rmtree(W)
@@ -188,8 +309,10 @@ def main():
                                             'crash and not a catch')
             loose += 1
         print('  %-5s %-62s %s' % (state, why, note))
-        if not ok:
-            fails += 1
+        # NOTE: fails was already incremented in the `if not ok` branch above. A second one here
+        # counted every survivor twice, so a run with five survivors announced ten - which is the
+        # kind of number that makes a reader distrust the whole report. Found while five of these
+        # entries really did survive.
     print()
     if loose:
         print('%d caught by a check other than the one named - see the note beside each' % loose)

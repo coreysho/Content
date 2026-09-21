@@ -41,6 +41,27 @@ if ($back = null) {
 if ($back = max_cape) {
     return(true);
 }
+// A VARIANT IS NOT A MAX CAPE. Combining the cape with a Fire cape or a god cape takes almost
+// everything off it - OSRS's own rule, and the cache agrees: the plain cape carries four inventory
+// ops and every one of the eight variants carries only Wear. What survives is four "acts as"
+// perks and the skillcape emote, and the wiki's wording for all four is quoted in
+// tools/maxcapevariantspec.json:
+//
+//   Cooking      access to the Cooks' Guild
+//   Crafting     access to the Crafting Guild
+//   Runecraft    essence pouches do not degrade (NOT access to the runic altars)
+//   Firemaking   counts as a piece of warm clothing
+//
+// It is an allowlist rather than a blocklist on purpose: a perk added to this file later is
+// inherited by the plain Max cape automatically and by a variant NOT at all, which is the right
+// way round. "Is this a variant" is maxvariant_source answering something other than null - no
+// list of the eight lives here.
+if (enum(obj, namedobj, maxvariant_source, $back) ! null) {
+    switch_stat ($stat) {
+        case cooking, crafting, runecraft, firemaking : return(true);
+        case default : return(false);
+    }
+}
 if ($back = enum(stat, namedobj, skillcape_cape, $stat) | $back = enum(stat, namedobj, skillcape_cape_t, $stat)) {
     return(true);
 }
