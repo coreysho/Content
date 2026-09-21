@@ -45,6 +45,10 @@ p_teleport(0_42_54_21_41);
 
 [oploc1,elemental_workshop_box_1]
 if(inv_total(inv, elemental_workshop_lava_bowl) = 0) {
+    if(inv_freespace(inv) = 0) {
+        mes("You find a stone bowl, but you don't have enough room to take it.");
+        return;
+    }
     inv_add(inv, elemental_workshop_lava_bowl, 1);
     mes("You find a stone bowl.");
     return;
@@ -54,6 +58,14 @@ if(inv_total(inv, elemental_workshop_lava_bowl) = 0) {
 [oploc1,elemental_workshop_box_2]
 if(inv_total(inv, needle) > 0 | testbit(%elemental_workshop_bits, ^elemental_workshop_needle_found) = ^true) {
     @elemental_workshop_box_empty;
+}
+// The found-bit below is what makes this box answer "It's empty." forever after. Setting it while
+// the needle went nowhere - which is what an unguarded inv_add does on a full inventory - left the
+// player with no needle and no way to get another, so the bellows could never be repaired and the
+// air lever stayed dead with no recovery. Same hole in box 4 below. Take nothing, flag nothing.
+if(inv_freespace(inv) = 0) {
+    mes("You find a needle, but you don't have enough room to take it.");
+    return;
 }
 inv_add(inv, needle, 1);
 mes("You find a needle.");
@@ -66,6 +78,10 @@ mes("You find a needle.");
 [oploc1,elemental_workshop_box_4]
 if(inv_total(inv, leather) > 0 | testbit(%elemental_workshop_bits, ^elemental_workshop_leather_found) = ^true) {
     @elemental_workshop_box_empty;
+}
+if(inv_freespace(inv) = 0) {
+    mes("You find some leather, but you don't have enough room to take it.");
+    return;
 }
 inv_add(inv, leather, 1);
 mes("You find some leather.");
