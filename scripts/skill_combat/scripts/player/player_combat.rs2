@@ -17,6 +17,10 @@ if (~player_in_combat_check = false) {
 if (~sa_enabled = true) {
     @player_special_attack;
 }
+// The trident of the seas casts its own spell whatever style is set (area_kraken_cove/scripts/trident.rs2).
+if (~trident_armed = true) {
+    @trident_attack;
+}
 if (%damagetype = ^ranged_style) {
     @player_ranged_attack;
 }
@@ -139,6 +143,9 @@ return(true);
 [proc,player_attackrange](obj $rhand)(int)
 if (~player_autocast_enabled = true){
     return(10);
+}
+if (~trident_armed = true) {
+    return(7);
 }
 def_int $attackrange = 0;
 if ($rhand ! null) {

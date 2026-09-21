@@ -72,6 +72,10 @@ if (~player_npc_hit_roll_boosted(%damagetype, $mask_num, $mask_div) = true) {
         $maxhit = 0;
     }
     $damage = randominc(min($maxhit, npc_param(max_dealt)));
+    // A cave kraken's hide turns arrows aside: a seventh of the damage (OSRS; area_kraken_cove).
+    if (npc_type = cave_kraken) {
+        $damage = divide($damage, 7);
+    }
     def_int $damage_capped = min($damage, npc_stat(hitpoints));
     // Guthan's heal is "attacks", not "melee attacks", so it fires here too.
     ~barrows_set_hit_npc($damage_capped, %damagetype);

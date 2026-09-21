@@ -1,0 +1,171 @@
+// THE TRIDENT OF THE SEAS (2026-09-21), from the Kraken. OSRS's, per the wiki:
+//   * 75 Magic to wield; +15 magic attack; one cast every 4 ticks at a reach of 7;
+//   * a built-in spell, max hit floor(Magic / 3) - 5 (20 at 75, 28 at 99), no spellbook, no runes
+//     at the time of the cast - each charge was paid for up front: 1 death, 1 chaos, 5 fire and 10
+//     coins, and it holds 2,500;
+//   * it attacks with that spell whenever it is swung and charged; uncharged it is only a stick.
+//
+// THE CHARGES ARE THE PLAYER'S, not the item's: %trident_charges. An obj here carries no per-item
+// state, which is why the charged trident is tradeable=no (the cache says so too - OSRS's own
+// charged one is untradeable) and why the "(full)" one the Kraken drops IS tradeable: its 2,500
+// charges are its name, and they move into the varp the first time it is wielded or checked.
+
+[proc,trident_armed]()(boolean)
+if (inv_getobj(worn, ^wearpos_rhand) = trident_of_the_seas & %trident_charges > 0) {
+    return(true);
+}
+return(false);
+
+// ---------------------------------------------------------------------------------------------
+// Wielding - the full one becomes the charged one first
+// ---------------------------------------------------------------------------------------------
+[opheld2,trident_of_the_seas] @levelrequire_magic(^trident_level, last_slot);
+[opheld2,trident_of_the_seas_uncharged] @levelrequire_magic(^trident_level, last_slot);
+[opheld2,trident_of_the_seas_full]
+def_int $slot = last_slot;
+if (~trident_unpack_full($slot) = false) {
+    return;
+}
+@levelrequire_magic(^trident_level, $slot);
+
+[opheld3,trident_of_the_seas_full] if (~trident_unpack_full(last_slot) = true) ~trident_check;
+
+[proc,trident_unpack_full](int $slot)(boolean)
+if (%trident_charges > 0) {
+    mes("You already have a charged trident. Uncharge it before starting on a full one.");
+    return(false);
+}
+inv_setslot(inv, $slot, trident_of_the_seas, 1);
+%trident_charges = ^trident_max_charges;
+return(true);
+
+// ---------------------------------------------------------------------------------------------
+// Check, charge, uncharge
+// ---------------------------------------------------------------------------------------------
+[opheld3,trident_of_the_seas] ~trident_check;
+[opheld3,trident_of_the_seas_uncharged] ~trident_check;
+
+[proc,trident_check]
+if (%trident_charges = 1) {
+    mes("Your trident has 1 charge.");
+    return;
+}
+mes("Your trident has <tostring(%trident_charges)> charges.");
+
+// Any of the four, used on either trident, charges it as far as what is in the pack will go.
+[opheldu,trident_of_the_seas] ~trident_charge(last_item, last_useitem, last_slot, last_useslot);
+[opheldu,trident_of_the_seas_uncharged] ~trident_charge(last_item, last_useitem, last_slot, last_useslot);
+
+[proc,trident_charge](obj $a, obj $b, int $aslot, int $bslot)
+def_int $slot = $aslot;
+def_obj $other = $b;
+if ($b = trident_of_the_seas | $b = trident_of_the_seas_uncharged) {
+    $slot = $bslot;
+    $other = $a;
+}
+if ($other ! deathrune & $other ! chaosrune & $other ! firerune & $other ! coins) {
+    mes("Nothing interesting happens.");
+    return;
+}
+def_int $room = sub(^trident_max_charges, %trident_charges);
+if ($room <= 0) {
+    mes("Your trident can't hold any more charges.");
+    return;
+}
+def_int $n = min($room, min(inv_total(inv, deathrune), inv_total(inv, chaosrune)));
+$n = min($n, min(divide(inv_total(inv, firerune), 5), divide(inv_total(inv, coins), 10)));
+if ($n <= 0) {
+    mes("Each charge needs a death rune, a chaos rune, 5 fire runes and 10 coins.");
+    return;
+}
+inv_del(inv, deathrune, $n);
+inv_del(inv, chaosrune, $n);
+inv_del(inv, firerune, multiply($n, 5));
+inv_del(inv, coins, multiply($n, 10));
+%trident_charges = add(%trident_charges, $n);
+if (inv_getobj(inv, $slot) = trident_of_the_seas_uncharged) {
+    inv_setslot(inv, $slot, trident_of_the_seas, 1);
+}
+sound_synth(waterwave_cast_and_fire, 0, 0);
+mes("You add <tostring($n)> charge<~trident_plural($n)> to the trident. It now has <tostring(%trident_charges)>.");
+
+[proc,trident_plural](int $n)(string)
+if ($n = 1) return("");
+return("s");
+
+// OSRS gives the runes back and keeps the coins.
+[opheld4,trident_of_the_seas]
+def_int $slot = last_slot;
+def_int $n = %trident_charges;
+if ($n > 0) {
+    def_int $need = 0;
+    if (inv_total(inv, deathrune) = 0) $need = add($need, 1);
+    if (inv_total(inv, chaosrune) = 0) $need = add($need, 1);
+    if (inv_total(inv, firerune) = 0) $need = add($need, 1);
+    if (inv_freespace(inv) < $need) {
+        mes("You need more inventory space to take the runes out of the trident.");
+        return;
+    }
+    inv_add(inv, deathrune, $n);
+    inv_add(inv, chaosrune, $n);
+    inv_add(inv, firerune, multiply($n, 5));
+}
+%trident_charges = 0;
+inv_setslot(inv, $slot, trident_of_the_seas_uncharged, 1);
+mes("You uncharge the trident.");
+
+[opheld4,trident_of_the_seas_full]
+mes("Wield or check it first - the charges only come out of a trident that is holding them.");
+
+// ---------------------------------------------------------------------------------------------
+// The cast - reached from [label,player_combat_start] whenever a charged trident is wielded
+// ---------------------------------------------------------------------------------------------
+[label,trident_attack]
+if (~npc_is_attackable = false) {
+    return;
+}
+if (%action_delay > map_clock) {
+    p_opnpc(2);
+    return;
+}
+%action_delay = add(map_clock, 4);
+anim(human_trident_cast, 0);
+spotanim_pl(trident_casting, 92, 0);
+sound_synth(waterwave_cast_and_fire, 0, 0);
+def_int $duration = ~npc_projectile(coord, npc_uid, trident_travel, 43, 31, 51, 16, -5, 64, 10);
+%trident_charges = sub(%trident_charges, 1);
+// same accuracy as any spell, black mask (i) included (player_magic.rs2 ~pvm_default_spell)
+def_int $mask_num = 1;
+def_int $mask_div = 1;
+if (~black_mask_imbued_on_task = true) {
+    $mask_num = 23;
+    $mask_div = 20;
+}
+if (~player_npc_hit_roll_boosted(^magic_style, $mask_num, $mask_div) = true) {
+    def_int $maxhit = scale($mask_num, $mask_div, max(0, sub(divide(stat(magic), 3), 5)));
+    def_int $damage = randominc(min($maxhit, npc_param(max_dealt)));
+    def_int $damage_capped = min($damage, npc_stat(hitpoints));
+    ~npc_retaliate(calc($duration / 30 + 1));
+    npc_queue(2, $damage, calc($duration / 30 + 1));
+    npc_anim(npc_param(defend_anim), $duration);
+    ~give_combat_experience(^style_magic_normal, $damage_capped, %npc_combat_xp_multiplier);
+    npc_heropoints($damage_capped);
+    ~barrows_set_hit_npc($damage_capped, ^magic_style);
+    sound_synth(waterwave_hit, 0, $duration);
+    spotanim_npc(trident_impact, 92, $duration);
+} else {
+    sound_synth(spellfail, 1, $duration);
+    spotanim_npc(failedspell_impact, 92, $duration);
+    ~npc_retaliate(0);
+}
+if (%trident_charges <= 0) {
+    %trident_charges = 0;
+    inv_setslot(worn, ^wearpos_rhand, trident_of_the_seas_uncharged, 1);
+    ~update_all(trident_of_the_seas);
+    mes("@red@Your trident has run out of charges.");
+    return;
+}
+if (%trident_charges = 100) {
+    mes("@red@Your trident has 100 charges left.");
+}
+p_opnpc(2);

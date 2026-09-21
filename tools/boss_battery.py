@@ -63,8 +63,9 @@ QL = blocks(read('scripts/interfaces/questlist.if'))
 QLRAW = read('scripts/interfaces/questlist.if')
 
 print('1. twelve bosses, and they are the ones the tree actually has')
-check(len(B) == 12 and len(set(KEYS)) == 12,
-      'the spec names twelve bosses with twelve distinct keys: %d' % len(B))
+# thirteen since the Kraken (2026-09-21, area_kraken_cove)
+check(len(B) == 13 and len(set(KEYS)) == 13,
+      'the spec names thirteen bosses with thirteen distinct keys: %d' % len(B))
 check(re.search(r'^\^boss_kills_count = %d$' % len(B), CONST, re.M) is not None,
       '^boss_kills_count is counted from the spec rather than typed: %d' % len(B))
 check(re.search(r'^\^boss_kills_none = -1$', CONST, re.M) is not None,

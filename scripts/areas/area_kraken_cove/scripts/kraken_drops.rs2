@@ -1,0 +1,136 @@
+// THE KRAKEN COVE (2026-09-21) - drop tables. Rates are the OSRS wiki's (Kraken, Cave_kraken, Sept 2026)
+// in the shape drop_tables/scripts/dagannoth_rex.rs2 uses: the uniques and tertiaries on their own
+// rolls, then one cascade over the main table. What this 377 cache lacks is swapped or left out, and
+// its weight left as "nothing" rather than spread over the rest, so no listed rate moves:
+//   Kraken: oak plank -> plank (377 has one kind); Sanfew serum -> super restore; antidote++, the
+//     rusty sword, the elite clue and the brimstone key are not here.
+//   Cave kraken: the rare seed table is not here; the elite clue is not here.
+
+// ---------------------------------------------------------------- the Kraken
+[ai_queue3,kraken]
+// its tentacles go under with it (kraken_combat.rs2), before the death animation, not after it
+~kraken_sink_tentacles(npc_coord);
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+~bosspet_roll(bosspet_kraken_item, ^bosspet_droprate);
+obj_add(npc_coord, coins, ~random_range(10000, 19999), ^lootdrop_duration);
+if (random(400) = 0) {
+    ~kraken_rare(kraken_tentacle_item, 1);
+}
+if (random(1000) = 0) {
+    ~kraken_rare(jar_of_dirt, 1);
+}
+// 1/512, and it takes the main drop's place, as OSRS's "1/512 in the main table" does
+if (random(512) = 0) {
+    ~kraken_rare(trident_of_the_seas_full, 1);
+    return;
+}
+def_int $r = random(128);
+// weapons and armour - 9/128
+if ($r < 3) {
+    obj_add(npc_coord, mystic_water_staff, 1, ^lootdrop_duration);
+} else if ($r < 5) {
+    obj_add(npc_coord, rune_warhammer, 1, ^lootdrop_duration);
+} else if ($r < 7) {
+    obj_add(npc_coord, rune_longsword, 1, ^lootdrop_duration);
+} else if ($r < 8) {
+    obj_add(npc_coord, mystic_robe_top, 1, ^lootdrop_duration);
+} else if ($r < 9) {
+    obj_add(npc_coord, mystic_robe_bottom, 1, ^lootdrop_duration);
+// runes - 51/128
+} else if ($r < 19) {
+    obj_add(npc_coord, waterrune, 400, ^lootdrop_duration);
+} else if ($r < 23) {
+    obj_add(npc_coord, mistrune, 100, ^lootdrop_duration);
+} else if ($r < 33) {
+    obj_add(npc_coord, chaosrune, 200, ^lootdrop_duration);
+} else if ($r < 43) {
+    obj_add(npc_coord, deathrune, 150, ^lootdrop_duration);
+} else if ($r < 53) {
+    obj_add(npc_coord, bloodrune, 60, ^lootdrop_duration);
+} else if ($r < 60) {
+    obj_add(npc_coord, soulrune, 50, ^lootdrop_duration);
+// seeds - 5/128
+} else if ($r < 63) {
+    obj_add(npc_coord, watermelon_seed, 24, ^lootdrop_duration);
+} else if ($r < 64) {
+    obj_add(npc_coord, torstol_seed, 2, ^lootdrop_duration);
+} else if ($r < 65) {
+    obj_add(npc_coord, magic_tree_seed, 1, ^lootdrop_duration);
+// materials - 20/128
+} else if ($r < 68) {
+    obj_add(npc_coord, cert_seaweed, 125, ^lootdrop_duration);
+} else if ($r < 72) {
+    obj_add(npc_coord, cert_battlestaff, 10, ^lootdrop_duration);
+} else if ($r < 74) {
+    obj_add(npc_coord, cert_stafforb, 50, ^lootdrop_duration);
+} else if ($r < 75) {
+    obj_add(npc_coord, cert_diamond, 8, ^lootdrop_duration);
+} else if ($r < 78) {
+    obj_add(npc_coord, cert_woodplank, 60, ^lootdrop_duration);
+} else if ($r < 80) {
+    obj_add(npc_coord, cert_raw_shark, 50, ^lootdrop_duration);
+} else if ($r < 82) {
+    obj_add(npc_coord, cert_raw_monkfish, 100, ^lootdrop_duration);
+} else if ($r < 84) {
+    obj_add(npc_coord, cert_unidentified_snapdragon, 6, ^lootdrop_duration);
+} else if ($r < 85) {
+    obj_add(npc_coord, runite_bar, 2, ^lootdrop_duration);
+// other - 24/128
+} else if ($r < 92) {
+    obj_add(npc_coord, shark, 5, ^lootdrop_duration);
+} else if ($r < 96) {
+    obj_add(npc_coord, pirate_boots, 1, ^lootdrop_duration);
+} else if ($r < 100) {
+    obj_add(npc_coord, 4dose2restore, 2, ^lootdrop_duration);
+} else if ($r < 103) {
+    obj_add(npc_coord, edible_seaweed, 5, ^lootdrop_duration);
+} else if ($r < 104) {
+    obj_add(npc_coord, harpoon, 1, ^lootdrop_duration);
+} else if ($r < 105) {
+    obj_add(npc_coord, bucket_empty, 1, ^lootdrop_duration);
+} else if ($r < 106) {
+    obj_add(npc_coord, crystal_key, 1, ^lootdrop_duration);
+} else if ($r < 107) {
+    obj_add(npc_coord, dragonstone_ring, 1, ^lootdrop_duration);
+} else if ($r < 109) {
+    obj_add(npc_coord, ~randomjewel, ^lootdrop_duration);
+}
+// 109..127: nothing but the coins
+
+[proc,kraken_rare](namedobj $obj, int $count)
+obj_add(npc_coord, $obj, $count, ^lootdrop_duration);
+broadcast_mes(append(append(displayname(), " received a rare drop: "), oc_name($obj)));
+
+// ---------------------------------------------------------------- cave krakens
+[ai_queue3,cave_kraken]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+~trail_hardcluedrop(100, npc_coord);
+if (random(1200) = 0) {
+    ~kraken_rare(kraken_tentacle_item, 1);
+}
+def_int $r = random(200);
+if ($r < 1) {
+    ~kraken_rare(trident_of_the_seas_uncharged, 1);
+} else if ($r < 2) {
+    obj_add(npc_coord, mystic_water_staff, 1, ^lootdrop_duration);
+} else if ($r < 18) {
+    obj_add(npc_coord, deathrune, 30, ^lootdrop_duration);
+} else if ($r < 34) {
+    obj_add(npc_coord, chaosrune, 50, ^lootdrop_duration);
+} else if ($r < 42) {
+    obj_add(npc_coord, bloodrune, 5, ^lootdrop_duration);
+} else if ($r < 48) {
+    obj_add(npc_coord, ~randomherb, ^lootdrop_duration);
+} else if ($r < 58) {
+    obj_add(npc_coord, coins, ~random_range(120, 300), ^lootdrop_duration);
+}
+// 58..199: nothing - the wiki rows the research did not bring back are left empty, not guessed
+
+// The tentacles drop nothing, in OSRS as here; they still die properly.
+[ai_queue3,kraken_tentacle] gosub(npc_death);

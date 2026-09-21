@@ -1,0 +1,190 @@
+// THE KRAKEN COVE (2026-09-21). OSRS npcs imported by tools/models/importosrsnpc.py; models re-encoded
+// by osrs2ob2.py with the npc recolours baked in. Stats from the cache, bonuses from the wiki
+// (oldschool.runescape.wiki/w/Cave_kraken, /w/Kraken, /w/Enormous_Tentacle), the rest by hand.
+//
+// HOW THE WHIRLPOOLS WORK. Each whirlpool is the npc that is actually spawned. "Disturb" turns it
+// into what lives under it with npc_changetype (area_kraken_cove/scripts/kraken_combat.rs2), and
+// when that dies the engine respawns the npc as the whirlpool it started as - Npc.resetEntity puts
+// back baseType - after the respawnrate OF THE FORM THAT DIED (NpcOps npc_del reads the current
+// type). So the respawnrate that matters is on the risen forms, not the whirlpools.
+//
+// All of them stand in water, so none can move (moverestrict=nomove) and melee cannot reach them.
+
+[cave_kraken]
+// OSRS npc 492. Magic only to kill: ranged does a seventh of its damage, and melee cannot reach.
+name=Cave kraken
+desc=A kraken from the depths of the cove.
+model1=npc_cave_kraken_1
+size=2
+readyanim=osrs_seq_3989
+walkanim=osrs_seq_3989
+resizeh=55
+resizev=55
+op2=Attack
+vislevel=127
+moverestrict=nomove
+wanderrange=0
+respawnrate=25
+attackrange=8
+maxrange=10
+attack=1
+defence=150
+strength=1
+hitpoints=125
+ranged=1
+magic=120
+param=attackrate,6
+param=magicdefence,-63
+param=rangedefence,100
+param=attack_anim,osrs_seq_3991
+param=defend_anim,osrs_seq_3990
+param=death_anim,osrs_seq_3993
+param=death_drop,null
+param=slayer_category,^slayer_cavekraken
+
+[cave_kraken_whirlpool]
+// OSRS npc 493
+name=Whirlpool
+desc=A whirlpool... something lurks beneath.
+model1=npc_cave_kraken_whirlpool_1
+size=2
+readyanim=osrs_seq_6737
+walkanim=osrs_seq_6737
+resizeh=55
+resizev=55
+op2=Disturb
+vislevel=127
+moverestrict=nomove
+wanderrange=0
+respawnrate=25
+attack=1
+defence=150
+strength=1
+hitpoints=125
+ranged=1
+magic=120
+param=slayer_category,^slayer_cavekraken
+
+[kraken]
+// OSRS npc 494. Its attack is typeless: Protect from Magic does nothing against it.
+name=Kraken
+desc=The Kraken, lord of the cove.
+model1=npc_cave_kraken_1
+size=4
+readyanim=osrs_seq_3989
+walkanim=osrs_seq_3989
+resizeh=150
+resizev=150
+op2=Attack
+vislevel=291
+moverestrict=nomove
+wanderrange=0
+respawnrate=14
+attackrange=14
+maxrange=16
+attack=1
+defence=150
+strength=1
+hitpoints=255
+ranged=1
+magic=390
+param=attackrate,4
+param=magicdefence,130
+param=rangedefence,300
+param=attack_anim,osrs_seq_3991
+param=defend_anim,osrs_seq_3990
+param=death_anim,osrs_seq_3993
+param=death_drop,null
+param=slayer_category,^slayer_cavekraken
+
+[kraken_whirlpool]
+// OSRS npc 496. Rises only once none of its four small whirlpools is left undisturbed.
+name=Whirlpool
+desc=A huge whirlpool.
+model1=npc_cave_kraken_whirlpool_1
+size=5
+readyanim=osrs_seq_6737
+walkanim=osrs_seq_6737
+resizeh=170
+resizev=170
+op2=Disturb
+moverestrict=nomove
+wanderrange=0
+respawnrate=14
+attack=1
+defence=1
+strength=1
+hitpoints=255
+ranged=1
+magic=1
+param=slayer_category,^slayer_cavekraken
+
+[kraken_tentacle_whirlpool]
+// OSRS npc 5534
+name=Whirlpool
+desc=A whirlpool... something lurks beneath.
+model1=npc_cave_kraken_whirlpool_1
+size=2
+readyanim=osrs_seq_6737
+walkanim=osrs_seq_6737
+resizeh=55
+resizev=55
+op2=Disturb
+moverestrict=nomove
+wanderrange=0
+respawnrate=14
+attack=1
+defence=1
+strength=1
+hitpoints=120
+ranged=150
+magic=1
+param=slayer_category,^slayer_cavekraken
+
+[kraken_tentacle]
+// OSRS npc 5535. The cache's stats, not the wiki's (Ranged 60, not 150).
+name=Enormous Tentacle
+desc=A huge tentacle.
+model1=npc_kraken_tentacle_1
+size=2
+readyanim=osrs_seq_3617
+walkanim=osrs_seq_3617
+resizeh=200
+resizev=200
+op2=Attack
+vislevel=112
+moverestrict=nomove
+wanderrange=0
+respawnrate=14
+attackrange=14
+maxrange=16
+attack=1
+defence=1
+strength=1
+hitpoints=120
+ranged=60
+magic=30
+param=attackrate,4
+param=magicdefence,-15
+param=rangedefence,270
+param=attack_anim,osrs_seq_3618
+param=defend_anim,osrs_seq_3619
+param=death_anim,osrs_seq_3620
+param=death_drop,null
+
+[bosspet_kraken]
+// OSRS npc 6640. Follower wiring as the other boss pets (npc/configs/boss_pets.npc).
+name=Kraken
+desc=How.... is it walking?
+model1=npc_cave_kraken_1
+head1=npc_bosspet_kraken_head1
+readyanim=osrs_seq_3989
+walkanim=osrs_seq_3989
+resizeh=15
+resizev=15
+vislevel=hide
+timer=20
+op1=Pick-up
+op3=Talk-to
+category=bosspet
+param=pet_item_id,bosspet_kraken_item

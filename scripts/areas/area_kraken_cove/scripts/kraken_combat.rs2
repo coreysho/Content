@@ -1,0 +1,145 @@
+// THE KRAKEN COVE (2026-09-21) - the whirlpools, and everything that comes out of them.
+//
+// OSRS's rules, from the wiki (Cave_kraken, Kraken, Enormous_Tentacle):
+//   * every monster here starts as a whirlpool, and "Disturb" brings it up;
+//   * the Kraken's own whirlpool only answers once none of its four small ones is left undisturbed;
+//   * cave krakens: Magic, or Ranged at a seventh of its damage, and melee cannot reach;
+//   * the Kraken hits for up to 28 every 4 ticks, typeless - Protect from Magic does nothing;
+//     the tentacles for up to 2 every 4; a cave kraken for up to 13 every 6, which prayer does stop;
+//   * the tentacles go down with the Kraken (the wiki's main page; its strategy page disagrees).
+//
+// The monsters are the whirlpools, changed with npc_changetype - see the header of
+// configs/kraken.npc for how the engine puts them back when they die.
+
+// ---------------------------------------------------------------------------------------------
+// Disturbing a whirlpool
+// ---------------------------------------------------------------------------------------------
+[apnpc2,cave_kraken_whirlpool] ~kraken_disturb(cave_kraken, osrs_kraken_emerge);
+[opnpc2,cave_kraken_whirlpool] ~kraken_disturb(cave_kraken, osrs_kraken_emerge);
+[apnpc2,kraken_tentacle_whirlpool] ~kraken_disturb(kraken_tentacle, osrs_kraken_tentacle_emerge);
+[opnpc2,kraken_tentacle_whirlpool] ~kraken_disturb(kraken_tentacle, osrs_kraken_tentacle_emerge);
+[apnpc2,kraken_whirlpool] ~kraken_disturb(kraken, osrs_kraken_emerge);
+[opnpc2,kraken_whirlpool] ~kraken_disturb(kraken, osrs_kraken_emerge);
+
+[proc,kraken_disturb](npc $into, seq $emerge)
+if (npc_range(coord) > ^kraken_disturb_range) {
+    p_aprange(^kraken_disturb_range);
+    return;
+}
+// the Slayer level (87, from slayer_req via the whirlpool's slayer_category) and the single-way rules
+if (~player_in_combat_check = false) {
+    return;
+}
+if ($into = kraken & ~kraken_tentacle_whirlpools_left(npc_coord) = true) {
+    mes("Nothing stirs. Perhaps the smaller whirlpools need disturbing first.");
+    return;
+}
+// If nobody finishes it, it sinks back after this long - the npc then respawns as the whirlpool.
+npc_changetype($into, ^kraken_risen_duration);
+npc_anim($emerge, 0);
+// give it the emerge animation before its first attack, then it goes for whoever woke it
+%npc_action_delay = add(map_clock, 3);
+~npc_retaliate(3);
+p_opnpc(2);
+
+// True while any of the Kraken's four small whirlpools is still a whirlpool. A tentacle that has been
+// killed respawns as a whirlpool too, so the four have to be up TOGETHER, as in OSRS.
+[proc,kraken_tentacle_whirlpools_left](coord $centre)(boolean)
+npc_findall($centre, kraken_tentacle_whirlpool, ^kraken_room_radius, ^vis_off);
+while (.npc_findnext = true) {
+    return(true);
+}
+return(false);
+
+// ---------------------------------------------------------------------------------------------
+// The player's side: what reaches them
+// ---------------------------------------------------------------------------------------------
+[apnpc2,cave_kraken] if (~kraken_can_attack = true) @player_combat_start_ap;
+[opnpc2,cave_kraken] if (~kraken_can_attack = true) @player_combat_start;
+[apnpc2,kraken] if (~kraken_can_attack = true) @player_combat_start_ap;
+[opnpc2,kraken] if (~kraken_can_attack = true) @player_combat_start;
+[apnpc2,kraken_tentacle] if (~kraken_can_attack = true) @player_combat_start_ap;
+[opnpc2,kraken_tentacle] if (~kraken_can_attack = true) @player_combat_start;
+
+// They sit in the water, so a melee weapon cannot reach them: the engine would say so anyway once the
+// path failed, but only after walking the player to the shore. Magic (autocast or the trident) and
+// Ranged are let through; spells cast from the book never come this way.
+[proc,kraken_can_attack]()(boolean)
+if (~player_autocast_enabled = true | %damagetype = ^ranged_style | ~trident_armed = true) {
+    return(true);
+}
+mes("You can't reach it with a melee weapon. Try Magic or Ranged.");
+p_stopaction;
+return(false);
+
+// ---------------------------------------------------------------------------------------------
+// The monsters' side
+// ---------------------------------------------------------------------------------------------
+[ai_queue1,cave_kraken] ~npc_default_retaliate_ap;
+[ai_opplayer2,cave_kraken] npc_setmode(applayer2);
+[ai_applayer2,cave_kraken] ~kraken_cast(^cave_kraken_maxhit, ^water_blast, false);
+
+[ai_queue1,kraken] ~npc_default_retaliate_ap;
+[ai_opplayer2,kraken] npc_setmode(applayer2);
+[ai_applayer2,kraken] ~kraken_cast(^kraken_maxhit, ^fire_wave, true); // the wiki: it looks like Fire Wave
+
+[ai_queue1,kraken_tentacle] ~npc_default_retaliate_ap;
+[ai_opplayer2,kraken_tentacle] npc_setmode(applayer2);
+[ai_applayer2,kraken_tentacle] ~kraken_cast(^kraken_tentacle_maxhit, ^water_strike, true);
+
+// ~npc_cast_spell_with_forced_max_hit's shape - Ahrim's in barrows_combat.rs2 is the other copy - but
+// with the monster's own attack animation, and, when $typeless, an accuracy roll that does not look at
+// the player's prayers. The spell is only borrowed for its graphics and sounds; the max hit is ours.
+[proc,kraken_cast](int $maxhit, int $look, boolean $typeless)
+if (~npc_combat_spell_checks = false) {
+    return;
+}
+def_dbrow $spell = ~get_spell_data($look);
+npc_anim(npc_param(attack_anim), 0);
+%npc_action_delay = add(map_clock, npc_param(attackrate));
+def_int $duration = ~player_projectile(npc_coord, coord, uid, db_getfield($spell, magic_spell_table:spotanim_proj, 0));
+def_int $attack_roll = ~npc_magic_attack_roll;
+if ($typeless = true) {
+    $attack_roll = ~npc_magic_attack_roll_no_prot;
+}
+if (randominc($attack_roll) > randominc(~player_defence_roll_specific(^magic_style))) {
+    ~npc_spell_success($spell, $maxhit, $duration);
+} else {
+    ~npc_spell_fail($spell, $duration);
+}
+~npc_set_attack_vars;
+
+// ---------------------------------------------------------------------------------------------
+// The Kraken's death takes its tentacles with it
+// ---------------------------------------------------------------------------------------------
+// Called from its drop table (kraken_drops.rs2), which owns the npc's [ai_queue3]. Uids first, then
+// the deletes: removing npcs from under a live search is asking it to skip one.
+[proc,kraken_sink_tentacles](coord $centre)
+def_npc_uid $t1;
+def_npc_uid $t2;
+def_npc_uid $t3;
+def_npc_uid $t4;
+def_int $found = 0;
+npc_findall($centre, kraken_tentacle, ^kraken_room_radius, ^vis_off);
+while (.npc_findnext = true & $found < 4) {
+    switch_int ($found) {
+        case 0 : $t1 = .npc_uid;
+        case 1 : $t2 = .npc_uid;
+        case 2 : $t3 = .npc_uid;
+        case 3 : $t4 = .npc_uid;
+    }
+    $found = add($found, 1);
+}
+~kraken_sink_tentacle($t1);
+~kraken_sink_tentacle($t2);
+~kraken_sink_tentacle($t3);
+~kraken_sink_tentacle($t4);
+
+[proc,kraken_sink_tentacle](npc_uid $t)
+if ($t = null) {
+    return;
+}
+if (.npc_finduid($t) = false) {
+    return;
+}
+.npc_del;
