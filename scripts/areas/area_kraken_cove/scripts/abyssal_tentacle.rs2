@@ -1,0 +1,166 @@
+// THE ABYSSAL TENTACLE (2026-09-21). OSRS's, per the wiki (oldschool.runescape.wiki/w/Abyssal_tentacle):
+//   * a kraken tentacle used on an abyssal whip - irreversibly, so the player is asked first;
+//   * 75 Attack; slash +90, strength +86; 4 ticks; a 25% chance to poison for 4 on a hit;
+//   * 10,000 swings on it, and another kraken tentacle adds 10,000 more, up to 20,000;
+//   * when they run out the whip is gone and the kraken tentacle is left; "Dissolve" does the
+//     reverse, giving the whip back and losing the tentacle and its charges;
+//   * Binding Tentacle, 50%: the target is held for 4.8 seconds, and poisoned on a hit half the time.
+//
+// Charges are the player's (%abyssal_tentacle_charges), like the trident's, and for the same reason:
+// an obj carries no per-item state here. The tentacle is untradeable in OSRS too.
+
+[opheld2,abyssal_tentacle] @levelrequire_attack_caps(^abyssal_tentacle_level, last_slot);
+
+[opheld4,abyssal_tentacle] ~abyssal_tentacle_check;
+
+[proc,abyssal_tentacle_check]
+mes("Your abyssal tentacle can perform <tostring(%abyssal_tentacle_charges)> more attacks.");
+
+// ---------------------------------------------------------------------------------------------
+// Making it, and topping it up
+// ---------------------------------------------------------------------------------------------
+[opheldu,kraken_tentacle_item] @abyssal_tentacle_combine;
+[opheldu,abyssal_whip] @abyssal_tentacle_combine;
+[opheldu,abyssal_tentacle] @abyssal_tentacle_combine;
+
+[label,abyssal_tentacle_combine]
+// last_item is the item used ON, last_useitem the one being used; either order reaches here
+def_obj $a = last_item;
+def_obj $b = last_useitem;
+def_int $aslot = last_slot;
+def_int $bslot = last_useslot;
+def_int $kslot = $aslot;
+def_int $tslot = $bslot;
+def_obj $target = $b;
+if ($b = kraken_tentacle_item) {
+    $kslot = $bslot;
+    $tslot = $aslot;
+    $target = $a;
+} else if ($a ! kraken_tentacle_item) {
+    mes("Nothing interesting happens.");
+    return;
+}
+if ($target = abyssal_whip) {
+    if (~p_choice2_header("Yes - wrap the tentacle round the whip.", 1, "No.", 2, "This can't be undone. Make an abyssal tentacle?") ! 1) {
+        return;
+    }
+    // things may have moved while the question was open
+    if (inv_getobj(inv, $kslot) ! kraken_tentacle_item | inv_getobj(inv, $tslot) ! abyssal_whip) {
+        return;
+    }
+    inv_delslot(inv, $kslot);
+    inv_setslot(inv, $tslot, abyssal_tentacle, 1);
+    ~abyssal_tentacle_add_charges;
+    mes("You wrap the kraken tentacle round the abyssal whip.");
+    return;
+}
+if ($target = abyssal_tentacle) {
+    if (%abyssal_tentacle_charges > sub(^abyssal_tentacle_max_charges, ^abyssal_tentacle_charges_per)) {
+        mes("Your abyssal tentacle can't take another kraken tentacle yet.");
+        return;
+    }
+    inv_delslot(inv, $kslot);
+    ~abyssal_tentacle_add_charges;
+    mes("You add the kraken tentacle to your abyssal tentacle.");
+    ~abyssal_tentacle_check;
+    return;
+}
+mes("Nothing interesting happens.");
+
+[proc,abyssal_tentacle_add_charges]
+%abyssal_tentacle_charges = min(add(%abyssal_tentacle_charges, ^abyssal_tentacle_charges_per), ^abyssal_tentacle_max_charges);
+
+// Dissolve: the whip back, the tentacle and the charges gone.
+[opheld5,abyssal_tentacle]
+def_int $slot = last_slot;
+if (~p_choice2_header("Yes - dissolve it.", 1, "No.", 2, "You'll get the whip back but lose the kraken tentacle and its charges.") ! 1) {
+    return;
+}
+if (inv_getobj(inv, $slot) ! abyssal_tentacle) {
+    return;
+}
+inv_setslot(inv, $slot, abyssal_whip, 1);
+%abyssal_tentacle_charges = 0;
+mes("The kraken tentacle dissolves, leaving the abyssal whip.");
+
+// ---------------------------------------------------------------------------------------------
+// Every swing costs a charge - called from the four places a swing lands: player_melee.rs2,
+// pvp_melee.rs2, and the two Binding Tentacle labels below.
+// ---------------------------------------------------------------------------------------------
+[proc,abyssal_tentacle_swing]
+if (inv_getobj(worn, ^wearpos_rhand) ! abyssal_tentacle) {
+    return;
+}
+%abyssal_tentacle_charges = sub(%abyssal_tentacle_charges, 1);
+if (%abyssal_tentacle_charges > 0) {
+    return;
+}
+%abyssal_tentacle_charges = 0;
+inv_delslot(worn, ^wearpos_rhand);
+~update_all(abyssal_tentacle);
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, kraken_tentacle_item, 1);
+} else {
+    obj_add(coord, kraken_tentacle_item, 1, ^lootdrop_duration);
+}
+mes("@red@Your abyssal tentacle has degraded, and the whip inside it is gone. Only the kraken tentacle is left.");
+
+// ---------------------------------------------------------------------------------------------
+// Binding Tentacle
+// ---------------------------------------------------------------------------------------------
+[label,pvm_abyssal_tentacle_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+def_int $damage = 0;
+def_int $damage_capped = 0;
+def_boolean $hit = false;
+if (~player_npc_hit_roll(^slash_style) = true) {
+    $hit = true;
+    $damage = randominc(min(%com_maxhit, npc_param(max_dealt)));
+    if (npc_param(slayer_category) = ^slayer_kurask | npc_param(slayer_category) = ^slayer_turoth) {
+        $damage = 0;
+    }
+    $damage_capped = min($damage, npc_stat(hitpoints));
+    ~give_combat_experience(%damagestyle, $damage_capped, %npc_combat_xp_multiplier);
+    npc_heropoints($damage_capped);
+}
+anim(osrs_whip_attack, 0);
+sound_synth(energydrain, 1, 0);
+spotanim_npc(sp_attack_abyssal_whip, 96, 0);
+~npc_retaliate(0);
+npc_queue(2, $damage, 0);
+npc_anim(npc_param(defend_anim), 20);
+if ($hit = true) {
+    // held, the same way pvm_freeze_effect holds one (and not past a hold's five immune ticks)
+    if (calc(%npc_stunned + 5) <= map_clock & npc_category ! castlewars_barricade) {
+        %npc_stunned = calc(map_clock + ^abyssal_tentacle_bind + 1);
+        npc_walktrigger(8, 0);
+    }
+    if (random(2) = 0) {
+        ~npc_poison_start(oc_param(abyssal_tentacle, poison_severity));
+    }
+}
+~abyssal_tentacle_swing;
+
+[label,pvp_abyssal_tentacle_sa]
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+~set_pk_vars;
+def_boolean $hit = false;
+def_int $damage = 0;
+$hit, $damage = ~pvp_spec_roll(100, 100, ^slash_style);
+anim(osrs_whip_attack, 0);
+.spotanim_pl(sp_attack_abyssal_whip, 96, 0);
+if ($hit = true) {
+    // pvp_magic.rs2's pvp_freeze_effect, for a hold that is not a spell
+    if (calc(.%frozen + 5) <= map_clock & .getwalktrigger() ! duel_arena_no_move) {
+        if (.p_finduid(.uid) = true) {
+            .p_walk(.coord);
+        }
+        .%pk_binder = uid;
+        .queue(pvp_freeze_player, 0, ^abyssal_tentacle_bind);
+    }
+    if (random(2) = 0) {
+        .queue(poison_player, 0, oc_param(abyssal_tentacle, poison_severity));
+    }
+}
+~pvp_spec_land($damage, energydrain);
+~abyssal_tentacle_swing;
