@@ -52,8 +52,18 @@ if ! git -C "$CONTENT" diff --quiet -- pack/inv.pack 2>/dev/null; then
     git -C "$CONTENT" checkout -- pack/inv.pack
 fi
 
+LOCK_BEFORE=$(git -C "$ENGINE" rev-parse HEAD:package-lock.json 2>/dev/null || echo none)
 git -C "$ENGINE"  pull origin "$BRANCH"
 git -C "$CONTENT" pull origin "$BRANCH"
+
+# A pull that changes the engine's dependencies needs them installed before the build, or the
+# server dies at startup on an import (discord.js, when the Discord relay arrived). npm ci only
+# when package-lock.json actually changed - it reinstalls everything and takes a minute.
+LOCK_AFTER=$(git -C "$ENGINE" rev-parse HEAD:package-lock.json)
+if [ "$LOCK_BEFORE" != "$LOCK_AFTER" ] || [ ! -d "$ENGINE/node_modules" ]; then
+    say "Engine dependencies changed - installing"
+    (cd "$ENGINE" && npm ci)
+fi
 
 # The engine running here must exist on GitHub. It has not, twice - commits applied by
 # hand on the server are invisible to everyone else and are lost the moment this
