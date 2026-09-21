@@ -37,6 +37,78 @@ def _grid_rows():
 
 SIZE = _const('bank_total_slots')
 
+
+def _release_contract():
+    """THE CLIENT DECIDES WHAT A PLACEHOLDER IS FROM THIS FILE, and it cannot be checked there.
+
+    Client.java offers the "Release" option on any inv component slot holding a zero count. A zero
+    count is NOT unique to a placeholder - 35 shop invs in this content carry 272 lines stocked at
+    0, and every one of those items offered Release until 2026-09-21, reported from play against
+    the Shantay Pass shop, whose bucket, bowl and jug are all stocked at 0.
+
+    The client now gates it on the component's FIRST OPTION beginning with "Withdraw", rather than
+    on a hardcoded component id that nobody editing the content would think to look at. That makes
+    this file's option wording a contract between two repositories, and this is the half that lives
+    here - a check in the client could never go red when the content renamed an option.
+
+    THE GATE IS NOT EXACT, AND SAYING SO IS THE POINT. Four components carry Withdraw options and
+    the party drop chest's five are spelled identically to the bank's, so no wording can separate
+    them. What makes it correct is that only the bank ever holds a zero count: placeholders are the
+    only thing that makes one, and shops - which do stock 0 - carry Value and Buy instead. That is
+    what is checked here, rather than a uniqueness that does not hold.
+    """
+    bank = open(os.path.join(ROOT, 'scripts/interface_bank/interfaces/bank_main.if'),
+                encoding='utf-8').read()
+    block = re.search(r'^\[bank\]\n((?:(?!^\[).*\n)*)', bank, re.M)
+    if not block:
+        sys.exit('cannot find the [bank] component in bank_main.if')
+    opts = dict(re.findall(r'^(option\d)=(.*)$', block.group(1), re.M))
+    if not opts.get('option1', '').startswith('Withdraw'):
+        sys.exit('the bank grid\'s option1 is %r, which does not start with "Withdraw" - '
+                 'Client.java gates the placeholder Release option on exactly that prefix, so '
+                 'renaming it silently removes the only way to clear a placeholder'
+                 % opts.get('option1'))
+    print('the bank grid\'s option1 is %r, which is what Client.java gates the placeholder '
+          'Release option on' % opts['option1'])
+
+    # THE SHOP SIDE, which is the half that was actually broken: a shop grid must never carry a
+    # Withdraw option, because shop invs are the only ones in the game stocked at zero.
+    shop = open(os.path.join(ROOT, 'scripts/shop/interfaces/shop_template.if'),
+                encoding='utf-8').read()
+    sopts = re.findall(r'^option1=(.*)$', shop, re.M)
+    if not sopts:
+        sys.exit('the shop template has no option1 to check')
+    if any(o.startswith('Withdraw') for o in sopts):
+        sys.exit('a shop grid carries a Withdraw option: %s - every zero-stock line in the game '
+                 'would offer Release' % sopts)
+    print('and no shop grid does, so none of the 272 zero-stock shop lines can offer it')
+
+    # ...and any NEW component that grows Withdraw options gets looked at, because the reason the
+    # gate is safe is that none of these ever holds a zero count.
+    KNOWN = {'bank', 'store', 'inv', 'playerinv'}
+    seen = set()
+    for dirpath, _dirs, files in os.walk(os.path.join(ROOT, 'scripts')):
+        for fn in files:
+            if not fn.endswith('.if'):
+                continue
+            cur = None
+            for line in open(os.path.join(dirpath, fn), encoding='utf-8', errors='replace'):
+                t = line.split('//')[0].strip()
+                if t.startswith('[') and t.endswith(']'):
+                    cur = t[1:-1]
+                elif t.startswith('option1=') and t[8:].startswith('Withdraw'):
+                    seen.add(cur)
+    new = sorted(seen - KNOWN)
+    if new:
+        sys.exit('these components have grown Withdraw options since this was written: %s - the '
+                 'client will offer Release on any zero-count slot in them, so check that they '
+                 'cannot hold one' % ', '.join(new))
+    print('and the %d components carrying Withdraw options are the known ones, none of which can '
+          'hold a zero count: %s' % (len(KNOWN), ', '.join(sorted(KNOWN))))
+
+
+_release_contract()
+
 class Bank:
     def __init__(s):
         s.items = []            # the gapless ordered list; each entry is an opaque id
