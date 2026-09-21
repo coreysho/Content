@@ -1,7 +1,7 @@
 // The rune pouch window, and the mirror that makes spells see what is in it.
 //
-// THE MIRROR. rune_pouch_mirror:runes is transmitted for the whole session, from login, and never
-// stopped. Nothing ever opens that interface - it exists so the CLIENT has a copy of the store it
+// THE MIRROR. rune_pouch_mirror:runes is transmitted while - and only while - a pouch is in the
+// inventory. Nothing ever opens that interface - it exists so the CLIENT has a copy of the store it
 // can count. Every spell button in magic.if greys itself with a client-side script that sums
 // inv_count ops and only lights the spell when the total clears the spell's cost; those ops used
 // to name inventory:inv alone, so a rune in the pouch could not satisfy one and the cast was
@@ -13,8 +13,26 @@
 // main overlay. A window component would stop being transmitted the first time you closed the
 // window. An interface that is never opened is never any of those.
 
+// ONLY WHILE A POUCH IS CARRIED. The store is a perm inv that belongs to the player, not to the
+// pouch, so it outlives the pouch leaving the inventory - dropped, banked, traded, lost on death.
+// The mirror used to be transmitted from login for good, so a player with no pouch still saw their
+// spells lit by runes they were not carrying, and the server (whose ~magic_rune_total does check
+// ~rune_pouch_slots) refused every cast. A one-tick softtimer re-checks, which covers every way a
+// pouch can come or go without hooking each one: inv_transmit of a transmit already running and
+// inv_stoptransmit of one already stopped are both free, and stopping it empties the client's copy.
 [proc,rune_pouch_mirror_start]
-inv_transmit(rune_pouch_store, rune_pouch_mirror:runes);
+~rune_pouch_mirror_sync;
+softtimer(rune_pouch_mirror_sync, 1);
+
+[softtimer,rune_pouch_mirror_sync]
+~rune_pouch_mirror_sync;
+
+[proc,rune_pouch_mirror_sync]
+if (~rune_pouch_slots > 0) {
+    inv_transmit(rune_pouch_store, rune_pouch_mirror:runes);
+} else {
+    inv_stoptransmit(rune_pouch_mirror:runes);
+}
 
 // ---------------------------------------------------------------- the window
 [opheld3,rune_pouch] ~rune_pouch_open;

@@ -296,9 +296,16 @@ check('[proc,rune_pouch_mirror_start]' in UI and
       'inv_transmit(rune_pouch_store, rune_pouch_mirror:runes);' in UI,
       'there is one proc that starts the mirror')
 check('~rune_pouch_mirror_start;' in code(LOGIN),
-      '...and login starts it, so it runs for the whole session')
-check('inv_stoptransmit(rune_pouch_mirror' not in UI + POUCH,
-      '...and nothing ever stops it')
+      '...and login starts it')
+# It used to run for the whole session, and a player with NO pouch saw spells lit by runes they
+# were not carrying. The mirror now follows the pouch: synced every tick, transmitted only while
+# ~rune_pouch_slots says one is carried, and stopped - which empties the client's copy - otherwise.
+sync = code(block(UI, 'proc,rune_pouch_mirror_sync'))
+check('softtimer(rune_pouch_mirror_sync, 1);' in code(block(UI, 'proc,rune_pouch_mirror_start')) and
+      '~rune_pouch_mirror_sync;' in code(block(UI, 'softtimer,rune_pouch_mirror_sync')),
+      '...and re-checks it every tick')
+check('~rune_pouch_slots > 0' in sync and sync.find('inv_transmit') < sync.find('inv_stoptransmit(rune_pouch_mirror:runes)'),
+      '...transmitting it only while a pouch is carried, and stopping it when not')
 check('type=inv' in MIRRORIF,
       'the mirror component is an inv - the client allocates invSlotObjId at unpack for type 2 and '
       'keeps those components through unloadCom, which is what makes it safe to count before '
