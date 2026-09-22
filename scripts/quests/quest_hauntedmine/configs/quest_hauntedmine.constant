@@ -1,0 +1,72 @@
+// Haunted Mine.
+//
+// Two varps and no varbits on either of them, which for once means the bit field is mine to lay
+// out. hauntedmine is the progress; hauntedmine_bits is eight point levers and three flags.
+//
+// ---------------------------------------------------------------------------- the obj descriptions
+// The four objs are the walkthrough:
+//
+//   Zealot's key      "I stole this from a Saradominist I met South of Mort'ton."
+//   Crystal-mine key  "A key I found in the lower levels of the Morytanian mines."
+//   Salve shard       "An unstrung crystal imbued with the power of Saradomin."
+//   Salve amulet      "Increases the wearer's strength and accuracy by 15% when fighting the undead."
+//
+// "I stole this" is not a hint, it is an instruction: saradominist_zealot carries op1=Talk-to and
+// op3=Pickpocket, and neither had a handler. He is at 3444,3258, which is south of Mort'ton.
+//
+// ---------------------------------------------------------------------------- the mine's shape
+// The mine is six mapsquares and the ladders between them are named for the direction they move you:
+//
+//   hauntedmine_laddertop_1e   m42_70 (8,17) -> hauntedmine_ladder_1w   m43_70 (8,17)
+//   hauntedmine_laddertop_1sw  m43_71 (45,55) -> hauntedmine_ladder_1ne m42_70 (45,55)
+//
+// Same tile, next square. 1e is one square east, 1w one west, 1sw one square down and left, 1ne the
+// reverse. The plain pair, hauntedmine_laddertop and hauntedmine_ladder, do the same between
+// m53_150 and m43_71, which are nowhere near each other, so that one is a fixed jump.
+//
+// ---------------------------------------------------------------------------- the points
+// Eight point levers, all op1=Pull, in two banks - five around (33,36) and three at (17,53) - and
+// then hauntedmine_point_lever_flooded9, 10 and 11 at (17-19,50), which carry no ops at all. Three
+// of the eleven points are under water and cannot be thrown, which is the puzzle: the route has to
+// be made out of the eight that are still above it.
+^hm_not_started = 0
+^hm_refused = 1         // the zealot has said no
+^hm_key = 2             // the zealot's key
+^hm_points = 3          // the points are set and the lift works
+^hm_bottom = 4          // been down
+^hm_treus = 5           // Treus Dayth, and the crystal-mine key
+^hm_complete = 6
+
+// hauntedmine_bits
+^hm_bit_lever1 = 0
+^hm_bit_lever2 = 1
+^hm_bit_lever3 = 2
+^hm_bit_lever4 = 3
+^hm_bit_lever5 = 4
+^hm_bit_lever6 = 5
+^hm_bit_lever7 = 6
+^hm_bit_lever8 = 7
+^hm_bit_treus = 8
+^hm_bit_crystal = 9
+
+// Levers 1, 3, 4, 6 and 8 thrown; 2, 5 and 7 left alone. That is bits 0, 2, 3, 5 and 7, and it is
+// written on hauntedmine_points_info, which carries op1=Check and had nothing behind it.
+^hm_points_answer = 173
+
+^hm_off = 0
+^hm_on = 1
+
+// ---------------------------------------------------------------------------- places
+^hm_zealot = 0_53_50_52_58            // 3444,3258  south of Mort'ton
+^hm_crawl_secondary = 0_53_50_48_32
+^hm_crawl_secondary_in = 0_53_150_45_37
+^hm_crawl_back1 = 0_53_50_38_33
+^hm_crawl_back1_in = 0_53_150_12_31
+^hm_crawl_back2 = 0_53_50_37_25
+^hm_crawl_back2_in = 0_53_150_16_23
+
+^hm_valve = 0_43_70_56_16
+^hm_points_sign = 0_43_70_17_42
+^hm_boss_door = 0_43_69_47_37
+^hm_boss_landing = 0_43_69_47_36
+^hm_reward_door = 0_43_69_21_34
