@@ -1,0 +1,59 @@
+[if_button,questlist:misc]
+def_string $text;
+
+switch_int (%misc_quest) {
+    case ^misc_not_started :
+        $text = "@dbl@There is a @dre@gangplank@dbl@ on the @dre@Rellekka@dbl@ waterfront and a|";
+        $text = append($text, "@dbl@ship at the end of it going to @dre@Miscellania");
+
+    case ^misc_arrived :
+        $text = "@str@Two kingdoms on one island, neither of them speaking to the|";
+        $text = append($text, "@str@other, and a great deal of heather.|");
+        $text = append($text, "@dbl@Hear @dre@Advisor Ghrim@dbl@ out");
+
+    case ^misc_working :
+        $text = "@str@King Vargas has a treaty on his desk that would end a|";
+        $text = append($text, "@str@hundred years of this, and he cannot hold a pen.|");
+        $text = append($text, "@str@The guards on his door let in people the island approves|");
+        $text = append($text, "@str@of, and the island does not know I exist.|");
+        $text = append($text, "@dbl@@dre@Weed the heather@dbl@, @dre@fell the maple@dbl@ and @dre@cut the coal|");
+        $text = append($text, "@dbl@Approval: @dre@");
+        $text = append($text, tostring(%misc_approval));
+        $text = append($text, "@dbl@ of 100");
+
+    case ^misc_approved :
+        $text = "@str@A hundred percent. Two guards are about to be very|";
+        $text = append($text, "@str@confused about it.|");
+        $text = append($text, "@dbl@See the @dre@King");
+
+    case ^misc_audience :
+        $text = "@str@Vargas has not held anything smaller than an oar since the|";
+        $text = append($text, "@str@winter before last.|");
+        $text = append($text, "@dbl@There is a @dre@giant nib@dbl@ in @dre@Etceteria's library@dbl@, and a|");
+        $text = append($text, "@dbl@shaft wants @dre@logs@dbl@ and a @dre@knife");
+
+    case ^misc_pen :
+        $text = "@str@He signed his half in enormous letters.|";
+        $text = append($text, "@str@Queen Sigrid of Etceteria has not signed anything since the|");
+        $text = append($text, "@str@anthem, which Vargas's father wrote for her grandmother as|");
+        $text = append($text, "@str@a gift and which has a verse about herring.|");
+        $text = append($text, "@dbl@Talk to @dre@Sigrid@dbl@, then look in her own @dre@library");
+
+    case ^misc_sigrid :
+        $text = "@str@She signed it without reading it.|";
+        $text = append($text, "@dbl@Take it to @dre@King Vargas");
+
+    case ^misc_complete :
+        $text = "@str@A hundred years of two kingdoms on one island pretending the|";
+        $text = append($text, "@str@other one was a rumour, and it was settled by a pen with a|");
+        $text = append($text, "@str@shaft the thickness of an oar handle and an anthem that|");
+        $text = append($text, "@str@does not mention herring.|");
+        $text = append($text, "@str@I am Regent of Miscellania, which means I do the work and|");
+        $text = append($text, "@str@Vargas gets the chair.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+
+    case default :
+        $text = "@dbl@There is a @dre@gangplank@dbl@ on the @dre@Rellekka@dbl@ waterfront";
+}
+
+~quest_journal("Throne of Miscellania", $text);

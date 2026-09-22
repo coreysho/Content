@@ -1,0 +1,362 @@
+// Throne of Miscellania - an island whose king cannot hold a pen and whose neighbour will not sign
+// anything until somebody does something about her anthem.
+
+// =========================================================================== the crossing
+[opnpc1,misc_sailor]
+~chatnpc("<p,neutral>Miscellania and back. The gangplank's right there and I've no idea why anybody asks me.");
+
+[oploc1,misc_ship_gangplank]
+def_coord $plank = loc_coord;
+p_arrivedelay;
+if (coordz($plank) < 3800) {
+    mes("You cross the gangplank and the ship works north.");
+    p_delay(5);
+    p_teleport(^misc_gangplank_island);
+    if (%misc_visited = ^misc_off) {
+        %misc_visited = ^misc_on;
+        ~mesbox("Miscellania. Two kingdoms on one island, neither of them speaking to the other, and a great deal of heather.");
+    }
+    return;
+}
+mes("You cross the gangplank and the ship works south.");
+p_delay(5);
+p_teleport(^misc_gangplank_rellekka);
+
+// =========================================================================== Advisor Ghrim
+[opnpc1,misc_advisor_ghrim]
+switch_int (%misc_quest) {
+    case ^misc_not_started : @misc_start;
+    case ^misc_arrived : @misc_brief;
+    case ^misc_working : @misc_check;
+    case ^misc_approved :
+        ~chatnpc("<p,happy>A hundred percent. The guards will not stop you now, and I have never seen them not stop anybody.");
+    case default :
+        if (%misc_quest >= ^misc_complete) {
+            ~chatnpc("<p,neutral>Your kingdom, your coffers, your problem. I have written a book about it.");
+            ~misc_give_book;
+            return;
+        }
+        ~chatnpc("<p,neutral>The King is through there.");
+}
+
+[label,misc_start]
+~chatnpc("<p,neutral>You are not from here, which on an island this size is the only thing worth saying about anybody.");
+~chatplayer("<p,quiz>Who are you?");
+~chatnpc("<p,neutral>Advisor Ghrim. I advise. Nobody has taken any of it for eleven years.");
+%misc_quest = ^misc_arrived;
+~send_quest_progress(questlist:misc, %misc_quest, ^misc_complete);
+@misc_brief;
+
+[label,misc_brief]
+~chatnpc("<p,sad>King Vargas is old and he is not getting less old, and he has two children who will not speak to each other and a treaty on his desk that would end a hundred years of this and he cannot sign it.");
+~chatplayer("<p,quiz>Won't sign it?");
+~chatnpc("<p,neutral>Cannot. His hands. He has not held anything smaller than an oar since the winter before last.");
+~chatnpc("<p,neutral>And you will not get within thirty feet of him, because the guards on that door let in people the island approves of, and the island does not know you exist.");
+~chatplayer("<p,quiz>How does an island get to approve of somebody?");
+~chatnpc("<p,neutral>Work. There is heather to weed, a maple to fell and coal to cut, and the three men who normally do it are all standing next to it doing none of it.");
+%misc_quest = ^misc_working;
+~send_quest_progress(questlist:misc, %misc_quest, ^misc_complete);
+~misc_give_book;
+
+[proc,misc_give_book]()()
+if (inv_total(inv, misc_ghrimbook) > 0) {
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    return;
+}
+inv_add(inv, misc_ghrimbook, 1);
+~chatnpc("<p,neutral>Take the book. Nobody has ever read it.");
+
+[label,misc_check]
+if (%misc_approval < ^misc_approval_target) {
+    ~chatnpc("<p,neutral>Approval is at <tostring(%misc_approval)> percent. It wants a hundred and there is no shortcut, because the shortcut is called a coup.");
+    return;
+}
+%misc_quest = ^misc_approved;
+~send_quest_progress(questlist:misc, %misc_quest, ^misc_complete);
+~chatnpc("<p,happy>A hundred percent. Go and see the King.");
+
+// =========================================================================== the island's work
+// Thirty-six heather patches and three dummy resources, every one of them carrying an op and none
+// of them a handler.
+[oploc1,misc_heather_light] @misc_weed;
+[oploc1,misc_heather_normal] @misc_weed;
+[oploc1,misc_heather_dark] @misc_weed;
+[oploc1,misc_dummy_heather_normal] @misc_weed;
+
+[label,misc_weed]
+p_arrivedelay;
+if (~misc_working_check = false) { return; }
+anim(human_pickupfloor, 0);
+p_delay(3);
+stat_advance(farming, 1000);
+~misc_approve("You clear the weeds out of the heather.");
+
+[oploc1,misc_dummy_mapletree]
+p_arrivedelay;
+if (~misc_working_check = false) { return; }
+if (inv_total(inv, bronze_axe) = 0 & ~has_any_axe = false) {
+    ~mesbox("You would need an axe.");
+    return;
+}
+anim(human_axe_chop, 0);
+p_delay(4);
+stat_advance(woodcutting, 1000);
+~misc_approve("You put a maple down for the lumberjack, who watches the whole thing without moving.");
+
+[oploc1,misc_dummy_coalrock1]
+p_arrivedelay;
+if (~misc_working_check = false) { return; }
+if (~has_any_pickaxe = false) {
+    ~mesbox("You would need a pickaxe.");
+    return;
+}
+anim(human_mining_bronze_pickaxe, 0);
+p_delay(4);
+stat_advance(mining, 1000);
+~misc_approve("You cut coal out of the seam. The miner nods, once.");
+
+[oploc2,misc_dummy_coalrock1]
+~mesbox("Coal, and a great deal of it, and nobody cutting any.");
+
+[proc,misc_working_check]()(boolean)
+if (%misc_quest < ^misc_working) {
+    ~mesbox("Somebody else's island.");
+    return(false);
+}
+if (%misc_approval >= ^misc_approval_target) {
+    ~mesbox("The island approves of you as much as an island is able to.");
+    return(false);
+}
+return(true);
+
+[proc,misc_approve](string $line)()
+%misc_approval = add(%misc_approval, ^misc_approval_per_job);
+if (%misc_approval > ^misc_approval_target) {
+    %misc_approval = ^misc_approval_target;
+}
+%misc_restotal = add(%misc_restotal, 1);
+if (%misc_approval >= ^misc_approval_target) {
+    ~mesbox("<$line> | That is the last of it. Approval is at a hundred percent and two guards are about to be very confused about it.");
+    return;
+}
+mes("<$line> Approval: <tostring(%misc_approval)>%.");
+
+[proc,has_any_axe]()(boolean)
+if (inv_total(inv, bronze_axe) > 0 | inv_total(inv, iron_axe) > 0 | inv_total(inv, steel_axe) > 0) { return(true); }
+if (inv_total(inv, black_axe) > 0 | inv_total(inv, mithril_axe) > 0 | inv_total(inv, adamant_axe) > 0 | inv_total(inv, rune_axe) > 0) { return(true); }
+return(false);
+
+[proc,has_any_pickaxe]()(boolean)
+if (inv_total(inv, bronze_pickaxe) > 0 | inv_total(inv, iron_pickaxe) > 0 | inv_total(inv, steel_pickaxe) > 0) { return(true); }
+if (inv_total(inv, mithril_pickaxe) > 0 | inv_total(inv, adamant_pickaxe) > 0 | inv_total(inv, rune_pickaxe) > 0) { return(true); }
+return(false);
+
+// =========================================================================== the throne room
+[opnpc1,misc_ulby_doorguard]
+if (%misc_approval < ^misc_approval_target) {
+    ~chatnpc("<p,angry>The King sees people the island has a use for. Come back when it has.");
+    return;
+}
+~chatnpc("<p,neutral>...the whole island has been talking about you. Go in.");
+%misc_grantedaudience = ^misc_on;
+
+[oploc1,misc_ulby_throneroomdoor]
+def_coord $door = loc_coord;
+p_arrivedelay;
+if (%misc_approval < ^misc_approval_target) {
+    ~mesbox("Two guards move in front of it without saying anything, which is worse than being told no.");
+    return;
+}
+%misc_grantedaudience = ^misc_on;
+if (coordx(coord) > coordx($door)) {
+    mes("You go in.");
+    p_teleport(^misc_throne_inside);
+} else {
+    mes("You go out.");
+    p_teleport(^misc_throne_outside);
+}
+
+// =========================================================================== King Vargas
+[opnpc1,misc_king_vargas]
+switch_int (%misc_quest) {
+    case ^misc_approved : @misc_vargas_brief;
+    case ^misc_audience : @misc_vargas_pen;
+    case ^misc_pen : @misc_vargas_sigrid;
+    case ^misc_sigrid : @misc_vargas_sign;
+    case default :
+        if (%misc_quest >= ^misc_complete) {
+            ~chatnpc("<p,happy>Regent. It means you do the work and I get the chair, which is the best arrangement I have ever been offered.");
+            return;
+        }
+        ~chatnpc("<p,neutral>Ghrim sent you, did he.");
+}
+
+[label,misc_vargas_brief]
+~chatnpc("<p,neutral>So you are the one weeding my heather.");
+~chatplayer("<p,quiz>Ghrim says there's a treaty.");
+~chatnpc("<p,sad>There is. It has been on that desk for four years and it ends a hundred years of two kingdoms on one island pretending the other one is a rumour.");
+~chatnpc("<p,angry>And I cannot hold a pen. Look at my hands and then tell me which pen you think I should hold.");
+%misc_quest = ^misc_audience;
+%misc_toldking = ^misc_on;
+~send_quest_progress(questlist:misc, %misc_quest, ^misc_complete);
+~chatnpc("<p,neutral>There is a nib somewhere in Etceteria that would do, if somebody put a shaft on it. Astrid says the library over there has everything in it, and Brand says Astrid is wrong, and neither of them has been.");
+
+[label,misc_vargas_pen]
+if (inv_total(inv, misc_giant_pen) = 0) {
+    ~chatnpc("<p,neutral>A nib and a shaft. It is not a difficult thing and it has beaten four years of people.");
+    return;
+}
+~chatplayer("<p,neutral>Try this.");
+if_close;
+mes("King Vargas holds the giant pen the way a man holds an oar, which is the only way he holds anything, and it works.");
+p_delay(4);
+%misc_quest = ^misc_pen;
+~send_quest_progress(questlist:misc, %misc_quest, ^misc_complete);
+~mesbox("He signs his half of it in enormous letters. | \"Now the other half,\" he says. \"Sigrid will not sign anything. Sigrid has not signed anything since the anthem.\"");
+
+[label,misc_vargas_sigrid]
+~chatnpc("<p,neutral>Sigrid. Etceteria. The anthem.");
+~chatplayer("<p,quiz>What about the anthem?");
+~chatnpc("<p,laugh>My father wrote it for her grandmother as a gift and it is the worst thing anybody has ever written down. She has had to stand up to it every morning for thirty years.");
+
+[label,misc_vargas_sign]
+~chatplayer("<p,neutral>She signed.");
+~chatnpc("<p,shock>She did WHAT.");
+if_close;
+mes("King Vargas reads Queen Sigrid's signature about six times.");
+p_delay(4);
+~mesbox("\"A hundred years,\" he says, \"and it was the anthem.\"");
+p_delay(3);
+%misc_quest = ^misc_complete;
+%misc_coffers = 750000;
+%misc_points_wood = 4;
+%misc_points_herb = 4;
+%misc_points_fish = 4;
+%misc_points_mine = 3;
+stat_advance(woodcutting, 50000);
+stat_advance(mining, 50000);
+stat_advance(farming, 50000);
+stat_advance(fishing, 50000);
+session_log(^log_adventure, "Quest complete: Throne of Miscellania");
+~send_quest_complete(questlist:misc, misc_treaty, 200, ^misc_questpoints, "You have completed\\nThrone of Miscellania!", "1 Quest Point|5,000 Woodcutting XP|5,000 Mining XP|5,000 Farming XP|5,000 Fishing XP|Regent of Miscellania");
+
+// =========================================================================== the pen
+[oploc1,misc_bookcase]
+p_arrivedelay;
+if (%misc_quest < ^misc_audience) {
+    ~mesbox("Somebody else's books.");
+    return;
+}
+if (inv_freespace(inv) < 2) {
+    mes("You have no room for what is in it.");
+    return;
+}
+def_boolean $took = false;
+if (inv_total(inv, misc_giant_nib) = 0 & inv_total(inv, misc_giant_pen) = 0 & %misc_quest < ^misc_pen) {
+    inv_add(inv, misc_giant_nib, 1);
+    $took = true;
+}
+if (%misc_quest >= ^misc_pen & %misc_know_sigrid = ^misc_on & inv_total(inv, misc_good_anthem) = 0 & %misc_quest < ^misc_sigrid) {
+    inv_add(inv, misc_good_anthem, 1);
+    $took = true;
+}
+if ($took = false) {
+    ~mesbox("Etceteria's library, which does in fact have everything in it, most of it twice.");
+    return;
+}
+~mesbox("Etceteria's library has everything in it, and everything includes the things nobody has looked for in thirty years.");
+
+[opheldu,misc_giant_nib]
+if (last_useitem ! logs) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (inv_total(inv, knife) = 0) {
+    ~mesbox("A shaft wants cutting, and that wants a knife.");
+    return;
+}
+inv_del(inv, misc_giant_nib, 1);
+inv_del(inv, logs, 1);
+inv_add(inv, misc_giant_pen, 1);
+stat_advance(fletching, 2000);
+~mesbox("A shaft the thickness of an oar handle, with a nib on the end of it. The King should be able to use this.");
+
+// =========================================================================== Queen Sigrid
+[opnpc1,misc_queen_sigrid]
+if (%misc_quest < ^misc_pen) {
+    ~chatnpc("<p,angry>Etceteria does not discuss Miscellania.");
+    return;
+}
+if (%misc_quest >= ^misc_sigrid) {
+    ~chatnpc("<p,happy>Thirty years. Every morning. You have no idea.");
+    return;
+}
+if (inv_total(inv, misc_good_anthem) > 0) {
+    ~chatplayer("<p,neutral>A new anthem.");
+    if_close;
+    mes("Queen Sigrid reads it, and then hums a bar of it, and then stops and reads it again.");
+    p_delay(5);
+    inv_del(inv, misc_good_anthem, 1);
+    if (inv_total(inv, misc_awful_anthem) > 0) { inv_del(inv, misc_awful_anthem, 1); }
+    %misc_quest = ^misc_sigrid;
+    ~send_quest_progress(questlist:misc, %misc_quest, ^misc_complete);
+    ~mesbox("She signs the treaty without reading it, which after a hundred years is either enormous trust or enormous relief.");
+    return;
+}
+if (%misc_know_sigrid = ^misc_on) {
+    ~chatnpc("<p,angry>Find me a better one and I will sign anything you put in front of me.");
+    return;
+}
+~chatplayer("<p,quiz>There's a treaty. Vargas has signed it.");
+~chatnpc("<p,angry>Vargas's father wrote our anthem. As a GIFT.");
+~chatplayer("<p,quiz>Is it bad?");
+~chatnpc("<p,angry>I have stood up to it every morning for thirty years and there is a line in the second verse about herring.");
+%misc_know_sigrid = ^misc_on;
+~chatnpc("<p,angry>Find me a better one and I will sign anything you put in front of me. Our own library has not been opened since my grandmother's day and I am not going in there.");
+
+[opheld1,misc_awful_anthem]
+~mesbox("The Royal Anthem of Etceteria, by the late King of Miscellania. | The second verse is about herring. The third verse is also about herring, and rhymes it with 'nothing'.");
+
+[opheld1,misc_good_anthem]
+~mesbox("A royal anthem, in a hand nobody in either kingdom recognises, filed in Etceteria's own library for thirty years. | It does not mention herring once.");
+
+[opheld1,misc_treaty]
+if (%misc_quest >= ^misc_complete) {
+    ~mesbox("The Treaty of Miscellania and Etceteria, signed by both, in enormous letters at one end and very small ones at the other.");
+    return;
+}
+~mesbox("The treaty. Just needs the King's signature.");
+
+// =========================================================================== the heirs
+[opnpc1,misc_princess_astrid] @misc_heir("<p,neutral>My brother thinks the treaty is surrender. My brother thinks a great many things.");
+[opnpc1,misc_prince_brand] @misc_heir("<p,neutral>My sister thinks the treaty is progress. My sister has never been to Etceteria.");
+
+[label,misc_heir](string $line)
+if (%misc_quest < ^misc_audience) {
+    ~chatnpc("<p,neutral>You are in my father's hall.");
+    return;
+}
+if (%misc_affection >= ^misc_affection_target) {
+    ~chatnpc("<p,happy>Whatever you did about the anthem - do not tell my father it was your idea. Let him think it was his.");
+    return;
+}
+~chatnpc($line);
+// Neither of them will say a word about the other in front of a stranger, and both of them will
+// say a great deal about the other to somebody the island has decided it likes.
+%misc_affection = add(%misc_affection, ^misc_affection_per_gift);
+if (%misc_affection > ^misc_affection_target) { %misc_affection = ^misc_affection_target; }
+if (%misc_affection < ^misc_affection_target) {
+    ~chatplayer("<p,quiz>And what do you think?");
+    ~chatnpc("<p,neutral>I think you should come back when I have decided.");
+    return;
+}
+%misc_acceptedtomarry = ^misc_on;
+~chatplayer("<p,quiz>And what do you think?");
+~chatnpc("<p,sad>I think my father has four years left and a treaty on his desk, and I have spent two of them arguing with my sibling about the wording.");
+~chatnpc("<p,neutral>Get it signed. I will stand behind whichever of us has to live with it.");
+
+// =========================================================================== the market
+[opnpc1,misc_flowergirl]
+~chatnpc("<p,neutral>Flowers. Everybody on this island wants flowers and nobody will say who for.");
