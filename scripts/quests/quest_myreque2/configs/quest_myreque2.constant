@@ -1,0 +1,105 @@
+// In Aid of the Myreque.
+//
+// The largest thing left unbuilt: 206 burgh_ locs, 65 burgh_ npcs, 33 objs and thirty-two varbits
+// across two varps, and not one line of script. Most of it is a town.
+//
+// ---------------------------------------------------------------------------- the town
+// myreque_2_main_var is Burgh de Rott, bit by bit, and every multiloc on it reads the same way -
+// index 0 is the ruin and the last index is the repair:
+//
+//   burgh_inn_colapsed_wall   0 rubble blocked   -> 1 rubble cleared
+//   burgh_inn_trapdoor        0 closed           -> 1 open
+//   burgh_store_roof          0 broken           -> 1 fixed
+//   burgh_store_wall          0 damaged (clickable) -> 1 repaired
+//   burgh_bank_booth_open     0 damaged          -> 1 repaired
+//   burgh_bank_wall           0 damaged          -> 1 repaired
+//   burgh_bank_teller         0 a villager       -> 1 a bank teller
+//   burgh_furnace_fix         0 broken -> 1 repaired -> 2 coal loaded -> 3 fired
+//                             and burgh_furnace_smoke_multiloc puts smoke over the roof at 3
+//   burgh_store_stocked       one bit, and SIX locs read it: three crates, three sets of shelves,
+//                             and burgh_fires_multiloc, which is how the village fires get lit
+//   burgh_temple_trapdoor     index 1 only - there is no trapdoor until there is
+//   ivandis_tomb_boards       index 0 only - the boards are there until they are not
+//
+// One bit stocking a shop and lighting four fires across the village is the nicest thing in here.
+// The shop opens and the town has something to burn.
+//
+// ---------------------------------------------------------------------------- the blood tithe
+//   blood_tithe_visible, two bits, and four npcs and a barrel read it:
+//     0  a plain barrel, nobody
+//     1  a blood barrel, Gadderanks, two juvinates and a villager being bled
+//     2  a blood barrel, and where the villager was standing there is now Veliaf Hurtz
+//     3  a plain barrel, nobody
+//
+// The scene is written into the config. It happens, it is broken up, the Myreque arrive on the spot
+// where it happened, and then the square is quiet.
+//
+// ---------------------------------------------------------------------------- the map convention
+// Underground squares are the surface square's z plus 100, and the tile does not move:
+//   m54_50  Burgh de Rott      m54_150  the inn basement
+//   m54_53  the Canifis swamp  m54_153  the Hollows
+//   m53_54  Paterdomus         m53_154  the temple catacombs
+// which is how the inn trapdoor at (34,32) and the basement ladder at (34,32) are the same hole.
+^m2_not_started = 0
+^m2_sent = 10           // Veliaf has named Burgh de Rott
+^m2_arrived = 20        // the village leader has explained what is wrong with it
+^m2_rebuilt = 30        // shop, bank and furnace
+^m2_tithe = 40          // the vampyres came to collect
+^m2_tithe_broken = 50   // Gadderanks did not leave with a full barrel
+^m2_base = 60           // the inn cellar is open
+^m2_arrived_myreque = 70
+^m2_temple = 80         // sent to the Paterdomus catacombs
+^m2_books = 90          // the histories read, the library opened
+^m2_tomb = 100          // Ivandis's tomb opened
+^m2_complete = 110
+
+^m2_off = 0
+^m2_on = 1
+
+^m2_furnace_broken = 0
+^m2_furnace_repaired = 1
+^m2_furnace_coal = 2
+^m2_furnace_fired = 3
+
+^m2_tithe_none = 0
+^m2_tithe_happening = 1
+^m2_tithe_myreque = 2
+^m2_tithe_over = 3
+
+^m2_rubble_loads = 3    // buckets, and there are three bucket-of-rubble objs to carry them in
+
+// ---------------------------------------------------------------------------- Burgh de Rott
+^m2_leader = 0_54_50_34_41
+^m2_store_owner = 0_54_50_61_41
+^m2_store_wall = 0_54_50_61_38
+^m2_store_roof = 2_54_50_59_40
+^m2_store_ladder_up = 0_54_50_57_38
+^m2_store_ladder_down = 2_54_50_57_38
+^m2_bank_booth = 0_54_50_38_11
+^m2_bank_wall = 0_54_50_35_11
+^m2_furnace = 0_55_50_7_9
+^m2_blood_barrel = 0_54_50_58_42
+^m2_gadderanks = 0_54_50_58_41
+^m2_inn_wall = 0_54_50_33_31
+^m2_inn_trapdoor = 0_54_50_34_32
+
+// ---------------------------------------------------------------------------- the inn cellar
+^m2_cellar_ladder = 0_54_150_34_32
+^m2_cellar_veliaf = 0_54_150_38_28
+^m2_cellar_plaque = 0_54_150_38_32
+^m2_cellar_chest = 0_54_150_37_32
+
+// ---------------------------------------------------------------------------- Paterdomus
+// holy_barrier.rs2 already drops the player at 0_53_154_48_31, one room from the trapdoor.
+^m2_temple_trapdoor = 0_53_154_49_43
+^m2_temple_keyhole = 0_53_154_51_42
+^m2_library_ladder = 2_53_154_22_12
+^m2_library_history = 2_53_154_15_7
+^m2_library_ivandis = 2_53_154_15_10
+
+// ---------------------------------------------------------------------------- Ivandis
+// Off the Hollows, which is the map In Search of the Myreque opened up.
+^m2_tomb_boards = 0_54_153_27_40
+^m2_tomb_entrance = 0_54_153_28_40
+^m2_tomb_exit = 2_54_153_5_30
+^m2_hollows_veliaf = 0_54_153_50_46

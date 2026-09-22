@@ -369,6 +369,9 @@ if (%makinghistory_prog >= ^mh_complete) {
 if (%routequest >= ^route_complete) {
     $questpoints = add($questpoints, ^route_questpoints);
 }
+if (%myreque_2_quest >= ^m2_complete) {
+    $questpoints = add($questpoints, ^m2_questpoints);
+}
 // Recipe for Disaster is ten sub-quests worth one point each, tracked as ten bits in
 // %hundred_subquest_tally, so it counts bits rather than comparing a stage to a completion value.
 $questpoints = add($questpoints, ~hundred_subquests_done);
@@ -408,6 +411,7 @@ $total = add($total, ^dwarfrock_questpoints);
 $total = add($total, ^ahoy_questpoints);
 $total = add($total, ^mh_questpoints);
 $total = add($total, ^route_questpoints);
+$total = add($total, ^m2_questpoints);
 $total = add($total, ^runemysteries_questpoints);
 $total = add($total, ^doric_questpoints);
 $total = add($total, ^cook_questpoints);
@@ -582,6 +586,7 @@ if (testbit(%ibanmulti, ^upass_started_bit) = ^true & %upass ! ^upass_complete) 
 ~send_quest_progress_colour(questlist:ahoy, %ahoy_questvar, ^ahoy_complete);
 ~send_quest_progress_colour(questlist:makinghistory, %makinghistory_prog, ^mh_complete);
 ~send_quest_progress_colour(questlist:routequest, %routequest, ^route_complete);
+~send_quest_progress_colour(questlist:myreque_2, %myreque_2_quest, ^m2_complete);
 if_settab(questlist, ^tab_quest_journal);
 
 if (%drunkmonkquest >= ^drunkmonk_spoken_to_omad) {

@@ -1,0 +1,609 @@
+// In Aid of the Myreque - a town nobody has repaired in sixty years, and a resistance that needs
+// somewhere to live that is not a hole under a werewolf village.
+
+// =========================================================================== Veliaf, in the Hollows
+[label,myreque2_veliaf]
+switch_int (%myreque_2_quest) {
+    case ^m2_not_started :
+        if (%routequest < ^route_complete) {
+            @myreque2_veliaf_idle;
+        }
+        @m2_start;
+    case ^m2_sent :
+        ~chatnpc("<p,neutral>Burgh de Rott. South, past the boat, and keep walking after you think you have arrived.");
+        return;
+    case ^m2_arrived :
+        ~chatnpc("<p,neutral>Then fix it. I am not moving six people into a town that cannot feed them.");
+        return;
+    case ^m2_rebuilt :
+        ~chatnpc("<p,neutral>A shop and a bank and a working furnace. Now find out who has been taking from them.");
+        return;
+    case ^m2_tithe_broken :
+        ~chatnpc("<p,happy>You took a barrel off Gadderanks. We are coming. Open the inn cellar and we are coming.");
+        return;
+    case ^m2_base : @m2_veliaf_moved_in;
+    case ^m2_temple : @m2_veliaf_temple;
+    case ^m2_books : @m2_veliaf_books;
+    case ^m2_tomb : @m2_finish;
+    case default :
+        if (%myreque_2_quest >= ^m2_complete) {
+            ~chatnpc("<p,happy>Ivandis Seergaze. Two hundred years and it turns out somebody had already worked out how to kill them, and then died before he could tell anyone who mattered.");
+            return;
+        }
+        @myreque2_veliaf_idle;
+}
+return;
+
+// Everything Veliaf has to say that is not this quest.
+[label,myreque2_veliaf_idle]
+if (%myreque_2_quest = ^m2_base) {
+    ~chatnpc("<p,happy>Good cellar. Dry, one way in, and forty people upstairs who would rather we were here than not.");
+    return;
+}
+if (%routequest >= ^route_complete) {
+    ~chatnpc("<p,neutral>The road south is open and the tavern is empty. I do not trust either of those things and I am grateful for both.");
+    return;
+}
+~chatnpc("<p,neutral>Keep your voice down and mind the ladder.");
+
+[label,m2_start]
+~chatnpc("<p,neutral>You opened a road and I have spent three weeks looking at it and I have decided I do not want a road. I want a town.");
+~chatplayer("<p,quiz>There aren't any towns down there.");
+~chatnpc("<p,neutral>There is one. Burgh de Rott. It is on the coast at the bottom of the swamp and it has about forty people left in it and no trade and no bank and no shop and a hole in the roof of every building.");
+~chatnpc("<p,neutral>It also has a cellar under the inn that six people could live in, and it is a very long way from anything Drakan pays attention to.");
+switch_int (~p_choice2("Why hasn't anyone helped them?", 1, "Forty people is not a town.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>Forty people is not a town.");
+        ~chatnpc("<p,angry>Six people is not a resistance. We take what we are given.");
+    case 1 :
+        ~chatplayer("<p,quiz>Why hasn't anyone helped them?");
+        ~chatnpc("<p,sad>Because to help them you have to walk through Mort Myre, and everybody who has tried has been eaten in it.");
+}
+%myreque_2_quest = ^m2_sent;
+~send_quest_progress(questlist:myreque_2, %myreque_2_quest, ^m2_complete);
+~chatnpc("<p,neutral>Go and look at it. Then come back and tell me whether I am being a fool.");
+
+[label,m2_veliaf_moved_in]
+~chatnpc("<p,happy>Six of us, in a dry cellar, in a town that is glad we are here. I have not had a week like this since I was nineteen.");
+~chatplayer("<p,quiz>So what now?");
+%myreque_2_quest = ^m2_temple;
+~send_quest_progress(questlist:myreque_2, %myreque_2_quest, ^m2_complete);
+@m2_veliaf_temple;
+
+[label,m2_veliaf_temple]
+~chatnpc("<p,neutral>Silver works on them and we have known that for sixty years and it is not enough. Silver hurts them. It does not finish them.");
+~chatnpc("<p,neutral>Somebody once did better. There is a name in the Paterdomus histories - Ivandis Seergaze - and the priests down there will not discuss him.");
+~chatnpc("<p,neutral>Go and read. The catacombs under the temple have a library and I have never been able to get into it.");
+
+[label,m2_veliaf_books]
+~chatnpc("<p,shock>A tomb. Under the Hollows. We have been walking past it for twenty years.");
+~chatnpc("<p,neutral>The boards on that door were put there by somebody who did not want it found and I had always assumed they were structural.");
+
+[label,m2_finish]
+~chatplayer("<p,neutral>The tomb is open.");
+if_close;
+mes("Veliaf reads the plaster fragment twice and then a third time.");
+p_delay(5);
+~mesbox("Ivandis Seergaze was one of seven warrior priests, and he is the only one of the seven who is not in the histories, and the reason he is not in the histories is that what he worked out was not something the temple wanted written down. | It is a recipe. It is a way of making silver do to a vampyre what it has always very nearly done.");
+p_delay(3);
+%myreque_2_quest = ^m2_complete;
+%blood_tithe_visible = ^m2_tithe_over;
+stat_advance(attack, 20000);
+stat_advance(defence, 20000);
+stat_advance(crafting, 20000);
+session_log(^log_adventure, "Quest complete: In Aid of the Myreque");
+~send_quest_complete(questlist:myreque_2, burgh_plaster_inscription_ivandis, 200, ^m2_questpoints, "You have completed\\nIn Aid of the Myreque!", "3 Quest Points|2,000 Attack XP|2,000 Defence XP|2,000 Crafting XP|Burgh de Rott|The Myreque have a home");
+
+// =========================================================================== the village leader
+[opnpc1,burgh_vilager_leader]
+switch_int (%myreque_2_quest) {
+    case ^m2_not_started :
+        ~chatnpc("<p,sad>There is nothing here. I am not being modest. There is nothing here.");
+    case ^m2_sent : @m2_leader_brief;
+    case ^m2_arrived : @m2_leader_check;
+    case ^m2_rebuilt :
+        ~chatnpc("<p,happy>The shop has stock and the bank has a teller and the furnace is lit, and now we will find out how long we are allowed to keep them.");
+    case ^m2_tithe :
+        ~chatnpc("<p,sad>They come for the tithe. They have always come for the tithe. That is the arrangement and the arrangement is why there are still forty of us.");
+    case default :
+        ~chatnpc("<p,happy>Six armed strangers moved into the inn cellar and the whole village slept through the night for the first time in my life.");
+}
+
+[label,m2_leader_brief]
+~chatnpc("<p,sad>You walked through Mort Myre. On purpose.");
+~chatplayer("<p,neutral>I'm told this place used to be a port.");
+~chatnpc("<p,sad>It was. Now it is forty people and a hole in every roof.");
+~chatnpc("<p,neutral>The shop has no stock and half a roof. The bank has a broken booth and no teller, because the man who would be the teller will not stand behind a booth that is falling over. The furnace has been cold since my father was alive.");
+~chatnpc("<p,sad>And we cannot light a fire, because there is nothing in this village dry enough to burn and nowhere to buy a tinderbox.");
+%myreque_2_quest = ^m2_arrived;
+~send_quest_progress(questlist:myreque_2, %myreque_2_quest, ^m2_complete);
+
+[label,m2_leader_check]
+if (~m2_town_done = false) {
+    ~chatnpc("<p,neutral>The shop, the bank and the furnace.");
+    if (%burgh_store_stocked = ^m2_off) {
+        ~chatnpc("<p,neutral>The store roof leaks, the wall is out and the shelves are bare. All three.");
+    }
+    if (%burgh_bank_booth_open = ^m2_off | %burgh_bank_wall = ^m2_off) {
+        ~chatnpc("<p,neutral>The bank booth and the wall behind it.");
+    }
+    if (%burgh_furnace_fix < ^m2_furnace_fired) {
+        ~chatnpc("<p,neutral>The furnace: mend it, load it, light it.");
+    }
+    return;
+}
+~chatnpc("<p,shock>You have done all of it.");
+~chatnpc("<p,happy>There is a shop. There is a bank. There is smoke coming out of the furnace and every fire in this village is lit off it.");
+%myreque_2_quest = ^m2_rebuilt;
+~send_quest_progress(questlist:myreque_2, %myreque_2_quest, ^m2_complete);
+// Which is the moment the people who take a cut of this town notice that there is a cut to take.
+%blood_tithe_visible = ^m2_tithe_happening;
+%myreque_2_quest = ^m2_tithe;
+~send_quest_progress(questlist:myreque_2, %myreque_2_quest, ^m2_complete);
+if_close;
+mes("Somebody outside starts shouting, and then stops shouting, which is worse.");
+
+[proc,m2_town_done]()(boolean)
+if (%burgh_store_stocked = ^m2_off) { return(false); }
+if (%burgh_store_roof = ^m2_off) { return(false); }
+if (%burgh_store_wall = ^m2_off) { return(false); }
+if (%burgh_bank_booth_open = ^m2_off) { return(false); }
+if (%burgh_bank_wall = ^m2_off) { return(false); }
+if (%burgh_furnace_fix < ^m2_furnace_fired) { return(false); }
+return(true);
+
+// =========================================================================== the general store
+[opnpc1,burgh_general_store_owner]
+if (%myreque_2_quest < ^m2_arrived) {
+    ~chatnpc("<p,sad>I have a shop. I have had a shop for thirty years. I have not had any stock for eleven.");
+    return;
+}
+if (%burgh_store_stocked = ^m2_on) {
+    ~chatnpc("<p,happy>Tinderboxes, axes and snails. It is not much of a range and it is the first range this village has had since I was a young man.");
+    return;
+}
+if (%burgh_store_roof = ^m2_off) {
+    ~chatplayer("<p,quiz>Can I do anything about the shop?");
+    ~chatnpc("<p,sad>Not while it rains inside it. The roof is up the ladder. Planks, a hammer and nails, and I will thank you for the rest of my life.");
+    return;
+}
+if (%burgh_store_wall = ^m2_off) {
+    ~chatnpc("<p,neutral>The roof is done. The wall is still open to the street and I am not stocking shelves that anybody can reach from outside.");
+    return;
+}
+~chatnpc("<p,neutral>Roof and wall. Now: the stock is not missing, it is in three crates in the store room and none of us can lift them onto the shelves, because there are four people in this village under sixty.");
+if_close;
+mes("You put three crates onto three sets of shelves, which takes about ten minutes and changes the village more than anything else you do here.");
+p_delay(5);
+// One bit. Three crates, three sets of shelves, and every fire in the village.
+%burgh_store_stocked = ^m2_on;
+stat_advance(strength, 5000);
+~mesbox("The shop has stock. By the time you are back out on the street somebody has bought a tinderbox, and by the time you reach the end of it there are fires lit along the whole length of the village.");
+
+[oploc1,burgh_general_store_roof_multiloc]
+if (%burgh_store_roof = ^m2_on) {
+    ~mesbox("A repaired roof, from above, which is the only angle it looks convincing from.");
+    return;
+}
+p_arrivedelay;
+if (%myreque_2_quest < ^m2_arrived) {
+    ~mesbox("There is more sky in this roof than roof.");
+    return;
+}
+if (inv_total(inv, plank) < 3 | inv_total(inv, hammer) = 0 | inv_total(inv, nails) = 0) {
+    ~mesbox("Three planks, a hammer and nails.");
+    return;
+}
+anim(human_pickupfloor, 0);
+p_delay(5);
+inv_del(inv, plank, 3);
+inv_del(inv, nails, 1);
+%burgh_store_roof = ^m2_on;
+stat_advance(crafting, 3000);
+mes("It is not a good roof. It is a roof.");
+
+[oploc1,burgh_general_store_wall_multiloc] @m2_board_wall(^m2_store_wall);
+[oploc1,burgh_bank_wall_multiloc] @m2_board_wall(^m2_bank_wall);
+
+[label,m2_board_wall](coord $wall)
+p_arrivedelay;
+if ($wall = ^m2_store_wall & %burgh_store_wall = ^m2_on) {
+    ~mesbox("A wall.");
+    return;
+}
+if ($wall = ^m2_bank_wall & %burgh_bank_wall = ^m2_on) {
+    ~mesbox("A wall.");
+    return;
+}
+if (%myreque_2_quest < ^m2_arrived) {
+    ~mesbox("The wall has fallen out and somebody has leaned boards against the hole.");
+    return;
+}
+if (inv_total(inv, plank) < 2 | inv_total(inv, hammer) = 0 | inv_total(inv, nails) = 0) {
+    ~mesbox("Two planks, a hammer and nails.");
+    return;
+}
+anim(human_pickupfloor, 0);
+p_delay(4);
+inv_del(inv, plank, 2);
+inv_del(inv, nails, 1);
+if ($wall = ^m2_store_wall) {
+    %burgh_store_wall = ^m2_on;
+    mes("The shop wall is a wall again.");
+} else {
+    %burgh_bank_wall = ^m2_on;
+    mes("The bank wall is a wall again.");
+    ~m2_bank_teller_check;
+}
+stat_advance(crafting, 2000);
+
+[oploc1,burgh_ladder_generalstore_up]
+p_arrivedelay;
+mes("You climb up.");
+p_teleport(^m2_store_ladder_down);
+
+[oploc1,burgh_ladder_generalstore_down]
+p_arrivedelay;
+mes("You climb down.");
+p_teleport(^m2_store_ladder_up);
+
+// =========================================================================== the bank
+// burgh_bankbooth_repaired declares op1=Use and op2=Use-quickly, which is the same pair the real
+// bank booths use, so once it stands up it is a bank booth and behaves like one.
+[oploc1,burgh_bank_booth_multiloc]
+if (%burgh_bank_booth_open = ^m2_on) {
+    @openbank;
+}
+p_arrivedelay;
+if (%myreque_2_quest < ^m2_arrived) {
+    ~mesbox("A bank booth with one leg and no bank behind it.");
+    return;
+}
+if (inv_total(inv, plank) < 2 | inv_total(inv, hammer) = 0 | inv_total(inv, nails) = 0) {
+    ~mesbox("Two planks, a hammer and nails.");
+    return;
+}
+anim(human_pickupfloor, 0);
+p_delay(4);
+inv_del(inv, plank, 2);
+inv_del(inv, nails, 1);
+%burgh_bank_booth_open = ^m2_on;
+stat_advance(crafting, 2000);
+mes("The booth stands up on its own.");
+~m2_bank_teller_check;
+
+// The man who would be the teller will not stand behind a booth that falls over, and will not stand
+// in front of a hole in the wall either. Both, and he takes the job.
+[proc,m2_bank_teller_check]()()
+if (%burgh_bank_booth_open = ^m2_off | %burgh_bank_wall = ^m2_off) {
+    return;
+}
+if (%burgh_bank_teller = ^m2_on) {
+    return;
+}
+%burgh_bank_teller = ^m2_on;
+~mesbox("Somebody who has been standing near that booth doing nothing for eleven years walks round behind it and starts doing something.");
+
+[oploc2,burgh_bank_booth_multiloc]
+if (%burgh_bank_booth_open = ^m2_off) {
+    ~mesbox("It has one leg.");
+    return;
+}
+@openbank;
+
+[opnpc1,burgh_actual_bank_teller_multinpc]
+~chatnpc("<p,happy>Burgh de Rott has a bank. I have a job. Both of those sentences are new to me.");
+@openbank;
+
+[opnpc1,burgh_potential_bank_teller_multinpc]
+if (%burgh_bank_booth_open = ^m2_off) {
+    ~chatnpc("<p,sad>I was a bank teller. There is a booth over there with one leg on it and I am not standing behind that.");
+    return;
+}
+if (%burgh_bank_wall = ^m2_off) {
+    ~chatnpc("<p,sad>The booth stands up now. The wall behind it does not, and a bank with a hole in the back of it is a pile of coins in a field.");
+    return;
+}
+~chatnpc("<p,neutral>...both of them. Right.");
+~m2_bank_teller_check;
+
+// =========================================================================== the furnace
+[oploc1,burgh_furnace_multiloc]
+switch_int (%burgh_furnace_fix) {
+    case ^m2_furnace_repaired : @m2_furnace_load;
+    case ^m2_furnace_coal : @m2_furnace_light;
+    case ^m2_furnace_fired : @m2_furnace_smelt;
+}
+p_arrivedelay;
+if (%myreque_2_quest < ^m2_arrived) {
+    ~mesbox("The furnace is cracked from the base to the flue and has been cold long enough for things to be nesting in it.");
+    return;
+}
+if (inv_total(inv, bucket_water) = 0 | inv_total(inv, softclay) = 0) {
+    ~mesbox("A crack that wide wants clay and water, not planks.");
+    return;
+}
+anim(human_pickupfloor, 0);
+p_delay(5);
+inv_del(inv, softclay, 1);
+inv_del(inv, bucket_water, 1);
+%burgh_furnace_fix = ^m2_furnace_repaired;
+stat_advance(crafting, 3000);
+mes("You pack the crack and smooth it off. It will hold.");
+
+[label,m2_furnace_load]
+p_arrivedelay;
+if (inv_total(inv, coal) < 5) {
+    ~mesbox("Mended and empty. Five coal would start it.");
+    return;
+}
+inv_del(inv, coal, 5);
+%burgh_furnace_fix = ^m2_furnace_coal;
+mes("You load the furnace.");
+
+[label,m2_furnace_light]
+p_arrivedelay;
+if (inv_total(inv, tinderbox) = 0) {
+    ~mesbox("Loaded, and nothing in this village to light it with. That is rather the whole problem.");
+    return;
+}
+anim(human_pickupfloor, 0);
+p_delay(4);
+%burgh_furnace_fix = ^m2_furnace_fired;
+stat_advance(firemaking, 4000);
+// burgh_furnace_smoke_multiloc reads the same varbit and puts smoke over the roof at 3.
+~mesbox("It catches, and then it roars, and there is smoke coming out of a Burgh de Rott chimney for the first time in forty years. People come out of their houses to look at it.");
+
+[label,m2_furnace_smelt]
+~mesbox("A working furnace, in a town that has not had one since before anybody here was born.");
+return;
+
+// =========================================================================== the blood tithe
+[opnpc1,burgh_gadderanks_multinpc]
+if (%blood_tithe_visible ! ^m2_tithe_happening) {
+    ~chatnpc("<p,angry>Move.");
+    return;
+}
+~chatnpc("<p,angry>Queue up or clear off. The tithe is the tithe.");
+~chatplayer("<p,quiz>They're bleeding into a barrel.");
+~chatnpc("<p,laugh>Into a barrel, and the barrel goes north, and in return nothing happens to the other thirty-nine of them. It is the best arrangement anybody in this swamp has.");
+~chatplayer("<p,neutral>Not today.");
+~chatnpc("<p,angry>You are going to regret being memorable.");
+if_close;
+~m2_tithe_fight;
+
+[proc,m2_tithe_fight]()()
+mes("Gadderanks puts the villager down and comes at you, and the two juvinates behind him do not move, because the arrangement is that Gadderanks handles this sort of thing.");
+p_delay(4);
+~damage_self(12);
+mes("It is not a long fight and it is not a clean one.");
+p_delay(4);
+mes("He goes down in the mud beside his own barrel.");
+p_delay(3);
+%blood_tithe_visible = ^m2_tithe_myreque;
+%myreque_2_quest = ^m2_tithe_broken;
+~send_quest_progress(questlist:myreque_2, %myreque_2_quest, ^m2_complete);
+stat_advance(attack, 8000);
+stat_advance(defence, 8000);
+~mesbox("The two juvinates look at him, and at you, and at forty villagers who have all stopped moving, and they leave. | Somebody who has walked here from the Hollows is standing where the villager was.");
+
+[opnpc1,burgh_villager_tithe_multinpc]
+if (%blood_tithe_visible = ^m2_tithe_myreque) {
+    @myreque2_veliaf;
+}
+if (%blood_tithe_visible = ^m2_tithe_happening) {
+    ~chatnpc("<p,sad>Don't. It is quicker if nobody does anything.");
+    return;
+}
+~chatnpc("<p,sad>Eleven years I have been in that queue.");
+
+[opnpc1,burgh_juve1_multinpc] ~mesbox("It does not acknowledge you. Gadderanks does the talking.");
+[opnpc1,burgh_juve2_multinpc] ~mesbox("It does not acknowledge you. Gadderanks does the talking.");
+
+// =========================================================================== the inn cellar
+[oploc1,burgh_inn_colapsed_wall_multiloc]
+if (%burgh_inn_colapsed_wall = ^m2_on) {
+    ~mesbox("Where the back wall of the inn used to be. There is a trapdoor in the floor.");
+    return;
+}
+p_arrivedelay;
+if (%myreque_2_quest < ^m2_tithe_broken) {
+    ~mesbox("The inn's back wall came down at some point and nobody has moved it, because moving it takes four people and there are not four spare people in Burgh de Rott.");
+    return;
+}
+if (inv_total(inv, bucket_empty) = 0) {
+    ~mesbox("It comes out a bucket at a time and you have no bucket.");
+    return;
+}
+if (%burgh_inn_rubble_pile >= ^m2_rubble_loads) {
+    %burgh_inn_colapsed_wall = ^m2_on;
+    ~mesbox("That is the last of it. There is a floor under there, and a trapdoor in the floor.");
+    return;
+}
+anim(human_pickupfloor, 0);
+p_delay(4);
+%burgh_inn_rubble_pile = add(%burgh_inn_rubble_pile, 1);
+if (%burgh_inn_rubble_pile >= ^m2_rubble_loads) {
+    %burgh_inn_colapsed_wall = ^m2_on;
+    stat_advance(strength, 4000);
+    ~mesbox("That is the last of it. There is a floor under there, and a trapdoor in the floor.");
+    return;
+}
+mes("You carry another bucket of it out into the street.");
+
+[oploc1,burgh_inn_trapdoor_multiloc]
+p_arrivedelay;
+if (%burgh_inn_trapdoor = ^m2_on) {
+    mes("You climb down.");
+    p_teleport(^m2_cellar_ladder);
+    return;
+}
+if (%burgh_inn_colapsed_wall = ^m2_off) {
+    ~mesbox("There is half a wall on top of it.");
+    return;
+}
+mes("You pull the trapdoor open.");
+%burgh_inn_trapdoor = ^m2_on;
+if (%myreque_2_quest = ^m2_tithe_broken) {
+    %myreque_2_quest = ^m2_base;
+    ~send_quest_progress(questlist:myreque_2, %myreque_2_quest, ^m2_complete);
+    // The Myreque come down from the Hollows.
+    %burgh_route_myreque_party_visible = ^m2_on;
+    ~mesbox("A dry stone cellar the length of the inn, with a ladder, and nothing living in it. | Six people could hold this against a great deal.");
+}
+
+[oploc2,burgh_inn_trapdoor_multiloc]
+%burgh_inn_trapdoor = ^m2_off;
+mes("You close the trapdoor.");
+
+[oploc1,burgh_inn_basement_ladderup]
+p_arrivedelay;
+mes("You climb up.");
+p_teleport(^m2_inn_trapdoor);
+
+[oploc1,burgh_inn_wall_plaque]
+~mesbox("BURGH DE ROTT | A free port of the Kingdom of Hallowland | and this is as much of it as is still legible.");
+
+// =========================================================================== Veliaf, in the cellar
+[opnpc1,burgh_rescue_veliaf_hurtz_talk] @myreque2_veliaf;
+
+// =========================================================================== Paterdomus
+// The catacombs under Paterdomus. holy_barrier.rs2 already puts the player one room away.
+[oploc1,burgh_library_keyhole]
+p_arrivedelay;
+if (%myreque_2_quest < ^m2_temple) {
+    ~mesbox("A keyhole in a wall with no door in it, which is the sort of thing that stops being strange once you have been in these catacombs for a while.");
+    return;
+}
+if (%burgh_temple_trapdoor = ^m2_on) {
+    ~mesbox("The trapdoor beside it is already open.");
+    return;
+}
+if (inv_total(inv, burgh_key) = 0) {
+    ~mesbox("There is a keyhole and no door. Whatever it opens is in the floor, and it is locked, and the priests upstairs keep the key and will tell you they do not.");
+    return;
+}
+mes("The key turns and something heavy moves in the floor.");
+p_delay(3);
+%burgh_temple_trapdoor = ^m2_on;
+~mesbox("A trapdoor has opened where there was no trapdoor. The temple library has not been opened in two hundred years and the priests upstairs have spent all of it not mentioning that it exists.");
+
+[oploc1,burgh_temple_trapdoor_multiloc]
+p_arrivedelay;
+mes("You climb down into the library.");
+p_delay(2);
+p_teleport(^m2_library_ladder);
+
+[oploc1,burgh_temple_library_ladder_up]
+p_arrivedelay;
+mes("You climb up.");
+p_teleport(^m2_temple_trapdoor);
+
+[oploc1,burgh_library_bookcase_history]
+p_arrivedelay;
+if (inv_total(inv, burgh_book_sevenwarriors) > 0 | %myreque_2_quest > ^m2_temple) {
+    ~mesbox("Histories, and one gap on the shelf where you took the useful one.");
+    return;
+}
+if (inv_freespace(inv) < 2) {
+    mes("You have no room.");
+    return;
+}
+inv_add(inv, burgh_book_sevenwarriors, 1);
+inv_add(inv, burgh_book_historiesofhallowland, 1);
+~mesbox("Two books come off the shelf together, because somebody shelved them together on purpose. | One is a history of Hallowland. The other is about seven warrior priests, and it was written two hundred years ago.");
+
+[oploc1,burgh_library_bookcase_ivandis]
+p_arrivedelay;
+if (inv_total(inv, burgh_book_sevenwarriors) = 0 & %myreque_2_quest <= ^m2_temple) {
+    ~mesbox("This case is all one hand and it is not indexed. You would need to know what you were looking for.");
+    return;
+}
+if (%myreque_2_quest > ^m2_temple) {
+    ~mesbox("The case where the seventh name was not.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room.");
+    return;
+}
+if_close;
+mes("You work along the case with the seven names in front of you. Six of them are here.");
+p_delay(5);
+inv_add(inv, burgh_efaritay_info_scroll, 1);
+%myreque_2_quest = ^m2_books;
+~send_quest_progress(questlist:myreque_2, %myreque_2_quest, ^m2_complete);
+~mesbox("The seventh is Ivandis Seergaze, and there is nothing under his name at all - not a removal, not a gap, nothing. Somebody went through this library and took him out of it. | Behind where he should have been there is a scroll. It is not about him. It is a man called Sialathin writing to his wife about getting her out of Hallowvale, and it is the sort of thing that ends up behind a shelf when somebody is hiding one document properly and everything else in a hurry.");
+
+// =========================================================================== Ivandis's tomb
+[oploc1,burgh_ivandis_tombdoor_board_multiloc]
+if (%ivandis_tomb_boards = ^m2_on) {
+    ~mesbox("The door the boards were on.");
+    return;
+}
+p_arrivedelay;
+if (%myreque_2_quest < ^m2_books) {
+    ~mesbox("A door in the Hollows that somebody boarded up a very long time ago. Everybody down here has assumed for twenty years that it was structural.");
+    return;
+}
+if (inv_total(inv, hammer) = 0) {
+    ~mesbox("Two hundred years of nails. A hammer would do it.");
+    return;
+}
+anim(human_pickupfloor, 0);
+p_delay(5);
+%ivandis_tomb_boards = ^m2_on;
+%myreque_2_quest = ^m2_tomb;
+~send_quest_progress(questlist:myreque_2, %myreque_2_quest, ^m2_complete);
+~mesbox("The boards come off. Behind them is a passage that has not had air in it since Efaritay put the last nail in.");
+
+[oploc1,burgh_ivandis_tomb_entrance]
+p_arrivedelay;
+if (%ivandis_tomb_boards = ^m2_off) {
+    ~mesbox("There are boards over it.");
+    return;
+}
+mes("You go in.");
+p_delay(2);
+p_teleport(^m2_tomb_exit);
+
+[oploc1,burgh_ivandis_tomb_exit]
+p_arrivedelay;
+mes("You come back out into the Hollows.");
+p_delay(2);
+p_teleport(^m2_tomb_entrance);
+
+[oploc1,burgh_ancient_coffin]
+p_arrivedelay;
+if (inv_total(inv, burgh_plaster_inscription_ivandis) > 0 | %myreque_2_quest >= ^m2_complete) {
+    ~mesbox("Ivandis Seergaze, who is not in the histories because somebody made sure of it.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room.");
+    return;
+}
+mes("The wall above the tomb has been plastered over, and the plaster is coming away.");
+p_delay(3);
+inv_add(inv, burgh_plaster_inscription_ivandis, 1);
+~mesbox("Under the plaster there is carving, and the plaster itself has taken the impression of it. | A fragment comes away in your hand with the whole of it on the back.");
+
+// =========================================================================== the chest in the cellar
+[oploc1,burgh_chest_closed]
+p_arrivedelay;
+if (inv_total(inv, burgh_key) > 0 | %myreque_2_quest > ^m2_temple) {
+    ~mesbox("Empty now.");
+    return;
+}
+if (%myreque_2_quest < ^m2_temple) {
+    ~mesbox("Locked, and nobody in Burgh de Rott has ever claimed it.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room.");
+    return;
+}
+mes("The lock is older than the chest and comes away in one piece.");
+p_delay(2);
+inv_add(inv, burgh_key, 1);
+~mesbox("A key, labelled, in a hand nobody has used in two hundred years: Temple Library.");

@@ -1,0 +1,98 @@
+[if_button,questlist:myreque_2]
+def_string $text;
+
+switch_int (%myreque_2_quest) {
+    case ^m2_not_started :
+        $text = "@dbl@@dre@Veliaf Hurtz@dbl@ has an idea about where the Myreque should|";
+        $text = append($text, "@dbl@live next|");
+        $text = append($text, "@dbl@Finish @dre@In Search of the Myreque@dbl@ first");
+
+    case ^m2_sent :
+        $text = "@str@Burgh de Rott is at the bottom of Mort Myre: forty people,|";
+        $text = append($text, "@str@no trade, no bank, no shop, and a hole in every roof.|");
+        $text = append($text, "@str@Nobody has helped them because to get there you walk|");
+        $text = append($text, "@str@through the swamp.|");
+        $text = append($text, "@dbl@Go and look at it. Find the @dre@village leader");
+
+    case ^m2_arrived :
+        $text = "@str@Three things have to work before six armed strangers can|";
+        $text = append($text, "@str@move in without starving the place:||");
+        if (%burgh_store_roof = ^m2_on & %burgh_store_wall = ^m2_on & %burgh_store_stocked = ^m2_on) {
+            $text = append($text, "@gre@The general store - open|");
+        } else {
+            $text = append($text, "@dbl@The @dre@general store@dbl@ - the @dre@roof@dbl@ (3 planks, up the|");
+            $text = append($text, "@dbl@ladder), the @dre@wall@dbl@ (2 planks) and then the @dre@owner");
+        }
+        if (%burgh_bank_booth_open = ^m2_on & %burgh_bank_wall = ^m2_on) {
+            $text = append($text, "@gre@The bank - open|");
+        } else {
+            $text = append($text, "@dbl@The @dre@bank@dbl@ - the @dre@booth@dbl@ and the @dre@wall@dbl@ behind it, 2|");
+            $text = append($text, "@dbl@planks each. The teller will not stand up until both|");
+        }
+        if (%burgh_furnace_fix >= ^m2_furnace_fired) {
+            $text = append($text, "@gre@The furnace - lit|");
+        } else {
+            $text = append($text, "@dbl@The @dre@furnace@dbl@ - @dre@soft clay@dbl@ and a @dre@bucket of water@dbl@ to|");
+            $text = append($text, "@dbl@mend it, @dre@5 coal@dbl@ to load it, a @dre@tinderbox@dbl@ to light it");
+        }
+
+    case ^m2_rebuilt :
+        $text = "@str@A shop, a bank and smoke out of a Burgh de Rott chimney for|";
+        $text = append($text, "@str@the first time in forty years.|");
+        $text = append($text, "@dbl@Tell the @dre@village leader");
+
+    case ^m2_tithe :
+        $text = "@str@The blood tithe. A barrel, two juvinates, and a man called|";
+        $text = append($text, "@str@Gadderanks who takes a cut of this village and calls it an|");
+        $text = append($text, "@str@arrangement - and it is one, and it is why there are still|");
+        $text = append($text, "@str@forty of them.|");
+        $text = append($text, "@dbl@@dre@Gadderanks@dbl@ is by the barrel");
+
+    case ^m2_tithe_broken :
+        $text = "@str@Gadderanks went down in the mud beside his own barrel and|";
+        $text = append($text, "@str@the juvinates counted the villagers and left.|");
+        $text = append($text, "@dbl@Clear the @dre@collapsed wall@dbl@ in the inn - it comes out a|");
+        $text = append($text, "@dbl@@dre@bucket@dbl@ at a time - and open the @dre@trapdoor@dbl@ under it");
+
+    case ^m2_base :
+        $text = "@str@A dry stone cellar the length of the inn, one way in, and|";
+        $text = append($text, "@str@forty people upstairs who would rather the Myreque were here|");
+        $text = append($text, "@str@than not.|");
+        $text = append($text, "@dbl@Speak to @dre@Veliaf@dbl@ in the cellar");
+
+    case ^m2_temple :
+        $text = "@str@Silver hurts them. It does not finish them. Somebody once|";
+        $text = append($text, "@str@did better, and his name is in the Paterdomus histories and|");
+        $text = append($text, "@str@the priests will not discuss him.|");
+        $text = append($text, "@dbl@The @dre@catacombs@dbl@ under @dre@Paterdomus@dbl@ have a library|");
+        $text = append($text, "@dbl@The @dre@key@dbl@ is in a chest nobody in Burgh de Rott has ever|");
+        $text = append($text, "@dbl@claimed");
+
+    case ^m2_books :
+        $text = "@str@Seven warrior priests. The book names six and then says|";
+        $text = append($text, "@str@'and another', twice, and never writes the seventh name.|");
+        $text = append($text, "@str@Somebody went through that library with a knife.|");
+        $text = append($text, "@str@Ivandis Seergaze.|");
+        $text = append($text, "@dbl@There is a @dre@boarded door@dbl@ in the @dre@Hollows@dbl@ everyone has|");
+        $text = append($text, "@dbl@assumed for twenty years was structural. Bring a @dre@hammer");
+
+    case ^m2_tomb :
+        $text = "@str@The plaster over the tomb has taken the impression of what|";
+        $text = append($text, "@str@was carved under it, and it is not an epitaph.|");
+        $text = append($text, "@dbl@Take it to @dre@Veliaf");
+
+    case ^m2_complete :
+        $text = "@str@Burgh de Rott has a shop, a bank, a lit furnace and six|";
+        $text = append($text, "@str@armed strangers in the inn cellar, and slept through the|");
+        $text = append($text, "@str@night.|");
+        $text = append($text, "@str@Ivandis Seergaze was the seventh of the Sleeping Seven and|");
+        $text = append($text, "@str@somebody removed him from every history in the temple,|");
+        $text = append($text, "@str@because what he worked out was not an epitaph. It was a|");
+        $text = append($text, "@str@method.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+
+    case default :
+        $text = "@dbl@Speak to @dre@Veliaf Hurtz@dbl@ in the @dre@Hollows";
+}
+
+~quest_journal("In Aid of the Myreque", $text);
