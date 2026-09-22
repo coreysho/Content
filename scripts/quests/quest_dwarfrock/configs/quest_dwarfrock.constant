@@ -1,0 +1,51 @@
+// Between a Rock...
+//
+// One varp, dwarfrock_main, transmit=yes and no scope=perm.
+//
+// ---------------------------------------------------------------------------- the stage pin
+// dwarfrock_quest is eight bits, so 0-255 was available - and [dwarfrock_multi_dondakan] declares
+// exactly twelve of them:
+//
+//   multinpc=0,10,20,30,40,50,60,70,80,90,100 -> dwarfrock_dondakan
+//   multinpc=110                              -> dwarfrock_dondakan_noaxe
+//
+// Twelve values in tens, and the twelfth is a different Dondakan. Anything between them renders no
+// Dondakan at all, so the stages below are those twelve and nothing else.
+//
+// [dwarfrock_multi_gold_boatman] declares 110 ONLY, so the gold boatman exists at exactly the
+// value where Dondakan loses his axe - the two are the same moment seen from two directions.
+//
+// [dwarf_cannon_balls_flight_multi] is multiloc=0 only on dwarfrock_fired_gold_cannonball, so the
+// cannonball in flight is drawn until the bit is set. Inverted, like the other *_gone bits.
+//
+// ---------------------------------------------------------------------------- where it happens
+// The gold rock and Dondakan are on m44_158, directly south of Keldagrim and walkable from it -
+// which is why this quest could not be done until The Giant Dwarf opened the city. The schematics
+// are in the dwarven mine, a long way from either.
+
+^dwarfrock_not_started = 0
+^dwarfrock_asked = 10        // Dondakan has explained the rock
+^dwarfrock_looking = 20      // looking for anyone who knows anything
+^dwarfrock_rolad = 30        // Rolad has heard of the schematics
+^dwarfrock_searching = 40    // and says which mine the carts are in
+^dwarfrock_overlays = 50     // all three overlays found
+^dwarfrock_assembled = 60    // the schematic put together
+^dwarfrock_engineers = 70    // handed to the engineers
+^dwarfrock_cannonball = 80   // the gold cannonball cast
+^dwarfrock_fired = 90        // fired into the rock
+^dwarfrock_inside = 100      // and survived it
+^dwarfrock_complete = 110    // <- DONDAKAN CHANGES AND THE GOLD BOATMAN APPEARS
+
+^dwarfrock_overlay_count = 3
+
+^dwarfrock_off = 0
+^dwarfrock_on = 1
+
+// ---------------------------------------------------------------------------- places
+^dwarfrock_dondakan_coord = 0_44_158_8_56       // 2824,10168  the gold rock, south of Keldagrim
+^dwarfrock_cannon = 0_44_158_6_55         // 2822,10167
+^dwarfrock_rolad_coord = 0_47_53_14_60          // 3022,3452
+^dwarfrock_bookcarts = 0_47_153_9_53      // 3017,9845   seven of them in the dwarven mine
+^dwarfrock_engineer1 = 0_44_159_55_22     // 2871,10198  in Keldagrim
+^dwarfrock_khorvak = 0_44_154_48_20       // 2864,9876
+^dwarfrock_boatman = 0_44_158_57_54       // 2873,10166
