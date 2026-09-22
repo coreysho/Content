@@ -1,0 +1,69 @@
+// Rat Catchers.
+//
+// Four varps. main_ratcatch_var, ratcatch_var_multi, ratcatch_var_temp1 and ratcatch_var_temp2 all
+// ship with transmit=yes and none of them had scope=perm.
+//
+// ---------------------------------------------------------------------------- the six rats
+// The only multis in the whole quest are these, and they are the shape of the end of it:
+//
+//   [vc_partyrat_multi1] multivar=vc_raton_off1  multinpc=0,vc_party_rat
+//   ... six of them, one per bit ...
+//   [vc_partyrat_multi6] multivar=vc_raton_off6  multinpc=0,vc_party_rat
+//
+// Index 0 ONLY, so a party rat is present while its bit is clear and gone once it is set. A fresh
+// account therefore finds all six already loose at the party, and setting a bit is what takes one
+// away - which is the quest, not the setup.
+//
+// And the rat pole runs vc_rat_pole, then vc_rat_pole_1 through vc_rat_pole_6. Six rats, six pole
+// states. The two line up exactly and nothing had to be decided about either.
+//
+// ---------------------------------------------------------------------------- ops, checked first
+// Almost nothing here is clickable, which decides how every chapter works:
+//   ratcatchers_rathole1..5   NO OPS  -> smoked out with an oplocu
+//   vc_rat_valve, vc_rat_house, vc_rat_barrel  NO OPS -> scenery around the pits
+//   vc_rat_wall1, vc_rat_wall2  op1=Spectate  <- the only clickable locs in the quest
+//   vc_party_rat  op2=Hidden, so the rats cannot be attacked or talked to; the pole is the only
+//                 way to interact with one at all
+//   vc_rat_pole_1 iop1=Remove-rat, iop2=Wield
+
+^ratcatch_not_started = 0
+^ratcatch_hired = 10       // Jimmy Dazzler has explained the job
+^ratcatch_equipped = 20    // cat, pot and pole in hand
+^ratcatch_trained = 30     // all four Varrock rat holes smoked out
+^ratcatch_party = 40       // at the party, poling rats
+^ratcatch_poled = 50       // all six on the pole
+^ratcatch_complete = 60
+
+^ratcatch_rat_loose = 0    // vc_raton_offN: the rat is there
+^ratcatch_rat_caught = 1   // ...and gone
+
+^ratcatch_holes = 4        // the four in Varrock; the fifth is in a dungeon and is not used
+^ratcatch_party_rats = 6
+
+^ratcatch_off = 0
+^ratcatch_on = 1
+
+// ---------------------------------------------------------------------------- what is not used
+// ratcatchers_cat_antipoison ("Antipoison for Pox") and ratcatchers_poisonedcheese belong to a
+// strand about poisoning a cat that the cache has the two items for and nothing else - no Pox npc
+// exists anywhere in npc.pack. Left alone.
+//
+// The eight-note, six-finger pipe puzzle in ratcatch_var_temp1 and _temp2 - vc_note1..8,
+// vc_note_current, vc_fingers_current, vc_note_number and ratcatch_music_len - is a playable
+// instrument interface this build has nothing to render it with. ratcatchers_music carries the
+// tune instead, and its own readable says what it does.
+//
+// ratcatch_ometer (7 bits) and the fifth rat hole, which is in a dungeon at 2932,10207 a long way
+// from the other four, are likewise unused.
+
+// ---------------------------------------------------------------------------- places
+^ratcatch_jimmy = 0_40_51_2_56          // 2562,3320  Ardougne
+^ratcatch_gertrude = 0_49_53_15_18      // 3151,3410  west Varrock
+// The four rat holes, all on plane 1 of m51_52.
+^ratcatch_hole_1 = 1_51_52_0_50         // 3264,3378
+^ratcatch_hole_2 = 1_51_52_9_49         // 3273,3377
+^ratcatch_hole_3 = 1_51_52_10_53        // 3274,3381
+^ratcatch_hole_4 = 1_51_52_7_56         // 3271,3384
+// The rat pits and the party.
+^ratcatch_pits = 0_46_150_36_30         // 2980,9630
+^ratcatch_party_hall = 0_44_79_41_35    // 2857,5091
