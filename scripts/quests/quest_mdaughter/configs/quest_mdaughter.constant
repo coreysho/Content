@@ -1,0 +1,52 @@
+// Mountain Daughter.
+//
+// Unlike The Lost Tribe, nothing in the cache switches on the main stage var - the only two multis
+// in the quest key off their own varbits:
+//
+//   [mdaughter_multimound]  multivar=mdaughter_burial_state  1 -> burial mound, 2 -> burial cairn
+//   [mdaughter_multi_bear]  multivar=mdaughter_bear_multi_state  0 -> mdaughter_bearman
+//     (the talking Kendal). Any other value leaves the shell itself, which carries op2=Attack and
+//     size=2 - so the shell IS the fighting form, and mdaughter_bearman_fighter is unused.
+//
+// So %mdaughter_quest_var is free, and is numbered in tens the way %death_equiproom is, leaving
+// room to slot a step in without renumbering everything after it.
+^mdaughter_not_started = 0
+^mdaughter_started = 10
+^mdaughter_found_svidi = 20
+^mdaughter_has_guarantee = 30
+^mdaughter_has_necklace = 40
+^mdaughter_told_hamal = 50
+^mdaughter_has_corpse = 60
+^mdaughter_buried = 70
+^mdaughter_kendal_dead = 80
+
+// The two burial states the loc itself defines. Named here so nothing writes a bare 1 or 2.
+^mdaughter_burial_none = 0
+^mdaughter_burial_mound = 1
+^mdaughter_burial_cairn = 2
+
+// The Kendal. 0 is the only value with a multinpc child, so it is the only one that talks.
+^mdaughter_kendal_talking = 0
+^mdaughter_kendal_fighting = 1
+
+// How many white pearls Hamal wants before he will treat an outsider as anything else.
+^mdaughter_pearls_wanted = 3
+
+// The rockslide at the camp's northern edge, local(8,10) of m43_57. The guard stands two tiles
+// south of it at local(8,12), which is the inside - and every named camp npc (Ragnar 13_28,
+// Hamal 59_25, Jokul 59_33) and the burial ground (31_46) is further south still. So the climb
+// runs along z, and which way is worked out from where the player is standing rather than stored.
+^mdaughter_rockslide_step = 2
+
+// The Kendal's cave. The entrance is a blocking centrepiece at local(57,55) of m43_57 and the exit
+// is another at local(53,56) of m43_157, so both teleports land on the free tile beside them
+// rather than on the loc itself.
+^mdaughter_cave_inside = 0_43_157_54_56
+^mdaughter_cave_outside = 0_43_57_56_55
+
+// The burial ground. mdaughter_multimound is placed once, at local(31,46) of m43_57, and its
+// multiloc only has entries for states 1 and 2 - so before Asleif is in the ground there is no loc
+// there at all to use her on. That is what iop3=Bury on mdaughter_daughter_corpse is for: the
+// burial is an inventory option, and this coord is what it checks the player is standing near.
+^mdaughter_burial_ground = 0_43_57_31_46
+^mdaughter_burial_range = 4

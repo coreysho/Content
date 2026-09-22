@@ -1,0 +1,121 @@
+// Svidi, Brundt's safe-conduct, and the three camp npcs who have something to say.
+
+// =========================================================================== Svidi
+
+// Svidi is at m42_57 local(26,24), west of the camp on the Fremennik side of the mountain. She
+// will not go back without a guarantee that Rellekka will let her pass, which is what sends the
+// player to Brundt.
+[opnpc1,mdaughter_svidi]
+switch_int (%mdaughter_quest_var) {
+    case ^mdaughter_started : @svidi_first;
+    case ^mdaughter_found_svidi : @svidi_wants_guarantee;
+    case ^mdaughter_has_guarantee : @svidi_guarantee;
+    case default : @svidi_after;
+}
+
+[label,svidi_first]
+if (%mdaughter_relations_var < 1) {
+    ~chatnpc("<p,angry>I don't know you. Go away.");
+    return;
+}
+~chatplayer("<p,quiz>Are you Svidi?");
+~chatnpc("<p,shock>Who's asking?");
+~chatplayer("<p,neutral>Your father.");
+~chatnpc("<p,angry>Then you can go back up and tell him I'm not coming.");
+%mdaughter_quest_var = ^mdaughter_found_svidi;
+~send_quest_progress(questlist:mdaughter, %mdaughter_quest_var, ^mdaughter_complete);
+@svidi_wants_guarantee;
+
+[label,svidi_wants_guarantee]
+~chatplayer("<p,quiz>Why won't you go back?");
+~chatnpc("<p,sad>Because to get there I have to cross Fremennik land, and the Fremennik hang mountain folk who cross it.");
+~chatnpc("<p,neutral>Get me something in writing from whoever speaks for Rellekka and I'll think about it.");
+~chatplayer("<p,neutral>That would be Brundt.");
+~chatnpc("<p,neutral>Then go and see Brundt.");
+
+[label,svidi_guarantee]
+if (inv_total(inv, mdaughter_safety_guarantee) = 0) {
+    ~chatnpc("<p,quiz>Have you got it, or are you just back?");
+    ~chatplayer("<p,sad>Not on me.");
+    return;
+}
+~chatplayer("<p,happy>Signed by Brundt himself.");
+mes("You hand Svidi the safety guarantee.");
+inv_del(inv, mdaughter_safety_guarantee, 1);
+~chatnpc("<p,neutral>...he actually did it.");
+~chatnpc("<p,sad>I'll go up. Not today. But I'll go up.");
+~chatplayer("<p,quiz>Why did you really leave?");
+~chatnpc("<p,sad>Because they never found my mother, and they went on as though that was a thing you could live with.");
+~chatnpc("<p,sad>Give him this. He'll know it. Tell him I want her put in the ground like anyone else.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>...when you've a hand free for it. Come back.");
+    return;
+}
+%mdaughter_quest_var = ^mdaughter_has_necklace;
+~send_quest_progress(questlist:mdaughter, %mdaughter_quest_var, ^mdaughter_complete);
+inv_add(inv, mdaughter_necklace, 1);
+mes("Svidi gives you a necklace.");
+
+[label,svidi_after]
+if (%mdaughter_quest_var >= ^mdaughter_buried) {
+    ~chatnpc("<p,happy>She's buried, then. Properly.");
+    ~chatplayer("<p,happy>Under a cairn, with a stone off the Ancient Rock.");
+    ~chatnpc("<p,sad>Good. That's all I ever wanted out of him.");
+    return;
+}
+~chatnpc("<p,neutral>I've said what I've got to say.");
+
+// =========================================================================== Brundt
+
+// Brundt has only op1=Talk-to in the cache, so there is no second option to hang this on - it has
+// to go inside [opnpc1,viking_brundt] in quest_viking.rs2, which calls this proc before anything
+// else and stops there if it handled the turn.
+[proc,mdaughter_brundt]()(boolean)
+if (%mdaughter_quest_var ! ^mdaughter_found_svidi) {
+    return (false);
+}
+~chatplayer("<p,neutral>There's a woman from the mountain camp living rough west of here. She wants to go home and she won't cross your land to do it.");
+~chatnpc("<p,quiz>And why would that be my concern?");
+~chatplayer("<p,neutral>Because she thinks you'd hang her for it.");
+~chatnpc("<p,neutral>...we have not hanged anyone for that in my lifetime. Her grandmother's, perhaps.");
+~chatnpc("<p,neutral>Very well. She may cross. I will put it in writing, since apparently my word travels badly.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>When you have a hand free to carry it.");
+    return (true);
+}
+%mdaughter_quest_var = ^mdaughter_has_guarantee;
+~send_quest_progress(questlist:mdaughter, %mdaughter_quest_var, ^mdaughter_complete);
+inv_add(inv, mdaughter_safety_guarantee, 1);
+mes("Brundt marks a strip of hide and hands it to you.");
+return (true);
+
+// =========================================================================== the camp
+
+[opnpc1,mdaughter_rockslide_guard]
+if (%mdaughter_relations_var >= 1) {
+    ~chatnpc("<p,happy>Hamal's errand-runner. Go on through.");
+    return;
+}
+~chatnpc("<p,angry>Outsider. The chieftain is at the far end of the camp, and he will not thank you for the interruption.");
+~chatplayer("<p,neutral>I'll risk it.");
+~chatnpc("<p,neutral>Everyone does.");
+
+[opnpc1,mdaughter_ragnar]
+if (%mdaughter_quest_var >= ^mdaughter_has_necklace) {
+    ~chatnpc("<p,sad>Svidi gave you that necklace, did she. She showed it to me once and would not say where she had it.");
+    ~chatplayer("<p,neutral>It was her mother's.");
+    ~chatnpc("<p,sad>Ah. That would be why.");
+    return;
+}
+~chatnpc("<p,neutral>Svidi used to sit where you're standing. Before she went.");
+~chatplayer("<p,quiz>Where did she go?");
+~chatnpc("<p,neutral>Down. That's all anyone here will tell you, and it's all any of us know.");
+
+[opnpc1,mdaughter_jokul]
+if (%mdaughter_quest_var >= ^mdaughter_buried) {
+    ~chatnpc("<p,angry>You put a stone off the Ancient Rock on a grave. For an outsider you have a nerve.");
+    ~chatplayer("<p,neutral>Hamal asked me to.");
+    ~chatnpc("<p,neutral>...then he has more sense than I credited him with. Hmph.");
+    return;
+}
+~chatnpc("<p,angry>We leave food out for the Kendal and the Kendal leaves us alone. That is the arrangement, and I will thank you not to meddle in it.");

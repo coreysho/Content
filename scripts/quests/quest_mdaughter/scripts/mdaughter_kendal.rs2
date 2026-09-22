@@ -1,0 +1,59 @@
+// The Kendal, in the cave south of the camp (npc 1811 at m43_157 local 34_33).
+//
+// mdaughter_multi_bear is a multi shell keyed on mdaughter_bear_multi_state, and multinpc=0 is its
+// only entry - mdaughter_bearman, the one that talks. At any other value the shell itself is what
+// stands there, and the shell carries op2=Attack, size=2 and vislevel=1. So the shell IS the
+// fighting form and mdaughter_bearman_fighter, which nothing references, stays unused.
+//
+// The triggers go on the shell for the same reason the Recruitment Drive door's do: the handler is
+// looked up against the placed type, not against whatever the multi currently resolves to.
+
+[opnpc1,mdaughter_multi_bear]
+if (%mdaughter_bear_multi_state ! ^mdaughter_kendal_talking) {
+    ~chatnpc("<p,angry>The bearskin has stopped pretending. It comes at you again.");
+    return;
+}
+if (%mdaughter_quest_var < ^mdaughter_buried) {
+    ~chatnpc("<p,neutral>LEAVE FOOD AND GO.");
+    return;
+}
+~chatnpc("<p,neutral>I AM THE KENDAL. I AM THE MOUNTAIN. LEAVE FOOD AND GO.");
+switch_int (~p_choice2("You're a man in a bear skin.", 1, "Sorry to disturb you.", 2)) {
+    case 2 :
+        ~chatplayer("<p,sad>Sorry to disturb you.");
+        ~chatnpc("<p,neutral>GO.");
+        return;
+    case 1 :
+        ~chatplayer("<p,neutral>You're a man in a bear skin.");
+}
+~chatnpc("<p,shock>...");
+~chatnpc("<p,neutral>Thirty years they've left food at that cave mouth and not one of them ever looked.");
+~chatplayer("<p,angry>One of them did. Her name was Asleif.");
+~chatnpc("<p,angry>Then she should have gone home when I told her to.");
+if_close;
+%mdaughter_bear_multi_state = ^mdaughter_kendal_fighting;
+mes("The Kendal drops onto all fours and charges.");
+~npc_retaliate(0);
+%aggressive_npc = npc_uid;
+
+[opnpc2,mdaughter_multi_bear]
+if (%mdaughter_bear_multi_state = ^mdaughter_kendal_talking) {
+    %mdaughter_bear_multi_state = ^mdaughter_kendal_fighting;
+}
+~npc_retaliate(0);
+
+[ai_queue3,mdaughter_multi_bear]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+obj_add(npc_coord, mdaughter_bear_helmet, 1, ^lootdrop_duration);
+// Protected varbit, so the stage write needs p_active_player and only P_FINDUID grants it - the
+// same shape [ai_queue3,fd_icewarrior] uses in Desert Treasure.
+if (p_finduid(uid) = false) {
+    return;
+}
+if (%mdaughter_quest_var = ^mdaughter_buried) {
+    %mdaughter_quest_var = ^mdaughter_kendal_dead;
+    mes("Whatever that was, it was not a spirit.");
+}
