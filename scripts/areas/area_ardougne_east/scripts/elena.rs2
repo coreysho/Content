@@ -87,6 +87,17 @@ switch_int(%biohazard) { // ^biohazard_used_birdfeed intentionally has no dialog
             ~chatnpc("<p,sad>Oh, you haven't...|People may be dying even as we speak.");
             return;
         }
+        // The handover is a net +3 slots: the distillator leaves, three vials and the sample come
+        // back. Nothing here drops to the floor (see the note below), so without room the adds were
+        // silently skipped while %biohazard advanced anyway - the player walked away with no plague
+        // sample, and the chemist in Rimmington has no dialogue for that. Check first instead.
+        if(inv_freespace(inv) < 3) {
+            ~chatplayer("<p,happy>Yes, here it is!");
+            ~chatnpc("<p,quiz>You have? That's great!|Now can you pass me those reaction agents please?");
+            ~chatnpc("<p,neutral>Hold on - you're carrying far too much to take anything back.");
+            ~chatnpc("<p,neutral>Go and put some of that down, then come back to me.");
+            return;
+        }
         ~chatplayer("<p,happy>Yes, here it is!");
         ~chatnpc("<p,happy>You have? That's great!|Now can you pass me those reaction agents please?");
         mes("You hand Elena the distillator and an assortment of vials.");
@@ -102,18 +113,13 @@ switch_int(%biohazard) { // ^biohazard_used_birdfeed intentionally has no dialog
         %biohazard = ^biohazard_given_distillator;
         // doesn't drop to the ground? https://youtu.be/_ZNalEQB70o?si=qmcyRDUWvO1M4tA5&t=637
         inv_del(inv, distillator, 1);
-        if(inv_freespace(inv) > 1) {
-            inv_add(inv, liquid_honey, 1);
-        }
-        if(inv_freespace(inv) > 1) {
-            inv_add(inv, ethenea, 1);
-        }
-        if(inv_freespace(inv) > 1) {
-            inv_add(inv, sulphuric_broline, 1);
-        }
-        if(inv_freespace(inv) > 1) {
-            inv_add(inv, plaguesample, 1);
-        }
+        // Guarded by the free-space check above, so all four always land. The guards these
+        // replaced read `> 1`, i.e. "two or more slots free", which dropped the last item handed
+        // over even when there was room for it.
+        inv_add(inv, liquid_honey, 1);
+        inv_add(inv, ethenea, 1);
+        inv_add(inv, sulphuric_broline, 1);
+        inv_add(inv, plaguesample, 1);
         mes("Elena gives you three vials and a sample in a tin container.");
         p_delay(2);
         ~chatnpc("<p,neutral>But first you'll need some more touch paper. Go and see the chemist in Rimmington.");

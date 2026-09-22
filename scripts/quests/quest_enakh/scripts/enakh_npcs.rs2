@@ -1,0 +1,306 @@
+// Enakhra's Lament - Lazim, Pentyn, Aristarchus, Akthanakos and Enakhra.
+//
+// Lazim is four separate spawns, not one npc that walks: [enakh_lazim_statue_east_multinpc],
+// [enakh_lazim_fallen_statue_east_multinpc], [enakh_lazim_pedestal_multinpc] and
+// [enakh_lazim_altar_multinpc] all key on enakh_where_is_lazim and each declares exactly one
+// value, 0 through 3. Moving him means writing that varbit; all four shells therefore run the
+// same handler.
+
+[opnpc1,enakh_lazim_statue_east_multinpc] @enakh_lazim_talk;
+[opnpc1,enakh_lazim_fallen_statue_east_multinpc] @enakh_lazim_talk;
+[opnpc1,enakh_lazim_pedestal_multinpc] @enakh_lazim_talk;
+[opnpc1,enakh_lazim_altar_multinpc] @enakh_lazim_talk;
+
+[label,enakh_lazim_talk]
+switch_int (%enakh_quest) {
+    case ^enakh_not_started : @enakh_lazim_start;
+    case ^enakh_started : @enakh_lazim_building;
+    case ^enakh_statue_built : @enakh_lazim_head;
+    case ^enakh_head_on :
+        ~chatnpc("<p,shock>It went DOWN. Four months and it went down.");
+        ~chatplayer("<p,neutral>There's a hole where it was.");
+        ~chatnpc("<p,neutral>Yes. I know. I have known about the hole rather longer than you have.");
+        @enakh_lazim_on_your_head;
+    case ^enakh_inside : @enakh_lazim_inside;
+    case ^enakh_elements_lit : @enakh_lazim_head_handover;
+    case ^enakh_akthanakos :
+        ~chatnpc("<p,shock>That is not a statue. That has never been a statue.");
+    case ^enakh_confronted :
+        ~chatnpc("<p,sad>I laid three thousand bricks for her. Three thousand.");
+    case default :
+        if (%enakh_quest >= ^enakh_complete) {
+            ~chatnpc("<p,neutral>I am going back to Nardah. There is a man there who wants a fountain and nobody in Nardah has ever once tried to eat me.");
+            return;
+        }
+        ~chatnpc("<p,neutral>Get on with it.");
+}
+
+[label,enakh_lazim_start]
+~chatnpc("<p,neutral>You look like you can lift things.");
+switch_int (~p_choice2("What are you building?", 1, "I'd rather not.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>I'd rather not.");
+        ~chatnpc("<p,neutral>Nobody ever would. That is why it has taken four months.");
+        return;
+    case 1 :
+        ~chatplayer("<p,quiz>What are you building?");
+}
+~chatnpc("<p,neutral>A statue. Commissioned. Paid up front, which in this trade means you do not ask the second question.");
+~chatplayer("<p,quiz>What's the second question?");
+~chatnpc("<p,neutral>Who for.");
+if (stat(crafting) < ^enakh_req_crafting | stat(mining) < ^enakh_req_mining) {
+    ~chatnpc("<p,neutral>And you would need to be better with a chisel and a pickaxe than you are. <tostring(^enakh_req_crafting)> Crafting and <tostring(^enakh_req_mining)> Mining, at least.");
+    return;
+}
+if (stat(firemaking) < ^enakh_req_firemaking | stat(magic) < ^enakh_req_magic | stat(prayer) < ^enakh_req_prayer) {
+    ~chatnpc("<p,neutral>And you would want <tostring(^enakh_req_firemaking)> Firemaking, <tostring(^enakh_req_magic)> Magic and <tostring(^enakh_req_prayer)> Prayer about you before you finish. Do not ask me why I know that.");
+    return;
+}
+~chatplayer("<p,neutral>I'll help.");
+~chatnpc("<p,happy>Then start with the rock over there. There is a pickaxe in it; it has been in it since before I got here.");
+~chatnpc("<p,neutral>I want a thirty-two kilo block for the base and legs and a twenty kilo block for the body, both cut square, and then we will talk about the head.");
+if (inv_freespace(inv) > 0 & ~enakh_has_chisel = false) {
+    inv_add(inv, enakh_chisel, 1);
+    ~chatnpc("<p,neutral>Take my spare chisel. Bring it back.");
+}
+%enakh_quest = ^enakh_started;
+// He has had the pedestal head in his bag since the day Enakhra hired him. Without this write the
+// handover at ^enakh_elements_lit reads the varbit as already spent and the quest dead-ends with
+// nothing in the cache that can produce another one.
+%enakh_lazim_carrying_stone = ^enakh_on;
+~send_quest_progress(questlist:enakh, %enakh_quest, ^enakh_complete);
+
+// ^enakh_build_ready_for_head is the third construction stage and nothing but this conversation
+// writes it, so a head cannot go on a statue Lazim has not squared off first.
+[label,enakh_lazim_building]
+if (%enakh_statue_stage < ^enakh_build_body) {
+    ~chatnpc("<p,neutral>Base, then body. In that order, or you will be lifting it twice.");
+    return;
+}
+~chatplayer("<p,happy>Base and body are up.");
+~chatnpc("<p,neutral>So they are. Stand back.");
+if_close;
+mes("Lazim spends an hour squaring off the joins with a rasp and saying nothing at all.");
+p_delay(4);
+%enakh_statue_stage = ^enakh_build_ready_for_head;
+%enakh_quest = ^enakh_statue_built;
+~send_quest_progress(questlist:enakh, %enakh_quest, ^enakh_complete);
+~chatnpc("<p,neutral>Now. The head. Five kilos of granite and a chisel, and it is your face on the block, not mine - I am not carving that one myself.");
+
+[label,enakh_lazim_head]
+if (~enakh_has_head = true) {
+    ~chatnpc("<p,neutral>Then put it on. The scaffold will hold you.");
+    return;
+}
+~chatnpc("<p,neutral>Granite. Five kilos. There is granite in that rock too if you keep swinging.");
+~chatplayer("<p,quiz>Whose face does she want on it?");
+~chatnpc("<p,neutral>She did not say, which after four months I have decided to find funny.");
+
+// enakh_choose_statue_head is written by the carving menu and is the only record of which of the
+// four faces the player picked. The statue itself carries that face forever - it is bits 13-14 of
+// enakh_multivarbits - so it is worth someone noticing.
+[label,enakh_lazim_on_your_head]
+switch_int (%enakh_choose_statue_head) {
+    case ^enakh_head_zamorak : ~chatnpc("<p,neutral>A Zamorak head. Safe. Boring. Probably what she wanted.");
+    case ^enakh_head_icthlarin : ~chatnpc("<p,neutral>Icthlarin. On a desert road. You have either done something very clever or something very rude and I cannot tell which.");
+    case ^enakh_head_lazim : ~chatnpc("<p,angry>And you put MY face on it. Four months, and the last thing it did before it fell over was look like me.");
+    case ^enakh_head_camel : ~chatnpc("<p,laugh>A camel. She paid four months up front for a camel. I am going to think about that for the rest of my life.");
+}
+
+[label,enakh_lazim_inside]
+~chatplayer("<p,angry>You knew this was down here.");
+~chatnpc("<p,sad>I knew there was a down here. I did not know it went on like this.");
+~chatnpc("<p,neutral>Four doors into the middle, four sigils, and the sigils are not on the sides their doors are. Somebody wanted this to take a while.");
+~chatnpc("<p,neutral>And the corners are shut. There are recesses in them shaped like arms and legs, and there is a statue lying down back there with arms and legs on it.");
+if (~enakh_has_chisel = false & inv_freespace(inv) > 0) {
+    inv_add(inv, enakh_chisel, 1);
+    ~chatnpc("<p,neutral>Here. You will want the chisel again.");
+}
+
+// The head for the pedestal. Lazim has been carrying it since the surface - enakh_lazim_carrying_
+// stone - which is the only thing in the cache that explains where a granite head cut to fit a
+// four-thousand-year-old recess is supposed to come from.
+[label,enakh_lazim_head_handover]
+if (%enakh_lazim_carrying_stone = ^enakh_off) {
+    ~chatnpc("<p,neutral>The recess is down there and the head is in your hands. Go on.");
+    return;
+}
+~chatnpc("<p,sad>She gave me this the day she hired me. Told me to carry it and not look at it.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>And you have nowhere to put it. Come back with a hand free.");
+    return;
+}
+~chatplayer("<p,quiz>You've had that the whole time?");
+~chatnpc("<p,neutral>It is cut to fit something. I have been a mason for thirty years and I have never seen a face cut that exactly to a hole.");
+inv_add(inv, enakh_stone_head_akthanakos, 1);
+%enakh_lazim_carrying_stone = ^enakh_off;
+~chatnpc("<p,neutral>Take it. I want it out of my bag.");
+
+// =========================================================================== Pentyn
+// enakh_pentyn, "He's been trapped here for thousands of years", inside enakh_light_prison at
+// 3091,9324. The prison loc has no ops, so breaking it is the oplocu in enakh_temple.rs2 and this
+// conversation is what tells the player there is something to break.
+[opnpc1,enakh_pentyn]
+if (%enakh_blood_room = ^enakh_element_on) {
+    ~chatnpc("<p,happy>I can feel my hands. I had forgotten they were separate things.");
+    ~chatplayer("<p,quiz>How long were you in there?");
+    ~chatnpc("<p,neutral>She told me once. I stopped believing her and then I stopped not believing her.");
+    return;
+}
+~chatnpc("<p,sad>Don't. Whatever it is. Don't.");
+~chatplayer("<p,quiz>What is this?");
+~chatnpc("<p,sad>A ward. It keeps me exactly this side of dying and it has been doing that since before your language existed.");
+~chatplayer("<p,quiz>Why you?");
+~chatnpc("<p,sad>Because it has to run on something and I was standing here. Everything in this temple runs on something.");
+~chatnpc("<p,neutral>It is anchored. One point, low down, on the left. If you could see magic you could see it, and if you could see it you could put a chisel through it.");
+~chatplayer("<p,quiz>And then what?");
+~chatnpc("<p,sad>And then four thousand years of me goes back into the floor it was taken out of, and the floor does whatever it was always going to do with it.");
+
+// =========================================================================== Aristarchus
+// A travelling scholar from Menaphos, out in the desert at 3338,2961 - nowhere near the temple,
+// which is the joke. He is the only source of the camel mould, and the camel mould is the only
+// thing that puts a fourth option on the head-carving menu.
+[opnpc1,enakh_aristarchus]
+~chatnpc("<p,happy>Hello! Are you lost? Most people out here are lost.");
+def_int $choice = ~p_choice3("What are you doing out here?", 1, "Do you know anything about the old temples?", 2, "Nothing, sorry.", 3);
+switch_int ($choice) {
+    case 3 :
+        ~chatplayer("<p,neutral>Nothing, sorry.");
+        return;
+    case 1 :
+        ~chatplayer("<p,quiz>What are you doing out here?");
+        ~chatnpc("<p,happy>Casting moulds. Faces, mostly. I have a theory that the desert peoples carved what they were frightened of and I am collecting the evidence.");
+        if (inv_total(inv, enakh_camel_mould_positive) > 0 | inv_freespace(inv) = 0) {
+            ~chatnpc("<p,happy>You have one of mine already, I see.");
+            return;
+        }
+        ~chatnpc("<p,laugh>Take this one. A camel. Nobody was ever frightened of a camel, which rather holes the theory.");
+        inv_add(inv, enakh_camel_mould_positive, 1);
+    case 2 :
+        ~chatplayer("<p,quiz>Do you know anything about the old temples?");
+        ~chatnpc("<p,neutral>I know there are four of them nobody can find and one of them is supposed to be under a statue.");
+        ~chatnpc("<p,neutral>I also know that the people who built them are recorded as having been paid, which is the part everyone skips. Somebody laid those bricks for money.");
+}
+
+// =========================================================================== Akthanakos
+// [enakh_akthanakos_multinpc] multivar=enakh_akthanakos_form:
+//   0 enakh_akthanakos_boneguard (size 3, op1=Talk-to), 1 enakh_akthanakos_freed, 2 mahjarrat.
+// He is at 3105,9297 on plane 1 the whole time; only the form changes.
+[opnpc1,enakh_akthanakos_multinpc]
+switch_int (%enakh_akthanakos_form) {
+    case ^enakh_akth_boneguard : @enakh_akth_locked;
+    case ^enakh_akth_freed : @enakh_akth_out;
+    case ^enakh_akth_mahjarrat : @enakh_akth_end;
+}
+
+[label,enakh_akth_locked]
+%enakh_player_seen_larger_boneguard = ^enakh_on;
+~chatnpc("<p,angry>...");
+~chatplayer("<p,quiz>Can you hear me?");
+~chatnpc("<p,angry>I can hear everything. I have been able to hear everything for four thousand years and that is the entire problem.");
+~chatplayer("<p,quiz>Who put you in there?");
+~chatnpc("<p,angry>The woman behind that wall. There is a pedestal in the next room with a hole in it the shape of my head. Work it out.");
+if (%enakh_used_wrong_head_on_pedestal = ^enakh_on) {
+    ~chatnpc("<p,angry>And yes, I felt you trying to put a lump of god in it. Do not do that again.");
+}
+
+[label,enakh_akth_out]
+if (%enakh_largewall_multivar = ^enakh_wall_fallen) {
+    ~chatnpc("<p,neutral>She is through there. She has been through there the whole time, listening.");
+    return;
+}
+~chatplayer("<p,quiz>Are you all right?");
+~chatnpc("<p,neutral>No. Stand further back than that.");
+if_close;
+mes("Akthanakos walks at the big wall without breaking step.");
+p_delay(3);
+%enakh_largewall_multivar = ^enakh_wall_fallen;
+sound_synth(rock_impact, 1, 0);
+p_delay(2);
+~mesbox("Ten tiles of wall that took Lazim three thousand bricks to build come down in one piece, and behind it a hooded woman is standing exactly where she would have to have been standing to hear all of that.");
+
+[label,enakh_akth_end]
+if (%enakh_quest >= ^enakh_complete) {
+    ~chatnpc("<p,neutral>Wear the amulet in the desert. The camels have opinions and some of them are useful.");
+    return;
+}
+~chatnpc("<p,neutral>She is gone. She will be somewhere unpleasant within the hour and somewhere worse by next year.");
+~chatplayer("<p,quiz>What was the statue for?");
+~chatnpc("<p,neutral>A door handle. Four months of that man's life and a hundred and sixty kilos of sandstone, so that she could have a door handle.");
+~chatplayer("<p,angry>Does he know?");
+~chatnpc("<p,neutral>No. And I am not going to be the one who tells him.");
+@enakh_finish;
+
+// =========================================================================== Enakhra
+// [enakh_enakhra_multinpc]: 0 enakh_enakhra_hooded (op1=Talk-to), 1 enakh_enakhra_mahjarrat with
+// NO ops at all. So the reveal has to be the LAST thing a conversation with her ever does - once
+// the form flips there is no way to click her again, by design.
+[opnpc1,enakh_enakhra_multinpc]
+if (%enakh_quest < ^enakh_akthanakos) {
+    ~chatnpc("<p,neutral>I am busy.");
+    return;
+}
+if (%enakh_largewall_multivar ! ^enakh_wall_fallen) {
+    ~chatnpc("<p,neutral>I am busy.");
+    return;
+}
+if (%enakh_enakhra_form = ^enakh_enakhra_revealed) {
+    ~mesbox("She does not turn round again.");
+    return;
+}
+~chatnpc("<p,neutral>Four months. I paid him for four months of a statue and you put it down a hole in an afternoon.");
+~chatplayer("<p,angry>It was a door handle.");
+~chatnpc("<p,laugh>It was a door. There is a difference and you have just walked through it.");
+~chatplayer("<p,quiz>What are you?");
+~chatnpc("<p,neutral>Older than the sand. Ask him, he is the same thing.");
+if_close;
+mes("She puts the hood back.");
+p_delay(3);
+%enakh_enakhra_form = ^enakh_enakhra_revealed;
+%enakh_akthanakos_form = ^enakh_akth_mahjarrat;
+%enakh_quest = ^enakh_confronted;
+~send_quest_progress(questlist:enakh, %enakh_quest, ^enakh_complete);
+~mesbox("What is under the hood is not a woman and has not been one for a very long time. She looks at Akthanakos, says something in a language that predates the desert, and is not there any more.");
+
+// =========================================================================== completion
+[label,enakh_finish]
+%enakh_quest = ^enakh_complete;
+%enakh_where_is_lazim = ^enakh_lazim_at_altar;
+%enakh_camulet_charge = ^enakh_camulet_full;
+stat_advance(crafting, 70000);
+stat_advance(mining, 70000);
+stat_advance(firemaking, 70000);
+stat_advance(magic, 70000);
+session_log(^log_adventure, "Quest complete: Enakhra's Lament");
+// ~send_quest_complete only draws the obj on the reward scroll - it does not add it - so the
+// camulet is handed over here, before the modal interface opens.
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, camulet, 1);
+} else {
+    obj_add(coord, camulet, 1, ^lootdrop_duration);
+}
+~send_quest_complete(questlist:enakh, camulet, 250, ^enakh_questpoints, "You have completed\\nEnakhra's Lament!", "2 Quest Points|7,000 Crafting XP|7,000 Mining XP|7,000 Firemaking XP|7,000 Magic XP|The Camulet");
+
+// =========================================================================== the camulet
+// iop2=Wear, iop3=Check-charge, iop4=Rub, and enakh_camulet_charge (bits 29-31 of
+// enakh_quest_expositbits) holds 0-7. These two were generated stubs in
+// general_use/scripts/item_ops_generated.rs2 that printed hardcoded numbers - "Your camulet has 4
+// charges left." whatever it actually had - and have moved here to read the varbit.
+[opheld3,camulet]
+if (%enakh_camulet_charge = 0) {
+    mes("Your camulet has no charges left.");
+    return;
+}
+mes("Your camulet has <tostring(%enakh_camulet_charge)> charges left.");
+
+[opheld4,camulet]
+if (%enakh_camulet_charge = 0) {
+    ~mesbox("You rub the amulet. It brays at you, flatly, and nothing else happens.");
+    return;
+}
+%enakh_camulet_charge = sub(%enakh_camulet_charge, 1);
+if_close;
+mes("You rub the amulet.");
+p_delay(2);
+p_teleport(^enakh_lazim_site);
+mes("Your camulet has <tostring(%enakh_camulet_charge)> charges left.");

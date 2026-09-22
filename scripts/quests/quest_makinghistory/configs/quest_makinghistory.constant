@@ -1,0 +1,102 @@
+// Making History.
+//
+// One varp, makinghistory, cut into six pieces, and the pieces name the quest:
+//
+//   makinghistory_prog          bits 0-2    the spine
+//   makinghistory_trader_prog   bits 3-5    a strand
+//   makinghistory_warr_prog     bits 6-8    a strand
+//   makinghistory_ghost_prog    bits 9-12   a strand, and the long one
+//   makinghistory_melina_pres   bit 13
+//   makinghistory_droalak_pres  bit 14
+//   makinghistory_objloc        bit 20
+//   makinghistory_locstatus     bits 21-31
+//
+// Trader, warrior, ghost. Three investigations, and the two ghosts each have a presence bit of
+// their own, which is what happens to them at the end.
+//
+// ---------------------------------------------------------------------------- the spec
+// The two readables were already in the cache and between them they are the entire plot:
+//
+//   Journal  "1st Bennath | I have thrown in my lot with the Zamorakians and moved out to the
+//             outpost north of Ardougne."
+//   Scroll   "Timeline of the outpost | Start of the Fifth Age - Outpost built | + 65 years - The
+//             Dreaded Years of Tragedy | + 68 years - The Great Battle | + 71 years - Survivors of
+//             the battle start a new line of kings of Ardougne, and the Equal Trade Market"
+//
+// Four dated lines with nothing between them, a Zamorakian who went out there and wrote it down,
+// and two institutions that came out the other side: the Ardougne royal line and the Equal Trade
+// Market. The letters are addressed accordingly - letter1 is sealed to the king, letter2 is sealed
+// to Jorral, by someone who knew a historian would eventually come asking.
+//
+// The three mjolnirs are Guthix, Saradomin and Zamorak, which is the Great Battle.
+//
+// ---------------------------------------------------------------------------- the inverted ghosts
+//   [makinghistory_melina_multi]  multivar=makinghistory_melina_pres  multinpc=0,makinghistory_melina
+//   [makinghistory_droalak_multi] multivar=makinghistory_droalak_pres multinpc=0,makinghistory_droalak
+//
+// Index 0 is the only index either table declares, so both ghosts are present while their bit is
+// ZERO and gone the moment it is set. The bit is not "is here", it is "has gone". They are set at
+// the end of the quest, because that is the end of the quest.
+//
+// ---------------------------------------------------------------------------- the museum
+// Five locs in the Outpost are multilocs on makinghistory_objloc, and every one of them is crates
+// at 0 and an exhibit at 1:
+//
+//   crate        -> Shield Display   "A battle-weathered shield."   op1=Study
+//   double_crates-> Large Display    "A display of various relics." op1=Study
+//   poorbed      -> Large Display    "A display of various relics." op1=Study
+//   crates       -> Bookcase         "A collection of rare books."  op1=Study
+//   large_crates -> Catapult         "Looks like it's been out of use for some time."
+//
+// A storeroom turns into a museum. That is the reward, and it is a better one than the staves.
+^mh_not_started = 0
+^mh_investigating = 1
+^mh_reporting = 2        // all three strands answered
+^mh_complete = 3
+
+// Each strand runs 0 -> done, and the strand is "delivered" at its last value.
+^mh_strand_none = 0
+^mh_strand_asked = 1
+^mh_strand_told = 2
+^mh_strand_refused = 3
+^mh_strand_held = 4      // you are carrying the thing
+^mh_strand_done = 5      // Jorral has it
+
+// The ghost strand has four bits because it is a marriage.
+^mh_ghost_none = 0
+^mh_ghost_droalak = 1    // Droalak has explained himself
+^mh_ghost_melina = 2     // Melina has refused to hear it
+^mh_ghost_proof = 3      // Droalak has told you the thing only he could know
+^mh_ghost_forgiven = 4   // Melina believes you
+^mh_ghost_held = 5       // the journal
+^mh_ghost_done = 6
+
+^mh_present = 0          // NOT a typo - see the note on the inverted multis above
+^mh_gone = 1
+
+^mh_museum_closed = 0
+^mh_museum_open = 1
+
+// ---------------------------------------------------------------------------- people
+^mh_jorral = 0_38_52_5_19        // 2437,3347  the Outpost, north of Ardougne
+^mh_melina = 0_57_54_26_28       // 3674,3484  Port Phasmatys
+^mh_droalak = 0_57_54_9_13       // 3657,3469  Port Phasmatys
+^mh_dron = 0_41_57_34_52         // 2658,3700  Rellekka
+^mh_blanin = 0_41_57_51_23       // 2675,3671  Rellekka
+
+// ---------------------------------------------------------------------------- the enchanted key
+// "Enchanted key. It seems to change temperature as I walk." iop1=Feel, and the generated stub for
+// it said "The key is warm." and nothing else, forever, wherever you stood. It is a hot-and-cold
+// hunt and it was one line of placeholder.
+//
+// Three graves, one per person Jorral could not account for, each on a tile something already
+// stands or walks on. Dig them in any order; the key points at whichever you have not found.
+^mh_key_none = 0
+^mh_grave_trader = 1
+^mh_grave_warrior = 2
+^mh_grave_ghost = 3
+^mh_grave_done = 4
+
+^mh_dig_trader = 0_38_52_5_8     // 2437,3336  the woods below the Outpost
+^mh_dig_warrior = 0_41_57_1_16   // 2625,3664  Rellekka
+^mh_dig_ghost = 0_57_54_20_18    // 3668,3474  Port Phasmatys

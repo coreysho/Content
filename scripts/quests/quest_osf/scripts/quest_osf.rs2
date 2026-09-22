@@ -1,0 +1,334 @@
+// One Small Favour - three broken parts, three craftspeople, and one of them wants a favour first.
+
+// =========================================================================== Phantuwti
+[opnpc1,favour_phantuwti_farsight]
+switch_int (%onesmallfavour) {
+    case ^osf_not_started : @osf_start;
+    case ^osf_vane_fixed : @osf_report;
+    case default :
+        if (%onesmallfavour >= ^osf_complete) {
+            ~chatnpc("<p,happy>Clear skies ahead, with some chance of showers, thunderstorms, ice and hail. I am very confident about that.");
+            return;
+        }
+        ~chatnpc("<p,neutral>Three parts. Three people. None of them will simply do it.");
+}
+
+[label,osf_start]
+~chatnpc("<p,sad>I cannot predict the weather. I am a seer. It is the one thing people ask me for.");
+switch_int (~p_choice2("Why not?", 1, "Guess.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>Guess.");
+        ~chatnpc("<p,angry>I did that last week and a fishing fleet is still talking about it.");
+        return;
+    case 1 :
+        ~chatplayer("<p,quiz>Why not?");
+}
+~chatnpc("<p,sad>The weathervane on top of this tower has fallen to pieces. Three pieces, to be exact, and I cannot mend any of them.");
+~chatplayer("<p,neutral>I'll have a look.");
+~chatnpc("<p,happy>Would you? It is one small favour, that is all.");
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, favour_animate_rock, 1);
+    ~chatnpc("<p,neutral>Take this as well. A stonemason I know will want it, and he will not tell you why.");
+}
+%onesmallfavour = ^osf_asked;
+~send_quest_progress(questlist:onesmallfavour, %onesmallfavour, ^osf_complete);
+~chatnpc("<p,neutral>The ladder is behind me. Search what is left of the vane and bring the pieces to people who can mend them.");
+
+[label,osf_report]
+~chatplayer("<p,happy>Your weathervane is turning.");
+~chatnpc("<p,shock>It is. It IS.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>And I have a report for you and you cannot carry it.");
+    return;
+}
+inv_add(inv, favour_weather_report, 1);
+%onesmallfavour = ^osf_lights;
+~send_quest_progress(questlist:onesmallfavour, %onesmallfavour, ^osf_complete);
+~chatnpc("<p,happy>The first accurate forecast in a year. Take a copy - and take it to the gnome glider pilot in the Feldip Hills, because his landing lights have been out since the storm and he has been flying blind.");
+
+// =========================================================================== the weathervane
+// The shell carries no ops. Its broken child has op1=Look and op5=Search and its fixed child has
+// none at all, so Search stops working the moment the vane is mended - which is right.
+[oploc5,osf_weathervane] @osf_search_vane;
+[oploc1,osf_weathervane] @osf_look_vane;
+
+[label,osf_look_vane]
+p_arrivedelay;
+if (%weathervanefixed = ^osf_on) {
+    mes("It turns steadily, and points the way the wind is going.");
+    return;
+}
+mes("A weathervane in three pieces and a stub of pillar.");
+
+[label,osf_search_vane]
+p_arrivedelay;
+if (%onesmallfavour < ^osf_asked) {
+    mes("Somebody's broken weathervane. Not yours.");
+    return;
+}
+if (%onesmallfavour = ^osf_asked) {
+    if (inv_freespace(inv) < 3) {
+        mes("There are three pieces up here and you cannot carry three pieces.");
+        return;
+    }
+    inv_add(inv, favour_directionals_broken, 1);
+    inv_add(inv, favour_ornament_broken, 1);
+    inv_add(inv, favour_pillar_broken, 1);
+    %onesmallfavour = ^osf_parts;
+    ~send_quest_progress(questlist:onesmallfavour, %onesmallfavour, ^osf_complete);
+    ~mesbox("Three pieces come away: the directionals, the ornament and the rotating pillar. All three are past anything you can do with your hands.");
+    return;
+}
+@osf_rebuild;
+
+// All three fixed parts go back on at once - weathervanefixed is one bit and there is no
+// half-mended state for it to show.
+[label,osf_rebuild]
+if (%weathervanefixed = ^osf_on) {
+    mes("It is already turning.");
+    return;
+}
+if (inv_total(inv, favour_directionals_fixed) = 0 | inv_total(inv, favour_ornament_fixed) = 0 | inv_total(inv, favour_pillar_fixed) = 0) {
+    ~mesbox("You need all three mended before any of it goes back up: the directionals, the ornament and the rotating pillar.");
+    return;
+}
+inv_del(inv, favour_directionals_fixed, 1);
+inv_del(inv, favour_ornament_fixed, 1);
+inv_del(inv, favour_pillar_fixed, 1);
+mes("You put the pillar in first, then the directionals, then the ornament on top.");
+p_delay(4);
+%weathervanefixed = ^osf_on;
+%onesmallfavour = ^osf_vane_fixed;
+stat_advance(crafting, 5000);
+~send_quest_progress(questlist:onesmallfavour, %onesmallfavour, ^osf_complete);
+~mesbox("It catches the wind and turns, and somewhere below you a seer makes a noise you will remember.");
+
+// =========================================================================== Jimmy the Chisel
+// "A young man with a dark and mysterious past", in the HAM hideout. The stonemason.
+[opnpc1,favour_jimmy]
+if (%onesmallfavour < ^osf_parts) {
+    ~chatnpc("<p,neutral>You are not one of them and you are not shouting about it, which I appreciate.");
+    return;
+}
+if (inv_total(inv, favour_pillar_fixed) > 0 | %rotatingpillarfixed = ^osf_on) {
+    ~chatnpc("<p,neutral>The pillar is done. Do not ask me how.");
+    return;
+}
+if (inv_total(inv, favour_pillar_broken) = 0) {
+    ~chatnpc("<p,neutral>Bring me the pillar and we will talk.");
+    return;
+}
+if (inv_total(inv, favour_animate_rock) = 0) {
+    ~chatnpc("<p,neutral>A rotating pillar. Stone, and it has to turn, and stone does not turn.");
+    ~chatnpc("<p,neutral>There is a scroll for that. The seer has one and he will not admit it.");
+    return;
+}
+~chatplayer("<p,neutral>The seer sent this with me.");
+~chatnpc("<p,shock>He did, did he. Then he knows more about me than I would like.");
+if_close;
+mes("Jimmy reads the scroll once, puts it in the fire, and works on the pillar for a while with his back to you.");
+p_delay(5);
+inv_del(inv, favour_pillar_broken, 1);
+inv_del(inv, favour_animate_rock, 1);
+inv_add(inv, favour_pillar_fixed, 1);
+%rotatingpillarfixed = ^osf_on;
+%onesmallfavour = ^osf_pillar;
+stat_advance(crafting, 2000);
+~send_quest_progress(questlist:onesmallfavour, %onesmallfavour, ^osf_complete);
+~chatnpc("<p,neutral>It turns. Do not tell anybody it was me.");
+
+// =========================================================================== Tassie Slipcast
+// The potter. She does the ornament, and she is also the only person who can make the airtight pot
+// the dwarf wants - which is the favour inside the favour.
+[opnpc1,favour_tassie_slipcast]
+if (%onesmallfavour < ^osf_parts) {
+    ~chatnpc("<p,happy>Mind the wheel, it is going.");
+    return;
+}
+if (%ornamentfixed = ^osf_on) {
+    @osf_tassie_pot;
+}
+if (inv_total(inv, favour_ornament_broken) = 0) {
+    ~chatnpc("<p,neutral>Bring me the ornament. I will not promise anything until I see it.");
+    return;
+}
+if (inv_total(inv, softclay) < ^osf_clay_wanted) {
+    ~chatnpc("<p,neutral>Fired clay, that is, and I am out. <tostring(^osf_clay_wanted)> soft clay and it is yours by this afternoon.");
+    return;
+}
+inv_del(inv, softclay, ^osf_clay_wanted);
+inv_del(inv, favour_ornament_broken, 1);
+inv_add(inv, favour_ornament_fixed, 1);
+%ornamentfixed = ^osf_on;
+if (%onesmallfavour < ^osf_ornament) {
+    %onesmallfavour = ^osf_ornament;
+    ~send_quest_progress(questlist:onesmallfavour, %onesmallfavour, ^osf_complete);
+}
+stat_advance(crafting, 2000);
+~chatnpc("<p,happy>There. Better than it was, and I am not being modest.");
+
+[label,osf_tassie_pot]
+if (inv_total(inv, favour_airtight_pot) > 0 | %directionalsfixed = ^osf_on) {
+    ~chatnpc("<p,happy>Anything else and you are paying for it.");
+    return;
+}
+if (inv_total(inv, favour_directionals_broken) = 0) {
+    ~chatnpc("<p,happy>Anything else and you are paying for it.");
+    return;
+}
+~chatplayer("<p,quiz>Can you make an airtight pot?");
+~chatnpc("<p,confused>I can. Nobody has asked me for one in eleven years and the last man who did got arrested.");
+if (inv_total(inv, softclay) < ^osf_clay_wanted) {
+    ~chatnpc("<p,neutral><tostring(^osf_clay_wanted)> more soft clay, then.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>And somewhere to put it.");
+    return;
+}
+inv_del(inv, softclay, ^osf_clay_wanted);
+inv_add(inv, favour_airtight_pot, 1);
+~chatnpc("<p,neutral>Sealed. I have not looked inside it and neither should you.");
+
+// =========================================================================== Hammerspike
+// "Quite independent in an aggressive and business like way." He will fix the directionals, and
+// what he wants for it is a sealed pot delivered without questions.
+[opnpc1,favour_hammerspike_stoutbeard]
+// The Giant Dwarf uses him too - he runs the cart into Keldagrim, because the city has no
+// entrance loc of its own. @gd_hammerspike is in quests/quest_giantdwarf/scripts/quest_giantdwarf.rs2
+// and only claims the conversation when this one has nothing outstanding with him.
+if (%onesmallfavour < ^osf_parts | %directionalsfixed = ^osf_on) {
+    if (~gd_hammerspike_wants = true) {
+        @gd_hammerspike;
+    }
+}
+if (%onesmallfavour < ^osf_parts) {
+    ~chatnpc("<p,angry>Wrong tunnel.");
+    return;
+}
+if (%directionalsfixed = ^osf_on) {
+    ~chatnpc("<p,neutral>We are square. Stay square.");
+    return;
+}
+if (inv_total(inv, favour_directionals_broken) = 0) {
+    ~chatnpc("<p,angry>You want something. Everybody who comes down here wants something.");
+    return;
+}
+if (inv_total(inv, favour_airtight_pot) = 0) {
+    ~chatnpc("<p,neutral>Metalwork. Fine metalwork. I can do that, and it will cost you a delivery.");
+    ~chatnpc("<p,neutral>The potter at the top of the hill makes an airtight pot. Bring me one. Do not open it and do not ask.");
+    return;
+}
+~chatplayer("<p,neutral>One airtight pot. I didn't ask.");
+~chatnpc("<p,happy>Good. That is the whole of the skill.");
+if_close;
+mes("He takes the pot, puts it somewhere you do not see, and has the directionals straight in about four minutes.");
+p_delay(5);
+inv_del(inv, favour_airtight_pot, 1);
+inv_del(inv, favour_directionals_broken, 1);
+inv_add(inv, favour_directionals_fixed, 1);
+%directionalsfixed = ^osf_on;
+%onesmallfavour = ^osf_directionals;
+stat_advance(smithing, 2000);
+~send_quest_progress(questlist:onesmallfavour, %onesmallfavour, ^osf_complete);
+~chatnpc("<p,neutral>North is north again. Now go away.");
+
+// =========================================================================== the landing lights
+// Eight placements - four colours, twice each - and eight bits in checklandinglights. All four
+// shells key on ONE bit for rendering, so nothing shows until every one of the eight is done.
+[oploc5,osf_multi_landinglight_jade_1] @osf_light(jade, 1);
+[oploc5,osf_multi_landinglight_opal_1] @osf_light(opal, 3);
+[oploc5,osf_multi_landinglight_redtopaz_1] @osf_light(red_topaz, 5);
+[oploc5,osf_multi_landinglight_sapphire_1] @osf_light(sapphire, 7);
+
+[oploc1,osf_multi_landinglight_jade_1] @osf_look_light;
+[oploc1,osf_multi_landinglight_opal_1] @osf_look_light;
+[oploc1,osf_multi_landinglight_redtopaz_1] @osf_look_light;
+[oploc1,osf_multi_landinglight_sapphire_1] @osf_look_light;
+
+[label,osf_look_light]
+p_arrivedelay;
+if (%all_lights_fixed = ^osf_on) {
+    mes("A candle, a lens and a gem, all precariously balanced together, and all of it working.");
+    return;
+}
+mes("A candle, a lens and a socket where a gem used to be. The storm took the lot.");
+
+// Each colour is placed twice, so a colour takes two gems and holds two of the eight bits.
+[label,osf_light](namedobj $gem, int $bit)
+p_arrivedelay;
+if (%onesmallfavour < ^osf_lights) {
+    mes("Somebody's broken lamp. Not yours.");
+    return;
+}
+if (%all_lights_fixed = ^osf_on) {
+    mes("This one is working.");
+    return;
+}
+def_int $slot = $bit;
+if (testbit(%checklandinglights, $bit) = ^true) {
+    $slot = add($bit, 1);
+}
+if (testbit(%checklandinglights, $slot) = ^true) {
+    mes("Both of the <oc_name($gem)> lights are done.");
+    return;
+}
+if (inv_total(inv, $gem) = 0) {
+    mes("The socket is cut for <oc_name($gem)>, and you have none.");
+    return;
+}
+inv_del(inv, $gem, 1);
+mes("You seat the gem and straighten the lens.");
+p_delay(2);
+%checklandinglights = setbit(%checklandinglights, $slot);
+stat_advance(crafting, 500);
+if (%checklandinglights ! ^osf_all_lights) {
+    mes("<tostring(~osf_lights_done)> of <tostring(^osf_lights_count)> lights.");
+    return;
+}
+// One bit renders all four shells, so the whole strip comes on together.
+%all_lights_fixed = ^osf_on;
+~mesbox("The last gem goes in and the whole strip comes up at once - jade, opal, red topaz and sapphire, all the way down the hill.");
+
+[proc,osf_lights_done]()(int)
+def_int $n = 0;
+def_int $i = 1;
+while ($i <= ^osf_lights_count) {
+    if (testbit(%checklandinglights, $i) = ^true) {
+        $n = calc($n + 1);
+    }
+    $i = calc($i + 1);
+}
+return($n);
+
+// =========================================================================== the glider
+[oploc1,favour_gnome_glider]
+p_arrivedelay;
+if (%onesmallfavour < ^osf_lights) {
+    ~mesbox("A gnome glider, folded up, with nobody near it.");
+    return;
+}
+if (%all_lights_fixed = ^osf_off) {
+    ~mesbox("The pilot will not take it up until he can see where to put it down. Eight lights, and <tostring(~osf_lights_done)> of them are lit.");
+    return;
+}
+if (%onesmallfavour >= ^osf_complete) {
+    ~mesbox("The strip is lit and the glider is in the air more often than it is not.");
+    return;
+}
+if (inv_total(inv, favour_weather_report) = 0) {
+    ~mesbox("The lights are on. The pilot would still like to know what the weather is doing.");
+    return;
+}
+if_close;
+mes("You hand the pilot the seer's report. He reads it twice and looks at the sky once.");
+p_delay(4);
+inv_del(inv, favour_weather_report, 1);
+@osf_finish;
+
+[label,osf_finish]
+%onesmallfavour = ^osf_complete;
+stat_advance(crafting, 100000);
+stat_advance(smithing, 100000);
+session_log(^log_adventure, "Quest complete: One Small Favour");
+~send_quest_complete(questlist:onesmallfavour, favour_weather_report, 200, ^osf_questpoints, "You have completed\\nOne Small Favour!", "2 Quest Points|10,000 Crafting XP|10,000 Smithing XP|The glider flies again");

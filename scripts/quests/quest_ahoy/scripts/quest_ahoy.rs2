@@ -1,0 +1,583 @@
+// Ghosts Ahoy - a town of ghosts nobody will let leave.
+
+// =========================================================================== the barrier
+// op1=Pass, placed twice, and it had no handler - which is the only reason Port Phasmatys has been
+// unreachable. The amulet of ghostspeak gets you through free; without it the ghosts charge.
+[oploc1,ahoy_town_barrier]
+def_coord $wall = loc_coord;
+p_arrivedelay;
+if (inv_total(worn, amulet_of_ghostspeak) > 0) {
+    mes("The barrier thins where the amulet touches it.");
+    @ahoy_step_through($wall);
+}
+if (inv_total(inv, ectotoken) >= ^ahoy_barrier_toll) {
+    inv_del(inv, ectotoken, ^ahoy_barrier_toll);
+    mes("You hand over <tostring(^ahoy_barrier_toll)> ecto-tokens and the barrier lets you by.");
+    @ahoy_step_through($wall);
+}
+~mesbox("The barrier will not let you through. The ghosts take ecto-tokens, or an amulet of ghostspeak if you have one - a great many of them would rather you simply went away.");
+
+[label,ahoy_step_through](coord $wall)
+def_int $dx = 0;
+def_int $dz = 0;
+if (coordx($wall) > coordx(coord)) { $dx = 2; } else if (coordx($wall) < coordx(coord)) { $dx = calc(0 - 2); }
+if (coordz($wall) > coordz(coord)) { $dz = 2; } else if (coordz($wall) < coordz(coord)) { $dz = calc(0 - 2); }
+p_teleport(movecoord(coord, $dx, 0, $dz));
+
+// =========================================================================== Velorina
+[opnpc1,ahoy_velorina]
+if (~ahoy_can_hear = false) {
+    ~mesbox("She is saying something and you cannot hear a word of it. The ghosts of Port Phasmatys need an amulet of ghostspeak.");
+    return;
+}
+switch_int (%ahoy_questvar) {
+    case ^ahoy_not_started : @ahoy_start;
+    case ^ahoy_refused :
+        ~chatnpc("<p,sad>He refused. Of course he refused. He has refused everyone for two hundred years.");
+        ~chatplayer("<p,neutral>Then we go over his head.");
+        ~chatnpc("<p,quiz>Over the head of a man who is already dead?");
+        ~chatnpc("<p,neutral>...there is a petition. There has always been a petition. Nobody has ever got three names on it.");
+        %ahoy_questvar = ^ahoy_petition;
+        ~send_quest_progress(questlist:ahoy, %ahoy_questvar, ^ahoy_complete);
+        ~ahoy_give_petition;
+    case default :
+        if (%ahoy_questvar >= ^ahoy_complete) {
+            ~chatnpc("<p,happy>He went. He waited two hundred years and then he went in about four seconds.");
+            return;
+        }
+        if (%ahoy_questvar = ^ahoy_petition | %ahoy_questvar = ^ahoy_petition_full) {
+            ~ahoy_give_petition;
+            return;
+        }
+        ~chatnpc("<p,sad>Anything?");
+}
+
+// The petition is a real obj that the dialogue has always assumed you were carrying, so somebody
+// has to hand it to you, and it has to be replaceable - three signatures are no use on a piece of
+// paper you dropped in a bank.
+[proc,ahoy_give_petition]()()
+if (inv_total(inv, ahoy_petition) > 0) {
+    ~chatnpc("<p,sad>Anything?");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,sad>You have nowhere to put it.");
+    return;
+}
+inv_add(inv, ahoy_petition, 1);
+~chatnpc("<p,neutral>Here. It has been folded in my pocket for a hundred and sixty years.");
+
+[label,ahoy_start]
+~chatnpc("<p,sad>You can hear me. Nobody who can hear me ever stays long.");
+switch_int (~p_choice2("What's wrong with this town?", 1, "I'm passing through.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>I'm passing through.");
+        ~chatnpc("<p,sad>Everyone is. We are not.");
+        return;
+    case 1 :
+        ~chatplayer("<p,quiz>What's wrong with this town?");
+}
+~chatnpc("<p,sad>We are dead. All of us, two hundred years, and we should have gone on and we have not.");
+~chatplayer("<p,quiz>Why not?");
+~chatnpc("<p,angry>Necrovarus. He holds us here. He says it is for our protection and he has said that for two centuries.");
+~chatnpc("<p,sad>My husband is somewhere in this crowd and I have not been able to say goodbye to him because neither of us can leave.");
+%ahoy_questvar = ^ahoy_velorina;
+~send_quest_progress(questlist:ahoy, %ahoy_questvar, ^ahoy_complete);
+~chatnpc("<p,neutral>Go and ask him yourself. He is in the temple. He will say no.");
+
+// =========================================================================== Necrovarus
+[opnpc1,ahoy_necrovarus]
+if (~ahoy_can_hear = false) {
+    ~mesbox("He does not acknowledge you at all.");
+    return;
+}
+switch_int (%ahoy_questvar) {
+    case ^ahoy_velorina :
+        ~chatplayer("<p,neutral>Let them go.");
+        ~chatnpc("<p,angry>No.");
+        ~chatplayer("<p,quiz>That's it? No?");
+        ~chatnpc("<p,angry>I have been saying no for two hundred years and it has not stopped being the answer.");
+        %ahoy_questvar = ^ahoy_refused;
+        ~send_quest_progress(questlist:ahoy, %ahoy_questvar, ^ahoy_complete);
+    case ^ahoy_petition_full : @ahoy_necrovarus_petition;
+    case ^ahoy_robes : @ahoy_necrovarus_end;
+    case default :
+        if (%ahoy_questvar >= ^ahoy_complete) {
+            ~mesbox("There is nobody in the temple.");
+            return;
+        }
+        ~chatnpc("<p,angry>No.");
+}
+
+[label,ahoy_necrovarus_petition]
+if (inv_total(inv, ahoy_petition) = 0) {
+    ~chatnpc("<p,angry>You have been collecting names. Bring them, then.");
+    return;
+}
+~chatplayer("<p,neutral>Three signatures.");
+~chatnpc("<p,laugh>Three. Out of how many hundred?");
+~chatnpc("<p,angry>The petition means nothing. What holds this town is older than a piece of paper and it is written in a book you cannot read.");
+~chatplayer("<p,quiz>Which book?");
+~chatnpc("<p,angry>The Book of Haricanto, and it is in a language that died with the man who wrote it. Go and be clever at somebody else.");
+%ahoy_questvar = ^ahoy_manual;
+~send_quest_progress(questlist:ahoy, %ahoy_questvar, ^ahoy_complete);
+~mesbox("He told you the name of the book, which after two hundred years of saying no was careless of him.");
+
+[label,ahoy_necrovarus_end]
+if (inv_total(inv, ahoy_robes_of_necrovarus) = 0) {
+    ~chatnpc("<p,angry>No.");
+    return;
+}
+~chatplayer("<p,neutral>Your robes were on the ghost ship.");
+~chatnpc("<p,shock>...");
+~chatnpc("<p,angry>Give them BACK.");
+~chatplayer("<p,neutral>The book says what they are. You have been wearing the thing that holds them, not guarding it.");
+if_close;
+mes("Necrovarus says nothing for a very long time, which for a man who has said no for two hundred years is new.");
+p_delay(5);
+inv_del(inv, ahoy_robes_of_necrovarus, 1);
+@ahoy_finish;
+
+[label,ahoy_finish]
+%ahoy_questvar = ^ahoy_complete;
+stat_advance(prayer, 25000);
+session_log(^log_adventure, "Quest complete: Ghosts Ahoy");
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, ectophial, 1);
+} else {
+    obj_add(coord, ectophial, 1, ^lootdrop_duration);
+}
+~send_quest_complete(questlist:ahoy, ectophial, 200, ^ahoy_questpoints, "You have completed\\nGhosts Ahoy!", "2 Quest Points|2,500 Prayer XP|The Ectophial|The ghosts of Port Phasmatys can leave");
+
+// =========================================================================== the petition
+// Three signatures and three favours, one per ghost. ahoy_signaturecounter is five bits, which is
+// far more than three, so the counter is the cache being generous rather than a constraint.
+[opheld1,ahoy_petition]
+~mesbox("A petition to Necrovarus, requesting that the dead of Port Phasmatys be released. | <tostring(%ahoy_signaturecounter)> of <tostring(^ahoy_signatures_wanted)> signatures.");
+
+[opnpc1,ahoy_robin]
+if (~ahoy_can_hear = false) {
+    ~mesbox("He is saying something and you cannot hear it.");
+    return;
+}
+if (%ahoy_questvar < ^ahoy_petition) {
+    ~chatnpc("<p,sad>I had a ship. A model one. I was going to give it to my son.");
+    return;
+}
+if (%ahoy_subquest_toyboat = ^ahoy_sub_done) {
+    ~chatnpc("<p,happy>It floats. After two hundred years it floats.");
+    return;
+}
+if (inv_total(inv, ahoy_toy_boat_repaired) > 0) {
+    inv_del(inv, ahoy_toy_boat_repaired, 1);
+    %ahoy_subquest_toyboat = ^ahoy_sub_done;
+    ~chatnpc("<p,happy>You mended it. Give me the paper, I will sign anything you like.");
+    ~ahoy_sign;
+    return;
+}
+if (%ahoy_subquest_toyboat = ^ahoy_sub_asked) {
+    ~chatnpc("<p,sad>It is in pieces in the chest on the ghost ship. It has been in pieces longer than you have been alive.");
+    return;
+}
+~chatplayer("<p,quiz>Will you sign a petition against Necrovarus?");
+~chatnpc("<p,sad>I will sign it when somebody does something for me instead of asking me for something.");
+~chatnpc("<p,sad>My model ship. It is on the ghost ship, in the chest, in pieces. Mend it.");
+%ahoy_subquest_toyboat = ^ahoy_sub_asked;
+
+[opnpc1,ahoy_oldman]
+if (~ahoy_can_hear = false) {
+    ~mesbox("He is saying something and you cannot hear it.");
+    return;
+}
+if (%ahoy_questvar < ^ahoy_petition) {
+    ~chatnpc("<p,sad>Two hundred years without a cup of tea.");
+    return;
+}
+if (%ahoy_subquest_nettletea = ^ahoy_sub_done) {
+    ~chatnpc("<p,happy>I cannot taste it. I do not care.");
+    return;
+}
+// The cache has six vessels of nettle tea - bowl, cup and china cup, each plain and milky - and
+// a ghost who has not had one since the Fourth Age is not going to be fussy about the crockery.
+def_obj $tea = ~ahoy_tea_held;
+if ($tea ! null) {
+    inv_del(inv, $tea, 1);
+    %ahoy_subquest_nettletea = ^ahoy_sub_done;
+    ~chatnpc("<p,happy>Tea. Give me the paper.");
+    ~ahoy_sign;
+    return;
+}
+if (%ahoy_subquest_nettletea = ^ahoy_sub_asked) {
+    ~chatnpc("<p,sad>Nettles. A bowl of water. It is not complicated and I cannot pick nettles.");
+    return;
+}
+~chatplayer("<p,quiz>Will you sign a petition against Necrovarus?");
+~chatnpc("<p,angry>I will not sign anything on an empty stomach and I have had an empty stomach since the Fourth Age.");
+~chatnpc("<p,sad>Nettle tea. Bring me a cup of nettle tea and I will sign whatever is in front of me.");
+%ahoy_subquest_nettletea = ^ahoy_sub_asked;
+
+[opnpc1,ahoy_crone]
+if (~ahoy_can_hear = false) {
+    ~mesbox("She is saying something and you cannot hear it.");
+    return;
+}
+if (%ahoy_questvar < ^ahoy_petition) {
+    ~chatnpc("<p,angry>I am busy being dead.");
+    return;
+}
+if (%ahoy_requested_sheet = ^ahoy_on) {
+    ~chatnpc("<p,happy>Signed. Now go away, I am enjoying the draught.");
+    return;
+}
+if (inv_total(inv, ahoy_bedsheet) > 0) {
+    inv_del(inv, ahoy_bedsheet, 1);
+    %ahoy_requested_sheet = ^ahoy_on;
+    ~chatnpc("<p,happy>A sheet. A proper one. Give me the paper.");
+    ~ahoy_sign;
+    return;
+}
+~chatplayer("<p,quiz>Will you sign a petition against Necrovarus?");
+~chatnpc("<p,angry>Two hundred years and not one person has brought me a bedsheet.");
+~chatplayer("<p,quiz>You're a ghost.");
+~chatnpc("<p,angry>I am AWARE of that.");
+
+[proc,ahoy_sign]
+if (%ahoy_signaturecounter >= ^ahoy_signatures_wanted) {
+    return;
+}
+
+%ahoy_signaturecounter = add(%ahoy_signaturecounter, 1);
+if (%ahoy_signaturecounter < ^ahoy_signatures_wanted) {
+    ~mesbox("<tostring(%ahoy_signaturecounter)> of <tostring(^ahoy_signatures_wanted)> signatures.");
+    return;
+}
+if (%ahoy_questvar ! ^ahoy_petition) {
+    return;
+}
+// 4 is the first value Ak-Haranu exists at, so the dock is not worth walking to before this.
+%ahoy_questvar = ^ahoy_petition_full;
+~send_quest_progress(questlist:ahoy, %ahoy_questvar, ^ahoy_complete);
+~mesbox("Three names. Necrovarus is going to be unimpressed, which is at least a change from being immovable.");
+
+// =========================================================================== Ak-Haranu
+// He renders at ahoy_questvar 4 through 8 and nowhere else - a living trader on a dock full of
+// ghosts, there for exactly as long as the quest needs him.
+[opnpc1,ahoy_akharanu_multi]
+if (%ahoy_questvar < ^ahoy_manual) {
+    ~chatnpc("<p,neutral>A living face. I had almost forgotten what one looked like.");
+    return;
+}
+if (%ahoy_given_manual = ^ahoy_on) {
+    ~chatnpc("<p,happy>Read it slowly. Haricanto was not a clear writer.");
+    return;
+}
+if (inv_total(inv, magic_longbow) = 0) {
+    ~chatplayer("<p,quiz>Can you read the Book of Haricanto?");
+    ~chatnpc("<p,laugh>I cannot, but I own the manual that can, and I did not come to a town of ghosts to give things away.");
+    ~chatnpc("<p,neutral>A magic longbow. I have wanted one for eleven years and there is nobody here to sell me one.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>And nowhere to put the manual.");
+    return;
+}
+~chatplayer("<p,neutral>One magic longbow.");
+inv_del(inv, magic_longbow, 1);
+inv_add(inv, ahoy_translation_manual, 1);
+%ahoy_given_manual = ^ahoy_on;
+~chatnpc("<p,happy>Eleven years. Take the manual, and tell nobody I was pleasant about it.");
+
+// =========================================================================== the book
+[opheldu,ahoy_translation_manual]
+if (last_useitem ! ahoy_book_of_haricanto) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if_close;
+mes("You work through the Book of Haricanto a line at a time with the manual open beside it.");
+p_delay(5);
+%ahoy_given_book = ^ahoy_on;
+if (%ahoy_questvar = ^ahoy_manual) {
+    %ahoy_questvar = ^ahoy_translated;
+    ~send_quest_progress(questlist:ahoy, %ahoy_questvar, ^ahoy_complete);
+}
+stat_advance(prayer, 2000);
+~mesbox("The book is not a spell. It is an inventory - of what Necrovarus took with him when he died, and of what it does, and the robes are on the list.");
+
+[opheld1,ahoy_book_of_haricanto]
+if (%ahoy_given_book = ^ahoy_off) {
+    ~mesbox("The Book of Haricanto, in a language that died with the man who wrote it.");
+    return;
+}
+~mesbox("The Book of Haricanto. | An inventory of what Necrovarus carried into death, and of what each piece of it holds. | The robes are third on the list and they are underlined.");
+
+// =========================================================================== the map and the ship
+[opheldu,ahoy_map_scrap_1] @ahoy_join_map;
+[opheldu,ahoy_map_scrap_2] @ahoy_join_map;
+[opheldu,ahoy_map_scrap_3] @ahoy_join_map;
+
+[label,ahoy_join_map]
+if (inv_total(inv, ahoy_map_scrap_1) = 0 | inv_total(inv, ahoy_map_scrap_2) = 0 | inv_total(inv, ahoy_map_scrap_3) = 0) {
+    ~mesbox("Three scraps make a map. You have fewer than three.");
+    return;
+}
+inv_del(inv, ahoy_map_scrap_1, 1);
+inv_del(inv, ahoy_map_scrap_2, 1);
+inv_del(inv, ahoy_map_scrap_3, 1);
+inv_add(inv, ahoy_map_complete, 1);
+if (%ahoy_questvar = ^ahoy_translated) {
+    %ahoy_questvar = ^ahoy_map;
+    ~send_quest_progress(questlist:ahoy, %ahoy_questvar, ^ahoy_complete);
+}
+mes("The three scraps make one map, and the cross on it is out past the harbour.");
+
+// The wreck is reached on foot from the shore and climbed like any other ship - none of which was
+// gated on anything before, because none of it existed. The ladders, the gangplank and eight of the
+// nine chests are plain navigation; only the top-deck chest holds anything.
+[oploc1,ahoy_ghostship_ladder]
+p_arrivedelay;
+mes("You climb up.");
+p_teleport(movecoord(loc_coord, 0, 1, 0));
+
+[oploc1,ahoy_ghostship_laddertop]
+p_arrivedelay;
+mes("You climb down.");
+p_teleport(movecoord(loc_coord, 0, -1, 0));
+
+[oploc1,ahoy_gangplank_shipwreck_on]
+p_arrivedelay;
+mes("You cross the gangplank.");
+p_teleport(loc_coord);
+
+[oploc1,ahoy_chest_locked]
+def_coord $chest = loc_coord;
+p_arrivedelay;
+if ($chest ! ^ahoy_boat_chest) {
+    ~mesbox("Two hundred years of salt water have been through this one. There is nothing in it.");
+    return;
+}
+if (inv_total(inv, ahoy_chest_key) = 0) {
+    ~mesbox("Locked, and the lock is older than lock-picking.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room for what is in it.");
+    return;
+}
+mes("The key turns.");
+p_delay(2);
+if (%ahoy_subquest_toyboat = ^ahoy_sub_asked & inv_total(inv, ahoy_toy_boat) = 0 & inv_total(inv, ahoy_toy_boat_repaired) = 0) {
+    inv_add(inv, ahoy_toy_boat, 1);
+    ~mesbox("A model ship in about nine pieces, wrapped in oilcloth by somebody who meant to come back for it.");
+    return;
+}
+mes("Nothing else in it.");
+
+// =========================================================================== where things come from
+// Everything the dialogue above asks for had no source at all - the objs are in the cache and
+// nothing in the world produced one. Five handlers, all on things already placed in the maps.
+
+// The disciple keeps the temple library. He is on the temple's upper floor, one room from the coffin.
+[opnpc1,ahoy_disciple]
+if (~ahoy_can_hear = false) {
+    ~mesbox("He is praying, or complaining, and you cannot tell which.");
+    return;
+}
+if (%ahoy_questvar < ^ahoy_manual) {
+    ~chatnpc("<p,neutral>Necrovarus keeps us safe. That is what he says. I have written it down a great many times.");
+    return;
+}
+if (inv_total(inv, ahoy_book_of_haricanto) > 0 | %ahoy_given_book = ^ahoy_on) {
+    ~chatnpc("<p,neutral>You have it. I would rather not know what you do with it.");
+    return;
+}
+~chatplayer("<p,quiz>The Book of Haricanto.");
+~chatnpc("<p,shock>He told you its name? He has never told anyone its name.");
+~chatnpc("<p,neutral>It has been on that shelf for two hundred years and nobody has ever asked for it, because nobody knew to.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>Come back when you can carry it.");
+    return;
+}
+inv_add(inv, ahoy_book_of_haricanto, 1);
+~chatnpc("<p,neutral>Take it. I cannot read a word of it and neither can he, which I have always found interesting.");
+
+// The inn has had no guests since the Fourth Age, so the linen cupboard is quite full.
+[opnpc1,ahoy_ghost_innkeeper]
+if (~ahoy_can_hear = false) {
+    ~mesbox("He is saying something to nobody at all.");
+    return;
+}
+if (%ahoy_questvar < ^ahoy_petition | %ahoy_requested_sheet = ^ahoy_on) {
+    ~chatnpc("<p,neutral>Two hundred years and not one guest. I keep the beds made anyway.");
+    return;
+}
+if (inv_total(inv, ahoy_bedsheet) > 0) {
+    ~chatnpc("<p,neutral>You have one. Take another if you like, it makes no difference to me.");
+    return;
+}
+~chatplayer("<p,quiz>Could I have a bedsheet?");
+~chatnpc("<p,quiz>A bedsheet.");
+~chatplayer("<p,neutral>The old woman wants one.");
+~chatnpc("<p,laugh>She has wanted one for two centuries and has never once walked up the road to ask me.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>Your hands are full.");
+    return;
+}
+inv_add(inv, ahoy_bedsheet, 1);
+~chatnpc("<p,neutral>Take it. I have nineteen more and nobody has slept here since the Fourth Age.");
+
+// The pirate captain is a loc, not an npc - a skeleton on the middle deck with op1=Talk-To.
+[oploc1,ahoy_skull_captain]
+p_arrivedelay;
+if (%ahoy_questvar < ^ahoy_petition) {
+    ~mesbox("A skeleton in a captain's coat, propped against the rail. It does not have anything to say to you and you are relieved about that.");
+    return;
+}
+def_boolean $wants_key = false;
+def_boolean $wants_scrap = false;
+if (inv_total(inv, ahoy_chest_key) = 0) { $wants_key = true; }
+// The scrap is only worth anything once the book has told you what you are looking for.
+if (%ahoy_questvar >= ^ahoy_translated & inv_total(inv, ahoy_map_scrap_1) = 0 & inv_total(inv, ahoy_map_complete) = 0 & %ahoy_questvar < ^ahoy_robes) { $wants_scrap = true; }
+if ($wants_key = false & $wants_scrap = false) {
+    ~mesbox("The skeleton has given you everything it is going to.");
+    return;
+}
+if (inv_freespace(inv) < 2) {
+    mes("You have no room for anything he might be holding.");
+    return;
+}
+mes("You search the captain, which he is in no position to object to.");
+p_delay(2);
+if ($wants_key = true) {
+    inv_add(inv, ahoy_chest_key, 1);
+    ~mesbox("A key on a cord round his neck. Whatever it opens, it is somewhere on this ship, because he never got off it.");
+}
+if ($wants_scrap = true) {
+    inv_add(inv, ahoy_map_scrap_1, 1);
+    ~mesbox("A third of a map, folded into the coat lining. He has been holding it for two hundred years and nobody has climbed up here to look.");
+}
+
+// Necrovarus's own coffin, on the temple's upper floor. It is empty, which is the point.
+[oploc1,ahoy_coffin]
+p_arrivedelay;
+if (%ahoy_questvar < ^ahoy_translated) {
+    ~mesbox("The coffin is shut, and opening a man's coffin while he is downstairs is a poor idea without a reason.");
+    return;
+}
+if (inv_total(inv, ahoy_map_scrap_2) > 0 | inv_total(inv, ahoy_map_complete) > 0) {
+    ~mesbox("Still empty.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room.");
+    return;
+}
+mes("You open the coffin.");
+p_delay(2);
+inv_add(inv, ahoy_map_scrap_2, 1);
+~mesbox("There is no body in it. There has never been a body in it. There is a third of a map, and the rest of the space is the shape of a man who is not there.");
+
+// The ghost captain is spawned twice - once on the Port Phasmatys pier and once on Dragontooth
+// Island - which is the entire reason there are two of him. He is the crossing.
+[opnpc1,ahoy_ghost_captain_1]
+if (~ahoy_can_hear = false) {
+    ~mesbox("He is shouting orders at a crew that drowned two hundred years ago.");
+    return;
+}
+if (%ahoy_questvar < ^ahoy_map & inv_total(inv, ahoy_map_complete) = 0) {
+    ~chatnpc("<p,neutral>I sail to Dragontooth and back and I have done for two hundred years. There is nothing on it.");
+    ~chatnpc("<p,neutral>Come back when there is a reason to go.");
+    return;
+}
+if (inzone(^ahoy_island_sw, ^ahoy_island_ne, coord) = true) {
+    ~chatplayer("<p,neutral>Back to the port.");
+    if_close;
+    mes("The ghost captain sails you back.");
+    p_delay(3);
+    p_teleport(^ahoy_port_dock);
+    return;
+}
+~chatplayer("<p,quiz>Can you take me to Dragontooth Island?");
+~chatnpc("<p,neutral>Everybody who asks me that has a map and thinks nobody else has ever had one.");
+if_close;
+mes("The ghost captain sails you out past the harbour.");
+p_delay(3);
+p_teleport(^ahoy_island_dock);
+~mesbox("Dragontooth Island. It is rock and sand, and it has been dug over so thoroughly that finding a hole is easier than finding ground.");
+
+// The other captain kept the third of the map, and the reason he kept it is that he cannot read.
+[opnpc1,ahoy_ghost_captain_2]
+if (~ahoy_can_hear = false) {
+    ~mesbox("He is saying something to a ship that is not there.");
+    return;
+}
+if (%ahoy_questvar < ^ahoy_translated) {
+    ~chatnpc("<p,angry>She went down with everything aboard her and I went down with her, and I am still here and so is she.");
+    return;
+}
+if (inv_total(inv, ahoy_map_scrap_3) > 0 | inv_total(inv, ahoy_map_complete) > 0) {
+    ~chatnpc("<p,neutral>You have my piece. Mind where you put the spade.");
+    return;
+}
+~chatplayer("<p,quiz>I'm looking for a map. It's in three pieces.");
+~chatnpc("<p,shock>Three. There were three of us who knew where it was buried and we tore it in three so no one of us could sell it.");
+~chatnpc("<p,angry>The other two are dead. I am also dead. It was not a well-considered plan.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>You have nowhere to put it.");
+    return;
+}
+inv_add(inv, ahoy_map_scrap_3, 1);
+~chatnpc("<p,neutral>Take mine. I have looked at it every day for two hundred years and I still cannot read the figures on it.");
+
+// =========================================================================== the dig
+// ahoy_x_start is a decoration - no ops at all - so the cross is a landmark and not a thing to
+// click. The dig is a coordinate, the way Pirate's Treasure and the Barrows mounds are.
+// Hooked into general_use/scripts/spade.rs2 alongside those.
+[proc,ahoy_dig]()(boolean)
+if (distance(coord, ^ahoy_x) <= 2) {
+    p_arrivedelay;
+    anim(human_dig, 0);
+    p_delay(3);
+    ~mesbox("Sand, and then rock, and then nothing. Every third person who has ever held this map has dug here, which is presumably why the figures are on it.");
+    return(true);
+}
+if (distance(coord, ^ahoy_dig) > 1) {
+    return(false);
+}
+if (inv_total(inv, ahoy_map_complete) = 0) {
+    return(false);
+}
+p_arrivedelay;
+if (%ahoy_questvar >= ^ahoy_robes | inv_total(inv, ahoy_robes_of_necrovarus) > 0) {
+    anim(human_dig, 0);
+    p_delay(3);
+    mes("The hole you made is still here. It is still empty.");
+    return(true);
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have nowhere to put anything you find.");
+    return(true);
+}
+anim(human_dig, 0);
+p_delay(3);
+inv_add(inv, ahoy_robes_of_necrovarus, 1);
+%ahoy_questvar = ^ahoy_robes;
+~send_quest_progress(questlist:ahoy, %ahoy_questvar, ^ahoy_complete);
+~mesbox("Oilcloth, and inside it the robes of Necrovarus - buried on an island two hundred years ago by a man who has spent every day since telling a town of dead people that he was wearing them.");
+return(true);
+
+// =========================================================================== shared
+[proc,ahoy_tea_held]()(obj)
+if (inv_total(inv, cup_of_nettletea) > 0) { return(cup_of_nettletea); }
+if (inv_total(inv, cup_of_nettletea_milky) > 0) { return(cup_of_nettletea_milky); }
+if (inv_total(inv, chinacup_of_nettletea) > 0) { return(chinacup_of_nettletea); }
+if (inv_total(inv, chinacup_of_nettletea_milky) > 0) { return(chinacup_of_nettletea_milky); }
+if (inv_total(inv, bowl_nettletea) > 0) { return(bowl_nettletea); }
+if (inv_total(inv, bowl_nettletea_milky) > 0) { return(bowl_nettletea_milky); }
+return(null);
+
+[proc,ahoy_can_hear]()(boolean)
+if (inv_total(worn, amulet_of_ghostspeak) > 0) {
+    return(true);
+}
+return(false);

@@ -1,0 +1,74 @@
+
+// GENERATED. The pillars carry no ops of their own - they are multilocs whose children are the
+// lit pillar models - so the only way to work one is to use the hand mirror on it, which is what
+// a hand mirror is for. One click cycles: place at 0, then 1, then 2, then 3, then take it back.
+
+[oplocu,mourning_temple_pillar_1_1] @mt_use_mirror(1);
+[oplocu,mourning_temple_pillar_1_3] @mt_use_mirror(2);
+[oplocu,mourning_temple_pillar_1_6] @mt_use_mirror(3);
+[oplocu,mourning_temple_pillar_1_7] @mt_use_mirror(4);
+[oplocu,mourning_temple_pillar_1_a] @mt_use_mirror(5);
+[oplocu,mourning_temple_pillar_1_b] @mt_use_mirror(6);
+[oplocu,mourning_temple_pillar_1_10] @mt_use_mirror(7);
+[oplocu,mourning_temple_pillar_1_11] @mt_use_mirror(8);
+[oplocu,mourning_temple_pillar_1_12] @mt_use_mirror(9);
+[oplocu,mourning_temple_pillar_1_13] @mt_use_mirror(10);
+[oplocu,mourning_temple_pillar_1_14] @mt_use_mirror(11);
+[oplocu,mourning_temple_pillar_1_16] @mt_use_mirror(12);
+[oplocu,mourning_temple_pillar_2_2] @mt_use_mirror(13);
+[oplocu,mourning_temple_pillar_2_3] @mt_use_mirror(14);
+[oplocu,mourning_temple_pillar_2_5] @mt_use_mirror(15);
+[oplocu,mourning_temple_pillar_2_6] @mt_use_mirror(16);
+[oplocu,mourning_temple_pillar_2_7] @mt_use_mirror(17);
+[oplocu,mourning_temple_pillar_2_9] @mt_use_mirror(18);
+[oplocu,mourning_temple_pillar_2_10] @mt_use_mirror(19);
+[oplocu,mourning_temple_pillar_2_11] @mt_use_mirror(20);
+[oplocu,mourning_temple_pillar_2_15] @mt_use_mirror(21);
+[oplocu,mourning_temple_pillar_2_16] @mt_use_mirror(22);
+[oplocu,mourning_temple_pillar_3_1] @mt_use_mirror(23);
+[oplocu,mourning_temple_pillar_3_2] @mt_use_mirror(24);
+[oplocu,mourning_temple_pillar_3_3] @mt_use_mirror(25);
+[oplocu,mourning_temple_pillar_3_5] @mt_use_mirror(26);
+[oplocu,mourning_temple_pillar_3_6] @mt_use_mirror(27);
+[oplocu,mourning_temple_pillar_3_8] @mt_use_mirror(28);
+[oplocu,mourning_temple_pillar_3_a] @mt_use_mirror(29);
+[oplocu,mourning_temple_pillar_3_10] @mt_use_mirror(30);
+[oplocu,mourning_temple_pillar_3_11] @mt_use_mirror(31);
+[oplocu,mourning_temple_pillar_3_12] @mt_use_mirror(32);
+[oplocu,mourning_temple_pillar_3_13] @mt_use_mirror(33);
+[oplocu,mourning_temple_pillar_3_15] @mt_use_mirror(34);
+[oplocu,mourning_temple_pillar_3_16] @mt_use_mirror(35);
+
+[label,mt_use_mirror](int $pillar)
+if (last_useitem ! mourning_mirror) {
+    ~displaymessage(^dm_default);
+    return;
+}
+p_arrivedelay;
+if (%mourning_quest_main < ^mt_inside) {
+    ~mesbox("An octagonal pillar with a socket at head height, and no reason yet to put anything in it.");
+    return;
+}
+def_int $rot = ~mt_mirror_at($pillar);
+if ($rot = 0) {
+    if (~mt_mirror_count >= ^mt_mirror_slots) {
+        ~mesbox("You have no more mirrors out of the cupboards, and this temple was built by people who did not expect anybody to need more than five.");
+        return;
+    }
+    if (~mt_mirror_put($pillar, 0) = false) {
+        ~mesbox("There is nowhere to put it.");
+        return;
+    }
+    mes("You set the mirror in the socket.");
+    ~mt_retrace;
+    return;
+}
+if ($rot >= 4) {
+    ~mt_mirror_clear($pillar);
+    mes("You take the mirror back out.");
+    ~mt_retrace;
+    return;
+}
+~mt_mirror_put($pillar, $rot);
+mes("You turn the mirror a quarter turn.");
+~mt_retrace;

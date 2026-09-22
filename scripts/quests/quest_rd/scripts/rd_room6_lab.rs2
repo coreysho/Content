@@ -118,7 +118,34 @@ inv_add(inv, $item, 1);
 [oploc1,rd_stone_door]
 p_arrivedelay;
 if (%rd_room6_stone_door = ^rd_door_open) {
-    mes("The way is open.");
+    // "The way is open." and nothing else used to be the whole of this branch, and it trapped the
+    // player in room 6 for good.
+    //
+    // Loc collision is registered once, at map load, from the type that the map PLACES
+    // (GameMap.ts:280) - and what the map places at local(45,12) of m38_77 is rd_stone_door, the
+    // multi shell, which declares no blockwalk and so defaults to blocking. Flipping
+    // %rd_room6_stone_door to ^rd_door_open swaps the child for the model and the ops only; it
+    // never touches the collision map. So the open door goes on blocking (45,12) and (45,13)
+    // exactly as the closed one did.
+    //
+    // That tile is not optional. The room's east wall is the x=46 column of
+    // rd_falador_dungeon_wall, solid at z=9,10,11,13,14,15,16; local(46,12) is its one gap and
+    // holds rd_room6_exitdoor, with the corridor and rd_portal_room6_exit beyond at (47,12). The
+    // only approach to (46,12) is across the stone door's own tile, so while it blocked, the
+    // bronze key could never be used on the exit door. The entrance portal is one-way
+    // (quest_rd.rs2:254 -> @rd_no_going_back) and room 6 has no fail exit, so the player was stuck
+    // with no way out at all.
+    //
+    // Making the shell blockwalk=no is not the fix - that would also stop the CLOSED door
+    // blocking, and the closed door is the puzzle. Step the player across it instead, which is
+    // what op1=Walk-through means and what this codebase already does for the same mechanic at
+    // [oploc1,horror_lighthouse_doorway] in quest_horror.rs2. Direction comes from which side of
+    // the door's own tile the player is standing on, so it works both ways.
+    if (coordx(coord) < coordx(loc_coord)) {
+        p_teleport(movecoord(coord, 2, 0, 0));
+    } else {
+        p_teleport(movecoord(coord, -2, 0, 0));
+    }
     return;
 }
 if (%rd_room6_stone_door = ^rd_door_shut) {
@@ -127,6 +154,12 @@ if (%rd_room6_stone_door = ^rd_door_shut) {
 }
 // Pull-spade. A spade that is only sitting in the hole comes straight back out.
 if (%rd_room6_stone_door ! ^rd_door_jammed) {
+    // Guarded like every other take in this file - without it a full inventory destroys the spade,
+    // and the spade is the only way the door ever opens.
+    if (inv_freespace(inv) = 0) {
+        mes("You don't have enough room to pull the spade out.");
+        return;
+    }
     inv_add(inv, rd_metal_spade_no_handle, 1);
     %rd_room6_stone_door = ^rd_door_shut;
     %rd_react_on_spade = 0;

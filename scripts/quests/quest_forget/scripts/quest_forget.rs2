@@ -1,0 +1,358 @@
+// Forgettable Tale of a Drunken Dwarf - a man nobody believes, because of how he is when he says it.
+
+// =========================================================================== Commander Veldaban
+// The Giant Dwarf already owns [opnpc1,dwarf_city_black_guard_supreme_leader], so this hooks in
+// ahead of it and hands the conversation straight back.
+[proc,forget_veldaban]()(boolean)
+switch_int (%forget_quest) {
+    case ^forget_not_started :
+        if (%giantdwarf_quest < ^gd_complete) {
+            return(false);
+        }
+        if (%forget_veldaban_exposition = ^forget_off) {
+            ~forget_start;
+            return(true);
+        }
+        if (~forget_beer_check = false) {
+            return(true);
+        }
+        %forget_quest = ^forget_beer;
+        ~send_quest_progress(questlist:forget, %forget_quest, ^forget_complete);
+        ~chatnpc("<p,neutral>Rind. The gardener, by the stone bench. He has been trying to get a letter out of this city for two years and nobody will carry it, and he is the only person down here who notices anything.");
+        return(true);
+    case ^forget_beer :
+        ~chatnpc("<p,neutral>Rind. The gardener. He has been trying to get a letter out of this city for two years and nobody will carry it.");
+        return(true);
+    case ^forget_seeds :
+        ~chatnpc("<p,neutral>He told you about the boarding, then. Take it off.");
+        return(true);
+    case ^forget_tunnel :
+        ~chatnpc("<p,neutral>A train cart at the end of a tunnel nobody boarded up for fun. Ride it.");
+        return(true);
+    case ^forget_papers :
+        ~chatnpc("<p,neutral>Papers are not enough. Papers are what the Red Axe has lawyers for.");
+        return(true);
+    case ^forget_story :
+        ~forget_report;
+        return(true);
+    case default :
+        if (%forget_quest >= ^forget_complete) {
+            ~chatnpc("<p,sad>I have written it all down and filed it and nothing has happened, and I have gone back to the pub, and that is the whole of the story.");
+            return(true);
+        }
+        return(false);
+}
+return(false);
+
+[proc,forget_start]()()
+~chatnpc("<p,angry>Not now.");
+~chatplayer("<p,quiz>It's about the drunk in the Laughing Miner.");
+~chatnpc("<p,angry>Everything in this city is about the drunk in the Laughing Miner.");
+~chatplayer("<p,quiz>He says he saw a Red Axe director in a tunnel with something that wasn't a dwarf.");
+~chatnpc("<p,neutral>He says that every week.");
+~chatplayer("<p,quiz>Has anybody looked?");
+~chatnpc("<p,sad>...no.");
+~chatnpc("<p,angry>And I am not going to, because I am the Black Guard's supreme leader and I cannot be seen investigating a man who cannot stand up.");
+~chatnpc("<p,neutral>Buy me a drink and I will tell you where to start.");
+
+[proc,forget_beer_check]()(boolean)
+if (%forget_beer_given = ^forget_on) {
+    return(true);
+}
+// forget_cutscene_beer is "Beer glass. For drinking... if it were filled."
+if (inv_total(inv, beer) = 0 & inv_total(inv, dwarven_stout) = 0) {
+    ~chatnpc("<p,neutral>A drink. It is not a complicated request.");
+    return(false);
+}
+if (inv_total(inv, dwarven_stout) > 0) {
+    inv_del(inv, dwarven_stout, 1);
+} else {
+    inv_del(inv, beer, 1);
+}
+%forget_beer_given = ^forget_on;
+%forget_veldaban_exposition = ^forget_on;
+return(true);
+
+// =========================================================================== the drunken dwarf
+[opnpc1,dwarf_city_drunken_dwarf_multi]
+if (%forget_quest >= ^forget_complete) {
+    ~chatnpc("<p,happy>I TOLD them. I have been telling them for two years and I told them.");
+    return;
+}
+if (%forget_quest > ^forget_not_started) {
+    ~chatnpc("<p,neutral>A tunnel. East. Boarded. I am not going back down it.");
+    return;
+}
+~chatnpc("<p,angry>I saw it. I SAW it.");
+~chatplayer("<p,quiz>Saw what?");
+~chatnpc("<p,angry>A Red Axe director, in a tunnel that is boarded up, talking to something that was not a dwarf and was not a man and was not anything I have a word for.");
+~chatplayer("<p,quiz>Has anybody looked into it?");
+~chatnpc("<p,sad>They look at me. That is not the same thing.");
+~mesbox("The whole pub has heard this before. One of them mouths the last line along with him.");
+
+[opnpc1,dwarf_city_rowdy_dwarf]
+if (%forget_quest = ^forget_not_started) {
+    ~chatnpc("<p,angry>He tells that story every week and every week it gets a bit bigger.");
+    return;
+}
+~chatnpc("<p,neutral>If he turns out to have been right I shall never hear the end of it.");
+
+// =========================================================================== Rind and the seeds
+[opnpc1,dwarf_city_gardener_dwarf]
+switch_int (%forget_quest) {
+    case ^forget_not_started :
+        ~chatnpc("<p,happy>Rind. I grow things. Underground, with a lantern, which everybody tells me is impossible and which is why it is interesting.");
+    case ^forget_beer : @forget_rind_letter;
+    case ^forget_seeds :
+        ~chatnpc("<p,happy>Four kinds of seed and a city with no sun. I shall enjoy failing at this.");
+    case default :
+        if (%forget_quest > ^forget_seeds) {
+            ~chatnpc("<p,happy>Two of the four have come up. Two is more than nothing, which is what I had.");
+            return;
+        }
+        ~chatnpc("<p,happy>Rind. I grow things. Underground, with a lantern.");
+}
+
+[label,forget_rind_letter]
+if (%forget_gardener_task >= 3) {
+    @forget_rind_done;
+}
+if (inv_total(inv, forget_gardener_letter) > 0) {
+    ~chatnpc("<p,neutral>Elstan. Falador. He is the only one who has ever written back.");
+    return;
+}
+if (%forget_seed2_given = ^forget_on & %forget_seed3_given = ^forget_on & %forget_seed4_given = ^forget_on) {
+    @forget_rind_done;
+}
+~chatplayer("<p,quiz>Veldaban says you've been trying to get a letter out of the city.");
+~chatnpc("<p,happy>Nine times. Nobody goes up. Nobody in this city has ever gone up.");
+~chatplayer("<p,quiz>Who's it to?");
+~chatnpc("<p,happy>Elstan. Falador. He gave a talk at the Annual Asgarnia Gardening Conference on cross-pollinating the B-branch specialists and the room did not understand a word of it.");
+~chatplayer("<p,quiz>Did you?");
+~chatnpc("<p,happy>I have triple herbicide resistance in cabbages. Of no practical use whatever. The theoretical implications are ASTOUNDING.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>You have nowhere to put a letter.");
+    return;
+}
+inv_add(inv, forget_gardener_letter, 1);
+%forget_gardener_task = 1;
+~chatnpc("<p,neutral>The allotment north of Falador. He will be the only man alive who knows what I am talking about and I have been waiting two years to find out whether he agrees with me.");
+
+[label,forget_rind_done]
+~chatplayer("<p,neutral>Seeds.");
+~chatnpc("<p,happy>He wrote BACK. After two years he wrote back and he AGREES with me.");
+if_close;
+mes("Rind sorts the seeds into four piles on a stone bench and then sorts them again.");
+p_delay(4);
+%forget_gardener_task = 3;
+%forget_farming = 4;
+%forget_quest = ^forget_seeds;
+~send_quest_progress(questlist:forget, %forget_quest, ^forget_complete);
+stat_advance(farming, 8000);
+~mesbox("\"Ask me for anything,\" he says, and then, before you have asked: \"there is a cart on rails east of here that the Red Axe boarded up eleven years ago, and I have looked at the rails through a gap in the boards every day since, and they are not rusty.\"");
+
+// The letter already had a readable and it is far better than the one I wrote: Rind is not a man
+// begging for seeds, he is an amateur botanist writing fan mail about cross-pollinating B-branch
+// specialist flowers, and he has produced triple herbicide resistance in cabbages. The dialogue is
+// written to match it rather than the other way round.
+// Elstan already carries a hook for Garden of Tranquillity; this adds a second.
+[proc,forget_elstan]()(boolean)
+if (inv_total(inv, forget_gardener_letter) = 0) {
+    if (%forget_gardener_task = 1 & %forget_seed2_given = ^forget_on) {
+        ~chatnpc("<p,neutral>Take them down to him, and tell him about the conference.");
+        return(true);
+    }
+    return(false);
+}
+~chatplayer("<p,neutral>A letter, from a gardener in Keldagrim.");
+~chatnpc("<p,quiz>Keldagrim.");
+if_close;
+mes("Elstan reads it twice and then goes and stands at the edge of his allotment for a while.");
+p_delay(4);
+if (inv_freespace(inv) < 1) {
+    ~mesbox("He has four packets of seed for you and you have nowhere to put them.");
+    return(true);
+}
+inv_del(inv, forget_gardener_letter, 1);
+%forget_seed2_given = ^forget_on;
+%forget_seed3_given = ^forget_on;
+%forget_seed4_given = ^forget_on;
+%forget_seed2_told = ^forget_on;
+%forget_seed3_told = ^forget_on;
+%forget_seed4_told = ^forget_on;
+~mesbox("\"Nine letters,\" he says. \"Nine, from a man who has got herbicide resistance out of a cabbage in a cave, and the conference laughed at MY talk.\" | He gives you four packets of seed and will not take anything for them, and asks you to tell Rind that the next conference can be in Keldagrim if Rind can get anybody to come.");
+return(true);
+
+// =========================================================================== the train cart
+[oploc1,forget_train_cart]
+p_arrivedelay;
+if (%forget_quest < ^forget_seeds) {
+    ~mesbox("A cart on rails, behind eleven years of boarding that somebody put up in a hurry.");
+    return;
+}
+if (%forget_boarding_removed = ^forget_off) {
+    if (inv_total(inv, hammer) = 0) {
+        ~mesbox("Eleven years of boarding across the mouth of it. A hammer would take it off, and whoever nailed it up was in a hurry.");
+        return;
+    }
+    anim(human_pickupfloor, 0);
+    p_delay(5);
+    %forget_boarding_removed = ^forget_on;
+    %forget_quest = ^forget_tunnel;
+    ~send_quest_progress(questlist:forget, %forget_quest, ^forget_complete);
+    ~mesbox("The boards come off. The rails behind them are not rusted, which after eleven years they very much should be.");
+    return;
+}
+mes("You get into the cart and it starts moving before you have sat down.");
+p_delay(5);
+p_teleport(^forget_base);
+~mesbox("Wherever this is, it is a very long way under the city and it was not built by the Black Guard.");
+
+[oploc2,forget_train_cart]
+p_arrivedelay;
+mes("The cart takes you back.");
+p_delay(5);
+p_teleport(^forget_veldaban_landing);
+
+[oploc1,forget_train_return_cart]
+p_arrivedelay;
+mes("The cart takes you back.");
+p_delay(5);
+p_teleport(^forget_train_landing);
+
+// =========================================================================== the crates
+[oploc1,forget_metal_crate_withpapers1] @forget_crate(1);
+[oploc1,forget_metal_crate_withpapers2] @forget_crate(2);
+[oploc1,forget_metal_crate_withpapers3] @forget_crate(3);
+
+[label,forget_crate](int $which)
+p_arrivedelay;
+if (%forget_quest > ^forget_papers) {
+    ~mesbox("Emptied, read and remembered.");
+    return;
+}
+if (%forget_quest < ^forget_tunnel) {
+    ~mesbox("Somebody else's crate.");
+    return;
+}
+switch_int ($which) {
+    case 1 :
+        if (%forget_room2_paper1 = ^forget_on) { ~mesbox("Read."); return; }
+        %forget_room2_paper1 = ^forget_on;
+        ~mesbox("Eleven years of orders from a director of the Red Axe to men whose names do not appear on any Keldagrim roll, for work in tunnels that are not on any Keldagrim map.");
+    case 2 :
+        if (%forget_room2_paper2 = ^forget_on) { ~mesbox("Read."); return; }
+        %forget_room2_paper2 = ^forget_on;
+        ~mesbox("An inventory. Most of it is ore and none of it has ever gone to the Consortium, which is the entire thing the Consortium exists to prevent.");
+    case 3 :
+        if (%forget_room2_bookcase = ^forget_on) { ~mesbox("Read."); return; }
+        %forget_room2_bookcase = ^forget_on;
+        ~mesbox("A list of what has been brought down here, and it is not equipment. It is names, and then dates, and then nothing beside the dates.");
+}
+~forget_papers_check;
+
+[proc,forget_papers_check]()()
+if (%forget_room2_paper1 = ^forget_off | %forget_room2_paper2 = ^forget_off | %forget_room2_bookcase = ^forget_off) {
+    return;
+}
+if (%forget_quest ! ^forget_tunnel) {
+    return;
+}
+%forget_quest = ^forget_papers;
+~send_quest_progress(questlist:forget, %forget_quest, ^forget_complete);
+~mesbox("Three crates, and between them eleven years of a company doing something under this city that the city voted against before most of the voters were born. | The drunk in the Laughing Miner has been right for two years.");
+
+// =========================================================================== the chambers
+// Four cave mouths on plane 2 of m29_77, all of them on the same floor, so a mis-paired hop moves
+// you across a cave and cannot strand you.
+[oploc1,forget_puzzle_entrance]
+p_arrivedelay;
+if (%forget_quest < ^forget_papers) {
+    ~mesbox("A cave mouth off the tunnel, and nothing in the papers yet that makes it worth walking into.");
+    return;
+}
+mes("You go through.");
+p_delay(2);
+p_teleport(^forget_chamber_a);
+~forget_mural;
+
+// forget_puzzle_exit carries no ops, so it could never have been the way out. The prev door in the
+// last chamber is, and it does carry op1=Enter.
+
+[oploc1,forget_story_exit_next]
+def_coord $door = loc_coord;
+p_arrivedelay;
+mes("You go through.");
+p_delay(2);
+if ($door = ^forget_next_a) {
+    p_teleport(^forget_chamber_b);
+} else {
+    p_teleport(^forget_chamber_c);
+}
+~forget_mural;
+
+[oploc1,forget_story_exit_prev]
+def_coord $door = loc_coord;
+p_arrivedelay;
+mes("You go back.");
+p_delay(2);
+if ($door = ^forget_prev_b) {
+    p_teleport(^forget_after_a);
+    ~forget_mural;
+    return;
+}
+// The last chamber's prev door is the way back out to the rails.
+p_teleport(^forget_train_landing);
+
+// Twelve murals, four states each, which is what twelve two-bit slots are for. Reading one sets it.
+[proc,forget_mural]()()
+if (%forget_if1 = ^forget_off) { %forget_if1 = ^forget_mural_read; ~forget_mural_text(1); return; }
+if (%forget_if2 = ^forget_off) { %forget_if2 = ^forget_mural_read; ~forget_mural_text(2); return; }
+if (%forget_if3 = ^forget_off) { %forget_if3 = ^forget_mural_read; ~forget_mural_text(3); return; }
+if (%forget_if4 = ^forget_off) { %forget_if4 = ^forget_mural_read; ~forget_mural_text(4); return; }
+if (%forget_if5 = ^forget_off) { %forget_if5 = ^forget_mural_read; ~forget_mural_text(5); return; }
+if (%forget_if6 = ^forget_off) { %forget_if6 = ^forget_mural_read; ~forget_mural_text(6); return; }
+if (%forget_if7 = ^forget_off) { %forget_if7 = ^forget_mural_read; ~forget_mural_text(7); return; }
+if (%forget_if8 = ^forget_off) { %forget_if8 = ^forget_mural_read; ~forget_mural_text(8); return; }
+if (%forget_if9 = ^forget_off) { %forget_if9 = ^forget_mural_read; ~forget_mural_text(9); return; }
+if (%forget_if10 = ^forget_off) { %forget_if10 = ^forget_mural_read; ~forget_mural_text(10); return; }
+if (%forget_if11 = ^forget_off) { %forget_if11 = ^forget_mural_read; ~forget_mural_text(11); return; }
+if (%forget_if12 = ^forget_off) { %forget_if12 = ^forget_mural_read; ~forget_mural_text(12); return; }
+if (%forget_quest = ^forget_papers) {
+    %forget_quest = ^forget_story;
+    ~send_quest_progress(questlist:forget, %forget_quest, ^forget_complete);
+    ~mesbox("That is the whole of it, from the first panel to the last, and none of it is on a wall in Keldagrim.");
+}
+
+[proc,forget_mural_text](int $n)()
+switch_int ($n) {
+    case 1 : ~mesbox("A panel cut into the rock, and it is old work. Dwarves, on the surface, in sunlight, which is a thing no carving in Keldagrim shows.");
+    case 2 : ~mesbox("The same dwarves, underground, and fewer of them.");
+    case 3 : ~mesbox("A city being dug. Eight banners over it. Eight companies.");
+    case 4 : ~mesbox("Seven of the banners are on one side of the panel and the eighth is on the other, on its own, and it is an axe.");
+    case 5 : ~mesbox("A vote. The carver has gone to some trouble over the faces of the seven and none at all over the face of the eighth.");
+    case 6 : ~mesbox("The eighth company, digging, away from the city, and something in the rock ahead of them.");
+    case 7 : ~mesbox("Whatever is in the rock is not carved. There is a space left for it and the space has been left deliberately.");
+    case 8 : ~mesbox("Dwarves going into the space. A count of them is cut underneath.");
+    case 9 : ~mesbox("Dwarves coming out of the space. The count underneath is the same number, and somebody has come back later and cut a line through it.");
+    case 10 : ~mesbox("The ones who came out are carved differently. It is a small difference and it is in the shoulders and once you have seen it you cannot stop seeing it.");
+    case 11 : ~mesbox("The last panel that was finished. A director of the Red Axe, and the thing that is not carved, standing on the same line as equals.");
+    case 12 : ~mesbox("The twelfth panel is blocked out and not cut, and it is eleven years newer than the other eleven. | Whatever goes in it has not happened yet.");
+}
+
+[proc,forget_report]()()
+~chatplayer("<p,neutral>The drunk was right.");
+~chatnpc("<p,angry>Say that again.");
+~chatplayer("<p,neutral>Eleven years of ore that never reached the Consortium, a company digging where the city voted it could not, and twelve panels on a wall down there, and the twelfth one is blank.");
+if_close;
+mes("Commander Veldaban does not say anything for some time.");
+p_delay(5);
+~mesbox("\"I have been drinking in the same room as that man for two years,\" he says, \"and I have never once let him finish.\"");
+p_delay(3);
+%forget_quest = ^forget_complete;
+%forget_brothers_toldsuccess = ^forget_on;
+%forget_region_status = 1;
+stat_advance(mining, 50000);
+stat_advance(farming, 50000);
+session_log(^log_adventure, "Quest complete: Forgettable Tale");
+~send_quest_complete(questlist:forget, dwarven_stout, 200, ^forget_questpoints, "You have completed\\nForgettable Tale of a Drunken Dwarf!", "2 Quest Points|5,000 Mining XP|5,000 Farming XP|Nobody believes any of it");

@@ -157,19 +157,35 @@ p_delay(3);
 
 // --- Drunk Rohak bakes the cake ---
 
+// FIXED (reported): eating the rock cake dead-ended the sub-quest. Both cakes are on the
+// gen_eat_heal0 consume group, so Eat destroys one and heals nothing, and this handler only baked
+// at ^hundred_dwarf_drunk_rohak - one stage. Once the stage had moved on, every later visit fell to
+// "Tell my boy his father baked it" and Rohak would not bake again, so a player who ate the cake
+// could never finish. He is drunk permanently from here on, and OSRS hands out rock cakes without
+// limit, so the fix is that he bakes whenever you are not carrying one.
 [opnpc1,hundred_dwarf_drunk_multi]
-switch_int (%hundred_dwarf_quest) {
-    case ^hundred_dwarf_drunk_rohak :
-        @hundred_rohak_bakes;
-    case ^hundred_dwarf_has_hot :
-        ~chatnpc("<p,happy>Mind it's hot! Ha! 'Course it's hot. Cool it in water, y'daft creature.");
-    case default :
-        ~chatnpc("<p,happy>Tell my boy his father baked it. Tell him it came out wrong again.");
+if (%hundred_dwarf_quest < ^hundred_dwarf_drunk_rohak) {
+    ~chatnpc("<p,happy>Tell my boy his father baked it. Tell him it came out wrong again.");
+    return;
 }
+if (inv_total(inv, hundred_dwarf_hot_rockcake) > 0) {
+    ~chatnpc("<p,happy>Mind it's hot! Ha! 'Course it's hot. Cool it in water, y'daft creature.");
+    return;
+}
+if (inv_total(inv, hundred_dwarf_cool_rockcake) > 0) {
+    ~chatnpc("<p,happy>You've got one. Go on, he's waiting.");
+    return;
+}
+@hundred_rohak_bakes;
 
 [label,hundred_rohak_bakes]
-~chatplayer("<p,quiz>The rock cake.");
-~chatnpc("<p,happy>The rock cake! Aye! Stand back.");
+if (%hundred_dwarf_quest > ^hundred_dwarf_drunk_rohak) {
+    ~chatplayer("<p,quiz>I need another one.");
+    ~chatnpc("<p,happy>Another! Ha! There's no end of them in me, they all come out the same.");
+} else {
+    ~chatplayer("<p,quiz>The rock cake.");
+    ~chatnpc("<p,happy>The rock cake! Aye! Stand back.");
+}
 mes("Rohak throws things into a pan in an order that cannot possibly be right and holds it over the forge for far too long.");
 p_delay(4);
 if (inv_freespace(inv) < 1) {
@@ -177,7 +193,10 @@ if (inv_freespace(inv) < 1) {
     return;
 }
 inv_add(inv, hundred_dwarf_hot_rockcake, 1);
-%hundred_dwarf_quest = ^hundred_dwarf_has_hot;
+// Only the first bake moves the stage on; later ones are replacements and must not rewind it.
+if (%hundred_dwarf_quest = ^hundred_dwarf_drunk_rohak) {
+    %hundred_dwarf_quest = ^hundred_dwarf_has_hot;
+}
 ~objbox(hundred_dwarf_hot_rockcake, "What comes out is red hot, entirely solid, and gives off a faint smell of burnt iron. It is perfect.", 250, 0, 0);
 ~chatnpc("<p,happy>Cool it in water first, mind. It'll take the skin off him otherwise, and he's had enough of a week.");
 
@@ -227,3 +246,8 @@ switch_int (%hundred_dwarf_quest) {
         $x = append($x, "@dbl@I should @dre@give the rock cake to the Mountain Dwarf@dbl@.");
 }
 return($x);
+
+// Taken out of the gen_eat_heal0 consume group: it is red hot and glowing, and eating it destroyed
+// a quest item and healed nothing.
+[opheld1,hundred_dwarf_hot_rockcake]
+~mesbox("It is glowing. You are not putting that in your mouth. | Rohak said to cool it in water first.");

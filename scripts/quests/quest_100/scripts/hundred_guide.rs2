@@ -128,7 +128,16 @@ if (inv_freespace(inv) < 1) {
 inv_add(inv, pot_flour, 1);
 %100guide_flourdone = 1;
 ~objbox(pot_flour, "The Cook hands you a pot of flour.", 250, 0, 0);
-~chatnpc("<p,neutral>You'll want a cake tin. There's one in the chest downstairs, if the gypsy's chest is up yet.");
+// FIXED (reported: "rfd lumby guide not working"). This used to send the player to the
+// Culinaromancer's chest for the cake tin. The chest sells food and the sub-quest rewards and has
+// never stocked a tin, so the one instruction the Cook gives about the one item he does not hand
+// over was a dead end, and there is nothing else in the quest that mentions a tin at all.
+//
+// A cake tin is obtainable - there are exactly two in the world, both ground spawns: upstairs in
+// the Chefs' Guild at (3141,3452), and one in the Wilderness at (2987,3686) with the giant spiders
+// for company. The Cook sends you to the first, which is the one a cook would know about.
+~chatnpc("<p,neutral>You'll want a cake tin, and I've only the one. There's a spare upstairs in the Chefs' Guild, west of Varrock - I trained there.");
+~chatnpc("<p,neutral>They'll not let you past the door under 32 Cooking, mind, and not without a chef's hat on your head.");
 return(true);
 
 // --- Journal ---
@@ -142,6 +151,8 @@ switch_int (%100guide_prog) {
     case default :
         $x = append($x, "@dbl@The Lumbridge Guide was eating a plain @dre@cake@dbl@. The @dre@Cook@dbl@ has|");
         $x = append($x, "@dbl@flour, @dre@Gee@dbl@ has eggs and @dre@Donie@dbl@ has milk - all three are in|");
-        $x = append($x, "@dbl@@dre@Lumbridge@dbl@. A @dre@cake tin@dbl@ and a @dre@range@dbl@ will do the rest.");
+        $x = append($x, "@dbl@@dre@Lumbridge@dbl@. A @dre@cake tin@dbl@ and a @dre@range@dbl@ will do the rest.|");
+        $x = append($x, "|@dbl@The Cook says there is a spare tin upstairs in the @dre@Chefs' Guild|");
+        $x = append($x, "@dbl@west of Varrock@dbl@ - 32 Cooking and a chef's hat to get in.");
 }
 return($x);

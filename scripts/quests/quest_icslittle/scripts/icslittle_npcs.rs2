@@ -1,0 +1,174 @@
+// Icthlarin's Little Helper - the High Priest, the Embalmer, Siamun, and the ceremony.
+
+// =========================================================================== the High Priest, in town
+
+// ics_little_hipriest_town is a shell on ics_little_priestvis with multinpc=0 only, so he is there
+// by default and would vanish if that bit were ever set. It is left alone.
+[opnpc1,ics_little_hipriest_town]
+switch_int (%ics_little_var) {
+    case ^icslittle_not_started : @icslittle_priest_start;
+    case ^icslittle_asked : @icslittle_priest_waiting;
+    case ^icslittle_has_method : @icslittle_priest_waiting;
+    case ^icslittle_has_ingredients : @icslittle_priest_embalm;
+    case ^icslittle_embalmed : @icslittle_priest_jars;
+    case default :
+        if (%ics_little_var >= ^icslittle_complete) {
+            ~chatnpc("<p,sad>Klenter is gone and we are still here. That is Sophanem for you.");
+            return;
+        }
+        ~chatnpc("<p,neutral>The ceremony is below. Go down.");
+}
+
+[label,icslittle_priest_start]
+~chatnpc("<p,sad>Another outsider. You will not like it here and you will not be here long.");
+switch_int (~p_choice2("What's happened to this place?", 1, "Charming.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>Charming.");
+        ~chatnpc("<p,sad>Yes. We used to be.");
+        return;
+    case 1 :
+        ~chatplayer("<p,quiz>What's happened to this place?");
+}
+~chatnpc("<p,sad>Plague, flies, locusts and frogs, in that order, for eleven years. The gates are shut and the river is shut and nobody comes in.");
+~chatnpc("<p,angry>And now Klenter, who was our high priest before me, is dead and unprepared, and I have nobody left who knows the rite.");
+~chatplayer("<p,quiz>What does preparing him involve?");
+~chatnpc("<p,neutral>Embalming. Properly. The embalmer here will tell you what he needs; he has not had a body to work on in years and he will be unbearable about it.");
+~chatnpc("<p,neutral>Do that, bring Klenter's canopic jars up from the tomb, and we will hold the ceremony.");
+%ics_little_var = ^icslittle_asked;
+~send_quest_progress(questlist:ics_little, %ics_little_var, ^icslittle_complete);
+
+[label,icslittle_priest_waiting]
+~chatnpc("<p,quiz>Have you spoken to the embalmer?");
+~chatplayer("<p,neutral>I'm working on it.");
+~chatnpc("<p,neutral>Work faster. He is not getting any fresher.");
+
+[label,icslittle_priest_embalm]
+if (inv_total(inv, ics_little_pileofsalt) = 0 | inv_total(inv, ics_little_sap_bucket) = 0 | inv_total(inv, ics_little_linen) = 0) {
+    ~chatnpc("<p,quiz>Salt, sap and linen. All three.");
+    ~chatplayer("<p,sad>Not all three.");
+    return;
+}
+~chatplayer("<p,happy>Salt, sap and linen.");
+inv_del(inv, ics_little_pileofsalt, 1);
+inv_del(inv, ics_little_sap_bucket, 1);
+inv_del(inv, ics_little_linen, 1);
+~chatnpc("<p,happy>Then it can be done today.");
+if_close;
+mes("The embalmer works for a long time, and the High Priest watches every minute of it.");
+p_delay(3);
+%ics_little_var = ^icslittle_embalmed;
+%ics_specvis = ^icslittle_spectre_shown;
+~send_quest_progress(questlist:ics_little, %ics_little_var, ^icslittle_complete);
+~chatnpc("<p,neutral>Klenter is prepared. Now go down to the tomb and bring up his four canopic jars - all four, and do not mix them up.");
+
+[label,icslittle_priest_jars]
+~chatnpc("<p,neutral>Four jars. The tomb is below the city.");
+
+// =========================================================================== the Embalmer and Siamun
+
+[opnpc1,ics_little_embalmer]
+if (%ics_little_var < ^icslittle_asked) {
+    ~chatnpc("<p,sad>Eleven years and not one body brought to me in the proper way. Eleven.");
+    return;
+}
+if (%ics_little_var > ^icslittle_has_method) {
+    ~chatnpc("<p,happy>Best work I have done in a decade. Nobody will ever see it.");
+    return;
+}
+if (%ics_little_var = ^icslittle_has_method) {
+    ~chatnpc("<p,neutral>Salt, sap and linen. Siamun has the linen; I have given you the rest.");
+    return;
+}
+~chatplayer("<p,neutral>The High Priest says you know the rite.");
+~chatnpc("<p,happy>I know the rite. I wrote a book about the rite. Nobody read it.");
+~chatnpc("<p,neutral>Three things. Salt to dry him, sap to seal him, and linen to wrap him.");
+~chatnpc("<p,neutral>I have salt and sap in the back - eleven years of stock and nothing to use it on. The linen you will have to get from Siamun, and he will want talking to.");
+if (inv_freespace(inv) < 2) {
+    ~chatnpc("<p,angry>And you can come back when you are not carrying half the desert.");
+    return;
+}
+%ics_little_var = ^icslittle_has_method;
+%ics_gotsalt = 1;
+%ics_gotsap = 1;
+~send_quest_progress(questlist:ics_little, %ics_little_var, ^icslittle_complete);
+inv_add(inv, ics_little_pileofsalt, 1);
+inv_add(inv, ics_little_sap_bucket, 1);
+mes("The embalmer gives you a pile of salt and a bucket of sap.");
+
+[opnpc1,ics_little_linen2]
+if (%ics_little_var < ^icslittle_has_method) {
+    ~chatnpc("<p,neutral>Linen. Miles of it. Nobody to wrap in it.");
+    return;
+}
+if (%ics_gotlinen = 1) {
+    ~chatnpc("<p,neutral>You have had your sheet.");
+    return;
+}
+~chatplayer("<p,neutral>I need a sheet of mummy wrap for Klenter.");
+~chatnpc("<p,shock>Klenter is being done properly? After all this time?");
+~chatplayer("<p,happy>Today, apparently.");
+~chatnpc("<p,happy>Then take the best sheet I have and do not tell me what it cost me to keep it clean.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>When you have a hand free for it.");
+    return;
+}
+%ics_gotlinen = 1;
+if (%ics_little_var = ^icslittle_has_method & %ics_gotsalt = 1 & %ics_gotsap = 1) {
+    %ics_little_var = ^icslittle_has_ingredients;
+    ~send_quest_progress(questlist:ics_little, %ics_little_var, ^icslittle_complete);
+}
+inv_add(inv, ics_little_linen, 1);
+mes("Siamun gives you a sheet of linen.");
+
+[opnpc1,ics_little_linen1]
+~chatnpc("<p,neutral>Siamun does the talking. I do the weaving.");
+
+// =========================================================================== the ceremony
+
+// The burial party only exists between 19 and 25, so these two shells cannot be reached outside
+// that band - which is why neither needs a not-started branch.
+[opnpc1,ics_little_hipriest_ceremony]
+if (%ics_little_var = ^icslittle_ceremony) {
+    if (inv_total(inv, ics_little_canopic_jar_liver) = 0 | inv_total(inv, ics_little_canopic_jar_lungs) = 0 | inv_total(inv, ics_little_canopic_jar_stomach) = 0 | inv_total(inv, ics_little_canopic_jar_intestines) = 0) {
+        ~chatnpc("<p,quiz>All four jars. Man, ape, bug and crocodile.");
+        ~chatplayer("<p,sad>I don't have all four.");
+        return;
+    }
+    ~chatplayer("<p,happy>All four.");
+    mes("You set the jars around Klenter: the man, the ape, the bug and the crocodile.");
+    inv_del(inv, ics_little_canopic_jar_liver, 1);
+    inv_del(inv, ics_little_canopic_jar_lungs, 1);
+    inv_del(inv, ics_little_canopic_jar_stomach, 1);
+    inv_del(inv, ics_little_canopic_jar_intestines, 1);
+    %ics_little_var = ^icslittle_jars_placed;
+    ~send_quest_progress(questlist:ics_little, %ics_little_var, ^icslittle_complete);
+    ~chatnpc("<p,happy>Stand back, outsider. You have earned the right to watch this.");
+    if_close;
+    p_delay(3);
+    %ics_little_var = ^icslittle_icthlarin;
+    ~mesbox("The chanting stops. Something comes into the chamber that was not there a moment ago, and every priest in the room goes face down on the stone.");
+    return;
+}
+if (%ics_little_var = ^icslittle_devoured) {
+    ~chatnpc("<p,angry>It took him. In front of a god, in front of all of us, it took him.");
+    ~chatplayer("<p,quiz>What was it?");
+    ~chatnpc("<p,sad>The Devourer. Say the name quietly.");
+    queue(icslittle_quest_complete, 0, 0);
+    return;
+}
+~chatnpc("<p,neutral>Be silent. This is a burial.");
+
+[opnpc1,ics_little_priest_ceremony]
+~chatnpc("<p,neutral>Be silent and keep your hands where the god can see them.");
+
+// Icthlarin renders at stage 24 and nowhere else, so this handler can only ever be reached there.
+[opnpc1,ics_little_ic]
+~chatnpc("<p,neutral>You are not from here, and you are not dead, and you are standing in my ceremony.");
+~chatplayer("<p,scared>I was helping.");
+~chatnpc("<p,neutral>You were. That is the only reason this is a conversation.");
+~chatnpc("<p,sad>Klenter was owed his passage and I came to take him. Somebody else came for him first.");
+if_close;
+p_delay(2);
+%ics_little_var = ^icslittle_devoured;
+~send_quest_progress(questlist:ics_little, %ics_little_var, ^icslittle_complete);
+~mesbox("Something the size of the room takes Klenter's body and is gone with it, and the god of the dead is left standing in an empty ceremony looking, for a moment, entirely mortal.");

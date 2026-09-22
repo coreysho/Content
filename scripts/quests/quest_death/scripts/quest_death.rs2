@@ -166,8 +166,15 @@ return (getbit_range(%death_bits, ^harold_money_lower, ^harold_money_upper));
 [proc,death_set_haroldroll](int $val)
 %death_bits = setbit_range_toint(%death_bits, $val, ^death_haroldroll_lower, ^death_haroldroll_upper);
 
+// $val is Harold's new purse, not a change to it - every caller passes an absolute
+// (death_harold.rs2:139,143, denulth.rs2:112). The cap test used to add the CURRENT purse to it
+// first, which meant a player who won money off Harold could push the sum past 10000 and have the
+// purse snapped UP to the cap: purse 9000, player wins 1000, set(8000) -> 8000+9000 = 17000 >=
+// 10000 -> stores 10000, so Harold ended a losing hand richer than he started it. Bankrupting him,
+// which is the whole ^harold_lostall -> IOU route, was correspondingly much harder than intended.
+// Clamp the value being stored, nothing else.
 [proc,death_set_haroldgold](int $val)
-if(add($val, ~death_get_haroldgold) >= 10000) {
+if($val >= 10000) {
     %death_bits = setbit_range_toint(%death_bits, 10000, ^harold_money_lower, ^harold_money_upper);
 } else {
     %death_bits = setbit_range_toint(%death_bits, $val, ^harold_money_lower, ^harold_money_upper);
@@ -189,6 +196,12 @@ return (getbit_range(%death_map, ^death_bet_lower, ^death_bet_upper));
 session_log(^log_adventure, "Quest complete: Death Plateau");
 %death_equiproom = ^death_complete;
 %death_bits = clearbit_range(%death_bits, ^death_haroldroll_lower, ^denulth_given_combo);
-inv_add(inv, steel_claws, 1);
+// Nothing anywhere re-issues the claws, so a full inventory used to lose them for good.
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, steel_claws, 1);
+} else {
+    obj_add(coord, steel_claws, 1, ^lootdrop_duration);
+    mes("You have no room for the claws, so they fall to the ground.");
+}
 stat_advance(attack, 30000);
 ~send_quest_complete(questlist:death, steel_claws, 250, ^death_questpoints, "You have completed the Death Plateau Quest!", "3000 Attack XP|Steel claws|Ability to make claws");

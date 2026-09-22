@@ -1,0 +1,58 @@
+[if_button,questlist:onesmallfavour]
+def_string $text;
+
+switch_int (%onesmallfavour) {
+    case ^osf_not_started :
+        $text = "@dbl@I can start this quest by speaking to|";
+        $text = append($text, "@dbl@@dre@Phantuwti Fanstuwi Farsight@dbl@ in @dre@Seers' Village");
+
+    case ^osf_asked :
+        $text = "@str@The seer cannot predict the weather, which is the one|";
+        $text = append($text, "@str@thing people ask him for, because his weathervane has|");
+        $text = append($text, "@str@fallen to pieces.|");
+        $text = append($text, "@dbl@@dre@Search@dbl@ what is left of it, up the @dre@ladder@dbl@ behind him");
+
+    case ^osf_vane_fixed :
+        $text = "@str@The weathervane is turning again.|";
+        $text = append($text, "@dbl@@dre@Phantuwti@dbl@ will want to know");
+
+    case ^osf_lights :
+        $text = "@str@The seer's first accurate forecast in a year.|";
+        $text = append($text, "@dbl@The @dre@gnome glider@dbl@ in the @dre@Feldip Hills@dbl@ has been flying|");
+        $text = append($text, "@dbl@blind since the storm took its @dre@landing lights|");
+        $text = append($text, "@dbl@@dre@<tostring(~osf_lights_done)>@dbl@ of @dre@<tostring(^osf_lights_count)>@dbl@ lights|");
+        $text = append($text, "@dbl@Two each of @dre@jade@dbl@, @dre@opal@dbl@, @dre@red topaz@dbl@ and @dre@sapphire|");
+        if (%all_lights_fixed = ^osf_on) {
+            $text = append($text, "|@dbl@All lit. The @dre@pilot@dbl@ would still like the @dre@weather report");
+        }
+
+    case ^osf_complete :
+        $text = "@str@One small favour, the seer said.|";
+        $text = append($text, "@str@His weathervane was in three pieces and no one of the|");
+        $text = append($text, "@str@three people who could mend them would do it without|");
+        $text = append($text, "@str@something first - and the potter's favour turned out to be|");
+        $text = append($text, "@str@a sealed pot for a dwarf, which I did not open and did not|");
+        $text = append($text, "@str@ask about.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+
+    case default :
+        $text = "@str@The weathervane is in three pieces and each one needs a|";
+        $text = append($text, "@str@different pair of hands.|");
+        if (%rotatingpillarfixed = ^osf_off) {
+            $text = append($text, "@dbl@The @dre@rotating pillar@dbl@ - @dre@Jimmy the Chisel@dbl@, in the @dre@HAM|");
+            $text = append($text, "@dbl@hideout@dbl@. Stone does not turn on its own; the seer gave|");
+            $text = append($text, "@dbl@me a @dre@scroll@dbl@ for that|");
+        }
+        if (%ornamentfixed = ^osf_off) {
+            $text = append($text, "@dbl@The @dre@ornament@dbl@ - @dre@Tassie Slipcast@dbl@ the potter, for @dre@<tostring(^osf_clay_wanted)>|");
+            $text = append($text, "@dbl@soft clay|");
+        }
+        if (%directionalsfixed = ^osf_off) {
+            $text = append($text, "@dbl@The @dre@directionals@dbl@ - @dre@Hammerspike Stoutbeard@dbl@, who wants|");
+            $text = append($text, "@dbl@an @dre@airtight pot@dbl@ delivered and no questions. Only @dre@Tassie|");
+            $text = append($text, "@dbl@can make one|");
+        }
+        $text = append($text, "|@dbl@All three mended, then @dre@Search@dbl@ the vane again");
+}
+
+~quest_journal("One Small Favour", $text);

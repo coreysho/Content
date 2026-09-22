@@ -28,6 +28,13 @@ switch_int($option) {
                 ~chatnpc("<p,neutral>Well, come back when you do.");
                 return;
             }
+            // Coins stack, so deleting 500 from a larger pile frees no slot - a full inventory
+            // took the 500gp and destroyed the replacement Excalibur.
+            if(inv_freespace(inv) = 0 & inv_total(inv, coins) > 500) {
+                ~chatplayer("<p,sad>I've nowhere to put it.");
+                ~chatnpc("<p,neutral>Then make some room and come back. I'm not going anywhere.");
+                return;
+            }
             ~chatplayer("<p,happy>Ok, here you go.");
             ~chatnpc("<p,happy>You are still worthy to wield Excalibur! And thanks for the cash! I felt like getting a new haircut!");
             inv_del(inv, coins, 500);

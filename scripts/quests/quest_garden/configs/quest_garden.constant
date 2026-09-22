@@ -1,0 +1,111 @@
+// Garden of Tranquillity.
+//
+// Two varps, garden_varp_1 and garden_varp_2, both transmit=yes and neither with scope=perm.
+// garden_quest is bits 0-5 of the first and nothing renders off it, so the stage numbering is free.
+//
+// ---------------------------------------------------------------------------- the patches
+// Nine patches in the palace garden and every one of them is the same eight-state multiloc:
+//
+//   0 weeds_3   the thickest weeds - and the value a fresh account has
+//   1 weeds_2
+//   2 weeds_1
+//   3 weeded    clear soil
+//   4 seed
+//   5 growing
+//   6 growing
+//   7 fullygrown
+//
+// So raking counts UP and 0 is overgrown, the same inversion A Tail of Two Cats has. The two
+// orchid patches are plant pots rather than beds and skip 2 and 3 entirely - 0 is an empty pot,
+// 1 is a pot with soil in it, and then 4-7 as above. The white tree has thirteen states: 0-3 the
+// same weeds, 4 a seedling, 5-8 growth, and 9-12 the fruit coming on.
+//
+// Each patch type is placed several times and all of its tiles share ONE varbit, so raking any
+// delphinium bed rakes all four of them. That is a property of the cache, not a shortcut.
+//
+// ---------------------------------------------------------------------------- the statues
+// Four multilocs and an npc, and between them they say exactly how this works:
+//
+//   [falador_statue_saradomin]      0 the statue, 1 and 2 an empty plinth
+//   [garden_lumbridge_statue]       0 the statue, 1 and 2 an empty plinth
+//   [garden_saradomin_statue_multi] 0 and 1 an empty plinth in the garden, 2 and 3 statue placed
+//   [garden_king_statue_multi]      0 and 1 an empty plinth in the garden, 2 and 3 statue placed
+//   [garden_trolley]                0 empty, 1 carrying Saradomin, 2 carrying the King
+//
+// The trolley npc is NOT placed anywhere and carries no ops on any of its three forms, so it
+// cannot be clicked into existence. garden_trolley_obj is an inventory item, though, so the
+// trolley the player actually uses is the obj and garden_trolley_varbit tracks what is on it.
+// The npc is left alone.
+
+// =========================================================================== stages
+^garden_not_started = 0
+^garden_started = 5        // Roald wants the garden put right
+^garden_seeds = 10         // the list is in hand and the gardeners are named on it
+^garden_planted = 20       // every bed sown
+^garden_grown = 30         // everything up
+^garden_statues = 40       // both statues moved and placed
+^garden_complete = 50
+
+// =========================================================================== patch states
+^garden_weeds_3 = 0
+^garden_weeds_2 = 1
+^garden_weeds_1 = 2
+^garden_weeded = 3
+^garden_seed = 4
+^garden_growing_1 = 5
+^garden_growing_2 = 6
+^garden_fullygrown = 7
+
+// The orchid pots skip the two middle weed states.
+^garden_pot_empty = 0
+^garden_pot_soil = 1
+
+// The white tree runs further.
+^garden_tree_seedling = 4
+^garden_tree_grown = 8
+^garden_tree_fruit_1 = 9
+^garden_tree_fruit_4 = 12
+
+// =========================================================================== statue states
+^garden_statue_home = 0     // still on its own plinth
+^garden_statue_taken = 1    // plinth empty, statue on the trolley or in the garden
+^garden_statue_placed = 2   // standing in the palace garden
+^garden_trolley_empty = 0
+^garden_trolley_saradomin = 1
+^garden_trolley_king = 2
+
+^garden_vines_diseased = 0
+^garden_vines_cured = 4
+
+^garden_off = 0
+^garden_on = 1
+
+// =========================================================================== what the list wants
+// The counts are not invented - general_use/scripts/readables_generated.rs2 already carries
+// garden_list and it reads: "4 delphinium seeds, 3 yellow orchid seeds, 3 pink orchid seeds,
+// 4 snowdrop seeds, 4 vine seeds, 1 white tree shoot, 3 red rose seeds, 3 pink rose seeds,
+// 3 white rose seeds", and names Elstan, Lyra, Kragen and Bernald as where to get them.
+^garden_need_delphinium = 4
+^garden_need_snowdrop = 4
+^garden_need_vine = 4
+^garden_need_orchid = 3
+^garden_need_rose = 3
+
+^garden_req_farming = 25
+
+// =========================================================================== places
+// The palace garden is m50_54 (mapsquare origin 3200,3456), all plane 0.
+^garden_roald = 0_50_54_22_20              // 3222,3476
+^garden_king_plinth = 0_50_54_33_31        // 3233,3487
+^garden_saradomin_plinth = 0_50_54_29_23   // 3229,3479
+// The two statues in their home towns, and Bernald's vinery.
+^garden_falador_statue = 0_46_52_21_53     // 2965,3381
+^garden_lumbridge_statue = 0_50_50_31_17   // 3231,3217
+^garden_burthorpe_vines = 0_45_55_33_14    // 2913,3534
+// The gardeners.
+^garden_elstan = 0_47_51_45_44             // 3053,3308  Falador
+^garden_dantaera = 0_43_54_56_8            // 2808,3464  Catherby
+^garden_kragen = 0_41_52_44_46             // 2668,3374  Ardougne
+^garden_lyra = 0_56_55_17_7                // 3601,3527  Port Phasmatys
+^garden_bernald = 0_45_55_38_14            // 2918,3534  Burthorpe
+^garden_althric = 0_47_54_41_51            // 3049,3507  the monastery

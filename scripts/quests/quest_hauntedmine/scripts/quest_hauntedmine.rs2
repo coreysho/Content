@@ -1,0 +1,291 @@
+// Haunted Mine - a Saradominist guarding a hole, eleven point levers with three of them under
+// water, and something at the bottom that used to be a miner.
+
+// =========================================================================== the zealot
+[opnpc1,saradominist_zealot]
+switch_int (%hauntedmine) {
+    case ^hm_not_started :
+        ~chatplayer("<p,quiz>What's down the mine?");
+        ~chatnpc("<p,angry>Nothing. There is no mine. There is a hole and it is closed.");
+        ~chatplayer("<p,quiz>There are three ways in from here and I can see all of them.");
+        ~chatnpc("<p,angry>They are closed as well. This is temple land and the temple says no.");
+        ~chatnpc("<p,neutral>Nothing has come out of that mine in eighty years except the men who went into it, and not all of those.");
+        %hauntedmine = ^hm_refused;
+        ~send_quest_progress(questlist:hauntedmine, %hauntedmine, ^hm_complete);
+        ~mesbox("He is standing on this spot in full robes in a swamp, which is not the behaviour of a man guarding nothing, and there is a key on his belt.");
+    case ^hm_refused :
+        ~chatnpc("<p,angry>Still closed.");
+    case default :
+        if (%hauntedmine >= ^hm_complete) {
+            ~chatnpc("<p,sad>You went down there. You came back up. I have watched eleven men do the first of those.");
+            return;
+        }
+        ~chatnpc("<p,angry>Where did you get - give me that back.");
+}
+
+[opnpc3,saradominist_zealot]
+if (%hauntedmine < ^hm_refused) {
+    ~mesbox("There is a key on his belt and no reason yet to want it.");
+    return;
+}
+if (inv_total(inv, hauntedmine_lift_key) > 0 | %hauntedmine > ^hm_refused) {
+    ~mesbox("He has nothing else on him worth the trouble.");
+    return;
+}
+p_arrivedelay;
+if (stat(thieving) < 10) {
+    ~mesbox("You need a Thieving level of 10 to take anything off a man who is watching the road this closely.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have nowhere to put it.");
+    return;
+}
+anim(human_pickpocket, 0);
+p_delay(3);
+if (random(10) < 4) {
+    ~chatnpc("<p,angry>Hands.");
+    ~damage_self(2);
+    return;
+}
+inv_add(inv, hauntedmine_lift_key, 1);
+%hauntedmine = ^hm_key;
+~send_quest_progress(questlist:hauntedmine, %hauntedmine, ^hm_complete);
+stat_advance(thieving, 2000);
+~mesbox("A heavy iron key, far too big for a robe pocket and far too new for a mine that closed eighty years ago.");
+
+// =========================================================================== getting in
+[oploc1,hauntedmine_secondary_entrance] @hm_crawl(^hm_crawl_secondary_in);
+[oploc1,hauntedmine_back_entrance1] @hm_crawl(^hm_crawl_back1_in);
+[oploc1,hauntedmine_back_entrance2] @hm_crawl(^hm_crawl_back2_in);
+[oploc1,hauntedmine_secondary_entrance_inside] @hm_crawl(^hm_crawl_secondary);
+[oploc1,hauntedmine_back_entrance1_inside] @hm_crawl(^hm_crawl_back1);
+[oploc1,hauntedmine_back_entrance2_inside] @hm_crawl(^hm_crawl_back2);
+
+[label,hm_crawl](coord $to)
+p_arrivedelay;
+mes("You squeeze through.");
+p_delay(2);
+p_teleport($to);
+
+// A cart parked across a passage. Which side you come at it from decides which side you end on.
+[oploc1,hauntedmine_obstacle_cart]
+def_coord $cart = loc_coord;
+p_arrivedelay;
+def_int $dx = 0;
+def_int $dz = 0;
+if (coordx($cart) > coordx(coord)) { $dx = 2; } else if (coordx($cart) < coordx(coord)) { $dx = -2; }
+if (coordz($cart) > coordz(coord)) { $dz = 2; } else if (coordz($cart) < coordz(coord)) { $dz = -2; }
+mes("You climb over the cart.");
+p_delay(2);
+p_teleport(movecoord(coord, $dx, 0, $dz));
+
+// =========================================================================== the ladders
+// Named for where they put you. Same tile, next square.
+[oploc1,hauntedmine_laddertop_1e] @hm_ladder(64, 0);
+[oploc1,hauntedmine_ladder_1w] @hm_ladder(-64, 0);
+[oploc1,hauntedmine_laddertop_1sw] @hm_ladder(-64, -64);
+[oploc1,hauntedmine_ladder_1ne] @hm_ladder(64, 64);
+// The odd pair: m53_150 to m43_71 and back, which is ten squares west and seventy-nine south.
+[oploc1,hauntedmine_laddertop] @hm_ladder(-640, -5056);
+[oploc1,hauntedmine_ladder] @hm_ladder(640, 5056);
+
+[label,hm_ladder](int $dx, int $dz)
+p_arrivedelay;
+mes("You climb.");
+p_delay(2);
+p_teleport(movecoord(coord, $dx, 0, $dz));
+
+// =========================================================================== the points
+[oploc1,hauntedmine_points_info]
+p_arrivedelay;
+~mesbox("A points diagram, screwed to the wall, in the hand of somebody who did this job for thirty years. | TO THE LIFT: THROW 1, 3, 4, 6 AND 8. LEAVE 2, 5 AND 7. | Underneath, in a different hand and much later: 9, 10 AND 11 ARE UNDER WATER. DO NOT SEND ANYTHING DOWN THE LOW ROAD.");
+
+[oploc1,hauntedmine_point_lever1] @hm_lever(^hm_bit_lever1, 1);
+[oploc1,hauntedmine_point_lever2] @hm_lever(^hm_bit_lever2, 2);
+[oploc1,hauntedmine_point_lever3] @hm_lever(^hm_bit_lever3, 3);
+[oploc1,hauntedmine_point_lever4] @hm_lever(^hm_bit_lever4, 4);
+[oploc1,hauntedmine_point_lever5] @hm_lever(^hm_bit_lever5, 5);
+[oploc1,hauntedmine_point_lever6] @hm_lever(^hm_bit_lever6, 6);
+[oploc1,hauntedmine_point_lever7] @hm_lever(^hm_bit_lever7, 7);
+[oploc1,hauntedmine_point_lever8] @hm_lever(^hm_bit_lever8, 8);
+
+[label,hm_lever](int $bit, int $number)
+p_arrivedelay;
+anim(human_leverdown, 0);
+p_delay(2);
+if (testbit(%hauntedmine_bits, $bit) = ^true) {
+    %hauntedmine_bits = clearbit(%hauntedmine_bits, $bit);
+    mes("Point <tostring($number)> swings back.");
+} else {
+    %hauntedmine_bits = setbit(%hauntedmine_bits, $bit);
+    mes("Point <tostring($number)> throws over.");
+}
+~hm_points_check;
+
+// The three flooded points are locs with no ops at all, which is the puzzle stated in the config:
+// eleven points, three of them unreachable, and a route that has to be made out of the other eight.
+[proc,hm_points_check]()()
+if (~hm_points_set = false) {
+    return;
+}
+if (%hauntedmine >= ^hm_points) {
+    return;
+}
+%hauntedmine = ^hm_points;
+~send_quest_progress(questlist:hauntedmine, %hauntedmine, ^hm_complete);
+~mesbox("Somewhere a long way off, a very heavy thing rolls about thirty feet and stops.");
+
+[proc,hm_points_set]()(boolean)
+def_int $set = and(%hauntedmine_bits, 255);
+if ($set = ^hm_points_answer) {
+    return(true);
+}
+return(false);
+
+[oploc1,hauntedmine_puzzle_cart]
+p_arrivedelay;
+~mesbox("An ore cart on the points, loaded, with the brake off. It is the counterweight: the lift does not have an engine, it has this. | Whichever road the points send it down is the road the lift goes.");
+
+[oploc1,hauntedmine_chisel_crate]
+p_arrivedelay;
+if (inv_total(inv, chisel) > 0) {
+    ~mesbox("Tools. You already have the one worth taking.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room.");
+    return;
+}
+inv_add(inv, chisel, 1);
+mes("You take a chisel out of the crate.");
+
+// =========================================================================== the lift
+[oploc1,hauntedmine_lift_valve]
+p_arrivedelay;
+if (inv_total(inv, hauntedmine_lift_key) = 0) {
+    ~mesbox("The valve is locked off with a keyed collar, which is a strange thing to do to a mine that officially does not exist.");
+    return;
+}
+if (~hm_points_set = false) {
+    ~mesbox("The valve turns and water goes somewhere and nothing else happens at all. The cart is not on the right road.");
+    return;
+}
+if_close;
+mes("You turn the valve. Water goes into a tank you cannot see, the cart lets go somewhere above you, and the lift starts down.");
+p_delay(5);
+p_teleport(^hm_boss_landing);
+if (%hauntedmine < ^hm_bottom) {
+    %hauntedmine = ^hm_bottom;
+    ~send_quest_progress(questlist:hauntedmine, %hauntedmine, ^hm_complete);
+    ~mesbox("The bottom of the mine. Nothing has been down here in eighty years and the air says so.");
+}
+
+// The way back. The bottom level is only reachable by the lift, so this door is also the way off it.
+[oploc1,hauntedmine_boss_door]
+p_arrivedelay;
+if (coordy(coord) = coordy(^hm_boss_landing) & coordx(coord) > 2700 & coordz(coord) > 4400) {
+    mes("You open the door and ride the lift back up.");
+    p_delay(4);
+    p_teleport(^hm_valve);
+    return;
+}
+mes("You open the door.");
+
+// =========================================================================== Treus Dayth
+[opnpc1,hauntedmine_boss_key]
+p_arrivedelay;
+if (testbit(%hauntedmine_bits, ^hm_bit_treus) = ^true) {
+    @hm_take_key;
+}
+if_close;
+mes("The key is lying on a rock in the middle of an empty chamber, which after eighty feet of ladders is not reassuring.");
+p_delay(3);
+~mesbox("The air goes cold and a man who has been dead for eighty years walks out of the wall. | \"MINE.\"");
+p_delay(3);
+~hm_treus_fight;
+
+[proc,hm_treus_fight]()()
+mes("Treus Dayth was the mine's last foreman and he is still doing the job.");
+p_delay(4);
+~damage_self(16);
+mes("He is not solid and he hits like something that is.");
+p_delay(4);
+~damage_self(8);
+mes("He comes apart at the edges and then all at once.");
+p_delay(3);
+%hauntedmine_bits = setbit(%hauntedmine_bits, ^hm_bit_treus);
+%hauntedmine = ^hm_treus;
+~send_quest_progress(questlist:hauntedmine, %hauntedmine, ^hm_complete);
+stat_advance(attack, 12000);
+stat_advance(defence, 12000);
+~mesbox("The cold goes out of the chamber and the key is still on the rock.");
+
+[label,hm_take_key]
+if (inv_total(inv, hauntedmine_reward_key) > 0 | testbit(%hauntedmine_bits, ^hm_bit_crystal) = ^true) {
+    ~mesbox("The rock the key was on.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room.");
+    return;
+}
+inv_add(inv, hauntedmine_reward_key, 1);
+~mesbox("An innocent looking key, which is what people call a key when they have watched what happened to the last person who picked it up.");
+
+// =========================================================================== the crystal
+[oploc1,hauntedmine_rewarddoor_l] @hm_reward_door;
+[oploc1,hauntedmine_rewarddoor_r] @hm_reward_door;
+
+[label,hm_reward_door]
+p_arrivedelay;
+if (testbit(%hauntedmine_bits, ^hm_bit_crystal) = ^true) {
+    ~mesbox("The room the crystal was in.");
+    return;
+}
+if (inv_total(inv, hauntedmine_reward_key) = 0) {
+    ~mesbox("Locked, with a keyhole that would take something considerably older than the door.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room for whatever is behind it.");
+    return;
+}
+if_close;
+mes("The key turns and the doors come apart with about eighty years of dust in the hinges.");
+p_delay(4);
+inv_del(inv, hauntedmine_reward_key, 1);
+inv_add(inv, crystalshard_necklace_unstrung, 1);
+%hauntedmine_bits = setbit(%hauntedmine_bits, ^hm_bit_crystal);
+~mesbox("The whole of the back of this mine is one crystal and it is lit from inside it. | This is why a Saradominist has been standing in a swamp for eighty years telling everyone there is no mine.");
+p_delay(3);
+%hauntedmine = ^hm_complete;
+stat_advance(mining, 22000);
+session_log(^log_adventure, "Quest complete: Haunted Mine");
+~send_quest_complete(questlist:hauntedmine, crystalshard_necklace, 200, ^hm_questpoints, "You have completed\\nHaunted Mine!", "2 Quest Points|2,200 Mining XP|The Salve shard|A chisel and a ball of wool will finish it");
+
+// =========================================================================== finishing the amulet
+[opheldu,crystalshard_necklace_unstrung]
+if (last_useitem ! chisel & last_useitem ! ball_of_wool) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (inv_total(inv, chisel) = 0) {
+    ~mesbox("A chisel. There is a crate of tools in the mine with one in it.");
+    return;
+}
+if (inv_total(inv, ball_of_wool) = 0) {
+    ~mesbox("It wants stringing, and the only thing that will not burn through is wool.");
+    return;
+}
+if_close;
+mes("You cut the shard down and string it.");
+p_delay(4);
+inv_del(inv, crystalshard_necklace_unstrung, 1);
+inv_del(inv, ball_of_wool, 1);
+inv_add(inv, crystalshard_necklace, 1);
+stat_advance(crafting, 5000);
+~mesbox("The Salve amulet. It does not do anything at all until something dead is standing in front of you, and then it does a great deal.");
+
+[opheld1,crystalshard_necklace_unstrung]
+~mesbox("An unstrung crystal, lit from the inside, and warm. A chisel and a ball of wool would make it into something wearable.");

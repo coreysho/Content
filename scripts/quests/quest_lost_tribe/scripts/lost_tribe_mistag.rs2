@@ -1,0 +1,119 @@
+// The mine: Kazgar, who walks the player through it, and Mistag at the far end.
+//
+// Kazgar is npc 2085 at 0_50_150_31_10; Mistag is npc 2084 at 0_51_150_55_15. The mine between
+// them is unlit and unmapped, which is the point - Kazgar's escort is the way through it, exactly
+// as it is in the real quest, and it is why the two coords in the constant file exist.
+//
+// lost_tribe_guide_1op (2086) is the same character with a single option, for after the quest.
+// It is not placed in any map, so it is not scripted.
+
+[opnpc1,lost_tribe_guide]
+if (%lost_tribe_quest < ^lost_tribe_way_open) {
+    ~chatnpc("<p,neutral>You should not be down here.");
+    return;
+}
+~chatnpc("<p,neutral>You're the one from up above. Mistag said you'd come.");
+switch_int (~p_choice2("Take me to Mistag.", 1, "Not just now.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>Not just now.");
+        ~chatnpc("<p,neutral>I'll be here. Don't wander - the tunnels don't forgive it.");
+        return;
+    case 1 :
+        ~chatplayer("<p,happy>Take me to Mistag.");
+}
+~chatnpc("<p,neutral>Stay close, and mind your head.");
+@lost_tribe_walk(^lost_tribe_mistag_side, "Kazgar leads you through the dark, turning so often that you lose count.");
+
+[opnpc2,lost_tribe_guide]
+if (%lost_tribe_quest < ^lost_tribe_way_open) {
+    ~chatnpc("<p,neutral>You should not be down here.");
+    return;
+}
+@lost_tribe_walk(^lost_tribe_mistag_side, "Kazgar leads you through the dark, turning so often that you lose count.");
+
+[label,lost_tribe_walk](coord $to, string $line)
+if_close;
+mes($line);
+p_delay(3);
+p_teleport($to);
+
+[opnpc1,lost_tribe_mistag]
+switch_int (%lost_tribe_quest) {
+    case ^lost_tribe_way_open : @mistag_first;
+    case ^lost_tribe_met_mistag : @mistag_waiting;
+    case ^lost_tribe_proved_sigmund : @mistag_waiting;
+    case default : @mistag_after;
+}
+
+[label,mistag_first]
+~chatnpc("<p,neutral>So. One of the surface people, in our tunnels, with a lamp and a weapon.");
+~chatplayer("<p,neutral>Someone broke into the Duke's cellar and took his silver. The hole came from your side.");
+~chatnpc("<p,angry>The hole came from a collapse. We did not make it and we did not come through it.");
+~chatnpc("<p,neutral>We are the Dorgeshuun. We left the wars a very long time ago and we have not been up since.");
+~chatplayer("<p,quiz>Then who took the silverware?");
+~chatnpc("<p,neutral>Someone who wanted us blamed for it, I should think.");
+~chatnpc("<p,neutral>Listen to me. If your Duke sends soldiers down here, my people will fight, and then we will be at war over a box of spoons.");
+switch_int (~p_choice2("Then let's stop that happening.", 1, "That's not my problem.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>That's not my problem.");
+        ~chatnpc("<p,sad>No. It never is, up there.");
+        return;
+    case 1 :
+        ~chatplayer("<p,happy>Then let's stop that happening.");
+}
+~chatnpc("<p,happy>Then bring me a treaty, signed by your Duke, and I will put my mark on it.");
+~chatnpc("<p,neutral>He will not take my word. Take this - it is our tribe's. Someone up there can read it, even if he cannot.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>...when you have a hand free to carry it, that is. Come back to me.");
+    return;
+}
+%lost_tribe_quest = ^lost_tribe_met_mistag;
+~send_quest_progress(questlist:lost_tribe, %lost_tribe_quest, ^lost_tribe_complete);
+inv_add(inv, lost_tribe_brooch, 1);
+mes("Mistag gives you a stone brooch.");
+
+[label,mistag_waiting]
+if (inv_total(inv, lost_tribe_treaty) = 0 & %lost_tribe_quest >= ^lost_tribe_proved_sigmund) {
+    // Kazgar only exists at stage 9 and above, so before that there is nobody at this end to walk
+    // the player out and the tunnel has to be retraced on foot. From 9 the offer stands.
+    ~chatnpc("<p,quiz>Have you the treaty yet?");
+    ~chatplayer("<p,sad>Not yet.");
+    switch_int (~p_choice2("Could someone walk me back out?", 1, "I'll find my own way.", 2)) {
+        case 2 :
+            ~chatplayer("<p,neutral>I'll find my own way.");
+            ~chatnpc("<p,neutral>Mind the low roof.");
+            return;
+        case 1 :
+            ~chatplayer("<p,neutral>Could someone walk me back out?");
+    }
+    ~chatnpc("<p,neutral>Kazgar will see you to the surface end.");
+    @lost_tribe_walk(^lost_tribe_mine_entrance, "You are led back through the tunnels, and lose count of the turnings again.");
+}
+if (inv_total(inv, lost_tribe_treaty) > 0) {
+    ~chatplayer("<p,happy>The Duke signed it.");
+    ~chatnpc("<p,shock>He did? He truly did?");
+    mes("Mistag reads the treaty twice before he says anything.");
+    ~chatnpc("<p,happy>Then it is done. Ur-tag will want to see this - and you, I think, will be welcome down here for as long as you care to come.");
+    inv_del(inv, lost_tribe_treaty, 1);
+    if (inv_total(inv, lost_tribe_brooch) > 0) {
+        inv_del(inv, lost_tribe_brooch, 1);
+        mes("You hand back the brooch as well.");
+    }
+    queue(lost_tribe_quest_complete, 0, 0);
+    return;
+}
+~chatnpc("<p,quiz>Have you the treaty?");
+~chatplayer("<p,sad>Not yet.");
+~chatnpc("<p,neutral>Then the wall stays as it is, and so do we.");
+
+[label,mistag_after]
+~chatnpc("<p,happy>The treaty holds. Kazgar will take you through whenever you want to pass.");
+switch_int (~p_choice2("Walk me back out, then.", 1, "Just passing through.", 2)) {
+    case 2 :
+        ~chatplayer("<p,happy>Just passing through.");
+        ~chatnpc("<p,happy>Then pass in peace.");
+        return;
+    case 1 :
+        ~chatplayer("<p,happy>Walk me back out, then.");
+}
+@lost_tribe_walk(^lost_tribe_mine_entrance, "You are led back through the tunnels, and lose count of the turnings again.");

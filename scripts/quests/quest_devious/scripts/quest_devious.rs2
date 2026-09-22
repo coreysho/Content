@@ -1,0 +1,135 @@
+// Devious Minds - the blade, the disguise, the pouch and the altar.
+//
+// Entrana does not allow weapons through its gate. That is the whole quest: everything below is a
+// way of getting a two-handed sword onto the island without carrying a two-handed sword.
+
+// =========================================================================== Doric's whetstone
+
+// The whetstone is at Doric's house north of Falador (m46_53 local 9,59). Grinding a steel
+// two-hander down on it is what makes the blade slender enough to hide.
+[oploc1,devious_whetstone]
+if (%devious_main ! ^devious_hired) {
+    mes("Doric's whetstone. Doric is not using it at the moment.");
+    return;
+}
+if (inv_total(inv, steel_2h_sword) = 0) {
+    ~mesbox("A grinding wheel, well used. You would need a two-handed sword to do anything with it - a steel one, and you would be ruining it.");
+    return;
+}
+inv_del(inv, steel_2h_sword, 1);
+anim(human_smithing, 0);
+sound_synth(mine, 1, 0);
+inv_add(inv, devious_slenderblade, 1);
+%devious_main = ^devious_blade_made;
+~send_quest_progress(questlist:devious, %devious_main, ^devious_complete);
+stat_advance(smithing, 500);
+~mesbox("You grind the sword down on the wheel until there is very little of it left - a blade as narrow as a bowstave, and every bit as sharp.");
+
+// =========================================================================== the disguise
+
+// A slender blade down the back of a shortbow. The cache's own name for the result is Bow-sword,
+// and its description - "A sharp sword that can also fire arrows" - is the joke the quest is built
+// on.
+[opheldu,devious_slenderblade]
+if (last_useitem ! shortbow) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@devious_make_bowsword;
+
+[opheldu,shortbow]
+if (last_useitem ! devious_slenderblade) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@devious_make_bowsword;
+
+[label,devious_make_bowsword]
+inv_del(inv, devious_slenderblade, 1);
+inv_del(inv, shortbow, 1);
+inv_add(inv, devious_bowsword, 1);
+mes("You work the blade into the stave until the whole thing looks like an unstrung bow.");
+
+// The pouch is what gets it past the gate: a large essence pouch is not a weapon, and nobody at
+// Entrana's dock has ever turned one out.
+[opheldu,devious_bowsword]
+if (last_useitem ! devious_glowingpouch) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@devious_pack_pouch;
+
+[opheldu,devious_glowingpouch]
+if (last_useitem ! devious_bowsword) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@devious_pack_pouch;
+
+[label,devious_pack_pouch]
+if (%devious_main >= ^devious_blade_hidden) {
+    mes("It is already in there.");
+    return;
+}
+inv_del(inv, devious_bowsword, 1);
+%devious_main = ^devious_blade_hidden;
+~send_quest_progress(questlist:devious, %devious_main, ^devious_complete);
+~mesbox("The bow-sword goes into the pouch, and the pouch looks exactly like every other large pouch in the world.");
+
+// =========================================================================== the altar
+
+[oploc1,devious_altar]
+if (%devious_main = ^devious_blade_hidden & inv_total(inv, devious_glowingpouch) > 0) {
+    @devious_leave_pouch;
+}
+if (%devious_altar = ^devious_altar_burnt) {
+    ~mesbox("The altar is scorched black down one side. Whatever happened here happened fast and hot.");
+    return;
+}
+~mesbox("You pray at the altar, and feel a little better about yourself than you probably deserve to.");
+
+[label,devious_leave_pouch]
+inv_del(inv, devious_glowingpouch, 1);
+%devious_altar = ^devious_altar_holding;
+%devious_main = ^devious_delivered;
+~send_quest_progress(questlist:devious, %devious_main, ^devious_complete);
+~mesbox("You set the pouch down behind the altar, where he said to leave it, and walk out of the church without looking back.");
+
+// devious_altar_pouch and devious_altar_scorched are the multi's own children, so praying at either
+// of them arrives here through the shell. They carry op1=Pray-at in the cache; the handler is on
+// the shell because that is the type the map places.
+[oploc1,devious_altar_pouch] @devious_altar_child;
+[oploc1,devious_altar_scorched] @devious_altar_child;
+
+[label,devious_altar_child]
+~mesbox("You pray at the altar.");
+
+// =========================================================================== the body
+
+// Search is op1 on devious_monk_dead_visable, and the trigger goes on the shell the map places.
+[opnpc1,devious_monk_dead]
+if (inv_total(inv, devious_relic_fragment_saradomin) > 0 | %devious_main >= ^devious_found_body) {
+    ~mesbox("There is nothing else on him.");
+    return;
+}
+if (inv_freespace(inv) < 2) {
+    ~mesbox("There is something clutched in his hand, and you have no room for it.");
+    return;
+}
+%devious_main = ^devious_found_body;
+~send_quest_progress(questlist:devious, %devious_main, ^devious_complete);
+inv_add(inv, devious_relic_fragment_saradomin, 1);
+inv_add(inv, devious_glowingorb, 1);
+~mesbox("He is still holding a piece of the relic - most of it is missing. Beside him, scorched into the flagstones, is a glowing orb.");
+
+[opheld1,devious_glowingorb]
+~mesbox("The orb shows the same few seconds over and over: a hooded figure, an altar, and a bow that opens like a razor.");
+
+// =========================================================================== completion
+
+[queue,devious_quest_complete]
+%devious_main = ^devious_complete;
+stat_advance(runecraft, 50000);
+stat_advance(fletching, 50000);
+session_log(^log_adventure, "Quest complete: Devious Minds");
+~send_quest_complete(questlist:devious, devious_glowingorb, 250, ^devious_questpoints, "You have completed the\\nDevious Minds Quest!", "1 Quest Point|5,000 Runecraft XP|5,000 Fletching XP");

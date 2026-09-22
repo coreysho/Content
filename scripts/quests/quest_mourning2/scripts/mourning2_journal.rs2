@@ -1,0 +1,51 @@
+[if_button,questlist:mourning2]
+def_string $text;
+
+switch_int (%mourning_quest_main) {
+    case ^mt_not_started :
+        $text = "@dbl@@dre@Arianwyn@dbl@ has read the list I brought out of the death altar|";
+        $text = append($text, "@dbl@@dre@Mourning's End Part I@dbl@ comes first");
+
+    case ^mt_arianwyn :
+        $text = "@str@It is not a list of the dead. It is a list of what they are|";
+        $text = append($text, "@str@being used for, and the answer is a temple the elves sealed|");
+        $text = append($text, "@str@six hundred years ago.|");
+        $text = append($text, "@str@It is built round a beam of light. There is a hole in the|");
+        $text = append($text, "@str@west wall of the bottom floor and the light is supposed to|");
+        $text = append($text, "@str@come out of it.|");
+        $text = append($text, "@dbl@The @dre@tunnel@dbl@ is off the excavation");
+
+    case ^mt_inside :
+        $text = "@str@Three floors, sixteen chambers apiece, a pillar at every|";
+        $text = append($text, "@str@junction and a dead beam along every corridor.|");
+        $text = append($text, "@dbl@The @dre@fittings cupboards@dbl@ have the @dre@mirrors");
+
+    case ^mt_mirrors :
+        $text = "@str@A mirror takes the beam round one corner and is silvered on|";
+        $text = append($text, "@str@one face only, so a quarter turn changes which corner it|");
+        $text = append($text, "@str@will take, and three of the four turns do nothing at all.|");
+        $text = append($text, "@str@An empty socket is not an obstacle - the beam goes straight|");
+        $text = append($text, "@str@through it.|");
+        $text = append($text, "@dbl@The light enters at the @dre@top of the east wall@dbl@ and has to|");
+        $text = append($text, "@dbl@leave by the @dre@hole in the west|");
+        $text = append($text, "@dbl@Use a @dre@mirror@dbl@ on a @dre@pillar@dbl@ to place and turn it|");
+        $text = append($text, "@dbl@The @dre@lever@dbl@ drops every mirror and starts again");
+
+    case ^mt_lit :
+        $text = "@str@The beam goes down the shaft, across the bottom floor and|";
+        $text = append($text, "@str@out through the hole in the west wall.|");
+        $text = append($text, "@dbl@Tell @dre@Arianwyn");
+
+    case ^mt_complete :
+        $text = "@str@Six hundred years, and it was three mirrors and somebody|";
+        $text = append($text, "@str@prepared to count corners.|");
+        $text = append($text, "@str@The elves sealed that temple because nobody could make it|");
+        $text = append($text, "@str@work, and then told themselves they had sealed it for a|");
+        $text = append($text, "@str@reason, which is not the same thing.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+
+    case default :
+        $text = "@dbl@Speak to @dre@Arianwyn@dbl@ in @dre@Lletya";
+}
+
+~quest_journal("Mourning's End Part II", $text);

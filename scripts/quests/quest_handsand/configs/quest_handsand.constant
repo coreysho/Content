@@ -1,0 +1,87 @@
+// The Hand in the Sand.
+//
+// Two varps. handsand holds the stage and the flags; handsand_transmit holds the three multi keys.
+// Neither had scope=perm, so the whole quest reset on logout, and handsand_quest is nine bits of
+// stage that nothing renders - no loc or npc in the cache keys a multi on it - so for once the
+// stage numbering is free.
+//
+//   handsand_quest      bits 0-8    0-511  stage, unconstrained
+//   handsand_question1  bit 9              the three questions put to Sandy under the serum
+//   handsand_question2  bit 10
+//   handsand_question3  bit 11
+//   handsand_tele       bit 12             the magic scroll's teleport, once Rarve has keyed it
+//   handsand_serum      bits 13-15  0-7    the five-step lens chain - see below
+//
+//   handsand_sandy_multi   handsand_transmit bits 0-1
+//   handsand_coffee_multi  handsand_transmit bit 2
+//   handsand_counter_multi handsand_transmit bit 3
+//
+// ---------------------------------------------------------------------------- the three multis
+//
+//   [handsand_sandy]         multinpc=0,handsand_sandy0   (op1=Talk-to, op3=Pickpocket)
+//   [handsand_sandy_looking] multinpc=1,handsand_sandy1   (NO ops at all)
+//
+// Two separate shells, one tile apart, each declaring one value of the same varbit. So Sandy is
+// either at his desk and talkable, or at the window and completely uninteractable - and the
+// distracted one having no ops is the mechanic, not an omission: while he is looking out of the
+// window you cannot talk to him, and that is the only time his desk and his coffee are yours.
+//
+// He turns back the moment you use the distraction, so it is one action per distraction. Searching
+// the desk and dosing the mug are therefore two separate trips to the window.
+//
+//   [handsand_coffee_multiloc]  0 handsand_coffee (the mug), 1 handsand_table (bare)
+//   [handsand_counter_multiloc] 0 sarim_counter (Betty's usual), 1 handsand_counter, whose
+//                               description is "Betty's counter. There is a vial standing on it."
+//
+// The counter multi is the cache telling you how Betty hands things over: she puts the vial out
+// and it is visibly there until you take it.
+//
+// ---------------------------------------------------------------------------- what has no ops
+// Almost nothing here is clickable. The complete list of handsand locs with an op is:
+//   handsand_desk  op1=Search
+// That is all of them. The mug, the table, the waste paper bin, both noticeboards, the shop sign,
+// the sandpit and Betty's counter carry no ops whatever, so every other interaction in the quest
+// is an oplocu with the right thing in hand.
+
+// =========================================================================== stages
+^handsand_not_started = 0
+^handsand_hand = 10        // Bert has handed over what he dug up
+^handsand_guard = 20       // the Guard Captain was drunk and no use
+^handsand_rarve = 30       // Zavistic Rarve wants evidence before he will move
+^handsand_rotas = 40       // both rotas in hand: Sandy's original does not match Bert's copy
+^handsand_kit = 50         // Rarve has handed over the scroll, the orb and the serum
+^handsand_ready = 60       // the orb has its rose lens
+^handsand_confession = 70  // all three questions asked and recorded
+^handsand_complete = 80
+
+// =========================================================================== the lens chain
+// handsand_serum is the varp's only multi-step counter and the lens is the quest's only multi-step
+// chain: bottled water, redberry juice, pink dye, the tinted lens, the lens in the orb. Five steps
+// into three bits. The truth serum itself is one item Rarve hands over with the orb, so it needs
+// no counter of its own - which is why this varbit tracks the lens despite its name.
+^handsand_lens_none = 0
+^handsand_lens_water = 1
+^handsand_lens_juice = 2
+^handsand_lens_dye = 3
+^handsand_lens_tinted = 4
+^handsand_lens_fitted = 5
+
+// =========================================================================== multi states
+^handsand_sandy_at_desk = 0
+^handsand_sandy_at_window = 1
+^handsand_mug_present = 0
+^handsand_mug_gone = 1
+^handsand_counter_plain = 0
+^handsand_counter_vial = 1
+
+^handsand_off = 0
+^handsand_on = 1
+
+// =========================================================================== places
+^handsand_bert = 0_39_48_54_28          // 2550,3100  Yanille, by the sand pit
+^handsand_guard_captain = 0_39_48_55_6  // 2551,3078
+^handsand_sandpit = 0_39_48_46_31       // 2542,3103  no ops - dug with a spade
+^handsand_sandy_desk = 0_43_49_36_38    // 2788,3174  Brimhaven
+^handsand_sandy_mug = 0_43_49_37_40     // 2789,3176
+^handsand_betty_counter = 0_47_50_5_58  // 3013,3258  Port Sarim
+^handsand_guild = 0_40_48_28_15         // 2588,3087  the Wizards' Guild in Yanille

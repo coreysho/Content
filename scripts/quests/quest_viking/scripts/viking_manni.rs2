@@ -63,7 +63,7 @@ p_delay(2);
 ~chatnpc("<p,happy>Back for more! Fetch yourself a keg then.");
 if (inv_total(inv, viking_beerkeg) = 0) {
     ~chatplayer("<p,neutral>I'll get one.");
-    mes("There are kegs stacked around the bar. You could take one.");
+    ~chatnpc("<p,happy>Ask behind the bar. He knows the size I drink.");
     return;
 }
 if (inv_total(inv, viking_low_alcahol_beerkeg) = 0) {
@@ -104,23 +104,36 @@ mes("Manni the Reveller has given you his vote.");
 
 
 // --- The keg off the table ---
-// Placed in a handful of regions besides Rellekka, so this stays quiet unless the trial is actually
-// running rather than handing out quest items to anyone who clicks a barrel.
-[oploc1,viking_keg]
-if (%viking < ^viking_started | testbit(%viking_bits, ^viking_vote_manni) = 1) {
-    mes("The keg is empty.");
-    return;
+// FIXED (reported: "cant drink the beer"). This used to be [oploc1,viking_keg], and viking_keg
+// carries no name, no ops and no active= line - it is pure scenery, so that trigger could never
+// fire. Manni tells you to fetch a keg, there are six of them stacked round the bar, and not one
+// of them can be clicked. The barkeep is standing next to them and already owns a handler, so the
+// keg comes over the bar instead, which is where you would ask for one anyway.
+//
+// Called from [opnpc1,viking_longhall_barkeep] in viking_sigmund.rs2.
+[proc,viking_barkeep_keg]()(boolean)
+if (%viking < ^viking_started) {
+    return(false);
+}
+if (testbit(%viking_bits, ^viking_bit_manni_beaten) = 0) {
+    return(false);
+}
+if (testbit(%viking_bits, ^viking_vote_manni) = 1) {
+    return(false);
 }
 if (inv_total(inv, viking_beerkeg) > 0) {
-    mes("You already have a keg of beer.");
-    return;
+    ~chatnpc("<p,neutral>You are holding one already.");
+    return(true);
 }
+~chatplayer("<p,quiz>A keg, please. A full one.");
+~chatnpc("<p,happy>Drinking with Manni again, are you.");
 if (inv_freespace(inv) < 1) {
-    mes("You don't have room for a keg of beer.");
-    return;
+    ~chatnpc("<p,neutral>And nowhere to put it. Come back with a hand free.");
+    return(true);
 }
 inv_add(inv, viking_beerkeg, 1);
-mes("You take a keg of beer.");
+~chatnpc("<p,happy>On the house. I want to see how this goes.");
+return(true);
 
 
 // --- The council workman at the bridge ---

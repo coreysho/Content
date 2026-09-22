@@ -1,0 +1,83 @@
+// Wanted!
+//
+// Two varps, quest_wanted and quest_wanted2. Both ship with transmit=yes - they have to, because
+// between them they carry nineteen multinpc keys - and neither had scope=perm.
+//
+// ---------------------------------------------------------------------------- the hunt
+// This is the whole quest, and the cache states it outright:
+//
+//   [wanted_solus1]  multivar=wanted_mission1   multinpc=1,wanted_solus
+//   [wanted_solus2]  multivar=wanted_mission2   multinpc=1,wanted_solus
+//   ... nineteen of them, each declaring index 1 and nothing else ...
+//   [wanted_solus19] multivar=wanted_mission19  multinpc=1,wanted_solus
+//
+// Nineteen shells, nineteen one-bit varbits, and each renders Solus at index 1 only - so he is
+// present at exactly one of them at a time and invisible everywhere else. Setting a mission bit
+// puts him there; clearing it takes him away. The matching wanted_missionNcomplete bits are the
+// record of where the player has already been.
+//
+// [wanted_solus_fake_woman] keys on wanted_mission3 as well, so location 3 has a decoy standing
+// next to him - a plain "Woman" with op1=Talk-to.
+//
+// wanted_crystal_ball is named "Commorb" and carries iop1=Scan, iop2=Contact and iop4=Playback.
+// That is the tracking mechanic, complete, without needing anything invented.
+//
+// ---------------------------------------------------------------------------- what was missing
+// NOT ONE of the nineteen shells is placed in the map data - checked every jm2 - and neither is
+// Savant, nor Solus himself, nor any of the five cutscene actors. So the shells exist and the
+// hunt has nowhere to happen.
+//
+// Twelve of them have been placed, at tiles taken from EXISTING npc spawns in those mapsquares so
+// that every one is known-walkable rather than guessed at. Solus renders at index 1 only, so those
+// tiles are empty except for the moments he is actually there. Locations 13-19 are left unplaced
+// and the quest never sets their bits; nothing in the cache says where they were meant to be.
+//
+// wanted_solus has op1=Talk-to and NO attack option, so the confrontations are conversations: he
+// taunts and teleports, and the last one is where he runs out of places to go.
+//
+// ---------------------------------------------------------------------------- what is not used
+// Left at 0 because nothing in the cache determines them and nothing here needs them:
+//   wanted_mission13..19 and their complete bits - seven more hiding places with no locations
+//   wanted_joke_option, wanted_commorb_intel, wanted_lord_d_exposition
+//   wanted_daquarius_hint and wanted_zammy_mage_hint - two bits each, for a Black Knight Fortress
+//     thread the cache has five unplaced cutscene actors for and nothing else
+//   wanted_black_knight_dead
+//   the six *_spam bits - novice, peon, page, noble, adept and master, which are Temple Knight
+//     ranks and belong to progression this quest does not award
+
+// =========================================================================== stages
+^wanted_not_started = 0
+^wanted_recruited = 10     // Tiffy has handed over the commorb
+^wanted_briefed = 20       // Savant has been contacted
+^wanted_hunting = 30       // scanning and chasing
+^wanted_cornered = 40      // out of teleports; the trophy is in hand
+^wanted_complete = 50
+
+// How many sightings before he runs out of places to go. Twelve are placed, so this leaves room
+// to miss a few and still finish.
+^wanted_sightings_needed = 5
+
+// The twelve placed locations, numbered as their mission bits are.
+^wanted_first_location = 1
+^wanted_last_location = 12
+^wanted_decoy_location = 3
+
+^wanted_off = 0
+^wanted_on = 1
+
+// =========================================================================== places
+// Sir Tiffy is rd_teleporter_guy - Recruitment Drive's npc - on his bench in Falador park.
+// Every Solus tile below is an existing npc spawn in that mapsquare, so all twelve are known to be
+// stood on by something already.
+^wanted_solus_1 = 0_40_48_6_12      // 2566,3084  Yanille
+^wanted_solus_2 = 0_40_52_7_56      // 2567,3384  Ardougne, west
+^wanted_solus_3 = 0_40_53_43_29     // 2603,3421  Ardougne, north - the decoy is here too
+^wanted_solus_4 = 0_42_54_3_40      // 2691,3496  Seers' Village
+^wanted_solus_5 = 0_43_53_51_39     // 2803,3431  Catherby
+^wanted_solus_6 = 0_46_49_4_10      // 2948,3146  Rimmington
+^wanted_solus_7 = 0_46_54_63_2      // 3007,3458  north of Falador
+^wanted_solus_8 = 0_46_58_30_30     // 2974,3742  the edge of the wilderness
+^wanted_solus_9 = 0_47_50_3_36      // 3011,3236  Port Sarim
+^wanted_solus_10 = 0_48_51_28_15    // 3100,3279  Falador
+^wanted_solus_11 = 0_50_50_7_27     // 3207,3227  Lumbridge
+^wanted_solus_12 = 0_51_54_15_40    // 3279,3496  east of Varrock

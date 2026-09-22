@@ -1,0 +1,85 @@
+// The Lost Tribe - the world side: the hole through the cellar wall, Sigmund's chest, the library
+// bookcase, and the completion queue. The talking is in the three npc files beside this one.
+
+// =========================================================================== the cellar wall
+
+// The triggers go on the two multi SHELLS, lost_tribe_cellar_wall and lost_tribe_cellar_wall_back,
+// not on the lost_tribe_cavewall_hole_walldecor child they both resolve to at stages 4-6.
+// OpLocHandler resolves the multi far enough to check the option exists and then hands the engine
+// the original loc, so a handler declared on the child would never fire. Same lesson as
+// Recruitment Drive's stone door.
+//
+// Each shell knows which side it is on, so no coordinate test is needed - the cellar shell always
+// puts the player in the cave and the cave shell always puts them back in the cellar.
+[oploc1,lost_tribe_cellar_wall]
+p_arrivedelay;
+@lost_tribe_squeeze(^lost_tribe_hole_cave_side);
+
+[oploc1,lost_tribe_cellar_wall_back]
+p_arrivedelay;
+@lost_tribe_squeeze(^lost_tribe_hole_cellar_side);
+
+[label,lost_tribe_squeeze](coord $to)
+// Squeeze-through is only offered at stages 4-6, so reaching here below that means the player got
+// the option some other way. Refuse rather than teleporting them into solid rock.
+if (%lost_tribe_quest < ^lost_tribe_way_open) {
+    mes("The shelves are in the way.");
+    return;
+}
+mes("You squeeze through the gap in the wall.");
+p_teleport($to);
+
+// =========================================================================== Sigmund's chest
+
+// Lumbridge, maps/m50_50.jm2. The key is palmed off Sigmund during the confrontation - see
+// lost_tribe_sigmund.rs2 - which is what the key's own description in the cache says happened:
+// "The key you stole from Sigmund."
+[oploc1,lost_tribe_chest]
+if (inv_total(inv, lost_tribe_silverware) > 0 | %lost_tribe_quest >= ^lost_tribe_proved_sigmund) {
+    mes("The chest is empty now.");
+    return;
+}
+if (inv_total(inv, lost_tribe_chest_key) = 0) {
+    mes("The chest is locked.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("The chest is full of Lumbridge silverware - but you have no room to take any of it.");
+    return;
+}
+~mesbox("The key turns. The chest is full of silverware, every piece of it stamped with the arms of Lumbridge.");
+inv_add(inv, lost_tribe_silverware, 1);
+%lost_tribe_quest = ^lost_tribe_proved_sigmund;
+~send_quest_progress(questlist:lost_tribe, %lost_tribe_quest, ^lost_tribe_complete);
+mes("You take a piece as proof.");
+
+// =========================================================================== the library bookcase
+
+// Varrock library, maps/m50_54.jm2. The brooch is a symbol and nobody in Lumbridge can read it;
+// the book is what turns it into a name.
+[oploc1,lost_tribe_bookcase]
+if (%lost_tribe_quest < ^lost_tribe_met_mistag) {
+    mes("You find nothing of interest.");
+    return;
+}
+if (~obj_gettotal(lost_tribe_book) > 0) {
+    mes("You have already taken the book you need.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You find a book on the goblin tribes, but you have no room to take it.");
+    return;
+}
+~mesbox("Tucked in at the end of a shelf is a thin book: 'On the Ancient Goblin Tribes'.");
+inv_add(inv, lost_tribe_book, 1);
+mes("You take the book.");
+
+// =========================================================================== completion
+
+[queue,lost_tribe_quest_complete]
+%lost_tribe_quest = ^lost_tribe_complete;
+session_log(^log_adventure, "Quest complete: The Lost Tribe");
+// No experience: the reward is the treaty itself - passage through the mine, and the two
+// cave-goblin emotes that interface_controls/scripts/player_controls.rs2 already unlocks at this
+// exact stage.
+~send_quest_complete(questlist:lost_tribe, lost_tribe_treaty, 250, ^lost_tribe_questpoints, "You have completed\\nThe Lost Tribe!", "1 Quest Point|Peace between Lumbridge and the|Dorgeshuun|Two goblin emotes");

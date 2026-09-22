@@ -1,0 +1,68 @@
+// Platinum tokens, as in OSRS: each one is worth 1,000 coins, and a banker or bank booth swaps
+// them either way. Use tokens on one to cash them in; use coins on one to change every whole
+// thousand into tokens (anything under a thousand stays as coins).
+//
+// The bankbooth / loc_11758 oplocu triggers already belong to storage_items.rs2, whose
+// @storage_bank_deposit label hands tokens and coins over to @platinum_token_exchange.
+
+[apnpcu,_bank_teller]
+if (npc_range(coord) > 2) {
+    p_aprange(2);
+    return;
+}
+@platinum_token_exchange;
+
+[opnpcu,_bank_teller] @platinum_token_exchange;
+[opnpcu,fairy_banker] @platinum_token_exchange;
+[opnpcu,shilobanker] @platinum_token_exchange;
+[opnpcu,magearena_banker] @platinum_token_exchange;
+[opnpcu,wguild_jade] @platinum_token_exchange;
+[oplocu,osrsloc_10355] @platinum_token_exchange;
+
+[label,platinum_token_exchange]
+if (last_useitem = platinum_token) {
+    @platinum_token_to_coins;
+}
+if (last_useitem = coins) {
+    @platinum_coins_to_tokens;
+}
+~displaymessage(^dm_default);
+
+[label,platinum_token_to_coins]
+def_int $tokens = inv_total(inv, platinum_token);
+def_int $coins = inv_total(inv, coins);
+// A coin stack cannot pass ^max_32bit_int, so cash in only as many tokens as still fit.
+def_int $n = min($tokens, calc((^max_32bit_int - $coins) / 1000));
+if ($n < 1) {
+    mes("You can't carry any more coins.");
+    return;
+}
+// With no coins yet, the coins need a slot of their own unless every token is going.
+if ($coins = 0 & $n < $tokens & inv_freespace(inv) = 0) {
+    mes("You don't have enough inventory space.");
+    return;
+}
+inv_del(inv, platinum_token, $n);
+inv_add(inv, coins, calc($n * 1000));
+if ($n < $tokens) {
+    mes("The bank exchanges <tostring($n)> of your platinum tokens for coins; you can't carry any more.");
+    return;
+}
+mes("The bank exchanges your platinum tokens for <tostring(calc($n * 1000))> coins.");
+
+[label,platinum_coins_to_tokens]
+def_int $coins = inv_total(inv, coins);
+def_int $held = inv_total(inv, platinum_token);
+def_int $n = min(calc($coins / 1000), calc(^max_32bit_int - $held));
+if ($n < 1) {
+    mes("You need at least 1,000 coins to exchange for a platinum token.");
+    return;
+}
+// The tokens need a slot of their own unless some are held already or every coin is going.
+if ($held = 0 & calc($n * 1000) < $coins & inv_freespace(inv) = 0) {
+    mes("You don't have enough inventory space.");
+    return;
+}
+inv_del(inv, coins, calc($n * 1000));
+inv_add(inv, platinum_token, $n);
+mes("The bank exchanges <tostring(calc($n * 1000))> coins for <tostring($n)> platinum tokens.");

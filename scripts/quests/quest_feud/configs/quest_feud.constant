@@ -1,0 +1,70 @@
+// The Feud.
+//
+// Two varps. main_feud_var has transmit=yes, which it needs - feud_var, feud_npc_multi,
+// feud_boss_vis, feud_boss_vis2, feud_bandit_boss_vis and feud_mayor_invis are all multi keys off
+// it. feud_var_multi has no transmit and does not need one: nothing keys a multi on any of its
+// varbits. Neither had scope=perm.
+//
+// ---------------------------------------------------------------------------- the stage pin
+//
+//   [feud_black_jack_seller_multi]  multivar=feud_var  multinpc=28,feud_bjseller
+//
+// One entry. The blackjack seller exists at stage 28 and at no other value in the quest, so the
+// blackjack has to be bought AND used while the stage is sitting on 28. Everything about chapter
+// five is arranged around holding the player there until the blackjack work is finished; past 28
+// the seller is gone and nothing later asks for one again.
+//
+// ---------------------------------------------------------------------------- the town's mood
+// feud_npc_multi is 0-2 and five separate shells read it - the two guard posts, three groups of
+// villagers and the doorman:
+//
+//   [feud_arabian_guard_multi]    0,1 -> guard1_1     2 -> guard1_2
+//   [feud_arabian_guard2_multi]   0,1 -> guard2_1     2 -> guard2_2
+//   [feud_villager_multi_1]       0 -> 1_1   1 -> 1_2   2 -> 1_3
+//   [feud_villager_multi_2]       0 -> 2_1   1 -> 2_2   2 -> 2_3
+//   [feud_villager_multi_3]       0 -> 3_1   1 -> 3_2   2 -> 3_3
+//   [feud_egyptian_doorman_multi] 0,1 -> doorman_1     2 -> doorman_2
+//
+// One write changes who is standing in the street across the whole village at once. 0 is the town
+// as found, 1 is the town while the player is stirring it up, and 2 is after the gangs have been
+// dealt with.
+^feud_town_normal = 0
+^feud_town_stirred = 1
+^feud_town_settled = 2
+
+// ---------------------------------------------------------------------------- stages
+^feud_not_started = 0
+^feud_sent = 5           // Ali Morrisane has sent the player south
+^feud_both_gangs = 10    // both leaders spoken to
+^feud_mayor = 15         // the Mayor will help, for his wife's jewels
+^feud_notes = 20         // both notes out of the Mayor's bedroom
+^feud_safe = 25          // the safe open, the house keys in hand
+^feud_blackjack = 28     // <- THE SELLER EXISTS HERE AND NOWHERE ELSE
+^feud_traits = 32        // a villager robbed of what the disguise needs
+^feud_disguise = 36      // turban and beard assembled
+^feud_camp = 40          // inside the bandit camp
+^feud_jewels = 45        // the jewels recovered
+^feud_complete = 50
+
+// The safe. feud_nos_note is "a list of 5 numbers" and feud_fib_hint is a note "mentioning the
+// word 'Fibonacci'", so the safe wants the sixth number in the sequence the list starts.
+^feud_safe_answer = 8
+^feud_safe_shut = 0
+^feud_safe_open = 1
+
+^feud_gangs_none = 0
+^feud_gangs_one = 1
+^feud_gangs_both = 2
+
+^feud_off = 0
+^feud_on = 1
+
+// ---------------------------------------------------------------------------- places
+// Pollnivneach is m52_46 (mapsquare origin 3328,2944). Ali Morrisane is up in Al Kharid.
+^feud_ali_m = 0_51_50_40_11              // 3304,3211  Al Kharid bazaar
+^feud_mayor_house = 0_52_46_32_26        // 3360,2970
+^feud_bandit_camp = 0_52_46_25_58        // 3353,3002  the bandit leader
+^feud_menap_house = 0_52_46_6_12         // 3334,2956  the Menaphite leader
+^feud_bjseller = 0_52_46_23_27           // 3351,2971
+^feud_well = 0_52_46_31_27               // 3359,2971
+^feud_beer_table = 0_52_46_28_13         // 3356,2957

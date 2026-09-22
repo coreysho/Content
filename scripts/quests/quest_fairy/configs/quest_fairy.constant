@@ -1,0 +1,66 @@
+// A Fairy Tale Part I - Growing Pains.
+//
+// One varp, fairytale_multi, and three of its varbits are switches on the world rather than on the
+// quest, which is what makes this one legible:
+//
+//   [fairy_queen_multi]          multivar=fairy_queen_check       multinpc=0,fairy_queen
+//   [fairy_queen_sleeping_multi] multivar=fairy_queen_check       multiloc=1,fairy_sleeping_queen
+//   [fairy_godfather_multi]      multivar=fairy_godfather_check   multinpc=1,fairy_godfather
+//   [fairy_throne_multi]         multivar=fairy_godfather_check   multiloc=0,fairy_queens_throne
+//                                                                 multiloc=1,fairy_godfathers_throne
+//
+// At zero the Fairy Queen is a person, standing on her own throne, and there is no Godfather. At
+// one she is a sleeping body in Fairy Nuff's room and the throne has somebody else on it. Two bits,
+// and a coup.
+//
+//   [fairy_mindslayer_guard_multi] multivar=fairy_farmers_quest
+//     10, 20, 30, 40, 50, 60, 70, 80, 90 -> fairy_mindslayer_guard
+//
+// which is the legal stage set, and says that the guards are on the doors for the whole of it.
+//
+// ---------------------------------------------------------------------------- the four objs
+//   Draynor skull       "I shouldn't joke, this is a grave matter."
+//   Queen's secateurs   "Contains the Fairy Queen's magic essence."
+//   Magic secateurs     "The only way to kill a Tanglefoot."
+//   Symptoms list       "A list of the Fairy Queen's symptoms."
+//
+// The essence is not in the Queen. It is in the secateurs. That is the diagnosis, and the cure and
+// the weapon are the same object.
+//
+// fairy_nature_item1, 2 and 3 are five bits each - three diseased patches, and five bits is enough
+// to name which patch rather than just count them.
+^fairy_not_started = 0
+^fairy_zanaris = 10       // the throne has the wrong person on it
+^fairy_nuff = 20          // the Queen is in Nuff's room and will not wake
+^fairy_symptoms = 30      // the list, read
+^fairy_secateurs = 40     // the Queen's secateurs
+^fairy_magic = 50         // enchanted
+^fairy_skull = 60         // Draynor
+^fairy_patches = 70       // three cured
+^fairy_tanglefoot = 80
+^fairy_told = 90
+^fairy_complete = 100
+
+^fairy_off = 0
+^fairy_on = 1
+
+^fairy_patches_needed = 3
+
+// ---------------------------------------------------------------------------- places
+// Zanaris is m37_69 and m38_69.
+^fairy_martin = 0_48_50_6_58          // 3078,3258  Draynor
+^fairy_gravestone = 0_48_52_34_56     // 3106,3384
+^fairy_throne = 0_38_69_13_10
+^fairy_queen_coord = 0_38_69_13_11    // 2445,4427
+^fairy_godfather_coord = 0_38_69_14_11
+^fairy_nuff_coord = 0_37_69_23_52     // 2391,4468
+^fairy_sleeping_queen = 0_37_69_21_54 // 2389,4470  one room away from Nuff
+^fairy_chest = 0_37_69_12_40
+^fairy_coordinator = 0_38_69_20_35
+^fairy_ring = 0_38_69_20_57
+
+// The three nature items. Five bits apiece is room for an index, not a count, so each slot records
+// which of the three has come in rather than how many have.
+^fairy_item_logs = 1
+^fairy_item_onion = 2
+^fairy_item_potato = 3

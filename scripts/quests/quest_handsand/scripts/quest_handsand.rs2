@@ -1,0 +1,219 @@
+// The Hand in the Sand - the sandpit, Sandy's office and the lens.
+
+// =========================================================================== the sandpit
+// handsand_sandpit_anim carries no ops at all, so digging it is a spade in hand. Bert's colleague
+// went into this pit and only part of him came out of it in a sack of sand.
+[oplocu,handsand_sandpit_anim]
+def_obj $item = last_useitem;
+p_arrivedelay;
+if ($item ! spade) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%handsand_quest < ^handsand_rarve) {
+    mes("You turn over a spadeful of sand. It is sand.");
+    return;
+}
+// The head is wanted at ^handsand_rarve AND at ^handsand_rotas - Rarve asks for a name and proof
+// of the lie in the same breath and they can be got in either order - so this stays open until he
+// has actually been given it.
+if (inv_total(inv, handsand_wizhead) > 0 | %handsand_quest >= ^handsand_kit) {
+    mes("There is nothing else down there. You have checked.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room to carry anything else.");
+    return;
+}
+mes("You dig where the hand came from.");
+p_delay(4);
+inv_add(inv, handsand_wizhead, 1);
+~mesbox("The rest of him is down there. You take the part Rarve will be able to name.");
+
+// =========================================================================== Sandy's desk
+// The only loc in the quest with an op. It is Search, and it only ever works while Sandy is at the
+// window: [handsand_sandy0] is standing right beside it otherwise.
+[oploc1,handsand_desk]
+p_arrivedelay;
+if (%handsand_quest < ^handsand_rarve) {
+    mes("Paperwork towers, none of it yours.");
+    return;
+}
+if (%handsand_sandy_multi ! ^handsand_sandy_at_window) {
+    ~mesbox("Sandy is standing right there. You would need him looking the other way.");
+    return;
+}
+// He turns back as soon as the distraction is spent, which is why the desk and the mug are two
+// separate trips to the window.
+%handsand_sandy_multi = ^handsand_sandy_at_desk;
+if (inv_total(inv, handsand_rota_sandy) > 0) {
+    mes("You already took the rota. Sandy turns back round.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("Your hands are full, and Sandy turns back round.");
+    return;
+}
+mes("You go through the towers.");
+p_delay(2);
+inv_add(inv, handsand_rota_sandy, 1);
+~mesbox("The original rota is at the bottom of the third tower, and the hours on it are not the hours on Bert's copy. Sandy turns back from the window.");
+~handsand_check_rotas;
+
+// The two rotas together are the evidence. Bert's copy says one thing and Sandy's original says
+// another, and it is the original that has been changed.
+[proc,handsand_check_rotas]
+if (%handsand_quest ! ^handsand_rarve) {
+    return;
+}
+if (inv_total(inv, handsand_rota_sandy) = 0 | inv_total(inv, handsand_rota_bert) = 0) {
+    return;
+}
+%handsand_quest = ^handsand_rotas;
+~send_quest_progress(questlist:handsand, %handsand_quest, ^handsand_complete);
+~mesbox("Side by side the two rotas do not match. Bert's copy has him on six until ten for six weeks. The office original has him on nine until six for five of them - so for five weeks Bert was at the pit at night and Sandy's books say he was at home.");
+
+// Both rotas are already readable in general_use/scripts/readables_generated.rs2:192 and 195, and
+// their text is the evidence, so they are left where they are rather than reworded here:
+//   Bert's copy     weeks 1-6, 6am-10pm
+//   Sandy's original weeks 1-5, 9am-6pm; week 6, 6am-10pm
+// Five weeks of nights that Bert worked and the office says he did not.
+
+// =========================================================================== the coffee
+// [handsand_coffee_multiloc] is 0 the mug, 1 a bare table, and neither child has an op. So the mug
+// is only ever dosed with an oplocu, and it goes from 0 to 1 when Sandy drinks it.
+[oplocu,handsand_coffee_multiloc]
+def_obj $item = last_useitem;
+p_arrivedelay;
+if ($item ! handsand_truthserum) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%handsand_sandy_multi ! ^handsand_sandy_at_window) {
+    ~mesbox("Sandy is watching his mug. He watches it rather carefully for a man with nothing to hide.");
+    return;
+}
+// Sandy is released from the window on EVERY path out of here, not just the successful one.
+// handsand_sandy1 has no ops, so a distraction left unspent would leave him permanently
+// unclickable and the interrogation unreachable.
+if (%handsand_sandy_multi = ^handsand_sandy_at_window) {
+    %handsand_sandy_multi = ^handsand_sandy_at_desk;
+}
+if (%handsand_coffee_multi = ^handsand_mug_gone) {
+    mes("He has already drunk it, and turns back from the window.");
+    return;
+}
+if (%handsand_serum ! ^handsand_lens_fitted) {
+    ~mesbox("There would be no point dosing him with nothing to record it on, and he is already turning round.");
+    return;
+}
+inv_del(inv, handsand_truthserum, 1);
+mes("You tip the vial into the coffee. It does not change colour, which is the expensive part.");
+~mesbox("Sandy turns back from the window and picks up his mug without looking at it.");
+
+// =========================================================================== the lens chain
+// Bottled water, redberry juice, pink dye, a tinted lens, the lens in the orb. Only one side of
+// each combine is declared - [opheldu,redberries] and the rest belong to Cooking and Herblore and
+// a trigger cannot be declared twice. OpHeldUHandler falls back to [opheldu,a] when the target has
+// no handler of its own and swaps last_useitem, so either order lands here.
+[opheldu,handsand_bottle_water]
+if (last_useitem ! redberries) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, handsand_bottle_water, 1);
+inv_del(inv, redberries, 1);
+inv_add(inv, handsand_redberry_juice, 1);
+%handsand_serum = ^handsand_lens_juice;
+mes("You crush the redberries into the bottle.");
+
+[opheldu,handsand_redberry_juice]
+if (last_useitem ! white_berries) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, handsand_redberry_juice, 1);
+inv_del(inv, white_berries, 1);
+inv_add(inv, handsand_pink_dye, 1);
+%handsand_serum = ^handsand_lens_dye;
+stat_advance(crafting, 500);
+mes("The white berries take the red down to a flat pink.");
+
+// The dye does two things: it tints a lens, which is the quest, and it ruins a cape, which is not.
+// handsand_pink_cape exists in the cache with nothing else that could possibly make it.
+[opheldu,handsand_pink_dye]
+def_obj $item = last_useitem;
+switch_obj ($item) {
+    case lens : @handsand_tint_lens;
+    case red_cape : @handsand_dye_cape(red_cape);
+    case blue_cape : @handsand_dye_cape(blue_cape);
+    case yellow_cape : @handsand_dye_cape(yellow_cape);
+    case green_cape : @handsand_dye_cape(green_cape);
+    case purple_cape : @handsand_dye_cape(purple_cape);
+    case orange_cape : @handsand_dye_cape(orange_cape);
+    case black_cape : @handsand_dye_cape(black_cape);
+    case default : ~displaymessage(^dm_default);
+}
+
+[label,handsand_tint_lens]
+inv_del(inv, handsand_pink_dye, 1);
+inv_del(inv, lens, 1);
+inv_add(inv, handsand_rose_lens, 1);
+%handsand_serum = ^handsand_lens_tinted;
+stat_advance(crafting, 1000);
+mes("The lens comes out of the dye with a pinkish tinge to it.");
+
+[label,handsand_dye_cape](namedobj $cape)
+inv_del(inv, handsand_pink_dye, 1);
+inv_del(inv, $cape, 1);
+inv_add(inv, handsand_pink_cape, 1);
+// The dye is gone and the lens still needs some, so this is a real cost and the message says so.
+if (%handsand_serum < ^handsand_lens_tinted) {
+    %handsand_serum = ^handsand_lens_none;
+    ~mesbox("The cape comes out pink. So does the bottle, which is now empty, and you are going to have to make more of that.");
+    return;
+}
+~mesbox("The cape comes out pink. It is a bit pink.");
+
+[opheldu,handsand_rose_lens]
+if (last_useitem ! handsand_orb_storage) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, handsand_rose_lens, 1);
+%handsand_serum = ^handsand_lens_fitted;
+%handsand_quest = ^handsand_ready;
+~send_quest_progress(questlist:handsand, %handsand_quest, ^handsand_complete);
+stat_advance(crafting, 1000);
+~mesbox("The lens seats into the orb and the whole thing turns the colour of a bad sunset. Rarve said you would know when it was right.");
+
+// =========================================================================== the orb
+// iop1=Activate on handsand_orb_storage; handsand_orb_recording is the pulsing version. It only
+// does anything while Sandy is talking, so the recording is started from his dialogue rather than
+// here - this is the "you are holding it wrong" branch.
+[opheld1,handsand_orb_storage]
+if (%handsand_serum < ^handsand_lens_fitted) {
+    ~mesbox("The orb hums and does nothing. It is missing its lens.");
+    return;
+}
+~mesbox("The orb is ready. It will take what it is pointed at, and there is only one thing worth pointing it at.");
+
+// =========================================================================== the hand
+[opheld1,handsand_sandyhand]
+~mesbox("A severed hand, packed solid with sand. It came up in a sack that was loaded in Yanille and opened in Yanille.");
+
+[opheld1,handsand_beerhand]
+~mesbox("A severed hand, dripping with the Guard Captain's beer. The sand has washed off it, which has not improved anybody's day.");
+
+// The magic scroll, once Rarve has keyed it. handsand_tele is the only bit in the varp that could
+// be a teleport flag and the scroll is the only thing in the quest that could use one.
+[opheld1,handsand_scroll_magic]
+if (%handsand_tele = ^handsand_off) {
+    ~mesbox("The scroll glows and stays exactly where it is. Rarve has not keyed it to anywhere yet.");
+    return;
+}
+if_close;
+mes("You read the scroll aloud.");
+p_delay(2);
+p_teleport(^handsand_guild);
+mes("The Wizards' Guild assembles itself around you.");

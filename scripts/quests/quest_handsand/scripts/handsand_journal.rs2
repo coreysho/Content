@@ -1,0 +1,64 @@
+[if_button,questlist:handsand]
+def_string $text;
+
+switch_int (%handsand_quest) {
+    case ^handsand_not_started :
+        $text = "@dbl@I can start this quest by speaking to @dre@Bert@dbl@ in|";
+        $text = append($text, "@dbl@@dre@Yanille@dbl@, by the sand pit");
+
+    case ^handsand_hand :
+        $text = "@str@Bert dug a severed hand out of a sack of sand he loaded|";
+        $text = append($text, "@str@himself, and he cannot remember a single thing about the|");
+        $text = append($text, "@str@night it was filled.|");
+        $text = append($text, "@dbl@I should show it to the @dre@Guard Captain@dbl@ down the road");
+
+    case ^handsand_guard :
+        $text = "@str@The Guard Captain put his tankard down on the evidence and|";
+        $text = append($text, "@str@called it a glove.|");
+        $text = append($text, "@dbl@I should go back to @dre@Bert");
+
+    case ^handsand_rarve :
+        $text = "@str@Zavistic Rarve is missing a wizard. He will not move on a|";
+        $text = append($text, "@str@hand alone.|");
+        $text = append($text, "@dbl@He wants @dre@a name@dbl@ - there is a @dre@sand pit@dbl@ in Yanille and I|");
+        $text = append($text, "@dbl@have a @dre@spade@dbl@ - and @dre@proof someone lied@dbl@ about where a man|");
+        $text = append($text, "@dbl@was. @dre@Sandy@dbl@ in @dre@Brimhaven@dbl@ keeps the original rotas on his|");
+        $text = append($text, "@dbl@@dre@desk@dbl@, and he does not leave it unattended");
+
+    case ^handsand_rotas :
+        $text = "@str@Bert's copy has him on six until ten for six weeks. The|";
+        $text = append($text, "@str@office original has him on nine until six for five of them.|");
+        $text = append($text, "@dbl@I still need @dre@a name@dbl@ out of the @dre@sand pit@dbl@, then back to @dre@Rarve");
+
+    case ^handsand_kit :
+        $text = "@str@The wizard was called Coop. Rarve wants a confession in|";
+        $text = append($text, "@str@Sandy's own voice and has given me a scrying orb, a vial of|");
+        $text = append($text, "@str@truth serum and a scroll back to the guild.|");
+        $text = append($text, "@dbl@The orb needs a @dre@rose-tinted lens@dbl@: @dre@Betty@dbl@ in @dre@Port Sarim|");
+        $text = append($text, "@dbl@does the water, then @dre@redberries@dbl@, then @dre@white berries@dbl@, then|");
+        $text = append($text, "@dbl@dip a @dre@lens@dbl@ in it and put the lens in the orb");
+
+    case ^handsand_ready :
+        $text = "@str@The orb is lensed and ready.|";
+        $text = append($text, "@dbl@@dre@Sandy@dbl@ drinks coffee. The mug is on the table beside him|");
+        $text = append($text, "@dbl@and he only takes his eyes off it when something is|");
+        $text = append($text, "@dbl@happening outside the window");
+
+    case ^handsand_confession :
+        $text = "@str@Sandy said all three of it, and the orb took all three.|";
+        $text = append($text, "@dbl@I should take it to @dre@Zavistic Rarve");
+
+    case ^handsand_complete :
+        $text = "@str@Bert dug a hand out of his own sand and could not remember|";
+        $text = append($text, "@str@the night it came from, because his employer has been|");
+        $text = append($text, "@str@dosing the night shift's coffee for years.|");
+        $text = append($text, "@str@The wizard in the pit was called Coop and he asked Sandy|");
+        $text = append($text, "@str@one question too many about the paperwork.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+
+    case default :
+        $text = "@dbl@I can start this quest by speaking to @dre@Bert@dbl@ in|";
+        $text = append($text, "@dbl@@dre@Yanille@dbl@, by the sand pit");
+}
+
+~quest_journal("The Hand in the Sand", $text);

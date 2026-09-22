@@ -1,0 +1,237 @@
+// Zogre Flesh Eaters - the burial tomb, the evidence in it, and Slash Bash.
+
+// =========================================================================== into the tomb
+
+// The Jiggig coffins on the surface are the way down. ogre_coffin carries op1=Open and op2=Pick-lock
+// in the cache and is used both here and inside the tomb, so the surface pair are told apart by
+// which mapsquare they are standing in rather than by a separate loc.
+[oploc1,ogre_coffin] @zogre_coffin_open;
+[oploc1,ogre_wall_coffin] @zogre_coffin_open;
+
+[label,zogre_coffin_open]
+p_arrivedelay;
+if (coordz(coord) > 9000) {
+    // Inside the tomb these are ordinary ogre coffins.
+    mes("Bones, and the smell of bones.");
+    return;
+}
+if (%zogre < ^zogre_warned) {
+    mes("A stone coffin, sealed. You have no business opening it.");
+    return;
+}
+if (inv_total(inv, zogre_coffinkey) = 0) {
+    ~mesbox("The lid is held by an iron catch with a keyhole in it. The zogres wandering the burial ground are carrying keys like that one.");
+    return;
+}
+sound_synth(unlock, 1, 0);
+mes("You unlock the coffin and climb down into the dark.");
+if (%zogre = ^zogre_warned) {
+    %zogre = ^zogre_in_tomb;
+    ~send_quest_progress(questlist:zogre, %zogre, ^zogre_complete);
+}
+p_teleport(^zogre_tomb_landing);
+
+[oploc2,ogre_coffin] @zogre_coffin_pick;
+[oploc2,ogre_wall_coffin] @zogre_coffin_pick;
+
+[label,zogre_coffin_pick]
+p_arrivedelay;
+if (stat(thieving) < 50) {
+    mes("You need a Thieving level of 50 to pick a lock like that.");
+    return;
+}
+mes("You pick the catch open and climb down into the dark.");
+if (%zogre = ^zogre_warned) {
+    %zogre = ^zogre_in_tomb;
+    ~send_quest_progress(questlist:zogre, %zogre, ^zogre_complete);
+}
+p_teleport(^zogre_tomb_landing);
+
+[oploc1,ogre_cavedoorl] @zogre_leave_tomb;
+[oploc1,ogre_cavedoorr] @zogre_leave_tomb;
+
+[label,zogre_leave_tomb]
+p_arrivedelay;
+mes("You climb back up into the daylight.");
+p_teleport(^zogre_jiggig_landing);
+
+// =========================================================================== the evidence
+
+// Brentle Vahn got in here before you did and did not get out. His backpack names him, and the
+// tankard puts him in the Dragon Inn at Yanille on the night he vanished.
+[oploc1,zogre_brentle_skeleton]
+p_arrivedelay;
+if (~obj_gettotal(zogre_brentle_vahn_backpack) > 0) {
+    mes("There is nothing else on him.");
+    return;
+}
+if (%zogre < ^zogre_in_tomb) {
+    mes("A skeleton. Not an ogre one.");
+    return;
+}
+if (inv_freespace(inv) < 2) {
+    mes("There is a backpack under him, and you have no room for it.");
+    return;
+}
+inv_add(inv, zogre_brentle_vahn_backpack, 1);
+inv_add(inv, zogre_dragon_tankard, 1);
+~mesbox("The skeleton is human, and it is wearing a ruined backpack with 'B.Vahn' inked inside the flap. A white tankard with a dragon on it has rolled out beside him.");
+~zogre_check_evidence;
+
+// The special coffin. thzfe_prismsearch runs 0..5 and the cache swaps the model at 3, so taking
+// the prism is what moves it across that line.
+[oploc1,zogre_coffin_special_entity]
+p_arrivedelay;
+if (%thzfe_prismsearch >= ^zogre_prism_taken) {
+    mes("You have already been through this one.");
+    return;
+}
+if (%zogre < ^zogre_in_tomb) {
+    mes("An ogre coffin, grander than the others.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("There is something in here, and you have no room for it.");
+    return;
+}
+%thzfe_prismsearch = ^zogre_prism_taken;
+inv_add(inv, zogre_black_prism, 1);
+~mesbox("Under the bones is a prism of something so black it is hard to look at directly.");
+~zogre_check_evidence;
+
+[oploc1,zogre_lecturn]
+p_arrivedelay;
+if (~obj_gettotal(zogre_necromantic_page) > 0) {
+    mes("The lectern is bare now.");
+    return;
+}
+if (%zogre < ^zogre_in_tomb) {
+    mes("A broken reading stand.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("A torn page is caught under the lectern, and you have no room for it.");
+    return;
+}
+inv_add(inv, zogre_necromantic_page, 1);
+~mesbox("Caught under the broken lectern is half a page of something that was never meant to be read aloud.");
+
+[oploc1,zogre_stand]
+p_arrivedelay;
+if (%zogre < ^zogre_bash_dead) {
+    ~mesbox("An empty stand, cut for something about the size of a large helm. Whatever stood on it is not here.");
+    return;
+}
+mes("The stand is empty. The artefact is yours now.");
+
+// All three pieces from the tomb together are what send the player back to Yanille.
+[proc,zogre_check_evidence]
+if (%zogre ! ^zogre_in_tomb) {
+    return;
+}
+if (~obj_gettotal(zogre_brentle_vahn_backpack) = 0 | ~obj_gettotal(zogre_black_prism) = 0) {
+    return;
+}
+%zogre = ^zogre_found_evidence;
+~send_quest_progress(questlist:zogre, %zogre, ^zogre_complete);
+~mesbox("A dead man from Yanille, a necromancer's prism, and a torn page of raising-spells. Somebody has been down here doing something very stupid.");
+
+// =========================================================================== Sithik, in bed
+
+// Both children of the bed shell are name=Sithik Ints with op1=Talk-to, so the shell is where the
+// conversation goes - the same rule as every other multi in this project.
+// Sithik is a LOC, so there is no active npc here and ~chatnpc would throw on an uninitialised
+// pointer. ~chatnpc_specific takes the name and the npc type explicitly, which is what the Golem
+// quest does for the same reason - and zogre_sithik_man is exactly the npc the cache keeps for a
+// face, even though it is never placed in any map.
+[oploc1,zogre_sithik_bed_entity]
+p_arrivedelay;
+if (%thzfe_sithik_transformed = ^zogre_sithik_is_ogre) {
+    @zogre_sithik_confess;
+}
+if (%zogre < ^zogre_has_potion) {
+    ~chatnpc_specific("Sithik Ints", zogre_sithik_man, "<p,angry>I am unwell and I am not receiving. Whatever it is, no.");
+    return;
+}
+if (inv_total(inv, zogre_ogre_trans_potion) = 0) {
+    ~chatnpc_specific("Sithik Ints", zogre_sithik_man, "<p,angry>Still no.");
+    return;
+}
+~chatplayer("<p,neutral>You look dreadful. Rarve sent this up for you.");
+~chatnpc_specific("Sithik Ints", zogre_sithik_man, "<p,neutral>...did he. Well. He would.");
+mes("Sithik drinks it without looking at it.");
+if_close;
+p_delay(2);
+%thzfe_sithik_transformed = ^zogre_sithik_is_ogre;
+~mesbox("Sithik Ints stops being a man. It takes about four seconds, and he is extremely loud about all of them.");
+
+[label,zogre_sithik_confess]
+if (%zogre >= ^zogre_sithik_confessed) {
+    ~chatnpc_specific("Sithik Ints", zogre_sithik_man, "<p,sad>Go away. I am an ogre in a bed and I would like to be left alone.");
+    return;
+}
+~chatnpc_specific("Sithik Ints", zogre_sithik_man, "<p,shock>LOOK AT ME. LOOK WHAT HE HAS DONE.");
+~chatplayer("<p,neutral>Rarve says it wears off. Eventually.");
+~chatnpc_specific("Sithik Ints", zogre_sithik_man, "<p,angry>Eventually!");
+~chatplayer("<p,neutral>Tell me about the burial tomb at Jiggig.");
+~chatnpc_specific("Sithik Ints", zogre_sithik_man, "<p,sad>...");
+~chatnpc_specific("Sithik Ints", zogre_sithik_man, "<p,sad>There was a helm in there. An ogre thing, on a stand, in the deepest chamber. I sold the location of it, that is all - I never went in.");
+~chatplayer("<p,angry>A man called Brentle Vahn went in. He is still in there.");
+~chatnpc_specific("Sithik Ints", zogre_sithik_man, "<p,sad>I know. I have known for two years.");
+~chatnpc_specific("Sithik Ints", zogre_sithik_man, "<p,neutral>The thing guarding it now is not one of the ordinary ones. They call it Slash Bash. Take the helm back to the ogres and perhaps they will stop digging their own dead up.");
+%zogre = ^zogre_sithik_confessed;
+~send_quest_progress(questlist:zogre, %zogre, ^zogre_complete);
+
+// =========================================================================== Slash Bash
+
+// Slash Bash is one of four npcs in this quest the maps never place, and he is not a multinpc
+// child, so nothing in the cache would ever bring him into the world. He is spawned the first time
+// the player comes looking for the artefact.
+[oploc1,zogre_outdoor_bell]
+p_arrivedelay;
+if (%zogre < ^zogre_sithik_confessed) {
+    mes("You ring the bell. Nothing happens, which is what bells outside wizards' guilds are for.");
+    return;
+}
+if (%zogre >= ^zogre_bash_dead) {
+    mes("You ring the bell. It is a good bell.");
+    return;
+}
+if (npc_find(^zogre_bash_spawn, zogre_slash_bash, 20, 0) = true) {
+    mes("Something in the tomb at Jiggig is already awake and already angry.");
+    return;
+}
+npc_add(^zogre_bash_spawn, zogre_slash_bash, ^zogre_bash_despawn);
+~mesbox("The bell carries a long way. Somewhere under Jiggig, something very large stops pretending to be dead.");
+
+[ai_queue3,zogre_slash_bash]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+obj_add(npc_coord, zogre_artifacts, 1, ^lootdrop_duration);
+obj_add(npc_coord, bones, 1, ^lootdrop_duration);
+// Protected varp, so the stage write needs p_active_player - only P_FINDUID grants it.
+if (p_finduid(uid) = false) {
+    return;
+}
+if (%zogre = ^zogre_sithik_confessed) {
+    %zogre = ^zogre_bash_dead;
+    mes("Slash Bash falls, and something heavy rolls out of what is left of him.");
+}
+
+// =========================================================================== completion
+
+[queue,zogre_quest_complete]
+%zogre = ^zogre_complete;
+stat_advance(ranged, 20000);
+stat_advance(fletching, 20000);
+stat_advance(herblore, 20000);
+// The three unlock bits the cache keeps for this quest's post-quest crafting. The recipes
+// themselves are Fletching and Herblore content rather than quest content and are not built here,
+// but the flags are set so that work has something to read.
+%thzfe_makebrutalarrow = 1;
+%thzfe_makecompozogrebow = 1;
+%thzfe_makecuredisease = 1;
+session_log(^log_adventure, "Quest complete: Zogre Flesh Eaters");
+~send_quest_complete(questlist:zogre, zogre_artifacts, 250, ^zogre_questpoints, "You have completed\\nZogre Flesh Eaters!", "1 Quest Point|2,000 Ranged XP|2,000 Fletching XP|2,000 Herblore XP");

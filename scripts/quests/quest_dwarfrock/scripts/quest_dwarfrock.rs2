@@ -1,0 +1,258 @@
+// Between a Rock... - a dwarf, a rock, and eighteen years of not getting into it.
+
+// =========================================================================== Dondakan
+[opnpc1,dwarfrock_multi_dondakan]
+switch_int (%dwarfrock_quest) {
+    case ^dwarfrock_not_started : @dwarfrock_start;
+    case ^dwarfrock_asked : @dwarfrock_dondakan_waiting;
+    case ^dwarfrock_looking : @dwarfrock_dondakan_waiting;
+    case ^dwarfrock_rolad : @dwarfrock_dondakan_waiting;
+    case ^dwarfrock_searching : @dwarfrock_dondakan_waiting;
+    case ^dwarfrock_overlays : @dwarfrock_dondakan_waiting;
+    case ^dwarfrock_assembled : @dwarfrock_dondakan_schematic;
+    case ^dwarfrock_cannonball : @dwarfrock_dondakan_fire;
+    case ^dwarfrock_inside : @dwarfrock_dondakan_finish;
+    case ^dwarfrock_complete :
+        ~chatnpc("<p,happy>Eighteen years I swung that axe at it. Eighteen. And the answer was to stop swinging and start thinking, which I am told is a lesson.");
+    case default :
+        ~chatnpc("<p,neutral>Get on with it, then.");
+}
+
+[label,dwarfrock_start]
+~chatnpc("<p,angry>Mind the rock. Everybody minds the rock eventually.");
+switch_int (~p_choice2("What's so special about it?", 1, "It's a rock.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>It's a rock.");
+        ~chatnpc("<p,angry>It is a rock of SOLID GOLD and I have been hitting it for eighteen years.");
+        return;
+    case 1 :
+        ~chatplayer("<p,quiz>What's so special about it?");
+}
+~chatnpc("<p,happy>It is gold. All of it, all the way through, and it is harder than anything anybody has ever put against it.");
+~chatnpc("<p,sad>Eighteen years. Picks, axes, a dwarven multicannon, and it has not so much as scratched.");
+~chatplayer("<p,quiz>Have you tried asking someone?");
+~chatnpc("<p,angry>Asking. Asking WHO. Nobody in Keldagrim will talk about the rock because everybody in Keldagrim has watched me fail at it.");
+~chatnpc("<p,neutral>Somebody, somewhere, wrote something down about getting through gold. Find me that and I will do the rest.");
+%dwarfrock_quest = ^dwarfrock_asked;
+%dwarfrock_lookingforinfo = ^dwarfrock_on;
+~send_quest_progress(questlist:dwarfrock, %dwarfrock_quest, ^dwarfrock_complete);
+
+[label,dwarfrock_dondakan_waiting]
+if (%dwarfrock_quest = ^dwarfrock_asked) {
+    %dwarfrock_quest = ^dwarfrock_looking;
+    ~send_quest_progress(questlist:dwarfrock, %dwarfrock_quest, ^dwarfrock_complete);
+}
+~chatnpc("<p,neutral>Anything written down. Anything at all. There is a librarian sort out east who reads things nobody else will.");
+
+[label,dwarfrock_dondakan_schematic]
+~chatplayer("<p,happy>Schematics. For modifying a dwarven multicannon.");
+~chatnpc("<p,shock>Give me that.");
+if_close;
+mes("Dondakan holds the assembled schematic up to the light for a long time.");
+p_delay(4);
+~chatnpc("<p,angry>This does not fire a cannonball at the rock. This fires a PERSON at the rock.");
+~chatplayer("<p,shock>It what?");
+~chatnpc("<p,happy>A person in a gold shell. Gold through gold - that is the trick, that is what eighteen years of iron could not do.");
+~chatnpc("<p,neutral>I cannot build it. Engineers can. There is one here and one who drinks near the mine, and between them they are the only two who have ever modified a multicannon.");
+%dwarfrock_quest = ^dwarfrock_engineers;
+~send_quest_progress(questlist:dwarfrock, %dwarfrock_quest, ^dwarfrock_complete);
+
+[label,dwarfrock_dondakan_fire]
+if (inv_total(worn, dwarf_goldrock_helmet) = 0) {
+    ~chatnpc("<p,angry>Not without the helmet on. I am not scraping you off it.");
+    ~mesbox("The gold helmet has to be WORN, not carried.");
+    return;
+}
+~chatplayer("<p,neutral>I'm ready.");
+~chatnpc("<p,happy>You are not, but nobody ever is.");
+if_close;
+mes("They load you into the cannon, which is an experience you will be describing for years.");
+p_delay(4);
+%dwarfrock_fired_gold_cannonball = ^dwarfrock_on;
+%dwarfrock_quest = ^dwarfrock_fired;
+~send_quest_progress(questlist:dwarfrock, %dwarfrock_quest, ^dwarfrock_complete);
+p_delay(2);
+mes("There is a noise, and then there is a considerable amount of gold very close to your face.");
+p_delay(3);
+%dwarfrock_quest = ^dwarfrock_inside;
+%dwarfrock_inside_visited = ^dwarfrock_on;
+~send_quest_progress(questlist:dwarfrock, %dwarfrock_quest, ^dwarfrock_complete);
+~mesbox("You are inside the rock. It is hollow, it is gold on every surface, and it goes back further than the light does.");
+
+[label,dwarfrock_dondakan_finish]
+~chatplayer("<p,happy>It's hollow. The whole thing is hollow.");
+~chatnpc("<p,shock>Hollow.");
+~chatnpc("<p,sad>Eighteen years of hitting the outside of a thing that was empty in the middle.");
+if_close;
+mes("Dondakan sits down on his axe, and then after a while he puts the axe down and does not pick it up again.");
+p_delay(5);
+@dwarfrock_finish;
+
+[label,dwarfrock_finish]
+// 110 is the only value where dwarfrock_dondakan_noaxe renders, and the only one where the gold
+// boatman exists at all. One write does both.
+%dwarfrock_quest = ^dwarfrock_complete;
+stat_advance(mining, 50000);
+stat_advance(smithing, 50000);
+session_log(^log_adventure, "Quest complete: Between a Rock...");
+~send_quest_complete(questlist:dwarfrock, dwarf_goldrock_helmet, 200, ^dwarfrock_questpoints, "You have completed\\nBetween a Rock...!", "1 Quest Point|5,000 Mining XP|5,000 Smithing XP|The gold rock is open");
+
+// =========================================================================== Rolad
+[opnpc1,dwarfrock_rolad]
+if (%dwarfrock_quest < ^dwarfrock_looking) {
+    ~chatnpc("<p,neutral>I am reading. It is what I do.");
+    return;
+}
+if (%dwarfrock_quest > ^dwarfrock_rolad) {
+    ~chatnpc("<p,happy>The carts. In the mine. I did say.");
+    return;
+}
+if (%dwarfrock_quest = ^dwarfrock_rolad) {
+    ~chatnpc("<p,neutral>Seven mine carts, and the dwarves used them for paperwork when they ran out of shelves. Search all of them.");
+    %dwarfrock_quest = ^dwarfrock_searching;
+    %dwarfrock_rolad_schematics_lookingfor = ^dwarfrock_on;
+    ~send_quest_progress(questlist:dwarfrock, %dwarfrock_quest, ^dwarfrock_complete);
+    return;
+}
+~chatplayer("<p,quiz>Has anyone ever written about getting through solid gold?");
+~chatnpc("<p,confused>Gold. Gold, gold. Not through it, no. Nobody writes about going through gold.");
+~chatnpc("<p,happy>But somebody wrote about modifying a multicannon, and I have always thought that was a strange thing to write about.");
+~chatnpc("<p,neutral>Base schematics and three transparent overlays, and they went into a mine cart about forty years ago and nobody has asked since.");
+%dwarfrock_quest = ^dwarfrock_rolad;
+%dwarfrock_rolad_schematics_heardof = ^dwarfrock_on;
+~send_quest_progress(questlist:dwarfrock, %dwarfrock_quest, ^dwarfrock_complete);
+
+// =========================================================================== the book carts
+// Seven of them, op1=Search, all at 3017,9845 in the dwarven mine. They hold the base schematic
+// and the three overlays between them.
+[oploc1,dwarfrock_book_cart]
+p_arrivedelay;
+if (%dwarfrock_quest < ^dwarfrock_searching) {
+    mes("Paperwork. Forty years of it, in a mine cart, which tells you something about dwarves.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room to take anything out.");
+    return;
+}
+if (inv_total(inv, dwarf_rock_base_schematic) = 0 & inv_total(inv, dwarf_rock_schematic_assembled) = 0) {
+    inv_add(inv, dwarf_rock_base_schematic, 1);
+    ~mesbox("Under about a foot of invoices: the base schematics of a dwarven multicannon.");
+    return;
+}
+if (inv_total(inv, dwarf_rock_schematic1) = 0) {
+    inv_add(inv, dwarf_rock_schematic1, 1);
+    @dwarfrock_found_overlay;
+}
+if (inv_total(inv, dwarf_rock_schematic2) = 0) {
+    inv_add(inv, dwarf_rock_schematic2, 1);
+    @dwarfrock_found_overlay;
+}
+if (inv_total(inv, dwarf_rock_schematic3) = 0) {
+    inv_add(inv, dwarf_rock_schematic3, 1);
+    @dwarfrock_found_overlay;
+}
+mes("Nothing else in here but invoices.");
+
+[label,dwarfrock_found_overlay]
+~mesbox("A transparent overlay. On its own it is a few lines and no sense at all.");
+if (inv_total(inv, dwarf_rock_schematic1) = 0) { return; }
+if (inv_total(inv, dwarf_rock_schematic2) = 0) { return; }
+if (inv_total(inv, dwarf_rock_schematic3) = 0) { return; }
+if (%dwarfrock_quest ! ^dwarfrock_searching) { return; }
+%dwarfrock_quest = ^dwarfrock_overlays;
+~send_quest_progress(questlist:dwarfrock, %dwarfrock_quest, ^dwarfrock_complete);
+~mesbox("Three overlays and the base. They are meant to go on top of one another.");
+
+// =========================================================================== assembling
+// All four pieces carry iop1=Assemble, so the assembly is a held-item op rather than a combine.
+[opheld1,dwarf_rock_base_schematic] @dwarfrock_assemble;
+[opheld1,dwarf_rock_schematic1] @dwarfrock_assemble;
+[opheld1,dwarf_rock_schematic2] @dwarfrock_assemble;
+[opheld1,dwarf_rock_schematic3] @dwarfrock_assemble;
+
+[label,dwarfrock_assemble]
+if (inv_total(inv, dwarf_rock_base_schematic) = 0) {
+    ~mesbox("The overlays are transparent and there is nothing underneath them. You need the base schematics.");
+    return;
+}
+if (inv_total(inv, dwarf_rock_schematic1) = 0 | inv_total(inv, dwarf_rock_schematic2) = 0 | inv_total(inv, dwarf_rock_schematic3) = 0) {
+    ~mesbox("Three overlays go on this. You do not have three.");
+    return;
+}
+if_close;
+mes("You lay the overlays over the base, one at a time, and turn them until the lines meet.");
+p_delay(4);
+inv_del(inv, dwarf_rock_base_schematic, 1);
+inv_del(inv, dwarf_rock_schematic1, 1);
+inv_del(inv, dwarf_rock_schematic2, 1);
+inv_del(inv, dwarf_rock_schematic3, 1);
+inv_add(inv, dwarf_rock_schematic_assembled, 1);
+%dwarfrock_schematics_solved = ^dwarfrock_on;
+if (%dwarfrock_quest = ^dwarfrock_overlays) {
+    %dwarfrock_quest = ^dwarfrock_assembled;
+    ~send_quest_progress(questlist:dwarfrock, %dwarfrock_quest, ^dwarfrock_complete);
+}
+stat_advance(crafting, 1000);
+~mesbox("Together they are a modification to a dwarven multicannon, and it is immediately obvious what it is for and immediately obvious why nobody built it.");
+
+// =========================================================================== the engineers
+// Two of them - one in Keldagrim and one who is having trouble standing up right near the mine -
+// and the quest wants both, because between them they are the only two who have done this.
+[opnpc1,dwarfrock_engineer1] @dwarfrock_engineer(1);
+[opnpc1,dwarfrock_engineer2] @dwarfrock_engineer(2);
+
+[label,dwarfrock_engineer](int $which)
+if (%dwarfrock_quest < ^dwarfrock_engineers) {
+    if ($which = 1) {
+        ~chatnpc("<p,angry>Busy.");
+    } else {
+        ~chatnpc("<p,happy>I am NOT drunk. I am hor - horizontally stable.");
+    }
+    return;
+}
+if (%dwarfrock_quest > ^dwarfrock_engineers) {
+    ~chatnpc("<p,neutral>It is built. Go and get in it.");
+    return;
+}
+if (inv_total(inv, dwarf_rock_schematic_assembled) = 0) {
+    ~chatnpc("<p,neutral>You said schematics. I see no schematics.");
+    return;
+}
+if ($which = 1) {
+    ~chatplayer("<p,neutral>Dondakan wants this built.");
+    ~chatnpc("<p,shock>He wants to fire a man into a rock.");
+    ~chatplayer("<p,neutral>He does.");
+    ~chatnpc("<p,angry>Then he wants Khorvak, because Khorvak is the only one mad enough and he is not in this city.");
+    %dwarfrock_met_engineer = ^dwarfrock_on;
+    return;
+}
+if (%dwarfrock_met_engineer = ^dwarfrock_off) {
+    ~chatnpc("<p,happy>Lovely drawing. Whose is it?");
+    ~chatplayer("<p,neutral>Never mind.");
+    ~chatnpc("<p,neutral>Go and ask the one in the city first. He will say no and then he will say my name.");
+    return;
+}
+~chatplayer("<p,neutral>They said you were the only one mad enough.");
+~chatnpc("<p,happy>They said that? They SAID that?");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>I am going to make you a hat and you have nowhere to put a hat.");
+    return;
+}
+if_close;
+mes("Khorvak reads the schematic twice, and the second time he is noticeably more sober.");
+p_delay(4);
+inv_del(inv, dwarf_rock_schematic_assembled, 1);
+inv_add(inv, dwarf_goldrock_helmet, 1);
+%dwarfrock_gold_cannonball = ^dwarfrock_on;
+%dwarfrock_quest = ^dwarfrock_cannonball;
+stat_advance(smithing, 3000);
+~send_quest_progress(questlist:dwarfrock, %dwarfrock_quest, ^dwarfrock_complete);
+~chatnpc("<p,happy>Gold and white gold, beaten thin and shaped to a head. Wear it. Do not carry it, WEAR it, and go and see the old man about his rock.");
+
+// =========================================================================== the gold boatman
+// He exists at exactly one value of dwarfrock_quest - 110 - so he cannot be met before the end.
+[opnpc1,dwarfrock_multi_gold_boatman]
+~chatnpc("<p,happy>You are the one who went into the rock.");
+~chatplayer("<p,neutral>I am.");
+~chatnpc("<p,happy>Then you will be wanting a way back in that does not involve a cannon. That is me.");

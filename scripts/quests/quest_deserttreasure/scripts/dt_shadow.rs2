@@ -199,6 +199,10 @@ npc_add(npc_coord, fd_damis_tougher, 2000);
 npc_setmode(none);
 npc_say("Did you think that was all of me?");
 
+// Form 2's death is the real one. ~dt_spawn_damis guards on ^fdsw_damis_dead so that climbing
+// back down does not re-spawn him - but nothing ever set that stage, so the guard never fired and
+// Damis could be re-killed on every descent for another 3,000gp and another Dark diamond.
+// Protected-varp write, so p_finduid as in dt_blood.rs2 / dt_ice.rs2.
 [ai_queue3,fd_damis_tougher]
 gosub(npc_death);
 if (npc_findhero = ^false) {
@@ -206,6 +210,12 @@ if (npc_findhero = ^false) {
 }
 obj_add(npc_coord, fd_dark_diamond, 1, ^lootdrop_duration);
 obj_add(npc_coord, coins, 3000, ^lootdrop_duration);
+if (p_finduid(uid) = false) {
+    return;
+}
+if (%fd_shadowwarrior_quest < ^fdsw_damis_dead) {
+    %fd_shadowwarrior_quest = ^fdsw_damis_dead;
+}
 
 // Damis's second form drains prayer on every hit he lands - the mechanic that makes form 2 a real
 // fight rather than form 1 with more hitpoints. Queued from ~playerhit_n_melee in

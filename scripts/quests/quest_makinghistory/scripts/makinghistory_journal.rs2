@@ -1,0 +1,77 @@
+[if_button,questlist:makinghistory]
+def_string $text;
+
+switch_int (%makinghistory_prog) {
+    case ^mh_not_started :
+        $text = "@dbl@@dre@Jorral@dbl@ keeps an @dre@outpost@dbl@ north of @dre@Ardougne@dbl@, on the|";
+        $text = append($text, "@dbl@road up to the @dre@Gnome Stronghold|");
+        $text = append($text, "@dbl@He is writing a history and it has holes in it");
+
+    case ^mh_investigating :
+        $text = "@str@The outpost was built at the start of the Fifth Age and for|";
+        $text = append($text, "@str@sixty-five years three faiths kept one road open through it.|");
+        $text = append($text, "@str@Then the Dreaded Years of Tragedy, then the Great Battle,|");
+        $text = append($text, "@str@and three years after that the survivors founded the royal|");
+        $text = append($text, "@str@line of Ardougne and the Equal Trade Market.|");
+        $text = append($text, "@str@Jorral has the four dates and nothing in between them.|");
+        $text = append($text, "@str@Three people left records:||");
+
+        if (%makinghistory_trader_prog >= ^mh_strand_done) {
+            $text = append($text, "@gre@The trader - done|");
+        } else if (%makinghistory_trader_prog = ^mh_strand_held) {
+            $text = append($text, "@dbl@The @dre@trader@dbl@ - take the sealed letter to Jorral|");
+        } else {
+            $text = append($text, "@dbl@The @dre@trader@dbl@ - the @dre@fur trader@dbl@ in @dre@Rellekka@dbl@, and show|");
+            $text = append($text, "@dbl@him the timeline|");
+        }
+
+        if (%makinghistory_warr_prog >= ^mh_strand_done) {
+            $text = append($text, "@gre@The warrior - done|");
+        } else if (%makinghistory_warr_prog = ^mh_strand_held) {
+            $text = append($text, "@dbl@The @dre@warrior@dbl@ - take the letter to the king to Jorral|");
+        } else if (%makinghistory_warr_prog = ^mh_strand_refused) {
+            $text = append($text, "@dbl@The @dre@warrior@dbl@ - Dron said no. Tell @dre@Blanin@dbl@ that he did|");
+        } else if (%makinghistory_warr_prog = ^mh_strand_told) {
+            $text = append($text, "@dbl@The @dre@warrior@dbl@ - ask @dre@Dron@dbl@, who will refuse|");
+        } else {
+            $text = append($text, "@dbl@The @dre@warrior@dbl@ - @dre@Blanin@dbl@ in @dre@Rellekka|");
+        }
+
+        if (%makinghistory_ghost_prog >= ^mh_ghost_done) {
+            $text = append($text, "@gre@The ghost - done|");
+        } else if (%makinghistory_ghost_prog = ^mh_ghost_held) {
+            $text = append($text, "@dbl@The @dre@ghost@dbl@ - take Bennath's journal to Jorral|");
+        } else if (%makinghistory_ghost_prog = ^mh_ghost_forgiven) {
+            $text = append($text, "@dbl@The @dre@ghost@dbl@ - tell @dre@Droalak@dbl@ she will speak to him|");
+        } else if (%makinghistory_ghost_prog = ^mh_ghost_proof) {
+            $text = append($text, "@dbl@The @dre@ghost@dbl@ - tell @dre@Melina@dbl@ about the garden|");
+        } else if (%makinghistory_ghost_prog = ^mh_ghost_melina) {
+            $text = append($text, "@dbl@The @dre@ghost@dbl@ - she wants something only he could know.|");
+            $text = append($text, "@dbl@Go back to @dre@Droalak|");
+        } else if (%makinghistory_ghost_prog = ^mh_ghost_droalak) {
+            $text = append($text, "@dbl@The @dre@ghost@dbl@ - speak to @dre@Melina@dbl@, his wife|");
+        } else {
+            $text = append($text, "@dbl@The @dre@ghost@dbl@ - @dre@Droalak@dbl@ in @dre@Port Phasmatys@dbl@. An|");
+            $text = append($text, "@dbl@@dre@amulet of ghostspeak@dbl@ is needed to hear anyone there");
+        }
+
+    case ^mh_reporting :
+        $text = "@str@Three records and one timeline, all on Jorral's table.|";
+        $text = append($text, "@dbl@Let him read");
+
+    case ^mh_complete :
+        $text = "@str@The Dreaded Years of Tragedy were a famine. The Great Battle|";
+        $text = append($text, "@str@was three faiths who had kept one road open for sixty-eight|");
+        $text = append($text, "@str@years finding out that they could not keep it open through a|");
+        $text = append($text, "@str@famine.|");
+        $text = append($text, "@str@The letter to the king was a request for grain. It was never|");
+        $text = append($text, "@str@delivered.|");
+        $text = append($text, "@str@Droalak walked four minutes down a road it took him two|");
+        $text = append($text, "@str@hundred years to start.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+
+    case default :
+        $text = "@dbl@@dre@Jorral@dbl@ keeps an @dre@outpost@dbl@ north of @dre@Ardougne";
+}
+
+~quest_journal("Making History", $text);

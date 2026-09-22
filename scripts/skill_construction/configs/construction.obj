@@ -14,6 +14,19 @@
 // (tools/models/osrs2ob2.py); every one is round-trip verified before writing.
 // wearpos/wearpos2/wearpos3 come from the cache - do not hand-edit them.
 
+// NOT IN USE, and must not be brought back into use. 377 already has a plank - obj 960,
+// `woodplank`, name "Plank", desc "A plank of wood!" - and this import added a second obj with the
+// same name and the same description. The two are indistinguishable in the inventory and in the
+// bank, and nothing reconciles them.
+//
+// That duplication silently broke three quests. The sawmill operator is the only repeatable,
+// advertised plank source in the game, and it handed out THIS obj, while Observatory Quest
+// (observatory_professor.rs2), Horror from the Deep's bridge (quest_horror.rs2) and Dragon Slayer's
+// hull patch (lady_lumbridge.rs2) all check `woodplank`. A player could buy planks, carry them to
+// the Professor, and be told "Sorry, not yet. Three planks was it?" with three planks in hand.
+//
+// The sawmill and every poh_furn_mat row now use `woodplank`. The definition is kept only because
+// pack/obj.pack allocates the id and a name in the pack with no definition is a build error.
 [plank]
 name=Plank
 desc=A plank of wood!

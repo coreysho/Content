@@ -1,0 +1,36 @@
+// Creature of Fenkenstrain.
+//
+// As with The Lost Tribe the stage numbers are fixed by the cache, not chosen. Four multinpcs and
+// one multiloc switch on %fenk_quest, and between them they say where the quest starts and ends:
+//
+//   [fenk_fenkenstrain]            multinpc 0..7 -> fenk_fenkenstrain_model
+//   [fenk_fenkenstrain_in_tower]   multinpc 8    -> fenk_fenkenstrain_model
+//   [fenk_creature]                multinpc 0..7 -> fenk_creature_model     ("Fenkenstrain's Monster")
+//   [fenk_creature_released]       multinpc 8    -> fenk_creature_model_2   ("Lord Rologarth")
+//   [fenk_table_multi]             multiloc 3    -> fenk_table_corpse, every other value a bare table
+//
+// So 8 is the end of it: at 8 and only at 8 the doctor is the one standing in the tower, and the
+// thing on the slab has a name. And 3 is the one stage where a body is lying assembled on the
+// table - which is what sewing it together has to set.
+//
+// The two shells are placed a few tiles apart in m55_55 (fenk_fenkenstrain at 31,30 and
+// fenk_fenkenstrain_in_tower at 29,35; fenk_creature at 27,35 and fenk_creature_released at
+// 32,30), so the swap at stage 8 moves both of them as well as changing who they are. Nothing in
+// script has to place or despawn anything.
+^fenk_not_started = 0
+^fenk_started = 1
+^fenk_parts_gathered = 2
+^fenk_body_sewn = 3
+^fenk_conductor_fitted = 4
+^fenk_creature_alive = 5
+^fenk_creature_spoke = 6
+^fenk_has_proof = 7
+
+// The four body parts, the three locks, the coffin, the clock and the conductor are all varbits
+// the cache already declares on fenk_flags (%fenk_arms, %fenk_legs, %fenk_torso, %fenk_head,
+// %fenk_unlocked_tower/_cavern/_shed, %fenk_coffin, %fenk_wound_clock, %fenk_conductor_repaired,
+// %fenk_read_signpost), so none of them is redeclared here as a bit number.
+
+// The brush reaches the shed key once it is fenk_brush3, three canes on. That is the obj chain
+// itself (fenk_brush0..3), so there is no separate count to declare - and no coord constant for
+// the conductor either, since it is reached through its own [oploc1,fenk_conductor_broken].

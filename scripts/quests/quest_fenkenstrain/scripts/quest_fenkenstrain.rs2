@@ -1,0 +1,389 @@
+// Creature of Fenkenstrain - the world side: the graves, the mausoleum, the brush, the shed, the
+// clock, the conductor and the slab. The talking is in the two npc files beside this one.
+
+// =========================================================================== the graves
+
+// fenk_grave is placed five times around the castle grounds and fenk_grave_poor many more times in
+// the paupers' field. Reading is always allowed; digging only does anything while the doctor has
+// asked for parts, and hands over whichever one is still outstanding so the player cannot end up
+// with three sets of arms and no legs.
+[oploc1,fenk_grave] @fenk_read_grave("Here lies one of the old family. The name has weathered off.");
+[oploc1,fenk_grave_poor] @fenk_read_grave("No name, no date. A pauper's grave.");
+
+[label,fenk_read_grave](string $line)
+~mesbox($line);
+
+[oploc2,fenk_grave] @fenk_dig_grave;
+[oploc2,fenk_grave_poor] @fenk_dig_grave;
+
+[label,fenk_dig_grave]
+if (%fenk_quest ! ^fenk_started) {
+    mes("You have no reason to disturb this, and every reason not to.");
+    return;
+}
+if (inv_total(inv, spade) = 0) {
+    mes("You would need a spade.");
+    return;
+}
+// %fenk_arms, %fenk_legs and %fenk_torso are the cache's own varbits on fenk_flags, so the
+// record of what has been dug up is kept where the cache already keeps it.
+// Which part comes up is decided by what the player actually HAS, not by the varbit. The varbit
+// is a record that the grave gave it up once; if the part is then dropped, lost on death or sold,
+// reading the varbit here would refuse to ever hand out another and the quest would be stuck one
+// limb short with no way back.
+def_namedobj $part = null;
+if (~obj_gettotal(fenk_arms) = 0) {
+    $part = fenk_arms;
+} else if (~obj_gettotal(fenk_legs) = 0) {
+    $part = fenk_legs;
+} else if (~obj_gettotal(fenk_torso) = 0) {
+    $part = fenk_torso;
+}
+if ($part = null) {
+    // The head is not in a grave - it is in the mausoleum, behind the cavern key.
+    mes("You dig, and find nothing you have not already got.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("There is something down here, but you have no room to lift it out.");
+    return;
+}
+anim(human_pickuptable, 0);
+switch_obj ($part) {
+    case fenk_arms : %fenk_arms = 1;
+    case fenk_legs : %fenk_legs = 1;
+    case fenk_torso : %fenk_torso = 1;
+}
+inv_add(inv, $part, 1);
+~mesbox("You dig down, and lift out a set of <lowercase(oc_name($part))>. This is a dreadful thing to be doing.");
+
+// =========================================================================== the mausoleum
+
+[oploc1,fenk_mausoleum_door]
+p_arrivedelay;
+if (%fenk_unlocked_cavern = 1) {
+    mes("The door is already unlocked.");
+    return;
+}
+if (inv_total(inv, fenk_mausoleum_key) = 0) {
+    mes("The door is locked. There is a keyhole, and it is a large one.");
+    return;
+}
+%fenk_unlocked_cavern = 1;
+sound_synth(unlock, 1, 0);
+mes("You unlock the mausoleum door.");
+
+// The memorial slab inside. Pushing it open is what gets at the head.
+[oploc1,fenk_coffin]
+p_arrivedelay;
+if (%fenk_coffin = 1) {
+    mes("It is already open.");
+    return;
+}
+if (%fenk_quest ! ^fenk_started) {
+    mes("You would rather not.");
+    return;
+}
+// The face of the memorial is cut with a six-pointed recess. The two amulet halves make exactly
+// that shape, which is what they are for - the gardener's ghost has the obsidian one and the
+// marble one is in the shed.
+if (inv_total(inv, fenk_star_amulet) = 0) {
+    ~mesbox("The memorial will not shift. Cut into the face of it is a six-pointed recess, about the size of your hand.");
+    return;
+}
+anim(human_pickuptable, 0);
+%fenk_coffin = 1;
+~mesbox("You put your shoulder to the memorial and it grinds aside.");
+
+[oploc2,fenk_coffin]
+if (%fenk_coffin = 0) {
+    mes("It is shut. You would have to push it open first.");
+    return;
+}
+if (~obj_gettotal(fenk_head_empty) > 0 | ~obj_gettotal(fenk_head_full) > 0) {
+    mes("There is nothing else in here you want.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("There is a head in here. You have no room for it, which is probably for the best.");
+    return;
+}
+%fenk_head = 1;
+inv_add(inv, fenk_head_empty, 1);
+~mesbox("Inside is a head. You take it, and try not to think about it.");
+
+// =========================================================================== the brush and the shed
+
+[oploc1,fenk_broomcupboard]
+loc_change(fenk_broomcupboard_open, 200);
+
+[oploc2,fenk_broomcupboard_open]
+loc_change(fenk_broomcupboard, 200);
+
+[oploc1,fenk_broomcupboard_open]
+if (~obj_gettotal(fenk_brush0) > 0 | ~obj_gettotal(fenk_brush1) > 0 | ~obj_gettotal(fenk_brush2) > 0 | ~obj_gettotal(fenk_brush3) > 0) {
+    mes("You have taken the brush already.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("There is a garden brush in here, but you have no room for it.");
+    return;
+}
+mes("You find a garden brush.");
+inv_add(inv, fenk_brush0, 1);
+
+[oploc1,fenk_canepile]
+if (inv_freespace(inv) = 0) {
+    mes("You have no room for another cane.");
+    return;
+}
+mes("You take a garden cane.");
+inv_add(inv, fenk_cane, 1);
+
+// Lashing a cane onto the brush. Three of them, and the cache gives exactly four brush states, so
+// the count is the obj rather than a varbit.
+[opheldu,fenk_cane] @fenk_extend_brush(last_useitem);
+[opheldu,fenk_brush0] @fenk_extend_brush(fenk_brush0);
+[opheldu,fenk_brush1] @fenk_extend_brush(fenk_brush1);
+[opheldu,fenk_brush2] @fenk_extend_brush(fenk_brush2);
+
+[label,fenk_extend_brush](obj $brush)
+if (inv_total(inv, fenk_cane) = 0) {
+    ~displaymessage(^dm_default);
+    return;
+}
+def_namedobj $longer = null;
+switch_obj ($brush) {
+    case fenk_brush0 : $longer = fenk_brush1;
+    case fenk_brush1 : $longer = fenk_brush2;
+    case fenk_brush2 : $longer = fenk_brush3;
+    case fenk_brush3 :
+        mes("The brush is as long as it is going to get without falling apart.");
+        return;
+}
+if ($longer = null) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, fenk_cane, 1);
+inv_del(inv, $brush, 1);
+inv_add(inv, $longer, 1);
+mes("You lash another cane to the brush.");
+
+// The shed key is on a ledge above the door. Only the fully extended brush reaches it.
+[oploc1,fenk_shed_door]
+p_arrivedelay;
+if (%fenk_unlocked_shed = 1) {
+    mes("The shed is already open.");
+    return;
+}
+if (inv_total(inv, fenk_shed_key) > 0) {
+    %fenk_unlocked_shed = 1;
+    sound_synth(unlock, 1, 0);
+    mes("You unlock the shed.");
+    // What is actually in the shed. The gardener's ghost says the old master kept the marble half
+    // of his amulet in here, "of all the daft places", and this is the only way into the building.
+    if (~obj_gettotal(fenk_marble_amulet) = 0 & ~obj_gettotal(fenk_star_amulet) = 0) {
+        if (inv_freespace(inv) = 0) {
+            ~mesbox("Something pale is sitting on the bench inside, and you have no room to pick it up.");
+            return;
+        }
+        inv_add(inv, fenk_marble_amulet, 1);
+        ~mesbox("On the bench, under forty years of dust, is a triangle of white marble on a cord.");
+    }
+    return;
+}
+if (inv_total(inv, fenk_brush3) = 0) {
+    ~mesbox("The shed is locked, and there is a key on the ledge above the door - far out of reach, and too high for anything you are carrying.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You could hook the key down, if you had a free hand to catch it with.");
+    return;
+}
+anim(human_pickuptable, 0);
+~mesbox("You reach up with the extended brush and sweep the key off the ledge.");
+inv_add(inv, fenk_shed_key, 1);
+
+// =========================================================================== the clock and the tower
+
+[oploc1,fenk_clock]
+if (%fenk_wound_clock = 1) {
+    mes("The clock is wound. Somewhere above you, something heavy has moved.");
+    return;
+}
+if (%fenk_quest < ^fenk_creature_spoke) {
+    mes("The clock has stopped. You have no particular reason to start it.");
+    return;
+}
+anim(human_pickuptable, 0);
+%fenk_wound_clock = 1;
+sound_synth(lever, 1, 0);
+~mesbox("You wind the clock. It begins to tick, and somewhere over your head a counterweight drops and a bolt slides back.");
+
+[oploc1,fenk_tower_door]
+p_arrivedelay;
+if (%fenk_unlocked_tower = 1) {
+    mes("The tower door stands open.");
+    return;
+}
+if (%fenk_wound_clock = 0 & inv_total(inv, fenk_tower_key) = 0) {
+    mes("The door is bolted from the inside, and there is no handle on this side at all.");
+    return;
+}
+%fenk_unlocked_tower = 1;
+sound_synth(unlock, 1, 0);
+mes("The tower door swings open.");
+
+// =========================================================================== the conductor
+
+// The mould makes the conductor out of a silver bar; the conductor goes on the roof.
+[opheldu,fenk_lightning_mould]
+if (last_useitem ! silver_bar) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@fenk_cast_conductor;
+
+[opheldu,silver_bar]
+if (last_useitem ! fenk_lightning_mould) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@fenk_cast_conductor;
+
+[label,fenk_cast_conductor]
+if (stat(crafting) < 20) {
+    mes("You need a Crafting level of 20 to cast this.");
+    return;
+}
+if (~obj_gettotal(fenk_conductor) > 0) {
+    mes("You have already cast one conductor. One is enough.");
+    return;
+}
+inv_del(inv, silver_bar, 1);
+anim(human_smithing, 0);
+inv_add(inv, fenk_conductor, 1);
+stat_advance(crafting, 500);
+mes("You cast the silver into a lightning conductor.");
+
+[oploc1,fenk_conductor_broken]
+p_arrivedelay;
+if (%fenk_conductor_repaired = 1) {
+    mes("The conductor is fitted and pointing at the sky.");
+    return;
+}
+if (inv_total(inv, fenk_conductor) = 0) {
+    mes("The conductor has snapped off at the base. You would need a new one.");
+    return;
+}
+if (%fenk_quest < ^fenk_body_sewn) {
+    mes("There would be no point until there is something on the slab worth waking.");
+    return;
+}
+inv_del(inv, fenk_conductor, 1);
+%fenk_conductor_repaired = 1;
+%fenk_quest = ^fenk_conductor_fitted;
+~send_quest_progress(questlist:creatureoffenkenstrain, %fenk_quest, ^fenk_complete);
+anim(human_pickuptable, 0);
+~mesbox("You fit the new conductor. Above the castle the clouds have not moved all day, and they do not look like moving now.");
+
+// =========================================================================== the slab
+
+// Sewing the parts together. fenk_table_multi only shows a body at stage 3, so this is what sets
+// it, and it is the one place the four part bits are read together.
+// One trigger, on the torso. There is no fenk_needle OBJ in the cache - fenk_needle is a varbit -
+// so the sewing is done with the ordinary crafting needle, and [opheldu,needle] is already taken
+// by leatherworking. Everything this needs is checked in the label instead of in the trigger,
+// which also sidesteps `fenk_torso` being the name of both an obj and a varbit: in a bare
+// comparison the compiler resolves it to the varbit.
+[opheldu,fenk_torso]
+@fenk_sew;
+
+[label,fenk_sew]
+if (%fenk_quest >= ^fenk_body_sewn) {
+    mes("The body is sewn and lying on the slab already.");
+    return;
+}
+if (%fenk_quest ! ^fenk_parts_gathered) {
+    mes("The doctor has not asked you for this yet.");
+    return;
+}
+if (inv_total(inv, needle) = 0 | inv_total(inv, thread) = 0) {
+    mes("You would need a needle and thread for this.");
+    return;
+}
+if (inv_total(inv, fenk_arms) = 0 | inv_total(inv, fenk_legs) = 0 | inv_total(inv, fenk_torso) = 0 | inv_total(inv, fenk_head_full) = 0) {
+    mes("You need all four parts, and a head with something in it.");
+    return;
+}
+inv_del(inv, fenk_arms, 1);
+inv_del(inv, fenk_legs, 1);
+inv_del(inv, fenk_torso, 1);
+inv_del(inv, fenk_head_full, 1);
+inv_del(inv, thread, 1);
+%fenk_quest = ^fenk_body_sewn;
+~send_quest_progress(questlist:creatureoffenkenstrain, %fenk_quest, ^fenk_complete);
+anim(human_pickuptable, 0);
+~mesbox("You sew the parts together and lay the result out on the slab. It is not a person. It is a shape that a person would fit into.");
+
+// The brain goes in the head before any of that.
+[opheldu,fenk_brain]
+if (last_useitem ! fenk_head_empty) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@fenk_fill_head;
+
+[opheldu,fenk_head_empty]
+if (last_useitem ! fenk_brain) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@fenk_fill_head;
+
+[label,fenk_fill_head]
+inv_del(inv, fenk_brain, 1);
+inv_del(inv, fenk_head_empty, 1);
+inv_add(inv, fenk_head_full, 1);
+mes("You put the pickled brain into the head.");
+
+// =========================================================================== the bookcase
+
+// Fenkenstrain's own journal, which is what turns the creature's story into something a court
+// would believe. One copy; the four bookcases are all the same shelves.
+[oploc1,fenk_bookcase]
+if (%fenk_quest < ^fenk_creature_spoke) {
+    mes("Medical texts, mostly. Nothing you want to read twice.");
+    return;
+}
+if (~obj_gettotal(fenk_journal) > 0) {
+    mes("You have the journal already.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("There is a journal wedged at the back of the shelf, and no room in your pack for it.");
+    return;
+}
+%fenk_quest = ^fenk_has_proof;
+~send_quest_progress(questlist:creatureoffenkenstrain, %fenk_quest, ^fenk_complete);
+inv_add(inv, fenk_journal, 1);
+~mesbox("Wedged behind the medical texts is a journal in the doctor's own hand. The last twenty pages are about a man called Rologarth, and none of it is medicine.");
+
+[opheld1,fenk_journal]
+~mesbox("...the estate passes to the nearest living relative, and I have taken steps to ensure that there is not one. The body itself will not be wasted. - Dr V. Fenkenstrain");
+
+// =========================================================================== the signpost
+
+[oploc1,fenk_signpost]
+%fenk_read_signpost = 1;
+~mesbox("CANIFIS, one mile east.|FENKENSTRAIN'S CASTLE, north. No callers.");
+
+// =========================================================================== completion
+
+[queue,fenk_quest_complete]
+%fenk_quest = ^fenk_complete;
+stat_advance(thieving, 10000);
+stat_advance(crafting, 10000);
+session_log(^log_adventure, "Quest complete: Creature of Fenkenstrain");
+~send_quest_complete(questlist:creatureoffenkenstrain, fenk_obsidian_amulet, 250, ^fenk_questpoints, "You have completed the\\nCreature of Fenkenstrain Quest!", "2 Quest Points|1,000 Thieving XP|1,000 Crafting XP");

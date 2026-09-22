@@ -1,0 +1,327 @@
+// Swan Song - a fishing colony that cannot hold, and the one man who could save it being carried
+// back through the gate about four minutes after he arrives.
+
+// =========================================================================== outside the colony
+// swan_multioutside is Herman until stage 20 and the Wise Old Man from 30. Handler on the shell.
+[opnpc1,swan_multioutside]
+if (%swansong >= ^swan_wom & %swansong <= ^swan_ambush) {
+    @swan_wom_talk;
+}
+@swan_herman_talk;
+
+[opnpc1,swan_herman] @swan_herman_talk;
+
+[label,swan_herman_talk]
+switch_int (%swansong) {
+    case ^swan_not_started : @swan_start;
+    case ^swan_walls : @swan_walls_check;
+    case ^swan_fish : @swan_fish_check;
+    case ^swan_fed : @swan_letter_out;
+    case ^swan_letter :
+        ~chatnpc("<p,neutral>The boat went this morning. Whether anybody reads it is another matter.");
+    case ^swan_planted : @swan_battle_scene;
+    case ^swan_told : @swan_finish;
+    case default :
+        if (%swansong >= ^swan_complete) {
+            ~chatnpc("<p,happy>Seventy-one people and a fishing ground, and one man asleep in my office who I cannot wake up.");
+            return;
+        }
+        ~chatnpc("<p,neutral>Do what he told you. He was right about all of it up to the part where he walked out of the gate.");
+}
+
+[label,swan_start]
+~chatnpc("<p,angry>If you are here to fish, turn round. If you are here to help, say so quickly.");
+switch_int (~p_choice2("What's happening here?", 1, "I'm here to fish.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>I'm here to fish.");
+        ~chatnpc("<p,angry>So is everything in the water and it is not fish it is after.");
+        return;
+    case 1 :
+        ~chatplayer("<p,quiz>What's happening here?");
+}
+~chatnpc("<p,sad>Sea trolls. They came up out of the fishing grounds eleven days ago and they have not gone back down, and there are seventy-one people behind that palisade and the palisade has five holes in it.");
+~chatplayer("<p,quiz>Why not leave?");
+~chatnpc("<p,angry>One boat. Seventy-one people. You do the arithmetic and then tell me who gets on it.");
+~chatnpc("<p,neutral>Franklin keeps the timber. Start with the wall.");
+%swansong = ^swan_walls;
+~send_quest_progress(questlist:swansong, %swansong, ^swan_complete);
+
+[label,swan_walls_check]
+if (~swan_walls_done < ^swan_walls_needed) {
+    ~chatnpc("<p,neutral>The wall. Franklin has the timber and no hands.");
+    return;
+}
+~chatnpc("<p,neutral>Five sections. That is the first thing anybody has finished here in eleven days.");
+~chatnpc("<p,sad>Now the other problem. Nobody has eaten since the trolls came, because the fishing grounds are where the trolls are.");
+%swansong = ^swan_fish;
+~send_quest_progress(questlist:swansong, %swansong, ^swan_complete);
+
+[label,swan_fish_check]
+if (%swansong_fish < ^swan_fish_needed) {
+    ~chatnpc("<p,neutral>Fish. <tostring(%swansong_fish)> of <tostring(^swan_fish_needed)>. The spots are on the north shore and so are the trolls.");
+    return;
+}
+~chatnpc("<p,neutral>Seventy-one people fed. Thank you.");
+%swansong = ^swan_fed;
+~send_quest_progress(questlist:swansong, %swansong, ^swan_complete);
+@swan_letter_out;
+
+[label,swan_letter_out]
+~chatnpc("<p,sad>And none of it matters, because the wall will not hold and the food will run out and I have known both of those things for a week.");
+~chatplayer("<p,quiz>So who can help?");
+~chatnpc("<p,neutral>There is a man in Draynor who is supposed to be the best magician alive and who has spent thirty years pretending to be a pensioner.");
+~chatnpc("<p,neutral>I have written to him four times. I am going to write a fifth and you are going to put it on the boat, and then we will both find out whether that was worth doing.");
+if_close;
+mes("Herman gives the letter to Kathy Corkat and the boat goes out on the tide.");
+p_delay(5);
+%swansong = ^swan_letter;
+~send_quest_progress(questlist:swansong, %swansong, ^swan_complete);
+p_delay(3);
+%swansong = ^swan_wom;
+~send_quest_progress(questlist:swansong, %swansong, ^swan_complete);
+~mesbox("The boat comes back the next morning with one passenger on it, and he is extremely old and he is carrying nothing at all.");
+
+// =========================================================================== the Wise Old Man
+[label,swan_wom_talk]
+switch_int (%swansong) {
+    case ^swan_wom :
+        ~chatnpc("<p,neutral>Four letters. I read all four and I did not come, and then the fifth one had somebody else's handwriting on the envelope.");
+        ~chatplayer("<p,quiz>Can you stop them?");
+        ~chatnpc("<p,happy>Almost certainly. I should like to look at them first. I have never seen a sea troll and I am eighty-one.");
+        %swansong = ^swan_wom_looked;
+        ~send_quest_progress(questlist:swansong, %swansong, ^swan_complete);
+    case ^swan_wom_looked : @swan_ambush_scene;
+    case ^swan_ambush :
+        ~chatnpc("<p,neutral>...");
+    case default :
+        ~chatnpc("<p,neutral>Hm.");
+}
+
+[label,swan_ambush_scene]
+~chatplayer("<p,quiz>Well?");
+~chatnpc("<p,neutral>There are rather more of them than Mr Caranos thinks, and the ones he has seen are the small ones.");
+~chatnpc("<p,happy>Stand behind me. This will take a moment and it will be worth watching.");
+if_close;
+mes("The Wise Old Man walks out through the gap in the palisade and raises one hand.");
+p_delay(5);
+%swansong = ^swan_ambush;
+~mesbox("It is worth watching for about four seconds. | Then something comes out of the water behind him that is not one of the small ones.");
+p_delay(4);
+mes("They carry him back through the gate.");
+p_delay(4);
+%swansong = ^swan_coma;
+~send_quest_progress(questlist:swansong, %swansong, ^swan_complete);
+~mesbox("He is breathing and he is not waking up, and he is eighty-one, and the colony's entire plan was him. | Herman puts him on the floor of his own office and goes very quiet.");
+
+// From 65 onwards he is lying in the office and he stays there.
+// swan_wom_office resolves to wom_inactive, which carries no ops at all - he is lying on the floor
+// and cannot be talked to, which is the point of him. Arnold says what is in the room instead.
+
+// =========================================================================== Herman's book
+[opheld1,swan_book]
+~mesbox("Herman's book. | Most of it is fish prices. | The last six pages are not, and they are not in Herman's hand: they were written this week, on the floor, by somebody who was losing consciousness while he wrote them. | BONE SEEDS. Bury them, they come up, they fight. They want BONES and they want a LOT of bones and the ground here is nothing but bones because it is a fishing colony and it is eleven days into a siege.");
+
+[opheld1,swan_army]
+~mesbox("Bone seeds. An highly portable army of skeletal magi, which is a sentence somebody has written on a label without appearing to think about it at all.");
+
+[opheld4,swan_army]
+p_arrivedelay;
+if (%swansong < ^swan_seeds) {
+    ~mesbox("Not yet, and not here.");
+    return;
+}
+if (%swansong > ^swan_seeds) {
+    ~mesbox("They are in the ground and they are coming up.");
+    return;
+}
+if (%swansong_bones < ^swan_bones_needed) {
+    ~mesbox("The book is emphatic about the quantity. <tostring(%swansong_bones)> of <tostring(^swan_bones_needed)>.");
+    return;
+}
+if_close;
+mes("You open the packet and put the seeds in the ground along the inside of the palisade.");
+p_delay(5);
+inv_del(inv, swan_army, 1);
+%swansong = ^swan_planted;
+~send_quest_progress(questlist:swansong, %swansong, ^swan_complete);
+~mesbox("Nothing happens for about a minute. | Then the ground along forty yards of palisade starts moving, all of it at once, and seventy-one people go indoors.");
+
+// =========================================================================== Franklin and the wall
+[opnpc1,swan_franklin]
+if (%swansong < ^swan_walls) {
+    ~chatnpc("<p,neutral>Timber. I have plenty of timber. I have two hands and five holes.");
+    return;
+}
+if (~swan_walls_done >= ^swan_walls_needed) {
+    ~chatnpc("<p,happy>Five sections. It is the first wall I have finished in my life.");
+    return;
+}
+if (inv_total(inv, hammer) = 0 | inv_total(inv, nails) = 0) {
+    ~chatnpc("<p,neutral>A hammer and nails. I have the timber and nothing to put it up with.");
+    return;
+}
+if (inv_total(inv, plank) < 2) {
+    ~chatnpc("<p,neutral>Two planks a section, and I am out.");
+    return;
+}
+if_close;
+mes("You and Franklin put up a section of palisade.");
+p_delay(5);
+inv_del(inv, plank, 2);
+inv_del(inv, nails, 1);
+stat_advance(crafting, 3000);
+~swan_wall_up;
+
+[proc,swan_wall_up]()()
+if (%swansong_wall_1 = ^swan_off) { %swansong_wall_1 = ^swan_on; }
+else if (%swansong_wall_2 = ^swan_off) { %swansong_wall_2 = ^swan_on; }
+else if (%swansong_wall_3 = ^swan_off) { %swansong_wall_3 = ^swan_on; }
+else if (%swansong_wall_4 = ^swan_off) { %swansong_wall_4 = ^swan_on; }
+else { %swansong_wall_5 = ^swan_on; }
+def_int $n = ~swan_walls_done;
+if ($n < ^swan_walls_needed) {
+    ~mesbox("<tostring($n)> of <tostring(^swan_walls_needed)> sections.");
+    return;
+}
+~mesbox("Five sections. Herman should see this.");
+
+[proc,swan_walls_done]()(int)
+def_int $n = 0;
+if (%swansong_wall_1 = ^swan_on) { $n = add($n, 1); }
+if (%swansong_wall_2 = ^swan_on) { $n = add($n, 1); }
+if (%swansong_wall_3 = ^swan_on) { $n = add($n, 1); }
+if (%swansong_wall_4 = ^swan_on) { $n = add($n, 1); }
+if (%swansong_wall_5 = ^swan_on) { $n = add($n, 1); }
+return($n);
+
+// =========================================================================== the fishing grounds
+[opnpc1,swan_fishingspot] @swan_fish_attempt(harpoon, "harpoon");
+[opnpc3,swan_fishingspot] @swan_fish_attempt(net, "net");
+
+[label,swan_fish_attempt](obj $tool, string $what)
+p_arrivedelay;
+if (inv_total(inv, $tool) = 0) {
+    ~mesbox("You would need a <$what>.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room.");
+    return;
+}
+if (stat(fishing) < 62) {
+    ~mesbox("You need a Fishing level of 62 for whatever is down there.");
+    return;
+}
+anim(human_smallnet, 0);
+p_delay(5);
+inv_add(inv, swan_raw_monkfish, 1);
+stat_advance(fishing, 1200);
+if (%swansong = ^swan_fish & %swansong_fish < ^swan_fish_needed) {
+    %swansong_fish = add(%swansong_fish, 1);
+    mes("A monkfish. <tostring(%swansong_fish)> of <tostring(^swan_fish_needed)> for the colony.");
+    return;
+}
+mes("You catch a monkfish.");
+
+[opheld1,swan_monkfish]
+~mesbox("Freshly caught and cooked - perfect for storing. Not so good for eating.");
+
+// =========================================================================== bones
+[opheldu,bones]
+if (last_useitem ! swan_army) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%swansong ! ^swan_seeds) {
+    ~mesbox("Not yet.");
+    return;
+}
+if (%swansong_bones >= ^swan_bones_needed) {
+    ~mesbox("The packet will not take any more.");
+    return;
+}
+inv_del(inv, bones, 1);
+%swansong_bones = add(%swansong_bones, 1);
+if (%swansong_bones >= ^swan_bones_needed) {
+    ~mesbox("That is the quantity the book asked for, and the book was written by a man who was losing consciousness, so it is worth taking literally.");
+    return;
+}
+mes("Bones into the packet. <tostring(%swansong_bones)> of <tostring(^swan_bones_needed)>.");
+
+// =========================================================================== Arnold
+[opnpc1,swan_arnold]
+if (%swansong < ^swan_coma) {
+    ~chatnpc("<p,neutral>Arnold Lydspor. I keep the stores and the strongbox, and at the moment I keep them shut.");
+    return;
+}
+if (%swansong = ^swan_coma) {
+    ~chatplayer("<p,quiz>Herman's book.");
+    ~chatnpc("<p,neutral>On his desk. He has not been near the desk since they carried the old man in.");
+    ~mesbox("The Wise Old Man is asleep on the floor of the office with a blanket over him and a chair beside him. | Whatever he was going to do about the sea trolls, he did not write any of it down.");
+    if (inv_total(inv, swan_book) > 0) {
+        return;
+    }
+    if (inv_freespace(inv) < 2) {
+        ~chatnpc("<p,neutral>You have nowhere to put it.");
+        return;
+    }
+    inv_add(inv, swan_book, 1);
+    inv_add(inv, swan_army, 1);
+    %swansong = ^swan_seeds;
+    ~send_quest_progress(questlist:swansong, %swansong, ^swan_complete);
+    ~chatnpc("<p,neutral>And this was in his hand when they put him down. It is a packet of seeds and it weighs nothing and the label on it is not funny.");
+    return;
+}
+~chatnpc("<p,neutral>Stores and strongbox.");
+
+[opnpc4,swan_arnold] @openbank;
+
+// =========================================================================== the battle
+// FIXED: this was [opnpc1,swan_skeleton_training], and that npc carries op2=Attack and nothing
+// else - there is no Talk-to on a skeletal magus, so the trigger could never fire and the battle
+// could not be started. Herman starts it; he is the one counting the palisade.
+
+[label,swan_battle_scene]
+if_close;
+mes("The skeletal magi form up along the palisade without being told to, which is the most unsettling part of the whole thing.");
+p_delay(5);
+%swansong = ^swan_battle;
+~send_quest_progress(questlist:swansong, %swansong, ^swan_complete);
+~mesbox("The sea trolls come up out of the fishing grounds for the twelfth day running and for the first time something is standing there waiting for them.");
+p_delay(4);
+~damage_self(14);
+mes("It is not a clean fight and the palisade is not the point of it any more.");
+p_delay(4);
+~mesbox("And then the water goes quiet, and something comes out of it that the small ones were in front of.");
+p_delay(3);
+~swan_queen_fight;
+
+[proc,swan_queen_fight]()()
+mes("The Sea Troll Queen is the reason the Wise Old Man is asleep on a floor.");
+p_delay(4);
+~damage_self(22);
+mes("The magi go through her a rank at a time and none of them stop.");
+p_delay(4);
+~damage_self(12);
+mes("She goes back into the water and does not come up.");
+p_delay(4);
+%swansong_trolls = 3;
+%swansong = ^swan_queen;
+~send_quest_progress(questlist:swansong, %swansong, ^swan_complete);
+stat_advance(magic, 20000);
+stat_advance(defence, 20000);
+%swansong = ^swan_told;
+~send_quest_progress(questlist:swansong, %swansong, ^swan_complete);
+~mesbox("Seventy-one people come out of the buildings very slowly. | Herman counts them twice.");
+
+[label,swan_finish]
+~chatplayer("<p,neutral>It's over.");
+~chatnpc("<p,sad>Seventy-one. I counted them twice and then I went and counted the one in my office, who is still asleep.");
+if_close;
+mes("Herman Caranos sits down on the ground outside his own colony for the first time in twelve days.");
+p_delay(5);
+%swansong = ^swan_complete;
+stat_advance(fishing, 100000);
+stat_advance(magic, 100000);
+session_log(^log_adventure, "Quest complete: Swan Song");
+~send_quest_complete(questlist:swansong, swan_monkfish, 200, ^swan_questpoints, "You have completed\\nSwan Song!", "2 Quest Points|10,000 Fishing XP|10,000 Magic XP|Monkfish|Seventy-one people");

@@ -1,0 +1,19 @@
+// Ram - https://oldschool.runescape.wiki/w/Ram
+//
+// ramsheered and ramunsheered are flagged op2=Attack in the cache but had no [ai_queue3] anywhere,
+// so killing one dropped nothing at all - not even bones. Added here because Rag and Bone Man
+// wants a ram's skull; the bones and the raw meat are what the npc config and the wiki say a ram
+// leaves behind either way.
+[ai_queue3,ramsheered] @ram_drop_table;
+[ai_queue3,ramunsheered] @ram_drop_table;
+
+[label,ram_drop_table]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+
+// Bones / ashes, set on the npc config.
+obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+
+~rag_bone_drop(rag_ram_bone);

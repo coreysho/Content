@@ -51,9 +51,15 @@ if (~viking_merchant(2, 26) = true) {
 }
 ~chatplayer("<p,happy>Hello.");
 ~chatnpc("<p,neutral>Aye. Been further south than you'd believe and I'm still cold.");
+// Throne of Miscellania sails from this jetty. misc_ship_gangplank has no ops, so he rows.
+~chatnpc("<p,neutral>North, though - that I'll do. Miscellania, if you want it.");
+~misc_cross;
 
 [opnpc1,viking_clothing_shopkeeper]
 if (~viking_merchant(4, 24) = true) {
+    return;
+}
+if (~viking_merchant_hint = true) {
     return;
 }
 ~chatnpc("<p,happy>Furs, boots, cloaks. Everything to keep the wind out.");
@@ -62,16 +68,30 @@ if (~viking_merchant(4, 24) = true) {
 if (~viking_merchant(7, 21) = true) {
     return;
 }
+if (~viking_merchant_hint = true) {
+    return;
+}
 ~chatnpc("<p,neutral>Blades. Good ones. Don't touch the edges.");
 
 [opnpc1,viking_fisherman1]
 if (~viking_merchant(8, 20) = true) {
     return;
 }
+if (~viking_merchant_hint = true) {
+    return;
+}
 ~chatnpc("<p,neutral>Cold water, cold hands, good fish.");
 
 [opnpc1,viking_longhall_barkeep]
 if (~viking_merchant(10, 15) = true) {
+    return;
+}
+// Manni's trial gets its keg over this bar, because the keg locs themselves have no ops. It comes
+// before the hint: this bar serves a trial as well as the chain.
+if (~viking_barkeep_keg = true) {
+    return;
+}
+if (~viking_merchant_hint = true) {
     return;
 }
 ~chatnpc("<p,happy>Drink? You look like you need one.");
@@ -81,6 +101,11 @@ if (~viking_merchant(10, 15) = true) {
 // first thing that file does.
 
 [opnpc1,viking_askelapen]
+// Olaf's trial borrows him for the pet rock; that half lives in viking_olaf.rs2 with the rest of
+// the golden-fleece chain.
+if (~viking_askeladden_rock = true) {
+    return;
+}
 if (%viking < ^viking_started) {
     ~chatplayer("<p,happy>Hello.");
     ~chatnpc("<p,happy>Hello! I'm Askeladden. I'm going to be a great hero one day. Everyone says so.");
@@ -150,16 +175,44 @@ if ($step = sub($give_step, 1)) {
     ~viking_merchant_give($give_step);
     return(true);
 }
-// Talked to out of order. The wiki's own advice, and worth saying out loud rather than falling
-// through to a shopkeeper line that makes it look like nothing is wrong.
-if ($step > 0 & $step < ^viking_merchant_done) {
-    ~chatnpc("<p,neutral>No, sorry. Can't help you with that yet.");
-    return(true);
-}
+// Talked to out of order: this proc has nothing to say, so the council member's OWN dialogue runs.
+//
+// FIXED (reported: "fremmy trials needs revisted - not working"). This used to answer "No, sorry.
+// Can't help you with that yet." and return true, which swallowed the whole conversation. Six of
+// the thirteen links in this chain are council members with a trial of their own, and every one of
+// those trials is guarded by this call - so the moment the chain moved off step 0, which happens
+// the first time you speak to Sigmund, Manni's drinking contest, Sigli's hunt, Olaf's lyre,
+// Thorvald's fight, Peer's house and Brundt's progress check ALL stopped responding, and stayed
+// that way for the twenty-seven steps of Sigmund's chain. Brundt tells you to go and speak to all
+// six, so nearly every player trips this on their first lap of Rellekka.
+//
+// The same early return also cost the sailor his Throne of Miscellania ferry, which is not part of
+// this quest at all.
+//
+// The hint itself was worth having and is not lost - ~viking_merchant_hint below gives it, called
+// only by the five links that have nothing of their own to say.
 return(false);
 
 [proc,viking_merchant_advance](int $step)
 %viking_bits = setbit_range_toint(%viking_bits, $step, ^viking_merchant_lo, ^viking_merchant_hi);
+
+// The out-of-order line, for the links in Sigmund's chain that are ONLY links in Sigmund's chain.
+// A council member with a trial of their own must never call this: falling through to that trial is
+// the whole point of the fix above. The sailor is left out too, because his own handler goes on to
+// offer the Miscellania crossing and this would return before it.
+[proc,viking_merchant_hint]()(boolean)
+if (%viking < ^viking_started) {
+    return(false);
+}
+if (testbit(%viking_bits, ^viking_vote_sigmund) = 1) {
+    return(false);
+}
+def_int $step = getbit_range(%viking_bits, ^viking_merchant_lo, ^viking_merchant_hi);
+if ($step = 0 | $step >= ^viking_merchant_done) {
+    return(false);
+}
+~chatnpc("<p,neutral>No, sorry. Can't help you with that yet.");
+return(true);
 
 [proc,viking_merchant_ask](int $step)
 switch_int ($step) {

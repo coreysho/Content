@@ -1,0 +1,234 @@
+// The Giant Dwarf - Keldagrim, the Consortium and a statue with the wrong head on it.
+
+// =========================================================================== the way in
+// Keldagrim has no entrance loc - the city has three interactive locs in total and none of them
+// is a door - so Hammerspike runs the cart. He is already placed in the tunnels between the
+// dwarven mine and the city, and the cache has the minecart tickets for exactly this route.
+// He also has a One Small Favour branch; this one claims him first only when it wants him.
+[proc,gd_hammerspike_wants]()(boolean)
+if (%giantdwarf_quest >= ^gd_complete) {
+    return(true);
+}
+if (%giantdwarf_quest >= ^gd_arrived) {
+    return(true);
+}
+if (%giantdwarf_quest = ^gd_not_started) {
+    return(true);
+}
+return(false);
+
+[label,gd_hammerspike]
+if (%giantdwarf_quest = ^gd_not_started) {
+    @gd_start;
+}
+~chatnpc("<p,neutral>Cart's there. Mind your head on the way through.");
+def_int $option = ~p_choice2("Take me to Keldagrim.", 1, "Not just now.", 2);
+if ($option = 2) {
+    ~chatplayer("<p,neutral>Not just now.");
+    return;
+}
+if_close;
+mes("The cart goes down a long way and then goes down further.");
+p_delay(4);
+p_teleport(^gd_keldagrim_arrive);
+if (%giantdwarf_quest = ^gd_arrived) {
+    %giantdwarf_quest = ^gd_refused;
+    ~send_quest_progress(questlist:giantdwarf, %giantdwarf_quest, ^gd_complete);
+    ~mesbox("A city under a mountain, built by people who have never once been impressed by anything. Nobody looks up as you arrive.");
+}
+
+[label,gd_start]
+~chatnpc("<p,angry>Humans do not come down this tunnel.");
+switch_int (~p_choice2("What's down it?", 1, "Sorry.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>Sorry.");
+        ~chatnpc("<p,angry>Aye.");
+        return;
+    case 1 :
+        ~chatplayer("<p,quiz>What's down it?");
+}
+~chatnpc("<p,neutral>Keldagrim. Capital city, eight companies, one Consortium and no king for four hundred years.");
+~chatplayer("<p,quiz>Can I go?");
+~chatnpc("<p,laugh>You can go. You will not get anywhere. The Consortium does not talk to outsiders and everything in that city goes through the Consortium.");
+~chatnpc("<p,neutral>Cart's there if you want to find that out for yourself.");
+%giantdwarf_quest = ^gd_arrived;
+~send_quest_progress(questlist:giantdwarf, %giantdwarf_quest, ^gd_complete);
+
+// =========================================================================== the trade referee
+[opnpc1,dwarf_city_trader_referee]
+switch_int (%giantdwarf_quest) {
+    case ^gd_refused : @gd_referee_explain;
+    case ^gd_sponsored :
+        ~chatnpc("<p,neutral>You are a director now, which means the statue commission is yours to lose. Blasidar is the sculptor. Go and be decisive at him.");
+    case default :
+        if (%giantdwarf_quest >= ^gd_red_axe_out) {
+            ~chatnpc("<p,happy>Seven companies. It has been eight for four hundred years and it is seven, and the floor has never been quieter.");
+            return;
+        }
+        ~chatnpc("<p,neutral>Keep off the floor unless you are trading on it.");
+}
+
+[label,gd_referee_explain]
+~chatplayer("<p,quiz>I want to speak to the Consortium.");
+~chatnpc("<p,laugh>Everybody does. The Consortium is eight companies and the eight companies do not agree about the time of day.");
+~chatnpc("<p,neutral>They will not hear an outsider. They will hear a director.");
+~chatplayer("<p,quiz>How does one become a director?");
+~chatnpc("<p,neutral>One of them makes you a temporary one, which they do when they want something doing that they would rather not be seen doing.");
+~chatnpc("<p,neutral>And right now seven of them want the King Alvis statue commission and the eighth already has it. The Red Axe. Go and offer yourself to any of the seven.");
+%giantdwarf_quest = ^gd_sponsored;
+// Which company takes the player on is theirs to pick; the statue's head ends up wearing it.
+%giantdwarf_current_company = ^gd_company_first;
+~send_quest_progress(questlist:giantdwarf, %giantdwarf_quest, ^gd_complete);
+~mesbox("The seven directors are all on the floor above. Any of them will do; they are identical in every way that matters and would all be offended to hear it.");
+
+// =========================================================================== Blasidar
+[opnpc1,dwarf_city_shop_sculpture]
+switch_int (%giantdwarf_quest) {
+    case ^gd_sponsored : @gd_blasidar_commission;
+    case ^gd_commission : @gd_blasidar_model;
+    case ^gd_model_done : @gd_blasidar_build;
+    case default :
+        if (%giantdwarf_quest >= ^gd_statue_done) {
+            ~chatnpc("<p,happy>Four hundred years of a king nobody living has met, and now he has boots on. Boots.");
+            return;
+        }
+        ~chatnpc("<p,neutral>Sculptures. Commissions. Not conversation.");
+}
+
+[label,gd_blasidar_commission]
+~chatplayer("<p,neutral>I'm a director. The statue commission.");
+~chatnpc("<p,angry>You are a director the way a chair is furniture. Somebody sat you there this morning.");
+~chatnpc("<p,neutral>But you are the first director in eleven months who has come to the sculptor instead of sending a letter about the sculptor, so.");
+~chatnpc("<p,neutral>The statue of King Alvis stands and has stood. What is argued about is the head, and nobody will settle it.");
+~chatplayer("<p,quiz>What would settle it?");
+~chatnpc("<p,neutral>A model. Something they can look at. I have the frame; you tell me what goes on it and I will make the thing and they will stop writing letters.");
+%giantdwarf_quest = ^gd_commission;
+~send_quest_progress(questlist:giantdwarf, %giantdwarf_quest, ^gd_complete);
+~chatnpc("<p,neutral>It is over there. Boots, torso and axe. All three, in whatever order you like - I am a sculptor, not a pedant.");
+
+[label,gd_blasidar_model]
+if (%giantdwarf_model_state = ^gd_model_finished) {
+    @gd_blasidar_build;
+}
+~chatnpc("<p,neutral>Boots, torso, axe. It is standing right there and it is still missing pieces.");
+
+[label,gd_blasidar_build]
+if (%giantdwarf_quest = ^gd_commission) {
+    %giantdwarf_quest = ^gd_model_done;
+    ~send_quest_progress(questlist:giantdwarf, %giantdwarf_quest, ^gd_complete);
+}
+if (%giantdwarf_statue_invis = ^gd_statue_down) {
+    ~chatnpc("<p,neutral>It is down and I am working. Come back.");
+    return;
+}
+~chatplayer("<p,happy>The model's finished.");
+~chatnpc("<p,shock>So it is. Right. Stand well back and do not tell the Consortium until it is done, because they will have opinions.");
+if_close;
+// Both statue shells declare multiloc=0 only, so setting the bit is what takes the statue away
+// while the head is changed.
+%giantdwarf_statue_invis = ^gd_statue_down;
+mes("The statue comes down in pieces over about an hour.");
+p_delay(5);
+%giantdwarf_original_company = %giantdwarf_current_company;
+%giantdwarf_statue_invis = ^gd_statue_up;
+%giantdwarf_quest = ^gd_statue_done;
+stat_advance(crafting, 5000);
+~send_quest_progress(questlist:giantdwarf, %giantdwarf_quest, ^gd_complete);
+~mesbox("It goes back up wearing the head of the company that sponsored you, and within the hour there are seven directors and one very quiet eighth standing in front of it.");
+
+// =========================================================================== the model
+// The model is a three-bit combination - 1 boots, 2 torso, 4 axe - and every pairing has its own
+// npc, so it is configured rather than assembled in order.
+[opnpc1,dwarf_city_shop_sculpture_model_multi]
+if (%giantdwarf_quest < ^gd_commission) {
+    ~mesbox("A wooden frame about three feet high, with nothing on it.");
+    return;
+}
+if (%giantdwarf_model_state = ^gd_model_finished) {
+    ~mesbox("Boots, torso and axe. It looks like somebody who would not be impressed by you, which Blasidar says is the whole point.");
+    return;
+}
+def_int $option = ~p_choice3("Add the boots.", ^gd_model_boots, "Add the torso.", ^gd_model_torso, "Add the axe.", ^gd_model_axe);
+if (testbit(%giantdwarf_model_state, ~gd_model_bit($option)) = ^true) {
+    mes("That is already on it.");
+    return;
+}
+%giantdwarf_model_state = setbit(%giantdwarf_model_state, ~gd_model_bit($option));
+mes("You fit the piece to the frame.");
+if (%giantdwarf_model_state ! ^gd_model_finished) {
+    return;
+}
+~mesbox("Boots, torso and axe. Blasidar will want to see this.");
+
+// setbit works on bit positions; the constants are the values those bits carry.
+[proc,gd_model_bit](int $value)(int)
+switch_int ($value) {
+    case ^gd_model_boots : return(0);
+    case ^gd_model_torso : return(1);
+    case ^gd_model_axe : return(2);
+}
+return(0);
+
+// =========================================================================== the Red Axe
+// Six shells key on giantdwarf_red_axe_gone and two more on giantdwarf_red_traders_gone, all of
+// them multinpc=0 only - so the director, the secretary, the cat, the three gnome emissaries and
+// both traders are present at 0 and all vanish together. Two writes empty their half of the floor.
+[opnpc1,dwarf_city_director_red_axe_multi]
+if (%giantdwarf_quest < ^gd_statue_done) {
+    ~chatnpc("<p,angry>The Red Axe does not deal with temporary anything.");
+    return;
+}
+if (%giantdwarf_red_axe_gone = ^gd_gone) {
+    return;
+}
+~chatplayer("<p,neutral>The commission went elsewhere.");
+~chatnpc("<p,angry>It did. Four hundred years of the Red Axe on that plinth and a human in a borrowed title walks it away in a week.");
+~chatplayer("<p,quiz>Four hundred years? The statue is of the king.");
+~chatnpc("<p,angry>...");
+~chatnpc("<p,angry>Get out.");
+if_close;
+mes("He does not shout for the guards. He goes very still, and then he starts giving orders to people who are already packing.");
+p_delay(4);
+~mesbox("The Red Axe had the commission for four hundred years and the head on that statue was never the king's. Seven directors are going to want to hear that.");
+%giantdwarf_quest = ^gd_red_axe_out;
+~send_quest_progress(questlist:giantdwarf, %giantdwarf_quest, ^gd_complete);
+
+// =========================================================================== the Supreme Commander
+[opnpc1,dwarf_city_black_guard_supreme_leader]
+// Forgettable Tale of a Drunken Dwarf picks him up once this quest is done. A trigger can only be
+// declared once, so its Veldaban is a proc in quests/quest_forget/scripts/quest_forget.rs2.
+if (~forget_veldaban = true) {
+    return;
+}
+if (%giantdwarf_quest ! ^gd_red_axe_out) {
+    if (%giantdwarf_quest >= ^gd_complete) {
+        ~chatnpc("<p,happy>Seven companies and a statue with the right face on it. I have had worse decades.");
+        return;
+    }
+    ~chatnpc("<p,neutral>The Black Guard does not police the Consortium. The Consortium would like everyone to remember that.");
+    return;
+}
+~chatplayer("<p,angry>The Red Axe has had the statue commission for four hundred years and the head on it was never King Alvis.");
+~chatnpc("<p,shock>You are certain.");
+~chatplayer("<p,neutral>Their own director said it.");
+if_close;
+mes("The Supreme Commander sends four runners out of the room before you have finished the sentence.");
+p_delay(4);
+// Two bits, eight shells, and the whole Red Axe presence goes at once.
+%giantdwarf_red_axe_gone = ^gd_gone;
+%giantdwarf_red_traders_gone = ^gd_gone;
+~mesbox("By the time you reach the trade floor their stalls are bare, their emissaries are gone and there is a space on it that nobody is standing in.");
+@gd_finish;
+
+[label,gd_finish]
+%giantdwarf_quest = ^gd_complete;
+stat_advance(mining, 25000);
+stat_advance(smithing, 25000);
+stat_advance(crafting, 25000);
+session_log(^log_adventure, "Quest complete: The Giant Dwarf");
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, dwarf_minecart_ticket_kelda_ice, 1);
+} else {
+    obj_add(coord, dwarf_minecart_ticket_kelda_ice, 1, ^lootdrop_duration);
+}
+~send_quest_complete(questlist:giantdwarf, dwarf_minecart_ticket_kelda_ice, 200, ^gd_questpoints, "You have completed\\nThe Giant Dwarf!", "2 Quest Points|2,500 Mining XP|2,500 Smithing XP|2,500 Crafting XP|Keldagrim is open");

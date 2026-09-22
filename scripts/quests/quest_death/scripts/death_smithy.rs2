@@ -1,4 +1,21 @@
 [opnpc1,death_smithy]
+// --- Troll Romance: Dunstan builds the sled ---
+// ^troll_love_bring_dunstan_materials (20) and ^troll_love_dunstan_made_sled (22) had no
+// assignment anywhere in the repo, and trollromance_toboggon was never added to anyone's
+// inventory - only ever read and deleted. So Troll Romance stopped dead at
+// ^troll_love_learnt_about_trollweiss: no sled meant no waxed sled, no trollweiss, no Arrg, and
+// the completion queue at quest_troll_love.rs2 was unreachable.
+//
+// [proc,trollromance_dunstan_has_materials] was already written for exactly this and had no
+// callers, so the material list is its, not an invention: yew or maple logs for the runners, an
+// iron bar, and a rope.
+//
+// First in the handler so nothing below can shadow it, and bounded to the two stages it serves.
+// Troll Romance requires Troll Stronghold finished, so this can never collide with the
+// %troll_quest branches underneath.
+if(%troll_love = ^troll_love_learnt_about_trollweiss | %troll_love = ^troll_love_bring_dunstan_materials) {
+    @dunstan_sled;
+}
 if(%troll_quest = ^troll_freed_godric) {
     ~chatplayer("<p,neutral>Has Godric returned home?");
     ~chatnpc("<p,happy>He is safe and sound, thanks to you my friend!");
@@ -60,6 +77,40 @@ if(~death_get_map = ^death_spoken_smithy) {
 switch_obj(last_useitem) {
     case default : ~chatnpc("<p,confused>Sorry friend, but I can't do anything with that.");
 }
+
+[label,dunstan_sled]
+if(%troll_love = ^troll_love_learnt_about_trollweiss) {
+    ~chatplayer("<p,neutral>I need to get to the snowy peak north of here. I'm told a sled is the only way down it.");
+    ~chatnpc("<p,quiz>A sled? Aye, I could knock one together. It's not smithing, mind - but I've built worse.");
+    ~chatnpc("<p,neutral>Bring me yew or maple logs for the runners, an iron bar for the fittings, and a rope to hang on to.");
+    ~chatplayer("<p,happy>I'll go and get them.");
+    %troll_love = ^troll_love_bring_dunstan_materials;
+    return;
+}
+// ^troll_love_bring_dunstan_materials
+if(~trollromance_dunstan_has_materials = false) {
+    ~chatnpc("<p,quiz>Have you got those materials yet?|Yew or maple logs, an iron bar, and a rope.");
+    ~chatplayer("<p,sad>Not all of them, no.");
+    ~chatnpc("<p,neutral>Then off you go. I'll not build half a sled.");
+    return;
+}
+~chatplayer("<p,happy>I've got everything you asked for.");
+~chatnpc("<p,happy>Then give me a moment and a bit of peace.");
+// Three items out, one in - no space check needed, and the deletes come first regardless.
+if(inv_total(inv, yew_logs) > 0) {
+    inv_del(inv, yew_logs, 1);
+} else {
+    inv_del(inv, maple_logs, 1);
+}
+inv_del(inv, iron_bar, 1);
+inv_del(inv, rope, 1);
+if_close;
+mes("Dunstan sets to work.");
+p_delay(3);
+inv_add(inv, trollromance_toboggon, 1);
+%troll_love = ^troll_love_dunstan_made_sled;
+~chatnpc("<p,happy>There. One sled.|It'll not win any races, but it'll get you down a mountain.");
+~chatnpc("<p,neutral>Wax the runners before you try it, or you'll be walking.");
 
 [label,dunstan_anythingelse]
 ~chatnpc("<p,neutral>Anything else before I get on with my work?");

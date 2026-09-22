@@ -1,0 +1,56 @@
+[if_button,questlist:deal]
+def_string $text;
+
+switch_int (%deal_quest) {
+    case ^deal_not_started :
+        $text = "@dbl@There is a @dre@rowboat@dbl@ inside the wall at @dre@Port Phasmatys|";
+        $text = append($text, "@dbl@with a @dre@pirate@dbl@ sitting next to it who is not a ghost");
+
+    case ^deal_island :
+        $text = "@str@Braindeath Island. Captain Braindeath brews rum on it and|";
+        $text = append($text, "@str@has not managed to brew any in eight months.|");
+        $text = append($text, "@str@Three things are stopping him:||");
+        $text = append($text, "@dbl@The @dre@crew@dbl@ - six @dre@Zombie Swabs@dbl@ out the front, and they|");
+        $text = append($text, "@dbl@will do as they are told if somebody @dre@intimidates@dbl@ them|");
+        $text = append($text, "@dbl@The @dre@vat@dbl@, eaten through at the tap|");
+        $text = append($text, "@dbl@The @dre@ingredients");
+
+    case ^deal_crew :
+        $text = "@str@All six swabs are working, badly, which is the most that|";
+        $text = append($text, "@str@has happened here in eight months.|");
+        $text = append($text, "@dbl@The @dre@wrench@dbl@ is in the @dre@broom cupboard|");
+        $text = append($text, "@dbl@@dre@Davey@dbl@ does the blessing|");
+        $text = append($text, "@dbl@Then the @dre@output tap");
+
+    case ^deal_vat :
+        $text = "@str@The vat holds. Five things go in the hopper:||";
+        $text = append($text, "@dbl@@dre@Blindweed@dbl@ - the patch is overgrown, and the @dre@seed@dbl@ and|");
+        $text = append($text, "@dbl@kit are in the cupboard|");
+        $text = append($text, "@dbl@A @dre@bucket@dbl@ of the @dre@stagnant lake@dbl@ - not the sea|");
+        $text = append($text, "@dbl@A whole @dre@fever spider|");
+        $text = append($text, "@dbl@A @dre@karamthulhu@dbl@ - the fishing spots round the shore have|");
+        $text = append($text, "@dbl@nothing else in them|");
+        $text = append($text, "@dbl@And @dre@sluglings@dbl@, which @dre@Captain Donnie@dbl@ keeps");
+
+    case ^deal_brewing :
+        $text = "@str@All five are in and the hopper has started turning on its|";
+        $text = append($text, "@str@own, which nobody asked it to do.|");
+        $text = append($text, "@dbl@@dre@Five pulls@dbl@ on the @dre@pressure lever");
+
+    case ^deal_spirit :
+        $text = "@str@Something came up the pipe that was not rum and it had been|";
+        $text = append($text, "@str@in that vat a long time.|");
+        $text = append($text, "@dbl@Tell @dre@Captain Braindeath");
+
+    case ^deal_complete :
+        $text = "@str@Braindeath rum: blindweed, stagnant water, a whole fever|";
+        $text = append($text, "@str@spider, a squid and some sluglings.|");
+        $text = append($text, "@str@Nobody has ever asked what is in it and Captain Braindeath|");
+        $text = append($text, "@str@would like to keep it that way.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+
+    case default :
+        $text = "@dbl@There is a @dre@rowboat@dbl@ inside the wall at @dre@Port Phasmatys";
+}
+
+~quest_journal("Rum Deal", $text);

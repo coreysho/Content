@@ -1,0 +1,59 @@
+[if_button,questlist:ics_little]
+def_string $text;
+
+switch_int (%ics_little_var) {
+    case ^icslittle_not_started :
+        $text = "@dbl@I can start this quest by speaking to the @dre@High Priest|@dbl@in @dre@Sophanem|";
+        $text = append($text, "@dbl@I will need @dre@level 30 Agility");
+
+    case ^icslittle_asked :
+        $text = "@str@Sophanem has been shut up with plague, flies, locusts and|";
+        $text = append($text, "@str@frogs for eleven years, and Klenter - the high priest|");
+        $text = append($text, "@str@before this one - has died unprepared.|");
+        $text = append($text, "@dbl@I should speak to the @dre@embalmer");
+
+    case ^icslittle_has_method :
+        $text = "@str@The embalmer needs three things: salt to dry Klenter, sap|";
+        $text = append($text, "@str@to seal him, and linen to wrap him. He has given me the|");
+        $text = append($text, "@str@salt and the sap.|");
+        $text = append($text, "@dbl@I should get a sheet of @dre@linen@dbl@ from @dre@Siamun");
+
+    case ^icslittle_has_ingredients :
+        $text = "@str@I have the salt, the sap and the linen.|";
+        $text = append($text, "@dbl@I should take them to the @dre@High Priest");
+
+    case ^icslittle_embalmed :
+        $text = "@str@Klenter has been embalmed properly, and his ghost has|";
+        $text = append($text, "@str@rather a lot to say about it.|");
+        $text = append($text, "@dbl@I should bring up all @dre@four canopic jars@dbl@ from the @dre@tomb|");
+        $text = append($text, "@dbl@below the city");
+
+    case ^icslittle_ceremony :
+        $text = "@str@I have the four canopic jars - a man, an ape, a bug and a|";
+        $text = append($text, "@str@crocodile - and the burial party has assembled below.|");
+        $text = append($text, "@dbl@I should take the jars to the @dre@High Priest@dbl@ at the ceremony");
+
+    case ^icslittle_jars_placed :
+        $text = "@str@The jars are placed and the ceremony has begun.|";
+        $text = append($text, "@dbl@I should @dre@stand back and watch");
+
+    case ^icslittle_icthlarin :
+        $text = "@str@Icthlarin himself has come for Klenter's soul.|";
+        $text = append($text, "@dbl@I should speak to @dre@Icthlarin");
+
+    case ^icslittle_devoured :
+        $text = "@str@Something took Klenter's body out of the ceremony, in|";
+        $text = append($text, "@str@front of the god who came to collect him.|");
+        $text = append($text, "@dbl@I should speak to the @dre@High Priest");
+
+    case ^icslittle_complete :
+        $text = "@str@Sophanem has been sealed up with plague for eleven years,|";
+        $text = append($text, "@str@and its old high priest Klenter died without anyone left|");
+        $text = append($text, "@str@who could prepare him.|");
+        $text = append($text, "@str@I had him embalmed, brought up his canopic jars and stood|");
+        $text = append($text, "@str@through the burial - and watched the Devourer take his body|");
+        $text = append($text, "@str@out of the room in front of Icthlarin himself.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+}
+
+~quest_journal("Icthlarin's Little Helper", $text);

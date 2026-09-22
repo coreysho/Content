@@ -1,0 +1,132 @@
+// Shades of Mort'ton - Razmire, Ulsquire and the afflicted.
+//
+// Neither razmire_keelgan nor ulsquire_shauncy is placed anywhere in the map data - only their
+// _afflicted versions are - and with no multivar there is nothing to swap between them. So the
+// serum changes what they say, not what is standing there, and ^razmire_visible and
+// ^ulsquire_visible are bits in %morttonmulti rather than varbits, so they cannot render anything
+// either.
+//
+// The cost of that is real: razmire_keelgan carries op3=Trade-General-Store and
+// op4=Trade-Builders-Store, and razmire_keelgan_afflicted has op1=Talk-to and nothing else. Both
+// shops would be unreachable as placed, so they are offered inside his dialogue.
+
+[opnpc1,razmire_keelgan_afflicted]
+if (testbit(%morttonmulti, ^razmire_visible) = ^false) {
+    @mortton_razmire_afflicted;
+}
+@mortton_razmire_lucid;
+
+[label,mortton_razmire_afflicted]
+~chatnpc("<p,sad>...bricks. I have bricks. Do you want. Bricks.");
+~chatplayer("<p,quiz>Are you all right?");
+~chatnpc("<p,sad>I have bricks.");
+if (%morttonquest = ^mortton_not_started) {
+    ~mesbox("There is a man in there somewhere. Whatever has been done to this town has been done to him too, and there is a diary on a shelf in one of the ruined houses that might be worth reading.");
+    return;
+}
+~mesbox("He is not going to tell you anything in this state. Serum 207 might give him back enough of himself to speak.");
+
+[label,mortton_razmire_lucid]
+if (%morttonquest >= ^mortton_complete) {
+    ~chatnpc("<p,happy>The temple is lit. Nobody has said that in my lifetime.");
+    @mortton_razmire_shops;
+    return;
+}
+switch_int (%morttonquest) {
+    case ^mortton_kill_shades :
+        ~chatnpc("<p,neutral>Five of them. Put down five and I will believe you can put down the rest.");
+    case ^mortton_killed_5_shades : @mortton_razmire_after_shades;
+    case ^mortton_shades_to_razmire :
+        ~chatnpc("<p,neutral>Ulsquire. He was the one who kept the temple records. Go and give him a dose of that stuff too.");
+    case default :
+        ~chatnpc("<p,neutral>The temple, then. And you will need a flamtaer hammer, which by great good fortune I sell.");
+}
+@mortton_razmire_shops;
+
+[label,mortton_razmire_after_shades]
+~chatplayer("<p,neutral>Five of them are down.");
+~chatnpc("<p,sad>Then you have seen what they do. They do not kill you, they use you up, and the town has been being used up for a very long time.");
+~chatplayer("<p,quiz>Can it be stopped?");
+~chatnpc("<p,neutral>The temple. While the flame was lit they could not come into the town at all. The walls came down and the flame went out and here we are.");
+~chatnpc("<p,neutral>Ulsquire kept the records. Give him a dose of the serum - he will know what the flame needs.");
+%morttonquest = ^mortton_shades_to_razmire;
+~send_quest_progress(questlist:mortton, %morttonquest, ^mortton_complete);
+
+[label,mortton_razmire_shops]
+def_int $option = ~p_choice3("Let's see the general store.", 1, "Let's see the builder's store.", 2, "Nothing, thanks.", 3);
+switch_int ($option) {
+    case 1 : ~openshop_activenpc;
+    case 2 : ~openshop_activenpc;
+    case 3 : ~chatplayer("<p,neutral>Nothing, thanks.");
+}
+
+// =========================================================================== Ulsquire
+[opnpc1,ulsquire_shauncy_afflicted]
+if (testbit(%morttonmulti, ^ulsquire_visible) = ^false) {
+    ~chatnpc("<p,sad>...records. Kept the records. All of them. Kept.");
+    ~mesbox("Another one. Serum 207 might reach him.");
+    return;
+}
+if (%morttonquest >= ^mortton_complete) {
+    ~chatnpc("<p,happy>I have written today down. It is the first entry in eleven years that is not a death.");
+    return;
+}
+if (%morttonquest >= ^mortton_ulsquire_temple) {
+    ~chatnpc("<p,neutral>Walls first, then the altar. Then oil, then wood, then a body, then a light. In that order or not at all.");
+    return;
+}
+~chatplayer("<p,quiz>Razmire says you kept the temple records.");
+~chatnpc("<p,neutral>I did. I keep them still, which is a joke I have stopped finding funny.");
+~chatnpc("<p,neutral>The flame is not for warmth. It is for burning them - properly, with oil that has been through the flame itself, on wood that has been through the same.");
+~chatnpc("<p,neutral>Put the walls back, light the altar, bless the oil on it, oil the wood, lay the remains on a pyre, and light that.");
+~chatplayer("<p,quiz>And then?");
+~chatnpc("<p,sad>And then one of them is finished instead of just stopped. That is the whole of it.");
+%morttonquest = ^mortton_ulsquire_temple;
+~send_quest_progress(questlist:mortton, %morttonquest, ^mortton_complete);
+
+// =========================================================================== the serum
+// Four doses down to one, then the empty vial. The afflicted villagers are the ones the diary is
+// about, so a dose works on any of them - but only Razmire and Ulsquire have anything to say.
+[opnpcu,razmire_keelgan_afflicted] @mortton_dose(^razmire_visible, ^mortton_used_serum_on_razmire);
+[opnpcu,ulsquire_shauncy_afflicted] @mortton_dose(^ulsquire_visible, ^mortton_used_serum_on_ulsquire);
+[opnpcu,mort_afflicted_man] @mortton_dose(-1, -1);
+[opnpcu,mort_afflicted_woman] @mortton_dose(-1, -1);
+[opnpcu,mort_afflicted_man2] @mortton_dose(-1, -1);
+[opnpcu,mort_afflicted_woman2] @mortton_dose(-1, -1);
+
+[label,mortton_dose](int $visible_bit, int $used_bit)
+def_obj $item = last_useitem;
+def_namedobj $left;
+switch_obj ($item) {
+    case mort_serum4 : $left = mort_serum3;
+    case mort_serum3 : $left = mort_serum2;
+    case mort_serum2 : $left = mort_serum1;
+    case mort_serum1 : $left = vial_empty;
+    case default : ~displaymessage(^dm_default); return;
+}
+if ($visible_bit > -1 & testbit(%morttonmulti, $visible_bit) = ^true) {
+    ~chatnpc("<p,neutral>I have had a dose. Save it for somebody who has not.");
+    return;
+}
+inv_del(inv, $item, 1);
+inv_add(inv, $left, 1);
+if_close;
+mes("You get a dose of Serum 207 into them.");
+p_delay(3);
+stat_advance(herblore, 250);
+if ($visible_bit = -1) {
+    ~mesbox("They stop clawing at themselves for a moment, look at you as though they had only just arrived, and then it goes again.");
+    return;
+}
+%morttonmulti = setbit(%morttonmulti, $visible_bit);
+%morttonmulti = setbit(%morttonmulti, $used_bit);
+~mesbox("They come back. Not all the way, and not for long, but far enough to hold a conversation.");
+// Curing Razmire is what puts the player onto the shades.
+if ($visible_bit = ^razmire_visible & %morttonquest = ^mortton_made_serum) {
+    %morttonquest = ^mortton_kill_shades;
+    ~send_quest_progress(questlist:mortton, %morttonquest, ^mortton_complete);
+}
+if ($visible_bit = ^ulsquire_visible & %morttonquest = ^mortton_shades_to_razmire) {
+    %morttonquest = ^mortton_shades_to_ulsquire;
+    ~send_quest_progress(questlist:mortton, %morttonquest, ^mortton_complete);
+}

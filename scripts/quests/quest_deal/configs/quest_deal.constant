@@ -1,0 +1,78 @@
+// Rum Deal.
+//
+// Two varps. deal_quest is the spine; deal_var carries thirteen varbits, and between them and the
+// loc ops the whole quest is already described.
+//
+//   deal_barrel          bits 1-4    0-15, and deal_multi_lever reads it: lever_down at 0,1,2,3,4
+//                                    and lever_up at 5. Five pulls.
+//   deal_multi_hopper    bits 5-6    deal_multicontrol: control -> spin -> work
+//   deal_squidfish       bits 7-10
+//   deal_slug            bits 11-14
+//   deal_thulhu          bits 15-19
+//   deal_multi_pirate_a  bit 20      \
+//   ...                              |  six bits, and there are six Zombie Swabs placed on the
+//   deal_multi_pirate_f  bit 25     /   island, every one of them carrying op3=Intimidate
+//   deal_diversion       bits 26-28
+//   deal_farming         bits 29-31  deal_blindweed: weeds3 -> weeds2 -> weeds1 -> empty -> seed
+//                                    -> fullygrown, and only fullygrown carries op1=Pick
+//
+// The farming varbit is a six-state patch written into the config: three passes of weeding, an
+// empty bed, a planted seed and a crop. Nothing about it needed guessing.
+//
+// ---------------------------------------------------------------------------- the boat
+// deal_boat is placed twice: on Braindeath Island, and at 3680,3554, which is inside the Port
+// Phasmatys wall - so this quest only became reachable when the energy barrier got a handler
+// earlier today. Pirate Pete is standing next to the Phasmatys one.
+//
+// ---------------------------------------------------------------------------- what goes in the vat
+// The obj descriptions name the recipe:
+//   Blindweed          "An inedible, foul smelling herb."
+//   Bucket of water    "It's a bucket of... water?"        from the stagnant lake
+//   Fever spider body  "A diseased deceased Fever Spider. Handle with care."
+//   Karamthulhu        "A sinister looking squid."          deal_squid is a Fishing spot
+//   Sluglings          "They look at you balefully. 'Feed us...'"
+// and what comes out:
+//   Unsanitary swill   "Sorry, I mean a bucket of 'rum'."
+^deal_not_started = 0
+^deal_island = 1         // Braindeath has explained the situation
+^deal_crew = 2           // all six swabs intimidated
+^deal_vat = 3            // the tap, with a holy wrench
+^deal_brewing = 4        // everything in the hopper
+^deal_spirit = 5         // what came out of the vat
+^deal_complete = 6
+
+^deal_off = 0
+^deal_on = 1
+
+// deal_farming, straight off the multiloc table
+^deal_weeds3 = 0
+^deal_weeds2 = 1
+^deal_weeds1 = 2
+^deal_empty = 3
+^deal_seeded = 4
+^deal_grown = 5
+
+// deal_barrel, straight off deal_multi_lever
+^deal_pressure_full = 5
+
+^deal_squid_wanted = 1
+^deal_slug_wanted = 1
+
+// ---------------------------------------------------------------------------- places
+// Braindeath Island is m33_79 and m33_80.
+^deal_phasmatys_boat = 0_57_55_32_18     // 3680,3554
+^deal_pete_phasmatys = 0_57_55_32_17
+^deal_island_boat = 0_33_79_49_60
+^deal_island_landing = 0_33_79_49_59
+^deal_braindeath = 1_33_79_32_53
+^deal_davey = 1_33_79_20_44
+^deal_luke = 0_33_79_8_40
+^deal_donnie = 0_33_79_38_22
+^deal_patch = 0_33_79_50_13
+^deal_cupboard = 0_33_79_45_37
+^deal_gate = 1_33_79_8_42
+^deal_tap = 1_33_79_30_37
+^deal_hopper_coord = 2_33_79_30_46
+^deal_pressure_coord = 2_33_79_29_46
+^deal_lever = 2_33_79_29_47
+^deal_control = 1_33_79_31_44

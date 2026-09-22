@@ -1,0 +1,64 @@
+[if_button,questlist:routequest]
+def_string $text;
+
+switch_int (%routequest) {
+    case ^route_not_started :
+        $text = "@dbl@There is a @dre@trapdoor@dbl@ in the @dre@Hair of the Dog@dbl@ tavern in|";
+        $text = append($text, "@dbl@@dre@Canifis@dbl@, and everybody in Canifis knows about it, and|");
+        $text = append($text, "@dbl@nobody has ever gone down it");
+
+    case ^route_found :
+        $text = "@str@Under Canifis there is a cave system with six people living|";
+        $text = append($text, "@str@in it. Sixty years ago there were four hundred.|");
+        $text = append($text, "@str@Veliaf Hurtz does not take anybody's word for anything.|");
+        $text = append($text, "@dbl@Answer his @dre@three questions");
+
+    case ^route_tested :
+        $text = "@str@Three out of three.|";
+        $text = append($text, "@dbl@Hear him out");
+
+    case ^route_route :
+        $text = "@str@There is one way out of the Hollows and it comes up in a|";
+        $text = append($text, "@str@pub in a village of werewolves. Every Myreque lost in|");
+        $text = append($text, "@str@twenty years was lost on that ladder.|");
+        $text = append($text, "@str@There is a southern road. It is in three pieces:||");
+
+        if (testbit(%routequest_myreque_bits, ^route_bit_ladder) = ^true) {
+            $text = append($text, "@gre@The ladder - three rungs back in|");
+        } else {
+            $text = append($text, "@dbl@The @dre@broken ladder@dbl@ in the Hollows - three rungs, so|");
+            $text = append($text, "@dbl@@dre@planks@dbl@, a @dre@hammer@dbl@ and @dre@nails|");
+        }
+
+        if (testbit(%routequest_myreque_bits, ^route_bit_cyreg) = ^true) {
+            $text = append($text, "@gre@Cyreg Paddlehorn - the boat is theirs|");
+        } else {
+            $text = append($text, "@dbl@@dre@Cyreg Paddlehorn@dbl@, at the boat in the @dre@south swamp|");
+        }
+
+        if (testbit(%routequest_myreque_bits, ^route_bit_curpile) = ^true) {
+            $text = append($text, "@gre@Curpile Fyod - the north road is theirs|");
+        } else {
+            $text = append($text, "@dbl@@dre@Curpile Fyod@dbl@, on the @dre@north road|");
+        }
+
+    case ^route_reported :
+        $text = "@str@All three. Sixty years and they have a road.|";
+        $text = append($text, "@dbl@@dre@Veliaf@dbl@ was about to say something about supply lines");
+
+    case ^route_complete :
+        $text = "@str@There has been a man sitting in the Hair of the Dog for|";
+        $text = append($text, "@str@twenty years, buying nothing, directly above the only way|");
+        $text = append($text, "@str@in and out of the Myreque's hideout.|");
+        $text = append($text, "@str@Vanstrom Klause. He left the day we opened a second road,|");
+        $text = append($text, "@str@which means he is not worried about it.|");
+        $text = append($text, "@str@Curpile Fyod spent eleven years reporting Myreque movements|");
+        $text = append($text, "@str@to him and thought he was reporting smugglers.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+
+    case default :
+        $text = "@dbl@There is a @dre@trapdoor@dbl@ in the @dre@Hair of the Dog@dbl@ tavern in|";
+        $text = append($text, "@dbl@@dre@Canifis");
+}
+
+~quest_journal("In Search of the Myreque", $text);

@@ -198,10 +198,28 @@ if (~farming_protectable($a) = false) {
 ~farming_offer_protection($a);
 
 // ---------------------------------------------------------------- allotment gardeners
-[opnpc1,elstan]   ~farming_farmer(^farming_patch_veg_patch_1, ^farming_patch_veg_patch_2);
-[opnpc1,dantaera] ~farming_farmer(^farming_patch_veg_patch_3, ^farming_patch_veg_patch_4);
-[opnpc1,kragen]   ~farming_farmer(^farming_patch_veg_patch_5, ^farming_patch_veg_patch_6);
-[opnpc1,lyra]     ~farming_farmer(^farming_patch_veg_patch_7, ^farming_patch_veg_patch_8);
+// These four are also Garden of Tranquillity's seed suppliers - garden_varp_1 carries an
+// elstan, dantaera, kragen and lyra varbit each - so that quest claims the conversation while it
+// still wants something from them and hands it straight back afterwards.
+// @garden_gardener is in quests/quest_garden/scripts/garden_npcs.rs2.
+[opnpc1,elstan]
+// Forgettable Tale: forget_gardener_letter is "A letter addressed to Elstan of Falador", and the
+// man who wrote it has been trying to post it out of Keldagrim for two years.
+if (~forget_elstan = true) { return; }
+if (~garden_wants(1) = true) { @garden_gardener(1); }
+~farming_farmer(^farming_patch_veg_patch_1, ^farming_patch_veg_patch_2);
+
+[opnpc1,dantaera]
+if (~garden_wants(4) = true) { @garden_gardener(4); }
+~farming_farmer(^farming_patch_veg_patch_3, ^farming_patch_veg_patch_4);
+
+[opnpc1,kragen]
+if (~garden_wants(2) = true) { @garden_gardener(2); }
+~farming_farmer(^farming_patch_veg_patch_5, ^farming_patch_veg_patch_6);
+
+[opnpc1,lyra]
+if (~garden_wants(3) = true) { @garden_gardener(3); }
+~farming_farmer(^farming_patch_veg_patch_7, ^farming_patch_veg_patch_8);
 
 // ---------------------------------------------------------------- hops
 // francis is Entrana; the numbered npcs are Yanille, Lumbridge and McGrubor's Wood.

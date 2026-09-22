@@ -413,6 +413,14 @@ switch_namedobj($herb) {
 }
 
 [label,trufitus_finish_quest]
+// junglepotion_quest_complete is a queue, so the stage does not move until it runs. Talking to
+// Trufitus again in the meantime re-entered this label and queued it a second time, paying the 775
+// Herblore XP twice. Move the stage here, where it is immediate, and let the queue do the rest.
+// (Quest points are safe either way - ~count_questpoints recounts rather than accumulating.)
+if (%junglepotion >= ^junglepotion_complete) {
+    return;
+}
+%junglepotion = ^junglepotion_complete;
 ~mesbox("<npc_name> shows you some techniques in Herblore.|You gain some experience in Herblore.");
 queue(junglepotion_quest_complete, 0, 0);
 

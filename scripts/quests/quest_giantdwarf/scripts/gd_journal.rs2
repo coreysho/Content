@@ -1,0 +1,62 @@
+[if_button,questlist:giantdwarf]
+def_string $text;
+
+switch_int (%giantdwarf_quest) {
+    case ^gd_not_started :
+        $text = "@dbl@I can start this quest by finding the @dre@dwarven tunnels|";
+        $text = append($text, "@dbl@and speaking to @dre@Hammerspike Stoutbeard");
+
+    case ^gd_arrived :
+        $text = "@str@Keldagrim: a capital city under a mountain, eight|";
+        $text = append($text, "@str@companies, one Consortium and no king for four hundred|");
+        $text = append($text, "@str@years.|");
+        $text = append($text, "@dbl@@dre@Hammerspike@dbl@ runs the cart down");
+
+    case ^gd_refused :
+        $text = "@str@Nobody in Keldagrim looked up when I arrived.|";
+        $text = append($text, "@dbl@The @dre@Trade Referee@dbl@ on the trade floor can explain why|");
+        $text = append($text, "@dbl@nothing here happens without the Consortium");
+
+    case ^gd_sponsored :
+        $text = "@str@The Consortium will not hear an outsider, but it will hear|";
+        $text = append($text, "@str@a director - and seven of the eight companies want the|");
+        $text = append($text, "@str@King Alvis statue commission that the eighth already has.|");
+        $text = append($text, "@dbl@@dre@Blasidar the sculptor@dbl@ has the commission to lose");
+
+    case ^gd_commission :
+        $text = "@str@What the Consortium argues about is the statue's head, and|";
+        $text = append($text, "@str@Blasidar wants a model to end the argument.|");
+        $text = append($text, "@dbl@Put the @dre@boots@dbl@, the @dre@torso@dbl@ and the @dre@axe@dbl@ on the model|");
+        $text = append($text, "@dbl@beside him, in any order");
+
+    case ^gd_model_done :
+        $text = "@str@The model is finished.|";
+        $text = append($text, "@dbl@@dre@Blasidar@dbl@ will want to see it");
+
+    case ^gd_statue_done :
+        $text = "@str@The statue went back up wearing my sponsor's head, and|";
+        $text = append($text, "@str@there are seven directors and one very quiet eighth|");
+        $text = append($text, "@str@standing in front of it.|");
+        $text = append($text, "@dbl@The @dre@Red Axe director@dbl@ has something to say about four|");
+        $text = append($text, "@dbl@hundred years");
+
+    case ^gd_red_axe_out :
+        $text = "@str@The Red Axe held that commission for four hundred years and|";
+        $text = append($text, "@str@the head on the statue was never King Alvis's.|");
+        $text = append($text, "@dbl@The @dre@Supreme Commander@dbl@ of the Black Guard needs to hear|");
+        $text = append($text, "@dbl@that");
+
+    case ^gd_complete :
+        $text = "@str@Keldagrim has had no king for four hundred years and a|";
+        $text = append($text, "@str@statue of one the whole time - except the face on it was|");
+        $text = append($text, "@str@never his. It was the Red Axe's, and they had renewed their|");
+        $text = append($text, "@str@own commission every generation since.|");
+        $text = append($text, "@str@There are seven companies now.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+
+    case default :
+        $text = "@dbl@I can start this quest by finding the @dre@dwarven tunnels|";
+        $text = append($text, "@dbl@and speaking to @dre@Hammerspike Stoutbeard");
+}
+
+~quest_journal("The Giant Dwarf", $text);

@@ -732,13 +732,20 @@ switch_coord (loc_coord) {
 
 [oploc1,fenk_stairs_lv1]
 // arrive delay?
+// Fenkenstrain's castle, m55_55. Two staircases, west and east, both plane 0 -> plane 1. The top
+// of each is one tile north (fenk_stairs_lv1_top at 17,32 and 39,32), and the stair loc itself is
+// the only blocker on its tile, so the landing goes on the free tile beside it rather than on it.
 switch_coord (loc_coord) {
+    case 0_55_55_17_31 : p_telejump(1_55_55_17_31); // west staircase - level 0
+    case 0_55_55_39_31 : p_telejump(1_55_55_39_31); // east staircase - level 0
     case default : @unhandled_stairs(loc_coord);
 }
 
 [oploc1,fenk_stairs_lv1_top]
 // arrive delay?
 switch_coord (loc_coord) {
+    case 1_55_55_17_32 : p_telejump(0_55_55_17_32); // west staircase - level 1
+    case 1_55_55_39_32 : p_telejump(0_55_55_39_32); // east staircase - level 1
     case default : @unhandled_stairs(loc_coord);
 }
 
@@ -936,7 +943,10 @@ switch_coord (loc_coord) {
 // only be reached in state 1, when the tunnel is open. The body is still the unbuilt Mourning's End
 // Part II stub it always was.
 [oploc1,cavewalltunnel_to_temple]
-// arrive delay?
+// Mourning's End Part II is built now, and this is its front door.
+if (~mt_tunnel = true) {
+    return;
+}
 switch_coord (loc_coord) {
     case default : @unhandled_stairs(loc_coord);
 }

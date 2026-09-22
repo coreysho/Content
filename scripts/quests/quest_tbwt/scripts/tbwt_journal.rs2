@@ -1,0 +1,45 @@
+[if_button,questlist:tbwt]
+def_string $text;
+
+switch_int (%tbwt_main) {
+    case ^tbwt_not_started :
+        $text = "@dbl@I can start this quest by speaking to @dre@Timfraku@dbl@ upstairs|";
+        $text = append($text, "@dbl@in his hut in @dre@Tai Bwo Wannai");
+
+    case ^tbwt_reported :
+        $text = "@str@All three of them will come home.|";
+        $text = append($text, "@dbl@@dre@Timfraku@dbl@ has gone to find chairs");
+
+    case ^tbwt_complete :
+        $text = "@str@Timfraku had three sons and had not seen any of them in a|";
+        $text = append($text, "@str@year, because each of them had one thing he was failing at|");
+        $text = append($text, "@str@and would not stop failing at.|");
+        $text = append($text, "@str@Tiadeche could not catch a karambwan, Tinsay had thought|");
+        $text = append($text, "@str@himself into a corner on a rock, and Tamayu had put nine|");
+        $text = append($text, "@str@spears into something that would not die.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+
+    case default :
+        $text = "@str@Timfraku's three sons have each been away a year, and each|";
+        $text = append($text, "@str@of them is stuck on one thing.|");
+        $text = append($text, "@dbl@@dre@<tostring(~tbwt_sons_helped)>@dbl@ of @dre@3@dbl@ will come home||");
+        if (%tbwt_tiadeche ! ^tbwt_son_helped) {
+            $text = append($text, "@dbl@@dre@Tiadeche@dbl@, east coast - cannot catch a @dre@karambwan@dbl@. He|");
+            $text = append($text, "@dbl@needs a @dre@vessel@dbl@ or the @dre@manual@dbl@ for one|");
+        }
+        if (%tbwt_tinsay ! ^tbwt_son_helped) {
+            $text = append($text, "@dbl@@dre@Tinsay@dbl@, on @dre@Cairn Isle@dbl@ - wants @dre@Karamjan rum with|");
+            $text = append($text, "@dbl@sliced banana@dbl@ in it, and is not joking|");
+        }
+        if (%tbwt_tamayu ! ^tbwt_son_helped) {
+            $text = append($text, "@dbl@@dre@Tamayu@dbl@, in the jungle - hunting the @dre@Shaikahan@dbl@, which|");
+            $text = append($text, "@dbl@steel will not stop. A spear tipped with @dre@poisonous|");
+            $text = append($text, "@dbl@karambwan paste@dbl@ might|");
+        }
+        if (%tbwt_lubufu = ^tbwt_lubufu_asked) {
+            $text = append($text, "|@dbl@@dre@Lubufu@dbl@ at Brimhaven wants @dre@<tostring(^tbwt_karambwanji_wanted)> raw karambwanji|");
+            $text = append($text, "@dbl@for the vessel - net them in the village");
+        }
+}
+
+~quest_journal("Tai Bwo Wannai Trio", $text);

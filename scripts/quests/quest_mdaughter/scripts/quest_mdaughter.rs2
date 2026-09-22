@@ -1,0 +1,221 @@
+// Mountain Daughter - the world side. The talking is in the npc files beside this one.
+
+// =========================================================================== getting into the camp
+
+// The rockslide is a single blocking centrepiece across the path at the camp's northern edge. The
+// guard on the far side of it does the challenging - see mdaughter_camp.rs2 - so the climb itself
+// only has to move the player.
+[oploc1,mdaughter_rockslide]
+p_arrivedelay;
+if (coordz(coord) < coordz(loc_coord)) {
+    p_teleport(movecoord(coord, 0, 0, ^mdaughter_rockslide_step));
+} else {
+    p_teleport(movecoord(coord, 0, 0, calc(0 - ^mdaughter_rockslide_step)));
+}
+mes("You scramble over the rockslide.");
+
+// =========================================================================== the pole
+
+// A dead tree gives the pole. mdaughter_impassable_tree and mdaughter_impassable_tree2 are the two
+// that are meant to stay standing, so only the passable one can be felled.
+[oploc1,mdaughter_passable_tree]
+if (stat(woodcutting) < 1) {
+    return;
+}
+if (~obj_gettotal(mdaughter_stick) > 0 | inv_total(inv, mdaughter_polevault) > 0) {
+    mes("You already have a pole.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room for a pole.");
+    return;
+}
+mes("You cut a long pole from the dead tree.");
+inv_add(inv, mdaughter_stick, 1);
+loc_change(mdaughter_passable_tree_stump, 100);
+
+[oploc1,mdaughter_impassable_tree] @mdaughter_tree_too_thick;
+[oploc1,mdaughter_impassable_tree2] @mdaughter_tree_too_thick;
+
+[label,mdaughter_tree_too_thick]
+mes("This one is far too thick to cut a pole from.");
+
+[oploc1,mdaughter_passable_tree_stump]
+mes("There is nothing left of this tree worth taking.");
+
+// =========================================================================== the crossings
+
+// One clump of rocks to vault, then two flat stones to hop between. The vault is the only one that
+// asks anything of the player; the stones are just a path.
+[oploc1,mdaughter_polerocks]
+p_arrivedelay;
+if (inv_total(inv, mdaughter_stick) = 0) {
+    mes("The gap is too wide to jump. You would need something to vault with.");
+    return;
+}
+if (stat(agility) < 20) {
+    mes("You need an Agility level of 20 to make this jump.");
+    return;
+}
+@mdaughter_hop(^mdaughter_rockslide_step);
+
+[oploc1,mdaughter_flatstone1] @mdaughter_stone_hop;
+[oploc1,mdaughter_flatstone2] @mdaughter_stone_hop;
+
+[label,mdaughter_stone_hop]
+p_arrivedelay;
+@mdaughter_hop(1);
+
+// Both crossings run east-west, so the step is along x and the direction comes from which side of
+// the loc the player is standing on - the same shape the rockslide uses for z.
+[label,mdaughter_hop](int $step)
+if (coordx(coord) < coordx(loc_coord)) {
+    p_teleport(movecoord(coord, $step, 0, 0));
+} else {
+    p_teleport(movecoord(coord, calc(0 - $step), 0, 0));
+}
+mes("You jump across.");
+
+// =========================================================================== white pearls
+
+[oploc3,mdaughter_white_pearl_bush]
+if (inv_freespace(inv) = 0) {
+    mes("You have no room for any more fruit.");
+    return;
+}
+if (random(3) = 0) {
+    mes("You prick yourself on the thorns and come away with nothing.");
+    return;
+}
+mes("You pick a white pearl from the bush.");
+inv_add(inv, mdaughter_white_pearl_fruit, 1);
+
+// =========================================================================== Asleif's body
+
+// mdaughter_roots_1 is the only "Dig-below" loc the maps actually place (six of them), and the
+// body has been in the ground a very long time. mdaughter_roots_2 and the two pool locs are
+// declared in the cache but placed nowhere, so nothing here depends on them.
+[oploc1,mdaughter_roots_1]
+if (%mdaughter_quest_var ! ^mdaughter_told_hamal) {
+    mes("You dig around in the roots, and find nothing but more roots.");
+    return;
+}
+if (inv_total(inv, spade) = 0) {
+    mes("The ground here is packed hard. You would need a spade.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("There is something down here - but you have no room to lift it out.");
+    return;
+}
+anim(human_pickuptable, 0);
+~mesbox("You dig down through the roots, and your spade strikes something that is not a stone.");
+inv_add(inv, mdaughter_daughter_corpse, 1);
+%mdaughter_quest_var = ^mdaughter_has_corpse;
+~send_quest_progress(questlist:mdaughter, %mdaughter_quest_var, ^mdaughter_complete);
+mes("You lift Asleif out of the ground as gently as you can.");
+
+// =========================================================================== the burial
+
+// The mound and the cairn are the two states of mdaughter_multimound, which is placed once at
+// local(31,46) of m43_57 and keys off mdaughter_burial_state - so building either is a varbit
+// write, not a loc_add.
+// The half rock goes on the mound, which only exists once she is in the ground - so this handler
+// only ever has to deal with the second half of the burial.
+[oplocu,mdaughter_multimound]
+if (last_useitem = mdaughter_half_rock) {
+    @mdaughter_cap_the_cairn;
+}
+~displaymessage(^dm_default);
+
+// Burying her is the corpse's own iop3, not a use-on-loc, because at burial_state 0 the mound loc
+// is not rendered and there is nothing at the burial ground to click.
+// The wording of the out-of-range message is the one general_use/scripts/item_ops_generated.rs2
+// already had for this op, kept rather than rewritten when the trigger moved here.
+[opheld3,mdaughter_daughter_corpse]
+if (distance(coord, ^mdaughter_burial_ground) > ^mdaughter_burial_range) {
+    ~mesbox("This isn't the right place to lay her to rest.");
+    return;
+}
+@mdaughter_lay_her_down;
+
+[label,mdaughter_lay_her_down]
+if (%mdaughter_burial_state ! ^mdaughter_burial_none) {
+    mes("Asleif is already buried here.");
+    return;
+}
+inv_del(inv, mdaughter_daughter_corpse, 1);
+%mdaughter_burial_state = ^mdaughter_burial_mound;
+anim(human_pickuptable, 0);
+~mesbox("You lay Asleif in the ground and heap the earth over her. It is a grave, but it is not yet a cairn - the mountain people mark their dead with stone from the Ancient Rock.");
+
+[label,mdaughter_cap_the_cairn]
+if (%mdaughter_burial_state = ^mdaughter_burial_none) {
+    mes("There is nobody buried here yet.");
+    return;
+}
+if (%mdaughter_burial_state = ^mdaughter_burial_cairn) {
+    mes("The cairn is finished.");
+    return;
+}
+inv_del(inv, mdaughter_half_rock, 1);
+%mdaughter_burial_state = ^mdaughter_burial_cairn;
+%mdaughter_quest_var = ^mdaughter_buried;
+~send_quest_progress(questlist:mdaughter, %mdaughter_quest_var, ^mdaughter_complete);
+anim(human_pickuptable, 0);
+~mesbox("You set the half of the Ancient Rock on top of the mound. It is a cairn now, and it will stand as long as the mountain does.");
+
+// =========================================================================== the Ancient Rock
+
+// Splitting the camp's own sacred stone is the whole point of the gesture, so it is gated on Hamal
+// having asked for the burial and it can only be done once.
+[oploc1,mdaughter_ancient_rock]
+if (%mdaughter_quest_var < ^mdaughter_told_hamal | %mdaughter_quest_var >= ^mdaughter_buried) {
+    mes("The Ancient Rock of the mountain people. It is not yours to touch.");
+    return;
+}
+if (~obj_gettotal(mdaughter_half_rock) > 0) {
+    mes("You already have your half of the rock.");
+    return;
+}
+if (~pickaxe_checker = null) {
+    mes("You would need a pickaxe to take a piece of this.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room to carry a piece of the rock.");
+    return;
+}
+anim(human_mining_bronze_pickaxe, 0);
+loc_change(mdaughter_ancient_rock_splitting, 4);
+sound_synth(mine, 1, 0);
+~mesbox("The Ancient Rock splits cleanly in two, the way the camp says it always has for anyone who asks it honestly.");
+inv_add(inv, mdaughter_half_rock, 1);
+
+// =========================================================================== the Kendal's cave
+
+[oploc1,mdaughter_caveentrance]
+p_arrivedelay;
+if (%mdaughter_quest_var < ^mdaughter_buried) {
+    mes("There is something living in there. You have no reason to disturb it yet.");
+    return;
+}
+mes("You squeeze into the cave.");
+p_teleport(^mdaughter_cave_inside);
+
+[oploc1,mdaughter_caveexit]
+p_arrivedelay;
+mes("You climb back out into the daylight.");
+p_teleport(^mdaughter_cave_outside);
+
+[oploc1,mdaughter_caveexit_fake]
+mes("This is not a way out - the passage closes up a few feet in.");
+
+// =========================================================================== completion
+
+[queue,mdaughter_quest_complete]
+%mdaughter_quest_var = ^mdaughter_complete;
+stat_advance(attack, 20000);
+stat_advance(prayer, 10000);
+session_log(^log_adventure, "Quest complete: Mountain Daughter");
+~send_quest_complete(questlist:mdaughter, mdaughter_bear_helmet, 250, ^mdaughter_questpoints, "You have completed the\\nMountain Daughter Quest!", "2 Quest Points|2,000 Attack XP|1,000 Prayer XP|The Bearhead");

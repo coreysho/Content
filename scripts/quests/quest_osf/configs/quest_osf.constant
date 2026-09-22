@@ -1,0 +1,54 @@
+// One Small Favour.
+//
+// Two varps: onesmallfavour holds the stage and onesmallfavourmulti carries every multi key. Only
+// the second has transmit=yes, which is correct - nothing keys a multi on the first - and neither
+// had scope=perm.
+//
+// ---------------------------------------------------------------------------- the five multis
+// There are only five in the whole quest and they are all broken/fixed pairs:
+//
+//   [osf_weathervane]                   multivar=weathervanefixed  0 broken, 1 fixed
+//   [osf_multi_landinglight_jade_1]     multivar=all_lights_fixed  0 broken, 1 jade
+//   [osf_multi_landinglight_opal_1]     multivar=all_lights_fixed  0 broken, 1 opal
+//   [osf_multi_landinglight_redtopaz_1] multivar=all_lights_fixed  0 broken, 1 red topaz
+//   [osf_multi_landinglight_sapphire_1] multivar=all_lights_fixed  0 broken, 1 sapphire
+//
+// All four lights key on ONE bit, so they flip together and cannot be shown half-done. The
+// individual progress lives in checklandinglights, which is bits 1-8 of the same varp - eight
+// bits, and the four light shells are placed exactly twice each out at the gnome glider. Eight
+// placements, eight bits, one summary bit that renders.
+//
+// ---------------------------------------------------------------------------- ops
+// The weathervane shell and the light shells carry no ops themselves; their BROKEN children carry
+// op1=Look and op5=Search, and their fixed children carry none. So Search works only while a thing
+// is broken, which is exactly when it should, and the handlers go on the shells.
+//
+// The three broken parts are objs rather than locs - favour_directionals_broken,
+// favour_ornament_broken and favour_pillar_broken, each "Broken vane part" - and each has a fixed
+// twin. Three parts, three craftspeople, and the middle one needs a favour of its own first. That
+// is the quest's name.
+
+^osf_not_started = 0
+^osf_asked = 5          // Phantuwti wants his weathervane back
+^osf_parts = 10         // the three broken parts are out of it
+^osf_pillar = 20        // Jimmy has done the rotating pillar
+^osf_ornament = 30      // Tassie has done the ornament
+^osf_directionals = 40  // Hammerspike has done the directionals
+^osf_vane_fixed = 50    // all three back on the roof
+^osf_lights = 60        // the glider's landing lights
+^osf_complete = 70
+
+^osf_lights_count = 8
+^osf_all_lights = 255   // checklandinglights is eight bits; this is all of them
+^osf_clay_wanted = 5
+
+^osf_off = 0
+^osf_on = 1
+
+// ---------------------------------------------------------------------------- places
+^osf_phantuwti = 0_42_54_17_18          // 2705,3474  Seers' Village
+^osf_weathervane = 3_42_54_14_20        // 2702,3476  the top of the tower
+^osf_tassie = 0_48_53_12_16             // 3084,3408
+^osf_jimmy = 0_49_150_48_10             // 3184,9610  the HAM hideout
+^osf_hammerspike = 0_46_153_21_19       // 2965,9811
+^osf_glider = 0_39_46_44_26             // 2540,2970  Gandius, in the Feldip Hills

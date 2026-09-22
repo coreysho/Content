@@ -1,0 +1,51 @@
+[if_button,questlist:wanted]
+def_string $text;
+
+switch_int (%wanted_main) {
+    case ^wanted_not_started :
+        $text = "@dbl@I can start this quest by speaking to @dre@Sir Tiffy Cashien|";
+        $text = append($text, "@dbl@on his bench in @dre@Falador Park|");
+        $text = append($text, "@dbl@I will need to have completed @dre@Recruitment Drive");
+
+    case ^wanted_recruited :
+        $text = "@str@Solus Dellagar destroyed an entire town on his own and the|";
+        $text = append($text, "@str@Temple Knights have not been able to find him since.|");
+        $text = append($text, "@dbl@Sir Tiffy has given me a @dre@commorb|");
+        $text = append($text, "@dbl@I should @dre@Contact@dbl@ Savant on it");
+
+    case ^wanted_briefed :
+        $text = "@str@Savant says Solus teleports the moment anyone gets close,|";
+        $text = append($text, "@str@and that every jump costs him. We cannot catch him - we can|");
+        $text = append($text, "@str@make him run out.|");
+        $text = append($text, "@dbl@@dre@Scan@dbl@ with the commorb, go where it points, and @dre@talk|");
+        $text = append($text, "@dbl@to him. Do it @dre@<tostring(^wanted_sightings_needed)>@dbl@ times");
+
+    case ^wanted_hunting :
+        $text = "@str@Every time I find him he jumps rather than answer, and|";
+        $text = append($text, "@str@every jump costs him.|");
+        $text = append($text, "@dbl@@dre@<tostring(~wanted_sightings)>@dbl@ of @dre@<tostring(^wanted_sightings_needed)>@dbl@ sightings so far|");
+        if (~wanted_current_location > 0) {
+            $text = append($text, "|@dbl@The orb has him in @dre@<~wanted_place_name(~wanted_current_location)>");
+        } else {
+            $text = append($text, "|@dbl@I should @dre@Scan@dbl@ again");
+        }
+
+    case ^wanted_cornered :
+        $text = "@str@He reached for the teleport and it did not come.|";
+        $text = append($text, "@dbl@I should take @dre@Solus's hat@dbl@ to @dre@Sir Tiffy");
+
+    case ^wanted_complete :
+        $text = "@str@Solus Dellagar killed a town and then spent eleven years|";
+        $text = append($text, "@str@being impossible to find, because he could teleport away|");
+        $text = append($text, "@str@faster than anyone could arrive.|");
+        $text = append($text, "@str@So we stopped trying to arrive. I found him over and over|");
+        $text = append($text, "@str@with a Temple Knight commorb until he could not afford to|");
+        $text = append($text, "@str@leave any more.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+
+    case default :
+        $text = "@dbl@I can start this quest by speaking to @dre@Sir Tiffy Cashien|";
+        $text = append($text, "@dbl@on his bench in @dre@Falador Park");
+}
+
+~quest_journal("Wanted!", $text);

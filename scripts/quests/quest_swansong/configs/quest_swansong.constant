@@ -1,0 +1,61 @@
+// Swan Song.
+//
+// One varp, and its own multinpc tables dictate the stage values. swan_boat_boatwoman declares:
+//
+//   0, 5, 10, 15, 20, 30, 40, 50, 55, 60, 65, 70, 80, 90, 95, 100,
+//   110, 120, 130, 140, 150, 160, 170, 180, 190, 200
+//
+// which is the legal set, and two more tables say what happens across it:
+//
+//   [swan_multioutside]  at 2345,3651, the ground outside the colony
+//     0, 5, 10, 15, 20  -> swan_herman
+//     30, 40, 50, 55    -> wom_cutscene_2
+//
+//   [swan_wom_office]    at 2353,3683, one tile from Herman's desk
+//     65, 70, 80, 90, 110, 120, 130, 140, 150, 180 -> wom_inactive
+//
+// Herman is standing outside until stage 20. From 30 the Wise Old Man is standing there instead.
+// From 65 the Wise Old Man is lying in the office, inactive, and stays there for the rest of the
+// quest. The config knows exactly what happens to him and when, and it is not good.
+//
+// swan_wom_ambush and swan_wom_coma are two more npcs in the cache with the same story in them.
+//
+// ---------------------------------------------------------------------------- the army
+//   Bone seeds  "An highly portable army of skeletal magi."   iop4=Open
+//   Herman's book "A book taken from the desk of Herman Caranos."  iop1=Read
+//
+// swansong_bones is three bits and swan_skeleton_training is already spawned in the colony, which
+// is a skeletal magus practising in a fishing village.
+^swan_not_started = 0
+^swan_walls = 5          // the palisade
+^swan_fish = 10          // the colonists are not eating
+^swan_fed = 15
+^swan_letter = 20        // Herman admits he cannot hold it
+^swan_wom = 30           // the Wise Old Man is outside  <- HE APPEARS HERE
+^swan_wom_looked = 40
+^swan_ambush = 55        // <- LAST VALUE HE IS STANDING UP AT
+^swan_coma = 65          // <- FIRST VALUE HE IS IN THE OFFICE AT
+^swan_seeds = 80
+^swan_planted = 90
+^swan_battle = 100
+^swan_queen = 150
+^swan_told = 190
+^swan_complete = 200
+
+^swan_off = 0
+^swan_on = 1
+
+^swan_walls_needed = 5
+^swan_fish_needed = 5
+^swan_bones_needed = 5
+
+// ---------------------------------------------------------------------------- places
+// m36_57 is the Piscatoris Fishing Colony.
+^swan_outside = 0_36_57_41_3        // 2345,3651  swan_multioutside
+^swan_herman_desk = 0_36_57_50_35   // 2354,3683
+^swan_office = 0_36_57_49_35        // 2353,3683  swan_wom_office
+^swan_franklin = 0_36_57_40_19
+^swan_arnold = 0_36_57_26_43
+^swan_spot_1 = 0_36_57_6_49
+^swan_spot_2 = 0_36_57_7_56
+^swan_boatwoman = 0_37_54_0_30

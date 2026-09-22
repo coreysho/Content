@@ -1,0 +1,303 @@
+// A Fairy Tale Part I - Growing Pains. Every crop in the kingdom is dying and the reason is two
+// realms away and sitting on a throne it did not inherit.
+
+// =========================================================================== Martin
+// Martin already carries a skillcape handler and a pickpocket handler, so this hooks in ahead.
+[proc,fairy_martin]()(boolean)
+switch_int (%fairy_farmers_quest) {
+    case ^fairy_not_started :
+        ~chatnpc("<p,sad>Every allotment from here to Catherby. Every one of them.");
+        ~chatplayer("<p,quiz>Disease?");
+        ~chatnpc("<p,angry>Not disease. Disease responds to things. I have put everything I have on these patches and they are still going.");
+        ~chatnpc("<p,neutral>Whatever it is, it is not agricultural. It started on the same day everywhere, and things do not do that.");
+        switch_int (~p_choice2("Where would you start?", 1, "Good luck with it.", 2)) {
+            case 2 :
+                ~chatplayer("<p,neutral>Good luck with it.");
+                return(true);
+            case 1 :
+                ~chatplayer("<p,quiz>Where would you start?");
+        }
+        ~chatnpc("<p,neutral>Not here. There is an old story about who actually looks after growing things and it is not farmers, and if it were true I would want a word with them.");
+        ~chatnpc("<p,sad>The story says Zanaris.");
+        %fairy_farmers_quest = ^fairy_zanaris;
+        ~send_quest_progress(questlist:fairy_farmers, %fairy_farmers_quest, ^fairy_complete);
+        // The coup has already happened. Zanaris just has not been looked at yet.
+        %fairy_godfather_check = ^fairy_on;
+        %fairy_queen_check = ^fairy_on;
+        return(true);
+    case default :
+        if (%fairy_farmers_quest >= ^fairy_complete) {
+            ~chatnpc("<p,happy>Everything came back in about a week. I have stopped telling people why, because of how it sounds.");
+            return(true);
+        }
+        ~chatnpc("<p,neutral>Zanaris. I know how it sounds.");
+        return(true);
+}
+return(false);
+
+// =========================================================================== the throne room
+[opnpc1,fairy_godfather_multi]
+if (%fairy_farmers_quest < ^fairy_zanaris) {
+    ~chatnpc("<p,angry>Out.");
+    return;
+}
+if (%fairy_farmers_quest >= ^fairy_told) {
+    ~chatnpc("<p,angry>This is a temporary arrangement. It has been a temporary arrangement for some time.");
+    return;
+}
+if (%fairy_farmers_quest = ^fairy_zanaris) {
+    ~chatplayer("<p,quiz>Where's the Queen?");
+    ~chatnpc("<p,neutral>Resting.");
+    ~chatplayer("<p,quiz>Resting where?");
+    ~chatnpc("<p,angry>Resting. It is a full answer and I have given it to everyone who has asked and none of them have asked twice.");
+    ~mesbox("There are two guards on the door who were not on the door the last time anybody looked, and the throne is the wrong shape.");
+    return;
+}
+~chatnpc("<p,angry>Still resting.");
+
+[opnpc1,fairy_coordinator]
+if (%fairy_farmers_quest < ^fairy_zanaris) {
+    ~chatnpc("<p,neutral>Rings, ring codes, ring maintenance. Ask me anything about rings.");
+    return;
+}
+if (%fairy_farmers_quest >= ^fairy_complete) {
+    ~chatnpc("<p,happy>She is back on the throne and I have been told not to discuss it.");
+    return;
+}
+~chatplayer("<p,quiz>Who's the one on the throne?");
+~chatnpc("<p,sad>I am a ring coordinator. I coordinate rings.");
+~chatplayer("<p,quiz>And the Queen?");
+~chatnpc("<p,sad>Fairy Nuff would know. Fairy Nuff knows about health.");
+
+// =========================================================================== Fairy Nuff
+[opnpc1,fairy_nuff]
+switch_int (%fairy_farmers_quest) {
+    case ^fairy_not_started :
+        ~chatnpc("<p,neutral>Nuff. I do the health of this realm, which lately is a larger job than it was.");
+    case ^fairy_zanaris : @fairy_nuff_brief;
+    case ^fairy_nuff : @fairy_nuff_list;
+    case ^fairy_symptoms : @fairy_nuff_diagnose;
+    case ^fairy_secateurs : @fairy_nuff_enchant;
+    case ^fairy_magic :
+        ~chatnpc("<p,neutral>The Tanglefoot is what he came in with and it is what is holding the door. And there is one more thing, and it is a peculiar request: a skull, from Draynor.");
+        ~chatplayer("<p,quiz>Why?");
+        ~chatnpc("<p,neutral>Because she is not only asleep. Something of hers is on the other side and it needs something to come back to.");
+        %fairy_farmers_quest = ^fairy_skull;
+        ~send_quest_progress(questlist:fairy_farmers, %fairy_farmers_quest, ^fairy_complete);
+    case ^fairy_skull : @fairy_nuff_skull;
+    case ^fairy_patches : @fairy_nuff_patches;
+    case ^fairy_tanglefoot : @fairy_nuff_finish;
+    case default :
+        if (%fairy_farmers_quest >= ^fairy_complete) {
+            ~chatnpc("<p,happy>She woke up, complained about the room, and went back to work. That is the whole of the recovery.");
+            return;
+        }
+        ~chatnpc("<p,neutral>Do what the list says.");
+}
+
+[label,fairy_nuff_brief]
+~chatplayer("<p,quiz>Where is the Fairy Queen?");
+~chatnpc("<p,sad>Behind you, through that door, on my floor, and she has not opened her eyes in eleven days.");
+if_close;
+mes("The Fairy Queen is lying in the next room and does not look asleep so much as absent.");
+p_delay(4);
+%fairy_farmers_quest = ^fairy_nuff;
+~send_quest_progress(questlist:fairy_farmers, %fairy_farmers_quest, ^fairy_complete);
+~mesbox("\"There is no wound,\" says Nuff. \"There is a fever and there is no cause for a fever, and she is coming apart at the edges very slowly, and I have written all of it down and read it four hundred times.\"");
+
+[label,fairy_nuff_list]
+if (inv_total(inv, fairy_symptoms_list) > 0) {
+    ~chatnpc("<p,neutral>Read it.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>You have nowhere to put a list.");
+    return;
+}
+inv_add(inv, fairy_symptoms_list, 1);
+~chatnpc("<p,neutral>Every symptom she has, written down in order. I have read it four hundred times and I want somebody who is not a fairy to read it once.");
+
+[opheld1,fairy_symptoms_list]
+~mesbox("The Fairy Queen's symptoms: | Extremely weak | Slow discorporation of ethereal body | Drifting in and out of coma | Shallow breath | Fading magical energy | High fever");
+if (%fairy_farmers_quest = ^fairy_nuff) {
+    %fairy_farmers_quest = ^fairy_symptoms;
+    ~send_quest_progress(questlist:fairy_farmers, %fairy_farmers_quest, ^fairy_complete);
+}
+
+[label,fairy_nuff_diagnose]
+~chatplayer("<p,neutral>Slow discorporation of the ethereal body. Fading magical energy.");
+~chatnpc("<p,quiz>Yes. I wrote it. Why does it matter which order they are in?");
+~chatplayer("<p,neutral>Because the energy is fading and she is coming apart, and things only come apart when whatever was holding them together is somewhere else.");
+~chatnpc("<p,shock>...her secateurs.");
+~chatnpc("<p,neutral>She has carried the same pair for four hundred years and I have never once seen her without them and they are not in this room.");
+%fairy_farmers_quest = ^fairy_secateurs;
+~send_quest_progress(questlist:fairy_farmers, %fairy_farmers_quest, ^fairy_complete);
+~chatnpc("<p,angry>He did not take her power. He took the thing she keeps it in, and then he put it somewhere a fairy cannot go and locked it, which narrows it to about one chest.");
+
+[oploc1,fairy_chest_closed]
+p_arrivedelay;
+if (%fairy_farmers_quest < ^fairy_secateurs) {
+    ~mesbox("A chest. Locked, and nobody in this realm seems able to look directly at it.");
+    return;
+}
+if (inv_total(inv, fairy_queen_secateurs) > 0 | %fairy_farmers_quest > ^fairy_secateurs) {
+    ~mesbox("Empty.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room.");
+    return;
+}
+mes("The lock is fairy work and you are not a fairy, which turns out to be the entire problem with it.");
+p_delay(3);
+inv_add(inv, fairy_queen_secateurs, 1);
+~mesbox("A pair of secateurs, four hundred years old, warm, and containing everything the Fairy Queen is.");
+
+[label,fairy_nuff_enchant]
+if (inv_total(inv, fairy_queen_secateurs) = 0) {
+    ~chatnpc("<p,neutral>The chest. A fairy cannot look at it and you can.");
+    return;
+}
+if (inv_total(inv, secateurs) = 0) {
+    ~chatnpc("<p,neutral>Do not give them back to her yet. Bring me an ordinary pair as well - a farmer's pair - and I will move a little of it across.");
+    return;
+}
+if_close;
+mes("Nuff holds the two pairs together for about a minute and does not appear to do anything at all.");
+p_delay(5);
+inv_del(inv, secateurs, 1);
+inv_add(inv, fairy_enchanted_secateurs, 1);
+%fairy_farmers_quest = ^fairy_magic;
+~send_quest_progress(questlist:fairy_farmers, %fairy_farmers_quest, ^fairy_complete);
+~mesbox("Magic secateurs. | \"That is a very small amount of her,\" says Nuff, \"and it is the only thing in either realm that will kill a Tanglefoot, so do not lose them.\"");
+
+[label,fairy_nuff_skull]
+if (inv_total(inv, fairy_skull) = 0) {
+    ~chatnpc("<p,neutral>Draynor. The graveyard. I am aware of how that sounds and I am asking anyway.");
+    return;
+}
+~chatplayer("<p,neutral>A skull. From Draynor.");
+~chatnpc("<p,neutral>Good. Now the other part, and it is the part that fixes the farms rather than the Queen.");
+~chatnpc("<p,neutral>Three patches on the other side have gone furthest. Cut them back with those secateurs and they will take again.");
+%fairy_farmers_quest = ^fairy_patches;
+~send_quest_progress(questlist:fairy_farmers, %fairy_farmers_quest, ^fairy_complete);
+
+// =========================================================================== the three nature items
+// fairy_nature_item1, 2 and 3 are five bits each, which is room for an index rather than a count,
+// so each one records WHICH of the three things Nuff asked for has come in.
+[proc,fairy_nature_have](int $which)(boolean)
+if (%fairy_nature_item1 = $which) { return(true); }
+if (%fairy_nature_item2 = $which) { return(true); }
+if (%fairy_nature_item3 = $which) { return(true); }
+return(false);
+
+[proc,fairy_nature_set](int $which)()
+if (%fairy_nature_item1 = 0) { %fairy_nature_item1 = $which; return; }
+if (%fairy_nature_item2 = 0) { %fairy_nature_item2 = $which; return; }
+%fairy_nature_item3 = $which;
+
+[proc,fairy_nature_give](obj $obj, int $which, string $line)()
+if (~fairy_nature_have($which) = true) {
+    return;
+}
+if (inv_total(inv, $obj) = 0) {
+    return;
+}
+inv_del(inv, $obj, 1);
+~fairy_nature_set($which);
+~mesbox($line);
+
+[label,fairy_nuff_patches]
+~fairy_nature_give(logs, ^fairy_item_logs, "Nuff takes the logs and puts them by the Queen's head without explaining why.");
+~fairy_nature_give(onion, ^fairy_item_onion, "\"An onion,\" says Nuff. \"Do not ask.\"");
+~fairy_nature_give(potato, ^fairy_item_potato, "The potato goes on the floor with the rest of it.");
+if (%fairy_nature_item1 = 0 | %fairy_nature_item2 = 0 | %fairy_nature_item3 = 0) {
+    ~chatnpc("<p,neutral>Three things that grew on your side of the door and were not grown BY her: logs, an onion and a potato. It has to be three and they have to be dull.");
+    return;
+}
+~chatplayer("<p,quiz>Logs, an onion and a potato.");
+~chatnpc("<p,neutral>She looks after every growing thing on that side and none of those three needed her. They are the only things over there that are still certain of themselves.");
+if_close;
+mes("Nuff arranges the three of them around the Fairy Queen and steps back.");
+p_delay(5);
+~mesbox("Something that has been living under the floor of this room comes up through it, and it is not a plant, and it is between you and the door.");
+p_delay(3);
+%fairy_farmers_quest = ^fairy_tanglefoot;
+~send_quest_progress(questlist:fairy_farmers, %fairy_farmers_quest, ^fairy_complete);
+~fairy_tanglefoot_fight;
+
+[label,fairy_nuff_finish]
+if (inv_total(inv, fairy_queen_secateurs) = 0 | inv_total(inv, fairy_skull) = 0) {
+    ~chatnpc("<p,neutral>Her secateurs and the skull. Both, and in here, and now.");
+    return;
+}
+~chatplayer("<p,neutral>Both.");
+if_close;
+mes("Nuff puts the skull on the floor by the Queen's head and the secateurs in her hands and closes them.");
+p_delay(5);
+inv_del(inv, fairy_queen_secateurs, 1);
+inv_del(inv, fairy_skull, 1);
+~mesbox("Nothing happens for long enough that you start to work out what you are going to say.");
+p_delay(4);
+~mesbox("Then the Fairy Queen opens her eyes, looks at the ceiling, and says that the room is damp.");
+p_delay(3);
+%fairy_farmers_quest = ^fairy_told;
+// Both switches go back: she is a person again and the throne is hers.
+%fairy_queen_check = ^fairy_off;
+%fairy_godfather_check = ^fairy_off;
+%fairy_farmers_quest = ^fairy_complete;
+stat_advance(farming, 35000);
+stat_advance(attack, 20000);
+session_log(^log_adventure, "Quest complete: A Fairy Tale Part I");
+~send_quest_complete(questlist:fairy_farmers, fairy_enchanted_secateurs, 200, ^fairy_questpoints, "You have completed\\nA Fairy Tale Part I!", "2 Quest Points|3,500 Farming XP|2,000 Attack XP|Magic secateurs");
+
+// =========================================================================== the gravestone
+// FIXED: this was [oploc1,fairy_draynor_gravestone] and that loc carries no ops, so the trigger
+// could never fire and the skull was unobtainable. It is a dig, so it goes where the other three
+// digs in this repo go - a coordinate test in general_use/scripts/spade.rs2.
+[proc,fairy_dig]()(boolean)
+if (distance(coord, ^fairy_gravestone) > 2) {
+    return(false);
+}
+if (%fairy_farmers_quest ! ^fairy_skull) {
+    return(false);
+}
+p_arrivedelay;
+if (inv_total(inv, fairy_skull) > 0) {
+    ~mesbox("You have one, and one is the correct number of skulls to be carrying.");
+    return(true);
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room.");
+    return(true);
+}
+anim(human_dig, 0);
+p_delay(5);
+inv_add(inv, fairy_skull, 1);
+~mesbox("A skull, from Draynor. | The description on it, when you look at it properly, says: I shouldn't joke, this is a grave matter.");
+return(true);
+
+[opheld1,fairy_skull]
+~mesbox("A skull from Draynor. I shouldn't joke, this is a grave matter.");
+
+[opheld1,fairy_queen_secateurs]
+~mesbox("A pair of secateurs four hundred years old, warm to hold, and containing the Fairy Queen's magic essence - which is to say, containing the Fairy Queen.");
+
+// =========================================================================== the Tanglefoot
+// "Magic secateurs - The only way to kill a Tanglefoot." The obj description is the fight.
+[proc,fairy_tanglefoot_fight]()()
+if (inv_total(inv, fairy_enchanted_secateurs) = 0) {
+    ~mesbox("The Tanglefoot is what the Fairy Godfather came in with, and nothing you are carrying does anything to it at all. | Nuff pulls you back through the door.");
+    return;
+}
+mes("The Tanglefoot has been under the floor of this room since the day she stopped waking up.");
+p_delay(4);
+~damage_self(16);
+mes("Nothing you are carrying does anything to it except the secateurs.");
+p_delay(4);
+~damage_self(8);
+mes("It comes apart the way a root ball comes apart.");
+p_delay(3);
+stat_advance(attack, 15000);
+stat_advance(farming, 15000);
+~mesbox("Nuff was right about the secateurs, which means Nuff is probably right about the skull.");

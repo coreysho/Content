@@ -1,0 +1,65 @@
+// Nettles and nettle tea.
+//
+// Ghosts Ahoy needs a cup of nettle tea and nothing in the world made one. The objs were all in the
+// cache already - nettles_picked, bowl_nettlewater, bowl_nettletea and five more vessels - and so
+// were seven nettle locs, all of them carrying op1=Pick and none of them carrying a handler. There
+// were only the op3=Empty stubs in containers_generated.rs2, which is to say the game could pour
+// nettle tea away and could not make any.
+//
+// The nettle patches are in m48_50, m49_52, m50_52, m55_54 and m56_54 - the last of which is the
+// square you walk through on the way to Port Phasmatys, so the old man's request is answerable on
+// the road to him.
+//
+// There is no burnt-nettle obj anywhere in the cache, which is why the dbrow in
+// skill_cooking/configs/cooking_source/cooking_generic.dbrow rolls successchance 1,1.
+
+[oploc1,nettles] @pick_nettles;
+[oploc1,nettles1] @pick_nettles;
+[oploc1,nettles2] @pick_nettles;
+[oploc1,nettles3] @pick_nettles;
+[oploc1,nettles4] @pick_nettles;
+[oploc1,nettles5] @pick_nettles;
+[oploc1,nettles6] @pick_nettles;
+
+[label,pick_nettles]
+p_arrivedelay;
+if (inv_freespace(inv) = 0) {
+    ~mesbox("You don't have enough inventory space to hold any more nettles.");
+    return;
+}
+anim(human_pickupfloor, 0);
+p_delay(2);
+// Bare hands and a nettle go about as well as you would expect.
+if (inv_getobj(worn, ^wearpos_hands) = null) {
+    mes("You are stung by the nettles!");
+    ~damage_self(1);
+} else {
+    mes("You pick some nettles, without being stung.");
+}
+inv_add(inv, nettles_picked, 1);
+
+[opheldu,nettles_picked]
+if (last_useitem ! bowl_water) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, nettles_picked, 1);
+inv_del(inv, bowl_water, 1);
+inv_add(inv, bowl_nettlewater, 1);
+mes("You put the nettles in the bowl of water.");
+
+[opheldu,bowl_nettlewater]
+if (last_useitem ! bucket_milk) {
+    ~displaymessage(^dm_default);
+    return;
+}
+~mesbox("The nettles need boiling before anything goes in with them.");
+
+[opheldu,bowl_nettletea]
+if (last_useitem ! bucket_milk) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, bowl_nettletea, 1);
+inv_add(inv, bowl_nettletea_milky, 1);
+mes("You add milk to the nettle tea.");

@@ -198,7 +198,13 @@ if (stat_base($stat) >= 99) {
 [opnpc1,skillcape_harlan] ~skillcape_master(defence, "<p,neutral>Greetings, adventurer. I teach the ways of melee combat, and there's no one better at keeping a blade off themselves than me.");
 [opnpc1,skillcape_wilfred] ~skillcape_master(woodcutting, "<p,happy>Hello! I'm Wilfred. If it's a tree, I've cut it down.");
 [opnpc1,skillcape_ignatius] ~skillcape_master(firemaking, "<p,happy>Hello, I'm Ignatius Vulcan. Fire is my passion - there's nothing finer than a well-built blaze.");
-[opnpc1,martin_the_master_farmer] ~skillcape_master(farming, "<p,happy>Hello, I'm Martin. I know all there is to know about growing things.");
+// A Fairy Tale Part I starts with him, because he is the man in the kingdom who would notice every
+// allotment failing on the same day. Hooked in ahead of the skillcape dialogue.
+[opnpc1,martin_the_master_farmer]
+if (~fairy_martin = true) {
+    return;
+}
+~skillcape_master(farming, "<p,happy>Hello, I'm Martin. I know all there is to know about growing things.");
 
 // The Wise Old Man sells the Quest point cape to players who have finished every quest. He is
 // spawned as wom_multi (a multinpc on %swansong), and npc triggers resolve on the spawned type.

@@ -1,0 +1,55 @@
+[if_button,questlist:eadgar]
+def_string $text;
+
+switch_int (%eadgar_quest) {
+    case ^eadgar_not_started :
+        $text = "@dbl@I can start this quest by speaking to @dre@Sanfew@dbl@ in|@dre@Taverley|";
+        $text = append($text, "@dbl@I must have completed @dre@Troll Stronghold|");
+        $text = append($text, "@dbl@I will need a @dre@pestle and mortar@dbl@, a @dre@vial of water|@dbl@and some @dre@Karamjan rum");
+
+    case ^eadgar_started :
+        $text = "@str@Sanfew has run out of goutweed. Every scrap of it for a|";
+        $text = append($text, "@str@hundred miles is in a troll storeroom, because trolls eat|");
+        $text = append($text, "@str@it.|");
+        $text = append($text, "@dbl@I should speak to @dre@Eadgar@dbl@, who lives on @dre@Trollheim");
+
+    case ^eadgar_met_eadgar :
+        $text = "@str@Eadgar's plan: dose the troll stew so the cook is too ill|";
+        $text = append($text, "@str@to stand, and he will hand over the storeroom key himself.|");
+        $text = append($text, "@str@There is a guard on the crates who will need distracting.||");
+        $text = append($text, "@dbl@Pick @dre@troll thistle@dbl@ outside Eadgar's cave, dry it on the|");
+        $text = append($text, "@dbl@troll @dre@rack@dbl@, grind it, and mix it with @dre@water|");
+        $text = append($text, "@dbl@Get a @dre@dirty robe@dbl@ from the basket in @dre@Taverley|");
+        $text = append($text, "@dbl@Get a @dre@parrot@dbl@ drunk at the @dre@Ardougne zoo");
+
+    case ^eadgar_potion_made :
+        $text = "@str@The troll potion is made.|";
+        $text = append($text, "@dbl@I should tip it into the @dre@troll stew@dbl@ in the stronghold|");
+        $text = append($text, "@dbl@kitchen");
+
+    case ^eadgar_stew_dosed :
+        $text = "@str@The stew is dosed, and Burntmeat has eaten his own|";
+        $text = append($text, "@str@cooking.|");
+        $text = append($text, "@dbl@I should go and be sympathetic at @dre@Burntmeat");
+
+    case ^eadgar_has_key :
+        $text = "@str@Burntmeat has given me the storeroom key.|";
+        $text = append($text, "@dbl@The @dre@guard@dbl@ will not leave the crates - I should show him|");
+        $text = append($text, "@dbl@the @dre@fake man@dbl@, then @dre@search the crates");
+
+    case ^eadgar_has_goutweed :
+        $text = "@str@I have the goutweed.|";
+        $text = append($text, "@dbl@I should take it back to @dre@Sanfew@dbl@ in @dre@Taverley");
+
+    case ^eadgar_complete :
+        $text = "@str@Sanfew had run out of goutweed, and every scrap of it was|";
+        $text = append($text, "@str@in a troll storeroom.|");
+        $text = append($text, "@str@Following Mad Eadgar's plan I dosed the troll stew with|");
+        $text = append($text, "@str@thistle, waited for Burntmeat to eat his own cooking, and|");
+        $text = append($text, "@str@was handed the storeroom key by the cook himself.|");
+        $text = append($text, "@str@The guard is, as far as I know, still arguing with a robe|");
+        $text = append($text, "@str@full of drunk parrot.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+}
+
+~quest_journal("Eadgar's Ruse", $text);

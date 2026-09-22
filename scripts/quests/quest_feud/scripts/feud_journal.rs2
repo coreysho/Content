@@ -1,0 +1,76 @@
+[if_button,questlist:feud]
+def_string $text;
+
+switch_int (%feud_var) {
+    case ^feud_not_started :
+        $text = "@dbl@I can start this quest by speaking to @dre@Ali Morrisane|";
+        $text = append($text, "@dbl@in the @dre@Al Kharid bazaar");
+
+    case ^feud_sent :
+        $text = "@str@Twenty crates went missing on the road to Pollnivneach|";
+        $text = append($text, "@str@and nobody saw a thing.|");
+        $text = append($text, "@dbl@The village is run by two gangs. I should speak to @dre@both|");
+        $text = append($text, "@dbl@leaders@dbl@ - the @dre@Menaphites@dbl@ in the north and the @dre@bandits|");
+        $text = append($text, "@dbl@in the south");
+
+    case ^feud_both_gangs :
+        $text = "@str@Both gangs know my face now.|";
+        $text = append($text, "@dbl@The @dre@Mayor@dbl@ is the only man in Pollnivneach who is not in|");
+        $text = append($text, "@dbl@one of them");
+
+    case ^feud_mayor :
+        $text = "@str@The bandits took the Mayor's wife's jewels out of his own|";
+        $text = append($text, "@str@house. He will trade what he knows for them.|");
+        $text = append($text, "@dbl@The house keys are in a safe he cannot open. His wife left|");
+        $text = append($text, "@dbl@@dre@notes@dbl@ - I should ask him for them");
+
+    case ^feud_notes :
+        $text = "@str@Two notes. One is a list of five numbers in verse and the|";
+        $text = append($text, "@str@other is a single word.|");
+        $text = append($text, "@dbl@@dre@Read both@dbl@, then tell the @dre@Mayor@dbl@ the number");
+
+    case ^feud_safe :
+        $text = "@str@Eight. Each number is the two before it added together.|";
+        $text = append($text, "@dbl@The @dre@house keys@dbl@ open the locked side of the Mayor's|");
+        $text = append($text, "@dbl@house");
+
+    case ^feud_blackjack :
+        $text = "@str@Everything small in the Mayor's house was taken, which|";
+        $text = append($text, "@str@means learning how people here take things.|");
+        $text = append($text, "@dbl@The @dre@blackjack seller@dbl@ is in the market. Buy one and use|");
+        $text = append($text, "@dbl@it on a @dre@villager");
+
+    case ^feud_traits :
+        $text = "@str@The villager was wearing a headpiece and a false beard.|";
+        $text = append($text, "@dbl@@dre@Put them together");
+
+    case ^feud_disguise :
+        $text = "@str@Beard and headpiece together would pass for a bandit.|";
+        $text = append($text, "@dbl@@dre@Wear it@dbl@ - not carry it - and walk into the @dre@bandit camp|");
+        $text = append($text, "@dbl@in the south of the village");
+
+    case ^feud_camp :
+        $text = "@str@I am inside the camp and the leader knows I am not one of|";
+        $text = append($text, "@str@his.|");
+        $text = append($text, "@dbl@Nobody gets past @dre@Kamil");
+
+    case ^feud_jewels :
+        $text = "@str@The champion is down and the jewels were on a string round|";
+        $text = append($text, "@str@the leader's neck.|");
+        $text = append($text, "@dbl@@dre@Ali Morrisane@dbl@ wanted to know about his crates");
+
+    case ^feud_complete :
+        $text = "@str@Twenty-two crates, in the end, and the driver walked home.|";
+        $text = append($text, "@str@Pollnivneach is run by two gangs and a mayor who was the|");
+        $text = append($text, "@str@only man in it without a knife.|");
+        $text = append($text, "@str@His wife's jewels were on the bandit leader's neck, and|");
+        $text = append($text, "@str@Morrisane's crates had been sold back to him by his own|");
+        $text = append($text, "@str@driver without him noticing.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+
+    case default :
+        $text = "@dbl@I can start this quest by speaking to @dre@Ali Morrisane|";
+        $text = append($text, "@dbl@in the @dre@Al Kharid bazaar");
+}
+
+~quest_journal("The Feud", $text);

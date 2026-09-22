@@ -1,0 +1,53 @@
+[if_button,questlist:hauntedmine]
+def_string $text;
+
+switch_int (%hauntedmine) {
+    case ^hm_not_started :
+        $text = "@dbl@There is a @dre@zealot@dbl@ standing in the swamp @dre@south of|";
+        $text = append($text, "@dbl@@dre@Mort'ton@dbl@, in full robes, guarding a mine that he says|");
+        $text = append($text, "@dbl@is not there");
+
+    case ^hm_refused :
+        $text = "@str@Three ways into the hillside and he says all of them are|";
+        $text = append($text, "@str@closed. Nothing has come out of that mine in eighty years|");
+        $text = append($text, "@str@except the men who went into it, and not all of those.|");
+        $text = append($text, "@str@There is a key on his belt.|");
+        $text = append($text, "@dbl@@dre@Pickpocket@dbl@ him - level @dre@10 Thieving");
+
+    case ^hm_key :
+        $text = "@str@A heavy iron key, far too new for a mine that closed eighty|";
+        $text = append($text, "@str@years ago.|");
+        $text = append($text, "@dbl@@dre@Crawl in@dbl@, and find the @dre@points@dbl@ and the @dre@lift|");
+        $text = append($text, "@dbl@The @dre@points diagram@dbl@ is on a wall down there");
+
+    case ^hm_points :
+        $text = "@str@Eleven points, and 9, 10 and 11 are under water and cannot|";
+        $text = append($text, "@str@be thrown. The route has to be made out of the other eight,|");
+        $text = append($text, "@str@and it is: throw 1, 3, 4, 6 and 8.|");
+        $text = append($text, "@str@Somewhere a long way off, a very heavy thing rolled thirty|");
+        $text = append($text, "@str@feet and stopped.|");
+        $text = append($text, "@dbl@@dre@Turn the valve");
+
+    case ^hm_bottom :
+        $text = "@str@The bottom of the mine. Nothing has been down here in|";
+        $text = append($text, "@str@eighty years and the air says so.|");
+        $text = append($text, "@dbl@There is a @dre@key@dbl@ lying on a rock in an empty chamber");
+
+    case ^hm_treus :
+        $text = "@str@Treus Dayth was the mine's last foreman and he was still|";
+        $text = append($text, "@str@doing the job.|");
+        $text = append($text, "@dbl@The @dre@key@dbl@ opens the doors at the far end");
+
+    case ^hm_complete :
+        $text = "@str@The whole of the back of that mine is one crystal and it is|";
+        $text = append($text, "@str@lit from the inside, and that is why a Saradominist has been|");
+        $text = append($text, "@str@standing in a swamp for eighty years telling everyone there|");
+        $text = append($text, "@str@is no mine.|");
+        $text = append($text, "@str@A chisel and a ball of wool make the shard into an amulet.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+
+    case default :
+        $text = "@dbl@There is a @dre@zealot@dbl@ in the swamp @dre@south of Mort'ton";
+}
+
+~quest_journal("Haunted Mine", $text);

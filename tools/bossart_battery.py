@@ -171,8 +171,10 @@ for n in sorted(PETNAMES):
     check(b.get('readyanim') == ['osrs_seq_%d' % s['ready']], '...ready is OSRS seq %d' % s['ready'])
     check(b.get('walkanim') == ['osrs_seq_%d' % s['walk']], '...walk is OSRS seq %d' % s['walk'])
     check(b.get('size') == ['1'], '...and it is still a 1x1 follower')
-    check(b.get('vislevel') == ['hide'] and b.get('timer') == ['20'],
-          '...with no combat level and the timer that drives [ai_timer,_bosspet]')
+    # timer=1, not 20: [ai_timer,_bosspet] is ~follower_keepup and nothing else, and at 20 a pet
+    # whose owner took a ladder spent up to twenty ticks wandering the floor they had left.
+    check(b.get('vislevel') == ['hide'] and b.get('timer') == ['1'],
+          '...with no combat level, and the every-tick timer that drives [ai_timer,_bosspet]')
     check(b.get('category') == ['bosspet'], '...on the category the drop trigger fires on')
 
 # ============================================================================ 6

@@ -1,0 +1,76 @@
+[if_button,questlist:twocats]
+def_string $text;
+
+switch_int (%twocats_quest) {
+    case ^twocats_not_started :
+        $text = "@dbl@I can start this quest by speaking to @dre@Unferth|";
+        $text = append($text, "@dbl@in @dre@Burthorpe|");
+        $text = append($text, "@dbl@I will need to have completed @dre@Gertrude's Cat|");
+        $text = append($text, "@dbl@and @dre@Icthlarin's Little Helper");
+
+    case ^twocats_started :
+        $text = "@str@Unferth is bald, bedridden and convinced the two things|";
+        $text = append($text, "@str@are connected to his cat walking out on him.|");
+        $text = append($text, "@dbl@The cat is called @dre@Bob@dbl@ and he is in @dre@Bob's Axes|");
+        $text = append($text, "@dbl@in @dre@Lumbridge|");
+        $text = append($text, "@dbl@I will need a @dre@catspeak amulet@dbl@ worn to talk to him");
+
+    case ^twocats_met_bob :
+        $text = "@str@Bob admits the curse is his and that it has been soaking|";
+        $text = append($text, "@str@into Unferth for eleven years. He cannot remember where|");
+        $text = append($text, "@str@he got it.|");
+        $text = append($text, "@dbl@He has left me a @dre@list of chores@dbl@ for Unferth:|");
+        $text = append($text, "@dbl@@dre@Tidy house@dbl@ - make the bed|");
+        $text = append($text, "@dbl@@dre@Warm human@dbl@ - logs and a tinderbox|");
+        $text = append($text, "@dbl@@dre@Feed human@dbl@ - chocolate cake and a bucket of milk|");
+        $text = append($text, "@dbl@@dre@Tidy human@dbl@ - shears|");
+        $text = append($text, "@dbl@@dre@Tend garden@dbl@ - a rake and a potato seed|");
+        $text = append($text, "@dbl@The @dre@recipe@dbl@ is in Unferth's @dre@bookcase");
+
+    case ^twocats_chores_done :
+        $text = "@str@Every line on the list is done and the house is almost|";
+        $text = append($text, "@str@liveable.|");
+        $text = append($text, "@dbl@I should tell @dre@Bob");
+
+    // Stage 40 covers both sides of the Reldo errand. %twocats_reldo is the only record that he
+    // has told the story, so it is what decides which half of it this shows.
+    case ^twocats_bob_story :
+        if (%twocats_reldo = ^twocats_flag_set) {
+            $text = "@str@Robert the Strong killed one of the dragonkin and was|";
+            $text = append($text, "@str@cursed for it. The only thing that came home was his cat.|");
+            $text = append($text, "@dbl@I should tell @dre@Bob@dbl@ what he is");
+        } else {
+            $text = "@str@Doing the chores shook something loose: Bob remembers the|";
+            $text = append($text, "@str@name Robert, and a panther called Odysseus.|");
+            $text = append($text, "@dbl@I should ask @dre@Reldo@dbl@ in the @dre@Varrock palace library");
+        }
+
+    case ^twocats_neite_here :
+        $text = "@str@Bob has gone ahead. A cat called Neite is waiting in|";
+        $text = append($text, "@str@Unferth's garden. She can take the curse off him, but not|");
+        $text = append($text, "@str@until someone who loves him says his true name.|");
+        $text = append($text, "@dbl@I should tell @dre@Unferth@dbl@ that his cat is called @dre@Robert");
+
+    case ^twocats_told_unferth :
+        $text = "@str@Unferth has said the name out loud and the room went|";
+        $text = append($text, "@str@cold.|");
+        $text = append($text, "@dbl@I should go back out to @dre@Neite");
+
+    case ^twocats_curse_lifted :
+        $text = "@str@The curse is off Bob, Unferth's hair is growing back in|";
+        $text = append($text, "@str@and the potatoes have come up.|");
+        $text = append($text, "@dbl@@dre@Neite@dbl@ has something for me");
+
+    case ^twocats_complete :
+        $text = "@str@Unferth was losing his hair to a curse his cat had been|";
+        $text = append($text, "@str@carrying since Robert the Strong died of it eleven years|");
+        $text = append($text, "@str@ago. Bob remembered his own name, Neite took the curse|");
+        $text = append($text, "@str@off him, and the two of them left together.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+
+    case default :
+        $text = "@dbl@I can start this quest by speaking to @dre@Unferth|";
+        $text = append($text, "@dbl@in @dre@Burthorpe");
+}
+
+~quest_journal("A Tail of Two Cats", $text);

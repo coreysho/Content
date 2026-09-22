@@ -1,0 +1,85 @@
+// The Lost Tribe half of Duke Horacio's dialogue.
+//
+// The Duke's own script is areas/area_lumbridge/scripts/duke_horacio.rs2 and it is shared with
+// Rune Mysteries and Dragon Slayer, so the quest lives here and that file only gains one option
+// on his menu. ~duke_lost_tribe_offer decides whether the option is worth showing at all.
+
+[proc,duke_lost_tribe_offer]()(boolean)
+if (%lost_tribe_quest = ^lost_tribe_not_started) {
+    return (true);
+}
+if (%lost_tribe_quest < ^lost_tribe_complete) {
+    return (true);
+}
+return (false);
+
+[label,duke_lost_tribe]
+switch_int (%lost_tribe_quest) {
+    case ^lost_tribe_not_started : @duke_lost_tribe_start;
+    case ^lost_tribe_investigate : @duke_lost_tribe_looking;
+    case ^lost_tribe_told_sigmund : @duke_lost_tribe_open_wall;
+    case ^lost_tribe_proved_sigmund : @duke_lost_tribe_treaty;
+    case default : @duke_lost_tribe_waiting;
+}
+
+[label,duke_lost_tribe_start]
+~chatplayer("<p,quiz>You look troubled.");
+~chatnpc("<p,sad>My silverware is gone. Every piece of it, out of a locked cellar, with the door still locked this morning.");
+~chatnpc("<p,neutral>And there is a quantity of broken stone down there that was not there last week.");
+switch_int (~p_choice2("I'll take a look.", 1, "Sounds like a job for your guards.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>Sounds like a job for your guards.");
+        ~chatnpc("<p,sad>My guards will not go into a cellar to look at a wall. Believe me, I have asked.");
+        return;
+    case 1 :
+        ~chatplayer("<p,happy>I'll take a look.");
+}
+~chatnpc("<p,happy>Would you? The trapdoor is in the courtyard. Mind the shelves - they are older than I am.");
+%lost_tribe_quest = ^lost_tribe_investigate;
+~send_quest_progress(questlist:lost_tribe, %lost_tribe_quest, ^lost_tribe_complete);
+
+[label,duke_lost_tribe_looking]
+~chatnpc("<p,quiz>Have you been down to the cellar yet?");
+~chatplayer("<p,neutral>I have. There's rubble behind the shelves, and the wall is broken through.");
+~chatnpc("<p,shock>Broken through from which side?");
+~chatplayer("<p,neutral>Not from mine.");
+~chatnpc("<p,sad>Then speak to Sigmund. He is my advisor; he will know what to do about it.");
+
+[label,duke_lost_tribe_open_wall]
+~chatplayer("<p,angry>Sigmund says there's nothing down there and I imagined it.");
+~chatnpc("<p,confused>Did he. That is not like him at all.");
+~chatnpc("<p,neutral>Well. The shelves come down and the rubble comes out, and then we shall all know.");
+if_close;
+mes("The Duke sends two servants down with crowbars.");
+p_delay(3);
+~chatnpc("<p,neutral>There. You may go through - and do be careful. If there is something under my castle I would rather know its name than meet it in the dark.");
+%lost_tribe_quest = ^lost_tribe_way_open;
+~send_quest_progress(questlist:lost_tribe, %lost_tribe_quest, ^lost_tribe_complete);
+
+[label,duke_lost_tribe_waiting]
+~chatnpc("<p,quiz>What have you found under my castle?");
+~chatplayer("<p,neutral>I'm still finding it.");
+~chatnpc("<p,neutral>Then keep at it.");
+
+[label,duke_lost_tribe_treaty]
+if (inv_total(inv, lost_tribe_silverware) = 0 | inv_total(inv, lost_tribe_brooch) = 0 | ~obj_gettotal(lost_tribe_book) = 0) {
+    ~chatnpc("<p,quiz>You have that look. Out with it.");
+    ~chatplayer("<p,neutral>Not until I can show you all of it at once.");
+    return;
+}
+~chatplayer("<p,neutral>Your silverware was in Sigmund's chest.");
+mes("You show the Duke a piece of his own silver.");
+~chatnpc("<p,shock>...Sigmund's chest.");
+~chatplayer("<p,neutral>And the tribe under your cellar is the Dorgeshuun. It's in the book. They've been down there longer than Lumbridge has.");
+mes("You show him the brooch and the book together.");
+~chatnpc("<p,sad>Longer than Lumbridge. And I very nearly sent men down there with torches.");
+~chatnpc("<p,neutral>Where is Sigmund?");
+~chatplayer("<p,neutral>Gone, I should think.");
+~chatnpc("<p,angry>Yes. I should think so too.");
+~chatnpc("<p,neutral>Then I shall write to them instead. Take this down to whoever speaks for them, and tell him Lumbridge is sorry to have been so slow about it.");
+// The silverware goes back on his table before the treaty comes off it, so the swap is always a
+// slot for a slot and a full inventory cannot block it. No freespace check needed, and an
+// inv_freespace guard here would have turned a player away who had room all along.
+inv_del(inv, lost_tribe_silverware, 1);
+inv_add(inv, lost_tribe_treaty, 1);
+mes("The Duke seals a peace treaty and hands it to you.");

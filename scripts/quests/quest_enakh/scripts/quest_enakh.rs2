@@ -1,0 +1,271 @@
+// Enakhra's Lament - the surface: the rock, the chisel work, the statue and the way in.
+//
+// Every handler on the statue is an [oplocu]. None of the twenty children of
+// [enakh_statue_east_multiloc] carries an op - checked, the whole loc family has ops only on the
+// braziers, the doors, the sigil pedestals, the ladders, the sand piles, the rubble, the magic
+// wall, the mining rock and the open boulder - so the only way to interact with the statue is to
+// use something on it. Handlers sit on the shell, never on a child.
+
+// =========================================================================== the rock
+// enakh_mining_stone is "A rock with a pickaxe" and carries exactly one op, op1=Take-axe. It is
+// also the only source of sandstone and granite that exists: this cache has no Desert Quarry at
+// all - there is not one loc in loc.pack with sandstone or granite in its name - so the rock has
+// to be both the pickaxe and the quarry. The first click prises the pickaxe out; every click after
+// that mines it, and it hands over whichever block the build still wants so the player is never
+// left rolling for the one piece they are short of.
+[oploc1,enakh_mining_stone]
+p_arrivedelay;
+if (~enakh_has_pickaxe = false) {
+    if (inv_freespace(inv) = 0) {
+        mes("You have no room for the pickaxe.");
+        return;
+    }
+    mes("You work the pickaxe out of the rock. Whoever left it here did so a very long time ago.");
+    inv_add(inv, bronze_pickaxe, 1);
+    return;
+}
+@enakh_mine_rock;
+
+[oplocu,enakh_mining_stone]
+def_obj $item = last_useitem;
+p_arrivedelay;
+if ($item ! ~pickaxe_checker) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@enakh_mine_rock;
+
+[label,enakh_mine_rock]
+if (stat(mining) < ^enakh_req_mining) {
+    mes("You need a Mining level of <tostring(^enakh_req_mining)> to get anything out of this rock.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room for any more stone.");
+    return;
+}
+def_namedobj $block = ~enakh_next_block;
+mes("You swing at the rock.");
+sound_synth(mine, 1, 0);
+p_delay(3);
+inv_add(inv, $block, 1);
+stat_advance(mining, 500);
+mes("You lever a block of <oc_name($block)> out of the face.");
+
+// The build wants three things in this order: the 32kg base, the 20kg body and a 5kg lump of
+// granite for the head. Once all three have been dealt with the rock just gives spoil.
+[proc,enakh_next_block]()(namedobj)
+if (~enakh_holds_or_used(enakh_sandstone_huge_base+legs, enakh_sandstone_crafted_base+legs, ^enakh_build_base) = false) {
+    return(enakh_sandstone_huge_base+legs);
+}
+if (~enakh_holds_or_used(enakh_sandstone_huge_body, enakh_sandstone_crafted_body, ^enakh_build_body) = false) {
+    return(enakh_sandstone_huge_body);
+}
+if (~enakh_has_head = false & inv_total(inv, enakh_granite_medium) = 0) {
+    return(enakh_granite_medium);
+}
+return(enakh_sandstone_large);
+
+// True once the player has the raw block, the carved version of it, or has already built that far.
+[proc,enakh_holds_or_used](namedobj $raw, namedobj $carved, int $stage)(boolean)
+if (inv_total(inv, $raw) > 0 | inv_total(inv, $carved) > 0) {
+    return(true);
+}
+if (%enakh_statue_stage >= $stage) {
+    return(true);
+}
+return(false);
+
+[proc,enakh_has_head]()(boolean)
+if (inv_total(inv, enakh_statue_head_lazim) > 0) { return(true); }
+if (inv_total(inv, enakh_statue_head_zamorak) > 0) { return(true); }
+if (inv_total(inv, enakh_statue_head_icthlarin) > 0) { return(true); }
+if (inv_total(inv, enakh_statue_head_camel) > 0) { return(true); }
+return(false);
+
+// ~pickaxe_checker is Mining's own helper (skill_mining/scripts/pickaxe_checker.rs2). It returns
+// the best pickaxe the player can actually use, or null.
+[proc,enakh_has_pickaxe]()(boolean)
+if (~pickaxe_checker = null) {
+    return(false);
+}
+return(true);
+
+[proc,enakh_has_chisel]()(boolean)
+if (inv_total(inv, chisel) > 0) { return(true); }
+if (inv_total(inv, enakh_chisel) > 0) { return(true); }
+return(false);
+
+// =========================================================================== chisel work
+// Only one side of each combine is declared. [opheldu,chisel] belongs to Crafting and a trigger
+// cannot be declared twice; OpHeldUHandler falls back to [opheldu,a] when the target has no
+// handler of its own and swaps last_useitem with it, so chisel-on-block still arrives here with
+// the chisel as last_useitem.
+[opheldu,enakh_sandstone_huge_base+legs]
+@enakh_carve(enakh_sandstone_huge_base+legs, enakh_sandstone_crafted_base+legs, "You cut the thirty-two kilo block down into a base and a pair of legs.");
+
+[opheldu,enakh_sandstone_huge_body]
+@enakh_carve(enakh_sandstone_huge_body, enakh_sandstone_crafted_body, "You cut the twenty kilo block down into a torso.");
+
+[label,enakh_carve](namedobj $raw, namedobj $carved, string $message)
+if (~enakh_is_chisel(last_useitem) = false) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (stat(crafting) < ^enakh_req_crafting) {
+    mes("You need a Crafting level of <tostring(^enakh_req_crafting)> to shape a block this size.");
+    return;
+}
+if_close;
+mes("You start chipping away at the block.");
+p_delay(4);
+inv_del(inv, $raw, 1);
+inv_add(inv, $carved, 1);
+stat_advance(crafting, 1000);
+mes($message);
+
+[proc,enakh_is_chisel](obj $obj)(boolean)
+if ($obj = chisel) { return(true); }
+if ($obj = enakh_chisel) { return(true); }
+return(false);
+
+// The head is the one piece with a choice in it, and the choice is permanent: it writes
+// enakh_statue_whathead through %enakh_statue_stage and the statue carries that face for the rest
+// of the game. enakh_choose_statue_head remembers which one was asked for so Lazim has something
+// to be rude about afterwards.
+[opheldu,enakh_granite_medium]
+if (~enakh_is_chisel(last_useitem) = false) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%enakh_quest < ^enakh_started) {
+    mes("You have no reason to be carving faces into rocks.");
+    return;
+}
+if (stat(crafting) < ^enakh_req_crafting) {
+    mes("You need a Crafting level of <tostring(^enakh_req_crafting)> to carve a head.");
+    return;
+}
+def_int $choice;
+if (inv_total(inv, enakh_camel_mould_positive) > 0) {
+    $choice = ~p_choice4("Zamorak.", 1, "Icthlarin.", 2, "Lazim's own face.", 3, "A camel.", 4);
+} else {
+    $choice = ~p_choice3("Zamorak.", 1, "Icthlarin.", 2, "Lazim's own face.", 3);
+}
+def_namedobj $head;
+switch_int ($choice) {
+    case 1 : $head = enakh_statue_head_zamorak; %enakh_choose_statue_head = ^enakh_head_zamorak;
+    case 2 : $head = enakh_statue_head_icthlarin; %enakh_choose_statue_head = ^enakh_head_icthlarin;
+    case 3 : $head = enakh_statue_head_lazim; %enakh_choose_statue_head = ^enakh_head_lazim;
+    case 4 : $head = enakh_statue_head_camel; %enakh_choose_statue_head = ^enakh_head_camel;
+    case default : return;
+}
+if_close;
+mes("You rough the granite out and start on the face.");
+p_delay(5);
+inv_del(inv, enakh_granite_medium, 1);
+inv_add(inv, $head, 1);
+stat_advance(crafting, 1500);
+mes("You have carved a stone head.");
+
+// =========================================================================== building the statue
+[oplocu,enakh_statue_east_multiloc]
+def_obj $item = last_useitem;
+p_arrivedelay;
+if (%enakh_quest < ^enakh_started) {
+    ~displaymessage(^dm_default);
+    return;
+}
+switch_obj ($item) {
+    case enakh_sandstone_crafted_base+legs : @enakh_place_piece(enakh_sandstone_crafted_base+legs, ^enakh_build_flatground, ^enakh_build_base, "You heave the base into place. The legs go on after it.");
+    case enakh_sandstone_crafted_body : @enakh_place_piece(enakh_sandstone_crafted_body, ^enakh_build_base, ^enakh_build_body, "You lift the torso onto the legs. It settles with a noise you feel through your boots.");
+    case enakh_statue_head_zamorak : @enakh_place_head(enakh_statue_head_zamorak, ^enakh_build_head_zamorak);
+    case enakh_statue_head_icthlarin : @enakh_place_head(enakh_statue_head_icthlarin, ^enakh_build_head_icthlarin);
+    case enakh_statue_head_lazim : @enakh_place_head(enakh_statue_head_lazim, ^enakh_build_head_lazim);
+    case enakh_statue_head_camel : @enakh_place_head(enakh_statue_head_camel, ^enakh_build_head_camel);
+    case default : ~displaymessage(^dm_default);
+}
+
+[label,enakh_place_piece](namedobj $obj, int $from, int $to, string $message)
+if (%enakh_statue_stage ! $from) {
+    if (%enakh_statue_stage > $from) {
+        mes("That part of the statue is already up.");
+    } else {
+        mes("There is nothing for that to stand on yet.");
+    }
+    return;
+}
+inv_del(inv, $obj, 1);
+mes("You manhandle the stone into position.");
+p_delay(3);
+%enakh_statue_stage = $to;
+stat_advance(crafting, 1000);
+mes($message);
+if ($to = ^enakh_build_body) {
+    mes("Lazim will want to see this.");
+}
+
+// ^enakh_build_ready_for_head is written by Lazim once he has smoothed the joins - see
+// enakh_npcs.rs2 - so the head cannot go on a statue he has not signed off.
+[label,enakh_place_head](namedobj $obj, int $built)
+if (%enakh_statue_stage < ^enakh_build_ready_for_head) {
+    mes("There is no neck to put that on yet.");
+    return;
+}
+if (%enakh_statue_stage >= ^enakh_build_head_lazim) {
+    mes("The statue already has a head.");
+    return;
+}
+inv_del(inv, $obj, 1);
+if_close;
+mes("You climb the scaffold and settle the head onto the shoulders.");
+p_delay(3);
+%enakh_statue_stage = $built;
+%enakh_quest = ^enakh_head_on;
+~send_quest_progress(questlist:enakh, %enakh_quest, ^enakh_complete);
+stat_advance(crafting, 2000);
+@enakh_statue_falls;
+
+// The collapse. enakh_statue_fallen is bits 16-17 of enakh_multivarbits, and the same two bits are
+// the bottom of enakh_fallen_statue_multivar - whose every multiloc is congruent to 3 mod 4. So
+// setting it to ^enakh_statue_collapsed does two things at once: the statue up here becomes
+// enakh_bighole and the fallen statue appears on plane 0 of the temple, limbs and all.
+[label,enakh_statue_falls]
+mes("Something underneath the statue gives.");
+%enakh_statue_fallen = ^enakh_statue_crack1;
+p_delay(2);
+mes("A crack runs up through the base and keeps going.");
+%enakh_statue_fallen = ^enakh_statue_crack2;
+p_delay(2);
+sound_synth(rock_impact, 1, 0);
+mes("The whole thing drops straight down into the sand and does not stop.");
+%enakh_statue_fallen = ^enakh_statue_collapsed;
+p_delay(2);
+// The four boulders are separate multilocs on four separate bits, so all four have to be written.
+%enakh_boulder_n_multivar = ^enakh_on;
+%enakh_boulder_e_multivar = ^enakh_on;
+%enakh_boulder_s_multivar = ^enakh_on;
+%enakh_boulder_w_multivar = ^enakh_on;
+~mesbox("There is a hole where the statue was, and four boulders out in the desert have shifted off entrances nobody has used in four thousand years.");
+
+// =========================================================================== the boulders
+// [enakh_secret_boulder_shut] has no ops at all and [enakh_secret_boulder_open] has op1=Climb-down,
+// so a boulder cannot be touched until its bit is set and the handler only ever runs on the open
+// one. Each drops into the quadrant of the ring that holds its own sigil.
+[oploc1,enakh_secret_boulder_multiloc_n] @enakh_enter_ring(^enakh_p0_land_nw);
+[oploc1,enakh_secret_boulder_multiloc_e] @enakh_enter_ring(^enakh_p0_land_ne);
+[oploc1,enakh_secret_boulder_multiloc_s] @enakh_enter_ring(^enakh_p0_land_se);
+[oploc1,enakh_secret_boulder_multiloc_w] @enakh_enter_ring(^enakh_p0_land_sw);
+
+[label,enakh_enter_ring](coord $coord)
+p_arrivedelay;
+if_close;
+mes("You lower yourself into the dark.");
+p_delay(2);
+p_teleport($coord);
+if (%enakh_quest = ^enakh_head_on) {
+    %enakh_quest = ^enakh_inside;
+    %enakh_where_is_lazim = ^enakh_lazim_at_fallen;
+    ~send_quest_progress(questlist:enakh, %enakh_quest, ^enakh_complete);
+    ~mesbox("Lazim got down here ahead of you, which raises a question you did not think to ask on the way.");
+}

@@ -1,0 +1,67 @@
+// Tears of Guthix.
+//
+// One varp, tog_minigame, and it carries the whole thing. It shipped with transmit=yes but no
+// scope=perm, so every visit, every story and the quest-point watermark that decides when you may
+// come back would have been wiped on logout.
+//
+//   tog_juna_bowl           bits 0-1    0-3    the bowl chain
+//   tog_juna_stories        bits 2-5    0-15   how many times Juna has been told a story
+//   tog_minigame_collecting bit 6              a run is in progress
+//   tog_tears_collected     bits 12-20  0-511  tears this run
+//   tog_hacky_fix           bit 21             spare, and named like one
+//   tog_qp_before_return    bits 22-31  0-1023 the quest-point count at the last run
+//
+// tog_qp_before_return is the only thing in the varp that gates a repeat, and ten bits of it, so
+// the intent is plain: you get another run when you have earned more quest points than you had
+// last time. That is what is implemented. tog_hacky_fix is the only spare bit and the only place
+// "Juna has been spoken to" can live, so that is what it holds.
+//
+// ---------------------------------------------------------------------------- no multilocs
+// There is not one multivar anywhere in the tog loc or npc families - checked both files. So
+// tog_weeping_wall_good_r, _bad_r and _off_r (and their _l twins) cannot be driven by a varbit,
+// and none of them carries an op: op1=Collect-from is on tog_weepingwall, the shell the map
+// actually places. The tear colour is therefore script state shown through loc_change on the
+// active wall for a few ticks, which reverts on its own - the wall keeps its op the whole time.
+//
+// Which colour a wall is weeping is a function of the clock and the wall's own position, so the
+// nine walls are never all the same and a player who watches can work out where to stand. That is
+// the game; the cache does not pin it, and this is the reading that makes the nine placements and
+// the three colours mean something.
+
+^tog_bowl_none = 0
+^tog_bowl_stone = 1
+^tog_bowl_made = 2
+
+^tog_off = 0
+^tog_on = 1
+
+// Journal/progress values. There is no stage varbit - the quest's state is spread across the bowl
+// chain and the story count - so ~tog_progress folds them into one number for the quest list, the
+// same way ~itexam_progress and ~get_cog_progress already do for their quests.
+^tog_not_started = 0
+^tog_met_juna = 1
+^tog_has_stone = 2
+^tog_has_bowl = 3
+^tog_complete = 4
+
+// ---------------------------------------------------------------------------- the run
+// Length in ticks, scaled by quest points the way the live game scales it by them, and capped so
+// that a maxed account is not standing in a cave for five minutes.
+^tog_run_min_ticks = 30
+^tog_run_max_ticks = 90
+^tog_tear_cycle = 8          // ticks a wall holds one colour before it changes
+^tog_xp_per_tear_per_level = 20
+
+// Quest points needed before Juna will hear a story at all.
+^tog_req_questpoints = 43
+^tog_req_mining = 20
+^tog_req_crafting = 20
+
+// ---------------------------------------------------------------------------- places
+// The cave is plane 2 of m50_148 with Juna on a ledge at plane 1. The way in is from the Lumbridge
+// Swamp Caves on plane 0 of m50_149.
+^tog_entrance_above = 0_50_149_25_4     // 3225,9540  beside tog_cave_down
+^tog_entrance_below = 2_50_148_18_60    // 3218,9532  beside tog_cave_up
+^tog_juna = 1_50_148_52_45              // 3252,9517  scenery only - she has no ops
+^tog_rocks_top = 2_50_148_40_26         // 3240,9498  beside the climb down onto her ledge
+^tog_tears_chamber = 2_50_148_59_45     // 3259,9517  the middle of the nine weeping walls

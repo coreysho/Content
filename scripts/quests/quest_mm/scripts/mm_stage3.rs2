@@ -573,18 +573,21 @@ mes("The Jungle Demon comes apart.");
 [opnpc1,mm_garkor_final_battle]
 if (%mm_main < ^mm_demon_dead) {
     ~chatnpc("<p,angry>Fight now. Talk after.");
+    ~chatnpc("<p,neutral>And keep your back to a wall. Karam is out there somewhere and he does not shout twice.");
     return;
 }
 ~chatnpc("<p,happy>That is what Glough was growing under the Grand Tree.");
 ~chatplayer("<p,worried>Narnode needs to hear it from someone he'll believe.");
 ~chatnpc("<p,neutral>Then go and be that someone. Zooknock will put you out.");
+~chatplayer("<p,quiz>Where's Karam? I never saw him.");
+~chatnpc("<p,happy>You were not meant to. Four of us walked onto that island; four of us are walking off it.");
 
-[opnpc1,mm_karam_final_battle]
-if (%mm_main < ^mm_demon_dead) {
-    ~chatnpc("<p,neutral>Behind you!");
-    return;
-}
-~chatnpc("<p,happy>Four of us walked onto that island. Four of us are walking off it.");
+// Karam has no [opnpc1]. He carries no ops at all in the cache - no Talk-to, nothing - which is of
+// a piece with his examine text ("All you see is a glimmer of light and the suggestion of shadow"):
+// he is the squad's assassin and he is not standing still to be spoken to. The handler that used to
+// be here was a dead click, declared on an op the npc does not have, so it never once fired.
+//
+// His two lines are not lost. Garkor answers for him, which is what a commander is for.
 
 [opnpc1,mm_zooknock_final_battle]
 if (%mm_main < ^mm_demon_dead) {
@@ -611,9 +614,19 @@ p_telejump(^mm_grand_tree_return);
 ~chatplayer("<p,neutral>Under the tree.");
 ~chatnpc("<p,sad>He sat at my table. He held the door for me.");
 ~chatnpc("<p,neutral>Daero will see you paid, and better trained than you were. Go and speak to him.");
+// Three diamonds do not stack, so this needs three free slots on top of the coins. The quest is
+// marked complete on the very next line and Narnode has no re-claim branch, so an unguarded
+// inv_add here destroys the reward for good. Every other hand-out in this file guards; this one
+// drops to the floor instead of refusing, because the completion screen follows either way.
 %mm_main = ^mm_complete;
-inv_add(inv, coins, ^mm_reward_coins);
-inv_add(inv, diamond, ^mm_reward_diamonds);
+if (inv_freespace(inv) >= 4) {
+    inv_add(inv, coins, ^mm_reward_coins);
+    inv_add(inv, diamond, ^mm_reward_diamonds);
+} else {
+    obj_add(coord, coins, ^mm_reward_coins, ^lootdrop_duration);
+    obj_add(coord, diamond, ^mm_reward_diamonds, ^lootdrop_duration);
+    mes("You don't have enough room, so your reward falls to the ground.");
+}
 ~send_quest_complete(questlist:mm, mm_monkey_greegree_for_normal_monkey, 250, ^mm_questpoints, "You have completed the\\nMonkey Madness Quest!", "3 Quest Points|10,000 Coins|3 Diamonds|Combat experience from Daero|The ability to wield the Dragon scimitar");
 
 // Daero's XP choice. The wiki's two options are 35,000 in two skills and 20,000 in the other two,

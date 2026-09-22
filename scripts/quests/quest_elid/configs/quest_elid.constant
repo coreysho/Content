@@ -1,0 +1,49 @@
+// Spirits of the Elid.
+//
+// %elidquest is NOT free. Two multilocs in Nardah switch on it and between them they enumerate
+// every legal value:
+//
+//   [elid_fountain_multiloc]   (all.loc:67020, placed once at abs 3425,2915)
+//   [elid_statuette_multiloc]  (all.loc:67037, placed once at abs 3426,2930)
+//       both list 0, 10, 20, 25, 27, 30, 35, 40, 50, 55, 60 and nothing else
+//
+// Any other value and Nardah's fountain and the shrine plinth stop rendering entirely - there is
+// no matching multiloc entry and the shell resolves to nothing. So the stages below are the
+// cache's eleven values, not a scheme of mine. 60 is the only one where the fountain flows and
+// elid_statuette_placed (op1=Pray-at) exists, so 60 is completion and placing the statuette is
+// what reaches it.
+^elid_not_started = 0
+^elid_asked_mayor = 10
+^elid_spoke_ghaslor = 20
+^elid_has_robes = 25
+^elid_entered_shrine = 27
+^elid_met_spirits = 30
+^elid_channels_done = 35
+^elid_has_statuette = 40
+^elid_shown_ghaslor = 50
+^elid_told_mayor = 55
+
+// The three channel bits are the cache's own varbits on elid_main, one per trial, and each drives
+// three multilocs: the obstacle, the water in that stretch, and the pour effect.
+//   elid_miningchannel   - blocked with rock,  op1=Clear
+//   elid_thievingchannel - spike trap,         op1=Clear
+//   elid_rangingchannel  - a target to shoot;  also drives elid_ranging_target_multinpc
+//
+// elid_waterchannel_mining_water_multiloc is the one shell of the nine that the maps never place -
+// the mining stretch has plain elid_water_channel_water hard-placed at abs (3378,9545) and
+// (3378,9546) instead, so that stretch looks wet from the start. Nothing here depends on it.
+
+// The three golem doors. The golems themselves (level 75, black/white/grey) are not placed
+// anywhere and are not multinpc children, so they are spawned when their door is opened.
+^elid_golem_despawn = 500
+
+// The crevice down into the shrine is at m52_45 local(45,22)-(45,27) and (46,24)-(46,26); the way
+// back up, elid_underground_exit, is m52_148 local(19,61). Each landing is the tile beside its
+// loc rather than on it.
+^elid_shrine_below = 0_52_148_20_61
+^elid_shrine_above = 0_52_45_46_23
+
+// One tile east of each golem door - checked clear of centrepieces on plane 0 of m52_149.
+^elid_golem_black_spawn = 0_52_149_45_20
+^elid_golem_white_spawn = 0_52_149_38_6
+^elid_golem_grey_spawn = 0_52_149_47_11

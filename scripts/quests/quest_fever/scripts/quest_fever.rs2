@@ -1,0 +1,540 @@
+// Cabin Fever - Bill Teach needs a crew, and the only qualification is being willing to stand next
+// to a cannon that has not been cleaned since the last person who stood next to it.
+
+// =========================================================================== Bill Teach
+[opnpc1,fever_teach]
+switch_int (%fever_quest) {
+    case ^fever_not_started : @fever_start;
+    case ^fever_asked : @fever_give_book;
+    case ^fever_book :
+        ~chatnpc("<p,neutral>Gangplank's at the end of the pier. I'll be aboard.");
+    case default :
+        if (%fever_quest >= ^fever_complete) {
+            ~chatnpc("<p,happy>Mos Le'Harmless. Ye can get there and back now, which is more than most can say.");
+            return;
+        }
+        ~chatnpc("<p,neutral>Aboard, then.");
+}
+
+[label,fever_start]
+if (%deal_quest < ^deal_complete) {
+    ~chatnpc("<p,neutral>I don't take on crew who've never been to sea. Go and do something disreputable first.");
+    ~chatnpc("<p,neutral>Braindeath Island'd do it.");
+    return;
+}
+~chatnpc("<p,neutral>Braindeath's island. I heard. Ye brewed that rum.");
+~chatplayer("<p,quiz>Is that good?");
+~chatnpc("<p,happy>It's the only reference I've ever accepted.");
+~chatnpc("<p,neutral>I'm short of crew and I sail for Mos Le'Harmless on the tide. It's an island nobody finds unless they're taken to it.");
+switch_int (~p_choice2("What's the catch?", 1, "I'll sail.", 2)) {
+    case 1 :
+        ~chatplayer("<p,quiz>What's the catch?");
+        ~chatnpc("<p,neutral>Rabid Jack. He's been sinking my ships for eleven years and he'll sink this one too, which is why I want somebody on the cannon who hasn't done it before and is therefore not tired of it.");
+    case 2 :
+        ~chatplayer("<p,neutral>I'll sail.");
+        ~chatnpc("<p,neutral>Ye didn't ask what the catch was. I like that and it's going to go badly for ye.");
+}
+%fever_quest = ^fever_asked;
+~send_quest_progress(questlist:fever, %fever_quest, ^fever_complete);
+@fever_give_book;
+
+[label,fever_give_book]
+if (inv_total(inv, fever_piracy_book) > 0) {
+    ~chatnpc("<p,neutral>Read it. The order matters and it matters a great deal.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>Ye've no room for a book.");
+    return;
+}
+inv_add(inv, fever_piracy_book, 1);
+~chatnpc("<p,neutral>Book o' piracy, by Cap'n Hook-Hand Morrisane. Chapter four is the gun drill and it's the only chapter anybody has ever needed.");
+
+[opheld1,fever_piracy_book]
+~mesbox("Book o' piracy | By Cap'n Hook-Hand Morrisane | CHAPTER FOUR: THE GUN DRILL | 1. The ramrod, to clean her. She is never clean. | 2. The powder. | 3. The ramrod again, to pack it. | 4. The shot - ball for timber, cannister for men. | 5. The fuse. | 6. The tinderbox, and stand to one side. | Load a dirty barrel and ye'll find out why I write with the other hand.");
+if (%fever_quest = ^fever_asked) {
+    %fever_quest = ^fever_book;
+    ~send_quest_progress(questlist:fever, %fever_quest, ^fever_complete);
+}
+
+// =========================================================================== the gangplanks
+[oploc1,fever_gangplank]
+p_arrivedelay;
+if (%fever_quest < ^fever_book) {
+    ~mesbox("Somebody else's ship.");
+    return;
+}
+mes("You cross the gangplank.");
+p_delay(2);
+p_teleport(^fever_port_ship);
+if (%fever_quest = ^fever_book) {
+    %fever_quest = ^fever_aboard;
+    ~send_quest_progress(questlist:fever, %fever_quest, ^fever_complete);
+}
+
+[oploc1,fever_gangplank_exit]
+p_arrivedelay;
+mes("You cross the gangplank.");
+p_delay(2);
+p_teleport(^fever_pier_return);
+
+[oploc1,fever_gangplank_harmless]
+p_arrivedelay;
+mes("You cross the gangplank.");
+p_delay(2);
+p_teleport(^fever_harmless);
+
+[oploc1,fever_gangplank_exit_harmless]
+p_arrivedelay;
+mes("You cross the gangplank.");
+p_delay(2);
+p_teleport(^fever_harmless);
+
+// =========================================================================== sailing
+[opnpc1,fever_port_ship_teach]
+if (%fever_quest < ^fever_aboard) {
+    ~chatnpc("<p,neutral>Off my ship.");
+    return;
+}
+if (%fever_quest > ^fever_aboard) {
+    ~chatnpc("<p,neutral>We've been. Ye were there.");
+    return;
+}
+~chatplayer("<p,neutral>Ready.");
+~chatnpc("<p,neutral>Nobody's ready. Cast off.");
+if_close;
+mes("The ship works its way out past the harbour and keeps going for a long time.");
+p_delay(5);
+~mesbox("Somewhere south of anywhere with a name, a second ship comes out of the weather at about four hundred yards and takes the top off the mainmast with its first shot.");
+p_delay(3);
+p_teleport(^fever_quest_ship);
+%fever_quest = ^fever_battle;
+~send_quest_progress(questlist:fever, %fever_quest, ^fever_complete);
+// Everything starts fouled, because the last person to use it did not clean it either.
+%fever_cannon = ^fever_cannon_ok;
+%fever_cannon_clean = ^fever_off;
+%fever_cannon_powder = ^fever_off;
+%fever_cannon_tamp = ^fever_off;
+%fever_cannon_ammo = ^fever_ammo_none;
+%fever_cannon_fuse = ^fever_off;
+%fever_cannon_accuracy = 0;
+%fever_enemy_cannon = ^fever_off;
+~mesbox("The lockers are aft. The cannon is amidships. The book said the order matters.");
+
+[opnpc1,fever_quest_ship_teach]
+switch_int (%fever_quest) {
+    case ^fever_battle :
+        ~chatnpc("<p,angry>The gun! I'm holding a wheel and she's holding a grudge!");
+        if (~fever_holes_open > 0) {
+            ~chatnpc("<p,angry>And we're taking water. Plank it, then paste it.");
+        }
+    case ^fever_won : @fever_land;
+    case default :
+        ~chatnpc("<p,neutral>Well sailed.");
+}
+
+[label,fever_land]
+~chatnpc("<p,happy>Her gun's off its mounting and she's sheering away.");
+if_close;
+mes("The ship runs for another two hours with a shortened mast and a hull full of planks.");
+p_delay(5);
+p_teleport(^fever_harmless);
+%fever_quest = ^fever_landed;
+~send_quest_progress(questlist:fever, %fever_quest, ^fever_complete);
+~mesbox("Mos Le'Harmless. It is an island that is not on any chart, and everybody on it looks at you exactly once and then does not look again.");
+
+[opnpc1,fever_harmless_teach]
+if (%fever_quest = ^fever_landed) {
+    @fever_finish;
+}
+if (%fever_quest >= ^fever_complete) {
+    ~chatnpc("<p,happy>Come and go as ye like. Ye're crew.");
+    return;
+}
+~chatnpc("<p,neutral>Ye're a long way from where ye started.");
+
+[label,fever_finish]
+~chatnpc("<p,happy>Ye loaded her right first time, which nobody does.");
+~chatplayer("<p,quiz>The book was very clear.");
+~chatnpc("<p,neutral>The book has been very clear for forty years and I have buried eleven men who read it.");
+if_close;
+mes("Bill Teach writes your name in a crew list that has a great many names crossed out of it.");
+p_delay(4);
+%fever_quest = ^fever_complete;
+stat_advance(smithing, 70000);
+stat_advance(crafting, 70000);
+stat_advance(fishing, 70000);
+session_log(^log_adventure, "Quest complete: Cabin Fever");
+~send_quest_complete(questlist:fever, fever_piracy_book, 200, ^fever_questpoints, "You have completed\\nCabin Fever!", "2 Quest Points|7,000 Smithing XP|7,000 Crafting XP|7,000 Fishing XP|Mos Le'Harmless");
+
+// =========================================================================== the lockers
+[oploc1,fever_repair_locker]
+p_arrivedelay;
+mes("You open the locker.");
+p_delay(2);
+@fever_repair_stock;
+
+[oploc1,fever_repair_locker_open] @fever_repair_stock;
+
+[label,fever_repair_stock]
+if (inv_freespace(inv) < 3) {
+    mes("You have no room for what is in it.");
+    return;
+}
+def_boolean $took = false;
+if (inv_total(inv, fever_repair_plank) < 3) {
+    inv_add(inv, fever_repair_plank, sub(3, inv_total(inv, fever_repair_plank)));
+    $took = true;
+}
+if (inv_total(inv, swamppaste) = 0) {
+    inv_add(inv, swamppaste, 3);
+    $took = true;
+}
+if (inv_total(inv, hammer) = 0) {
+    inv_add(inv, hammer, 1);
+    $took = true;
+}
+if ($took = false) {
+    ~mesbox("Planks, paste and a hammer, and you have all three.");
+    return;
+}
+~mesbox("Repair planks, swamp paste and a hammer. Somebody keeps this locker properly, which on this ship is unexpected.");
+
+[oploc2,fever_repair_locker_open] mes("You close the locker.");
+
+[oploc1,fever_weapons_locker]
+p_arrivedelay;
+mes("You open the locker.");
+p_delay(2);
+@fever_weapons_stock;
+
+[oploc1,fever_weapons_locker_open] @fever_weapons_stock;
+
+[label,fever_weapons_stock]
+if (inv_freespace(inv) < 4) {
+    mes("You have no room for what is in it.");
+    return;
+}
+def_boolean $took = false;
+if (inv_total(inv, fever_cannon_prod) = 0) { inv_add(inv, fever_cannon_prod, 1); $took = true; }
+if (inv_total(inv, fever_fuse) = 0) { inv_add(inv, fever_fuse, 3); $took = true; }
+if (inv_total(inv, fever_cannon_ball) = 0) { inv_add(inv, fever_cannon_ball, 5); $took = true; }
+if (inv_total(inv, fever_cannister) = 0) { inv_add(inv, fever_cannister, 3); $took = true; }
+if (inv_total(inv, fever_tinderbox) = 0) { inv_add(inv, fever_tinderbox, 1); $took = true; }
+if ($took = false) {
+    ~mesbox("A ramrod, fuses, shot and a tinderbox, and you are carrying all of it.");
+    return;
+}
+~mesbox("A ramrod, three fuses, five balls, three cannisters and a tinderbox.");
+
+[oploc2,fever_weapons_locker_open] mes("You close the locker.");
+
+[oploc1,fever_multi_gunpowder_barrel]
+p_arrivedelay;
+if (inv_total(inv, fever_gunpowder) > 0) {
+    ~mesbox("You have powder and it is not the sort of thing to carry two of.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room.");
+    return;
+}
+inv_add(inv, fever_gunpowder, 1);
+mes("You take a charge of powder from the barrel.");
+
+// =========================================================================== the gun drill
+// The order is chapter four and the varbits are one per step.
+[oploc1,fever_multi_cannon]
+p_arrivedelay;
+switch_int (%fever_cannon) {
+    case ^fever_cannon_broken : @fever_repair_cannon;
+    case ^fever_cannon_nobarrel : @fever_repair_cannon;
+    case ^fever_cannon_ready : @fever_fire;
+}
+if (%fever_quest ! ^fever_battle) {
+    ~mesbox("A cannon, on a ship, at anchor. There is nothing to point it at.");
+    return;
+}
+if (%fever_cannon_clean = ^fever_off) {
+    if (inv_total(inv, fever_cannon_prod) = 0) {
+        ~mesbox("She is filthy. The book says the ramrod first and the book is emphatic about it.");
+        return;
+    }
+    anim(human_pickupfloor, 0);
+    p_delay(3);
+    %fever_cannon_clean = ^fever_on;
+    mes("You run the ramrod down the barrel. What comes out of it is not describable.");
+    return;
+}
+if (%fever_cannon_powder = ^fever_off) {
+    if (inv_total(inv, fever_gunpowder) = 0) {
+        ~mesbox("Clean, and empty. There is a powder barrel below.");
+        return;
+    }
+    inv_del(inv, fever_gunpowder, 1);
+    %fever_cannon_powder = ^fever_on;
+    mes("You tip the charge in.");
+    return;
+}
+if (%fever_cannon_tamp = ^fever_off) {
+    if (inv_total(inv, fever_cannon_prod) = 0) {
+        ~mesbox("Loose powder does nothing but make a noise. It wants packing.");
+        return;
+    }
+    anim(human_pickupfloor, 0);
+    p_delay(3);
+    %fever_cannon_tamp = ^fever_on;
+    mes("You pack the charge down.");
+    return;
+}
+if (%fever_cannon_ammo = ^fever_ammo_none) {
+    if (inv_total(inv, fever_cannon_ball) > 0) {
+        inv_del(inv, fever_cannon_ball, 1);
+        %fever_cannon_ammo = ^fever_ammo_ball;
+        mes("Ball. For timber.");
+        return;
+    }
+    if (inv_total(inv, fever_cannister) > 0) {
+        inv_del(inv, fever_cannister, 1);
+        %fever_cannon_ammo = ^fever_ammo_cannister;
+        mes("Cannister. For men.");
+        return;
+    }
+    ~mesbox("Powder and no shot.");
+    return;
+}
+if (%fever_cannon_fuse = ^fever_off) {
+    if (inv_total(inv, fever_fuse) = 0) {
+        ~mesbox("Loaded, and no fuse.");
+        return;
+    }
+    inv_del(inv, fever_fuse, 1);
+    %fever_cannon_fuse = ^fever_on;
+    %fever_cannon = ^fever_cannon_ready;
+    mes("Fuse in. She is ready.");
+    return;
+}
+~mesbox("She is loaded.");
+
+[label,fever_repair_cannon]
+if (inv_total(inv, hammer) = 0 | inv_total(inv, fever_repair_plank) = 0) {
+    ~mesbox("The carriage is in pieces. A hammer and a plank would put it back on its wheels.");
+    return;
+}
+anim(human_pickupfloor, 0);
+p_delay(4);
+inv_del(inv, fever_repair_plank, 1);
+%fever_cannon = ^fever_cannon_ok;
+%fever_cannon_clean = ^fever_off;
+%fever_cannon_powder = ^fever_off;
+%fever_cannon_tamp = ^fever_off;
+%fever_cannon_ammo = ^fever_ammo_none;
+%fever_cannon_fuse = ^fever_off;
+mes("The carriage holds. Start again from the ramrod.");
+
+[label,fever_fire]
+if (inv_total(inv, fever_tinderbox) = 0) {
+    ~mesbox("Loaded, fused, and nothing to light it with.");
+    return;
+}
+if (%fever_cannon_clean = ^fever_off) {
+    // Loading a dirty barrel is the one thing chapter four is emphatic about.
+    %fever_cannon_gonna_blow = ^fever_on;
+    if_close;
+    mes("You light the fuse.");
+    p_delay(3);
+    %fever_cannon = ^fever_cannon_nobarrel;
+    %fever_cannon_powder = ^fever_off;
+    %fever_cannon_tamp = ^fever_off;
+    %fever_cannon_ammo = ^fever_ammo_none;
+    %fever_cannon_fuse = ^fever_off;
+    %fever_cannon_gonna_blow = ^fever_off;
+    ~damage_self(15);
+    ~mesbox("The barrel splits along its whole length and takes the mounting with it. | This is what chapter four was about.");
+    return;
+}
+if_close;
+mes("You light the fuse and stand to one side.");
+p_delay(3);
+%fever_cannon_clean = ^fever_off;
+%fever_cannon_powder = ^fever_off;
+%fever_cannon_tamp = ^fever_off;
+%fever_cannon_ammo = ^fever_ammo_none;
+%fever_cannon_fuse = ^fever_off;
+%fever_cannon = ^fever_cannon_ok;
+%fever_cannon_accuracy = add(%fever_cannon_accuracy, 1);
+stat_advance(ranged, 3000);
+if (%fever_cannon_accuracy >= ^fever_shots_to_win) {
+    %fever_enemy_cannon = ^fever_on;
+    %fever_quest = ^fever_won;
+    ~send_quest_progress(questlist:fever, %fever_quest, ^fever_complete);
+    ~mesbox("The third shot goes in under her gunport and her cannon comes off its mounting and goes through her own rail. | She sheers away and does not come back.");
+    return;
+}
+mes("A hit. <tostring(%fever_cannon_accuracy)> of <tostring(^fever_shots_to_win)>.");
+p_delay(2);
+~fever_return_fire;
+
+// Every shot you land, she lands one back, and it goes into the hull.
+[proc,fever_return_fire]()()
+if (%fever_hole_1 = ^fever_hole_open) {
+    ~mesbox("She fires back and opens the hull forward. There is water coming in.");
+    return;
+}
+if (%fever_hole_2 = ^fever_hole_open) {
+    ~mesbox("She fires back and opens the hull amidships.");
+    return;
+}
+if (%fever_hole_3 = ^fever_hole_open) {
+    ~mesbox("She fires back and opens the hull aft.");
+    return;
+}
+%fever_hole_1 = ^fever_hole_open;
+%fever_hole_2 = ^fever_hole_open;
+%fever_hole_3 = ^fever_hole_open;
+~mesbox("She fires back and this one goes through in three places.");
+
+[oploc1,fever_cannon]
+~mesbox("A cannon. Clean her, charge her, pack her, shot her, fuse her, and light her from one side.");
+
+[oploc2,fever_cannon]
+%fever_cannon_clean = ^fever_off;
+%fever_cannon_powder = ^fever_off;
+%fever_cannon_tamp = ^fever_off;
+%fever_cannon_ammo = ^fever_ammo_none;
+%fever_cannon_fuse = ^fever_off;
+%fever_cannon = ^fever_cannon_ok;
+mes("You empty the cannon out and start again.");
+
+// =========================================================================== the hull
+// Fill the hole with a plank, then waterproof the plank with swamp paste.
+[oploc1,fever_multi_hole_1]
+p_arrivedelay;
+if (%fever_hole_1 = ^fever_hole_sealed) { ~mesbox("Planked and pasted."); return; }
+if (%fever_hole_1 = ^fever_hole_planked) { %fever_hole_1 = ~fever_paste(%fever_hole_1); return; }
+%fever_hole_1 = ~fever_plank(%fever_hole_1);
+
+[oploc1,fever_multi_hole_2]
+p_arrivedelay;
+if (%fever_hole_2 = ^fever_hole_sealed) { ~mesbox("Planked and pasted."); return; }
+if (%fever_hole_2 = ^fever_hole_planked) { %fever_hole_2 = ~fever_paste(%fever_hole_2); return; }
+%fever_hole_2 = ~fever_plank(%fever_hole_2);
+
+[oploc1,fever_multi_hole_3]
+p_arrivedelay;
+if (%fever_hole_3 = ^fever_hole_sealed) { ~mesbox("Planked and pasted."); return; }
+if (%fever_hole_3 = ^fever_hole_planked) { %fever_hole_3 = ~fever_paste(%fever_hole_3); return; }
+%fever_hole_3 = ~fever_plank(%fever_hole_3);
+
+[proc,fever_plank](int $state)(int)
+if (inv_total(inv, fever_repair_plank) = 0 | inv_total(inv, hammer) = 0) {
+    ~mesbox("A hole in the hull with the sea coming through it. A plank and a hammer, and there is a locker aft.");
+    return($state);
+}
+anim(human_pickupfloor, 0);
+p_delay(3);
+inv_del(inv, fever_repair_plank, 1);
+stat_advance(crafting, 1000);
+mes("You nail a plank over it. It is still coming through the seams.");
+return(^fever_hole_planked);
+
+[proc,fever_paste](int $state)(int)
+if (inv_total(inv, swamppaste) = 0) {
+    ~mesbox("The plank is on and the seams are still open. Swamp paste would do it.");
+    return($state);
+}
+anim(human_pickupfloor, 0);
+p_delay(3);
+inv_del(inv, swamppaste, 1);
+stat_advance(crafting, 1000);
+mes("You work paste into the seams and it stops.");
+return(^fever_hole_sealed);
+
+[proc,fever_holes_open]()(int)
+def_int $n = 0;
+if (%fever_hole_1 ! ^fever_hole_sealed) { $n = add($n, 1); }
+if (%fever_hole_2 ! ^fever_hole_sealed) { $n = add($n, 1); }
+if (%fever_hole_3 ! ^fever_hole_sealed) { $n = add($n, 1); }
+return($n);
+
+// =========================================================================== plunder
+// The looting is post-quest content: three container multilocs, a deposit with Count-Plunder and
+// Store-Plunder, and an eight-bit score to put it in.
+[oploc1,fever_multi_crate]
+p_arrivedelay;
+if (%fever_crate = ^fever_on) { ~mesbox("Emptied."); return; }
+if (inv_freespace(inv) = 0) { mes("You have no room."); return; }
+%fever_crate = ^fever_on;
+inv_add(inv, fever_plunder, 1);
+mes("You loot the crate.");
+
+[oploc1,fever_multi_chest]
+p_arrivedelay;
+if (%fever_chest = ^fever_on) { ~mesbox("Plundered."); return; }
+if (inv_freespace(inv) = 0) { mes("You have no room."); return; }
+%fever_chest = ^fever_on;
+inv_add(inv, fever_plunder, 2);
+mes("You plunder the chest.");
+
+[oploc1,fever_multi_barrel]
+p_arrivedelay;
+if (%fever_barrel = ^fever_on) { ~mesbox("Ransacked."); return; }
+if (inv_freespace(inv) = 0) { mes("You have no room."); return; }
+%fever_barrel = ^fever_on;
+inv_add(inv, fever_plunder, 1);
+mes("You ransack the barrel.");
+
+[oploc1,fever_plunder_deposit]
+~mesbox("Plunder stored: <tostring(%fever_plunder_points)>.");
+
+[oploc2,fever_plunder_deposit]
+p_arrivedelay;
+def_int $have = inv_total(inv, fever_plunder);
+if ($have = 0) {
+    ~mesbox("You have nothing to store.");
+    return;
+}
+if (add(%fever_plunder_points, $have) > 255) {
+    ~mesbox("The strongbox will not take any more.");
+    return;
+}
+inv_del(inv, fever_plunder, $have);
+%fever_plunder_points = add(%fever_plunder_points, $have);
+~mesbox("Stored. Plunder: <tostring(%fever_plunder_points)>.");
+
+// =========================================================================== ladders and nets
+[oploc1,fever_ship_ladder] @fever_up;
+[oploc1,fever_shipladder_angled] @fever_up;
+[oploc1,fever_climbing_net] @fever_up;
+[oploc1,fever_ship_laddertop] @fever_down;
+[oploc1,fever_shipladder_top_angled] @fever_down;
+[oploc1,fever_climb_down_location] @fever_down;
+
+[label,fever_up]
+p_arrivedelay;
+mes("You climb up.");
+p_teleport(movecoord(loc_coord, 0, 1, 0));
+
+[label,fever_down]
+p_arrivedelay;
+mes("You climb down.");
+p_teleport(movecoord(loc_coord, 0, -1, 0));
+
+// =========================================================================== Mos Le'Harmless
+[opnpc1,fever_pirate_two_feet_charley]
+~chatnpc("<p,neutral>Two feet. Both mine. Ye'd be surprised how far that gets ye on this island.");
+
+[opnpc1,fever_harpoon_joe]
+~chatnpc("<p,neutral>I throw a harpoon further than any man alive and there is nothing here to throw it at.");
+
+[opnpc1,fever_mama_la_fiette]
+~chatnpc("<p,neutral>Beds, meals and no questions. Especially the last one.");
+
+[opnpc1,fever_dodgy_mike]
+~chatnpc("<p,neutral>Nothing dodgy about me. It's a family name.");
+
+[opnpc1,fever_smithing_smith]
+~chatnpc("<p,neutral>Cutlasses, anchors and the occasional leg. Mostly cutlasses.");
+
+[oploc1,fever_bankbooth] @openbank;
+[oploc2,fever_bankbooth] @openbank;

@@ -1,0 +1,84 @@
+// A Soul's Bane.
+//
+// Four varps. soulbane and soulbane2 both ship with transmit=yes - they carry every multi key in
+// the quest - but none of the four had scope=perm, so a logout anywhere in the rift reset all of
+// it. The two "unprotected" varps hold the counters that are meant to be lost on death, which is
+// presumably what the name means; they get scope=perm too, because losing them to a LOGOUT is not
+// the same thing as losing them to a death and only the first is a bug.
+//
+// soulbane_prog is bits 0-4 and nothing renders off it, so the stage numbering is free.
+//
+// ---------------------------------------------------------------------------- inverted multis
+// Four of the shells declare ONLY index 0, which means the thing they draw is present at 0 and
+// gone at 1 - the varbit is a "remove me" switch, not a "show me" one:
+//
+//   [soulbane_firewall_multi] multiloc=0,soulbane_firewall     - the Anger room's exit wall
+//   [soulbane_door_multi1..5] multiloc=0,soul_bane_con_doorN_closed
+//   [soulbane_launa_multi]    multinpc=0,soulbane_launa
+//
+// So opening a Confusion door means SETTING its varbit, and the varbit is named *_doorNpres -
+// "present" - which reads backwards until you see the table.
+//
+// Two more are the ordinary way round:
+//   [soulbane_door_multi6]    0 closed, 1 open      - the Confusion exit
+//   [soulbane_fwall_exit_multi] 0 closed, 1 open    - the Fear exit
+//   [soulbane_falloff2_rope_multi] 0 bare rift, 1 rift with a rope - the way in and out
+//
+// And one is the other way again:
+//   [soulbane_tolna_multi]    multinpc=1,soulbane_tolna_top    - Tolna on the surface renders at
+//                                                                1 and NOWHERE else
+//
+// ---------------------------------------------------------------------------- ops
+// The six Confusion doors, the Fear exit and the weapon rack all carry their op1 on the SHELL
+// rather than on a child, so the op survives every swap. That is not true of the firewall, which
+// has no op at all on either shell or child - it is scenery that stops being there.
+//
+// None of the room creatures is placed anywhere in the map data. Checked every jm2: the only
+// soulbane npc spawns in the game are Launa and the Tolna shell on the surface. Every monster in
+// the rift is therefore npc_add'ed when its room is entered.
+
+// =========================================================================== stages
+^soulbane_not_started = 0
+^soulbane_asked = 1        // Launa has explained what is down the rift
+^soulbane_anger = 2        // in the Anger room
+^soulbane_fear = 3
+^soulbane_confusion = 4
+^soulbane_hopelessness = 5
+^soulbane_tolna = 6        // the three forms
+^soulbane_complete = 7
+
+// =========================================================================== room thresholds
+// The tallies are all cache varbits and their widths are the sizes: fear_killedtally is five bits,
+// hope_killedtally is four, and anger_damagedealt is twelve, which is a damage counter rather than
+// a kill counter and is sized for it.
+^soulbane_anger_needed = 40      // total damage dealt in the Anger room
+^soulbane_fear_needed = 5        // reapers put down
+^soulbane_hope_needed = 6        // hopeless creatures put down
+^soulbane_confu_doors = 5        // the five inner doors, one creeper each
+
+^soulbane_off = 0
+^soulbane_on = 1
+
+// The rack is 0 all four present, then 1-4 as each is taken. One weapon only.
+^soulbane_rack_full = 0
+^soulbane_rack_sword = 1
+^soulbane_rack_spear = 2
+^soulbane_rack_mace = 3
+^soulbane_rack_axe = 4
+
+// =========================================================================== places
+// Surface: the rift site east of Varrock, m51_53.
+^soulbane_rift = 0_51_53_46_60          // 3310,3452  the way in
+^soulbane_launa_spot = 0_51_53_45_61    // 3309,3453
+^soulbane_surface_land = 0_51_53_47_60  // 3311,3452  where the rope puts you back
+
+// The rift itself is plane 0 of m47_81, one map square holding all four chambers.
+^soulbane_anger_room = 0_47_81_10_58    // 3018,5242  by the weapon rack
+^soulbane_rack = 0_47_81_4_59           // 3012,5243
+^soulbane_anger_exit = 0_47_81_29_44    // 3037,5228  the firewall
+^soulbane_fear_room = 0_47_81_34_50     // 3042,5234
+^soulbane_fear_exit = 0_47_81_38_51     // 3046,5235
+^soulbane_confu_room = 0_47_81_48_16    // 3056,5200  the ring of six doors
+^soulbane_confu_exit = 0_47_81_43_16    // 3051,5200
+^soulbane_hope_room = 0_47_81_13_10     // 3021,5194  the bridge
+^soulbane_tolna_room = 0_47_81_21_10    // 3029,5194

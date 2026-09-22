@@ -1,0 +1,76 @@
+// Tears of Guthix - Juna.
+//
+// [tog_juna_dummy] is the only Juna in the cache and it has NO ops at all - name, desc, a model
+// and a chathead, and nothing else. There is no second Juna under another name; npc.pack has one
+// match and loc.pack's only other hit is a player-owned-house statue of her. Adding op1=Talk-to to
+// the npc config is not available either: every client config in this build is CRC-pinned
+// (tools/pack/config/PackShared.ts checks .npc against 455764595), so an edit there fails the
+// pack outright.
+//
+// So she cannot be clicked, and the conversation hangs off the only thing every visit to her ledge
+// has to go through: the climb down. ~chatnpc_specific renders her chathead from the dummy without
+// needing an active npc.
+//
+// The run therefore puts the player back at the TOP of that climb rather than beside her, so
+// asking for another story is one click and not a round trip.
+
+[label,tog_juna_talk]
+if (%tog_hacky_fix = ^tog_off) {
+    @tog_juna_first;
+}
+if (%tog_juna_bowl ! ^tog_bowl_made) {
+    @tog_juna_no_bowl;
+}
+@tog_juna_story;
+
+[label,tog_juna_first]
+~chatnpc_specific("Juna", tog_juna_dummy, "<p,neutral>Stop there. You are standing in the place where Guthix wept.");
+~chatplayer("<p,quiz>Who are you?");
+~chatnpc_specific("Juna", tog_juna_dummy, "<p,neutral>Juna. I was set here to guard this and I have done nothing else since before your people had a word for before.");
+~chatnpc_specific("Juna", tog_juna_dummy, "<p,neutral>When Guthix woke and saw what had been done to the world above, he wept, and the rock took it in and has been letting it out ever since. One drop at a time.");
+~chatplayer("<p,quiz>Can I have some?");
+~chatnpc_specific("Juna", tog_juna_dummy, "<p,laugh>Directly to the point. Yes. For a price, and the price is not money.");
+~chatnpc_specific("Juna", tog_juna_dummy, "<p,neutral>I have been alone down here for a very long time. Tell me a story and I will let you at the walls.");
+def_int $qp = ~count_questpoints;
+if ($qp < ^tog_req_questpoints) {
+    ~chatplayer("<p,sad>I haven't done much worth telling yet.");
+    ~chatnpc_specific("Juna", tog_juna_dummy, "<p,neutral>No. You have <tostring($qp)> stories in you and I want <tostring(^tog_req_questpoints)>. Go and live a bit. I am not going anywhere.");
+    return;
+}
+%tog_hacky_fix = ^tog_on;
+~send_quest_progress(questlist:tog, ~tog_progress, ^tog_complete);
+~chatnpc_specific("Juna", tog_juna_dummy, "<p,neutral>You will need something to catch them in, and it cannot be anything you brought down here. There is blue stone in the rocks back the way you came. Cut it into a bowl.");
+
+[label,tog_juna_no_bowl]
+if (%tog_juna_bowl = ^tog_bowl_stone) {
+    ~chatnpc_specific("Juna", tog_juna_dummy, "<p,neutral>You have the stone. A chisel will make a bowl of it, and the bowl will hold what nothing else will.");
+    return;
+}
+~chatnpc_specific("Juna", tog_juna_dummy, "<p,neutral>Blue stone, in the rocks back the way you came. Then a chisel. I will still be here.");
+
+[label,tog_juna_story]
+def_int $qp = ~count_questpoints;
+if ($qp < ^tog_req_questpoints) {
+    ~chatnpc_specific("Juna", tog_juna_dummy, "<p,neutral>Come back when you have something to say.");
+    return;
+}
+// tog_qp_before_return is ten bits of watermark and it is the only repeat gate in the varp: a
+// story you have already told is not a story. It is 0 before the first run, so the first visit
+// always passes.
+if (%tog_juna_stories > 0 & $qp <= %tog_qp_before_return) {
+    ~chatnpc_specific("Juna", tog_juna_dummy, "<p,neutral>You told me that one. Go and do something else and come back when the ending has changed.");
+    ~mesbox("You had <tostring(%tog_qp_before_return)> quest points when you last told Juna a story. You will need more than that before she will hear another.");
+    return;
+}
+if (inv_total(inv, tog_bowl) = 0 & inv_total(worn, tog_bowl) = 0) {
+    ~chatnpc_specific("Juna", tog_juna_dummy, "<p,neutral>And the bowl? You will want the bowl.");
+    return;
+}
+~chatplayer("<p,happy>I've got a story for you.");
+if_close;
+mes("You tell Juna what you have been doing. It takes a while.");
+p_delay(4);
+~chatnpc_specific("Juna", tog_juna_dummy, "<p,happy>Good. That was a good one. Go through - you have as long as the story was worth.");
+if_close;
+p_delay(1);
+~tog_start_run;

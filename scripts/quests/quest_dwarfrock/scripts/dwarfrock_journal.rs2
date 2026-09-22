@@ -1,0 +1,79 @@
+[if_button,questlist:dwarfrock]
+def_string $text;
+
+switch_int (%dwarfrock_quest) {
+    case ^dwarfrock_not_started :
+        $text = "@dbl@I can start this quest by speaking to @dre@Dondakan the Dwarf|";
+        $text = append($text, "@dbl@at the @dre@gold rock@dbl@, south of @dre@Keldagrim|");
+        $text = append($text, "@dbl@Keldagrim is opened by @dre@The Giant Dwarf");
+
+    case ^dwarfrock_asked :
+        $text = "@str@Dondakan has been hitting a rock of solid gold for|";
+        $text = append($text, "@str@eighteen years. Picks, axes and a dwarven multicannon, and|");
+        $text = append($text, "@str@it has not scratched.|");
+        $text = append($text, "@dbl@Somebody must have @dre@written something down");
+
+    case ^dwarfrock_looking :
+        $text = "@str@Nobody in Keldagrim will talk about the rock, because|";
+        $text = append($text, "@str@everybody in Keldagrim has watched him fail at it.|");
+        $text = append($text, "@dbl@There is a @dre@librarian@dbl@ out east who reads things nobody|");
+        $text = append($text, "@dbl@else will");
+
+    case ^dwarfrock_rolad :
+        $text = "@str@Rolad has never read about going through gold - but he has|";
+        $text = append($text, "@str@read about modifying a dwarven multicannon, and has always|");
+        $text = append($text, "@str@thought that a strange thing to write about.|");
+        $text = append($text, "@dbl@Ask him @dre@where@dbl@ it went");
+
+    case ^dwarfrock_searching :
+        $text = "@str@Base schematics and three transparent overlays, filed in a|";
+        $text = append($text, "@str@mine cart about forty years ago.|");
+        $text = append($text, "@dbl@@dre@Search the mine carts@dbl@ in the @dre@dwarven mine");
+
+    case ^dwarfrock_overlays :
+        $text = "@str@Three overlays and the base. They are meant to go on top of|";
+        $text = append($text, "@str@one another.|");
+        $text = append($text, "@dbl@@dre@Assemble@dbl@ them");
+
+    case ^dwarfrock_assembled :
+        $text = "@str@The assembled schematic is a modification to a dwarven|";
+        $text = append($text, "@str@multicannon, and it is immediately obvious why nobody built|");
+        $text = append($text, "@str@it.|");
+        $text = append($text, "@dbl@@dre@Dondakan@dbl@ should see this");
+
+    case ^dwarfrock_engineers :
+        $text = "@str@It does not fire a cannonball at the rock. It fires a|";
+        $text = append($text, "@str@person at the rock - in a gold shell, because gold goes|");
+        $text = append($text, "@str@through gold.|");
+        $text = append($text, "@dbl@Two @dre@engineers@dbl@ have ever modified a multicannon: one in|");
+        $text = append($text, "@dbl@@dre@Keldagrim@dbl@, and @dre@Khorvak@dbl@, who drinks near the mine|");
+        $text = append($text, "@dbl@Ask the one in the city first");
+
+    case ^dwarfrock_cannonball :
+        $text = "@str@Gold and white gold, beaten thin and shaped to a head.|";
+        $text = append($text, "@dbl@@dre@Wear@dbl@ the helmet - not carry it - and see @dre@Dondakan");
+
+    case ^dwarfrock_fired :
+        $text = "@str@There was a noise, and then a considerable amount of gold|";
+        $text = append($text, "@str@very close to my face.");
+
+    case ^dwarfrock_inside :
+        $text = "@str@The rock is hollow. It is gold on every surface and it goes|";
+        $text = append($text, "@str@back further than the light does.|");
+        $text = append($text, "@dbl@@dre@Dondakan@dbl@ has been hitting the outside of it for eighteen|");
+        $text = append($text, "@dbl@years");
+
+    case ^dwarfrock_complete :
+        $text = "@str@Dondakan spent eighteen years hitting a rock of solid gold|";
+        $text = append($text, "@str@with everything the dwarves could make, and the answer was|");
+        $text = append($text, "@str@in a mine cart full of forty-year-old invoices: gold goes|");
+        $text = append($text, "@str@through gold.|");
+        $text = append($text, "@str@They fired me into it in a gold helmet. It was hollow.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+
+    case default :
+        $text = "@dbl@I can start this quest by speaking to @dre@Dondakan the Dwarf|";
+        $text = append($text, "@dbl@at the @dre@gold rock@dbl@, south of @dre@Keldagrim");
+}
+
+~quest_journal("Between a Rock...", $text);

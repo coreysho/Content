@@ -310,13 +310,29 @@ npc_say("You will regret waking me.");
 ~npc_retaliate(0);
 %aggressive_npc = npc_uid;
 
-// Dessous never drops the diamond - Malak had it the whole time.
+// Dessous never drops the diamond - Malak had it the whole time, and hands it over once he hears
+// Dessous is dead. That hand-over is gated on ^fdvw_dessous_dead at the top of this file, and
+// nothing used to set it: the kill dropped bones and left %fdvw_subquest on ^fdvw_dessous_summoned
+// forever, so Malak stayed on "Garlic and spices, and then the grave north of Castle Drakan" no
+// matter how many times Dessous died. No Blood diamond means ^dt_diamonds_placed is unreachable
+// and the whole quest cannot be finished.
+//
+// Writing the varp here needs p_active_player, not just active_player: %fdvw_subquest is
+// protected (VarPlayerType.protect defaults to true) and only P_FINDUID upgrades the access.
+// Same shape as [ai_queue3,fd_icewarrior] in dt_ice.rs2.
 [ai_queue3,blooddiamond_vampirewarrior]
 gosub(npc_death);
 if (npc_findhero = ^false) {
     return;
 }
 obj_add(npc_coord, bones, 1, ^lootdrop_duration);
+if (p_finduid(uid) = false) {
+    return;
+}
+if (%fdvw_subquest < ^fdvw_dessous_dead) {
+    %fdvw_subquest = ^fdvw_dessous_dead;
+    mes("Dessous is dead. Malak will want to hear of it.");
+}
 
 // The pre-ritual copy exists so the tomb can show an untouchable Dessous. It is not spawned by this
 // implementation - the fight only starts from the pot - but the trigger is here so that attacking

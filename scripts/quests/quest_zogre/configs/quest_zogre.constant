@@ -1,0 +1,40 @@
+// Zogre Flesh Eaters.
+//
+// Nothing in all.npc or all.loc carries multivar=zogre - checked by exact grep - so the stage var
+// is completely unconstrained and runs in twos.
+//
+// The thzfe_* varbits on zombie_ogre ARE load-bearing, because three of them drive multis:
+//   thzfe_prismsearch        0,1,2 -> zogre_coffin_special   3,4,5 -> zogre_coffin_special_searched
+//   thzfe_blocking_barricade 0 -> ogre_barricade_blocking    1 -> ogre_barricade_collapsedl/r
+//   thzfe_sithik_transformed 0 -> ogre_bedman_loc  1 -> ogre_bedogre_loc  2 -> ogre_bedman_loc
+//
+// Sithik is a LOC, not an npc: zogre_sithik_man and zogre_sithik_ogre are never placed, but
+// zogre_sithik_bed_entity is, at m40_48 (31,31) plane 1 in Yanille, and both its children are
+// name=Sithik Ints with op1=Talk-to. So the whole Sithik thread is a conversation with a bed.
+^zogre_not_started = 0
+^zogre_warned = 2
+^zogre_in_tomb = 4
+^zogre_found_evidence = 6
+^zogre_has_potion = 8
+^zogre_sithik_confessed = 10
+^zogre_has_artefact = 12
+^zogre_bash_dead = 14
+
+// The three barricade / bed / coffin states, named so nothing writes a bare number.
+^zogre_barricade_up = 0
+^zogre_barricade_down = 1
+^zogre_sithik_is_man = 0
+^zogre_sithik_is_ogre = 1
+^zogre_sithik_cured = 2
+^zogre_prism_taken = 3
+
+// Jiggig's coffins are the way into the burial tomb. The surface pair sit at abs (2447,3039) and
+// (2489,3044) on m38_47; the tomb itself is m38_147 plane 2. zogre_coffinkey is already dropped by
+// [ai_queue3] in drop_tables/scripts/zogre.rs2 and skogre.rs2, so the way in is already earnable.
+^zogre_tomb_landing = 2_38_147_6_49
+^zogre_jiggig_landing = 0_38_47_16_39
+
+// Slash Bash (vislevel 111), both Sithik npcs and Brentle Vahn are the four npcs the maps never
+// place and that are not multinpc children, so the boss is spawned when the tomb is opened up.
+^zogre_bash_spawn = 2_38_147_8_50
+^zogre_bash_despawn = 500

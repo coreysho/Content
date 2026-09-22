@@ -1,0 +1,174 @@
+// Spirits of the Elid - Awusah, Ghaslor, Shiratti, the three water spirits and the genie.
+
+// =========================================================================== Awusah the Mayor
+
+[opnpc1,elid_mayor]
+switch_int (%elidquest) {
+    case ^elid_not_started : @elid_mayor_start;
+    case ^elid_shown_ghaslor : @elid_mayor_permission;
+    case ^elid_told_mayor :
+        ~chatnpc("<p,neutral>Then put it back where it belongs, and let us all get some sleep.");
+    case default :
+        if (%elidquest >= ^elid_complete) {
+            ~chatnpc("<p,happy>The fountain has not stopped since. Nardah is in your debt.");
+            return;
+        }
+        ~chatnpc("<p,quiz>Any progress? The wells are down to mud.");
+}
+
+[label,elid_mayor_start]
+~chatnpc("<p,sad>You have come a long way to look at a dry fountain.");
+switch_int (~p_choice2("What happened to it?", 1, "I'll leave you to it.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>I'll leave you to it.");
+        ~chatnpc("<p,sad>Everyone does.");
+        return;
+    case 1 :
+        ~chatplayer("<p,quiz>What happened to it?");
+}
+~chatnpc("<p,sad>The river Elid stopped. Not dried - stopped, in a week, in the middle of the wet season.");
+~chatnpc("<p,neutral>Ghaslor will tell you it is the spirits. Ghaslor tells everyone it is the spirits.");
+~chatplayer("<p,quiz>And you don't think so?");
+~chatnpc("<p,sad>I think my town has three days of water left and I have stopped caring what the reason is. Go and talk to him.");
+%elidquest = ^elid_asked_mayor;
+~send_quest_progress(questlist:elid, %elidquest, ^elid_complete);
+
+[label,elid_mayor_permission]
+~chatplayer("<p,happy>I have the statuette of Elidinis.");
+~chatnpc("<p,shock>...the one from the shrine. The one that has been gone since my grandfather's time.");
+~chatplayer("<p,neutral>Ghaslor says it's genuine.");
+~chatnpc("<p,neutral>Then put it back. Do it properly, and do it today.");
+%elidquest = ^elid_told_mayor;
+~send_quest_progress(questlist:elid, %elidquest, ^elid_complete);
+
+// =========================================================================== Ghaslor the Elder
+
+[opnpc1,elid_ghaslor]
+switch_int (%elidquest) {
+    case ^elid_asked_mayor : @elid_ghaslor_explain;
+    case ^elid_has_statuette : @elid_ghaslor_confirm;
+    case ^elid_not_started :
+        ~chatnpc("<p,neutral>The river stopped because we stopped asking it not to. That is all there is to it.");
+    case default :
+        if (%elidquest >= ^elid_complete) {
+            ~chatnpc("<p,happy>You put her back. I did not think anyone would.");
+            return;
+        }
+        ~chatnpc("<p,neutral>The shrine is under the rock west of here. You will not get in dressed like that.");
+}
+
+[label,elid_ghaslor_explain]
+~chatnpc("<p,neutral>The mayor sent you. He would.");
+~chatplayer("<p,quiz>He says you blame the spirits.");
+~chatnpc("<p,angry>I blame us. There was a statuette of Elidinis in the shrine below the rocks, and it was taken, and the spirits of the Elid have had nothing to answer to since.");
+~chatnpc("<p,neutral>The way down is a crevice west of the town. The shrine will not let you in unless you are dressed for it - there are robes of Elidinis in the cupboard here. Wear them. Both pieces.");
+~chatplayer("<p,neutral>And once I'm down there?");
+~chatnpc("<p,neutral>Ask the spirits. They are still there. They are simply not speaking to anyone who arrives in armour.");
+%elidquest = ^elid_spoke_ghaslor;
+~send_quest_progress(questlist:elid, %elidquest, ^elid_complete);
+
+[label,elid_ghaslor_confirm]
+if (inv_total(inv, elid_statuette) = 0) {
+    ~chatnpc("<p,quiz>You have the look of someone carrying something. Show me.");
+    ~chatplayer("<p,sad>Not on me.");
+    return;
+}
+~chatplayer("<p,happy>Is this it?");
+mes("You show Ghaslor the statuette.");
+~chatnpc("<p,shock>By the river. That is her.");
+~chatnpc("<p,neutral>Take it to Awusah first. He will want to have been told, and he will want it on the record that he was.");
+%elidquest = ^elid_shown_ghaslor;
+~send_quest_progress(questlist:elid, %elidquest, ^elid_complete);
+
+// =========================================================================== Shiratti the Custodian
+
+// The ancestral key - "An ancient key from the shrine in Nardah" - comes from the shrine's own
+// custodian, which is the only thing in the cache she can plausibly be for.
+[opnpc1,elid_shiratti]
+if (%elidquest < ^elid_entered_shrine) {
+    ~chatnpc("<p,neutral>I keep the shrine. There has not been a great deal to keep, lately.");
+    return;
+}
+if (%elid_shiratti = 1) {
+    ~chatnpc("<p,neutral>The key opens all three. Mind what is behind them.");
+    return;
+}
+~chatplayer("<p,neutral>There are three sealed doors under the rock.");
+~chatnpc("<p,neutral>There are. My family has held the key to them for nine generations and not one of us has had a reason to use it.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>Come back when you can carry it.");
+    return;
+}
+%elid_shiratti = 1;
+inv_add(inv, elid_key, 1);
+~chatnpc("<p,neutral>You appear to have one. Take it.");
+mes("Shiratti gives you the ancestral key.");
+
+// =========================================================================== the water spirits
+
+[opnpc1,elid_waterspirit] @elid_spirit_talk;
+[opnpc1,elid_waterspirit_sitting] @elid_spirit_talk;
+[opnpc1,elid_waterspirit_male] @elid_spirit_talk;
+
+[label,elid_spirit_talk]
+if (%elidquest < ^elid_entered_shrine) {
+    ~chatnpc("<p,neutral>...");
+    return;
+}
+if (%elidquest = ^elid_entered_shrine) {
+    ~chatnpc("<p,sad>Someone in robes. It has been a long time since anyone came down here in robes.");
+    ~chatplayer("<p,quiz>The river has stopped.");
+    ~chatnpc("<p,neutral>The river has not stopped. The river cannot get through.");
+    ~chatnpc("<p,neutral>There are three channels under this rock and all three are shut - one under fallen stone, one under a trap somebody set a very long time ago, and one held by a catch nobody can reach.");
+    ~chatnpc("<p,neutral>Open them and the Elid will run again. Shiratti holds the key to the doors.");
+    %elidquest = ^elid_met_spirits;
+    ~send_quest_progress(questlist:elid, %elidquest, ^elid_complete);
+    // In case they cleared all three before coming to talk.
+    ~elid_check_channels;
+    return;
+}
+if (%elidquest = ^elid_met_spirits) {
+    ~chatnpc("<p,neutral>Three channels. Rock, trap, and catch.");
+    return;
+}
+if (%elidquest = ^elid_channels_done) {
+    ~chatnpc("<p,happy>Listen to it. That is the Elid.");
+    ~chatplayer("<p,quiz>Is that all of it?");
+    ~chatnpc("<p,neutral>No. The statuette is still gone, and until it is back we have nothing to answer to. A genie has it - he found it, and he has kept it, the way they do.");
+    ~chatnpc("<p,neutral>His cave is further down. He will want to be asked properly.");
+    return;
+}
+~chatnpc("<p,happy>The water is running and she is back on her plinth. Thank you.");
+
+// =========================================================================== the genie
+
+[opnpc1,elid_genie]
+if (%elidquest < ^elid_channels_done) {
+    ~chatnpc("<p,happy>A visitor! Nobody visits. Do go away.");
+    return;
+}
+if (%elidquest > ^elid_channels_done | ~obj_gettotal(elid_statuette) > 0) {
+    ~chatnpc("<p,neutral>I gave it to you. I am regretting it already.");
+    return;
+}
+~chatnpc("<p,happy>You are the one opening all the channels. Noisy work.");
+~chatplayer("<p,neutral>You have a statuette that belongs in the shrine above.");
+~chatnpc("<p,shifty>I have a statuette that was lying in a dry riverbed with nobody looking after it.");
+switch_int (~p_choice2("The town is out of water.", 1, "Hand it over.", 2)) {
+    case 2 :
+        ~chatplayer("<p,angry>Hand it over.");
+        ~chatnpc("<p,angry>No. Try being pleasant; it is a novelty down here.");
+        return;
+    case 1 :
+        ~chatplayer("<p,neutral>The town is out of water.");
+}
+~chatnpc("<p,sad>...yes. I had noticed the river coming back and I had not thought about why.");
+~chatnpc("<p,neutral>Take her. She was never mine, I only liked looking at her.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>When you have a hand free. I shall be here. I am always here.");
+    return;
+}
+%elidquest = ^elid_has_statuette;
+~send_quest_progress(questlist:elid, %elidquest, ^elid_complete);
+inv_add(inv, elid_statuette, 1);
+mes("The genie gives you the statuette of Elidinis.");

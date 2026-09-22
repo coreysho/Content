@@ -1,0 +1,317 @@
+// A Tail of Two Cats - Unferth, Bob and Neite.
+//
+// Unferth and Neite are both multinpc shells, so their handlers go on the shells. Bob is a plain
+// npc (twocats_bob_bow_tie), added to m50_50 in Bob's Axes - the cache never placed him.
+
+// =========================================================================== Unferth
+// [twocats_unferth] multivar=twocats_chores_tidyhuman, multinpc 0..8, mirrored:
+//   0 bald, 1 short, 2 medium, 3 spikey, 4 long, 5 spikey, 6 medium, 7 short, 8 bald.
+// A fresh account sits at 0, so he is bald before the quest starts, which is the point of it.
+[opnpc1,twocats_unferth]
+switch_int (%twocats_quest) {
+    case ^twocats_not_started : @twocats_unferth_start;
+    case ^twocats_started :
+        ~chatnpc("<p,sad>Go and ask the cat, then. Bob's Axes, in Lumbridge. He sits on the counter.");
+        ~chatplayer("<p,neutral>I'm going.");
+    case ^twocats_met_bob : @twocats_unferth_chores;
+    case ^twocats_chores_done : @twocats_unferth_chores;
+    case ^twocats_neite_here : @twocats_unferth_name;
+    case ^twocats_told_unferth :
+        ~chatnpc("<p,sad>Robert the Strong. I have been saying it all morning and nothing has happened.");
+        ~chatplayer("<p,neutral>Something has. Go and look in the garden.");
+    case ^twocats_curse_lifted : @twocats_unferth_cured;
+    case default :
+        if (%twocats_quest >= ^twocats_complete) {
+            @twocats_unferth_cured;
+        }
+        ~chatnpc("<p,sad>I don't want to talk about the cat.");
+}
+
+[label,twocats_unferth_start]
+~chatnpc("<p,sad>Go away. I'm ill.");
+switch_int (~p_choice2("You don't look ill, you look bald.", 1, "Sorry to hear it.", 2)) {
+    case 2 :
+        ~chatplayer("<p,sad>Sorry to hear it.");
+        ~chatnpc("<p,sad>Everyone is. Nobody does anything.");
+        return;
+    case 1 :
+        ~chatplayer("<p,quiz>You don't look ill, you look bald.");
+}
+~chatnpc("<p,angry>It is the same thing! It came out in a week. The week after the cat left.");
+~chatplayer("<p,quiz>What cat?");
+~chatnpc("<p,sad>Bob. He sat there, on that chair, for eleven years and then one morning he stood up and walked to Lumbridge and I have not seen him since.");
+~chatnpc("<p,sad>And look at the state of me. Look at the state of the house.");
+if (%fluffs < ^fluffs_complete) {
+    ~chatplayer("<p,quiz>Have you tried talking to him?");
+    ~chatnpc("<p,angry>He's a CAT.");
+    ~mesbox("There is clearly more to this, but you would need to be able to hold a conversation with a cat first. Gertrude, in Varrock, keeps rather a lot of them.");
+    return;
+}
+if (%ics_little_var < ^icslittle_complete) {
+    ~chatplayer("<p,quiz>Have you tried talking to him?");
+    ~chatnpc("<p,angry>He's a CAT.");
+    ~mesbox("You would need something to make that work. The priests of Sophanem had an amulet for it, if you ever get that far south.");
+    return;
+}
+~chatplayer("<p,neutral>I might be able to ask him about it.");
+~chatnpc("<p,confused>Ask him. Ask the cat. Yes. Good. Go and ask the cat.");
+%twocats_quest = ^twocats_started;
+// He has not left the house or a chair in months; the hair has grown back wild. The "Tidy human"
+// chore cuts it down again, one step per snip.
+%twocats_chores_tidyhuman = ^twocats_hair_long;
+~send_quest_progress(questlist:twocats, %twocats_quest, ^twocats_complete);
+
+[label,twocats_unferth_chores]
+// Chore 3 finishes here rather than at the table: laying a meal out is not feeding anybody.
+if (%twocats_chores_feedhuman = ^twocats_table_ready) {
+    ~chatplayer("<p,happy>There's a meal on the table.");
+    ~chatnpc("<p,shock>There is? For me?");
+    if_close;
+    mes("Unferth gets out of the chair for the first time in some while and eats the lot.");
+    p_delay(4);
+    %twocats_chores_feedhuman = ^twocats_table_cleared;
+    ~chatnpc("<p,happy>That was the best thing that has happened to me this year.");
+    ~twocats_check_chores;
+    return;
+}
+if (%twocats_quest = ^twocats_chores_done) {
+    ~chatnpc("<p,happy>The house looks better. I look better. I still feel terrible.");
+    ~chatplayer("<p,neutral>I'll go and report in.");
+    return;
+}
+~chatnpc("<p,sad>Bob left me a list, did he? He never left me so much as a mouse.");
+~chatplayer("<p,neutral>I'm working through it.");
+
+// Neite's errand: Bob has forgotten his own name and the man who kept him is the only one left
+// alive who can say it to him.
+[label,twocats_unferth_name]
+~chatnpc("<p,sad>There's a cat in the garden. A different one. I am not having a good year.");
+~chatplayer("<p,neutral>She says your cat has a name. Robert the Strong.");
+~chatnpc("<p,confused>Robert? Bob is short for Robert. I never thought about it.");
+~chatnpc("<p,confused>Robert the Strong. Robert the Strong. That is a ridiculous name for a cat.");
+if_close;
+mes("Outside, something very large and very old turns over in its sleep.");
+p_delay(3);
+%twocats_quest = ^twocats_told_unferth;
+~send_quest_progress(questlist:twocats, %twocats_quest, ^twocats_complete);
+~chatnpc("<p,shock>Why has it gone cold?");
+
+[label,twocats_unferth_cured]
+if (%twocats_chores_tidyhuman ! ^twocats_hair_medium) {
+    %twocats_chores_tidyhuman = ^twocats_hair_medium;
+}
+~chatnpc("<p,happy>Look at it. LOOK at it. It came back overnight.");
+~chatplayer("<p,laugh>It suits you.");
+~chatnpc("<p,happy>I know. I'm going to go outside.");
+
+// --------------------------------------------------------------------------- chore 4: Tidy human
+// The multinpc runs 0..8 and 0 is bald, so cutting counts DOWN from ^twocats_hair_long.
+[opnpcu,twocats_unferth]
+if (last_useitem ! shears) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%twocats_quest < ^twocats_met_bob) {
+    ~chatnpc("<p,angry>Put those down.");
+    return;
+}
+if (%twocats_chores_tidyhuman = ^twocats_hair_bald) {
+    ~chatnpc("<p,angry>There is nothing left to cut and you know it.");
+    return;
+}
+mes("You take another pass at Unferth's hair.");
+p_delay(3);
+%twocats_chores_tidyhuman = sub(%twocats_chores_tidyhuman, 1);
+if (%twocats_chores_tidyhuman = ^twocats_hair_bald) {
+    ~chatnpc("<p,sad>Is that it? Is that all of it?");
+    ~chatplayer("<p,sad>That's all of it.");
+    ~twocats_check_chores;
+    return;
+}
+~chatnpc("<p,neutral>Keep going. It grew back wrong.");
+
+// =========================================================================== Bob
+// twocats_bob_bow_tie, added to m50_50 at 3232,3202 (0 32 2) - inside Bob's Axes, one tile north
+// of Bob the axe seller, which is where the cat went. The cache never placed him anywhere.
+// He is a plain npc with op1=Talk-to and sits (walkanim=twocats_cat_sits), so he stays put.
+[opnpc1,twocats_bob_bow_tie]
+if (~twocats_can_hear_cats = false) {
+    ~chatnpc("<p,neutral>Meow.");
+    if (%twocats_quest = ^twocats_started) {
+        ~mesbox("The cat is clearly saying something. You would need a catspeak amulet on to know what.");
+    }
+    return;
+}
+switch_int (%twocats_quest) {
+    case ^twocats_not_started :
+        ~chatnpc("<p,neutral>Afternoon. Mind the axes.");
+        ~chatplayer("<p,quiz>Do you work here?");
+        ~chatnpc("<p,laugh>I sit here. It is not the same thing, but nobody has thrown me out yet.");
+    case ^twocats_started : @twocats_bob_list;
+    case ^twocats_met_bob :
+        ~chatnpc("<p,neutral>Five things. House, fire, food, hair, garden. Read the list.");
+    case ^twocats_chores_done : @twocats_bob_story;
+    case ^twocats_bob_story :
+        // %twocats_reldo is the only record that Reldo has told you the story. There is no stage
+        // between here and ^twocats_neite_here, so this bit is what decides which way this goes.
+        if (%twocats_reldo = ^twocats_flag_set) {
+            @twocats_bob_goes_home;
+        }
+        ~chatnpc("<p,confused>Reldo. The palace librarian in Varrock. If anyone has written it down it is him.");
+    case default :
+        // Bob is a static spawn, so he is still sitting here after he has notionally walked home.
+        // The lines at least admit it.
+        if (%twocats_quest >= ^twocats_complete) {
+            ~chatnpc("<p,happy>Unferth is fine. I go back and sit on him most afternoons.");
+            ~chatplayer("<p,quiz>And the rest of the time?");
+            ~chatnpc("<p,laugh>I sit here. A cat can have two chairs.");
+            return;
+        }
+        if (%twocats_quest >= ^twocats_neite_here) {
+            ~chatnpc("<p,happy>Neite is at the house. Go on.");
+            return;
+        }
+        ~chatnpc("<p,neutral>Meow.");
+}
+
+[label,twocats_bob_list]
+~chatplayer("<p,quiz>Are you Unferth's cat?");
+~chatnpc("<p,neutral>I was. I am having a rest.");
+~chatplayer("<p,angry>His hair is falling out.");
+~chatnpc("<p,sad>Yes. That will be me, I'm afraid. I have been sat on that man for eleven years and some of it soaked in.");
+~chatplayer("<p,quiz>Some of what soaked in?");
+~chatnpc("<p,confused>That is the trouble. I don't remember. I remember being somewhere cold and I remember being very much larger and after that it is mice.");
+if (inv_freespace(inv) < 2) {
+    ~chatnpc("<p,neutral>I was going to give you two bits of paper. You have nowhere to put them.");
+    return;
+}
+~chatnpc("<p,neutral>Look after him while I think about it. There is a list of what he needs; I wrote it out in case I ever found someone daft enough.");
+inv_add(inv, twocats_chores, 1);
+inv_add(inv, twocats_mouse_toy, 1);
+~mesbox("Bob gives you a list of chores and, for no reason he is willing to explain, a toy mouse.");
+~chatnpc("<p,neutral>The cake recipe is in his bookcase. He never could cook it. Don't let that stop you.");
+%twocats_quest = ^twocats_met_bob;
+~send_quest_progress(questlist:twocats, %twocats_quest, ^twocats_complete);
+
+[label,twocats_bob_story]
+~chatplayer("<p,happy>The list is done. All five.");
+~chatnpc("<p,shock>All five? Nobody does the garden.");
+~chatnpc("<p,confused>...");
+~chatnpc("<p,confused>I have just remembered a name. Robert. And a panther called Odysseus, which is not a name anyone gives a cat.");
+~chatplayer("<p,quiz>Robert who?");
+~chatnpc("<p,sad>I don't know. It is the first thing I have remembered in eleven years and it is half a name.");
+~chatnpc("<p,neutral>Reldo. The palace librarian in Varrock. If a Robert did anything worth doing, Reldo will have it on a shelf.");
+%twocats_quest = ^twocats_bob_story;
+~send_quest_progress(questlist:twocats, %twocats_quest, ^twocats_complete);
+
+[label,twocats_bob_goes_home]
+~chatplayer("<p,neutral>Robert the Strong. He killed a dragonkin and the dragonkin's curse killed him back.");
+~chatnpc("<p,sad>And a cat carried what was left of him out. Yes. That was me.");
+~chatplayer("<p,quiz>So the curse is still on you.");
+~chatnpc("<p,sad>And it has been dripping off me onto Unferth for eleven years, which is why his hair is on the floor and mine is not.");
+~chatnpc("<p,neutral>There is someone who can take it off me, and she will not come for a cat who cannot remember his own name. Go back to the house.");
+if_close;
+mes("Bob stretches, which takes a surprisingly long time, and is not on the chair when you look again.");
+p_delay(3);
+%twocats_quest = ^twocats_neite_here;
+~send_quest_progress(questlist:twocats, %twocats_quest, ^twocats_complete);
+~mesbox("Neite is waiting in Unferth's garden in Burthorpe.");
+
+// =========================================================================== Neite
+// [twocats_niete] multivar=twocats_quest, multinpc=60, 65 and 70 ONLY. She is placed at 2923,3566
+// and renders at exactly those three values, which is why the last act is three stages and why
+// completion is 80 - she leaves.
+[opnpc1,twocats_niete]
+if (~twocats_can_hear_cats = false) {
+    ~chatnpc("<p,neutral>Meow.");
+    ~mesbox("You will need the catspeak amulet on for this.");
+    return;
+}
+switch_int (%twocats_quest) {
+    case ^twocats_neite_here : @twocats_neite_ask;
+    case ^twocats_told_unferth : @twocats_neite_lift;
+    case ^twocats_curse_lifted : @twocats_neite_reward;
+}
+// Unreachable while the multinpc holds, but a shell that resolved to nothing would leave the
+// player clicking an npc with no script at all.
+~chatnpc("<p,neutral>Purr.");
+
+[label,twocats_neite_ask]
+~chatnpc("<p,neutral>You are the one who did the chores.");
+~chatplayer("<p,quiz>And you are?");
+~chatnpc("<p,neutral>Neite. I collect the ones who are owed collecting. I have been waiting on this one for eleven years and he will not come, because he does not know what he is.");
+~chatplayer("<p,quiz>So tell him.");
+~chatnpc("<p,sad>It does not work from me. It has to be said by someone who loved him as he is now, not as he was. Go and tell the bald man his cat's name.");
+
+[label,twocats_neite_lift]
+~chatnpc("<p,happy>He said it. I felt it from out here.");
+~chatplayer("<p,quiz>Is that it?");
+~chatnpc("<p,neutral>That is it. A name is a heavy thing to be without.");
+if_close;
+mes("Neite puts one paw on Bob and something goes out of him, quietly, the way a fire goes out.");
+p_delay(4);
+mes("Through the window you can see Unferth's hair coming back in, which is not a thing you ever expected to watch happen.");
+p_delay(3);
+%twocats_quest = ^twocats_curse_lifted;
+%twocats_chores_tidyhuman = ^twocats_hair_medium;
+// Bob's list was five lines and the garden was the one nobody ever did. It has had a season to
+// come on while all this was going on.
+%twocats_chores_tidygarden = ^twocats_patch_grown;
+~send_quest_progress(questlist:twocats, %twocats_quest, ^twocats_complete);
+~chatnpc("<p,happy>Stay there. We have something for you.");
+
+// %twocats_gotreward is inside the guard rather than around the whole label on purpose. The
+// present is handed over before the stage moves to ^twocats_complete, and a logout in the delay
+// between the two would otherwise either hand out a second present or - if the bit simply returned
+// early - strand the player at stage 70 with the quest permanently unfinished.
+[label,twocats_neite_reward]
+if (%twocats_gotreward = ^twocats_flag_clear) {
+    if (inv_freespace(inv) < 2) {
+        ~chatnpc("<p,neutral>You are carrying too much. I am not putting it on the grass.");
+        return;
+    }
+    ~chatplayer("<p,quiz>You don't have to give me anything.");
+    ~chatnpc("<p,laugh>No. Take it anyway. Cats are not good at owing people.");
+    inv_add(inv, twocats_present, 1);
+    %twocats_gotreward = ^twocats_flag_set;
+}
+if_close;
+mes("Bob walks out of the house without looking back at it, which is the most cat-like thing he has done all week.");
+p_delay(3);
+%twocats_quest = ^twocats_complete;
+stat_advance(farming, 25000);
+stat_advance(cooking, 25000);
+session_log(^log_adventure, "Quest complete: A Tail of Two Cats");
+// The amulet(e) is the headline reward and ~send_quest_complete only draws it on the scroll - it
+// does not add anything - so it is handed over first, before the modal reward interface opens.
+// The lamp and the toy mouse are inside twocats_present.
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, twocats_amuletofcatspeak, 1);
+} else {
+    obj_add(coord, twocats_amuletofcatspeak, 1, ^lootdrop_duration);
+}
+~send_quest_complete(questlist:twocats, twocats_amuletofcatspeak, 200, ^twocats_questpoints, "You have completed\\nA Tail of Two Cats!", "2 Quest Points|2,500 Farming XP|2,500 Cooking XP|An antique lamp|The enchanted catspeak amulet");
+
+// =========================================================================== Reldo
+// Reldo's own [opnpc1,reldo] is in areas/area_varrock/scripts/reldo.rs2 and its option list is
+// already four wide in one branch, so this hooks in ahead of it the same way reldo_read_book does
+// rather than trying to add a fifth choice.
+[label,twocats_reldo_ask]
+~chatplayer("<p,quiz>What do you know about someone called Robert?");
+~chatnpc("<p,confused>Robert. Robert. There are nine hundred Roberts. Give me something else.");
+~chatplayer("<p,neutral>He had a panther called Odysseus.");
+~chatnpc("<p,shock>Oh! Robert the Strong. That is not a footnote, that is a chapter.");
+~chatnpc("<p,neutral>He went north and he killed one of the dragonkin, which as far as I can establish nobody else has ever managed.");
+~chatnpc("<p,neutral>The dragonkin cursed him as it died. He walked home anyway and then he did not get up again, and the only thing that came out of that cave with him was his cat.");
+~chatplayer("<p,quiz>What happened to the cat?");
+~chatnpc("<p,laugh>Nothing is written down about the cat. It's a cat.");
+%twocats_reldo = ^twocats_flag_set;
+~chatplayer("<p,neutral>It's a cat. Thanks, Reldo.");
+
+// =========================================================================== shared helpers
+// Either amulet will do. The plain one is Icthlarin's Little Helper's reward; the enchanted one is
+// this quest's, so anyone replaying dialogue afterwards is still wearing something that works.
+[proc,twocats_can_hear_cats]()(boolean)
+if (inv_total(worn, ics_little_amulet_of_catspeak) > 0) { return(true); }
+if (inv_total(worn, twocats_amuletofcatspeak) > 0) { return(true); }
+return(false);
