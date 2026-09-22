@@ -1,0 +1,93 @@
+// Icthlarin's Little Helper - the tomb, the jars and the pit.
+
+// =========================================================================== the canopic jars
+
+// Handlers go on the four shells, not on their children: the map places the shell and OpLocHandler
+// resolves the multi before handing the engine the original loc.
+//
+// Each shell has multiloc=0 and nothing else, so the jar is visible while its bit is 0 and vanishes
+// the moment it is set - which is exactly what taking it should do.
+[oploc1,ics_little_pot_liver_multi] @icslittle_take_jar(ics_little_canopic_jar_liver);
+[oploc1,ics_little_pot_lungs_multi] @icslittle_take_jar(ics_little_canopic_jar_lungs);
+[oploc1,ics_little_pot_stomach_multi] @icslittle_take_jar(ics_little_canopic_jar_stomach);
+[oploc1,ics_little_pot_intestines_multi] @icslittle_take_jar(ics_little_canopic_jar_intestines);
+
+[label,icslittle_take_jar](namedobj $jar)
+p_arrivedelay;
+if (%ics_little_var < ^icslittle_embalmed) {
+    ~mesbox("A sealed canopic jar. Klenter's organs are in these, and until he is properly prepared they stay where they are.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room for the jar.");
+    return;
+}
+inv_add(inv, $jar, 1);
+switch_obj ($jar) {
+    case ics_little_canopic_jar_liver : %ics_liverpot_vis = 1;
+    case ics_little_canopic_jar_lungs : %ics_lungpot_vis = 1;
+    case ics_little_canopic_jar_stomach : %ics_stomachpot_vis = 1;
+    case ics_little_canopic_jar_intestines : %ics_intestinespot_vis = 1;
+}
+mes("You lift the canopic jar off its shelf.");
+~icslittle_check_jars;
+
+// All four in hand is what assembles the burial party - and 19 is the lowest value at which any of
+// them render.
+[proc,icslittle_check_jars]
+if (%ics_little_var ! ^icslittle_embalmed) {
+    return;
+}
+if (inv_total(inv, ics_little_canopic_jar_liver) = 0 | inv_total(inv, ics_little_canopic_jar_lungs) = 0) {
+    return;
+}
+if (inv_total(inv, ics_little_canopic_jar_stomach) = 0 | inv_total(inv, ics_little_canopic_jar_intestines) = 0) {
+    return;
+}
+%ics_little_var = ^icslittle_ceremony;
+~send_quest_progress(questlist:ics_little, %ics_little_var, ^icslittle_complete);
+~mesbox("All four jars are accounted for. Above you, somewhere in the dark, a great many people begin to chant at once.");
+
+// =========================================================================== the pit
+
+// ics_little_pit_to carries op2=Jump-Across and no op1 at all; ics_little_pit_from is the landing
+// side, blockwalk=no with no ops.
+[oploc2,ics_little_pit_to]
+p_arrivedelay;
+if (stat(agility) < 30) {
+    mes("You need an Agility level of 30 to clear that.");
+    return;
+}
+anim(human_pickuptable, 0);
+if (coordz(coord) < coordz(loc_coord)) {
+    p_teleport(movecoord(coord, 0, 0, 3));
+} else {
+    p_teleport(movecoord(coord, 0, 0, -3));
+}
+mes("You jump the pit.");
+
+// =========================================================================== Klenter
+
+// The spectre is the other kind of inverted multi: absent at 0, present at 1.
+[opnpc1,ics_little_spectre]
+if (%ics_specvis ! ^icslittle_spectre_shown) {
+    return;
+}
+if (%ics_little_var >= ^icslittle_devoured) {
+    ~chatnpc("<p,sad>They took my body. Whatever it is that took it, it was not a god of the dead.");
+    return;
+}
+~chatnpc("<p,neutral>You have been handling my liver. I should like to say I am used to it.");
+~chatplayer("<p,quiz>You're Klenter?");
+~chatnpc("<p,neutral>I was. I am now four jars and an argument about ceremony.");
+~chatnpc("<p,neutral>Get on with it. The longer I am between one thing and the next, the more interested certain parties become.");
+
+// =========================================================================== completion
+
+[queue,icslittle_quest_complete]
+%ics_little_var = ^icslittle_complete;
+%ics_specvis = ^icslittle_spectre_hidden;
+stat_advance(thieving, 40000);
+stat_advance(agility, 40000);
+session_log(^log_adventure, "Quest complete: Icthlarin's Little Helper");
+~send_quest_complete(questlist:ics_little, ics_little_amulet_of_catspeak, 250, ^icslittle_questpoints, "You have completed\\nIcthlarin's Little Helper!", "2 Quest Points|4,000 Thieving XP|4,000 Agility XP|The catspeak amulet");
