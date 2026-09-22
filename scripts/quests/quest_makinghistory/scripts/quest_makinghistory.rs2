@@ -1,0 +1,411 @@
+// Making History - a historian with four dated lines and nothing in between them.
+
+// =========================================================================== Jorral
+[opnpc1,makinghistory_jorral]
+switch_int (%makinghistory_prog) {
+    case ^mh_not_started : @mh_start;
+    case ^mh_investigating : @mh_report;
+    case ^mh_reporting : @mh_finish;
+    case default :
+        ~chatnpc("<p,happy>Come in. Mind the catapult, it is older than Ardougne and it still works.");
+        ~mh_key_offer;
+}
+
+[label,mh_start]
+~chatnpc("<p,neutral>You are the first person to come up that road in four months who was not lost.");
+switch_int (~p_choice2("What is this place?", 1, "I am lost.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>I am lost.");
+        ~chatnpc("<p,neutral>Ardougne is south. Take the road, not the shortcut.");
+        return;
+    case 1 :
+        ~chatplayer("<p,quiz>What is this place?");
+}
+~chatnpc("<p,neutral>An outpost. It was built at the start of the Fifth Age, and for sixty-five years it was the one place on this continent where Saradominists, Zamorakians and Guthixians all kept the peace, because all three of them wanted the road open.");
+~chatnpc("<p,neutral>Then something happened, and then something worse happened, and three years after that the survivors walked out of here and founded the royal line of Ardougne and the Equal Trade Market.");
+~chatplayer("<p,quiz>What happened?");
+~chatnpc("<p,sad>That is the question. I have a timeline with four lines on it and no middle.");
+~chatnpc("<p,neutral>Three people left records. A trader, a warrior and a man who is still here, in a manner of speaking.");
+~chatplayer("<p,quiz>Still here?");
+~chatnpc("<p,neutral>Port Phasmatys. He is a ghost and he has been dead for a very long time and he is no less difficult for it.");
+switch_int (~p_choice2("I'll find them.", 1, "Sounds like a lot of walking.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>Sounds like a lot of walking.");
+        ~chatnpc("<p,neutral>It is. That is why it has not been done.");
+        return;
+    case 1 :
+        ~chatplayer("<p,neutral>I'll find them.");
+}
+%makinghistory_prog = ^mh_investigating;
+~send_quest_progress(questlist:makinghistory, %makinghistory_prog, ^mh_complete);
+~mh_give_scroll;
+~chatnpc("<p,neutral>Take the timeline. It is not much, but it tells people I sent you, and two of the three will want to know that.");
+~chatnpc("<p,neutral>The trader's line ends in Rellekka, with a fur trader. The warrior's line is two brothers in the same town, Dron and Blanin, and you will get more out of Blanin.");
+~chatnpc("<p,neutral>The ghost is Droalak. He will not make it easy.");
+
+// The timeline is a real obj and the dialogue has always assumed you were carrying it.
+[proc,mh_give_scroll]()()
+if (inv_total(inv, makinghistory_scroll1) > 0) {
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>Come back with a hand free and I will copy the timeline out for you.");
+    return;
+}
+inv_add(inv, makinghistory_scroll1, 1);
+
+[label,mh_report]
+def_boolean $any = false;
+if (%makinghistory_trader_prog = ^mh_strand_held & inv_total(inv, makinghistory_letter2) > 0) {
+    inv_del(inv, makinghistory_letter2, 1);
+    %makinghistory_trader_prog = ^mh_strand_done;
+    $any = true;
+    ~chatnpc("<p,shock>That is my name on that seal. In handwriting that is four hundred years older than I am.");
+    ~chatnpc("<p,neutral>The trade families kept it and kept it and waited for somebody to ask. Nobody ever asked.");
+}
+if (%makinghistory_warr_prog = ^mh_strand_held & inv_total(inv, makinghistory_letter1) > 0) {
+    inv_del(inv, makinghistory_letter1, 1);
+    %makinghistory_warr_prog = ^mh_strand_done;
+    $any = true;
+    ~chatnpc("<p,shock>Sealed to the king. It was never delivered, and three years later there was a new king, so I imagine it stopped being deliverable.");
+}
+if (%makinghistory_ghost_prog = ^mh_ghost_held & inv_total(inv, makinghistory_journal) > 0) {
+    inv_del(inv, makinghistory_journal, 1);
+    %makinghistory_ghost_prog = ^mh_ghost_done;
+    $any = true;
+    ~chatnpc("<p,happy>Bennath. The first one. He threw in his lot with the Zamorakians and moved out here and wrote down every day of it.");
+    ~chatnpc("<p,neutral>His great-grandson took the lighthouse post up on the north coast, you know. The family did not improve their luck.");
+}
+if ($any = false) {
+    @mh_nudge;
+}
+if (%makinghistory_trader_prog < ^mh_strand_done | %makinghistory_warr_prog < ^mh_strand_done | %makinghistory_ghost_prog < ^mh_ghost_done) {
+    @mh_nudge;
+}
+%makinghistory_prog = ^mh_reporting;
+~send_quest_progress(questlist:makinghistory, %makinghistory_prog, ^mh_complete);
+~chatnpc("<p,happy>Three records and one timeline. Give me a moment.");
+@mh_finish;
+
+[label,mh_nudge]
+if (%makinghistory_trader_prog < ^mh_strand_done) {
+    ~chatnpc("<p,neutral>The fur trader in Rellekka. His family have walked that road since before there was a road.");
+}
+if (%makinghistory_warr_prog < ^mh_strand_done) {
+    ~chatnpc("<p,neutral>Dron and Blanin, also in Rellekka. Try Blanin. Dron is the one who says no.");
+}
+if (%makinghistory_ghost_prog < ^mh_ghost_done) {
+    ~chatnpc("<p,neutral>Droalak, in Port Phasmatys. You will need an amulet of ghostspeak and a great deal of patience.");
+}
+~mh_give_scroll;
+return;
+
+[label,mh_finish]
+if_close;
+mes("Jorral lays the three records out along the timeline and stops talking for a long time.");
+p_delay(5);
+~mesbox("The Dreaded Years of Tragedy were a famine. The Great Battle was three faiths who had kept one road open for sixty-eight years discovering that they could not keep it open through a famine. | The letter to the king was a request for grain. It was never delivered, and three years later there was a different king.");
+p_delay(3);
+%makinghistory_prog = ^mh_complete;
+// Both ghosts have been waiting on this, in opposite ways and for the same reason.
+%makinghistory_melina_pres = ^mh_gone;
+%makinghistory_droalak_pres = ^mh_gone;
+// The storeroom becomes the museum. Five multilocs, all on this one bit.
+%makinghistory_objloc = ^mh_museum_open;
+%makinghistory_locstatus = ^mh_grave_trader;
+stat_advance(crafting, 10000);
+stat_advance(prayer, 10000);
+stat_advance(smithing, 10000);
+session_log(^log_adventure, "Quest complete: Making History");
+~send_quest_complete(questlist:makinghistory, makinghistory_guthix_polestaff, 200, ^mh_questpoints, "You have completed\\nMaking History!", "3 Quest Points|1,000 Crafting XP|1,000 Prayer XP|1,000 Smithing XP|The outpost museum|The enchanted key");
+~mh_key_offer;
+
+// =========================================================================== the enchanted key
+// Jorral hands it over once there is a museum to put things in, and replaces it if it is lost.
+[proc,mh_key_offer]()()
+if (%makinghistory_locstatus >= ^mh_grave_done) {
+    ~chatnpc("<p,neutral>The key has gone cold for good. Whatever was buried out there is in the cases now.");
+    return;
+}
+if (inv_total(inv, makinghistory_key) > 0) {
+    ~chatnpc("<p,neutral>Feel it as you walk. It is warmer nearer.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>I have something for you and nowhere to put it.");
+    return;
+}
+inv_add(inv, makinghistory_key, 1);
+~chatnpc("<p,neutral>Three people I could not account for, and three graves nobody marked. The key knows where they are. It gets warm.");
+~chatnpc("<p,neutral>Bring me a spade and your own judgement. I am too old to dig.");
+
+[opheld1,makinghistory_key]
+def_coord $target = ~mh_key_target;
+if ($target = null) {
+    ~mesbox("The key is stone cold and stays that way. Whatever it was for, it is finished.");
+    return;
+}
+def_int $d = distance(coord, $target);
+if ($d <= 2) {
+    ~mesbox("The key is too hot to hold. Dig.");
+} else if ($d <= 8) {
+    ~mesbox("The key is hot.");
+} else if ($d <= 24) {
+    ~mesbox("The key is warm.");
+} else if ($d <= 80) {
+    ~mesbox("The key is cool.");
+} else if ($d <= 400) {
+    ~mesbox("The key is cold.");
+} else {
+    ~mesbox("The key is icy cold.");
+}
+
+[proc,mh_key_target]()(coord)
+switch_int (%makinghistory_locstatus) {
+    case ^mh_grave_trader : return(^mh_dig_trader);
+    case ^mh_grave_warrior : return(^mh_dig_warrior);
+    case ^mh_grave_ghost : return(^mh_dig_ghost);
+}
+return(null);
+
+// Hooked into general_use/scripts/spade.rs2.
+[proc,mh_dig]()(boolean)
+if (inv_total(inv, makinghistory_key) = 0) {
+    return(false);
+}
+def_coord $target = ~mh_key_target;
+if ($target = null) {
+    return(false);
+}
+if (distance(coord, $target) > 2) {
+    return(false);
+}
+p_arrivedelay;
+if (inv_freespace(inv) = 0) {
+    mes("You have nowhere to put anything you find.");
+    return(true);
+}
+anim(human_dig, 0);
+p_delay(3);
+switch_int (%makinghistory_locstatus) {
+    case ^mh_grave_trader :
+        inv_add(inv, makinghistory_guthix_polestaff, 1);
+        %makinghistory_locstatus = ^mh_grave_warrior;
+        ~mesbox("A Guthix mjolnir, and under it a man who was buried with a trade ledger and a hammer. The key cools in your hand and then starts, very faintly, to warm again.");
+    case ^mh_grave_warrior :
+        inv_add(inv, makinghistory_saradomin_polestaff, 1);
+        %makinghistory_locstatus = ^mh_grave_ghost;
+        ~mesbox("A Saradomin mjolnir. The key cools, and then warms again.");
+    case ^mh_grave_ghost :
+        inv_add(inv, makinghistory_zamorak_polestaff, 1);
+        %makinghistory_locstatus = ^mh_grave_done;
+        ~mesbox("A Zamorak mjolnir. Three faiths, three graves, and all three of them buried within a hundred yards of the people they spent sixty-eight years not fighting. | The key goes cold and stays cold.");
+    case default :
+        mes("The key is cold. There is nothing here.");
+}
+return(true);
+
+// =========================================================================== the trader
+// The Rellekka fur trader had op1=Talk-to and op3=Trade and no handler for either.
+[opnpc1,viking_fur_monger]
+if (%makinghistory_prog ! ^mh_investigating) {
+    @mh_fur_smalltalk;
+}
+if (%makinghistory_trader_prog >= ^mh_strand_done) {
+    ~chatnpc("<p,happy>Four hundred years and it was you. I would not have guessed you.");
+    return;
+}
+if (%makinghistory_trader_prog = ^mh_strand_held) {
+    ~chatnpc("<p,neutral>Take it south. It has waited long enough.");
+    return;
+}
+if (inv_total(inv, makinghistory_scroll1) = 0) {
+    ~chatplayer("<p,quiz>Does your family know anything about the old outpost?");
+    ~chatnpc("<p,neutral>Everybody's family knows something about the old outpost. Come back when you can show me who is asking.");
+    %makinghistory_trader_prog = ^mh_strand_asked;
+    return;
+}
+~chatplayer("<p,quiz>Does your family know anything about the old outpost?");
+~chatnpc("<p,neutral>Show me what you are carrying.");
+if_close;
+mes("You show him the timeline.");
+p_delay(3);
+~chatnpc("<p,shock>Four lines. Start of the Fifth Age, the Tragedy, the Battle, and then the Market.");
+~chatnpc("<p,neutral>My family have walked that road since before it was a road, and the thing we have always been told is this: when somebody finally comes asking about the Market, give them the letter.");
+~chatplayer("<p,quiz>What letter?");
+~chatnpc("<p,neutral>The one in the bottom of the fur chest, that nobody has been allowed to open for four hundred years, and that has a historian's name written on the seal.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>And nowhere in your pack to put it.");
+    return;
+}
+inv_add(inv, makinghistory_letter2, 1);
+%makinghistory_trader_prog = ^mh_strand_held;
+~chatnpc("<p,neutral>Jorral. It says Jorral. I have wondered about that man my entire life.");
+
+[label,mh_fur_smalltalk]
+~chatnpc("<p,neutral>Furs. Good ones. Better than the ones in Varrock and a third of the price, which is the whole of my sales pitch.");
+
+// =========================================================================== the warriors
+[opnpc1,makinghistory_blanin]
+if (%makinghistory_prog ! ^mh_investigating) {
+    ~chatnpc("<p,neutral>My brother is not as bad as he looks. He is close, though.");
+    return;
+}
+switch_int (%makinghistory_warr_prog) {
+    case ^mh_strand_refused : @mh_blanin_gives;
+    case ^mh_strand_held :
+        ~chatnpc("<p,neutral>Go, before he notices.");
+    case ^mh_strand_done :
+        ~chatnpc("<p,happy>Dron shouted for a day and a half. Then he asked whether our name would be in it.");
+    case ^mh_strand_told :
+        ~chatnpc("<p,neutral>You have to ask him. I cannot hand over a family thing behind his back until he has said no to your face.");
+    case default :
+        ~chatplayer("<p,quiz>Did your family fight at the old outpost?");
+        ~chatnpc("<p,neutral>Everybody up here says their family fought at the old outpost. Mine actually did, and we have the letter to prove it, and I am not allowed to say that either.");
+        ~chatplayer("<p,quiz>A letter?");
+        ~chatnpc("<p,neutral>Sealed. To the king. Our ancestor was carrying it south and he did not get there, and it has been in a box in this house ever since.");
+        ~chatnpc("<p,sad>Dron keeps the box. Ask him. He will say no.");
+        %makinghistory_warr_prog = ^mh_strand_told;
+}
+
+[label,mh_blanin_gives]
+~chatnpc("<p,neutral>He said no, then.");
+~chatplayer("<p,neutral>He said several things. No was in there.");
+~chatnpc("<p,neutral>Four hundred years in a box and not one of us has ever read it, because it is sealed to a king and we are not kings.");
+~chatnpc("<p,neutral>I have decided that is not keeping it safe. That is just keeping it.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>Your hands are full. Come back with them empty and be quick about it.");
+    return;
+}
+inv_add(inv, makinghistory_letter1, 1);
+%makinghistory_warr_prog = ^mh_strand_held;
+~chatnpc("<p,neutral>Take it. One condition: our name goes in the history. Both our names.");
+
+[opnpc1,makinghistory_dron]
+if (%makinghistory_prog ! ^mh_investigating) {
+    ~chatnpc("<p,angry>What.");
+    return;
+}
+switch_int (%makinghistory_warr_prog) {
+    case ^mh_strand_told :
+        ~chatplayer("<p,quiz>Blanin says you have a letter from the old outpost.");
+        ~chatnpc("<p,angry>Blanin says a great deal.");
+        ~chatplayer("<p,neutral>A historian wants to read it.");
+        ~chatnpc("<p,angry>No.");
+        ~chatplayer("<p,quiz>That's it? No?");
+        ~chatnpc("<p,angry>It is a family thing and you are not family. Ask me again and it will still be no, and I will be in a worse mood.");
+        %makinghistory_warr_prog = ^mh_strand_refused;
+    case ^mh_strand_refused :
+        ~chatnpc("<p,angry>Still no.");
+    case ^mh_strand_held :
+        ~chatnpc("<p,angry>You have a look about you.");
+    case ^mh_strand_done :
+        ~chatnpc("<p,neutral>...is our name in it.");
+    case default :
+        ~chatnpc("<p,angry>What.");
+}
+
+// =========================================================================== the ghost
+// Handlers on the SHELLS. Both ghosts are multinpc=0,<ghost>, present while their bit is zero.
+[opnpc1,makinghistory_droalak_multi]
+if (inv_total(worn, amulet_of_ghostspeak) = 0) {
+    ~mesbox("He is saying something and you cannot hear a word of it.");
+    return;
+}
+if (%makinghistory_prog ! ^mh_investigating) {
+    ~chatnpc("<p,sad>She will not speak to me. She has not spoken to me since before either of us died.");
+    return;
+}
+switch_int (%makinghistory_ghost_prog) {
+    case ^mh_ghost_none :
+        ~chatplayer("<p,quiz>Jorral sent me. He's writing a history of the old outpost.");
+        ~chatnpc("<p,sad>Then he wants Bennath's journal, and I have it, and you cannot have it.");
+        ~chatplayer("<p,quiz>Why not?");
+        ~chatnpc("<p,sad>Because there is one thing left that I want and I have been unable to get it for two hundred years, and I am not giving away the only thing I have to trade with.");
+        ~chatnpc("<p,sad>My wife. Melina. She is at the other end of this town and she will not speak to me.");
+        %makinghistory_ghost_prog = ^mh_ghost_droalak;
+    case ^mh_ghost_droalak :
+        ~chatnpc("<p,sad>Go and talk to her. She will not believe a word of it, but go.");
+    case ^mh_ghost_melina : @mh_droalak_proof;
+    case ^mh_ghost_proof :
+        ~chatnpc("<p,neutral>Tell her. She will know it is from me.");
+    case ^mh_ghost_forgiven : @mh_droalak_journal;
+    case ^mh_ghost_held :
+        ~chatnpc("<p,happy>Take it south. And thank you, which I have not said to anyone in two centuries.");
+    case default :
+        ~chatnpc("<p,happy>She is waiting for me at the gate. I am going to walk there very slowly and enjoy all of it.");
+}
+
+[label,mh_droalak_proof]
+~chatplayer("<p,neutral>She says you were not there when she died.");
+~chatnpc("<p,sad>I was not. I was at the outpost, copying out a dead man's journal, because I thought I had years.");
+~chatnpc("<p,sad>Tell her this. The morning I left she was in the garden and she would not turn round, and I said I would bring her back a medallion from the market and she said she did not want a medallion, she wanted me to not go.");
+~chatnpc("<p,sad>Nobody else heard that. Not one person in this town.");
+%makinghistory_ghost_prog = ^mh_ghost_proof;
+
+[label,mh_droalak_journal]
+~chatplayer("<p,neutral>She'll speak to you.");
+~chatnpc("<p,shock>...");
+~chatnpc("<p,sad>Two hundred years I have been standing at this end of a road that takes four minutes to walk.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>The journal. You have nowhere to put it.");
+    return;
+}
+inv_add(inv, makinghistory_journal, 1);
+%makinghistory_ghost_prog = ^mh_ghost_held;
+~chatnpc("<p,neutral>Bennath's journal. Every day of the outpost, in his hand, and I have read it so many times I could recite it and it has never once helped.");
+
+[opnpc1,makinghistory_melina_multi]
+if (inv_total(worn, amulet_of_ghostspeak) = 0) {
+    ~mesbox("She is saying something and you cannot hear a word of it.");
+    return;
+}
+if (%makinghistory_prog ! ^mh_investigating) {
+    ~chatnpc("<p,sad>I am not sullen. I am waiting. They are different.");
+    return;
+}
+switch_int (%makinghistory_ghost_prog) {
+    case ^mh_ghost_none :
+        ~chatnpc("<p,sad>If my husband sent you, he can come himself.");
+    case ^mh_ghost_droalak :
+        ~chatplayer("<p,neutral>Droalak would like to speak to you.");
+        ~chatnpc("<p,angry>Droalak would like a great many things. He was not here when I died and he has had two hundred years to explain that and he has explained it to everyone except me.");
+        ~chatplayer("<p,quiz>He's four minutes' walk away.");
+        ~chatnpc("<p,sad>I am aware of the distance.");
+        %makinghistory_ghost_prog = ^mh_ghost_melina;
+    case ^mh_ghost_melina :
+        ~chatnpc("<p,angry>Unless he has said something he has never said before, we are finished.");
+    case ^mh_ghost_proof : @mh_melina_proof;
+    case default :
+        ~chatnpc("<p,happy>He is walking down here. Very slowly. He has always been slow.");
+}
+
+[label,mh_melina_proof]
+~chatplayer("<p,neutral>He says you were in the garden and you wouldn't turn round.");
+~chatnpc("<p,shock>...");
+~chatplayer("<p,neutral>He says he offered you a medallion from the market and you said you didn't want a medallion.");
+~chatnpc("<p,sad>I said I wanted him to not go.");
+if_close;
+mes("Melina does not say anything for a while, which for a woman who has been angry for two centuries is a considerable change.");
+p_delay(5);
+%makinghistory_ghost_prog = ^mh_ghost_forgiven;
+~mesbox("\"Tell him I will speak to him,\" she says. \"Tell him to hurry. We have already been slow about this.\"");
+
+// =========================================================================== the museum
+// All four carry op1=Study and none of them had a handler, which would have made the reward for the
+// whole quest a room of things that do nothing when clicked.
+[oploc1,makinghistory_shield_display]
+p_arrivedelay;
+~mesbox("A shield, cut most of the way through and then not cut the rest of the way. The card beside it says it was found in the well and that nobody knows whose it was. | Jorral has written underneath, in smaller handwriting: one of ours.");
+
+[oploc1,makinghistory_large_display1]
+p_arrivedelay;
+~mesbox("Grain measures, three sets of them, in three different standards - Saradominist, Zamorakian and Guthixian - all calibrated against each other so that nobody could accuse anybody of shorting the road. | They are worn almost smooth. Sixty-five years of use, and then nothing.");
+
+[oploc1,makinghistory_large_display2]
+p_arrivedelay;
+~mesbox("The letter to the king, open at last, under glass. It is four hundred years old and it is a request for grain, written politely, and then written politely again at the bottom in a different and much less steady hand.");
+
+[oploc1,makinghistory_bookcase]
+p_arrivedelay;
+~mesbox("Bennath's journal, the fur traders' ledgers, and eleven volumes of Jorral's own notes on a question he has now answered. | He has left a space on the end of the shelf. He says he is not done.");
