@@ -327,6 +327,9 @@ if (%enakh_quest >= ^enakh_complete) {
 if (~tog_progress >= ^tog_complete) {
     $questpoints = add($questpoints, ^tog_questpoints);
 }
+if (%handsand_quest >= ^handsand_complete) {
+    $questpoints = add($questpoints, ^handsand_questpoints);
+}
 // Recipe for Disaster is ten sub-quests worth one point each, tracked as ten bits in
 // %hundred_subquest_tally, so it counts bits rather than comparing a stage to a completion value.
 $questpoints = add($questpoints, ~hundred_subquests_done);
@@ -352,6 +355,7 @@ $total = add($total, ^icslittle_questpoints);
 $total = add($total, ^twocats_questpoints);
 $total = add($total, ^enakh_questpoints);
 $total = add($total, ^tog_questpoints);
+$total = add($total, ^handsand_questpoints);
 $total = add($total, ^runemysteries_questpoints);
 $total = add($total, ^doric_questpoints);
 $total = add($total, ^cook_questpoints);
@@ -512,6 +516,7 @@ if (testbit(%ibanmulti, ^upass_started_bit) = ^true & %upass ! ^upass_complete) 
 ~send_quest_progress_colour(questlist:twocats, %twocats_quest, ^twocats_complete);
 ~send_quest_progress_colour(questlist:enakh, %enakh_quest, ^enakh_complete);
 ~send_quest_progress_colour(questlist:tog, ~tog_progress, ^tog_complete);
+~send_quest_progress_colour(questlist:handsand, %handsand_quest, ^handsand_complete);
 if_settab(questlist, ^tab_quest_journal);
 
 if (%drunkmonkquest >= ^drunkmonk_spoken_to_omad) {
