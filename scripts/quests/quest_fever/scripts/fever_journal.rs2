@@ -1,0 +1,58 @@
+[if_button,questlist:fever]
+def_string $text;
+
+switch_int (%fever_quest) {
+    case ^fever_not_started :
+        $text = "@dbl@@dre@Bill Teach@dbl@ is in @dre@Port Phasmatys@dbl@ and is short of crew|";
+        $text = append($text, "@dbl@He does not take on anybody who has never been to sea|");
+        $text = append($text, "@dbl@@dre@Rum Deal@dbl@ counts");
+
+    case ^fever_asked :
+        $text = "@str@Teach sails for Mos Le'Harmless, an island nobody finds|";
+        $text = append($text, "@str@unless they are taken to it, and Rabid Jack has been sinking|");
+        $text = append($text, "@str@his ships for eleven years.|");
+        $text = append($text, "@dbl@@dre@Read@dbl@ the @dre@Book o' piracy@dbl@. Chapter four is the gun|");
+        $text = append($text, "@dbl@drill and the order matters");
+
+    case ^fever_book :
+        $text = "@str@THE GUN DRILL|";
+        $text = append($text, "@str@1. The ramrod, to clean her. 2. The powder. 3. The ramrod|");
+        $text = append($text, "@str@again. 4. The shot. 5. The fuse. 6. The tinderbox, and|");
+        $text = append($text, "@str@stand to one side.|");
+        $text = append($text, "@dbl@The @dre@gangplank@dbl@ is at the end of the pier");
+
+    case ^fever_aboard :
+        $text = "@str@Aboard, at the Port Phasmatys pier.|";
+        $text = append($text, "@dbl@Tell @dre@Bill Teach@dbl@ you are ready. Nobody is ready");
+
+    case ^fever_battle :
+        $text = "@str@A second ship came out of the weather at four hundred yards|";
+        $text = append($text, "@str@and took the top off the mainmast with its first shot.|");
+        $text = append($text, "@dbl@Work the @dre@cannon@dbl@ - the @dre@weapons locker@dbl@ has the ramrod,|");
+        $text = append($text, "@dbl@shot, fuses and a tinderbox, and there is a @dre@powder barrel|");
+        $text = append($text, "@dbl@below|");
+        $text = append($text, "@dbl@Every shot you land she lands one back. @dre@Plank@dbl@ the holes|");
+        $text = append($text, "@dbl@and then @dre@paste@dbl@ the seams - the @dre@repair locker@dbl@ has both");
+
+    case ^fever_won :
+        $text = "@str@Her cannon came off its mounting and went through her own|";
+        $text = append($text, "@str@rail. She sheered away and did not come back.|");
+        $text = append($text, "@dbl@Tell @dre@Bill Teach@dbl@ at the wheel");
+
+    case ^fever_landed :
+        $text = "@str@Mos Le'Harmless. It is not on any chart, and everybody here|";
+        $text = append($text, "@str@looks at you exactly once.|");
+        $text = append($text, "@dbl@Find @dre@Bill Teach");
+
+    case ^fever_complete :
+        $text = "@str@Bill Teach has a crew list with a great many names crossed|";
+        $text = append($text, "@str@out of it, and mine is on the end of it.|");
+        $text = append($text, "@str@The book has been very clear for forty years and he has|");
+        $text = append($text, "@str@buried eleven men who read it.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+
+    case default :
+        $text = "@dbl@@dre@Bill Teach@dbl@ is in @dre@Port Phasmatys";
+}
+
+~quest_journal("Cabin Fever", $text);

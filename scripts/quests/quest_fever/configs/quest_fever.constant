@@ -1,0 +1,75 @@
+// Cabin Fever.
+//
+// Four varps and twenty varbits, and fever.loc - which was already in this repo, 135 entries of it,
+// with no script anywhere - names every op the quest needs.
+//
+// ---------------------------------------------------------------------------- the cannon
+//   [fever_multi_cannon] op1=Load    multivar=fever_cannon
+//     0 fever_cannon            op1=Inspect  op2=Empty-Out
+//     1 fever_cannon_destroyed  op1=Repair
+//     2 fever_cannon_no_barrel  op1=Repair
+//     3 fever_cannon_loaded     op1=Fire!
+//
+// and then six single-purpose varbits that are the drill itself:
+//
+//   fever_cannon_clean      the ramrod, first
+//   fever_cannon_powder     the gunpowder
+//   fever_cannon_tamp       the ramrod again
+//   fever_cannon_ammo       0-3: nothing, a ball, a cannister
+//   fever_cannon_fuse       the fuse
+//   fever_cannon_gonna_blow what happens if you load a dirty barrel
+//
+// The ramrod obj settles the order on its own: "For cleaning and packing the cannon." Clean before
+// you load, pack after the powder.
+//
+// ---------------------------------------------------------------------------- the hull
+//   [fever_multi_hole_1] op1=Repair   multivar=fever_hole_1
+//     0 toms_fever_shiphull_leak         op1=Fill
+//     1 toms_fever_shiphull_twickle      op1=Waterproof
+//     2 toms_fever_shiphull_swamp_paste
+//
+// Fill it with a plank, waterproof the plank with swamp paste. Three of them, one varbit each.
+//
+// ---------------------------------------------------------------------------- where it happens
+// Bill Teach is at 3679,3495, which is inside the Port Phasmatys wall, so this quest - like Ghosts
+// Ahoy and Rum Deal - was behind the energy barrier that had no handler until today.
+^fever_not_started = 0
+^fever_asked = 1        // Teach wants a crew
+^fever_book = 2         // the Book o' piracy, read
+^fever_aboard = 3       // on the ship at the Phasmatys pier
+^fever_battle = 4       // under fire
+^fever_won = 5          // the enemy cannon is off its mounting
+^fever_landed = 6       // Mos Le'Harmless
+^fever_complete = 7
+
+^fever_off = 0
+^fever_on = 1
+
+// fever_cannon, off the multiloc table
+^fever_cannon_ok = 0
+^fever_cannon_broken = 1
+^fever_cannon_nobarrel = 2
+^fever_cannon_ready = 3
+
+// fever_cannon_ammo
+^fever_ammo_none = 0
+^fever_ammo_ball = 1
+^fever_ammo_cannister = 2
+
+// fever_hole_N, off the multiloc table
+^fever_hole_open = 0
+^fever_hole_planked = 1
+^fever_hole_sealed = 2
+
+^fever_shots_to_win = 3
+
+// ---------------------------------------------------------------------------- places
+^fever_teach_phasmatys = 0_57_54_31_39    // 3679,3495
+^fever_pier_gangplank = 1_57_54_62_40
+^fever_pier_return = 1_57_54_60_40
+^fever_port_ship = 1_58_54_2_41           // beside fever_port_ship_teach
+^fever_quest_ship = 1_28_75_22_36         // beside fever_quest_ship_teach
+^fever_harmless = 0_57_46_19_37           // beside fever_harmless_teach
+^fever_harmless_gangplank = 1_57_46_36_8
+^fever_cannon_coord = 1_28_75_24_33
+^fever_enemy_cannon_coord = 1_28_75_30_32

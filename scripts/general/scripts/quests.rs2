@@ -381,6 +381,9 @@ if (%agrith_quest >= ^agrith_complete) {
 if (%deal_quest >= ^deal_complete) {
     $questpoints = add($questpoints, ^deal_questpoints);
 }
+if (%fever_quest >= ^fever_complete) {
+    $questpoints = add($questpoints, ^fever_questpoints);
+}
 // Recipe for Disaster is ten sub-quests worth one point each, tracked as ten bits in
 // %hundred_subquest_tally, so it counts bits rather than comparing a stage to a completion value.
 $questpoints = add($questpoints, ~hundred_subquests_done);
@@ -424,6 +427,7 @@ $total = add($total, ^m2_questpoints);
 $total = add($total, ^hm_questpoints);
 $total = add($total, ^agrith_questpoints);
 $total = add($total, ^deal_questpoints);
+$total = add($total, ^fever_questpoints);
 $total = add($total, ^runemysteries_questpoints);
 $total = add($total, ^doric_questpoints);
 $total = add($total, ^cook_questpoints);
@@ -602,6 +606,7 @@ if (testbit(%ibanmulti, ^upass_started_bit) = ^true & %upass ! ^upass_complete) 
 ~send_quest_progress_colour(questlist:hauntedmine, %hauntedmine, ^hm_complete);
 ~send_quest_progress_colour(questlist:agrith, %agrith_quest, ^agrith_complete);
 ~send_quest_progress_colour(questlist:deal, %deal_quest, ^deal_complete);
+~send_quest_progress_colour(questlist:fever, %fever_quest, ^fever_complete);
 if_settab(questlist, ^tab_quest_journal);
 
 if (%drunkmonkquest >= ^drunkmonk_spoken_to_omad) {
