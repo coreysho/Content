@@ -1,0 +1,68 @@
+// Ghosts Ahoy.
+//
+// One varp, ahoy_varbits_1, transmit=yes and no scope=perm.
+//
+// ---------------------------------------------------------------------------- the barrier
+// ahoy_town_barrier is "Energy Barrier: a ghostly barrier" and it carries op1=Pass. It is placed
+// twice at 3652,3485 and it had no handler at all, which is the whole reason Port Phasmatys has
+// been unreachable - not a missing loc, just an unwritten one. Making History needs the same gate.
+//
+// ---------------------------------------------------------------------------- the stage pin
+// ahoy_questvar is bits 28-31, so 0-15, and [ahoy_akharanu_multi] declares 4, 5, 6, 7 and 8:
+//
+//   multinpc=4,5,6,7,8 -> ahoy_akharanu
+//
+// Ak-Haranu is the living trader on the dock and he exists across exactly those five values. He
+// has to be there from the moment the petition is full until the map business is finished, so the
+// middle of the quest is pinned to that window and completion has to be above it.
+^ahoy_not_started = 0
+^ahoy_velorina = 1        // Velorina has explained what Necrovarus is doing
+^ahoy_refused = 2         // and he has refused, in person
+^ahoy_petition = 3        // gathering signatures
+^ahoy_petition_full = 4   // <- AK-HARANU APPEARS
+^ahoy_manual = 5          // the translation manual, for a magic longbow
+^ahoy_translated = 6      // the Book of Haricanto read
+^ahoy_map = 7             // the three scraps together
+^ahoy_robes = 8           // Necrovarus's robes off the ghost ship  <- LAST VALUE HE EXISTS AT
+^ahoy_complete = 10
+
+^ahoy_signatures_wanted = 3
+^ahoy_barrier_toll = 2      // ecto-tokens, for anyone without the amulet
+
+^ahoy_sub_none = 0
+^ahoy_sub_asked = 1
+^ahoy_sub_done = 2
+
+^ahoy_off = 0
+^ahoy_on = 1
+
+// ---------------------------------------------------------------------------- places
+// Port Phasmatys is m57_54 (mapsquare origin 3648,3456).
+^ahoy_barrier = 0_57_54_4_29           // 3652,3485  two of them, the town gate
+^ahoy_velorina_coord = 0_57_54_30_54   // 3678,3510
+^ahoy_necrovarus = 0_57_54_12_60       // 3660,3516  the temple
+^ahoy_akharanu = 0_57_54_41_39         // 3689,3495  the dock
+^ahoy_robin = 0_57_54_24_35            // 3672,3491
+^ahoy_oldman = 1_56_55_33_24           // 3617,3544
+^ahoy_ghostship = 0_56_55_25_23        // 3609,3543
+
+// The wreck west of the port is a three-deck hulk with nine chests on it and, before this, not one
+// line of script anywhere - no ladder, no gangplank, no chest, no captain. Robin's model ship is in
+// the one chest on the top deck, which is the only one of the nine placed without an angle.
+^ahoy_boat_chest = 2_56_55_34_21
+^ahoy_skull_captain_coord = 1_56_55_38_23
+^ahoy_coffin_coord = 1_57_54_11_57
+
+// ---------------------------------------------------------------------------- Dragontooth Island
+// The completed map is a readable that was already in the cache, and it does not describe the wreck
+// at all - it says Dragontooth Island, a red cross on the north-western peninsula, and then a column
+// of figures. m59_55 is that island, it holds ahoy_x_start (the cross, a decoration with no ops) at
+// 3791,3556, and it is carpeted in two hundred dug-up-soil locs from everyone who has ever guessed.
+// Pacing the figures off the cross - 6 south, 8 east, 2 north, 4 east, 22 south - lands on 3803,3530,
+// which is sand, on a beach, on an island that is otherwise rock. The map is the spec.
+^ahoy_x = 0_59_55_15_36          // 3791,3556  the cross
+^ahoy_dig = 0_59_55_27_10        // 3803,3530  where the figures actually point
+^ahoy_port_dock = 0_57_54_55_31  // 3703,3487  ghost captain, Port Phasmatys pier
+^ahoy_island_dock = 0_59_55_16_40 // 3792,3560 the same captain, Dragontooth Island
+^ahoy_island_sw = 0_59_55_0_0
+^ahoy_island_ne = 0_59_55_63_63
