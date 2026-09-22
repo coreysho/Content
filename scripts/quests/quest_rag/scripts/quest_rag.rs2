@@ -1,0 +1,92 @@
+// Rag and Bone Man - the item handling.
+//
+// The shape of the job, and the only part of it that is scripted rather than dialogue:
+//
+//   jug of vinegar (Fortunato, once the quest is started) + empty pot -> pot of vinegar
+//   bone + pot of vinegar                                            -> bone in vinegar
+//   bone in vinegar, cooked on a range or a fire                     -> cleaned bone
+//
+// The last of those is a cooking_generic row rather than code - see configs/rag_cooking.dbrow.
+
+// =========================================================================== pot of vinegar
+
+// Either way round, as with every other two-item combine in this codebase.
+[opheldu,rag_vinegar]
+if (last_useitem = pot_empty) {
+    @rag_fill_pot;
+}
+~displaymessage(^dm_default);
+
+[opheldu,pot_empty]
+if (last_useitem = rag_vinegar) {
+    @rag_fill_pot;
+}
+~displaymessage(^dm_default);
+
+[label,rag_fill_pot]
+// Two items out, one in, so there is always room - but the jug does not come back empty here the
+// way a jug of water would. The vinegar is what is being decanted; the jug goes with it.
+inv_del(inv, rag_vinegar, 1);
+inv_del(inv, pot_empty, 1);
+inv_add(inv, rag_pot_vinegar, 1);
+mes("You pour the vinegar into the pot.");
+
+// =========================================================================== bone into the pot
+
+[opheldu,rag_pot_vinegar]
+@rag_steep_bone(last_useitem);
+
+[opheldu,rag_goblin_bone] @rag_steep_bone(rag_goblin_bone);
+[opheldu,rag_bear_bone] @rag_steep_bone(rag_bear_bone);
+[opheldu,rag_ram_bone] @rag_steep_bone(rag_ram_bone);
+[opheldu,rag_unicorn_bone] @rag_steep_bone(rag_unicorn_bone);
+[opheldu,rag_giant_rat_bone] @rag_steep_bone(rag_giant_rat_bone);
+
+// $bone is whichever of the pair was not the trigger: the [opheldu,rag_pot_vinegar] entry passes
+// last_useitem, and each bone's own entry passes itself because there last_useitem is the pot.
+[label,rag_steep_bone](obj $bone)
+if (inv_total(inv, rag_pot_vinegar) = 0) {
+    ~displaymessage(^dm_default);
+    return;
+}
+def_namedobj $steeped = null;
+switch_obj ($bone) {
+    case rag_goblin_bone : $steeped = rag_pot_goblin_bone;
+    case rag_bear_bone : $steeped = rag_pot_bear_bone;
+    case rag_ram_bone : $steeped = rag_pot_ram_bone;
+    case rag_unicorn_bone : $steeped = rag_pot_unicorn_bone;
+    case rag_giant_rat_bone : $steeped = rag_pot_giant_rat_bone;
+}
+if ($steeped = null) {
+    // Every other bone in the cache belongs to part two, which is not built. Say so rather than
+    // letting the pot swallow something it cannot clean.
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, rag_pot_vinegar, 1);
+inv_del(inv, $bone, 1);
+inv_add(inv, $steeped, 1);
+mes("You drop the <lowercase(oc_name($bone))> into the pot of vinegar.");
+mes("Now it needs boiling.");
+
+// =========================================================================== the bones themselves
+
+// Called from the five drop tables in drop_tables/scripts/. One in four, which is the rate
+// [ai_queue3,jackal] already uses for the part-two bone it drops.
+//
+// Not gated on the quest: the bones are ordinary drops in this era, and gating them would mean a
+// player who happened to be killing goblins before starting had nothing to show for it. They are
+// junk to anyone not doing the quest, and the Odd Old Man takes them whenever they turn up.
+[proc,rag_bone_drop](namedobj $bone)
+if (random(128) < 32) {
+    obj_add(npc_coord, $bone, 1, ^lootdrop_duration);
+}
+
+// =========================================================================== completion
+
+[queue,rag_quest_complete]
+%rag_quest = ^rag_complete;
+stat_advance(prayer, 5000);
+stat_advance(cooking, 5000);
+session_log(^log_adventure, "Quest complete: Rag and Bone Man");
+~send_quest_complete(questlist:rag, rag_polished_goblin_bone, 250, ^rag_questpoints, "You have completed the\\nRag and Bone Man Quest!", "500 Prayer XP|500 Cooking XP");

@@ -1,0 +1,42 @@
+[if_button,questlist:rag]
+def_string $text;
+
+switch_int (%rag_quest) {
+    case ^rag_not_started :
+        $text = "@dbl@I can start this quest by speaking to the @dre@Odd Old Man|";
+        $text = append($text, "@dbl@on the riverbank @dre@south of the Digsite|");
+        $text = append($text, "@dbl@I will need to kill a @dre@goblin@dbl@, a @dre@bear@dbl@, a @dre@ram@dbl@, a|");
+        $text = append($text, "@dre@unicorn@dbl@ and a @dre@giant rat");
+
+    case ^rag_started :
+        $text = "@str@The Odd Old Man is assembling a collection of polished|";
+        $text = append($text, "@str@bones, and I have agreed to fetch him the first five.|");
+        $text = append($text, "@str@Each one has to be steeped in a pot of vinegar and|");
+        $text = append($text, "@str@then boiled clean on a range or a fire.|");
+        $text = append($text, "@dbl@Fortunato@str@ in @dbl@Draynor@str@ sells the vinegar.||");
+        // Ticked off against the inventory, exactly as the Odd Old Man does it - there is no
+        // stored per-bone state to read, and this way a bone that has been lost shows as
+        // outstanding again rather than lying about being done.
+        $text = append($text, ~rag_journal_line(rag_polished_goblin_bone, "Goblin skull"));
+        $text = append($text, ~rag_journal_line(rag_polished_bear_bone, "Bear ribs"));
+        $text = append($text, ~rag_journal_line(rag_polished_ram_bone, "Ram skull"));
+        $text = append($text, ~rag_journal_line(rag_polished_unicorn_bone, "Unicorn bone"));
+        $text = append($text, ~rag_journal_line(rag_polished_giant_rat_bone, "Giant rat skull"));
+
+    case ^rag_complete :
+        $text = "@str@The Odd Old Man is assembling a collection of polished|";
+        $text = append($text, "@str@bones, and I agreed to fetch him the first five. I hunted|");
+        $text = append($text, "@str@down a goblin, a bear, a ram, a unicorn and a giant rat,|");
+        $text = append($text, "@str@steeped each bone in vinegar and boiled it clean.|");
+        $text = append($text, "@str@He taught me a little about bones in return, and started|");
+        $text = append($text, "@str@talking about all the creatures he still hasn't got.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+}
+
+~quest_journal("Rag and Bone Man", $text);
+
+[proc,rag_journal_line](obj $bone, string $name)(string)
+if (inv_total(inv, $bone) > 0) {
+    return ("@str@<$name>|");
+}
+return ("@dre@<$name>|");

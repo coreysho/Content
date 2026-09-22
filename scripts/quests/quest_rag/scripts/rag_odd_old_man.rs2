@@ -1,0 +1,120 @@
+// The Odd Old Man, on the riverbank south of the Digsite (npc 3670, spawned in maps/m52_54.jm2).
+//
+// He keeps the whole quest: he sets it, he tells you what he still wants, and he takes the bones.
+// Nothing is recorded between starting and finishing - ~rag_bones_held counts what is actually in
+// the inventory each time, so a player can hand them over in any order, over any number of visits,
+// and losing one only costs them that bone.
+
+[opnpc1,rag_odd_old_man]
+if (map_members = ^false) {
+    ~chatnpc("<p,neutral>Bones! Lovely bones... but not here. You'll have to find me on a members' world.");
+    return;
+}
+switch_int (%rag_quest) {
+    case ^rag_started : @rag_oom_progress;
+    case ^rag_not_started : @rag_oom_start;
+    // Anything at or past completion - including whatever part two would use - lands here rather
+    // than falling off the end of the switch. An npc that silently says nothing is the failure
+    // mode this project has had to chase down more than once.
+    case default : @rag_oom_finished;
+}
+
+[label,rag_oom_start]
+~chatnpc("<p,happy>Hello there! Don't mind the smell, it's mostly the bones.");
+switch_int (~p_choice2("What are all those bones for?", 1, "You smell terrible.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>You smell terrible.");
+        ~chatnpc("<p,happy>I do, don't I? Marinade does that.");
+        return;
+    case 1 :
+        ~chatplayer("<p,quiz>What are all those bones for?");
+}
+~chatnpc("<p,happy>A display! The finest collection of bones anyone has ever assembled, and every one of them polished until it shines.");
+~chatnpc("<p,sad>The trouble is the polishing. My knees aren't what they were, and the creatures I want won't hold still.");
+switch_int (~p_choice2("I could collect them for you.", 1, "That sounds like somebody else's job.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>That sounds like somebody else's job.");
+        ~chatnpc("<p,sad>It usually is. Off you go then.");
+        return;
+    case 1 :
+        ~chatplayer("<p,happy>I could collect them for you.");
+}
+~chatnpc("<p,happy>Could you? Splendid! Five, to begin with.");
+@rag_oom_list;
+~chatnpc("<p,neutral>They come off the beast whole, mind, and they come off filthy. You'll want to boil them clean.");
+~chatplayer("<p,quiz>Boil them in what?");
+~chatnpc("<p,neutral>Vinegar, in a pot. Fortunato sells vinegar at his stall in Draynor - tell him it's for me and he'll dig some out.");
+~chatnpc("<p,neutral>Bone in the pot, pot on a fire, and out comes something worth looking at.");
+%rag_quest = ^rag_started;
+~send_quest_progress(questlist:rag, %rag_quest, ^rag_complete);
+
+[label,rag_oom_list]
+~chatnpc("<p,neutral>A goblin skull.|Some bear ribs.|A ram's skull.|A unicorn bone.|And a giant rat's skull.");
+
+[label,rag_oom_progress]
+~chatnpc("<p,happy>Back again! Have you got anything for me?");
+if (~rag_bones_held < ^rag_bones_wanted) {
+    ~chatplayer("<p,sad>Not all of them yet.");
+    ~chatnpc("<p,neutral>Then let me say it again, and do try to keep up.");
+    @rag_oom_list;
+    @rag_oom_outstanding;
+    return;
+}
+~chatplayer("<p,happy>All five, cleaned and polished.");
+~chatnpc("<p,shock>All five! And boiled properly, too - look at the shine on that.");
+inv_del(inv, rag_polished_goblin_bone, 1);
+inv_del(inv, rag_polished_bear_bone, 1);
+inv_del(inv, rag_polished_ram_bone, 1);
+inv_del(inv, rag_polished_unicorn_bone, 1);
+inv_del(inv, rag_polished_giant_rat_bone, 1);
+~chatnpc("<p,happy>You've a talent for this. Let me show you a thing or two about bones in return - there's more to them than most people ever notice.");
+queue(rag_quest_complete, 0, 0);
+
+// Names only what is still missing. The full list is read out just above it, so this is the part
+// the player actually needs, and it is worked out from the inventory rather than from a stored
+// checklist - there isn't one.
+[label,rag_oom_outstanding]
+def_string $missing = "";
+if (inv_total(inv, rag_polished_goblin_bone) = 0) {
+    $missing = append($missing, "|A goblin skull.");
+}
+if (inv_total(inv, rag_polished_bear_bone) = 0) {
+    $missing = append($missing, "|Some bear ribs.");
+}
+if (inv_total(inv, rag_polished_ram_bone) = 0) {
+    $missing = append($missing, "|A ram's skull.");
+}
+if (inv_total(inv, rag_polished_unicorn_bone) = 0) {
+    $missing = append($missing, "|A unicorn bone.");
+}
+if (inv_total(inv, rag_polished_giant_rat_bone) = 0) {
+    $missing = append($missing, "|A giant rat's skull.");
+}
+~chatnpc("<p,neutral>Still wanting:<$missing>");
+
+[label,rag_oom_finished]
+~chatnpc("<p,happy>There you are! Come and look - I've got them all laid out.");
+~chatplayer("<p,happy>They do look good.");
+~chatnpc("<p,happy>Don't they just. Mind you, five is hardly a collection. There are a great many more creatures out there...");
+~chatplayer("<p,shock>Please don't.");
+~chatnpc("<p,happy>Another time, then.");
+
+// How many of the five cleaned bones are in hand. Counted rather than stored: see the file header.
+[proc,rag_bones_held]()(int)
+def_int $held = 0;
+if (inv_total(inv, rag_polished_goblin_bone) > 0) {
+    $held = calc($held + 1);
+}
+if (inv_total(inv, rag_polished_bear_bone) > 0) {
+    $held = calc($held + 1);
+}
+if (inv_total(inv, rag_polished_ram_bone) > 0) {
+    $held = calc($held + 1);
+}
+if (inv_total(inv, rag_polished_unicorn_bone) > 0) {
+    $held = calc($held + 1);
+}
+if (inv_total(inv, rag_polished_giant_rat_bone) > 0) {
+    $held = calc($held + 1);
+}
+return ($held);

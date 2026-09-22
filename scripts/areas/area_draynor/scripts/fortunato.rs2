@@ -3,7 +3,14 @@
 
 [proc,openshop_fortunato]
 if(map_members = ^true) {
-    //if started rag and bone man, use wine_vinegar_merchant. needs varp
+    // The varp the TODO here was waiting on is %rag_quest, and wine_vinegar_merchant was already
+    // stocked for this (rag_vinegar, 500 @ 10gp) - it just had nothing pointing at it. The vinegar
+    // appears once the Odd Old Man has asked for it and stays on the shelf afterwards, which is
+    // what part two will want anyway.
+    if(%rag_quest >= ^rag_started) {
+        ~openshop(wine_vinegar_merchant, 600, 1000, 20, "Wine Shop.");
+        return;
+    }
     ~openshop(wine_merchant, 600, 1000, 20, "Wine Shop.");
 } else {
     ~openshop(wine_merchant_free, 600, 1000, 20, "Wine Shop.");
