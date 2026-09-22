@@ -1,0 +1,55 @@
+// The Lost Tribe.
+//
+// The stage numbers are NOT free. %lost_tribe_quest is the cache's own varbit (bits 0-10 of
+// lost_tribe), and three separate pieces of cache data already switch on it. Between them they
+// pin nearly every value below:
+//
+//   [lost_tribe_cellar_wall] / [lost_tribe_cellar_wall_back] (all.loc)
+//       0      -> "Shelves" / "Wall"
+//       1,2,3  -> "Rubble", no op
+//       4..11  -> "Hole", op1=Squeeze-through
+//     so the wall opens at 4, and stays open for good afterwards.
+//
+//   controls.if com_79/com_80 (unpacked client interface, script1=lt,7)
+//     greys the two Goblin emotes while lost_tribe_quest < 7, and
+//     interface_controls/scripts/player_controls.rs2:111 enforces the same server-side.
+//     So 7 is where the goblins teach the player their greeting - which is meeting Mistag,
+//     not finishing the quest.
+//
+//   [lost_tribe_guide] (all.npc) - Kazgar
+//       multinpc=9,10,11 -> lost_tribe_guide_1op
+//     and nothing below 9. He is simply not there before that, so he cannot be the way in: the
+//     first trip has to be on foot. It is - the tunnel from the hole at local(21,18) runs east
+//     along z=18 to x=25, north to z=15, and on through x=27..32 at z=9..14 to where Kazgar
+//     stands at local(31,10), and carries on east into m51_150 towards Mistag. Checked against
+//     the shape-10 centrepieces in both mapsquares before relying on it.
+//
+// Hence: 4 opens the wall, 7 is Mistag, 9 puts Kazgar on the road for the trips back and forth,
+// and 11 - the top of every range above - is completion.
+//
+// 3, 5, 6, 8 and 10 are skipped on purpose. The cache draws each of them identically to the stage
+// below it, and there was no beat worth inventing to fill them. A declared-but-never-assigned
+// stage is exactly the dead constant this codebase keeps tripping over, so they are not declared.
+^lost_tribe_not_started = 0
+^lost_tribe_investigate = 1
+^lost_tribe_told_sigmund = 2
+^lost_tribe_way_open = 4
+^lost_tribe_met_mistag = 7
+^lost_tribe_proved_sigmund = 9
+
+// The hole through the Lumbridge cellar wall. Three tiles, two walls:
+//
+//   (19,18) cellar      [wall on the west edge of (20,18)]
+//   (20,18) inside      goblin_cavewall_hole_inside, blockwalk=no
+//   (21,18) cave        [wall on the west edge of (21,18)]
+//
+// lost_tribe_cellar_hole and lost_tribe_cavewall_hole are plain shape-0 walls that block in every
+// state - only the walldecor shells either side of them change with the quest - so squeezing
+// through has to step the player across, the same way Recruitment Drive's stone door does.
+^lost_tribe_hole_cellar_side = 0_50_150_19_18
+^lost_tribe_hole_cave_side = 0_50_150_21_18
+
+// Kazgar walks the player the length of the mine. He stands at 0_50_150_31_10; Mistag is at
+// 0_51_150_55_15, with 54_15 the open tile beside him.
+^lost_tribe_mine_entrance = 0_50_150_30_10
+^lost_tribe_mistag_side = 0_51_150_54_15
