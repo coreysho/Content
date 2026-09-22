@@ -1,0 +1,93 @@
+[if_button,questlist:mortton]
+def_string $text;
+
+if (%morttonquest >= ^mortton_complete) {
+    $text = "@str@Mort'ton was not diseased. It was being worn away by the|";
+    $text = append($text, "@str@shades, and the temple flame that used to keep them out|");
+    $text = append($text, "@str@had been dark long enough that nobody left alive could|");
+    $text = append($text, "@str@remember it lit.|");
+    $text = append($text, "@str@Herbi Flax's diary gave me enough serum to get a sentence|");
+    $text = append($text, "@str@out of Razmire and Ulsquire, and between them they knew what|");
+    $text = append($text, "@str@the flame was for: not warmth, but burning the shades|");
+    $text = append($text, "@str@properly.||");
+    $text = append($text, "@red@QUEST COMPLETE!");
+    ~quest_journal("Shades of Mort'ton", $text);
+    return;
+}
+
+if (%morttonquest >= ^mortton_kill_shades & %morttonquest < ^mortton_killed_5_shades) {
+    // The five tally stages are five apart, so the count is arithmetic rather than five branches.
+    def_int $killed = calc((%morttonquest - ^mortton_kill_shades) / 5);
+    $text = "@str@Razmire came back far enough to explain: the shades are|";
+    $text = append($text, "@str@using the town up, and the temple flame used to keep them|");
+    $text = append($text, "@str@out of it.|");
+    $text = append($text, "@dbl@I have put down @dre@<tostring($killed)>@dbl@ of @dre@<tostring(^mortton_shades_needed)>@dbl@ shades");
+    ~quest_journal("Shades of Mort'ton", $text);
+    return;
+}
+
+switch_int (%morttonquest) {
+    case ^mortton_not_started :
+        $text = "@dbl@I can start this quest in @dre@Mort'ton@dbl@, south of|";
+        $text = append($text, "@dbl@@dre@Canifis@dbl@. Everyone there is too far gone to talk|");
+        $text = append($text, "@dbl@Something in the ruined houses may explain it");
+
+    case ^mortton_read_diary :
+        $text = "@str@Herbi Flax's diary says the affliction is not a sickness -|";
+        $text = append($text, "@str@they are being worn away, and there is nothing left in them|");
+        $text = append($text, "@str@to fight it.|");
+        $text = append($text, "@dbl@Serum 207: a @dre@tarromin potion@dbl@ and a handful of @dre@ashes|");
+        $text = append($text, "@dbl@Use the @dre@diary@dbl@ on one of them to mix it");
+
+    case ^mortton_made_serum :
+        $text = "@str@I have Serum 207.|";
+        $text = append($text, "@dbl@@dre@Razmire Keelgan@dbl@ is the one selling bricks. A dose might|");
+        $text = append($text, "@dbl@get a sentence out of him");
+
+    case ^mortton_killed_5_shades :
+        $text = "@str@Five shades down.|";
+        $text = append($text, "@dbl@I should tell @dre@Razmire");
+
+    case ^mortton_shades_to_razmire :
+        $text = "@str@While the temple flame was lit the shades could not come|";
+        $text = append($text, "@str@into the town at all.|");
+        $text = append($text, "@dbl@@dre@Ulsquire Shauncy@dbl@ kept the temple records. He needs a dose|");
+        $text = append($text, "@dbl@of the serum too");
+
+    case ^mortton_shades_to_ulsquire :
+        $text = "@str@Ulsquire has had a dose.|";
+        $text = append($text, "@dbl@I should hear what he has to say");
+
+    case ^mortton_ulsquire_temple :
+        $text = "@str@Walls, then the altar, then oil, then wood, then a body,|";
+        $text = append($text, "@str@then a light. In that order or not at all.|");
+        $text = append($text, "@dbl@I need a @dre@flamtaer hammer@dbl@ - Razmire sells them - and to|");
+        $text = append($text, "@dbl@@dre@repair the temple walls");
+
+    case ^mortton_rebuild_temple :
+        $text = "@str@The walls are going back up.|";
+        $text = append($text, "@dbl@@dre@<tostring(%temple_repaired_p)>@dbl@ of @dre@<tostring(^mortton_wall_levels)>@dbl@ courses laid");
+
+    case ^mortton_can_light_altar :
+        $text = "@str@The temple is whole and the altar is an altar again.|";
+        $text = append($text, "@dbl@@dre@Light it@dbl@ with a tinderbox, then use @dre@olive oil@dbl@ on the|");
+        $text = append($text, "@dbl@flame to bless it");
+
+    case ^mortton_created_sacred_oil :
+        $text = "@str@The altar is burning and I have sacred oil.|";
+        $text = append($text, "@dbl@Use the @dre@oil on logs@dbl@ to make pyre logs");
+
+    case ^mortton_created_pyre_logs :
+        $text = "@str@I have pyre logs.|";
+        $text = append($text, "@dbl@Build a @dre@funeral pyre@dbl@ with them, then lay @dre@shade remains|");
+        $text = append($text, "@dbl@on it");
+
+    case ^mortton_logs_on_pyre :
+        $text = "@str@The pyre is built and the remains are on it.|";
+        $text = append($text, "@dbl@@dre@Light it");
+
+    case default :
+        $text = "@dbl@I can start this quest in @dre@Mort'ton@dbl@, south of @dre@Canifis";
+}
+
+~quest_journal("Shades of Mort'ton", $text);
