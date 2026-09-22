@@ -1,0 +1,327 @@
+// Shadow of the Storm - two priests, a man in a cellar who has been trying to be evil for years,
+// and a demon whose name the cult cannot pronounce properly.
+
+// =========================================================================== Father Reen
+// He renders in Al Kharid at 0, 10 and 20 and nowhere else on that spawn. The moment the quest
+// reaches 30 the shell resolves to nothing and he is at Uzer instead.
+[opnpc1,agrith_reen_alkharid]
+switch_int (%agrith_quest) {
+    case ^agrith_not_started : @agrith_start;
+    case ^agrith_reen :
+        ~chatnpc("<p,neutral>Edgeville. There is a woman with a cellar and a son in it, and the son is the one you want.");
+    case default :
+        ~chatnpc("<p,neutral>Badden and I will be at the ruins. Do not be long about it.");
+}
+
+[label,agrith_start]
+~chatnpc("<p,neutral>You are not from the cult.");
+switch_int (~p_choice2("What cult?", 1, "No. Should I be?", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>No. Should I be?");
+        ~chatnpc("<p,angry>Nobody should be. That is rather the point of the cult.");
+    case 1 :
+        ~chatplayer("<p,quiz>What cult?");
+}
+~chatnpc("<p,neutral>Brother Badden and I have spent four months following seven people who are trying to summon a demon, and we have got as far as knowing that they are going to do it in the ruins of Uzer and no further.");
+~chatplayer("<p,quiz>Can't you stop them?");
+~chatnpc("<p,sad>They will not let two priests into a demonic summoning. They would let somebody in who wanted to be there.");
+~chatnpc("<p,neutral>There is a man in a cellar in Edgeville who has spent years wanting to be there and has never once been invited. Talk to him.");
+%agrith_quest = ^agrith_reen;
+~send_quest_progress(questlist:agrith, %agrith_quest, ^agrith_complete);
+
+// At Uzer. Both shells key on their own varbit rather than the stage, so the quest moves them.
+[opnpc1,agrith_reen_uzer]
+switch_int (%agrith_quest) {
+    case ^agrith_uzer :
+        ~chatnpc("<p,neutral>Black robes, a sigil and a sword they will not recognise as a sword. Dave told you as much.");
+    case ^agrith_dead :
+        @agrith_report;
+    case ^agrith_darklight :
+        @agrith_report;
+    case default :
+        if (%agrith_quest >= ^agrith_told) {
+            ~chatnpc("<p,happy>Four months of following them, and the whole thing was settled by a man in a cellar and a sword with mushroom ink on it.");
+            return;
+        }
+        ~chatnpc("<p,neutral>We wait. That is most of this work.");
+}
+
+[opnpc1,agrith_badden_uzer]
+if (%agrith_quest < ^agrith_uzer) {
+    ~chatnpc("<p,neutral>...");
+    return;
+}
+if (%agrith_quest >= ^agrith_told) {
+    ~chatnpc("<p,happy>I have decided I do not mind the desert.");
+    return;
+}
+~chatnpc("<p,neutral>Reen does the talking. I do the other part.");
+
+[label,agrith_report]
+if (inv_total(inv, darklight) = 0 & %agrith_quest < ^agrith_darklight) {
+    ~chatnpc("<p,neutral>The sword. What happened to the sword?");
+    return;
+}
+~chatplayer("<p,neutral>It's over.");
+~chatnpc("<p,shock>The sword has changed colour.");
+~chatplayer("<p,neutral>It went through him.");
+~chatnpc("<p,neutral>Then it has his blood in it and it will keep working, which is more than Silverlight ever did.");
+if_close;
+mes("Father Reen writes the whole of it down, twice, and gives one copy to Badden.");
+p_delay(4);
+%agrith_quest = ^agrith_complete;
+stat_advance(crafting, 20000);
+stat_advance(magic, 10000);
+session_log(^log_adventure, "Quest complete: Shadow of the Storm");
+~send_quest_complete(questlist:agrith, darklight, 200, ^agrith_questpoints, "You have completed\\nShadow of the Storm!", "1 Quest Point|2,000 Crafting XP|1,000 Magic XP|Darklight");
+
+// =========================================================================== Evil Dave
+// agrith_dave is not spawned anywhere, so this runs on the living Dave in the Edgeville cellar,
+// hooked in ahead of Recipe for Disaster's handler.
+[proc,agrith_dave_wants]()(boolean)
+switch_int (%agrith_quest) {
+    case ^agrith_not_started : return(false);
+    case ^agrith_reen :
+        ~agrith_dave_brief;
+        return(true);
+    case ^agrith_uzer :
+        ~chatnpc("<p,neutral>Black shirt, black robe, black sword, and a sigil. FOUR black things.");
+        return(true);
+    case default :
+        if (%agrith_quest >= ^agrith_complete) {
+            ~chatnpc("<p,neutral>I went to a demonic summoning. I was AT one. Mum still thinks I was at the shops.");
+            return(true);
+        }
+        return(false);
+}
+return(false);
+
+[proc,agrith_dave_brief]()()
+~chatnpc("<p,angry>This cellar is DARK and I am NOT to be disturbed.");
+~chatplayer("<p,quiz>There's a cult summoning a demon at Uzer.");
+~chatnpc("<p,shock>...there is a WHAT.");
+~chatnpc("<p,angry>I have been writing to them for two years. TWO YEARS. Denath has never once replied.");
+~chatplayer("<p,quiz>So how do I get in?");
+~chatnpc("<p,neutral>Black. Everything black. A black desert shirt and a black desert robe, and mushroom ink is the only thing that takes on desert cloth.");
+~chatnpc("<p,neutral>And a sigil. You cannot walk into a summoning without the sigil of the thing being summoned, they check.");
+~chatnpc("<p,angry>And do not take a silver sword in there looking like a silver sword. Stain that as well.");
+%agrith_convinced_dave = ^agrith_on;
+%agrith_quest = ^agrith_dave;
+~send_quest_progress(questlist:agrith, %agrith_quest, ^agrith_complete);
+// The priests go to the ruins to wait.
+%agrith_reen_uzer = ^agrith_on;
+%agrith_badden_uzer = ^agrith_on;
+%agrith_quest = ^agrith_uzer;
+~send_quest_progress(questlist:agrith, %agrith_quest, ^agrith_complete);
+~chatnpc("<p,sad>Take me with you.");
+~chatplayer("<p,neutral>No.");
+~chatnpc("<p,sad>Worth a try.");
+
+// =========================================================================== black everything
+// golem_ink already exists: The Golem quest picks black mushrooms and crushes them into a vial.
+[opheldu,golem_ink]
+def_obj $target = last_useitem;
+if ($target = desert_shirt) { @agrith_dye(desert_shirt, agrith_desert_shirt_dyed, "shirt"); }
+if ($target = desert_robe) { @agrith_dye(desert_robe, agrith_desert_robe_dyed, "robe"); }
+if ($target = silverlight) { @agrith_dye_sword; }
+~displaymessage(^dm_default);
+
+[label,agrith_dye](obj $from, namedobj $to, string $what)
+if (%agrith_quest < ^agrith_dave) {
+    ~mesbox("You would be ruining a perfectly good <$what> for no reason.");
+    return;
+}
+inv_del(inv, $from, 1);
+inv_del(inv, golem_ink, 1);
+inv_add(inv, $to, 1);
+mes("You stain the <$what> black.");
+~agrith_black_check;
+
+[label,agrith_dye_sword]
+if (%agrith_quest < ^agrith_black) {
+    ~mesbox("Staining Silverlight black would be an appalling thing to do to it and you would want a reason first.");
+    return;
+}
+inv_del(inv, silverlight, 1);
+inv_del(inv, golem_ink, 1);
+inv_add(inv, agrith_silverlight_dyed, 1);
+if (%agrith_quest = ^agrith_sigil) {
+    %agrith_quest = ^agrith_sword;
+    ~send_quest_progress(questlist:agrith, %agrith_quest, ^agrith_complete);
+}
+~mesbox("Silverlight, stained black with mushroom ink. It does not look like anything at all now, which is the entire idea.");
+
+[proc,agrith_black_check]()()
+if (%agrith_quest ! ^agrith_uzer) {
+    return;
+}
+if (inv_total(inv, agrith_desert_shirt_dyed) = 0 | inv_total(inv, agrith_desert_robe_dyed) = 0) {
+    return;
+}
+%agrith_quest = ^agrith_black;
+~send_quest_progress(questlist:agrith, %agrith_quest, ^agrith_complete);
+~mesbox("Head to foot in black, in a desert. Nobody has ever thought this through.");
+
+// =========================================================================== the golem and the mould
+[proc,agrith_golem]()(boolean)
+if (%agrith_quest < ^agrith_black) {
+    return(false);
+}
+if (%agrith_convinced_golem = ^agrith_on) {
+    if (%agrith_quest = ^agrith_black & inv_total(inv, agrith_sigil_mould) = 0 & inv_freespace(inv) > 0) {
+        inv_add(inv, agrith_sigil_mould, 1);
+        ~chatnpc("<p,neutral>ANOTHER ONE. I HAVE A BOX OF THEM.");
+        return(true);
+    }
+    ~chatnpc("<p,neutral>THE KILN STILL WORKS. IT IS THE ONLY THING HERE THAT DOES.");
+    return(true);
+}
+~chatplayer("<p,quiz>Seven people in black robes have been coming out here. Have you seen them?");
+~chatnpc("<p,neutral>THEY COME AT NIGHT AND THEY DIG AND THEY LEAVE THINGS IN MY KILNS.");
+~chatplayer("<p,quiz>What things?");
+~chatnpc("<p,neutral>MOULDS. FOR A SIGIL. THEY CAST ONE EACH AND THEY LEFT THE MOULD BEHIND BECAUSE THEY ARE NOT CAREFUL PEOPLE.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>YOU HAVE NO ROOM FOR IT.");
+    return(true);
+}
+inv_add(inv, agrith_sigil_mould, 1);
+%agrith_convinced_golem = ^agrith_on;
+%agrith_quest = ^agrith_mould;
+~send_quest_progress(questlist:agrith, %agrith_quest, ^agrith_complete);
+~chatnpc("<p,neutral>TAKE IT. THE KILN IS THE ONE WITH THE LESS BROKEN SIDE.");
+return(true);
+
+// The kiln is a multiloc on agrith_quest and it is only Look-in-able at 60, so casting the sigil is
+// what makes it Look-in-able and looking in is what takes it out.
+[opheldu,agrith_sigil_mould]
+if (last_useitem ! silver_bar) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%agrith_quest ! ^agrith_mould) {
+    ~mesbox("There is nowhere out here hot enough, and no reason yet.");
+    return;
+}
+if (distance(coord, ^agrith_kiln_coord) > 4) {
+    ~mesbox("The mould is cold. The golem said one of its kilns still works.");
+    return;
+}
+if_close;
+mes("You put the bar and the mould into the kiln.");
+p_delay(5);
+inv_del(inv, silver_bar, 1);
+%agrith_kiln = ^agrith_on;
+%agrith_quest = ^agrith_sigil;
+~send_quest_progress(questlist:agrith, %agrith_quest, ^agrith_complete);
+~mesbox("The kiln is four hundred years old and has a hole in one side and it takes about nine seconds to melt a silver bar, which tells you something about the people who built this city.");
+
+[oploc1,golem_kiln_smashed1_lookin]
+p_arrivedelay;
+if (inv_total(inv, agrith_sigil) > 0) {
+    ~mesbox("Empty, and still warm.");
+    return;
+}
+if (%agrith_kiln = ^agrith_off) {
+    ~mesbox("There is nothing in it.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room.");
+    return;
+}
+inv_del(inv, agrith_sigil_mould, 1);
+inv_add(inv, agrith_sigil, 1);
+stat_advance(crafting, 5000);
+~mesbox("A demonic sigil, still too hot to be comfortable, with a name on it that you can feel more than read.");
+
+// =========================================================================== the tome
+[opheld1,agrith_book]
+~mesbox("Demonic tome. | The summoning is five words and the order of them is the whole of it, because a demon called by the wrong name arrives anyway and is not bound by anything. | 1. Agrith | 2. Naar | 3. Secare | 4. Tar | 5. Rekt | Speak them SHORTEST FIRST. Where two are of a length, the lower number first. | Denath has never once got this right and it is going to kill him.");
+
+// agrith_sigil carries iop1=Chant and its generated stub said "Nothing interesting happens."
+[opheld1,agrith_sigil]
+if (%agrith_quest < ^agrith_sword) {
+    ~mesbox("Chanting over a sigil with nothing prepared is how people end up as a paragraph in somebody else's tome.");
+    return;
+}
+if (%agrith_quest >= ^agrith_summoned) {
+    ~mesbox("It is cold and it stays cold. Whatever was on the other end of it is not there any more.");
+    return;
+}
+@agrith_chant;
+
+[label,agrith_chant]
+~mesbox("Five words. The tome says shortest first, and where two are the same length, the lower-numbered one first.");
+%agrith_incantation_1 = ~agrith_pick(1);
+%agrith_incantation_2 = ~agrith_pick(2);
+%agrith_incantation_3 = ~agrith_pick(3);
+%agrith_incantation_4 = ~agrith_pick(4);
+%agrith_incantation_5 = ~agrith_pick(5);
+if (~agrith_words_right = false) {
+    ~mesbox("Nothing happens, except that the sigil gets briefly and unpleasantly warm. | Somewhere a long way off, something that was not summoned properly notices that it was not summoned properly.");
+    return;
+}
+@agrith_summon;
+
+[proc,agrith_pick](int $slot)(int)
+switch_int (~p_choice5("Tar", 1, "Agrith", 2, "Naar", 3, "Rekt", 4, "Secare", 5)) {
+    case 1 : return(^agrith_word_tar);
+    case 2 : return(^agrith_word_agrith);
+    case 3 : return(^agrith_word_naar);
+    case 4 : return(^agrith_word_rekt);
+    case 5 : return(^agrith_word_secare);
+}
+return(^agrith_word_none);
+
+[proc,agrith_words_right]()(boolean)
+if (%agrith_incantation_1 ! ^agrith_answer_1) { return(false); }
+if (%agrith_incantation_2 ! ^agrith_answer_2) { return(false); }
+if (%agrith_incantation_3 ! ^agrith_answer_3) { return(false); }
+if (%agrith_incantation_4 ! ^agrith_answer_4) { return(false); }
+if (%agrith_incantation_5 ! ^agrith_answer_5) { return(false); }
+return(true);
+
+// =========================================================================== the summoning
+[label,agrith_summon]
+if (inv_total(inv, agrith_silverlight_dyed) = 0) {
+    ~mesbox("You have the words and the sigil and nothing to hold. Not yet.");
+    return;
+}
+%agrith_quest = ^agrith_words;
+if_close;
+mes("The words come out in the right order and the sigil goes cold in your hand.");
+p_delay(4);
+%agrith_quest = ^agrith_summoned;
+~send_quest_progress(questlist:agrith, %agrith_quest, ^agrith_complete);
+~mesbox("Seven people in black are standing round a circle in the sand and none of them has noticed that the eighth one is you, because everybody here is wearing the same thing and that is the flaw in the plan.");
+p_delay(3);
+~mesbox("Denath gets to the fourth word and puts Rekt before Naar. | The ceiling of a building that has not had a ceiling in four hundred years falls on Eric.");
+p_delay(3);
+%agrith_quest = ^agrith_through;
+~send_quest_progress(questlist:agrith, %agrith_quest, ^agrith_complete);
+~mesbox("Agrith-Naar comes through unbound, which is what happens when you call a thing by nearly its name. | The cult run. Denath does not, at first.");
+p_delay(3);
+~agrith_naar_fight;
+
+[proc,agrith_naar_fight]()()
+mes("The sword is black and looks like nothing at all, which is why it gets close enough.");
+p_delay(4);
+~damage_self(18);
+mes("Agrith-Naar is not used to being hurt and does not take it well.");
+p_delay(4);
+~damage_self(10);
+mes("It goes in under the ribs and stays there.");
+p_delay(4);
+%agrith_quest = ^agrith_dead;
+inv_del(inv, agrith_silverlight_dyed, 1);
+inv_add(inv, darklight, 1);
+%agrith_quest = ^agrith_darklight;
+~send_quest_progress(questlist:agrith, %agrith_quest, ^agrith_complete);
+stat_advance(attack, 15000);
+stat_advance(strength, 15000);
+~mesbox("The ink comes off the blade in the heat and what is underneath it is not silver any more. | Darklight: Silverlight with the blood of Agrith-Naar in it, which is a permanent arrangement.");
+
+// =========================================================================== Eric
+[oploc1,sez_agrith_rubble_wiz]
+p_arrivedelay;
+~mesbox("Eric wanted to be at a demonic summoning more than anything in the world and he got to one, and then the roof came down on him. | Nobody in black robes has come back for him.");

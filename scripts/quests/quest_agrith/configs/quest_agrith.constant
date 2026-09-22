@@ -1,0 +1,86 @@
+// Shadow of the Storm.
+//
+// One varp cut into eleven varbits, and two of them dictate the whole shape of the quest.
+//
+//   agrith_quest            bits 0-6    the spine
+//   agrith_incantation_1    bits 7-9    \
+//   agrith_incantation_2    bits 10-12   |  five slots, three bits each
+//   agrith_incantation_3    bits 13-15   |  an incantation you have to get in the right order
+//   agrith_incantation_4    bits 16-18   |
+//   agrith_incantation_5    bits 19-21  /
+//   agrith_kiln             bits 22-23
+//   agrith_convinced_golem  bits 24-25
+//   agrith_convinced_dave   bits 26-27
+//   agrith_badden_uzer      bits 28-29
+//   agrith_reen_uzer        bits 30-31
+//
+// ---------------------------------------------------------------------------- the stage set
+// agrith_kiln_1 declares its table on agrith_quest and the indices it names are the legal stages:
+//
+//   0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 124, 125
+//
+// and at 60, and only at 60, the kiln becomes golem_kiln_smashed1_lookin, which carries op1=Look-in
+// where the plain one carries nothing. That is where the sigil is cast, and the config says so.
+//
+// agrith_wizard_rubble shows sez_agrith_rubble_wiz at 90, 100 and 110 only. That loc's name is
+// "Eric" and its description is "Eric's been killed by stones falling from the ceiling!", which
+// tells you both that Eric dies and exactly when.
+//
+// agrith_reen_alkharid renders Father Reen at 0, 10 and 20 and at no other value, so he is in Al
+// Kharid for the first three stages of the quest and then he is not.
+//
+// agrith_reen_uzer and agrith_badden_uzer each render at their own varbit = 1, which is where the
+// two of them go.
+//
+// ---------------------------------------------------------------------------- Uzer
+// m54_48 had no LOC section at all. The ruins of Uzer are bare terrain with a golem, two priests
+// and four sandstorms standing on it, and neither kiln nor rubble was placed anywhere in the game.
+// Both are multiloc shells on agrith_quest, so placing them shows nothing to anybody who has not
+// reached the stage that declares them.
+^agrith_not_started = 0
+^agrith_reen = 10        // Father Reen has explained
+^agrith_dave = 20        // Evil Dave has explained rather more
+^agrith_uzer = 30        // the priests have moved to Uzer   <- REEN LEAVES AL KHARID HERE
+^agrith_black = 40       // black desert shirt and robe
+^agrith_mould = 50       // the sigil mould
+^agrith_sigil = 60       // the sigil, cast   <- THE KILN IS LOOK-IN-ABLE AT EXACTLY THIS VALUE
+^agrith_sword = 70       // Silverlight, stained black
+^agrith_words = 80       // the incantation, in order
+^agrith_summoned = 90    // the chant  <- ERIC'S RUBBLE APPEARS
+^agrith_through = 100
+^agrith_dead = 110       // Agrith-Naar
+^agrith_darklight = 120
+^agrith_told = 124
+^agrith_complete = 125
+
+^agrith_off = 0
+^agrith_on = 1
+
+// ---------------------------------------------------------------------------- the incantation
+// Five slots, three bits each, so 0-7 per slot. agrith_book is "Demonic tome - Will this book help
+// in summoning Agrith-Naar?" with iop1=Read, and its generated stub said "The confession of
+// Ellemar", which belongs to a different book entirely.
+//
+// The tome gives five phrases and one rule: shortest first. The lengths are unambiguous, so the
+// answer is in the player's hands the moment they read it and is not guessable without.
+^agrith_word_none = 0
+^agrith_word_tar = 1      // "Tar"                          3
+^agrith_word_agrith = 2   // "Agrith"                       6
+^agrith_word_naar = 3     // "Naar"                         4
+^agrith_word_rekt = 4     // "Rekt"                         4  - same length as Naar, so ordered
+^agrith_word_secare = 5   // "Secare"                       6  -   by the tome's own numbering
+^agrith_answer_1 = 1      // Tar
+^agrith_answer_2 = 3      // Naar
+^agrith_answer_3 = 4      // Rekt
+^agrith_answer_4 = 2      // Agrith
+^agrith_answer_5 = 5      // Secare
+
+// ---------------------------------------------------------------------------- places
+^agrith_reen_alkharid_coord = 0_51_49_7_22   // 3271,3158
+^agrith_reen_uzer_coord = 0_54_48_27_21      // 3483,3093
+^agrith_badden_uzer_coord = 0_54_48_27_18    // 3483,3090
+^agrith_golem_coord = 0_54_48_32_18          // 3488,3090
+^agrith_kiln_coord = 0_54_48_34_18
+^agrith_rubble_coord = 0_54_48_22_29
+^agrith_circle = 0_54_48_19_28               // a sandstorm stands here, so something can
+^agrith_dave_cellar = 0_48_154_8_34          // under Edgeville

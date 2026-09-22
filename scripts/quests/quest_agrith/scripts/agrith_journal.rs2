@@ -1,0 +1,75 @@
+[if_button,questlist:agrith]
+def_string $text;
+
+switch_int (%agrith_quest) {
+    case ^agrith_not_started :
+        $text = "@dbl@There is a @dre@priest@dbl@ standing about in @dre@Al Kharid@dbl@ who is|";
+        $text = append($text, "@dbl@very obviously watching somebody");
+
+    case ^agrith_reen :
+        $text = "@str@Father Reen and Father Badden have spent four months|";
+        $text = append($text, "@str@following seven people who are trying to summon a demon in|");
+        $text = append($text, "@str@the ruins of Uzer, and cannot get near them.|");
+        $text = append($text, "@dbl@There is a man in a @dre@cellar in Edgeville@dbl@ who has wanted|");
+        $text = append($text, "@dbl@an invitation to one of these for years");
+
+    case ^agrith_uzer :
+        $text = "@str@Evil Dave has been writing to Denath for two years and has|";
+        $text = append($text, "@str@never had a reply, which he minds a great deal.|");
+        $text = append($text, "@str@To walk into a summoning you need to look like everybody|");
+        $text = append($text, "@str@else at it:||");
+        $text = append($text, "@dbl@A @dre@black desert shirt@dbl@ and @dre@black desert robe@dbl@ - only|");
+        $text = append($text, "@dbl@@dre@mushroom ink@dbl@ takes on desert cloth|");
+        $text = append($text, "@dbl@A @dre@demonic sigil@dbl@ - the @dre@golem@dbl@ at Uzer has watched them|");
+        $text = append($text, "@dbl@casting theirs|");
+        $text = append($text, "@dbl@And @dre@Silverlight@dbl@, stained as well, or they will see it");
+
+    case ^agrith_black :
+        $text = "@str@Head to foot in black, in a desert.|";
+        $text = append($text, "@dbl@The @dre@golem@dbl@ has a @dre@sigil mould|");
+
+    case ^agrith_mould :
+        $text = "@str@They cast a sigil each and left the mould behind, because|";
+        $text = append($text, "@str@they are not careful people.|");
+        $text = append($text, "@dbl@A @dre@silver bar@dbl@ and the @dre@kiln@dbl@ that still works");
+
+    case ^agrith_sigil :
+        $text = "@str@A demonic sigil with a name on it you can feel more than|";
+        $text = append($text, "@str@read.|");
+        $text = append($text, "@dbl@Now stain @dre@Silverlight");
+
+    case ^agrith_sword :
+        $text = "@str@Silverlight, black, looking like nothing at all.|";
+        $text = append($text, "@dbl@The @dre@Demonic tome@dbl@ has the five words. @dre@Chant@dbl@ the sigil");
+
+    case ^agrith_words :
+        $text = "@str@Five words, shortest first.|";
+        $text = append($text, "@dbl@@dre@Chant@dbl@ the sigil");
+
+    case ^agrith_summoned :
+        $text = "@str@Denath got to the fourth word and put Rekt before Naar.|";
+        $text = append($text, "@str@The ceiling came down on Eric.");
+
+    case ^agrith_through :
+        $text = "@str@Agrith-Naar came through unbound, which is what happens when|";
+        $text = append($text, "@str@you call a thing by nearly its name.");
+
+    case ^agrith_darklight :
+        $text = "@str@The ink came off the blade in the heat and what was under|";
+        $text = append($text, "@str@it is not silver any more.|");
+        $text = append($text, "@dbl@Tell @dre@Father Reen@dbl@ at the ruins");
+
+    case ^agrith_complete :
+        $text = "@str@Seven people in black stood round a circle in the sand and|";
+        $text = append($text, "@str@not one of them noticed that the eighth one was me, because|");
+        $text = append($text, "@str@everybody there was wearing the same thing.|");
+        $text = append($text, "@str@Denath could not pronounce the name. Eric is still under|");
+        $text = append($text, "@str@that roof.|");
+        $text = append($text, "@str@Silverlight has Agrith-Naar's blood in it now, permanently.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+
+    case default :
+        $text = "@dbl@There is a @dre@priest@dbl@ standing about in @dre@Al Kharid";
+}
+
+~quest_journal("Shadow of the Storm", $text);
