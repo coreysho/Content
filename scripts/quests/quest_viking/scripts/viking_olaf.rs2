@@ -12,13 +12,20 @@
 // Either way the lyre is then enchanted by offering a raw shark, manta ray or sea turtle on the
 // strange altar at the lake shrine, and played on the stage.
 //
-// DELIBERATE SIMPLIFICATION, flagged rather than hidden: the modern quest routes the golden fleece
-// through Lalli, a pet rock from Askeladden and a pot of stew. There is no pet rock obj anywhere in
-// the 377 cache, and viking_troll_cauldron ("Lalli's Stew") has no ops and no active= line, so it
-// is not even clickable - that whole sub-chain postdates this cache. The fleece comes off the
-// golden sheep instead, which is where a golden fleece comes from, and which is why the cache
-// bothers to ship viking_golden_sheepunsheered AND viking_golden_sheepsheered as a pair at
-// m43_56 with nothing else referencing them. Lalli keeps a line of dialogue pointing at the sheep.
+// CORRECTED (reported: "missing getting the pet rock, and cant get in to get the gold wool").
+// The note that used to sit here said there was no pet rock obj anywhere in the 377 cache and
+// simplified the chain away on that basis. That was wrong. The obj is [vt_useless_rock] - "Pet
+// rock", "The lowest maintenance pet you will ever have" - and vt_ is this quest's own prefix: it
+// is the ONLY vt_ obj in the cache, shipped for nothing else. viking_askelapen (Askeladden) is
+// placed in Rellekka and viking_trollcave_entrance sits four tiles from Lalli.
+//
+// The second half of the report is the real blocker. The golden sheep stand inside a ring of
+// viking_drystonewall at m43_56 that closes completely - x8 z21-28, x9 z20-21 and 28-29, x10 z19-20
+// and 29-30, x11-16 z19 and 30, x17 z19-20 and 29-30, x18 z20-21 and 28-29, x19 z21-28 - with no
+// gate loc anywhere on it and no gap. Shears or no shears, nobody could reach a sheep.
+//
+// So the chain is restored: Askeladden hands over the pet rock, Lalli takes it, and a troll who is
+// finally holding something of his own will lift you over his own wall.
 
 [opnpc1,viking_olaf]
 // Olaf owes the sailor a ballad and wants boots for it - Sigmund's chain, not his own trial.
@@ -140,8 +147,96 @@ mes("This one has already been shorn.");
 if (%viking < ^viking_started) {
     return;
 }
-~chatplayer("<p,quiz>Golden sheep?");
-~chatnpc("<p,happy>Golden wool! Very warm. You want some, you bring shears, Lalli does not mind.");
+if (testbit(%viking_bits, ^viking_bit_lalli_rock) = 0) {
+    ~chatplayer("<p,quiz>Golden sheep?");
+    ~chatnpc("<p,happy>Golden wool! Very warm. Wall is too high for you, though. Lalli built it.");
+    ~chatplayer("<p,quiz>Could you lift me over?");
+    ~chatnpc("<p,sad>Lalli watches sheep. Lalli does not leave post. Sheep would be alone.");
+    ~chatnpc("<p,sad>Lalli is alone too.");
+    return;
+}
+@viking_lalli_lift;
+
+// He will not leave his post, but he will put you over the wall and take you back out, which is
+// the only way in or out of that ring.
+[label,viking_lalli_lift]
+if (inzone(^viking_pen_sw, ^viking_pen_ne, coord) = true) {
+    ~chatplayer("<p,quiz>Out, please.");
+    ~chatnpc("<p,happy>Up you go!");
+    if_close;
+    mes("Lalli reaches over the wall and sets you down on the grass outside.");
+    p_delay(3);
+    p_teleport(^viking_lalli_coord);
+    return;
+}
+~chatplayer("<p,quiz>Could you put me over the wall?");
+~chatnpc("<p,happy>Lalli holds rock. Lalli has one hand free. Up you go!");
+if_close;
+mes("Lalli picks you up in one hand and puts you down among the sheep.");
+p_delay(3);
+p_teleport(^viking_pen_drop);
+~mesbox("The golden sheep do not react to this at all, which suggests it is not the first time.");
+
+// --- The pet rock ---
+// Hooked ahead of Askeladden's merchant-chain handler in viking_sigmund.rs2.
+[proc,viking_askeladden_rock]()(boolean)
+if (%viking < ^viking_started) {
+    return(false);
+}
+if (testbit(%viking_bits, ^viking_bit_olaf_asked) = 0) {
+    return(false);
+}
+// He is also Sigmund's merchant contact, so this only takes the conversation while the rock is
+// genuinely needed and hands him straight back the moment it is not - otherwise asking Olaf for his
+// trial would have locked Askeladden out of the merchant chain for good.
+if (testbit(%viking_bits, ^viking_bit_lalli_rock) = 1) {
+    return(false);
+}
+if (inv_total(inv, vt_useless_rock) > 0) {
+    return(false);
+}
+if (testbit(%viking_bits, ^viking_bit_askeladden_rock) = 1) {
+    ~chatplayer("<p,quiz>I've lost the rock.");
+    ~chatnpc("<p,happy>You LOST him? ...it's all right, I've got loads. Here.");
+    if (inv_freespace(inv) < 1) {
+        ~chatnpc("<p,neutral>You've nowhere to put him, though.");
+        return(true);
+    }
+    inv_add(inv, vt_useless_rock, 1);
+    return(true);
+}
+~chatplayer("<p,quiz>There's a troll guarding the golden sheep and he won't let me over the wall.");
+~chatnpc("<p,happy>Lalli! Lalli's all right. Lalli's just lonely.");
+~chatplayer("<p,quiz>Lonely.");
+~chatnpc("<p,happy>He watches sheep all day and the sheep don't talk back. You want to give him something of his own.");
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,happy>I'd give you my pet rock, only you've not a hand free to take him with.");
+    return(true);
+}
+inv_add(inv, vt_useless_rock, 1);
+%viking_bits = setbit(%viking_bits, ^viking_bit_askeladden_rock);
+~objbox(vt_useless_rock, "Askeladden hands over a rock. It is, as far as you can tell, a rock.", 250, 0, 0);
+~chatnpc("<p,happy>His name's... he hasn't got one. I was saving that bit.");
+
+[opnpcu,viking_lalli_troll]
+if (last_useitem ! vt_useless_rock) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (testbit(%viking_bits, ^viking_bit_lalli_rock) = 1) {
+    ~chatnpc("<p,happy>Lalli has rock. Lalli does not need two rocks.");
+    return;
+}
+~chatplayer("<p,neutral>This is for you.");
+~chatnpc("<p,quiz>...for Lalli?");
+if_close;
+mes("Lalli turns the rock over twice and then holds it very carefully, the way you would hold an egg.");
+p_delay(4);
+inv_del(inv, vt_useless_rock, 1);
+%viking_bits = setbit(%viking_bits, ^viking_bit_lalli_rock);
+~mesbox("\"Lalli will watch it,\" he says. \"Lalli is good at watching.\"");
+p_delay(2);
+~chatnpc("<p,happy>You want sheep? Lalli puts you over wall. Lalli has hand free now.");
 
 // The Rellekka wheel had op2=Spin and no handler at all. Sending it to the same menu every other
 // wheel uses rather than writing a second one.

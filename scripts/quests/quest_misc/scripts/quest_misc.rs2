@@ -2,25 +2,29 @@
 // anything until somebody does something about her anthem.
 
 // =========================================================================== the crossing
+// FIXED: this was [oploc1,misc_ship_gangplank], and that loc is active=no with no ops - the
+// trigger could never fire and Miscellania was unreachable. misc_sailor stands beside the island
+// gangplank and viking_sailor beside the Rellekka one, so they row instead.
 [opnpc1,misc_sailor]
-~chatnpc("<p,neutral>Miscellania and back. The gangplank's right there and I've no idea why anybody asks me.");
+~chatnpc("<p,neutral>Miscellania and back. Climb aboard whenever you like.");
+~misc_cross;
 
-[oploc1,misc_ship_gangplank]
-def_coord $plank = loc_coord;
-p_arrivedelay;
-if (coordz($plank) < 3800) {
-    mes("You cross the gangplank and the ship works north.");
+// Called from [opnpc1,viking_sailor] in areas/area_relleka.
+[proc,misc_cross]()()
+if_close;
+if (coordz(coord) > 3800) {
+    mes("The ship works its way south.");
     p_delay(5);
-    p_teleport(^misc_gangplank_island);
-    if (%misc_visited = ^misc_off) {
-        %misc_visited = ^misc_on;
-        ~mesbox("Miscellania. Two kingdoms on one island, neither of them speaking to the other, and a great deal of heather.");
-    }
+    p_teleport(^misc_gangplank_rellekka);
     return;
 }
-mes("You cross the gangplank and the ship works south.");
+mes("The ship works its way north.");
 p_delay(5);
-p_teleport(^misc_gangplank_rellekka);
+p_teleport(^misc_gangplank_island);
+if (%misc_visited = ^misc_off) {
+    %misc_visited = ^misc_on;
+    ~mesbox("Miscellania. Two kingdoms on one island, neither of them speaking to the other, and a great deal of heather.");
+}
 
 // =========================================================================== Advisor Ghrim
 [opnpc1,misc_advisor_ghrim]

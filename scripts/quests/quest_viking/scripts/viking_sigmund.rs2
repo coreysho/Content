@@ -51,6 +51,9 @@ if (~viking_merchant(2, 26) = true) {
 }
 ~chatplayer("<p,happy>Hello.");
 ~chatnpc("<p,neutral>Aye. Been further south than you'd believe and I'm still cold.");
+// Throne of Miscellania sails from this jetty. misc_ship_gangplank has no ops, so he rows.
+~chatnpc("<p,neutral>North, though - that I'll do. Miscellania, if you want it.");
+~misc_cross;
 
 [opnpc1,viking_clothing_shopkeeper]
 if (~viking_merchant(4, 24) = true) {
@@ -74,6 +77,10 @@ if (~viking_merchant(8, 20) = true) {
 if (~viking_merchant(10, 15) = true) {
     return;
 }
+// Manni's trial gets its keg over this bar, because the keg locs themselves have no ops.
+if (~viking_barkeep_keg = true) {
+    return;
+}
 ~chatnpc("<p,happy>Drink? You look like you need one.");
 
 // Peer's handler lives in viking_peer.rs2 with the rest of his trial - a trigger can only be
@@ -81,6 +88,11 @@ if (~viking_merchant(10, 15) = true) {
 // first thing that file does.
 
 [opnpc1,viking_askelapen]
+// Olaf's trial borrows him for the pet rock; that half lives in viking_olaf.rs2 with the rest of
+// the golden-fleece chain.
+if (~viking_askeladden_rock = true) {
+    return;
+}
 if (%viking < ^viking_started) {
     ~chatplayer("<p,happy>Hello.");
     ~chatnpc("<p,happy>Hello! I'm Askeladden. I'm going to be a great hero one day. Everyone says so.");

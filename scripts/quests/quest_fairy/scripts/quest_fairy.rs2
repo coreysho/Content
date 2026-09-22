@@ -252,28 +252,30 @@ session_log(^log_adventure, "Quest complete: A Fairy Tale Part I");
 ~send_quest_complete(questlist:fairy_farmers, fairy_enchanted_secateurs, 200, ^fairy_questpoints, "You have completed\\nA Fairy Tale Part I!", "2 Quest Points|3,500 Farming XP|2,000 Attack XP|Magic secateurs");
 
 // =========================================================================== the gravestone
-[oploc1,fairy_draynor_gravestone]
-p_arrivedelay;
-if (%fairy_farmers_quest ! ^fairy_skull) {
-    ~mesbox("A gravestone in Draynor, and no reason at all to disturb it.");
-    return;
+// FIXED: this was [oploc1,fairy_draynor_gravestone] and that loc carries no ops, so the trigger
+// could never fire and the skull was unobtainable. It is a dig, so it goes where the other three
+// digs in this repo go - a coordinate test in general_use/scripts/spade.rs2.
+[proc,fairy_dig]()(boolean)
+if (distance(coord, ^fairy_gravestone) > 2) {
+    return(false);
 }
+if (%fairy_farmers_quest ! ^fairy_skull) {
+    return(false);
+}
+p_arrivedelay;
 if (inv_total(inv, fairy_skull) > 0) {
     ~mesbox("You have one, and one is the correct number of skulls to be carrying.");
-    return;
-}
-if (inv_total(inv, spade) = 0) {
-    ~mesbox("You would need a spade, and a better reason than you have got, and you have the reason.");
-    return;
+    return(true);
 }
 if (inv_freespace(inv) = 0) {
     mes("You have no room.");
-    return;
+    return(true);
 }
 anim(human_dig, 0);
 p_delay(5);
 inv_add(inv, fairy_skull, 1);
 ~mesbox("A skull, from Draynor. | The description on it, when you look at it properly, says: I shouldn't joke, this is a grave matter.");
+return(true);
 
 [opheld1,fairy_skull]
 ~mesbox("A skull from Draynor. I shouldn't joke, this is a grave matter.");

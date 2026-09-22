@@ -8,27 +8,32 @@ if (%deal_quest = ^deal_not_started) {
     ~chatplayer("<p,quiz>What's the boat for?");
     ~chatnpc("<p,happy>Braindeath Island. Captain Braindeath brews rum on it and hasn't managed to brew any for eight months, and I've been sat here since.");
     ~chatnpc("<p,neutral>Get in if you like. It's not as if the boat's doing anything.");
+    ~deal_cross;
     return;
 }
 ~chatnpc("<p,neutral>Back and forth. Get in.");
+~deal_cross;
 
 [opnpc1,deal_island_pete]
 if (%deal_quest >= ^deal_complete) {
     ~chatnpc("<p,happy>Eight months and then one afternoon. I'd be annoyed if I could still feel things properly.");
     return;
 }
-~chatnpc("<p,neutral>Braindeath's upstairs. He's always upstairs.");
+~chatplayer("<p,quiz>Can you row me back?");
+~deal_cross;
 
-[oploc1,deal_boat]
-def_coord $boat = loc_coord;
-p_arrivedelay;
-if (coordz($boat) > 5000) {
-    mes("You row back to Port Phasmatys.");
+// FIXED: this was [oploc1,deal_boat], and deal_boat is "Row boat" with no ops at all - the trigger
+// could never fire and the island was unreachable. Pirate Pete is standing beside the boat at each
+// end and already owns a handler, so he rows.
+[proc,deal_cross]()()
+if_close;
+if (coordz(coord) > 5000) {
+    mes("Pete rows you back to Port Phasmatys.");
     p_delay(4);
     p_teleport(^deal_pete_phasmatys);
     return;
 }
-mes("You row out past the harbour.");
+mes("Pete rows you out past the harbour.");
 p_delay(4);
 p_teleport(^deal_island_landing);
 if (%deal_quest = ^deal_not_started) {
@@ -368,9 +373,8 @@ inv_add(inv, deal_slugling, 1);
 [opheld1,deal_slugling]
 ~mesbox("They look at you balefully. | 'Feed us...'");
 
-// =========================================================================== the fever spiders
-[opnpc1,deal_fever_spiders1]
-~mesbox("A fever spider. You do not want to talk to it and it is not interested either.");
+// The fever spiders carry op2=Attack and nothing else, so there is no Talk-to handler here to
+// write - you kill one and take the body off the drop table.
 
 // =========================================================================== the hopper
 [oplocu,deal_hopper]

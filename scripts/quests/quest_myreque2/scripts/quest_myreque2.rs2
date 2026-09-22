@@ -401,18 +401,24 @@ if (%blood_tithe_visible = ^m2_tithe_happening) {
 [opnpc1,burgh_juve2_multinpc] ~mesbox("It does not acknowledge you. Gadderanks does the talking.");
 
 // =========================================================================== the inn cellar
-[oploc1,burgh_inn_colapsed_wall_multiloc]
+// FIXED: this was [oploc1,...] and BOTH children of the multiloc - burgh_inn_rubble_blocked and
+// burgh_inn_rubble_cleared - carry no ops at all, so the trigger could never fire and the inn
+// cellar could not be opened. It comes out a bucket at a time, so the bucket does the asking:
+// [oplocu] needs no op on the loc.
+[oplocu,burgh_inn_colapsed_wall_multiloc]
+// p_arrivedelay corrupts last_useitem, so it is read before the walk, not after.
+def_obj $used = last_useitem;
+p_arrivedelay;
+if ($used ! bucket_empty) {
+    ~displaymessage(^dm_default);
+    return;
+}
 if (%burgh_inn_colapsed_wall = ^m2_on) {
     ~mesbox("Where the back wall of the inn used to be. There is a trapdoor in the floor.");
     return;
 }
-p_arrivedelay;
 if (%myreque_2_quest < ^m2_tithe_broken) {
     ~mesbox("The inn's back wall came down at some point and nobody has moved it, because moving it takes four people and there are not four spare people in Burgh de Rott.");
-    return;
-}
-if (inv_total(inv, bucket_empty) = 0) {
-    ~mesbox("It comes out a bucket at a time and you have no bucket.");
     return;
 }
 if (%burgh_inn_rubble_pile >= ^m2_rubble_loads) {
@@ -536,18 +542,21 @@ inv_add(inv, burgh_efaritay_info_scroll, 1);
 ~mesbox("The seventh is Ivandis Seergaze, and there is nothing under his name at all - not a removal, not a gap, nothing. Somebody went through this library and took him out of it. | Behind where he should have been there is a scroll. It is not about him. It is a man called Sialathin writing to his wife about getting her out of Hallowvale, and it is the sort of thing that ends up behind a shelf when somebody is hiding one document properly and everything else in a hurry.");
 
 // =========================================================================== Ivandis's tomb
-[oploc1,burgh_ivandis_tombdoor_board_multiloc]
+// FIXED: same defect. burgh_ivandis_boardedupdoor carries no ops, so this could never fire and
+// the tomb could not be opened. It is two hundred years of nails, so the hammer does the asking.
+[oplocu,burgh_ivandis_tombdoor_board_multiloc]
+def_obj $used = last_useitem;
+p_arrivedelay;
+if ($used ! hammer) {
+    ~displaymessage(^dm_default);
+    return;
+}
 if (%ivandis_tomb_boards = ^m2_on) {
     ~mesbox("The door the boards were on.");
     return;
 }
-p_arrivedelay;
 if (%myreque_2_quest < ^m2_books) {
     ~mesbox("A door in the Hollows that somebody boarded up a very long time ago. Everybody down here has assumed for twenty years that it was structural.");
-    return;
-}
-if (inv_total(inv, hammer) = 0) {
-    ~mesbox("Two hundred years of nails. A hammer would do it.");
     return;
 }
 anim(human_pickupfloor, 0);

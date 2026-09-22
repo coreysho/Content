@@ -276,11 +276,8 @@ p_delay(2);
 p_teleport(^forget_chamber_a);
 ~forget_mural;
 
-[oploc1,forget_puzzle_exit]
-p_arrivedelay;
-mes("You come out by the rails.");
-p_delay(2);
-p_teleport(^forget_train_landing);
+// forget_puzzle_exit carries no ops, so it could never have been the way out. The prev door in the
+// last chamber is, and it does carry op1=Enter.
 
 [oploc1,forget_story_exit_next]
 def_coord $door = loc_coord;
@@ -301,10 +298,11 @@ mes("You go back.");
 p_delay(2);
 if ($door = ^forget_prev_b) {
     p_teleport(^forget_after_a);
-} else {
-    p_teleport(^forget_after_b);
+    ~forget_mural;
+    return;
 }
-~forget_mural;
+// The last chamber's prev door is the way back out to the rails.
+p_teleport(^forget_train_landing);
 
 // Twelve murals, four states each, which is what twelve two-bit slots are for. Reading one sets it.
 [proc,forget_mural]()()

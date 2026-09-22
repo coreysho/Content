@@ -19,6 +19,7 @@ switch_int (%swansong) {
     case ^swan_fed : @swan_letter_out;
     case ^swan_letter :
         ~chatnpc("<p,neutral>The boat went this morning. Whether anybody reads it is another matter.");
+    case ^swan_planted : @swan_battle_scene;
     case ^swan_told : @swan_finish;
     case default :
         if (%swansong >= ^swan_complete) {
@@ -113,16 +114,8 @@ p_delay(4);
 ~mesbox("He is breathing and he is not waking up, and he is eighty-one, and the colony's entire plan was him. | Herman puts him on the floor of his own office and goes very quiet.");
 
 // From 65 onwards he is lying in the office and he stays there.
-[opnpc1,swan_wom_office]
-if (%swansong < ^swan_coma) {
-    ~mesbox("An empty office.");
-    return;
-}
-if (%swansong >= ^swan_complete) {
-    ~mesbox("He is still asleep. Herman has put a blanket over him and a chair beside him and sits in it.");
-    return;
-}
-~mesbox("The Wise Old Man, asleep on the floor of a fishing colony's office, with a blanket over him. | Whatever he was going to do about the sea trolls, he did not write any of it down. | There is a book on Herman's desk.");
+// swan_wom_office resolves to wom_inactive, which carries no ops at all - he is lying on the floor
+// and cannot be talked to, which is the point of him. Arnold says what is in the room instead.
 
 // =========================================================================== Herman's book
 [opheld1,swan_book]
@@ -264,6 +257,7 @@ if (%swansong < ^swan_coma) {
 if (%swansong = ^swan_coma) {
     ~chatplayer("<p,quiz>Herman's book.");
     ~chatnpc("<p,neutral>On his desk. He has not been near the desk since they carried the old man in.");
+    ~mesbox("The Wise Old Man is asleep on the floor of the office with a blanket over him and a chair beside him. | Whatever he was going to do about the sea trolls, he did not write any of it down.");
     if (inv_total(inv, swan_book) > 0) {
         return;
     }
@@ -283,15 +277,9 @@ if (%swansong = ^swan_coma) {
 [opnpc4,swan_arnold] @openbank;
 
 // =========================================================================== the battle
-[opnpc1,swan_skeleton_training]
-if (%swansong < ^swan_planted) {
-    ~mesbox("A skeleton, in a fishing colony, practising. Nobody has explained it and nobody has asked.");
-    return;
-}
-if (%swansong = ^swan_planted) {
-    @swan_battle_scene;
-}
-~mesbox("It goes on practising. There is nothing left to practise for and it does not appear to have been told.");
+// FIXED: this was [opnpc1,swan_skeleton_training], and that npc carries op2=Attack and nothing
+// else - there is no Talk-to on a skeletal magus, so the trigger could never fire and the battle
+// could not be started. Herman starts it; he is the one counting the palisade.
 
 [label,swan_battle_scene]
 if_close;
