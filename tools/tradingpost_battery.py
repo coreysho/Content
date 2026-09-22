@@ -13,6 +13,10 @@ silent one:
   click and act on the second - and nothing else may call the action they guard.
   EVERY BUTTON IS WIRED, and every component the script names exists in a window.
   THE POST IS WHERE IT SAYS: the loc, its pack id, its model, and Edgeville's map line agree.
+  PLATINUM TOKENS are the post's fourth option. A token is a thousand coins in two places at
+  once - the constant the exchange pays and the cost= every death pile and listing reads - and
+  its inventory icon is nine recoloured coin models, any one of which left gold would show as
+  coins at that stack size only.
 
     python3 tools/tradingpost_battery.py
 """
@@ -120,6 +124,49 @@ for op, trig in (('op1=Browse', '[oploc1,trading_post]'), ('op2=Sell', '[oploc2,
     check(op in loc and trig in RS2, '%s has its trigger' % op)
 check('[oplocu,trading_post]' in RS2, 'an item used on the post searches for it')
 check('~tp_login;' in nocomment(read('scripts/login_logout/scripts/login.rs2')), 'login reads out what happened while the player was away')
+
+# ---- platinum tokens -------------------------------------------------------------------------
+# A token is a thousand coins and there are exactly two places that number appears - the constant
+# and the item's own cost= - so the two must agree or a token is worth one thing to the exchange
+# and another to every death pile, shop and trading post listing in the game.
+print('platinum tokens')
+tok = read('scripts/tradingpost/configs/platinum_token.obj')
+plat = nocomment(read('scripts/tradingpost/scripts/platinum_token.rs2'))
+const = read('scripts/tradingpost/configs/tradingpost.constant')
+value = re.search(r'\^platinum_token_value = (\d+)', const)
+check(value is not None, 'the exchange rate is a constant')
+check('op4=Exchange' in loc and '[oploc4,trading_post]' in plat, 'op4=Exchange has its trigger')
+check(re.search(r'^\d+=platinum_token$', read('pack/obj.pack'), re.M) is not None, 'the token has an obj.pack id')
+base = tok.split('[platinum_token_2]')[0]
+check('stackable=yes' in base, 'the token stacks')
+if value:
+    check('cost=%s' % value.group(1) in base,
+          'its cost= is the same %s the exchange pays' % value.group(1))
+# The count links are the inventory icon as the stack grows. One that named a coins_* entry would
+# put gold in the inventory at that size of stack only, which is exactly the kind of bug nobody
+# sees until somebody has 250 of them.
+links = re.findall(r'^count\d=([a-z_0-9]+),', tok, re.M)
+check(len(links) == 9 and all(l.startswith('platinum_token_') for l in links),
+      'all nine count links are platinum, not coins (%d found)' % len(links))
+check(all(('[%s]' % l) in tok for l in links), 'and every one of them is defined in this file')
+# Every coin model is a single face colour, hsl16 8128, whose rgb15 is 32480 - see
+# tools/models/ob2palette.py in the server repo, which is what found it. Ten entries, ten
+# recolours: one missing leaves that stack size gold.
+bodies = re.split(r'^\[', tok, flags=re.M)[1:]
+check(len(bodies) == 10, 'ten entries - the token and its nine icons')
+check(all('recol1s=32480' in b and 'recol1d=25404' in b for b in bodies),
+      'every entry recolours the gold away')
+check(all(re.search(r'^model=obj_(coins|fake_coins)', b, re.M) for b in bodies),
+      'and every entry is built on a coin model')
+# The two directions, and the two ceilings that make them worth writing down.
+check('[proc,platinum_buy_amount]' in plat and '[proc,platinum_sell_amount]' in plat,
+      'the swap is split from the chatbox, so an amount can be driven straight through it')
+check('^max_32bit_int' in plat,
+      'cashing in clamps to the coin stack ceiling, which is the reason tokens exist')
+check(plat.count('inv_freespace(inv) = 0') == 2,
+      'both directions handle a full inventory')
+check('case platinum_token :' in read('scripts/skill_magic/scripts/spells/alchemy.rs2'),
+      'alchemy refuses them, the way it refuses coins')
 
 print(fails == 0 and '\nALL PASS' or '\n%d FAILED' % fails)
 raise SystemExit(1 if fails else 0)

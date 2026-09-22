@@ -1,0 +1,101 @@
+// PLATINUM TOKENS, and the only place they come from or go back to.
+//
+// The post is this game's Grand Exchange, so the exchange lives on the post, the way OSRS keeps it
+// on the clerks: one counter, in Edgeville, rather than a new NPC or an option bolted onto every
+// banker in the world. It is a straight swap at ^platinum_token_value both ways and there is no
+// fee, so nothing about owning tokens costs a player anything - they are a bigger denomination,
+// not an investment.
+//
+// TWO CEILINGS ARE THE WHOLE POINT, and both are enforced here rather than hoped for:
+//   * a coin stack cannot exceed ^max_32bit_int, so SELLING tokens clamps to the room left in the
+//     coin stack instead of silently wrapping it negative;
+//   * a full inventory still works, because the coins paid free their slot exactly when the last
+//     of them is spent - which is the $cost < $coins / $paid < $tokens test in each direction.
+// Neither is a message a player should ever see by accident; both are reachable on purpose.
+
+[oploc4,trading_post]
+def_int $option = ~p_choice2_header("Coins into platinum tokens.", 1, "Platinum tokens into coins.", 2, "What would you like to exchange?");
+if ($option = 1) {
+    ~platinum_buy;
+} else if ($option = 2) {
+    ~platinum_sell;
+}
+
+// ---- coins -> tokens ----
+
+[proc,platinum_buy]
+if (calc(inv_total(inv, coins) / ^platinum_token_value) = 0) {
+    mes("A platinum token costs <~tp_coins(^platinum_token_value)>, and you don't have that much.");
+    return;
+}
+p_dialogprompt("How many platinum tokens do you want?");
+p_countdialog;
+~platinum_buy_amount(last_int);
+
+// The swap itself, split from the dialog so that it can be driven with an amount directly - the
+// clamping and the two failure cases are the part worth testing and the chatbox is not.
+[proc,platinum_buy_amount](int $want)
+def_int $coins = inv_total(inv, coins);
+def_int $most = calc($coins / ^platinum_token_value);
+if ($want <= 0 | $most = 0) {
+    return;
+}
+if ($want > $most) {
+    $want = $most;
+}
+def_int $cost = calc($want * ^platinum_token_value);
+// The tokens need a slot unless they already have some. Spending the coins only frees one if it
+// is ALL of them, so a full inventory can still buy - but only the whole stack's worth.
+if (inv_total(inv, platinum_token) = 0 & inv_freespace(inv) = 0 & $cost < $coins) {
+    mes("You don't have enough inventory space to hold the tokens.");
+    return;
+}
+inv_del(inv, coins, $cost);
+inv_add(inv, platinum_token, $want);
+mes("You exchange <~tp_coins($cost)> for <~platinum_amount($want)>.");
+
+// ---- tokens -> coins ----
+
+[proc,platinum_sell]
+if (inv_total(inv, platinum_token) = 0) {
+    mes("You don't have any platinum tokens.");
+    return;
+}
+p_dialogprompt("How many platinum tokens do you want to cash in?");
+p_countdialog;
+~platinum_sell_amount(last_int);
+
+[proc,platinum_sell_amount](int $want)
+def_int $tokens = inv_total(inv, platinum_token);
+if ($want <= 0 | $tokens = 0) {
+    return;
+}
+if ($want > $tokens) {
+    $want = $tokens;
+}
+// A coin stack is a signed 32-bit integer like every other stack, so only as many tokens as fit
+// underneath that are cashed in - the rest stay tokens, which is the whole reason they exist.
+def_int $coins = inv_total(inv, coins);
+def_int $room = calc(sub(^max_32bit_int, $coins) / ^platinum_token_value);
+if ($want > $room) {
+    $want = $room;
+}
+if ($want <= 0) {
+    mes("You can't carry any more coins than that.");
+    return;
+}
+if ($coins = 0 & inv_freespace(inv) = 0 & $want < $tokens) {
+    mes("You don't have enough inventory space to hold the coins.");
+    return;
+}
+def_int $paid = calc($want * ^platinum_token_value);
+inv_del(inv, platinum_token, $want);
+inv_add(inv, coins, $paid);
+mes("You exchange <~platinum_amount($want)> for <~tp_coins($paid)>.");
+
+// "1 platinum token" / "1,000 platinum tokens", grouped the same way ~tp_coins groups coins.
+[proc,platinum_amount](int $n)(string)
+if ($n = 1) {
+    return("1 platinum token");
+}
+return("<~tp_gp($n)> platinum tokens");
