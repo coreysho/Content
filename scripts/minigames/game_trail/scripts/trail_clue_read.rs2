@@ -1,75 +1,70 @@
+// Reading a clue scroll.
+//
+// WHAT WAS WRONG. There were two windows: trail_cluelong for 5-8 lines and trail_clue for 1-4, and
+// trail_clue is not a clue scroll. Its four text components are laid out as a CERTIFICATE - the
+// cache ships them reading "Certificate of Advanced Healing / From PoxStead College / Signed Dr
+// Foster-MMD, PRD / Head Of Magical Healing" - and the geometry says the same thing louder than
+// the text does:
+//
+//   trail_clue      com_2 y=101 w=210 q8   com_3 y=115 w=162 q8
+//                   com_4 y=207 w=140 p11  com_5 y=221 w=123 p11
+//   trail_cluelong  com_2..com_9, y=62 to 237, every one 25px apart, w=256, q8, centred
+//
+// So a four-line clue put its first two lines in one place and its last two NINETY PIXELS BELOW in
+// a smaller font at half the width. And every line was split to 235px by split_init while three of
+// those four fields are narrower than that, so lines overflowed their boxes as well.
+//
+// Since 1-4 lines is most clues in the game, most clues read wrong. They are all on trail_cluelong
+// now, which is the window that was always laid out for this: eight identical centred lines, 256px
+// wide, which is the only one of the two that split_init's 235px actually fits inside.
+//
+// The eight-branch if-chain is gone with it. Blank the lines, fill as many as there are, centre
+// them vertically - that is all it ever did, and written out it hid the fact that half of it was
+// addressing the wrong window.
 
 [proc,full_trail_readclue_map](interface $map)
 if_openmain($map);
 
-[proc,full_trail_readclue](string $string)
-split_init($string, 235, 8, q8_full);
-def_int $pagetotal = split_pagecount;
-def_int $lines = split_linecount(0);
+// One line of the scroll. The components are consecutive, so the nth line is com_2 + n - but
+// components are not arithmetic in runescript, so the switch is the way to say it.
+[proc,trail_clue_setline](int $line, string $text)
+switch_int ($line) {
+    case 0 : if_settext(trail_cluelong:com_2, $text);
+    case 1 : if_settext(trail_cluelong:com_3, $text);
+    case 2 : if_settext(trail_cluelong:com_4, $text);
+    case 3 : if_settext(trail_cluelong:com_5, $text);
+    case 4 : if_settext(trail_cluelong:com_6, $text);
+    case 5 : if_settext(trail_cluelong:com_7, $text);
+    case 6 : if_settext(trail_cluelong:com_8, $text);
+    case 7 : if_settext(trail_cluelong:com_9, $text);
+}
 
-if($lines = 1) {
-    if_settext(trail_clue:com_2, "");
-    if_settext(trail_clue:com_3, split_get(0, 0));
-    if_settext(trail_clue:com_4, "");
-    if_settext(trail_clue:com_5, "");
-} else if($lines = 2) {
-    if_settext(trail_clue:com_2, "");
-    if_settext(trail_clue:com_3, split_get(0, 0));
-    if_settext(trail_clue:com_4, split_get(0, 1));
-    if_settext(trail_clue:com_5, "");
-} else if($lines = 3) {
-    if_settext(trail_clue:com_2, split_get(0, 0));
-    if_settext(trail_clue:com_3, split_get(0, 1));
-    if_settext(trail_clue:com_4, split_get(0, 2));
-    if_settext(trail_clue:com_5, "");
-} else if($lines = 4) {
-    if_settext(trail_clue:com_2, split_get(0, 0));
-    if_settext(trail_clue:com_3, split_get(0, 1));
-    if_settext(trail_clue:com_4, split_get(0, 2));
-    if_settext(trail_clue:com_5, split_get(0, 3));
-} else if($lines = 5) {
-    if_settext(trail_cluelong:com_2, "");
-    if_settext(trail_cluelong:com_3, split_get(0, 0));
-    if_settext(trail_cluelong:com_4, split_get(0, 1));
-    if_settext(trail_cluelong:com_5, split_get(0, 2));
-    if_settext(trail_cluelong:com_6, split_get(0, 3));
-    if_settext(trail_cluelong:com_7, split_get(0, 4));
-    if_settext(trail_cluelong:com_8, "");
-    if_settext(trail_cluelong:com_9, "");
-} else if($lines = 6) {
-    if_settext(trail_cluelong:com_2, "");
-    if_settext(trail_cluelong:com_3, split_get(0, 0));
-    if_settext(trail_cluelong:com_4, split_get(0, 1));
-    if_settext(trail_cluelong:com_5, split_get(0, 2));
-    if_settext(trail_cluelong:com_6, split_get(0, 3));
-    if_settext(trail_cluelong:com_7, split_get(0, 4));
-    if_settext(trail_cluelong:com_8, split_get(0, 5));
-    if_settext(trail_cluelong:com_9, "");
-} else if($lines = 7) {
-    if_settext(trail_cluelong:com_2, split_get(0, 0));
-    if_settext(trail_cluelong:com_3, split_get(0, 1));
-    if_settext(trail_cluelong:com_4, split_get(0, 2));
-    if_settext(trail_cluelong:com_5, split_get(0, 3));
-    if_settext(trail_cluelong:com_6, split_get(0, 4));
-    if_settext(trail_cluelong:com_7, split_get(0, 5));
-    if_settext(trail_cluelong:com_8, split_get(0, 6));
-    if_settext(trail_cluelong:com_9, "");
-} else if($lines = 8) {
-    if_settext(trail_cluelong:com_2, split_get(0, 0));
-    if_settext(trail_cluelong:com_3, split_get(0, 1));
-    if_settext(trail_cluelong:com_4, split_get(0, 2));
-    if_settext(trail_cluelong:com_5, split_get(0, 3));
-    if_settext(trail_cluelong:com_6, split_get(0, 4));
-    if_settext(trail_cluelong:com_7, split_get(0, 5));
-    if_settext(trail_cluelong:com_8, split_get(0, 6));
-    if_settext(trail_cluelong:com_9, split_get(0, 7));
-} else {
-    mes("TRAIL DEBUG: Failed to get linecount for clue. <tostring($lines)>");
+[proc,full_trail_readclue](string $string)
+split_init($string, 235, ^trail_clue_lines, q8_full);
+def_int $lines = split_linecount(0);
+if ($lines <= 0) {
+    // No text to show. It should not happen - every clue obj in the game carries a trail_desc -
+    // but a clue added without one used to print "TRAIL DEBUG: Failed to get linecount" at the
+    // player, which is a developer's note in a player's chatbox.
+    mes("You can't make out anything on the scroll.");
     return;
 }
-
-if($lines > 4) {
-    if_openmain(trail_cluelong);
-} else {
-    if_openmain(trail_clue);
+if ($lines > ^trail_clue_lines) {
+    $lines = ^trail_clue_lines;
 }
+
+// Centred vertically: a two-line clue sits in the middle of the scroll rather than at the top.
+// The blank pass first, so nothing is left over from the last clue read.
+def_int $i = 0;
+while ($i < ^trail_clue_lines) {
+    ~trail_clue_setline($i, "");
+    $i = calc($i + 1);
+}
+def_int $top = calc((^trail_clue_lines - $lines) / 2);
+$i = 0;
+while ($i < $lines) {
+    ~trail_clue_setline(calc($top + $i), split_get(0, $i));
+    $i = calc($i + 1);
+}
+
+if_openmain(trail_cluelong);
