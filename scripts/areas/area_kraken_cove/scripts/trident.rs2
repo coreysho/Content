@@ -139,8 +139,23 @@ mes("Wield or check it first - the charges only come out of a trident that is ho
 // wrong.
 //
 // So the impact sound is gone and the cast sample is what you hear: 1320ms inside 2400ms, with
-// 1080ms of quiet after it, at every range. A splash keeps its graphic (failedspell_impact) but no
-// longer has a sound of its own - cast + spellfail is 2420ms and does not fit either.
+// 1080ms of quiet after it, at every range.
+//
+// A SPLASH STILL SOUNDS DIFFERENT, because Old School lets you hear that you splashed. It cannot be
+// heard at the moment it lands, though - there is no room for a second sound at any range:
+//
+//   range  1   impact at 1120ms   room before the next cast 1080ms
+//   range  4   impact at 1720ms   room before the next cast  680ms
+//   range  7   impact at 2320ms   room before the next cast   80ms
+//   range 10   impact at 2920ms   the next cast has already gone
+//
+// and the shortest splash in the pack is spellfail at 1100ms. So the ONE sound a cast is allowed
+// is the one that changes: waterwave_cast_and_fire when the roll connects, spellfail when it does
+// not. The roll is therefore made before the sound rather than after it.
+//
+// THE TARGET OF A PVP CAST ALWAYS HEARS THE NEUTRAL ONE. Giving them the splash too would tell them
+// they are safe this cast two to four ticks before the graphic says so, which is information Old
+// School does not hand out early. They hear that something was cast at them, and nothing more.
 [label,trident_attack]
 if (~npc_is_attackable = false) {
     return;
@@ -152,9 +167,6 @@ if (%action_delay > map_clock) {
 %action_delay = add(map_clock, ^trident_attackrate);
 anim(human_trident_cast, 0);
 spotanim_pl(trident_casting, 92, 0);
-sound_synth(waterwave_cast_and_fire, 0, 0); // the only sound a cast makes - see above
-def_int $duration = ~npc_projectile(coord, npc_uid, trident_travel, 43, 31, 51, 16, -5, 64, 10);
-%trident_charges = sub(%trident_charges, 1);
 // same accuracy as any spell, black mask (i) included (player_magic.rs2 ~pvm_default_spell)
 def_int $mask_num = 1;
 def_int $mask_div = 1;
@@ -162,7 +174,13 @@ if (~black_mask_imbued_on_task = true) {
     $mask_num = 23;
     $mask_div = 20;
 }
-if (~player_npc_hit_roll_boosted(^magic_style, $mask_num, $mask_div) = true) {
+// ROLLED BEFORE THE SOUND, because the sound is what tells you the outcome - see above. It is the
+// same single roll it always was, just read a few lines earlier.
+def_boolean $connected = ~player_npc_hit_roll_boosted(^magic_style, $mask_num, $mask_div);
+~trident_cast_sound($connected);
+def_int $duration = ~npc_projectile(coord, npc_uid, trident_travel, 43, 31, 51, 16, -5, 64, 10);
+%trident_charges = sub(%trident_charges, 1);
+if ($connected = true) {
     def_int $maxhit = scale($mask_num, $mask_div, max(0, sub(divide(stat(magic), 3), 5)));
     def_int $damage = randominc(min($maxhit, npc_param(max_dealt)));
     def_int $damage_capped = min($damage, npc_stat(hitpoints));
@@ -228,12 +246,14 @@ p_opplayer(2);
 %action_delay = add(map_clock, ^trident_attackrate);
 anim(human_trident_cast, 0);
 spotanim_pl(trident_casting, 92, 0);
-// One sound each, for the caster and the target alike - see the note above [label,trident_attack].
-sound_synth(waterwave_cast_and_fire, 0, 0);
+// The caster hears the outcome, the target hears the neutral cast - see the note above
+// [label,trident_attack] for why there is only one sound and why the target does not get this one.
+def_boolean $connected = ~pvp_hit_roll(^magic_style);
+~trident_cast_sound($connected);
 .sound_synth(waterwave_cast_and_fire, 0, 0);
 def_int $duration = ~player_projectile(coord, .coord, .uid, trident_travel, 43, 31, 51, 16, -5, 64, 10);
 %trident_charges = sub(%trident_charges, 1);
-if (~pvp_hit_roll(^magic_style) = true) {
+if ($connected = true) {
     def_int $maxhit = max(0, sub(divide(stat(magic), 3), 5));
     if (~.check_protect_prayer(^magic_style) = true) {
         $maxhit = scale(6, 10, $maxhit); // reduction of 40%
@@ -252,6 +272,15 @@ if (~pvp_hit_roll(^magic_style) = true) {
 if (~trident_spend_charge = false) {
     return;
 }
+
+// The one sound a cast is allowed to make, and the only thing that distinguishes a hit from a
+// splash by ear. See the note above [label,trident_attack] for why it cannot wait for the impact.
+[proc,trident_cast_sound](boolean $connected)
+if ($connected = true) {
+    sound_synth(waterwave_cast_and_fire, 0, 0);
+    return;
+}
+sound_synth(spellfail, 1, 0);
 
 // Shared by both casts: one charge off the counter, the warning at 100, and the staff turning back
 // into the uncharged obj when it runs dry. It was written out twice before.
