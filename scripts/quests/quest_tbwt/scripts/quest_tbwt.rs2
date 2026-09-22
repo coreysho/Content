@@ -1,0 +1,487 @@
+// Tai Bwo Wannai Trio - the three strands.
+//
+// Every item description in this quest says what the item is for, so almost none of it needed
+// designing:
+//   tbwt_crafting_manual   "instructions explaining how to construct a Karambwan vessel"
+//   tbwt_bronze_spear_kp   "a Karambwan poisoned bronze tipped spear"
+//   tbwt_cleaning_cloth    "a spirit soaked piece of silk which can be used to remove poison"
+//   tbwt_seaweed_in_monkey_skin_sandwich  "perfect for statue repair"
+
+// =========================================================================== Timfraku
+[opnpc1,tbwt_timfraku]
+switch_int (%tbwt_main) {
+    case ^tbwt_not_started : @tbwt_timfraku_start;
+    case ^tbwt_three_sons : @tbwt_timfraku_report;
+    case ^tbwt_reported : @tbwt_timfraku_finish;
+    case ^tbwt_complete :
+        ~chatnpc("<p,happy>Three sons. Three. And all of them under one roof, which has not happened since their mother was alive.");
+    case default : @tbwt_timfraku_waiting;
+}
+
+[label,tbwt_timfraku_start]
+~chatnpc("<p,angry>You are not of the village. Why are you in my house.");
+switch_int (~p_choice2("I was told you might need help.", 1, "I'll see myself out.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>I'll see myself out.");
+        ~chatnpc("<p,neutral>Yes.");
+        return;
+    case 1 :
+        ~chatplayer("<p,neutral>I was told you might need help.");
+}
+~chatnpc("<p,sad>I have three sons and I have not seen any of them in a year.");
+~chatnpc("<p,sad>Tiadeche fishes on the east coast and will not come in. Tinsay sits on a rock in the sea and talks to nobody. Tamayu is in the jungle hunting a thing that cannot be killed.");
+~chatplayer("<p,quiz>Why won't they come home?");
+~chatnpc("<p,angry>Because each of them has one thing he has failed at and will not stop failing at. Fix the thing and the son follows.");
+%tbwt_main = ^tbwt_asked;
+~send_quest_progress(questlist:tbwt, %tbwt_main, ^tbwt_complete);
+~chatnpc("<p,neutral>Do not come back to me until all three of them will come.");
+
+[label,tbwt_timfraku_waiting]
+~chatnpc("<p,neutral>How many of them will come home?");
+~chatplayer("<p,neutral><tostring(~tbwt_sons_helped)> of three.");
+~chatnpc("<p,neutral>Then you are not finished.");
+
+[label,tbwt_timfraku_report]
+~chatplayer("<p,happy>All three of them will come.");
+~chatnpc("<p,shock>All three.");
+~chatnpc("<p,neutral>...I do not have enough chairs.");
+%tbwt_main = ^tbwt_reported;
+~send_quest_progress(questlist:tbwt, %tbwt_main, ^tbwt_complete);
+~chatnpc("<p,neutral>Go down to the village and wait. I will send word, and I will find some chairs.");
+
+[label,tbwt_timfraku_finish]
+~chatplayer("<p,quiz>Did you find the chairs?");
+~chatnpc("<p,happy>I did not. They are sitting on the floor and they do not care.");
+if_close;
+// All six shells key on tbwt_main, and 6 is the only value where any of the three renders at the
+// house - so this single write is what brings all of them home at once.
+mes("Through the window you can see three men who have not been in the same room in a year arguing about fish.");
+p_delay(4);
+@tbwt_finish;
+
+[label,tbwt_finish]
+%tbwt_main = ^tbwt_complete;
+stat_advance(fishing, 50000);
+stat_advance(cooking, 50000);
+stat_advance(fletching, 50000);
+session_log(^log_adventure, "Quest complete: Tai Bwo Wannai Trio");
+~send_quest_complete(questlist:tbwt, tbwt_karambwan_vessel, 200, ^tbwt_questpoints, "You have completed\\nTai Bwo Wannai Trio!", "2 Quest Points|5,000 Fishing XP|5,000 Cooking XP|5,000 Fletching XP|Karambwan fishing");
+
+[proc,tbwt_sons_helped]()(int)
+def_int $n = 0;
+if (%tbwt_tiadeche = ^tbwt_son_helped) { $n = calc($n + 1); }
+if (%tbwt_tinsay = ^tbwt_son_helped) { $n = calc($n + 1); }
+if (%tbwt_tamayu = ^tbwt_son_helped) { $n = calc($n + 1); }
+return($n);
+
+// The stage counts sons rather than being written by each strand, so the three can be done in any
+// order and the count cannot drift from the three varps that actually record it.
+[proc,tbwt_check_sons]
+if (%tbwt_main < ^tbwt_asked | %tbwt_main >= ^tbwt_reported) {
+    return;
+}
+%tbwt_main = add(^tbwt_asked, ~tbwt_sons_helped);
+~send_quest_progress(questlist:tbwt, %tbwt_main, ^tbwt_complete);
+if (~tbwt_sons_helped >= 3) {
+    ~mesbox("All three of them will come home. Timfraku is the one who needs telling.");
+}
+
+// =========================================================================== Lubufu
+[opnpc1,tbwt_lubufu]
+if (%tbwt_main < ^tbwt_asked) {
+    ~chatnpc("<p,angry>Boats are not for looking at.");
+    return;
+}
+// He will make another. Tiadeche accepts the vessel as well as the manual, so a player who gave
+// him theirs would otherwise have no way back to the karambwan - and the karambwan is the only
+// source of the poison Tamayu's strand needs.
+if (%tbwt_lubufu = ^tbwt_lubufu_paid) {
+    if (inv_total(inv, tbwt_karambwan_vessel) > 0 | inv_total(inv, tbwt_karambwan_vessel_loaded_with_karambwanji) > 0) {
+        ~chatnpc("<p,neutral>You have one. What you do with it is between you and the octopus.");
+        return;
+    }
+    if (inv_total(inv, tbwt_raw_karambwanji) < ^tbwt_karambwanji_wanted) {
+        ~chatnpc("<p,angry>Lost it? Another <tostring(^tbwt_karambwanji_wanted)> karambwanji and I will make you another.");
+        return;
+    }
+    if (inv_freespace(inv) = 0) {
+        ~chatnpc("<p,angry>And nowhere to put it.");
+        return;
+    }
+    inv_del(inv, tbwt_raw_karambwanji, ^tbwt_karambwanji_wanted);
+    inv_add(inv, tbwt_karambwan_vessel, 1);
+    ~chatnpc("<p,angry>Do not lose this one.");
+    return;
+}
+if (%tbwt_lubufu = ^tbwt_lubufu_asked) {
+    @tbwt_lubufu_pay;
+}
+~chatplayer("<p,quiz>Do you know anything about karambwan?");
+~chatnpc("<p,angry>Everyone knows about karambwan. Nobody catches them. You cannot net them, you cannot hook them, and if you go in after them they eat you.");
+~chatnpc("<p,neutral>You want a vessel. I have a vessel. I also have a boat that needs baiting and a back that does not bend.");
+~chatnpc("<p,neutral>Bring me <tostring(^tbwt_karambwanji_wanted)> raw karambwanji - the little bright ones, you net them in the village - and the vessel is yours.");
+%tbwt_lubufu = ^tbwt_lubufu_asked;
+
+[label,tbwt_lubufu_pay]
+if (inv_total(inv, tbwt_raw_karambwanji) < ^tbwt_karambwanji_wanted) {
+    ~chatnpc("<p,angry><tostring(^tbwt_karambwanji_wanted)>. You have <tostring(inv_total(inv, tbwt_raw_karambwanji))>.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,angry>And nowhere to put it. Think, boy.");
+    return;
+}
+inv_del(inv, tbwt_raw_karambwanji, ^tbwt_karambwanji_wanted);
+inv_add(inv, tbwt_karambwan_vessel, 1);
+%tbwt_lubufu = ^tbwt_lubufu_paid;
+~chatnpc("<p,happy>There. Load it with karambwanji and drop it where the water goes dark. Do not put your hand in after it.");
+
+// =========================================================================== karambwanji
+// The fishing spots are already placed - 0_43_47_karambwanji, three of them in the village - and
+// both spot npcs carry op1=Net.
+[opnpc1,0_43_47_karambwanji] @tbwt_net_karambwanji;
+[opnpc1,general_karambwanji] @tbwt_net_karambwanji;
+
+[label,tbwt_net_karambwanji]
+p_arrivedelay;
+if (inv_total(inv, net) = 0) {
+    mes("You need a small fishing net.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room for any more fish.");
+    return;
+}
+if (stat(fishing) < 5) {
+    mes("You need a Fishing level of 5 to net these.");
+    return;
+}
+mes("You cast out your net...");
+sound_synth(net, 1, 0);
+
+p_delay(4);
+if (stat_random(fishing, 60, 95) = false) {
+    mes("You fail to catch anything.");
+    return;
+}
+inv_add(inv, tbwt_raw_karambwanji, 1);
+stat_advance(fishing, 50);
+mes("You catch some karambwanji.");
+
+// =========================================================================== Tiadeche, the shore
+[opnpc1,tbwt_tiadeche_multinpc_shore]
+if (%tbwt_main < ^tbwt_asked) {
+    ~chatnpc("<p,sad>Go away. I am working.");
+    return;
+}
+if (%tbwt_tiadeche = ^tbwt_son_helped) {
+    ~chatnpc("<p,happy>I will come home. After this one. And the one after that.");
+    return;
+}
+if (%tbwt_tiadeche = ^tbwt_son_asked) {
+    @tbwt_tiadeche_give;
+}
+~chatplayer("<p,quiz>Your father wants you home.");
+~chatnpc("<p,sad>My father wants a son who can catch a karambwan. Those are different men.");
+~chatnpc("<p,sad>I have been on this beach a year. I have caught nine hundred things that are not karambwan.");
+~chatplayer("<p,quiz>What would it take?");
+~chatnpc("<p,neutral>A vessel. Lubufu at Brimhaven has one and will not sell it, and Tinsay wrote the manual for making them and will not talk to anybody.");
+~chatnpc("<p,neutral>Bring me either and I will come home the day after I land one.");
+%tbwt_tiadeche = ^tbwt_son_asked;
+
+[label,tbwt_tiadeche_give]
+if (inv_total(inv, tbwt_karambwan_vessel) = 0 & inv_total(inv, tbwt_crafting_manual) = 0) {
+    ~chatnpc("<p,sad>A vessel, or the manual for one. Either.");
+    return;
+}
+if (inv_total(inv, tbwt_karambwan_vessel) > 0) {
+    inv_del(inv, tbwt_karambwan_vessel, 1);
+} else {
+    inv_del(inv, tbwt_crafting_manual, 1);
+}
+~chatnpc("<p,shock>You got one.");
+if_close;
+mes("Tiadeche walks into the sea up to his chest, stands very still for a while, and comes out holding something that is mostly teeth.");
+p_delay(5);
+%tbwt_tiadeche = ^tbwt_son_helped;
+stat_advance(fishing, 5000);
+~chatnpc("<p,happy>A year. Tell my father I will be along.");
+~tbwt_check_sons;
+
+// =========================================================================== Tinsay, the island
+[opnpc1,tbwt_tinsay_multinpc_island]
+if (%tbwt_main < ^tbwt_asked) {
+    ~chatnpc("<p,confused>Are you real? Most things out here are not.");
+    return;
+}
+if (%tbwt_tinsay = ^tbwt_son_helped) {
+    ~chatnpc("<p,happy>I will come. I need to take the rock with me. Some of it.");
+    return;
+}
+if (%tbwt_tinsay = ^tbwt_son_asked) {
+    @tbwt_tinsay_give;
+}
+~chatplayer("<p,quiz>Your father wants you home.");
+~chatnpc("<p,confused>My father. Yes. Large man. Disapproving.");
+~chatnpc("<p,sad>I came out here to think and I have thought myself into a corner and I cannot remember the way back out of it.");
+~chatplayer("<p,quiz>What would help?");
+~chatnpc("<p,happy>Rum. With banana in it. I know exactly how that sounds and I do not care.");
+%tbwt_tinsay = ^tbwt_son_asked;
+
+[label,tbwt_tinsay_give]
+if (inv_total(inv, tbwt_sliced_banana_in_karamja_rum) = 0) {
+    ~chatnpc("<p,sad>Rum. Banana. In the rum. Sliced.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,confused>I want to give you something and you have nowhere to put it.");
+    return;
+}
+inv_del(inv, tbwt_sliced_banana_in_karamja_rum, 1);
+~chatnpc("<p,happy>Oh, that is EXACTLY it.");
+inv_add(inv, tbwt_crafting_manual, 1);
+%tbwt_tinsay = ^tbwt_son_helped;
+stat_advance(crafting, 3000);
+~chatnpc("<p,neutral>Here. I wrote this out years ago and never gave it to anybody. My brother has been on a beach failing to use it the entire time.");
+~tbwt_check_sons;
+
+// =========================================================================== Tamayu, the jungle
+[opnpc1,tbwt_tamayu_multinpc_jungle]
+if (%tbwt_main < ^tbwt_asked) {
+    ~chatnpc("<p,angry>Quiet. It hears.");
+    return;
+}
+if (%tbwt_tamayu = ^tbwt_son_helped) {
+    ~chatnpc("<p,happy>It is dead. I am going to sleep for a week and then I am going home.");
+    return;
+}
+if (%tbwt_tamayu = ^tbwt_son_asked) {
+    @tbwt_tamayu_check;
+}
+~chatplayer("<p,quiz>Your father wants you home.");
+~chatnpc("<p,angry>Not until the Shaikahan is dead.");
+~chatplayer("<p,quiz>What is the Shaikahan?");
+~chatnpc("<p,angry>A thing that should not be alive and keeps on being alive. I have put nine spears into it.");
+~chatnpc("<p,neutral>Steel does not stop it. Poison might - karambwan paste, the bad kind, worked onto a spearhead.");
+%tbwt_tamayu = ^tbwt_son_asked;
+
+[label,tbwt_tamayu_check]
+if (%tbwt_flags = ^tbwt_off) {
+    ~chatnpc("<p,angry>It is still out there. A poisoned spear, and do not go at it with anything else.");
+    return;
+}
+~chatplayer("<p,neutral>It's dead.");
+~chatnpc("<p,shock>...");
+~chatnpc("<p,happy>Nine spears. Nine. And a stranger does it in an afternoon with fish paste.");
+%tbwt_tamayu = ^tbwt_son_helped;
+stat_advance(strength, 5000);
+~chatnpc("<p,neutral>Tell my father I am coming. Tell him I said it was easy.");
+~tbwt_check_sons;
+
+// tbwt_flags is the quest's only spare varp and the kill is the only thing in it that needs
+// remembering outside the three sons, so that is what it holds.
+[ai_queue3,tbwt_beast]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+obj_add(npc_coord, tbwt_beast_bones, 1, ^lootdrop_duration);
+if (p_finduid(uid) = false) {
+    return;
+}
+%tbwt_flags = ^tbwt_on;
+~mesbox("The Shaikahan stops. Tamayu is going to want to hear about this and is not going to enjoy it.");
+
+// =========================================================================== poisoning a spear
+// tbwt_poisonous_karambwan_paste is "freshly made octopus paste. This smells quite nauseating",
+// and every *_spear_kp is "a Karambwan poisoned spear". Only one side of the combine is declared.
+[opheldu,tbwt_poisonous_karambwan_paste]
+def_obj $item = last_useitem;
+def_namedobj $poisoned;
+switch_obj ($item) {
+    case bronze_spear : $poisoned = tbwt_bronze_spear_kp;
+    case iron_spear : $poisoned = tbwt_iron_spear_kp;
+    case steel_spear : $poisoned = tbwt_steel_spear_kp;
+    case mithril_spear : $poisoned = tbwt_mithril_spear_kp;
+    case adamant_spear : $poisoned = tbwt_adamant_spear_kp;
+    case rune_spear : $poisoned = tbwt_rune_spear_kp;
+    case dragon_spear : $poisoned = tbwt_dragon_spear_kp;
+    case default : ~displaymessage(^dm_default); return;
+}
+inv_del(inv, tbwt_poisonous_karambwan_paste, 1);
+inv_del(inv, $item, 1);
+inv_add(inv, $poisoned, 1);
+mes("You work the paste onto the spearhead. It smells appalling.");
+
+// The cleaning cloth is "a spirit soaked piece of silk which can be used to remove poison", so it
+// is the way back.
+[opheldu,tbwt_cleaning_cloth]
+def_obj $item = last_useitem;
+def_namedobj $clean;
+switch_obj ($item) {
+    case tbwt_bronze_spear_kp : $clean = bronze_spear;
+    case tbwt_iron_spear_kp : $clean = iron_spear;
+    case tbwt_steel_spear_kp : $clean = steel_spear;
+    case tbwt_mithril_spear_kp : $clean = mithril_spear;
+    case tbwt_adamant_spear_kp : $clean = adamant_spear;
+    case tbwt_rune_spear_kp : $clean = rune_spear;
+    case tbwt_dragon_spear_kp : $clean = dragon_spear;
+    case default : ~displaymessage(^dm_default); return;
+}
+inv_del(inv, $item, 1);
+inv_add(inv, $clean, 1);
+mes("You wipe the spearhead clean.");
+
+// =========================================================================== the village statue
+// op1=Pray-at, and the seaweed sandwich is described as "perfect for statue repair", which is a
+// joke the cache makes and this only has to carry.
+[oploc1,tbwt_tribal_statue]
+p_arrivedelay;
+~mesbox("You pray at the tribal statue of Tai Bwo Wannai. It is chipped, and somebody has patched one corner of it with something that is definitely food.");
+
+[oplocu,tbwt_tribal_statue]
+def_obj $item = last_useitem;
+p_arrivedelay;
+if ($item ! tbwt_seaweed_in_monkey_skin_sandwich) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, tbwt_seaweed_in_monkey_skin_sandwich, 1);
+mes("You press the sandwich into the chipped corner of the statue.");
+p_delay(2);
+~mesbox("It holds. It should not hold, and it holds.");
+
+// =========================================================================== the two supply chains
+// Both of these exist only so that Tinsay's strand and Tamayu's strand are reachable. Without them
+// the quest compiles and cannot be finished: nothing else in the game produces Karamjan rum with
+// banana in it, or poisonous karambwan paste.
+
+// --------------------------------------------------------------- Tinsay: rum with banana in it
+// tbwt_sliced_banana, tbwt_banana_in_karamja_rum and tbwt_sliced_banana_in_karamja_rum are three
+// separate objs in the cache, so both orders of assembly are real and both end in the same place.
+[opheldu,banana]
+def_obj $item = last_useitem;
+if ($item = knife) {
+    inv_del(inv, banana, 1);
+    inv_add(inv, tbwt_sliced_banana, 1);
+    mes("You slice the banana.");
+    return;
+}
+if ($item = karamja_rum) {
+    inv_del(inv, banana, 1);
+    inv_del(inv, karamja_rum, 1);
+    inv_add(inv, tbwt_banana_in_karamja_rum, 1);
+    mes("You drop the banana into the rum. Whole.");
+    return;
+}
+~displaymessage(^dm_default);
+
+[opheldu,tbwt_sliced_banana]
+if (last_useitem ! karamja_rum) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, tbwt_sliced_banana, 1);
+inv_del(inv, karamja_rum, 1);
+inv_add(inv, tbwt_sliced_banana_in_karamja_rum, 1);
+mes("You tip the slices into the rum.");
+
+[opheldu,tbwt_banana_in_karamja_rum]
+if (last_useitem ! knife) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, tbwt_banana_in_karamja_rum, 1);
+inv_add(inv, tbwt_sliced_banana_in_karamja_rum, 1);
+mes("You fish the banana out, slice it, and put it back.");
+
+// --------------------------------------------------------------- Tamayu: poisonous paste
+// The vessel is baited with karambwanji, dropped where the water goes dark, and comes up with a
+// karambwan in it. Cook it badly and it is poison - which is the whole point of the fish.
+[opheldu,tbwt_karambwan_vessel]
+if (last_useitem ! tbwt_raw_karambwanji) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, tbwt_karambwan_vessel, 1);
+inv_del(inv, tbwt_raw_karambwanji, 1);
+inv_add(inv, tbwt_karambwan_vessel_loaded_with_karambwanji, 1);
+mes("You bait the vessel with a karambwanji.");
+
+[opheld1,tbwt_karambwan_vessel_loaded_with_karambwanji]
+if (~inzone_karambwan = false) {
+    ~mesbox("There is nowhere here deep enough. Lubufu said to drop it where the water goes dark - off the east coast, where Tiadeche stands.");
+    return;
+}
+if (stat(fishing) < 65) {
+    mes("You need a Fishing level of 65 to bring one of these up.");
+    return;
+}
+if_close;
+mes("You drop the vessel over the side and pay out the line.");
+p_delay(5);
+inv_del(inv, tbwt_karambwan_vessel_loaded_with_karambwanji, 1);
+inv_add(inv, tbwt_karambwan_vessel, 1);
+if (stat_random(fishing, 25, 60) = false) {
+    ~mesbox("It comes up empty, and the karambwanji has gone.");
+    return;
+}
+inv_add(inv, tbwt_raw_karambwan, 1);
+stat_advance(fishing, 800);
+~mesbox("Something heavy goes into the vessel and does not come out again. You do not look too closely.");
+
+// The shore Tiadeche fishes from. He is standing on the only place in the game deep enough.
+[proc,inzone_karambwan]()(boolean)
+if (inzone(0_45_48_24_38, 0_45_48_40_54, coord) = true) {
+    return(true);
+}
+return(false);
+
+// Cooked properly it is food; cooked badly it is the poison the Shaikahan needs. The cache has
+// both objs and there is nothing else the poorly cooked one could be for.
+[opheldu,tbwt_raw_karambwan]
+def_obj $item = last_useitem;
+if ($item ! tinderbox & $item ! knife) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if ($item = knife) {
+    ~mesbox("Raw, it is just an unpleasant animal. It has to be cooked before it is either food or poison.");
+    return;
+}
+if (stat(cooking) < 30) {
+    mes("You need a Cooking level of 30 to risk this.");
+    return;
+}
+if_close;
+mes("You cook the karambwan over a fire.");
+p_delay(4);
+inv_del(inv, tbwt_raw_karambwan, 1);
+// Undercooking it is the useful failure, so this is weighted towards it while the quest still
+// wants poison and towards food once it does not.
+if (%tbwt_tamayu = ^tbwt_son_helped | stat_random(cooking, 40, 90) = true) {
+    inv_add(inv, tbwt_cooked_karambwan, 1);
+    stat_advance(cooking, 1900);
+    mes("You cook it through. It is safe.");
+    return;
+}
+inv_add(inv, tbwt_poorly_cooked_karambwan, 1);
+~mesbox("The outside is done and the inside is not, which for this animal is the difference between dinner and a weapon.");
+
+[opheldu,tbwt_poorly_cooked_karambwan]
+if (last_useitem ! knife) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, tbwt_poorly_cooked_karambwan, 1);
+inv_add(inv, tbwt_poisonous_karambwan_paste, 1);
+mes("You work it into a paste. It smells quite nauseating.");
+
+[opheldu,tbwt_cooked_karambwan]
+if (last_useitem ! knife) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, tbwt_cooked_karambwan, 1);
+inv_add(inv, tbwt_raw_karambwan_paste, 1);
+mes("You work it into a paste.");

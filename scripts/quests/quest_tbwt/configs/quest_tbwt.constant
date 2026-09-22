@@ -1,0 +1,55 @@
+// Tai Bwo Wannai Trio.
+//
+// Six varps and no varbits at all - every one of them is read directly. Only tbwt_main ships with
+// transmit=yes, which is correct, because it is the only one a multi keys on; none of the six had
+// scope=perm.
+//
+// ---------------------------------------------------------------------------- the three sons
+// Six multinpc shells, two per son, both keyed on tbwt_main:
+//
+//   [tbwt_tiadeche_multinpc_shore]  multinpc 0,1,2,3,4,5 -> tbwt_tiadeche
+//   [tbwt_tiadeche_multinpc_house]  multinpc 6           -> tbwt_tiadeche_final
+//   [tbwt_tinsay_multinpc_island]   multinpc 0..5        -> tbwt_tinsay
+//   [tbwt_tinsay_multinpc_house]    multinpc 6           -> tbwt_tinsay_final
+//   [tbwt_tamayu_multinpc_jungle]   multinpc 0..5        -> tbwt_tamayu
+//   [tbwt_tamayu_multinpc_house]    multinpc 6           -> tbwt_tamayu
+//
+// So the legal range of tbwt_main is 0-6 and the three sons are out at every value below 6 and
+// home at 6, all together, in one write. Nothing in between - there is no state where one son has
+// gone home and the others have not, which is why the per-son progress lives in tbwt_tiadeche,
+// tbwt_tinsay and tbwt_tamayu rather than in the stage.
+//
+// The house versions are not the same npcs: tbwt_tiadeche_final and tbwt_tamayu_final both carry
+// op3=Trade, which the out-in-the-field versions do not.
+
+^tbwt_not_started = 0
+^tbwt_asked = 1        // Timfraku wants his three sons found
+^tbwt_one_son = 2
+^tbwt_two_sons = 3
+^tbwt_three_sons = 4   // all three persuaded, none of them home yet
+^tbwt_reported = 5     // Timfraku has been told
+^tbwt_complete = 6     // <- THE SONS COME HOME HERE AND NOWHERE ELSE
+
+// Each son's own varp. Same shape for all three, so one proc reads them.
+^tbwt_son_unmet = 0
+^tbwt_son_asked = 1
+^tbwt_son_helped = 2
+
+// Lubufu wants fish before he will part with a vessel.
+^tbwt_lubufu_unmet = 0
+^tbwt_lubufu_asked = 1
+^tbwt_lubufu_paid = 2
+^tbwt_karambwanji_wanted = 20
+
+^tbwt_off = 0
+^tbwt_on = 1
+
+// ---------------------------------------------------------------------------- places
+// Karamja. Every one of these is placed in the cache; nothing had to be added to the map.
+^tbwt_timfraku = 1_43_48_28_15          // 2780,3087  upstairs in the chief's hut
+^tbwt_tiadeche_shore = 0_45_48_32_46    // 2912,3118  the east coast
+^tbwt_tinsay_island = 0_43_46_13_32     // 2765,2976  Cairn Isle
+^tbwt_tamayu_jungle = 0_44_47_28_34     // 2844,3042  the jungle
+^tbwt_lubufu = 0_43_49_18_33            // 2770,3169  Brimhaven docks
+^tbwt_shaikahan = 0_45_48_26_22         // 2906,3094
+^tbwt_statue = 0_43_48_43_18            // 2795,3090  the village statue
