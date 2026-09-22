@@ -54,6 +54,12 @@ if (p_finduid(uid) = true) {
         mes("You must have completed Monkey Madness to use this spell.");
         return;
     }
+    // Trollheim shipped ungated because Eadgar's Ruse did not exist. It does now, so it is gated
+    // the same way Ape Atoll is.
+    if($spell = ^trollheim_teleport & %eadgar_quest < ^eadgar_complete) {
+        mes("You must have completed Eadgar's Ruse to use this spell.");
+        return;
+    }
     if($spell = ^ape_atoll_teleport & inv_total(inv, banana) < 1) {
         mes("You need a banana to cast this spell.");
         return;

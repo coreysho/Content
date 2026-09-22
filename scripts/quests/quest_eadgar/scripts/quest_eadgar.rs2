@@ -1,0 +1,203 @@
+// Eadgar's Ruse - the plan itself: thistle to potion, robe and parrot to decoy, stew to storeroom.
+
+// =========================================================================== the thistle
+
+// Thistle is an npc with op1=Pick, not a loc - the plant is rendered as a creature in this cache.
+[opnpc1,eadgar_troll_thistle]
+if (%eadgar_quest < ^eadgar_met_eadgar) {
+    mes("A tough, spiky thistle. You have no use for it.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room for a thistle.");
+    return;
+}
+anim(human_pickuptable, 0);
+inv_add(inv, eadgar_troll_thistle, 1);
+mes("You pick a troll thistle. It is every bit as unpleasant as it looks.");
+
+// Drying it on the troll kitchen rack. The rack's own op is Search, but using an item on a loc
+// does not need an op of its own.
+[oplocu,eadgar_rack]
+if (last_useitem ! eadgar_troll_thistle) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, eadgar_troll_thistle, 1);
+inv_add(inv, eadgar_dried_troll_thistle, 1);
+mes("You hang the thistle on the rack. It dries out in the heat of the kitchen.");
+
+// Only one side of each combine is declared here: [opheldu,pestle_and_mortar] belongs to Herblore
+// and [opheldu,vial_water] to brewing, and a trigger cannot be declared twice. OpHeldUHandler
+// falls back to [opheldu,a] when the target has no handler of its own and swaps last_useitem with
+// it, so using the pestle on the thistle still lands here with the pestle as last_useitem.
+[opheldu,eadgar_dried_troll_thistle]
+if (last_useitem ! pestle_and_mortar) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@eadgar_grind;
+
+[label,eadgar_grind]
+inv_del(inv, eadgar_dried_troll_thistle, 1);
+inv_add(inv, eadgar_ground_troll_thistle, 1);
+mes("You grind the dried thistle to a coarse powder.");
+
+[opheldu,eadgar_ground_troll_thistle]
+if (last_useitem ! vial_water) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@eadgar_mix;
+
+[label,eadgar_mix]
+inv_del(inv, eadgar_ground_troll_thistle, 1);
+inv_del(inv, vial_water, 1);
+inv_add(inv, eadgar_ground_troll_thistle_potion, 1);
+if (%eadgar_quest = ^eadgar_met_eadgar) {
+    %eadgar_quest = ^eadgar_potion_made;
+    ~send_quest_progress(questlist:eadgar, %eadgar_quest, ^eadgar_complete);
+}
+mes("The powder goes into the water and turns it a colour water should not be.");
+
+// =========================================================================== the stew
+
+// The cauldron is at abs (2844,10055), on plane 1 of the stronghold, right beside Burntmeat.
+[oplocu,eadgar_troll_cauldron]
+if (last_useitem ! eadgar_ground_troll_thistle_potion) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%eadgar_quest >= ^eadgar_stew_dosed) {
+    mes("You have already done that, and it is still working.");
+    return;
+}
+if (%eadgar_quest < ^eadgar_potion_made) {
+    mes("There would be no point yet.");
+    return;
+}
+inv_del(inv, eadgar_ground_troll_thistle_potion, 1);
+%eadgar_quest = ^eadgar_stew_dosed;
+~send_quest_progress(questlist:eadgar, %eadgar_quest, ^eadgar_complete);
+anim(human_pickuptable, 0);
+~mesbox("You tip the potion into the stew and stir it in. Nobody notices. Nobody, looking at that stew, would be able to tell.");
+
+[oploc1,eadgar_troll_cauldron]
+mes("Troll stew. You would have to be a troll.");
+
+// =========================================================================== the decoy
+
+// Dirty robe + drunk parrot = something that looks like a druid from a distance and makes noises
+// like one up close. The cache's own description of the result is "It's good enough to fool a
+// troll."
+[opheldu,eadgar_dirty_druid_robe]
+if (last_useitem ! eadgar_drunk_parrot) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@eadgar_build_decoy;
+
+[opheldu,eadgar_drunk_parrot]
+if (last_useitem ! eadgar_dirty_druid_robe) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@eadgar_build_decoy;
+
+[label,eadgar_build_decoy]
+inv_del(inv, eadgar_dirty_druid_robe, 1);
+inv_del(inv, eadgar_drunk_parrot, 1);
+inv_add(inv, eadgar_fake_man, 1);
+~mesbox("You stuff the robe out into something roughly person-shaped and put the parrot inside it. The parrot, who is very drunk, begins to mutter.");
+
+// Feeding the birds. eadgar_parrotts has no ops at all, so this has to be opnpcu - using an item
+// on an npc needs none.
+[opnpcu,eadgar_parrotts]
+if (last_useitem ! eadgar_alco_chunks) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (~obj_gettotal(eadgar_drunk_parrot) > 0) {
+    mes("One drunk parrot is quite enough.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("You would have nowhere to put a parrot.");
+    return;
+}
+inv_del(inv, eadgar_alco_chunks, 1);
+anim(human_pickuptable, 0);
+~mesbox("The parrots go through the chunks like gulls. One of them falls off its perch, rights itself with enormous dignity, and falls off again. You pick it up.");
+inv_add(inv, eadgar_drunk_parrot, 1);
+
+// =========================================================================== the storeroom
+
+// quest_troll.rs2 had [oploc1,eadgar_storeroomdoor] as a one-line placeholder - "You need to find
+// the right key to open this door." - which is exactly the key this quest produces. That
+// placeholder is removed and this replaces it.
+[oploc1,eadgar_storeroomdoor]
+p_arrivedelay;
+if (inv_total(inv, eadgar_troll_storeroom_key) = 0) {
+    mes("You need to find the right key to open this door.");
+    return;
+}
+sound_synth(unlock, 1, 0);
+mes("You unlock the storeroom door.");
+loc_change(eadgar_storeroomdoor_open, 100);
+
+[oploc1,eadgar_storeroomdoor_open]
+mes("The storeroom door is open.");
+
+// The guard has no ops, so he is not someone you talk your way past - he is a condition on the
+// crates. The fake man has to be on the floor where he can see it.
+[oploc1,eadgar_crate_goutweed]
+p_arrivedelay;
+if (%eadgar_quest >= ^eadgar_has_goutweed | ~obj_gettotal(eadgar_goutweed_herb) > 0) {
+    mes("You have all the goutweed you came for.");
+    return;
+}
+if (%eadgar_quest < ^eadgar_met_eadgar) {
+    mes("Crates of a pale, tough-looking herb. The guard is watching you.");
+    return;
+}
+if (%eadgar_scarecrow_items = 0) {
+    ~mesbox("The guard is watching the crates, and he has not blinked once since you came in. You are not getting anything out of there while he is.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room for the goutweed.");
+    return;
+}
+anim(human_pickuptable, 0);
+inv_add(inv, eadgar_goutweed_herb, 1);
+%eadgar_quest = ^eadgar_has_goutweed;
+~send_quest_progress(questlist:eadgar, %eadgar_quest, ^eadgar_complete);
+~mesbox("While the guard argues with a muttering heap of robes on the far side of the room, you help yourself to a handful of goutweed.");
+
+// Showing the guard the decoy. He has no ops at all, so this is an opnpcu, which needs none.
+// obj_find takes a single tile and no radius, so leaving the fake man lying about near him was
+// never going to work; handing it to him is both simpler and funnier.
+//
+// %eadgar_scarecrow_items is the cache's own varbit for this and has three bits spare, so there is
+// room if the decoy ever wants assembling piece by piece.
+[opnpcu,eadgar_storeroom_guard]
+if (last_useitem ! eadgar_fake_man) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%eadgar_scarecrow_items > 0) {
+    mes("He is still busy arguing with the last one.");
+    return;
+}
+inv_del(inv, eadgar_fake_man, 1);
+%eadgar_scarecrow_items = 1;
+if_close;
+~mesbox("You prop the fake man against the far wall. The parrot inside it says something uncomplimentary about trolls, and the guard goes over to deal with it.");
+
+// =========================================================================== completion
+
+[queue,eadgar_quest_complete]
+%eadgar_quest = ^eadgar_complete;
+stat_advance(herblore, 110000);
+session_log(^log_adventure, "Quest complete: Eadgar's Ruse");
+~send_quest_complete(questlist:eadgar, eadgar_goutweed_herb, 250, ^eadgar_questpoints, "You have completed\\nEadgar's Ruse!", "1 Quest Point|11,000 Herblore XP|The Trollheim teleport");

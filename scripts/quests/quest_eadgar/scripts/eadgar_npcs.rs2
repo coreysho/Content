@@ -1,0 +1,165 @@
+// Eadgar's Ruse - the people. Four of the five already had handlers belonging to other quests, so
+// each of those goes in as a proc that the existing handler calls before its own dialogue, the
+// same shape Mountain Daughter uses on Brundt and Devious Minds on the High Priest.
+
+// =========================================================================== Sanfew, Taverley
+
+[proc,eadgar_sanfew]()(boolean)
+if (%eadgar_quest = ^eadgar_not_started) {
+    ~chatnpc("<p,angry>I am out of goutweed. Again.");
+    switch_int (~p_choice2("What's goutweed?", 1, "That sounds like your problem.", 2)) {
+        case 2 :
+            ~chatplayer("<p,neutral>That sounds like your problem.");
+            ~chatnpc("<p,angry>It is everyone's problem when the remedies run out.");
+            return (true);
+        case 1 :
+            ~chatplayer("<p,quiz>What's goutweed?");
+    }
+    ~chatnpc("<p,neutral>A pale, tough little herb. It grows in the mountains and it goes into half of what I make.");
+    ~chatnpc("<p,angry>And every scrap of it within a hundred miles is sitting in a troll storeroom, because trolls eat it.");
+    ~chatplayer("<p,quiz>Trolls eat medicine?");
+    ~chatnpc("<p,neutral>Trolls eat everything. If you want to try your luck, there is a man living up on Trollheim who has been trying to get at it for years. Eadgar. He is not well.");
+    %eadgar_quest = ^eadgar_started;
+    ~send_quest_progress(questlist:eadgar, %eadgar_quest, ^eadgar_complete);
+    return (true);
+}
+if (%eadgar_quest = ^eadgar_has_goutweed & inv_total(inv, eadgar_goutweed_herb) > 0) {
+    ~chatplayer("<p,happy>Goutweed.");
+    mes("You hand Sanfew the goutweed.");
+    inv_del(inv, eadgar_goutweed_herb, 1);
+    ~chatnpc("<p,shock>You actually got it. Out of a troll storeroom.");
+    ~chatplayer("<p,neutral>Eadgar's plan. Mostly.");
+    ~chatnpc("<p,happy>Then Eadgar is less mad than he looks, and you are braver than you look. Let me show you a few things about preparing herbs - you have earned it.");
+    queue(eadgar_quest_complete, 0, 0);
+    return (true);
+}
+if (%eadgar_quest > ^eadgar_not_started & %eadgar_quest < ^eadgar_complete) {
+    ~chatnpc("<p,quiz>Any luck with the goutweed?");
+    ~chatplayer("<p,sad>Not yet.");
+    ~chatnpc("<p,neutral>Talk to Eadgar. He has had longer to think about it than I have.");
+    return (true);
+}
+return (false);
+
+// =========================================================================== Mad Eadgar, Trollheim
+
+[proc,eadgar_mad_eadgar]()(boolean)
+// A proc cannot @jump to a label, so the two branches below are procs of their own.
+switch_int (%eadgar_quest) {
+    case ^eadgar_started : ~eadgar_the_plan;
+    case ^eadgar_met_eadgar : ~eadgar_remind;
+    case ^eadgar_potion_made : ~eadgar_remind;
+    case ^eadgar_stew_dosed : ~eadgar_remind;
+    case ^eadgar_has_key : ~eadgar_remind;
+    case ^eadgar_has_goutweed :
+        ~chatnpc("<p,happy>You got it! Ha! Forty years and a stranger walks in and gets it!");
+        ~chatplayer("<p,neutral>It was your plan.");
+        ~chatnpc("<p,happy>It was, wasn't it. Take it to the old man in Taverley before it wilts.");
+        return (true);
+    case default : return (false);
+}
+return (true);
+
+[proc,eadgar_the_plan]
+~chatnpc("<p,happy>Goutweed! You want the goutweed. Everyone wants the goutweed.");
+~chatplayer("<p,quiz>You know how to get it?");
+~chatnpc("<p,happy>I have known how to get it for years. I simply cannot do it myself, on account of being a man, and looking like one.");
+~chatnpc("<p,neutral>Listen. The stew. Everything in that stronghold runs on Burntmeat's stew. Put troll thistle in it and the cook will be too ill to stand.");
+~chatnpc("<p,neutral>Thistle grows outside my cave. Dry it on their own rack, grind it, mix it with water.");
+~chatplayer("<p,quiz>And then?");
+~chatnpc("<p,happy>And then he will need someone to fetch from the storeroom, and he will hand you the key himself.");
+~chatnpc("<p,shifty>Mind the guard. He does not leave those crates. You will want something else for him to look at.");
+~chatplayer("<p,quiz>Such as?");
+~chatnpc("<p,happy>A man! Or near enough. Get one of the druids' dirty robes off the line in Taverley, and get a parrot drunk enough to talk back, and put one inside the other.");
+~chatnpc("<p,neutral>Parroty Pete keeps the birds at the Ardougne zoo. He will not ask what you want it for. He never does.");
+%eadgar_quest = ^eadgar_met_eadgar;
+~send_quest_progress(questlist:eadgar, %eadgar_quest, ^eadgar_complete);
+
+[proc,eadgar_remind]
+~chatnpc("<p,quiz>Where have you got to?");
+if (%eadgar_quest = ^eadgar_met_eadgar) {
+    ~chatnpc("<p,neutral>Thistle. Dry it, grind it, mix it with water. And a robe and a drunk parrot.");
+    return;
+}
+if (%eadgar_quest = ^eadgar_potion_made) {
+    ~chatnpc("<p,neutral>Into the stew with it, and stand well back.");
+    return;
+}
+if (%eadgar_quest = ^eadgar_stew_dosed) {
+    ~chatnpc("<p,happy>Then go and be sympathetic at Burntmeat until he gives you the key.");
+    return;
+}
+~chatnpc("<p,neutral>The crates. And the guard, remember the guard.");
+
+// =========================================================================== Burntmeat
+
+[proc,eadgar_burntmeat]()(boolean)
+if (%eadgar_quest = ^eadgar_stew_dosed) {
+    ~chatnpc("<p,sad>Burntmeat not well. Burntmeat ate own stew.");
+    ~chatplayer("<p,neutral>That was unwise.");
+    ~chatnpc("<p,sad>Was good stew! Is always good stew!");
+    ~chatnpc("<p,neutral>You go storeroom. Get thing for pot. Burntmeat sit down now.");
+    if (inv_freespace(inv) = 0) {
+        ~chatnpc("<p,angry>You carry too much. Put down, come back.");
+        return (true);
+    }
+    %eadgar_quest = ^eadgar_has_key;
+    ~send_quest_progress(questlist:eadgar, %eadgar_quest, ^eadgar_complete);
+    inv_add(inv, eadgar_troll_storeroom_key, 1);
+    mes("Burntmeat gives you the storeroom key.");
+    return (true);
+}
+if (%eadgar_quest = ^eadgar_has_key) {
+    ~chatnpc("<p,sad>Storeroom. Go. Burntmeat not moving.");
+    return (true);
+}
+return (false);
+
+// =========================================================================== Tegid, Taverley
+
+[opnpc1,eadgar_druid_washing]
+if (%eadgar_quest < ^eadgar_met_eadgar) {
+    ~chatnpc("<p,neutral>Wash day. It is always wash day.");
+    return;
+}
+if (~obj_gettotal(eadgar_dirty_druid_robe) > 0 | ~obj_gettotal(eadgar_fake_man) > 0) {
+    ~chatnpc("<p,angry>You have had one off me already.");
+    return;
+}
+~chatplayer("<p,quiz>Could you spare a robe? A dirty one. It does not need to be clean.");
+~chatnpc("<p,confused>...a dirty one.");
+~chatplayer("<p,neutral>Preferably very dirty.");
+~chatnpc("<p,neutral>There is a basket of them by the line. Help yourself, and do not tell me why.");
+
+// =========================================================================== Parroty Pete
+
+[opnpc1,eadgar_zoo_keeper_aviary]
+if (%eadgar_quest < ^eadgar_met_eadgar) {
+    ~chatnpc("<p,happy>Mind the birds. They bite, and they remember faces.");
+    return;
+}
+if (~obj_gettotal(eadgar_drunk_parrot) > 0 | ~obj_gettotal(eadgar_fake_man) > 0) {
+    ~chatnpc("<p,angry>You have had a parrot off me. You are not having another.");
+    return;
+}
+if (~obj_gettotal(eadgar_alco_chunks) > 0) {
+    ~chatnpc("<p,neutral>Go on then. They are through there.");
+    return;
+}
+~chatplayer("<p,quiz>What do the parrots like?");
+~chatnpc("<p,happy>Pineapple chunks. They would sell me for pineapple chunks.");
+if (inv_total(inv, karamja_rum) = 0) {
+    ~chatplayer("<p,neutral>I'll bear that in mind.");
+    ~chatnpc("<p,happy>Bring some. Make an old man's afternoon.");
+    return;
+}
+~chatplayer("<p,shifty>And if the chunks had been sitting in rum?");
+~chatnpc("<p,happy>Then they would like them a great deal more, and I would not be able to get a sensible word out of any of them for a day.");
+~chatnpc("<p,neutral>...you are going to do it anyway, aren't you. Here.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>When you have a hand free.");
+    return;
+}
+inv_del(inv, karamja_rum, 1);
+inv_add(inv, eadgar_alco_chunks, 1);
+mes("Pete tips a bowl of pineapple chunks into your rum and hands the lot back.");
