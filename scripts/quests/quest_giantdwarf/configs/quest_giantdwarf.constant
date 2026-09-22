@@ -1,0 +1,74 @@
+// The Giant Dwarf.
+//
+// giantdwarf_main carries the stage and every multi key and ships with transmit=yes; it had no
+// scope=perm. keldagrim_temp_var and keldagrim_train_var belong to the city rather than the quest.
+//
+// ---------------------------------------------------------------------------- Keldagrim is scenery
+// The city is fully built across m44_159 and m45_159 on three planes, with every NPC placed and
+// talkable - and THREE interactive locs in the whole of it: two coal rocks and one valve. There is
+// no entrance, no exit, and nothing else to click.
+//
+// So the way in is not a loc. Hammerspike Stoutbeard is already placed at 2965,9811 in the tunnels
+// between the dwarven mine and the city, and the cache has four minecart tickets - kelda/ice and
+// kelda/whitewolf, both directions - so he runs the cart. No map geometry was invented for this.
+//
+// ---------------------------------------------------------------------------- the multis
+//   [dwarf_city_shop_sculpture_model_multi] multivar=giantdwarf_model_state, 0-7, and the eight
+//     entries are a three-bit combination rather than a sequence:
+//       1 boots, 2 torso, 4 axe, and 7 is dwarf_city_shop_sculpture_model_finished.
+//     So the model is CONFIGURED, not built in order, and any two of three has its own model.
+//
+//   [dwarf_stat_head_multi] multivar=giantdwarf_original_company, 0-7:
+//     0 is dwarf_stat_head_king and 1-7 are the seven companies. The statue already stands and
+//     whose head it wears is the question the quest is about.
+//
+//   [dwarf_stat_top_multi] and [dwarf_stat_bottom_multi] multivar=giantdwarf_statue_invis, and
+//     both declare multiloc=0 ONLY - so the statue is present while the bit is clear and gone once
+//     it is set. Inverted, like the name says. It comes down while the head is being changed.
+//
+//   Six shells key on giantdwarf_red_axe_gone and two more on giantdwarf_red_traders_gone, all
+//     multinpc=0 only: the Red Axe's director, secretary, cat, three gnome emissaries and two
+//     traders are all present at 0 and all vanish together when the bit is set. One write empties
+//     their half of the trade floor.
+
+^gd_not_started = 0
+^gd_arrived = 5          // through the tunnel and into the city
+^gd_refused = 10         // the Consortium will not see an outsider
+^gd_sponsored = 15       // a company has taken the player on as a temporary director
+^gd_commission = 20      // Blasidar has the commission; the model needs designing
+^gd_model_done = 30      // boots, torso and axe all on
+^gd_statue_done = 40     // the head changed and the statue back up
+^gd_red_axe_out = 50     // the Red Axe expelled
+^gd_complete = 60
+
+// The model is a bitfield, not a counter.
+^gd_model_bare = 0
+^gd_model_boots = 1
+^gd_model_torso = 2
+^gd_model_axe = 4
+^gd_model_finished = 7
+
+^gd_statue_up = 0
+^gd_statue_down = 1
+^gd_head_king = 0
+
+^gd_present = 0
+^gd_gone = 1
+
+^gd_off = 0
+^gd_on = 1
+
+// The seven companies that are not the Red Axe, as the statue head multiloc numbers them.
+^gd_company_none = 0
+^gd_company_first = 1
+^gd_company_last = 7
+
+// ---------------------------------------------------------------------------- places
+^gd_hammerspike = 0_46_153_21_19        // 2965,9811  the tunnels, outside the city
+^gd_keldagrim_arrive = 0_45_159_32_46   // 2912,10222 beside the drunken dwarf, known walkable
+^gd_blasidar = 0_45_159_26_29           // 2906,10205
+^gd_model = 0_45_159_24_31              // 2904,10207
+^gd_statue = 0_44_159_62_1              // 2878,10177  bottom plane 0, top plane 1, head plane 2
+^gd_referee = 1_45_159_0_23             // 2880,10199  the trade floor
+^gd_commander = 1_44_159_12_34          // 2828,10210
+^gd_red_axe_director = 1_44_159_56_13   // 2872,10189

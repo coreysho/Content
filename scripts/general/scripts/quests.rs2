@@ -354,6 +354,9 @@ if (%ratcatch_var >= ^ratcatch_complete) {
 if (%onesmallfavour >= ^osf_complete) {
     $questpoints = add($questpoints, ^osf_questpoints);
 }
+if (%giantdwarf_quest >= ^gd_complete) {
+    $questpoints = add($questpoints, ^gd_questpoints);
+}
 // Recipe for Disaster is ten sub-quests worth one point each, tracked as ten bits in
 // %hundred_subquest_tally, so it counts bits rather than comparing a stage to a completion value.
 $questpoints = add($questpoints, ~hundred_subquests_done);
@@ -388,6 +391,7 @@ $total = add($total, ^tbwt_questpoints);
 $total = add($total, ^feud_questpoints);
 $total = add($total, ^ratcatch_questpoints);
 $total = add($total, ^osf_questpoints);
+$total = add($total, ^gd_questpoints);
 $total = add($total, ^runemysteries_questpoints);
 $total = add($total, ^doric_questpoints);
 $total = add($total, ^cook_questpoints);
@@ -557,6 +561,7 @@ if (testbit(%ibanmulti, ^upass_started_bit) = ^true & %upass ! ^upass_complete) 
 ~send_quest_progress_colour(questlist:feud, %feud_var, ^feud_complete);
 ~send_quest_progress_colour(questlist:ratcatch, %ratcatch_var, ^ratcatch_complete);
 ~send_quest_progress_colour(questlist:onesmallfavour, %onesmallfavour, ^osf_complete);
+~send_quest_progress_colour(questlist:giantdwarf, %giantdwarf_quest, ^gd_complete);
 if_settab(questlist, ^tab_quest_journal);
 
 if (%drunkmonkquest >= ^drunkmonk_spoken_to_omad) {
