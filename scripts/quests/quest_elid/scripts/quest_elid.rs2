@@ -1,0 +1,204 @@
+// Spirits of the Elid - the shrine, the three channels and the statuette.
+
+// =========================================================================== the robes
+
+[oploc1,elid_cupboard_closed_withrobes]
+loc_change(elid_cupboard_open_withrobes, 200);
+
+[oploc3,elid_cupboard_open_withrobes]
+loc_change(elid_cupboard_closed_withrobes, 200);
+
+[oploc2,elid_cupboard_open_withrobes]
+if (%elidquest < ^elid_spoke_ghaslor) {
+    mes("Folded robes, and nothing else.");
+    return;
+}
+if (~obj_gettotal(elid_robetop) > 0 & ~obj_gettotal(elid_robebottoms) > 0) {
+    mes("You have taken the robes already.");
+    return;
+}
+if (inv_freespace(inv) < 2) {
+    mes("The robes of Elidinis are folded in here, and you have no room for them.");
+    return;
+}
+if (~obj_gettotal(elid_robetop) = 0) {
+    inv_add(inv, elid_robetop, 1);
+}
+if (~obj_gettotal(elid_robebottoms) = 0) {
+    inv_add(inv, elid_robebottoms, 1);
+}
+if (%elidquest = ^elid_spoke_ghaslor) {
+    %elidquest = ^elid_has_robes;
+    ~send_quest_progress(questlist:elid, %elidquest, ^elid_complete);
+}
+~mesbox("You take the robes of Elidinis. They are old, and lighter than they look.");
+
+[oploc1,elid_cupboard_closed] loc_change(elid_cupboard_open, 200);
+[oploc3,elid_cupboard_open] loc_change(elid_cupboard_closed, 200);
+[oploc2,elid_cupboard_open] mes("You find nothing of interest.");
+
+// =========================================================================== the crevice
+
+// Ghaslor is explicit that the shrine only admits someone dressed for it, which is what the robes
+// are for - and it is the one gate on going down at all.
+[oploc1,elid_crevice_clickzone]
+p_arrivedelay;
+if (%elidquest < ^elid_has_robes) {
+    mes("A narrow crack in the rock. A cold draught comes up out of it.");
+    return;
+}
+if (inv_total(worn, elid_robetop) = 0 | inv_total(worn, elid_robebottoms) = 0) {
+    ~mesbox("The draught out of the crevice is bitterly cold, and something about it makes it very clear you are not dressed for what is down there.");
+    return;
+}
+if (%elidquest = ^elid_has_robes) {
+    %elidquest = ^elid_entered_shrine;
+    ~send_quest_progress(questlist:elid, %elidquest, ^elid_complete);
+}
+mes("You climb down into the dark.");
+p_teleport(^elid_shrine_below);
+
+[oploc1,elid_underground_exit]
+p_arrivedelay;
+mes("You climb back up into the sunlight.");
+p_teleport(^elid_shrine_above);
+
+// =========================================================================== the golem doors
+
+[oploc1,elid_blackgolem_door] @elid_golem_door(^elid_golem_black_spawn, elid_golem_black);
+[oploc1,elid_whitegolem_door] @elid_golem_door(^elid_golem_white_spawn, elid_golem_white);
+[oploc1,elid_greygolem_door] @elid_golem_door(^elid_golem_grey_spawn, elid_golem_grey);
+
+// The golems are the one thing in this quest that the maps do not place, and they are not multinpc
+// children either - nothing in the cache would ever bring them into the world. So opening a door
+// is what puts its guardian there.
+[label,elid_golem_door](coord $where, npc $golem)
+p_arrivedelay;
+if (inv_total(inv, elid_key) = 0) {
+    mes("The door is sealed, and the keyhole is a very old shape.");
+    return;
+}
+if (npc_find($where, $golem, 10, 0) = true) {
+    mes("The door is open. Its guardian is not.");
+    return;
+}
+sound_synth(unlock, 1, 0);
+mes("The ancestral key turns, and the door grinds open.");
+npc_add($where, $golem, ^elid_golem_despawn);
+~mesbox("Something the colour of wet stone unfolds itself in the doorway.");
+
+// =========================================================================== the three channels
+
+// Mining: the stretch is blocked with fallen rock.
+[oploc1,elid_water_channel_blocked_rocks]
+p_arrivedelay;
+if (%elid_miningchannel = 1) {
+    mes("This stretch is running clear.");
+    return;
+}
+if (~pickaxe_checker = null) {
+    mes("The channel is packed with fallen rock. You would need a pickaxe.");
+    return;
+}
+if (stat(mining) < 37) {
+    mes("You need a Mining level of 37 to break this up.");
+    return;
+}
+anim(human_mining_bronze_pickaxe, 0);
+sound_synth(mine, 1, 0);
+%elid_miningchannel = 1;
+stat_advance(mining, 10000);
+~mesbox("The rock comes away, and water follows it along the channel.");
+~elid_check_channels;
+
+// Thieving: the stretch is trapped.
+[oploc1,elid_water_channel_spiketrap]
+p_arrivedelay;
+if (%elid_thievingchannel = 1) {
+    mes("This stretch is running clear.");
+    return;
+}
+if (stat(thieving) < 37) {
+    mes("You need a Thieving level of 37 to get at this without losing a hand.");
+    return;
+}
+anim(human_pickuptable, 0);
+%elid_thievingchannel = 1;
+stat_advance(thieving, 10000);
+~mesbox("You work the spikes back out of their housings one at a time, and the channel clears.");
+~elid_check_channels;
+
+// Ranging: a target across the water. elid_ranging_target_multinpc has no ops at all, so the only
+// way to interact with it is opnpcu - which is the right verb anyway.
+[opnpcu,elid_ranging_target_multinpc]
+if (%elid_rangingchannel = 1) {
+    mes("The target is already down.");
+    return;
+}
+if (oc_param(last_useitem, unlit_arrow) ! ^true & last_useitem ! bronze_arrow & last_useitem ! iron_arrow & last_useitem ! steel_arrow & last_useitem ! mithril_arrow & last_useitem ! adamant_arrow & last_useitem ! rune_arrow) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (stat(ranged) < 37) {
+    mes("You need a Ranged level of 37 to make that shot.");
+    return;
+}
+anim(human_bow, 0);
+%elid_rangingchannel = 1;
+stat_advance(ranged, 10000);
+~mesbox("The arrow takes the catch clean off its mounting. Somewhere below you, a sluice drops.");
+~elid_check_channels;
+
+// Called from all three trials AND from the spirits' dialogue. The key comes from Shiratti, who
+// only needs ^elid_entered_shrine, so a player can open the doors and clear all three channels
+// without ever having spoken to the spirits - checking for exactly ^elid_met_spirits here would
+// have left them stuck with three running channels and a stage that never moved.
+[proc,elid_check_channels]
+if (%elid_miningchannel = 0 | %elid_thievingchannel = 0 | %elid_rangingchannel = 0) {
+    return;
+}
+if (%elidquest < ^elid_entered_shrine | %elidquest >= ^elid_channels_done) {
+    return;
+}
+%elidquest = ^elid_channels_done;
+~send_quest_progress(questlist:elid, %elidquest, ^elid_complete);
+~mesbox("All three channels are running. The sound of water fills the whole chamber.");
+
+// =========================================================================== the shrine
+
+// elid_statuette_placed only exists at stage 60, so praying at it is a post-quest action - the
+// placing itself is the completion, and it is done with the statuette on the shell.
+[oplocu,elid_statuette_multiloc]
+if (last_useitem ! elid_statuette) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%elidquest < ^elid_told_mayor) {
+    mes("Not yet. Awusah asked to be told before anything was put back.");
+    return;
+}
+inv_del(inv, elid_statuette, 1);
+anim(human_pickuptable, 0);
+if_close;
+~mesbox("You set the statuette of Elidinis back on its plinth. For a moment nothing happens at all.");
+p_delay(3);
+queue(elid_quest_complete, 0, 0);
+
+[oploc1,elid_statuette_multiloc]
+if (%elidquest >= ^elid_complete) {
+    ~mesbox("You pray at the shrine of Elidinis, and the water in the fountain behind you does not stop.");
+    return;
+}
+mes("An empty plinth, cut for something about the size of your two hands.");
+
+[oploc1,elid_statuette_placed]
+~mesbox("You pray at the shrine of Elidinis.");
+
+// =========================================================================== completion
+
+[queue,elid_quest_complete]
+%elidquest = ^elid_complete;
+stat_advance(prayer, 80000);
+stat_advance(thieving, 10000);
+session_log(^log_adventure, "Quest complete: Spirits of the Elid");
+~send_quest_complete(questlist:elid, elid_statuette, 250, ^elid_questpoints, "You have completed the\\nSpirits of the Elid Quest!", "2 Quest Points|8,000 Prayer XP|1,000 Thieving XP");

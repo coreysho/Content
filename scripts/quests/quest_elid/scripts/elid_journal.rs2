@@ -1,0 +1,64 @@
+[if_button,questlist:elid]
+def_string $text;
+
+switch_int (%elidquest) {
+    case ^elid_not_started :
+        $text = "@dbl@I can start this quest by speaking to @dre@Awusah the Mayor|@dbl@in @dre@Nardah|";
+        $text = append($text, "@dbl@I will need a @dre@pickaxe@dbl@, a @dre@bow and arrows@dbl@, and levels|");
+        $text = append($text, "@dbl@of @dre@37 Mining@dbl@, @dre@37 Thieving@dbl@ and @dre@37 Ranged");
+
+    case ^elid_asked_mayor :
+        $text = "@str@The river Elid stopped in the middle of the wet season and|";
+        $text = append($text, "@str@Nardah is running out of water.|");
+        $text = append($text, "@dbl@I should speak to @dre@Ghaslor the Elder");
+
+    case ^elid_spoke_ghaslor :
+        $text = "@str@Ghaslor says the statuette of Elidinis was taken from the|";
+        $text = append($text, "@str@shrine below the rocks, and the spirits of the Elid have|");
+        $text = append($text, "@str@had nothing to answer to since.|");
+        $text = append($text, "@dbl@I should take the @dre@robes of Elidinis@dbl@ from the cupboard");
+
+    case ^elid_has_robes :
+        $text = "@str@I have the robes of Elidinis.|";
+        $text = append($text, "@dbl@I should @dre@wear both pieces@dbl@ and climb down the @dre@crevice|@dbl@west of Nardah");
+
+    case ^elid_entered_shrine :
+        $text = "@str@I am in the shrine beneath the rocks.|";
+        $text = append($text, "@dbl@I should speak to the @dre@spirits of the Elid");
+
+    case ^elid_met_spirits :
+        $text = "@str@Three channels feed the Elid and all three are shut: one|";
+        $text = append($text, "@str@under fallen rock, one under an old trap, and one held by|");
+        $text = append($text, "@str@a catch out of reach.|");
+        $text = append($text, "@dbl@@dre@Shiratti@dbl@ holds the key to the three doors|");
+        $text = append($text, "@dbl@I need @dre@37 Mining@dbl@, @dre@37 Thieving@dbl@ and @dre@37 Ranged");
+
+    case ^elid_channels_done :
+        $text = "@str@All three channels are running and the Elid is flowing|";
+        $text = append($text, "@str@again - but the statuette is still missing. A genie found|");
+        $text = append($text, "@str@it and kept it.|");
+        $text = append($text, "@dbl@I should find the @dre@genie@dbl@ and ask him for it @dre@politely");
+
+    case ^elid_has_statuette :
+        $text = "@str@The genie gave me the statuette of Elidinis.|";
+        $text = append($text, "@dbl@I should show it to @dre@Ghaslor");
+
+    case ^elid_shown_ghaslor :
+        $text = "@str@Ghaslor says the statuette is genuine.|";
+        $text = append($text, "@dbl@I should tell @dre@Awusah@dbl@ before I put it back");
+
+    case ^elid_told_mayor :
+        $text = "@str@Awusah wants the statuette back on its plinth today.|";
+        $text = append($text, "@dbl@I should @dre@use the statuette on the plinth@dbl@ at the shrine");
+
+    case ^elid_complete :
+        $text = "@str@The river Elid stopped because the statuette of Elidinis|";
+        $text = append($text, "@str@had been taken from her shrine, and the three channels|");
+        $text = append($text, "@str@under the rocks had silted, trapped and jammed shut.|");
+        $text = append($text, "@str@I opened all three, talked a genie out of the statuette,|");
+        $text = append($text, "@str@and put her back on her plinth.|");
+        $text = append($text, "@str@Nardah's fountain has not stopped since.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+}
+
+~quest_journal("Spirits of the Elid", $text);
