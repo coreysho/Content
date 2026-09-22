@@ -155,6 +155,67 @@ if (%100goblin_explosion = ^hundred_goblin_kitchen_intact) {
 [oploc1,100_goblin_ladder_up] ~climb_ladder(^hundred_goblin_village, true);
 [oploc1,100_goblin_ladder_up_charred] ~climb_ladder(^hundred_goblin_village, true);
 
+// --- The cook ---
+// FIXED (reported: "can't ... talk to the goblin cook"). goblin_cook and goblin_cook_charred both
+// carry op1=Talk-to in the cache and neither had a handler anywhere, so clicking either of them did
+// nothing at all and said nothing - and the cook is standing next to the one cauldron this
+// sub-quest is about, which makes him the obvious person to ask.
+//
+// Both are placed and only ever placed in m46_154: goblin_cook at (38,53) in the intact kitchen and
+// goblin_cook_charred at (36,15) in the blasted copy of it, so neither handler needs a coord guard.
+// The third form, goblin_cook_on_wall, is deliberately left alone - it carries no ops at all, being
+// the goblin the explosion put halfway up a wall.
+
+[opnpc1,goblin_cook]
+if (%100goblin >= ^hundred_goblin_cooked) {
+    ~chatnpc("<p,angry>You! You is the one what did it to my kitchen!");
+    ~chatplayer("<p,neutral>The generals asked for it.");
+    ~chatnpc("<p,angry>Generals asks for LOTS. Generals is not the one what cleans up.");
+    return;
+}
+if (%100goblin < ^hundred_goblin_asked) {
+    ~chatplayer("<p,happy>Hello.");
+    ~chatnpc("<p,neutral>Is my kitchen. You is not eating here.");
+    ~chatnpc("<p,neutral>Nobody is eating here. Generals argues about dinner, dinner never gets made. Thirty years.");
+    return;
+}
+@hundred_goblin_cook_advice;
+
+[label,hundred_goblin_cook_advice]
+~chatplayer("<p,quiz>The generals want soggy bread, spicy maggots and dyed orange bits, all at once.");
+~chatnpc("<p,shock>All at once? In the same pot?");
+~chatplayer("<p,neutral>In the same pot.");
+~chatnpc("<p,neutral>...");
+~chatnpc("<p,neutral>Big pot is over there. I is going to stand a long way away from it.");
+if (inv_total(inv, 100goblin_soggy_bread) > 0 & inv_total(inv, 100goblin_spicey_maggots) > 0 & inv_total(inv, 100goblin_dyed_oranges) > 0) {
+    ~chatnpc("<p,neutral>You has all three. Do not make me watch.");
+    return;
+}
+// Naming what is still missing, because the cauldron itself only says one at a time.
+if (inv_total(inv, 100goblin_soggy_bread) = 0) {
+    ~chatnpc("<p,neutral>Bread wants a whole bucket of water on it. Whole one. Not a sip.");
+}
+if (inv_total(inv, 100goblin_spicey_maggots) = 0) {
+    ~chatnpc("<p,neutral>Maggots is fishing bait. Spice is spice. Shake one on other.");
+    // Spice has exactly one source in the whole game - the Ardougne spice stall at 65 Thieving -
+    // and nothing anywhere said so, which is how "can't make spicy maggots" looks from the inside.
+    ~chatnpc("<p,neutral>Spice is not growing in Goblin Village. Humans keeps it on a stall in Ardougne market and guards it like is gold.");
+}
+if (inv_total(inv, 100goblin_dyed_oranges) = 0) {
+    ~chatnpc("<p,neutral>Orange bits is orange slices, dyed. Any dye. Goblins is not fussy about which.");
+}
+
+[opnpc1,goblin_cook_charred]
+if (%100goblin >= ^hundred_goblin_done) {
+    ~chatnpc("<p,angry>Is they happy now? Is they?");
+    ~chatplayer("<p,neutral>They're arguing about it.");
+    ~chatnpc("<p,angry>Good. Good! Then was worth my eyebrows.");
+    return;
+}
+~chatplayer("<p,confused>Are you all right?");
+~chatnpc("<p,angry>Is fine. Is completely fine. Kitchen is on ceiling, I is on fire twice, but is FINE.");
+~chatnpc("<p,neutral>Take the slop to the generals. Take it now, before it argues its way out of the bowl.");
+
 // --- The cauldron ---
 
 [oplocu,100_goblin_cauldren_still]
@@ -213,9 +274,12 @@ switch_int (%100goblin) {
         $x = append($x, "@dbl@@dre@Goblin Village@dbl@ and will not agree about anything, which is|");
         $x = append($x, "@dbl@probably the point.");
     case ^hundred_goblin_asked :
-        $x = append($x, "@dbl@@dre@Soggy bread@dbl@ (bread and a bucket of water), @dre@spicy maggots|");
-        $x = append($x, "@dbl@(fishing bait and spice) and @dre@dyed orange slices@dbl@. All three|");
-        $x = append($x, "@dbl@into the @dre@cauldron in the kitchen under the village@dbl@.");
+        $x = append($x, "@dbl@@dre@Soggy bread@dbl@ (bread and a whole bucket of water), @dre@spicy|");
+        $x = append($x, "@dre@maggots@dbl@ (fishing bait and spice) and @dre@dyed orange slices|");
+        $x = append($x, "@dbl@(orange slices and any dye). All three into the @dre@cauldron in the|");
+        $x = append($x, "@dre@kitchen under the village@dbl@.|");
+        $x = append($x, "|@dbl@The only spice I know of is on the @dre@spice stall in Ardougne|");
+        $x = append($x, "@dre@market@dbl@, and it is not for sale.");
     case default :
         $x = append($x, "@dbl@I should give the @dre@slop of compromise@dbl@ to the generals.");
 }

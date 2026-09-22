@@ -263,8 +263,22 @@ if(testbit(%elemental_workshop_bits, ^elemental_workshop_furnace_lit) = ^false) 
     return;
 }
 if($last_useitem = elemental_workshop_ore) {
+    // Reported: "adding the lava doesn't make the furnace hot enough". Lava lights the furnace and
+    // that is all it does - elemental ore also needs the bellows feeding air down the pipe, which
+    // is a chain of five things in two rooms the player has no reason to connect to this message.
+    // "Needs to be hotter" on its own reads as the lava having failed, so it now names the pipe and
+    // the lever, and says which link of the chain is missing.
     if(testbit(%elemental_workshop_bits, ^elemental_workshop_air_blowing) = ^false) {
-        mes("The furnace needs to be hotter to be of any use.");
+        mes("The furnace is lit, but the fire is sullen and orange. No air is coming up the pipe.");
+        if(testbit(%elemental_workshop_bits, ^elemental_workshop_bellows_repaired) = ^false) {
+            mes("The bellows in the eastern room are split and will not hold air.");
+            return;
+        }
+        if(testbit(%elemental_workshop_bits, ^elemental_workshop_water_flowing) = ^false) {
+            mes("The bellows need the water wheel turning to drive them.");
+            return;
+        }
+        mes("Pulling the lever by the bellows should set them pumping.");
         return;
     }
     if(inv_total(inv, coal) < 4) {
