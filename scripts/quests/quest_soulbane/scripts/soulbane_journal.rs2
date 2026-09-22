@@ -1,0 +1,57 @@
+[if_button,questlist:soulbane]
+def_string $text;
+
+switch_int (%soulbane_prog) {
+    case ^soulbane_not_started :
+        $text = "@dbl@I can start this quest by speaking to @dre@Launa@dbl@ beside|";
+        $text = append($text, "@dbl@the @dre@rift@dbl@ east of @dre@Varrock");
+
+    case ^soulbane_asked :
+        $text = "@str@The rift opened eleven years ago with Launa's brother|";
+        $text = append($text, "@str@Tolna standing where it opened. It is not a place he is|");
+        $text = append($text, "@str@in - it is what is left of him.|");
+        $text = append($text, "@dbl@Launa has fixed a @dre@rope@dbl@ to the edge");
+
+    case ^soulbane_anger :
+        $text = "@str@A red room with a weapon rack and a wall of fire where the|";
+        $text = append($text, "@str@door should be.|");
+        $text = append($text, "@dbl@Take @dre@one weapon@dbl@ from the rack - only one - and put down|");
+        $text = append($text, "@dbl@what is in here until there is nothing left to be angry at");
+
+    case ^soulbane_fear :
+        $text = "@str@The fire went out. The next room has something in it that|";
+        $text = append($text, "@str@keeps coming back.|");
+        $text = append($text, "@dbl@Put down @dre@<tostring(^soulbane_fear_needed)> reapers@dbl@ and the doorway lights");
+
+    case ^soulbane_confusion :
+        $text = "@str@Six doors, five of them wearing the same face, and five|";
+        $text = append($text, "@str@creatures doing the same.|");
+        $text = append($text, "@dbl@Each door opens when the thing guarding it is down. The|");
+        $text = append($text, "@dbl@@dre@sixth@dbl@ opens when the other five agree on which is real");
+
+    case ^soulbane_hopelessness :
+        $text = "@str@A gap with no bridge, and things in here that would rather|";
+        $text = append($text, "@str@talk than fight.|");
+        $text = append($text, "@dbl@Put down @dre@<tostring(^soulbane_hope_needed)> of them@dbl@ and the bridge turns out to have|");
+        $text = append($text, "@dbl@been there the whole time");
+
+    case ^soulbane_tolna :
+        $text = "@str@Across the bridge is the last of him, and there are three|";
+        $text = append($text, "@str@of it.|");
+        $text = append($text, "@dbl@Launa said to @dre@say his name@dbl@ at the end. He was eight.");
+
+    case ^soulbane_complete :
+        $text = "@str@The rift east of Varrock was an eight-year-old boy with|";
+        $text = append($text, "@str@everything good taken out, left to get bigger for eleven|");
+        $text = append($text, "@str@years while his sister sat on the grass beside it.|");
+        $text = append($text, "@str@I went through his anger, his fear, his confusion and his|");
+        $text = append($text, "@str@hopelessness, and at the bottom of all four there was still|");
+        $text = append($text, "@str@a Tolna to say the name to.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+
+    case default :
+        $text = "@dbl@I can start this quest by speaking to @dre@Launa@dbl@ beside|";
+        $text = append($text, "@dbl@the @dre@rift@dbl@ east of @dre@Varrock");
+}
+
+~quest_journal("A Soul's Bane", $text);
