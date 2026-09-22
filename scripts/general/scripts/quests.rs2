@@ -322,6 +322,11 @@ if (%twocats_quest >= ^twocats_complete) {
 if (%enakh_quest >= ^enakh_complete) {
     $questpoints = add($questpoints, ^enakh_questpoints);
 }
+// Tears of Guthix has no stage varbit - see quests/quest_tog - so its progress is folded out of
+// the bowl chain and the story count by ~tog_progress.
+if (~tog_progress >= ^tog_complete) {
+    $questpoints = add($questpoints, ^tog_questpoints);
+}
 // Recipe for Disaster is ten sub-quests worth one point each, tracked as ten bits in
 // %hundred_subquest_tally, so it counts bits rather than comparing a stage to a completion value.
 $questpoints = add($questpoints, ~hundred_subquests_done);
@@ -346,6 +351,7 @@ $total = add($total, ^zogre_questpoints);
 $total = add($total, ^icslittle_questpoints);
 $total = add($total, ^twocats_questpoints);
 $total = add($total, ^enakh_questpoints);
+$total = add($total, ^tog_questpoints);
 $total = add($total, ^runemysteries_questpoints);
 $total = add($total, ^doric_questpoints);
 $total = add($total, ^cook_questpoints);
@@ -505,8 +511,15 @@ if (testbit(%ibanmulti, ^upass_started_bit) = ^true & %upass ! ^upass_complete) 
 ~send_quest_progress_colour(questlist:ics_little, %ics_little_var, ^icslittle_complete);
 ~send_quest_progress_colour(questlist:twocats, %twocats_quest, ^twocats_complete);
 ~send_quest_progress_colour(questlist:enakh, %enakh_quest, ^enakh_complete);
+~send_quest_progress_colour(questlist:tog, ~tog_progress, ^tog_complete);
 if_settab(questlist, ^tab_quest_journal);
 
 if (%drunkmonkquest >= ^drunkmonk_spoken_to_omad) {
     settimer(blanket_ladder, 1);
 }
+
+// Tears of Guthix arms a [timer] for the length of a run and timers do not survive a logout. A
+// player who logged out inside the cave would come back with tog_minigame_collecting still set
+// and no timer to turn it off, and could then stand at the walls indefinitely. ~update_questlist
+// runs from login.rs2, so this is where the stranded flag gets cleared.
+~tog_clear_stranded_run;

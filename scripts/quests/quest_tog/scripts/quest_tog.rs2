@@ -1,0 +1,263 @@
+// Tears of Guthix - the cave, the bowl and the run.
+
+// =========================================================================== getting in and about
+[oploc1,tog_cave_down]
+p_arrivedelay;
+mes("You squeeze down into the dark.");
+p_teleport(^tog_entrance_below);
+
+[oploc1,tog_cave_up]
+p_arrivedelay;
+mes("You climb back up towards the swamp.");
+p_teleport(^tog_entrance_above);
+
+// tog_climbing_rocks_down is placed three times on plane 2 and tog_climbing_rocks_up twice, both
+// on plane 2 - the cache never laid the plane 1 counterpart, the way it does for every other
+// ladder pair in the game, so the return climb has been added to the map beneath the "up" rocks.
+// Both handlers move the PLAYER a plane, so one pair covers every placement.
+// This is also how Juna is spoken to - see tog_juna.rs2. Her npc has no ops in the cache and the
+// npc config is CRC-pinned, so the climb down onto her ledge is the conversation.
+[oploc1,tog_climbing_rocks_down]
+p_arrivedelay;
+if (coordy(coord) = 0) {
+    mes("There is nothing below this.");
+    return;
+}
+mes("You pick your way down the rock face.");
+p_teleport(movecoord(coord, 0, calc(0 - 1), 0));
+@tog_juna_talk;
+
+[oploc1,tog_climbing_rocks_up]
+p_arrivedelay;
+if (coordy(coord) >= 2) {
+    mes("You are already at the top of these.");
+    return;
+}
+mes("You climb.");
+p_teleport(movecoord(coord, 0, 1, 0));
+
+// =========================================================================== the bowl
+// tog_blue_stone_rocks1 carries op1=Mine, op2=Prospect and op3=hidden. The magic stone is the only
+// thing in them and there is exactly one to be had - tog_juna_bowl is two bits and the chain has
+// three states, so it is a chain and not a count.
+[oploc2,tog_blue_stone_rocks1] @tog_prospect;
+[oploc2,tog_blue_stone_rocks2] @tog_prospect;
+[oploc2,tog_blue_stone_rocks3] @tog_prospect;
+
+[label,tog_prospect]
+p_arrivedelay;
+mes("You examine the rock for ores...");
+p_delay(3);
+mes("The blue veins in it are not ore. They are not anything you have a word for.");
+
+[oploc1,tog_blue_stone_rocks1] @tog_mine_stone;
+[oploc1,tog_blue_stone_rocks2] @tog_mine_stone;
+[oploc1,tog_blue_stone_rocks3] @tog_mine_stone;
+
+[label,tog_mine_stone]
+p_arrivedelay;
+if (%tog_hacky_fix = ^tog_off) {
+    mes("You have no reason to be chipping at this.");
+    return;
+}
+if (%tog_juna_bowl >= ^tog_bowl_stone) {
+    mes("You already have what you came down here for.");
+    return;
+}
+if (~pickaxe_checker = null) {
+    mes("You need a pickaxe to mine this rock.");
+    return;
+}
+if (stat(mining) < ^tog_req_mining) {
+    mes("You need a Mining level of <tostring(^tog_req_mining)> to get anything out of this.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room for it.");
+    return;
+}
+mes("You swing your pickaxe at the rock.");
+sound_synth(mine, 1, 0);
+p_delay(4);
+inv_add(inv, tog_stone, 1);
+%tog_juna_bowl = ^tog_bowl_stone;
+stat_advance(mining, 2000);
+mes("A lump of stone with a blue vein through it comes away in your hand.");
+
+// Only one side of the combine is declared - [opheldu,chisel] belongs to Crafting and a trigger
+// cannot be declared twice. OpHeldUHandler falls back to [opheldu,a] and swaps last_useitem, so
+// chisel-on-stone lands here with the chisel as last_useitem either way round.
+[opheldu,tog_stone]
+if (last_useitem ! chisel) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (stat(crafting) < ^tog_req_crafting) {
+    mes("You need a Crafting level of <tostring(^tog_req_crafting)> to shape this.");
+    return;
+}
+if_close;
+mes("You start working the stone into a bowl.");
+p_delay(5);
+inv_del(inv, tog_stone, 1);
+inv_add(inv, tog_bowl, 1);
+%tog_juna_bowl = ^tog_bowl_made;
+stat_advance(crafting, 2000);
+mes("It hollows out far more easily than stone has any right to.");
+
+// =========================================================================== the weeping walls
+// tog_weepingwall is placed nine times on plane 2 of m50_148 - three at z 9514, three at z 9520
+// and three at x 3261 - and it is the only one of the family with an op. What it is weeping is
+// worked out from the clock and the wall's own coordinates, so the nine are out of phase with each
+// other and finding the blue one is the whole of the game.
+[oploc1,tog_weepingwall]
+def_coord $wall = loc_coord;
+p_arrivedelay;
+if (%tog_minigame_collecting = ^tog_off) {
+    ~mesbox("The wall is dry. Juna decides when it weeps and she has not decided in your favour.");
+    return;
+}
+if (inv_total(inv, tog_bowl) = 0 & inv_total(worn, tog_bowl) = 0) {
+    mes("You have nothing to catch them in.");
+    return;
+}
+def_int $colour = ~tog_wall_colour($wall);
+switch_int ($colour) {
+    case 0 :
+        loc_change(tog_weeping_wall_good_r, ^tog_tear_cycle);
+        %tog_tears_collected = add(%tog_tears_collected, 1);
+        mes("Blue tears run into the bowl. <tostring(%tog_tears_collected)> so far.");
+    case 1 :
+        loc_change(tog_weeping_wall_bad_r, ^tog_tear_cycle);
+        if (%tog_tears_collected > 0) {
+            %tog_tears_collected = sub(%tog_tears_collected, 1);
+        }
+        mes("Green tears. The bowl spits and you lose one. <tostring(%tog_tears_collected)> left.");
+    case default :
+        loc_change(tog_weeping_wall_off_r, ^tog_tear_cycle);
+        mes("This one is not weeping at the moment.");
+}
+
+// Three colours, one cycle of ^tog_tear_cycle ticks each, offset per wall so that no two walls in
+// a row are ever showing the same thing. The offset is the wall's own coordinates, which is stable
+// across logins and the same for every player standing in front of it.
+[proc,tog_wall_colour](coord $wall)(int)
+def_int $phase = calc(map_clock / ^tog_tear_cycle);
+def_int $offset = calc(coordx($wall) + multiply(coordz($wall), 2));
+return(calc(($phase + $offset) % 3));
+
+// =========================================================================== the run
+[proc,tog_run_length]()(int)
+def_int $ticks = ~count_questpoints;
+if ($ticks < ^tog_run_min_ticks) {
+    return(^tog_run_min_ticks);
+}
+if ($ticks > ^tog_run_max_ticks) {
+    return(^tog_run_max_ticks);
+}
+return($ticks);
+
+[proc,tog_start_run]
+%tog_minigame_collecting = ^tog_on;
+%tog_tears_collected = 0;
+settimer(tog_run_timer, ~tog_run_length);
+p_teleport(^tog_tears_chamber);
+~mesbox("The walls start to weep. Blue tears are the ones you want; green ones will cost you what you have already caught.");
+
+[timer,tog_run_timer]
+cleartimer(tog_run_timer);
+@tog_end_run;
+
+[label,tog_end_run]
+%tog_minigame_collecting = ^tog_off;
+def_int $tears = %tog_tears_collected;
+%tog_tears_collected = 0;
+%tog_qp_before_return = ~count_questpoints;
+if (%tog_juna_stories < 15) {
+    %tog_juna_stories = add(%tog_juna_stories, 1);
+}
+p_teleport(^tog_rocks_top);
+if ($tears = 0) {
+    ~mesbox("The walls stop. Your bowl is empty, which Juna does not comment on and somehow that is worse.");
+    ~send_quest_progress(questlist:tog, ~tog_progress, ^tog_complete);
+    return;
+}
+def_stat $stat = ~tog_lowest_stat;
+// Tears are worth more to a skill you have neglected, which is the point of pouring them into the
+// lowest one: the multiplier is the level you already have.
+stat_advance($stat, multiply($tears, multiply(stat_base($stat), ^tog_xp_per_tear_per_level)));
+~mesbox("You caught <tostring($tears)> tears. They go into your <~stat_name($stat)>, which is where you needed them most whether you like it or not.");
+if (~tog_progress >= ^tog_complete & %tog_juna_stories = 1) {
+    @tog_finish;
+}
+~send_quest_progress(questlist:tog, ~tog_progress, ^tog_complete);
+
+// The lowest base level of the lot. Compared pairwise rather than walked, because there is no
+// int-to-stat enum in this cache to iterate with.
+// A members-only skill on a free world would take the tears and give nothing back - stat_advance
+// there is wasted - so those are passed over the way the xp lamp interface passes over them.
+[proc,tog_lower](stat $a, stat $b)(stat)
+if (map_members = ^false & ~stat_members($b) = ^true) {
+    return($a);
+}
+if (stat_base($b) < stat_base($a)) {
+    return($b);
+}
+return($a);
+
+// Called from ~update_questlist on login. A run is a [timer] and timers are lost on logout, so
+// without this a player who logged out mid-run would come back still flagged as collecting with
+// nothing left to stop them.
+[proc,tog_clear_stranded_run]
+if (%tog_minigame_collecting = ^tog_off) {
+    return;
+}
+%tog_minigame_collecting = ^tog_off;
+%tog_tears_collected = 0;
+%tog_qp_before_return = ~count_questpoints;
+
+// Hitpoints is deliberately not in this list. It starts at 10 and would swallow every run a new
+// account made, which is the opposite of what pouring the tears into the weakest skill is for.
+[proc,tog_lowest_stat]()(stat)
+def_stat $best = attack;
+$best = ~tog_lower($best, defence);
+$best = ~tog_lower($best, strength);
+$best = ~tog_lower($best, ranged);
+$best = ~tog_lower($best, magic);
+$best = ~tog_lower($best, prayer);
+$best = ~tog_lower($best, cooking);
+$best = ~tog_lower($best, woodcutting);
+$best = ~tog_lower($best, fletching);
+$best = ~tog_lower($best, fishing);
+$best = ~tog_lower($best, firemaking);
+$best = ~tog_lower($best, crafting);
+$best = ~tog_lower($best, smithing);
+$best = ~tog_lower($best, mining);
+$best = ~tog_lower($best, herblore);
+$best = ~tog_lower($best, agility);
+$best = ~tog_lower($best, thieving);
+$best = ~tog_lower($best, slayer);
+$best = ~tog_lower($best, farming);
+$best = ~tog_lower($best, runecraft);
+return($best);
+
+// =========================================================================== progress
+// There is no stage varbit in tog_minigame, so the quest list value is folded out of the bowl
+// chain and the story count.
+[proc,tog_progress]()(int)
+if (%tog_juna_stories > 0) {
+    return(^tog_complete);
+}
+if (%tog_hacky_fix = ^tog_off) {
+    return(^tog_not_started);
+}
+switch_int (%tog_juna_bowl) {
+    case ^tog_bowl_made : return(^tog_has_bowl);
+    case ^tog_bowl_stone : return(^tog_has_stone);
+}
+return(^tog_met_juna);
+
+[label,tog_finish]
+stat_advance(prayer, 20000);
+session_log(^log_adventure, "Quest complete: Tears of Guthix");
+~send_quest_complete(questlist:tog, tog_bowl, 200, ^tog_questpoints, "You have completed\\nTears of Guthix!", "1 Quest Point|2,000 Prayer XP|A story told|The right to come back");
