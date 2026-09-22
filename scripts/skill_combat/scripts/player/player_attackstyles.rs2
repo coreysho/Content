@@ -90,10 +90,18 @@ if (p_finduid(uid) = true) {
     return;
 }
 
+// CHANGING STYLE DOES NOT STOP THE FIGHT. This used to call p_clearpendingaction, which is
+// Player.clearPendingAction - it clears the interaction outright, so every tap of the combat tab
+// dropped whatever you were attacking and you stood there until you clicked the target again.
+// Old School lets you switch style mid-fight and keep swinging (it is how you move onto Defensive
+// without losing a tick), so the interaction is left alone here; only the style changes.
+//
+// The p_finduid is still the gate it always was: no protected access means the player is busy, so
+// the change is refused and the varp is resynced to undo the client's optimistic highlight. if_close
+// stays too - the tab click closes a dialogue the same way any other sidebar click does.
 [proc,set_attackstyle](int $style)
 if_close;
 if (p_finduid(uid) = true) {
-    p_clearpendingaction;
     %com_mode = $style;
     ~player_combat_stat;
     return;

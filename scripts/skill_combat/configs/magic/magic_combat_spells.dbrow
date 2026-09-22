@@ -687,6 +687,15 @@ data=runesrequired,airrune,1,firerune,4,bloodrune,2
 //     two-handed ancient magicks cast animation; this repo's raw dump doesn't have it, so the closest
 //     real, confirmed-existing generic spellcasting animation is substituted. Swap out if the real tag
 //     turns up.
+// SOUND. Every one of the sixteen now carries sound_cast and sound_hit. They had almost none: the
+// four Ice rows shared one hit sound and had no cast sound, and all eight Smoke and Shadow rows were
+// silent from cast to impact - which is what "ancients have no audio" was. The samples were already
+// in pack/synth.pack and in synth/magic/{ice,blood,smoke,shadow}, sitting unreferenced: ice_cast,
+// shadow_cast, smoke_cast/smoke_cast2, and a per-tier impact for all four elements (the two OSRS
+// gives Smoke are used as rush/blitz and burst/barrage, which is how they sit in the pack). Blood
+// kept its cast sounds and gained the two impacts nothing had used - blood_burst_impact and
+// blood_barrage_impact, which were being played as the rush and blitz ones.
+//
 // Burst/Barrage tier "3x3 AoE" is NOT implemented - these spells work as single-target only against
 // the clicked npc for now (same damage/freeze/heal/poison as their tier, just not multi-target). True
 // AoE needs a "find npcs in radius" primitive this framework doesn't have yet.
@@ -704,7 +713,8 @@ data=maxhit,16
 data=anim,zaros_casting
 data=spotanim_proj,ice_rush_travel,43,31,51,16,-5,64,10
 data=spotanim_target,ice_rush_impact,92
-data=sound_hit,ice_magic_all
+data=sound_cast,ice_cast
+data=sound_hit,ice_rush_impact
 data=freeze_time,8
 data=continue_by_autocast,no
 data=runesrequired,waterrune,2,chaosrune,2,deathrune,2
@@ -721,7 +731,8 @@ data=maxhit,22
 data=anim,zaros_vertical_casting
 data=spotanim_proj,ice_burst_travel,43,31,51,16,-5,64,10
 data=spotanim_target,ice_burst_impact,92
-data=sound_hit,ice_magic_all
+data=sound_cast,ice_cast
+data=sound_hit,ice_burst_impact
 data=freeze_time,16
 data=continue_by_autocast,no
 data=aoe,1
@@ -739,7 +750,8 @@ data=maxhit,26
 data=anim,zaros_casting
 data=spotanim_proj,ice_blitz_travel,43,31,51,16,-5,64,10
 data=spotanim_target,ice_blitz_impact,92
-data=sound_hit,ice_magic_all
+data=sound_cast,ice_cast
+data=sound_hit,ice_blitz_impact
 data=freeze_time,24
 data=continue_by_autocast,no
 data=runesrequired,waterrune,3,bloodrune,2,deathrune,2
@@ -756,7 +768,8 @@ data=maxhit,30
 data=anim,zaros_vertical_casting
 data=spotanim_proj,ice_barrage_travel,43,31,51,16,-5,64,10
 data=spotanim_target,ice_barrage_impact,92
-data=sound_hit,ice_magic_all
+data=sound_cast,ice_cast
+data=sound_hit,ice_barrage_impact
 data=freeze_time,32
 data=continue_by_autocast,no
 data=aoe,1
@@ -794,7 +807,7 @@ data=maxhit,21
 data=anim,zaros_vertical_casting
 data=spotanim_target,spell_blood_burst_impact,92
 data=sound_cast,blood_rush_casting
-data=sound_hit,blood_rush_impact
+data=sound_hit,blood_burst_impact
 data=continue_by_autocast,yes
 data=aoe,1
 data=heal_percent,25
@@ -830,7 +843,7 @@ data=maxhit,29
 data=anim,zaros_vertical_casting
 data=spotanim_target,spell_blood_barrage_impact,92
 data=sound_cast,blood_cast
-data=sound_hit,blood_blitz_impact
+data=sound_hit,blood_barrage_impact
 data=continue_by_autocast,yes
 data=aoe,1
 data=heal_percent,25
@@ -846,6 +859,8 @@ data=levelrequired,50
 data=experience,3000
 data=maxhit,13
 data=anim,zaros_casting
+data=sound_cast,smoke_cast
+data=sound_hit,smoke_rush_impact
 data=spotanim_proj,smoke_rush_travel,43,31,51,16,-5,64,10
 data=spotanim_target,smoke_rush_impact,92
 data=continue_by_autocast,yes
@@ -864,6 +879,8 @@ data=levelrequired,62
 data=experience,3600
 data=maxhit,17
 data=anim,zaros_vertical_casting
+data=sound_cast,smoke_cast2
+data=sound_hit,smoke_burst_impact
 data=spotanim_proj,smoke_burst_travel,43,31,51,16,-5,64,10
 data=spotanim_target,smoke_burst_impact,92
 data=continue_by_autocast,yes
@@ -883,6 +900,8 @@ data=levelrequired,74
 data=experience,4200
 data=maxhit,23
 data=anim,zaros_casting
+data=sound_cast,smoke_cast
+data=sound_hit,smoke_blitz_impact
 data=spotanim_proj,smoke_blitz_travel,43,31,51,16,-5,64,10
 data=spotanim_target,smoke_blitz_impact,92
 data=continue_by_autocast,yes
@@ -901,6 +920,8 @@ data=levelrequired,86
 data=experience,4800
 data=maxhit,27
 data=anim,zaros_vertical_casting
+data=sound_cast,smoke_cast2
+data=sound_hit,smoke_barrage_impact
 data=spotanim_proj,smoke_barrage_travel,43,31,51,16,-5,64,10
 data=spotanim_target,smoke_barrage_impact,92
 data=continue_by_autocast,yes
@@ -920,6 +941,8 @@ data=levelrequired,52
 data=experience,3100
 data=maxhit,14
 data=anim,zaros_casting
+data=sound_cast,shadow_cast
+data=sound_hit,shadow_rush_impact
 data=spotanim_proj,shadow_rush_travel,43,31,51,16,-5,64,10
 data=spotanim_target,shadow_rush_impact,92
 data=continue_by_autocast,no
@@ -938,6 +961,8 @@ data=levelrequired,64
 data=experience,3700
 data=maxhit,18
 data=anim,zaros_vertical_casting
+data=sound_cast,shadow_cast
+data=sound_hit,shadow_burst_impact
 data=spotanim_target,shadow_burst_impact,92
 data=continue_by_autocast,no
 data=aoe,1
@@ -955,6 +980,8 @@ data=levelrequired,76
 data=experience,4300
 data=maxhit,24
 data=anim,zaros_casting
+data=sound_cast,shadow_cast
+data=sound_hit,shadow_blitz_impact
 data=spotanim_proj,shadow_blitz_travel,43,31,51,16,-5,64,10
 data=spotanim_target,shadow_blitz_impact,92
 data=continue_by_autocast,no
@@ -973,6 +1000,8 @@ data=levelrequired,88
 data=experience,4900
 data=maxhit,28
 data=anim,zaros_vertical_casting
+data=sound_cast,shadow_cast
+data=sound_hit,shadow_barrage_impact
 data=spotanim_target,shadow_barrage_impact,92
 data=continue_by_autocast,no
 data=aoe,1

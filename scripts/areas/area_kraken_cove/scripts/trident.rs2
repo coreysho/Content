@@ -128,7 +128,7 @@ if (%action_delay > map_clock) {
     p_opnpc(2);
     return;
 }
-%action_delay = add(map_clock, 4);
+%action_delay = add(map_clock, ^trident_attackrate);
 anim(human_trident_cast, 0);
 spotanim_pl(trident_casting, 92, 0);
 sound_synth(waterwave_cast_and_fire, 0, 0);
@@ -158,15 +158,8 @@ if (~player_npc_hit_roll_boosted(^magic_style, $mask_num, $mask_div) = true) {
     spotanim_npc(failedspell_impact, 92, $duration);
     ~npc_retaliate(0);
 }
-if (%trident_charges <= 0) {
-    %trident_charges = 0;
-    inv_setslot(worn, ^wearpos_rhand, trident_of_the_seas_uncharged, 1);
-    ~update_all(trident_of_the_seas);
-    mes("@red@Your trident has run out of charges.");
+if (~trident_spend_charge = false) {
     return;
-}
-if (%trident_charges = 100) {
-    mes("@red@Your trident has 100 charges left.");
 }
 p_opnpc(2);
 
@@ -186,3 +179,79 @@ if ($rhand = trident_of_the_seas_uncharged | ($rhand = trident_of_the_seas & %tr
     return(true);
 }
 return(false);
+
+// ---------------------------------------------------------------------------------------------
+// The cast, against another player - reached from [label,pvp_combat_start]
+// ---------------------------------------------------------------------------------------------
+// The PvM cast above, rewritten against the secondary player pointer. The structure is
+// pvp_ranged.rs2's: roll, then anim and sound on both sides, then the projectile, then the damage
+// and the retaliate queued on the flight time.
+//
+// It honours the two things a spell honours in PvP and a melee swing does not: the duel arena's
+// "no magic" and "flower power" options, and Protect from Magic's 40% reduction. Before this the
+// trident went down the melee path, so it was stopped by "no melee" duels and reduced by Protect
+// from Melee - both the wrong prayer and the wrong rule.
+[label,pvp_trident_attack]
+if (~duel_arena_magic_check = false) {
+    return;
+}
+if (.%death = ^true) {
+    p_stopaction;
+    return;
+}
+if (%action_delay > map_clock) {
+    p_opplayer(2); // it is guaranteed here that we are already within ap distance
+    return;
+}
+p_opplayer(2);
+~set_pk_vars;
+.if_close;
+%action_delay = add(map_clock, ^trident_attackrate);
+anim(human_trident_cast, 0);
+spotanim_pl(trident_casting, 92, 0);
+sound_synth(waterwave_cast_and_fire, 0, 0);
+.sound_synth(waterwave_cast_and_fire, 0, 0);
+def_int $duration = ~player_projectile(coord, .coord, .uid, trident_travel, 43, 31, 51, 16, -5, 64, 10);
+%trident_charges = sub(%trident_charges, 1);
+if (~pvp_hit_roll(^magic_style) = true) {
+    def_int $maxhit = max(0, sub(divide(stat(magic), 3), 5));
+    if (~.check_protect_prayer(^magic_style) = true) {
+        $maxhit = scale(6, 10, $maxhit); // reduction of 40%
+    }
+    def_int $damage = min(randominc($maxhit), .stat(hitpoints)); // tick eating
+    ~.pvp_damage(calc($duration / 30 + 1), $damage); // delayed an extra tick, as every pvp spell is
+    ~give_combat_experience_pvp(~trident_xp_style, $damage, ~pvp_xp_multiplier(~.player_combat_level));
+    both_heropoints($damage);
+    ~barrows_set_hit_player($damage, ^magic_style);
+    sound_synth(waterwave_hit, 0, $duration);
+    .sound_synth(waterwave_hit, 0, $duration);
+    .spotanim_pl(trident_impact, 92, $duration);
+    .queue*(pvp_retaliate, calc($duration / 30 + 1))(uid);
+} else {
+    sound_synth(spellfail, 1, $duration);
+    .sound_synth(spellfail, 1, $duration);
+    .spotanim_pl(failedspell_impact, 92, $duration);
+    .queue*(pvp_retaliate, 0)(uid); // splashing causes insta auto retal
+}
+if (~trident_spend_charge = false) {
+    return;
+}
+
+// Shared by both casts: one charge off the counter, the warning at 100, and the staff turning back
+// into the uncharged obj when it runs dry. It was written out twice before.
+//
+// Returns false when the trident just ran dry, because the caller must NOT re-target after that -
+// the staff is uncharged now and the next tick would go looking for an attack it cannot make.
+[proc,trident_spend_charge]()(boolean)
+if (%trident_charges <= 0) {
+    %trident_charges = 0;
+    inv_setslot(worn, ^wearpos_rhand, trident_of_the_seas_uncharged, 1);
+    ~update_all(trident_of_the_seas);
+    mes("@red@Your trident has run out of charges.");
+    p_stopaction;
+    return(false);
+}
+if (%trident_charges = 100) {
+    mes("@red@Your trident has 100 charges left.");
+}
+return(true);

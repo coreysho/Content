@@ -105,8 +105,13 @@ if ($eat_delay ! null) {
     %eat_delay = calc(map_clock + $eat_delay);
 }
 
+// The attack delay eating costs you is measured FROM NOW, and it never shortens a delay you are
+// already serving. The old line added $skill_delay to %action_delay, which is wrong twice over:
+// out of combat %action_delay is already in the past, so eating cost nothing at all; in combat
+// every bite pushed the same running total further out, so combo-eating stacked delay on delay
+// until the player stopped attacking altogether.
 if ($skill_delay ! null) {
-    %action_delay = calc(%action_delay + $skill_delay);
+    %action_delay = max(%action_delay, calc(map_clock + $skill_delay));
 }
 
 // consume effect

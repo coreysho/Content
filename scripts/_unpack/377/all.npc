@@ -44247,12 +44247,23 @@ vislevel=98
 // guess - the engine's default is 0 and an invented number would read as sourced.
 // Ahrim attacks with magic, and areas/area_barrows/scripts/barrows_combat.rs2 is what makes him
 // do it: a bare damagetype does not stop the engine handing him the melee AI every npc gets.
+//
+// ATTACKRANGE IS WHAT MAKES HIM CAST AT ALL. barrows_combat.rs2 puts him in applayer2 and handles
+// [ai_applayer2], and the engine only runs an ap trigger when Npc.inApproachDistance(type.attackrange,
+// target) passes (Npc.tryInteract). attackrange defaults to 0, and inApproachDistance returns false
+// outright when the npc and the player share a tile, so with no attackrange the test could never
+// pass and Ahrim stood next to the player doing nothing at all. Every other magic npc on the server
+// carries one - the dark wizards have attackrange=5 - and 10 is the cast range of an Old School
+// caster. maxrange goes with it: an ap npc gives up its target past maxrange+attackrange, and the
+// crypt is bigger than the default 7 that wanderrange 5 implies.
 hitpoints=100
 attack=1
 strength=1
 defence=100
 magic=100
 ranged=1
+attackrange=10
+maxrange=12
 param=attackrate,6
 param=magicattack,73
 param=rangeattack,-19
@@ -44376,12 +44387,17 @@ vislevel=98
 // what ~npc_ranged_maxhit reads, and the wiki's +55 through that formula gives his max hit of 20.
 // param=proj_travel is the bolt itself - the cache's own crossbow bolt, since barrows_karil_
 // tainted_shot is the SET EFFECT's graphic and not his ammunition.
+//
+// attackrange/maxrange as on Ahrim above, and for the same reason: [ai_applayer2] never fires
+// without an attackrange, so Karil walked up and stood there. 10 is a crossbow's reach.
 hitpoints=100
 attack=1
 strength=1
 defence=100
 magic=1
 ranged=100
+attackrange=10
+maxrange=12
 param=attackrate,4
 param=magicattack,-26
 param=rangeattack,134

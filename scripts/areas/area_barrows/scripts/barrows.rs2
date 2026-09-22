@@ -111,8 +111,20 @@ p_delay(1);
 npc_add(coord, $brother, ^barrows_brother_life);
 %npc_aggressive_player = uid;
 %aggressive_npc = npc_uid;
-npc_setmode(opplayer2);
+~barrows_brother_engage;
 ~mesbox("<nc_name($brother)> climbs out of the sarcophagus!");
+
+// THE MODE A BROTHER WAKES UP IN. Four of them swing, so opplayer2 - walk up and hit - is theirs.
+// Ahrim casts and Karil shoots, and their attacks hang off [ai_applayer2] in barrows_combat.rs2, so
+// they start in applayer2 and open fire from wherever they are. Waking them in opplayer2 and letting
+// [ai_opplayer2] switch them over worked only after they had already walked into melee range, which
+// is the one place a caster and an archer should never be.
+[proc,barrows_brother_engage]
+if (npc_type = barrows_ahrim | npc_type = barrows_karil) {
+    npc_setmode(applayer2);
+    return;
+}
+npc_setmode(opplayer2);
 
 [oploc1,barrow_ahrim_sarcophagus] ~barrows_search(barrows_ahrim, ^barrows_bit_ahrim);
 [oploc1,barrow_dharok_sarcophagus] ~barrows_search(barrows_dharok, ^barrows_bit_dharok);
