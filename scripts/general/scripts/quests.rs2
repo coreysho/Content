@@ -393,6 +393,9 @@ if (%forget_quest >= ^forget_complete) {
 if (%swansong >= ^swan_complete) {
     $questpoints = add($questpoints, ^swan_questpoints);
 }
+if (%fairy_farmers_quest >= ^fairy_complete) {
+    $questpoints = add($questpoints, ^fairy_questpoints);
+}
 // Recipe for Disaster is ten sub-quests worth one point each, tracked as ten bits in
 // %hundred_subquest_tally, so it counts bits rather than comparing a stage to a completion value.
 $questpoints = add($questpoints, ~hundred_subquests_done);
@@ -440,6 +443,7 @@ $total = add($total, ^fever_questpoints);
 $total = add($total, ^misc_questpoints);
 $total = add($total, ^forget_questpoints);
 $total = add($total, ^swan_questpoints);
+$total = add($total, ^fairy_questpoints);
 $total = add($total, ^runemysteries_questpoints);
 $total = add($total, ^doric_questpoints);
 $total = add($total, ^cook_questpoints);
@@ -622,6 +626,7 @@ if (testbit(%ibanmulti, ^upass_started_bit) = ^true & %upass ! ^upass_complete) 
 ~send_quest_progress_colour(questlist:misc, %misc_quest, ^misc_complete);
 ~send_quest_progress_colour(questlist:forget, %forget_quest, ^forget_complete);
 ~send_quest_progress_colour(questlist:swansong, %swansong, ^swan_complete);
+~send_quest_progress_colour(questlist:fairy_farmers, %fairy_farmers_quest, ^fairy_complete);
 if_settab(questlist, ^tab_quest_journal);
 
 if (%drunkmonkquest >= ^drunkmonk_spoken_to_omad) {
