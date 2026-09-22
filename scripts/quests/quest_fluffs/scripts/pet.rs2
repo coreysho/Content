@@ -1,11 +1,6 @@
-[ai_timer,_petcat]
-if (finduid(%npc_attacking_uid) = true) {
-    if (coordy(coord) ! coordy(npc_coord) | npc_range(coord) > 15) {
-        npc_tele(map_findsquare(coord, 1, 1, ^map_findsquare_lineofwalk));
-    }
-    return;
-}
-npc_del;
+// Keeping up - ~follower_keepup in npc/scripts/follower.rs2, shared with the boss and skilling
+// pets. Until the cats were given timer=1 on their npc records this never ran at all.
+[ai_timer,_petcat] ~follower_keepup;
 
 [timer,petcat_growth]
 if (%follower_uid = null) {

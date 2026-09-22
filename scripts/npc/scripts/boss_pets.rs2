@@ -41,18 +41,9 @@ inv_add(inv, npc_param(pet_item_id), 1);
 sound_synth(pick, 1, 0);
 npc_del;
 
-// Keeping up. This is the body of [ai_timer,_petcat] - if the owner is more than 15 tiles away or on
-// a different floor, the pet teleports to them; if the owner is gone, the pet despawns. It only runs
-// because boss_pets.npc sets timer=20; the cache's own cats never set it, so their copy of this has
-// never run. See the note in that file.
-[ai_timer,_bosspet]
-if (finduid(%npc_attacking_uid) = true) {
-    if (coordy(coord) ! coordy(npc_coord) | npc_range(coord) > 15) {
-        npc_tele(map_findsquare(coord, 1, 1, ^map_findsquare_lineofwalk));
-    }
-    return;
-}
-npc_del;
+// Keeping up - ~follower_keepup in npc/scripts/follower.rs2, shared with the cats. This was a copy
+// of the cats' one; the two have the same job and now have one body.
+[ai_timer,_bosspet] ~follower_keepup;
 
 // --- The drop ---
 // Called from each boss's death table with ITS OWN rate: 1 in 3,000 for the KBD / Kalphite Queen /
