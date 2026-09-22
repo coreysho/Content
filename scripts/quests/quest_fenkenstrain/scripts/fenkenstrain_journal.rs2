@@ -1,0 +1,59 @@
+[if_button,questlist:creatureoffenkenstrain]
+def_string $text;
+
+switch_int (%fenk_quest) {
+    case ^fenk_not_started :
+        $text = "@dbl@I can start this quest by speaking to @dre@Dr Fenkenstrain|";
+        $text = append($text, "@dbl@in his castle @dre@north of Canifis|");
+        $text = append($text, "@dbl@I will need a @dre@spade@dbl@, a @dre@silver bar@dbl@, a @dre@needle and|@dre@thread@dbl@, and an @dre@amulet of ghostspeak");
+
+    case ^fenk_started :
+        $text = "@str@Dr Fenkenstrain is building a man out of other people and|";
+        $text = append($text, "@str@has hired me to fetch the parts.|");
+        $text = append($text, "@dbl@I need @dre@arms@dbl@, @dre@legs@dbl@ and a @dre@torso@dbl@ from the graves|");
+        $text = append($text, "@dbl@The @dre@head@dbl@ is in the @dre@mausoleum@dbl@, behind a memorial that|");
+        $text = append($text, "@dbl@will not shift");
+
+    case ^fenk_parts_gathered :
+        $text = "@str@I have all four parts, and a brain to go in the head.|";
+        $text = append($text, "@dbl@I should put the @dre@brain@dbl@ in the @dre@head@dbl@, and sew the body|");
+        $text = append($text, "@dbl@together on the @dre@slab@dbl@ with a @dre@needle and thread");
+
+    case ^fenk_body_sewn :
+        $text = "@str@The body is sewn together and lying on the slab.|";
+        $text = append($text, "@dbl@The @dre@lightning conductor@dbl@ on the roof is broken. I should|");
+        $text = append($text, "@dbl@cast a new one from a @dre@silver bar@dbl@ and fit it");
+
+    case ^fenk_conductor_fitted :
+        $text = "@str@The conductor is back on the roof and the clouds have not|";
+        $text = append($text, "@str@moved all day.|");
+        $text = append($text, "@dbl@I should tell @dre@Dr Fenkenstrain@dbl@ that it is ready");
+
+    case ^fenk_creature_alive :
+        $text = "@str@The thing on the slab is alive, and it did not look at the|";
+        $text = append($text, "@str@doctor the way a new-made thing should.|");
+        $text = append($text, "@dbl@I should talk to the @dre@creature");
+
+    case ^fenk_creature_spoke :
+        $text = "@str@The creature says it was Lord Rologarth, the owner of|";
+        $text = append($text, "@str@this estate, and that Fenkenstrain murdered him for it.|");
+        $text = append($text, "@str@Nobody will take the word of a thing that was sewn|");
+        $text = append($text, "@str@together last week.|");
+        $text = append($text, "@dbl@I should find something in the doctor's @dre@own hand");
+
+    case ^fenk_has_proof :
+        $text = "@str@Fenkenstrain's journal admits all of it - the murder, the|";
+        $text = append($text, "@str@estate, and what he did with the body afterwards.|");
+        $text = append($text, "@dbl@I should put it to @dre@Dr Fenkenstrain@dbl@ himself");
+
+    case ^fenk_complete :
+        $text = "@str@Dr Fenkenstrain hired me to rob graves for him and built a|";
+        $text = append($text, "@str@man out of what I brought back. The man turned out to be|");
+        $text = append($text, "@str@Lord Rologarth, whose castle it was and whom the doctor had|");
+        $text = append($text, "@str@murdered for it.|");
+        $text = append($text, "@str@Rologarth has his name and his estate back. Fenkenstrain|");
+        $text = append($text, "@str@has bolted himself into his own tower.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+}
+
+~quest_journal("Creature of Fenkenstrain", $text);
