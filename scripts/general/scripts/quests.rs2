@@ -339,6 +339,9 @@ if (%morttonquest >= ^mortton_complete) {
 if (%garden_quest >= ^garden_complete) {
     $questpoints = add($questpoints, ^garden_questpoints);
 }
+if (%wanted_main >= ^wanted_complete) {
+    $questpoints = add($questpoints, ^wanted_questpoints);
+}
 // Recipe for Disaster is ten sub-quests worth one point each, tracked as ten bits in
 // %hundred_subquest_tally, so it counts bits rather than comparing a stage to a completion value.
 $questpoints = add($questpoints, ~hundred_subquests_done);
@@ -368,6 +371,7 @@ $total = add($total, ^handsand_questpoints);
 $total = add($total, ^soulbane_questpoints);
 $total = add($total, ^mortton_questpoints);
 $total = add($total, ^garden_questpoints);
+$total = add($total, ^wanted_questpoints);
 $total = add($total, ^runemysteries_questpoints);
 $total = add($total, ^doric_questpoints);
 $total = add($total, ^cook_questpoints);
@@ -532,6 +536,7 @@ if (testbit(%ibanmulti, ^upass_started_bit) = ^true & %upass ! ^upass_complete) 
 ~send_quest_progress_colour(questlist:soulbane, %soulbane_prog, ^soulbane_complete);
 ~send_quest_progress_colour(questlist:mortton, %morttonquest, ^mortton_complete);
 ~send_quest_progress_colour(questlist:garden, %garden_quest, ^garden_complete);
+~send_quest_progress_colour(questlist:wanted, %wanted_main, ^wanted_complete);
 if_settab(questlist, ^tab_quest_journal);
 
 if (%drunkmonkquest >= ^drunkmonk_spoken_to_omad) {

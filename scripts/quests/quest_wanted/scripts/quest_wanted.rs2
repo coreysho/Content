@@ -1,0 +1,259 @@
+// Wanted! - the commorb and the hunt.
+//
+// wanted_crystal_ball is named "Commorb" and carries iop1=Scan, iop2=Contact and iop4=Playback.
+// Those three ops are the whole tracking mechanic and none of it had to be invented.
+
+// =========================================================================== Scan
+// A scan clears wherever Solus was and sets a new mission bit. Each [wanted_solusN] shell declares
+// multinpc=1 and nothing else, so the bit IS his position: set it and he is there, clear it and he
+// is nowhere.
+[opheld1,wanted_crystal_ball]
+if (%wanted_main < ^wanted_briefed) {
+    ~mesbox("The orb lights up and stays blank. Savant has not put anything into it yet.");
+    return;
+}
+if (%wanted_main >= ^wanted_cornered) {
+    ~mesbox("The orb has nothing left to find. Sir Tiffy is the one waiting now.");
+    return;
+}
+if (~wanted_current_location > 0) {
+    ~mesbox("The orb still has a fix on him. <~wanted_place_name(~wanted_current_location)>, and he has not moved since you last looked.");
+    return;
+}
+if_close;
+mes("You turn the orb over and it starts to warm up.");
+p_delay(3);
+def_int $place = ~wanted_pick_location;
+if ($place = 0) {
+    ~mesbox("The orb finds nothing. He has run out of places to be, which means he is standing still somewhere and waiting for you.");
+    return;
+}
+@wanted_set_location($place, ^wanted_on);
+if (%wanted_main = ^wanted_briefed) {
+    %wanted_main = ^wanted_hunting;
+    ~send_quest_progress(questlist:wanted, %wanted_main, ^wanted_complete);
+}
+~mesbox("The orb settles on a direction. <~wanted_place_name($place)>.");
+
+// =========================================================================== Contact
+[opheld2,wanted_crystal_ball]
+if (%wanted_main >= ^wanted_cornered) {
+    ~chatnpc_specific("Savant", wanted_savant, "<p,happy>You got him. I have logged it. Sir Tiffy will want the hat.");
+    return;
+}
+if (%wanted_main = ^wanted_recruited) {
+    @wanted_briefing;
+}
+~chatnpc_specific("Savant", wanted_savant, "<p,neutral>Scan when you are ready to move. He cannot hold a teleport and a conversation at the same time, which is the only edge we have.");
+if (~wanted_sightings >= 1) {
+    ~chatnpc_specific("Savant", wanted_savant, "<p,neutral>You have had <tostring(~wanted_sightings)> sightings out of the <tostring(^wanted_sightings_needed)> I need. Every one of them costs him a jump.");
+}
+
+[label,wanted_briefing]
+~chatnpc_specific("Savant", wanted_savant, "<p,neutral>Initiate. I am Savant. I sit in a room and I am extremely good at it.");
+~chatplayer("<p,quiz>What am I looking for?");
+~chatnpc_specific("Savant", wanted_savant, "<p,sad>Solus Dellagar. He killed a town. Not a person, a town, and then he went somewhere and we have been looking ever since.");
+~chatnpc_specific("Savant", wanted_savant, "<p,neutral>He teleports constantly and he is better at it than anyone alive. We cannot catch him. What we CAN do is make him spend the energy.");
+~chatnpc_specific("Savant", wanted_savant, "<p,neutral>Scan. Go where the orb says. Talk to him. He will jump rather than fight you, and every jump costs him. Do it <tostring(^wanted_sightings_needed)> times and he will not be able to jump again.");
+%wanted_contacted_savant = ^wanted_on;
+%wanted_main = ^wanted_briefed;
+~send_quest_progress(questlist:wanted, %wanted_main, ^wanted_complete);
+
+// =========================================================================== Playback
+[opheld4,wanted_crystal_ball]
+if (%wanted_contacted_savant = ^wanted_off) {
+    ~mesbox("There is nothing recorded on it yet.");
+    return;
+}
+~mesbox("SOLUS DELLAGAR | Warrior mage. Responsible for the destruction of an entire settlement. | Teleports on sight and will not stand and fight. | Make him spend the energy. Talk to him wherever the orb finds him and he will jump rather than answer.");
+
+// =========================================================================== Solus
+// wanted_solus carries op1=Talk-to and no attack option at all, so every confrontation is a
+// conversation. He jumps rather than answer, which is the quest.
+[opnpc1,wanted_solus]
+if (%wanted_main >= ^wanted_cornered) {
+    ~chatnpc("<p,angry>...");
+    return;
+}
+def_int $place = ~wanted_current_location;
+if ($place = 0) {
+    ~chatnpc("<p,angry>You are not even supposed to be able to see me.");
+    return;
+}
+if (~wanted_sightings < sub(^wanted_sightings_needed, 1)) {
+    @wanted_taunt($place);
+}
+@wanted_final($place);
+
+[label,wanted_taunt](int $place)
+switch_int (random(3)) {
+    case 0 : ~chatnpc("<p,angry>An initiate. They sent an INITIATE.");
+    case 1 : ~chatnpc("<p,laugh>Do you know how many of you there have been? Neither do I. That is the point.");
+    case 2 : ~chatnpc("<p,angry>Go back and tell the old man on the bench that I am not interested.");
+}
+if_close;
+mes("He is gone before you have finished drawing breath.");
+p_delay(2);
+@wanted_set_location($place, ^wanted_off);
+@wanted_mark_done($place);
+stat_advance(magic, 500);
+~mesbox("That is one more jump he has had to pay for. <tostring(~wanted_sightings)> of <tostring(^wanted_sightings_needed)>.");
+
+[label,wanted_final](int $place)
+~chatnpc("<p,angry>Again. You again.");
+~chatplayer("<p,neutral>You look tired.");
+~chatnpc("<p,angry>I am NOT-");
+if_close;
+mes("He reaches for the teleport and it does not come. He tries again and it still does not come.");
+p_delay(4);
+mes("What happens next takes rather less time than he expects.");
+p_delay(3);
+@wanted_set_location($place, ^wanted_off);
+@wanted_mark_done($place);
+%wanted_main = ^wanted_cornered;
+~send_quest_progress(questlist:wanted, %wanted_main, ^wanted_complete);
+stat_advance(magic, 5000);
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, wanted_solus_trophy, 1);
+} else {
+    obj_add(coord, wanted_solus_trophy, 1, ^lootdrop_duration);
+}
+~mesbox("His hat is the only part of him still worth carrying. Sir Tiffy will want it.");
+
+// The decoy at location 3. She is a plain Woman with op1=Talk-to, keyed on the same mission bit as
+// Solus, so she is only ever there when he is.
+[opnpc1,wanted_solus_fake_woman]
+~chatplayer("<p,quiz>Have you seen a man in a purple hat?");
+~chatnpc("<p,confused>There are a lot of men here. Most of them have hats.");
+~chatnpc("<p,neutral>There was one over there a moment ago who looked like he was about to be sick. Or leave. One of the two.");
+
+// =========================================================================== bookkeeping
+[proc,wanted_current_location]()(int)
+def_int $i = ^wanted_first_location;
+while ($i <= ^wanted_last_location) {
+    if (~wanted_location_on($i) = true) {
+        return($i);
+    }
+    $i = calc($i + 1);
+}
+return(0);
+
+// A scan never sends the player somewhere they have already been, so the hunt cannot loop.
+[proc,wanted_pick_location]()(int)
+def_int $free = 0;
+def_int $i = ^wanted_first_location;
+while ($i <= ^wanted_last_location) {
+    if (~wanted_location_done($i) = false) {
+        $free = calc($free + 1);
+    }
+    $i = calc($i + 1);
+}
+if ($free = 0) {
+    return(0);
+}
+def_int $pick = calc(random($free) + 1);
+$i = ^wanted_first_location;
+while ($i <= ^wanted_last_location) {
+    if (~wanted_location_done($i) = false) {
+        $pick = calc($pick - 1);
+        if ($pick = 0) {
+            return($i);
+        }
+    }
+    $i = calc($i + 1);
+}
+return(0);
+
+[proc,wanted_sightings]()(int)
+def_int $n = 0;
+def_int $i = ^wanted_first_location;
+while ($i <= ^wanted_last_location) {
+    if (~wanted_location_done($i) = true) {
+        $n = calc($n + 1);
+    }
+    $i = calc($i + 1);
+}
+return($n);
+
+[proc,wanted_location_on](int $i)(boolean)
+switch_int ($i) {
+    case 1 : if (%wanted_mission1 = ^wanted_on) { return(true); }
+    case 2 : if (%wanted_mission2 = ^wanted_on) { return(true); }
+    case 3 : if (%wanted_mission3 = ^wanted_on) { return(true); }
+    case 4 : if (%wanted_mission4 = ^wanted_on) { return(true); }
+    case 5 : if (%wanted_mission5 = ^wanted_on) { return(true); }
+    case 6 : if (%wanted_mission6 = ^wanted_on) { return(true); }
+    case 7 : if (%wanted_mission7 = ^wanted_on) { return(true); }
+    case 8 : if (%wanted_mission8 = ^wanted_on) { return(true); }
+    case 9 : if (%wanted_mission9 = ^wanted_on) { return(true); }
+    case 10 : if (%wanted_mission10 = ^wanted_on) { return(true); }
+    case 11 : if (%wanted_mission11 = ^wanted_on) { return(true); }
+    case 12 : if (%wanted_mission12 = ^wanted_on) { return(true); }
+}
+return(false);
+
+[proc,wanted_location_done](int $i)(boolean)
+switch_int ($i) {
+    case 1 : if (%wanted_mission1complete = ^wanted_on) { return(true); }
+    case 2 : if (%wanted_mission2complete = ^wanted_on) { return(true); }
+    case 3 : if (%wanted_mission3complete = ^wanted_on) { return(true); }
+    case 4 : if (%wanted_mission4complete = ^wanted_on) { return(true); }
+    case 5 : if (%wanted_mission5complete = ^wanted_on) { return(true); }
+    case 6 : if (%wanted_mission6complete = ^wanted_on) { return(true); }
+    case 7 : if (%wanted_mission7complete = ^wanted_on) { return(true); }
+    case 8 : if (%wanted_mission8complete = ^wanted_on) { return(true); }
+    case 9 : if (%wanted_mission9complete = ^wanted_on) { return(true); }
+    case 10 : if (%wanted_mission10complete = ^wanted_on) { return(true); }
+    case 11 : if (%wanted_mission11complete = ^wanted_on) { return(true); }
+    case 12 : if (%wanted_mission12complete = ^wanted_on) { return(true); }
+}
+return(false);
+
+[label,wanted_set_location](int $i, int $value)
+switch_int ($i) {
+    case 1 : %wanted_mission1 = $value;
+    case 2 : %wanted_mission2 = $value;
+    case 3 : %wanted_mission3 = $value;
+    case 4 : %wanted_mission4 = $value;
+    case 5 : %wanted_mission5 = $value;
+    case 6 : %wanted_mission6 = $value;
+    case 7 : %wanted_mission7 = $value;
+    case 8 : %wanted_mission8 = $value;
+    case 9 : %wanted_mission9 = $value;
+    case 10 : %wanted_mission10 = $value;
+    case 11 : %wanted_mission11 = $value;
+    case 12 : %wanted_mission12 = $value;
+}
+
+[label,wanted_mark_done](int $i)
+switch_int ($i) {
+    case 1 : %wanted_mission1complete = ^wanted_on;
+    case 2 : %wanted_mission2complete = ^wanted_on;
+    case 3 : %wanted_mission3complete = ^wanted_on;
+    case 4 : %wanted_mission4complete = ^wanted_on;
+    case 5 : %wanted_mission5complete = ^wanted_on;
+    case 6 : %wanted_mission6complete = ^wanted_on;
+    case 7 : %wanted_mission7complete = ^wanted_on;
+    case 8 : %wanted_mission8complete = ^wanted_on;
+    case 9 : %wanted_mission9complete = ^wanted_on;
+    case 10 : %wanted_mission10complete = ^wanted_on;
+    case 11 : %wanted_mission11complete = ^wanted_on;
+    case 12 : %wanted_mission12complete = ^wanted_on;
+}
+
+[proc,wanted_place_name](int $i)(string)
+switch_int ($i) {
+    case 1 : return("Yanille");
+    case 2 : return("west Ardougne");
+    case 3 : return("north Ardougne");
+    case 4 : return("Seers' Village");
+    case 5 : return("Catherby");
+    case 6 : return("Rimmington");
+    case 7 : return("the road north of Falador");
+    case 8 : return("the edge of the wilderness");
+    case 9 : return("Port Sarim");
+    case 10 : return("Falador");
+    case 11 : return("Lumbridge");
+    case 12 : return("the road east of Varrock");
+}
+return("nowhere the orb can name");

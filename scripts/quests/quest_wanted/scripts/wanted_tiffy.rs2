@@ -1,0 +1,72 @@
+// Wanted! - Sir Tiffy Cashien.
+//
+// Tiffy is rd_teleporter_guy and already has [opnpc1] in quests/quest_rd/scripts/quest_rd.rs2 - a
+// trigger cannot be declared twice - so this hooks in ahead of Recruitment Drive's handler and
+// hands it straight back the moment this quest has nothing to say.
+
+[proc,wanted_tiffy_wants]()(boolean)
+if (%rd_main ! ^recruitmentdrive_complete) {
+    return(false);
+}
+switch_int (%wanted_main) {
+    case ^wanted_not_started : return(true);
+    case ^wanted_recruited : return(true);
+    case ^wanted_cornered : return(true);
+}
+return(false);
+
+[label,wanted_tiffy]
+switch_int (%wanted_main) {
+    case ^wanted_not_started : @wanted_tiffy_start;
+    case ^wanted_recruited : @wanted_tiffy_waiting;
+    case ^wanted_cornered : @wanted_tiffy_finish;
+}
+
+[label,wanted_tiffy_start]
+~chatplayer("<p,happy>Hello Sir Tiffy.");
+~chatnpc("<p,happy>Ah, our newest initiate! Do sit down. Mind the pigeons.");
+~chatnpc("<p,neutral>Now. You passed the tests, which means you are clever, which means I am going to use you for something unpleasant.");
+switch_int (~p_choice2("Go on.", 1, "I'd rather sit with the pigeons.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>I'd rather sit with the pigeons.");
+        ~chatnpc("<p,laugh>So would I, dear boy. So would I.");
+        return;
+    case 1 :
+        ~chatplayer("<p,neutral>Go on.");
+}
+~chatnpc("<p,sad>There is a man called Solus Dellagar. Some years ago he destroyed a town. The whole of it, at once, on his own.");
+~chatnpc("<p,neutral>We have not been able to find him since, because he teleports the instant anyone gets close and he is better at it than anybody in the order.");
+~chatplayer("<p,quiz>So how do I find him?");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>With this. Which you cannot carry, because your hands are full. Do come back.");
+    return;
+}
+inv_add(inv, wanted_crystal_ball, 1);
+%wanted_main = ^wanted_recruited;
+~send_quest_progress(questlist:wanted, %wanted_main, ^wanted_complete);
+~chatnpc("<p,happy>A commorb. Scan with it to find him, contact with it to reach Savant, and playback if you forget what I have just said, which you will.");
+~chatnpc("<p,neutral>Contact Savant first. She does the thinking and I do the bench.");
+
+[label,wanted_tiffy_waiting]
+~chatnpc("<p,neutral>Contact Savant on the orb. She will tell you what I cannot be bothered to.");
+
+[label,wanted_tiffy_finish]
+if (inv_total(inv, wanted_solus_trophy) = 0) {
+    ~chatnpc("<p,neutral>You have done it and you have not brought me the hat. Bring me the hat.");
+    return;
+}
+~chatplayer("<p,neutral>It's done.");
+if_close;
+mes("Tiffy turns the hat over twice and does not say anything for a while.");
+p_delay(4);
+~chatnpc("<p,sad>Eleven years. Eleven years and a hat.");
+~chatnpc("<p,happy>You will forgive me if I do not make a speech. Consider yourself properly one of us.");
+inv_del(inv, wanted_solus_trophy, 1);
+@wanted_finish;
+
+[label,wanted_finish]
+%wanted_main = ^wanted_complete;
+stat_advance(magic, 180000);
+stat_advance(hitpoints, 50000);
+session_log(^log_adventure, "Quest complete: Wanted!");
+~send_quest_complete(questlist:wanted, wanted_solus_trophy, 200, ^wanted_questpoints, "You have completed\\nWanted!", "1 Quest Point|18,000 Magic XP|5,000 Hitpoints XP|The Temple Knights want you");
