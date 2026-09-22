@@ -1,0 +1,56 @@
+[if_button,questlist:zogre]
+def_string $text;
+
+switch_int (%zogre) {
+    case ^zogre_not_started :
+        $text = "@dbl@I can start this quest by speaking to @dre@Grish@dbl@ at|@dre@Jiggig@dbl@, south of the Feldip Hills|";
+        $text = append($text, "@dbl@I will need to be able to defeat a @dre@level 111 opponent");
+
+    case ^zogre_warned :
+        $text = "@str@The ogre dead at Jiggig will not stay buried. Grish says|";
+        $text = append($text, "@str@somebody took something out of the deepest tomb and woke|");
+        $text = append($text, "@str@everything up.|");
+        $text = append($text, "@dbl@I should get into the @dre@burial tomb@dbl@ - the coffins at|");
+        $text = append($text, "@dbl@Jiggig open with an @dre@ogre coffin key@dbl@, which the zogres|");
+        $text = append($text, "@dbl@themselves carry");
+
+    case ^zogre_in_tomb :
+        $text = "@str@I am in the burial tomb beneath Jiggig.|";
+        $text = append($text, "@dbl@I should @dre@search the coffins@dbl@ and anything else down here|");
+        $text = append($text, "@dbl@that does not belong to an ogre");
+
+    case ^zogre_found_evidence :
+        $text = "@str@A dead man from Yanille named Brentle Vahn, a focusing|";
+        $text = append($text, "@str@prism, and a torn page of raising-spells.|");
+        $text = append($text, "@dbl@I should show them to @dre@Zavistic Rarve@dbl@ at the @dre@Yanille|@dre@wizards' guild");
+
+    case ^zogre_has_potion :
+        $text = "@str@Rarve says the trail leads to Sithik Ints, a portrait|";
+        $text = append($text, "@str@painter who has been selling maps of places he has never|");
+        $text = append($text, "@str@been. He will deny everything.|");
+        $text = append($text, "@dbl@Rarve has given me a @dre@strange potion@dbl@ for him. Sithik is|");
+        $text = append($text, "@dbl@@dre@upstairs in bed@dbl@, south-east of the guild");
+
+    case ^zogre_sithik_confessed :
+        $text = "@str@Sithik, now an ogre and extremely unhappy about it, admits|";
+        $text = append($text, "@str@he sold the location of an ogre helm in the deepest|");
+        $text = append($text, "@str@chamber. Something called Slash Bash is guarding it now.|");
+        $text = append($text, "@dbl@I should @dre@ring the bell@dbl@ outside the guild, and then go and|");
+        $text = append($text, "@dbl@deal with @dre@Slash Bash");
+
+    case ^zogre_bash_dead :
+        $text = "@str@Slash Bash is dead and the ogre artefact is mine.|";
+        $text = append($text, "@dbl@I should take it back to @dre@Grish");
+
+    case ^zogre_complete :
+        $text = "@str@The ogre dead at Jiggig would not stay buried, because a|";
+        $text = append($text, "@str@portrait painter from Yanille had sold the location of an|");
+        $text = append($text, "@str@ancestral helm to whoever would pay for it.|");
+        $text = append($text, "@str@A man called Brentle Vahn went in after it and never came|");
+        $text = append($text, "@str@out. I killed what was guarding it and gave the helm back|");
+        $text = append($text, "@str@to Grish.|");
+        $text = append($text, "@str@Sithik Ints is, for the moment, an ogre.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+}
+
+~quest_journal("Zogre Flesh Eaters", $text);
