@@ -1,0 +1,307 @@
+// Mourning's End Part II - a temple built round a beam of light, and one hole in one wall that the
+// light has to come out of.
+
+// =========================================================================== the mirrors
+// Five slots, eight bits each: six bits of pillar id and two of rotation. mourning_temple_mirrors_a
+// holds four of them and _b the fifth.
+[proc,mt_slot_read](int $slot)(int)
+if ($slot < 4) {
+    return(getbit_range(%mourning_temple_mirrors_a, multiply($slot, 8), add(multiply($slot, 8), 7)));
+}
+return(getbit_range(%mourning_temple_mirrors_b, 0, 7));
+
+[proc,mt_slot_write](int $slot, int $value)()
+if ($slot < 4) {
+    %mourning_temple_mirrors_a = setbit_range_toint(%mourning_temple_mirrors_a, $value, multiply($slot, 8), add(multiply($slot, 8), 7));
+    return;
+}
+%mourning_temple_mirrors_b = setbit_range_toint(%mourning_temple_mirrors_b, $value, 0, 7);
+
+// Returns the rotation PLUS ONE, so that zero can mean "no mirror on this pillar".
+[proc,mt_mirror_at](int $pillar)(int)
+def_int $i = 0;
+while ($i < ^mt_mirror_slots) {
+    def_int $v = ~mt_slot_read($i);
+    if (getbit_range($v, 2, 7) = $pillar) {
+        return(add(and($v, 3), 1));
+    }
+    $i = add($i, 1);
+}
+return(0);
+
+[proc,mt_mirror_count]()(int)
+def_int $i = 0;
+def_int $n = 0;
+while ($i < ^mt_mirror_slots) {
+    if (getbit_range(~mt_slot_read($i), 2, 7) > 0) { $n = add($n, 1); }
+    $i = add($i, 1);
+}
+return($n);
+
+[proc,mt_mirror_put](int $pillar, int $rot)(boolean)
+def_int $i = 0;
+while ($i < ^mt_mirror_slots) {
+    def_int $v = ~mt_slot_read($i);
+    if (getbit_range($v, 2, 7) = $pillar) {
+        ~mt_slot_write($i, add(multiply($pillar, 4), $rot));
+        return(true);
+    }
+    $i = add($i, 1);
+}
+$i = 0;
+while ($i < ^mt_mirror_slots) {
+    if (getbit_range(~mt_slot_read($i), 2, 7) = 0) {
+        ~mt_slot_write($i, add(multiply($pillar, 4), $rot));
+        return(true);
+    }
+    $i = add($i, 1);
+}
+return(false);
+
+[proc,mt_mirror_clear](int $pillar)(boolean)
+def_int $i = 0;
+while ($i < ^mt_mirror_slots) {
+    if (getbit_range(~mt_slot_read($i), 2, 7) = $pillar) {
+        ~mt_slot_write($i, 0);
+        return(true);
+    }
+    $i = add($i, 1);
+}
+return(false);
+
+// Silvered on one side, so three of the four rotations do nothing to any given beam.
+[proc,mt_reflect](int $rot, int $dir)(int)
+switch_int ($rot) {
+    case 0 :
+        if ($dir = ^mt_dir_east) { return(^mt_dir_north); }
+        if ($dir = ^mt_dir_south) { return(^mt_dir_west); }
+    case 1 :
+        if ($dir = ^mt_dir_west) { return(^mt_dir_north); }
+        if ($dir = ^mt_dir_south) { return(^mt_dir_east); }
+    case 2 :
+        if ($dir = ^mt_dir_west) { return(^mt_dir_south); }
+        if ($dir = ^mt_dir_north) { return(^mt_dir_east); }
+    case 3 :
+        if ($dir = ^mt_dir_east) { return(^mt_dir_south); }
+        if ($dir = ^mt_dir_north) { return(^mt_dir_west); }
+}
+return(0);
+
+// =========================================================================== the trace
+// Clear everything, then walk the beam from the entry until it stops, leaves the temple, or gets
+// out of the hole in the west wall. Every segment and every pillar it touches is lit as it goes,
+// and those varbits are transmitted, so the client draws exactly the path the server walked.
+[proc,mt_trace]()(boolean)
+~m2_dark;
+~m2_pillars_dark;
+def_int $p = ^mt_pillar_entry;
+def_int $d = ^mt_entry_dir;
+def_int $steps = 0;
+~m2_pillar_up($p, ^mt_colour_white);
+while ($steps < ^mt_trace_steps) {
+    $steps = add($steps, 1);
+    // The shaft is a chute, not a junction: light that reaches the top-floor shaft pillar falls two
+    // floors onto the same tile and leaves west along the bottom corridor.
+    if ($p = ^mt_pillar_shaft_top) {
+        $p = ^mt_pillar_shaft_bottom;
+        $d = ^mt_dir_west;
+        ~m2_pillar_up($p, ^mt_colour_white);
+    } else {
+        def_int $rot = ~mt_mirror_at($p);
+        if ($rot > 0) {
+            $d = ~mt_reflect(sub($rot, 1), $d);
+            if ($d = 0) {
+                // The back of the mirror. The beam stops here.
+                return(false);
+            }
+        }
+    }
+    def_int $next = ~m2_edge($p, $d);
+    if ($next = 0) {
+        // Out of the temple. Out of the west wall on the bottom floor is the one that counts.
+        if ($p = ^mt_pillar_shaft_bottom & $d = ^mt_dir_west) {
+            return(true);
+        }
+        return(false);
+    }
+    $p = $next;
+    ~m2_pillar_up($p, ^mt_colour_white);
+}
+return(false);
+
+[proc,mt_retrace]()()
+if (~mt_trace = false) {
+    return;
+}
+if (%mourning_quest_main >= ^mt_lit) {
+    return;
+}
+%mourning_quest_main = ^mt_lit;
+~send_quest_progress(questlist:mourning2, %mourning_quest_main, ^mt_complete);
+stat_advance(agility, 20000);
+~mesbox("The beam goes down the shaft, across the bottom floor and out through the hole in the west wall, and something on the other side of that wall starts to make a noise it has not made in a very long time.");
+
+// =========================================================================== Arianwyn
+[proc,mt_arianwyn]()(boolean)
+switch_int (%mourning_quest_main) {
+    case ^mt_not_started :
+        if (%mourning_quest < ^mourning_complete) {
+            return(false);
+        }
+        ~chatnpc("<p,neutral>You went into Prifddinas' death altar dressed as a mourner and came out with a list. I have read the list.");
+        ~chatplayer("<p,quiz>And?");
+        ~chatnpc("<p,sad>It is not a list of the dead. It is a list of what they are being used for, and the answer is a temple under the Isafdar that my people sealed six hundred years ago and have not spoken about since.");
+        ~chatnpc("<p,neutral>It is built round a beam of light. There is a hole in the west wall of the bottom floor and the light is supposed to come out of it, and it has not for six centuries.");
+        %mourning_quest_main = ^mt_arianwyn;
+        ~send_quest_progress(questlist:mourning2, %mourning_quest_main, ^mt_complete);
+        ~chatnpc("<p,neutral>The tunnel is off the excavation. Take a mirror or two out of the fittings cupboards when you are in there; you are going to need them.");
+        return(true);
+    case ^mt_lit :
+        ~mt_finish;
+        return(true);
+    case default :
+        if (%mourning_quest_main >= ^mt_complete) {
+            ~chatnpc("<p,happy>Six hundred years, and it was three mirrors and somebody prepared to count corners.");
+            return(true);
+        }
+        ~chatnpc("<p,neutral>The light has to come out of the west wall. Everything else in that building is a way of arranging that.");
+        return(true);
+}
+return(false);
+
+[proc,mt_finish]()()
+~chatplayer("<p,neutral>The light is coming out of the wall.");
+~chatnpc("<p,shock>...out of the hole.");
+if_close;
+mes("Arianwyn asks you to describe the route three times and writes it down twice.");
+p_delay(5);
+~mesbox("\"Six hundred years,\" he says. \"We sealed it because nobody could make it work, and we told ourselves we had sealed it for a reason, and those are not the same thing.\"");
+p_delay(3);
+%mourning_quest_main = ^mt_complete;
+stat_advance(agility, 60000);
+stat_advance(thieving, 60000);
+stat_advance(mining, 60000);
+session_log(^log_adventure, "Quest complete: Mourning's End Part II");
+~send_quest_complete(questlist:mourning2, mourning_crystal_trinket, 200, ^mt_questpoints, "You have completed\\nMourning's End Part II!", "2 Quest Points|6,000 Agility XP|6,000 Thieving XP|6,000 Mining XP|The light temple");
+
+// =========================================================================== the way in
+[proc,mt_tunnel]()(boolean)
+p_arrivedelay;
+if (%mourning_quest_main < ^mt_arianwyn) {
+    ~mesbox("A tunnel mouth behind the excavation, and no reason yet to be in it.");
+    return(true);
+}
+mes("You crawl through.");
+p_delay(3);
+p_teleport(^mt_temple_entry);
+if (%mourning_quest_main = ^mt_arianwyn) {
+    %mourning_quest_main = ^mt_inside;
+    ~send_quest_progress(questlist:mourning2, %mourning_quest_main, ^mt_complete);
+    ~mesbox("Three floors of it, and every floor is one room in sixteen parts with a pillar at every junction and a dead beam of light lying along every corridor. | Somebody built this to be solved.");
+}
+return(true);
+
+[oploc1,mourning_temple_ladder_wall]
+p_arrivedelay;
+mes("You climb up.");
+p_teleport(movecoord(coord, 0, 1, 0));
+
+[oploc1,mourning_temple_ladder_wall_top]
+p_arrivedelay;
+mes("You climb down.");
+p_teleport(movecoord(coord, 0, -1, 0));
+
+// =========================================================================== the fittings cupboards
+[oploc1,mourning_temple_light_parts_2_closed] @mt_cupboard_open(2);
+[oploc1,mourning_temple_light_parts_3_closed] @mt_cupboard_open(3);
+[oploc1,mourning_temple_light_parts_4_closed] @mt_cupboard_open(4);
+[oploc1,mourning_temple_light_parts_5_closed] @mt_cupboard_open(5);
+[oploc1,mourning_temple_light_parts_6_closed] @mt_cupboard_open(6);
+
+[label,mt_cupboard_open](int $n)
+p_arrivedelay;
+mes("You open the cupboard.");
+switch_int ($n) {
+    case 2 : %mourning_temple_parts_2 = ^mt_on;
+    case 3 : %mourning_temple_parts_3 = ^mt_on;
+    case 4 : %mourning_temple_parts_4 = ^mt_on;
+    case 5 : %mourning_temple_parts_5 = ^mt_on;
+    case 6 : %mourning_temple_parts_6 = ^mt_on;
+}
+if (%mourning_quest_main = ^mt_inside) {
+    %mourning_quest_main = ^mt_mirrors;
+    ~send_quest_progress(questlist:mourning2, %mourning_quest_main, ^mt_complete);
+}
+
+[oploc1,mourning_temple_light_parts_2_open] @mt_cupboard_search;
+[oploc1,mourning_temple_light_parts_3_open] @mt_cupboard_search;
+[oploc1,mourning_temple_light_parts_4_open] @mt_cupboard_search;
+[oploc1,mourning_temple_light_parts_5_open] @mt_cupboard_search;
+[oploc1,mourning_temple_light_parts_6_open] @mt_cupboard_search;
+
+[label,mt_cupboard_search]
+p_arrivedelay;
+if (inv_total(inv, mourning_mirror) > 0) {
+    ~mesbox("Spare glass, spare brackets and a great deal of dust. You are already carrying the useful thing.");
+    return;
+}
+if (inv_freespace(inv) < 2) {
+    mes("You have no room.");
+    return;
+}
+inv_add(inv, mourning_mirror, 1);
+if (inv_total(inv, mourning_colour_wheel) = 0) {
+    inv_add(inv, mourning_colour_wheel, 1);
+    ~mesbox("A small hand mirror, and behind it a colour wheel that the temple's builders evidently expected somebody to need.");
+    return;
+}
+mes("A small hand mirror.");
+
+[oploc2,mourning_temple_light_parts_2_open] @mt_cupboard_shut(2);
+[oploc2,mourning_temple_light_parts_3_open] @mt_cupboard_shut(3);
+[oploc2,mourning_temple_light_parts_4_open] @mt_cupboard_shut(4);
+[oploc2,mourning_temple_light_parts_5_open] @mt_cupboard_shut(5);
+[oploc2,mourning_temple_light_parts_6_open] @mt_cupboard_shut(6);
+
+[label,mt_cupboard_shut](int $n)
+switch_int ($n) {
+    case 2 : %mourning_temple_parts_2 = ^mt_off;
+    case 3 : %mourning_temple_parts_3 = ^mt_off;
+    case 4 : %mourning_temple_parts_4 = ^mt_off;
+    case 5 : %mourning_temple_parts_5 = ^mt_off;
+    case 6 : %mourning_temple_parts_6 = ^mt_off;
+}
+mes("You shut the cupboard.");
+
+// =========================================================================== the reset tray
+[oploc1,mourning_temple_light_wall_lever]
+p_arrivedelay;
+anim(human_leverdown, 0);
+p_delay(3);
+%mourning_temple_mirrors_a = 0;
+%mourning_temple_mirrors_b = 0;
+~mt_trace;
+~mesbox("Every mirror in the building drops out of its socket at once and the beam goes back to where it starts. | Whoever built this expected people to want that button.");
+
+[oploc1,mourning_temple_light_wall_collector]
+def_int $n = ~mt_mirror_count;
+if (~mt_trace = true) {
+    ~mesbox("The collector is full of light. <tostring($n)> mirrors are in their sockets and the beam is coming out of the west wall.");
+    return;
+}
+~mesbox("The collector is dark. <tostring($n)> mirrors are in their sockets. | A mirror turns a beam ninety degrees and only from one side: a quarter turn changes which two corners it will take. A pillar with nothing in it lets the beam straight through.");
+
+// =========================================================================== the final pillar
+[oploc1,mourning_temple_final_pillar_of_light]
+p_arrivedelay;
+if (~mt_trace = false) {
+    ~mesbox("A pillar in a corridor that runs west to a hole in the outer wall, and there is no light in either of them.");
+    return;
+}
+~mesbox("The beam comes down the shaft, turns west here, and goes out through the hole in the wall.");
+
+[opheld1,mourning_colour_wheel]
+~mesbox("A colour wheel, and on the back of it, in a hand six hundred years old: | A MIRROR TAKES THE BEAM ROUND ONE CORNER AND IT IS SILVERED ON ONE FACE ONLY. | A QUARTER TURN CHANGES WHICH CORNER. | AN EMPTY SOCKET IS NOT AN OBSTACLE. | THE LIGHT ENTERS AT THE TOP OF THE EAST WALL AND MUST LEAVE BY THE HOLE IN THE WEST.");
+
+[opheld1,mourning_mirror]
+~mesbox("A small hand mirror. It fits the sockets on the pillars, and it fits them four ways.");
