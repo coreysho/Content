@@ -120,6 +120,27 @@ mes("Wield or check it first - the charges only come out of a trident that is ho
 // ---------------------------------------------------------------------------------------------
 // The cast - reached from [label,player_combat_start] whenever a charged trident is wielded
 // ---------------------------------------------------------------------------------------------
+// ONE SOUND PER CAST, AND WHY. Reported from play as "trident audio is off, audio 3 times to 1
+// spell". The samples were measured by running the client's own Wave decoder over them:
+//
+//   waterwave_cast_and_fire    1320ms   (a COMBINED cast-and-fire sample - two beats already)
+//   waterwave_hit              1349ms
+//   spellfail                  1100ms
+//   the trident's attack cycle 2400ms   (4 ticks)
+//
+// A cast asked for 1320 + 1349 = 2669ms of audio every 2400ms, and the client plays one wave at a
+// time - Client.updateAudio only starts a new one once the previous has all but finished, and
+// drops it otherwise. So the impact of one cast always landed on top of the next cast's sound, and
+// at close range, where the projectile is only 1120ms, the impact started before the cast sample
+// had even finished. Three overlapping sounds per spell, most of them thrown away.
+//
+// An ordinary spell does not have this problem: at 5 ticks it has 3000ms to play 2669ms in. The
+// trident is the only 4-tick caster on the server, which is why it was the only thing that sounded
+// wrong.
+//
+// So the impact sound is gone and the cast sample is what you hear: 1320ms inside 2400ms, with
+// 1080ms of quiet after it, at every range. A splash keeps its graphic (failedspell_impact) but no
+// longer has a sound of its own - cast + spellfail is 2420ms and does not fit either.
 [label,trident_attack]
 if (~npc_is_attackable = false) {
     return;
@@ -131,7 +152,7 @@ if (%action_delay > map_clock) {
 %action_delay = add(map_clock, ^trident_attackrate);
 anim(human_trident_cast, 0);
 spotanim_pl(trident_casting, 92, 0);
-sound_synth(waterwave_cast_and_fire, 0, 0);
+sound_synth(waterwave_cast_and_fire, 0, 0); // the only sound a cast makes - see above
 def_int $duration = ~npc_projectile(coord, npc_uid, trident_travel, 43, 31, 51, 16, -5, 64, 10);
 %trident_charges = sub(%trident_charges, 1);
 // same accuracy as any spell, black mask (i) included (player_magic.rs2 ~pvm_default_spell)
@@ -151,10 +172,8 @@ if (~player_npc_hit_roll_boosted(^magic_style, $mask_num, $mask_div) = true) {
     ~give_combat_experience(~trident_xp_style, $damage_capped, %npc_combat_xp_multiplier);
     npc_heropoints($damage_capped);
     ~barrows_set_hit_npc($damage_capped, ^magic_style);
-    sound_synth(waterwave_hit, 0, $duration);
     spotanim_npc(trident_impact, 92, $duration);
 } else {
-    sound_synth(spellfail, 1, $duration);
     spotanim_npc(failedspell_impact, 92, $duration);
     ~npc_retaliate(0);
 }
@@ -209,6 +228,7 @@ p_opplayer(2);
 %action_delay = add(map_clock, ^trident_attackrate);
 anim(human_trident_cast, 0);
 spotanim_pl(trident_casting, 92, 0);
+// One sound each, for the caster and the target alike - see the note above [label,trident_attack].
 sound_synth(waterwave_cast_and_fire, 0, 0);
 .sound_synth(waterwave_cast_and_fire, 0, 0);
 def_int $duration = ~player_projectile(coord, .coord, .uid, trident_travel, 43, 31, 51, 16, -5, 64, 10);
@@ -223,13 +243,9 @@ if (~pvp_hit_roll(^magic_style) = true) {
     ~give_combat_experience_pvp(~trident_xp_style, $damage, ~pvp_xp_multiplier(~.player_combat_level));
     both_heropoints($damage);
     ~barrows_set_hit_player($damage, ^magic_style);
-    sound_synth(waterwave_hit, 0, $duration);
-    .sound_synth(waterwave_hit, 0, $duration);
     .spotanim_pl(trident_impact, 92, $duration);
     .queue*(pvp_retaliate, calc($duration / 30 + 1))(uid);
 } else {
-    sound_synth(spellfail, 1, $duration);
-    .sound_synth(spellfail, 1, $duration);
     .spotanim_pl(failedspell_impact, 92, $duration);
     .queue*(pvp_retaliate, 0)(uid); // splashing causes insta auto retal
 }
