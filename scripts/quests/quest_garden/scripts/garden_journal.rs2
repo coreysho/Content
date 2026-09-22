@@ -1,0 +1,55 @@
+[if_button,questlist:garden]
+def_string $text;
+
+switch_int (%garden_quest) {
+    case ^garden_not_started :
+        $text = "@dbl@I can start this quest by speaking to @dre@King Roald@dbl@ in|";
+        $text = append($text, "@dbl@@dre@Varrock Palace|");
+        $text = append($text, "@dbl@I will need @dre@<tostring(^garden_req_farming)> Farming");
+
+    case ^garden_started :
+        $text = "@str@The Queen wants a garden and the King has no idea how to|";
+        $text = append($text, "@str@produce one.|");
+        $text = append($text, "@dbl@Everyone on the @dre@list@dbl@ wants a @dre@bucket of compost@dbl@ first:|");
+        $text = append($text, "@dbl@@dre@Elstan@dbl@ - delphiniums - near @dre@Falador|");
+        $text = append($text, "@dbl@@dre@Kragen@dbl@ - the nine roses - near @dre@Ardougne|");
+        $text = append($text, "@dbl@@dre@Lyra@dbl@ - snowdrops - @dre@Port Phasmatys|");
+        $text = append($text, "@dbl@@dre@Dantaera@dbl@ - both orchids - @dre@Catherby|");
+        $text = append($text, "@dbl@@dre@Brother Althric@dbl@ - the white tree shoot - the @dre@monastery|");
+        $text = append($text, "@dbl@@dre@Bernald@dbl@ in @dre@Burthorpe@dbl@ has vine seeds, but his vinery is|");
+        $text = append($text, "@dbl@diseased and wants @dre@plant cure");
+
+    case ^garden_seeds :
+        $text = "@str@That is everything on the list.|";
+        $text = append($text, "@dbl@Nine beds of weeds between me and a garden. @dre@Rake@dbl@ them,|");
+        $text = append($text, "@dbl@@dre@sow@dbl@ them and @dre@water@dbl@ them|");
+        $text = append($text, "@dbl@The two @dre@orchid pots@dbl@ want @dre@compost@dbl@ rather than raking");
+
+    case ^garden_planted :
+        $text = "@str@Every bed is sown.|";
+        $text = append($text, "@dbl@They all want @dre@watering");
+
+    case ^garden_grown :
+        $text = "@str@The garden is up.|";
+        $text = append($text, "@dbl@The King wants the @dre@Saradomin statue@dbl@ out of @dre@Falador@dbl@ and|");
+        $text = append($text, "@dbl@the @dre@one of himself@dbl@ out of @dre@Lumbridge|");
+        $text = append($text, "@dbl@Use the @dre@trolley@dbl@ on a statue, then on the empty @dre@plinth|");
+        $text = append($text, "@dbl@in the garden");
+
+    case ^garden_statues :
+        $text = "@str@Both statues are standing in the palace garden, which|";
+        $text = append($text, "@str@Falador and Lumbridge are going to notice eventually.|");
+        $text = append($text, "@dbl@I should tell @dre@King Roald");
+
+    case ^garden_complete :
+        $text = "@str@The Queen wanted a garden. Six gardeners, nine beds, a|";
+        $text = append($text, "@str@shoot off the white tree and two statues that used to belong|");
+        $text = append($text, "@str@to other towns later, she has one.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+
+    case default :
+        $text = "@dbl@I can start this quest by speaking to @dre@King Roald@dbl@ in|";
+        $text = append($text, "@dbl@@dre@Varrock Palace");
+}
+
+~quest_journal("Garden of Tranquillity", $text);

@@ -1,0 +1,238 @@
+// Garden of Tranquillity - King Roald and the six gardeners.
+//
+// The list Roald hands over is already in the cache: general_use/scripts/readables_generated.rs2
+// carries garden_list, and its text is where the seed counts and the four named gardeners come
+// from. Dantaera and Brother Althric are not on it but have varbits of their own, so they supply
+// the two things the list mentions without saying where to get them - the orchids and the shoot.
+
+// Roald already has [opnpc1,king_roald] in areas/area_varrock/scripts/king_roald.rs2 - it is
+// Shield of Arrav's reward conversation - so this is a label that hooks in ahead of it rather than
+// a second trigger.
+// He is only claimed when the quest has something for him to say: at the start, while the list is
+// still outstanding, and at the end. Any other time Shield of Arrav gets him back.
+[proc,garden_roald_wants]()(boolean)
+if (inv_total(inv, arravcertificate) > 0) {
+    return(false);
+}
+switch_int (%garden_quest) {
+    case ^garden_not_started : return(true);
+    case ^garden_started : return(true);
+    case ^garden_statues : return(true);
+}
+return(false);
+
+[label,garden_roald]
+switch_int (%garden_quest) {
+    case ^garden_not_started : @garden_roald_start;
+    case ^garden_started : @garden_roald_list;
+    case ^garden_statues : @garden_roald_done;
+    case default :
+        if (%garden_quest >= ^garden_complete) {
+            ~chatnpc("<p,happy>My wife has been out there since dawn. She has not been out of doors before noon in nine years.");
+            return;
+        }
+        ~chatnpc("<p,neutral>How is the garden coming along?");
+        ~chatplayer("<p,neutral>Slowly.");
+        ~chatnpc("<p,neutral>Gardens do.");
+}
+
+[label,garden_roald_start]
+~chatnpc("<p,sad>My wife wants a garden. I have a kingdom and a treasury and no idea how to produce a garden.");
+switch_int (~p_choice2("I could do it.", 1, "Buy her a hat.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>Buy her a hat.");
+        ~chatnpc("<p,sad>I have bought her four hats.");
+        return;
+    case 1 :
+        ~chatplayer("<p,happy>I could do it.");
+}
+~chatnpc("<p,shock>Could you? Genuinely?");
+if (stat(farming) < ^garden_req_farming) {
+    ~chatnpc("<p,neutral>You will want to know one end of a rake from the other first. Farming <tostring(^garden_req_farming)>, I am told, is where one stops killing things by accident.");
+    return;
+}
+~chatnpc("<p,happy>Then here. I had the whole thing written out by somebody who knows what they are talking about, which is not me.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>And you have nowhere to put a piece of paper. Come back.");
+    return;
+}
+inv_add(inv, garden_list, 1);
+%garden_quest = ^garden_started;
+~send_quest_progress(questlist:garden, %garden_quest, ^garden_complete);
+~chatnpc("<p,neutral>The beds are all weeds. The two plant pots want compost. And when it is green, I want the Saradomin statue out of Falador and the one of me out of Lumbridge, because she liked them and I like her.");
+
+[label,garden_roald_list]
+~chatnpc("<p,neutral>Read the list. Everyone on it owes the crown a favour.");
+if (inv_total(inv, garden_list) > 0 | inv_total(bank, garden_list) > 0) {
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>Make room and I will have another copy made.");
+    return;
+}
+inv_add(inv, garden_list, 1);
+mes("Roald has another copy made.");
+
+[label,garden_roald_done]
+~chatplayer("<p,happy>It's finished.");
+if_close;
+mes("Roald walks out into the garden and stands in it for rather a long time without saying anything.");
+p_delay(4);
+~chatnpc("<p,happy>She is going to cry. I am going to pretend not to notice, and you are going to be somewhere else.");
+@garden_finish;
+
+[label,garden_finish]
+%garden_quest = ^garden_complete;
+// The tree fruits once the garden is finished, which is the only thing the last four states of
+// [garden_white_tree_patch] are for.
+%garden_white_tree_varbit = ^garden_tree_fruit_4;
+stat_advance(farming, 50000);
+stat_advance(construction, 50000);
+session_log(^log_adventure, "Quest complete: Garden of Tranquillity");
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, garden_pie, 1);
+} else {
+    obj_add(coord, garden_pie, 1, ^lootdrop_duration);
+}
+~send_quest_complete(questlist:garden, garden_pie, 200, ^garden_questpoints, "You have completed\\nGarden of Tranquillity!", "2 Quest Points|5,000 Farming XP|5,000 Construction XP|A garden pie");
+
+// =========================================================================== the gardeners
+// One shape for all six: they want a small thing done, and then they hand over their seeds. Each
+// has a varbit of its own in garden_varp_1 - two or three bits, enough for asked/done - which is
+// what those varbits are sized for.
+// Elstan, Kragen, Lyra and Dantaera already have [opnpc1] handlers - they are Farming's allotment
+// gardeners (skill_farming/scripts/farming_npcs.rs2:201) - and a trigger cannot be declared twice,
+// so the Garden branch hooks in ahead of theirs the same way Reldo's does for A Tail of Two Cats.
+// Brother Althric has no handler of his own and is declared here.
+[opnpc1,brother_althric] @garden_gardener(5);
+
+// True only while the quest still needs something from this gardener, so Farming gets its own
+// conversation back the moment the seeds have been handed over.
+[proc,garden_wants](int $who)(boolean)
+if (%garden_quest < ^garden_started | %garden_quest >= ^garden_complete) {
+    return(false);
+}
+if (~garden_gardener_state($who) >= 2) {
+    return(false);
+}
+return(true);
+
+[label,garden_gardener](int $who)
+if (%garden_quest < ^garden_started) {
+    ~chatnpc("<p,neutral>Mind the beds.");
+    return;
+}
+if (~garden_gardener_state($who) >= 2) {
+    ~chatnpc("<p,happy>You have had everything I can spare.");
+    return;
+}
+if (~garden_gardener_state($who) = 1) {
+    @garden_gardener_pay($who);
+}
+@garden_gardener_ask($who);
+
+[proc,garden_gardener_state](int $who)(int)
+switch_int ($who) {
+    case 1 : return(%garden_elstan_varbit);
+    case 2 : return(%garden_kragen_varbit);
+    case 3 : return(%garden_lyra_varbit);
+    case 4 : return(%garden_dantaera_varbit);
+    case 5 : return(%garden_althric_varbit);
+}
+return(0);
+
+[label,garden_gardener_set](int $who, int $value)
+switch_int ($who) {
+    case 1 : %garden_elstan_varbit = $value;
+    case 2 : %garden_kragen_varbit = $value;
+    case 3 : %garden_lyra_varbit = $value;
+    case 4 : %garden_dantaera_varbit = $value;
+    case 5 : %garden_althric_varbit = $value;
+}
+
+[label,garden_gardener_ask](int $who)
+switch_int ($who) {
+    case 1 :
+        ~chatnpc("<p,neutral>Delphiniums? For the King? I can do four.");
+        ~chatnpc("<p,neutral>Bring me a bucket of compost first. I am not giving away seed to somebody who has not got soil ready for it.");
+    case 2 :
+        ~chatnpc("<p,neutral>Roses. Nine of them, three of each colour, and they are the fussiest thing I grow.");
+        ~chatnpc("<p,neutral>Bring me a bucket of compost and I will believe you are serious.");
+    case 3 :
+        ~chatnpc("<p,neutral>Snowdrops. Four. They will take in Varrock; they take anywhere.");
+        ~chatnpc("<p,neutral>A bucket of compost first, if you please.");
+    case 4 :
+        ~chatnpc("<p,neutral>Orchids, in pots. Three pink and three yellow.");
+        ~chatnpc("<p,neutral>Compost. A bucket of it. Everybody asks and nobody brings any.");
+    case 5 :
+        ~chatnpc("<p,neutral>A shoot off the white tree? That is not a garden plant, that is a monument.");
+        ~chatnpc("<p,neutral>Bring me a bucket of compost for the monastery beds and it is yours.");
+}
+@garden_gardener_set($who, 1);
+
+[label,garden_gardener_pay](int $who)
+if (inv_total(inv, bucket_compost) = 0) {
+    ~chatnpc("<p,neutral>Compost. A bucket. I did say.");
+    return;
+}
+if (inv_freespace(inv) < 3) {
+    ~chatnpc("<p,neutral>You have nowhere to put any of it. Come back with your hands free.");
+    return;
+}
+inv_del(inv, bucket_compost, 1);
+inv_add(inv, bucket_empty, 1);
+switch_int ($who) {
+    case 1 : inv_add(inv, garden_delphinium_seed, ^garden_need_delphinium);
+    case 2 :
+        inv_add(inv, garden_rosebush_seed_red, ^garden_need_rose);
+        inv_add(inv, garden_rosebush_seed_pink, ^garden_need_rose);
+        inv_add(inv, garden_rosebush_seed_white, ^garden_need_rose);
+    case 3 : inv_add(inv, garden_snowdrop_seed, ^garden_need_snowdrop);
+    case 4 :
+        inv_add(inv, garden_orchid_pink_seed, ^garden_need_orchid);
+        inv_add(inv, garden_orchid_yellow_seed, ^garden_need_orchid);
+    case 5 : inv_add(inv, garden_white_tree_shoot, 1);
+}
+@garden_gardener_set($who, 2);
+~chatnpc("<p,happy>There. Tell him it came from me.");
+~garden_check_seeds;
+
+// Bernald is the odd one out: his vinery is diseased and his varbit is the multiloc key for it, so
+// he cannot simply be asked. Curing the vines is the favour.
+[opnpc1,bernald]
+if (%garden_quest < ^garden_started) {
+    ~chatnpc("<p,sad>Mind where you tread. Half of this is dying.");
+    return;
+}
+if (%garden_bernald_varbit >= ^garden_vines_cured) {
+    if (%garden_bernald_varbit = ^garden_vines_cured) {
+        if (inv_freespace(inv) = 0) {
+            ~chatnpc("<p,happy>I owe you four vine seeds and you have nowhere to put them.");
+            return;
+        }
+        ~chatnpc("<p,happy>They are coming back. Take the seeds, and tell the King the Burthorpe vinery is still standing.");
+        inv_add(inv, garden_vine_seed, ^garden_need_vine);
+        %garden_bernald_varbit = 5;
+        ~garden_check_seeds;
+        return;
+    }
+    ~chatnpc("<p,happy>Still standing, thanks to you.");
+    return;
+}
+~chatnpc("<p,sad>Vine seeds? Look at them. I would be giving you a disease, not a seed.");
+~chatplayer("<p,quiz>What would fix it?");
+~chatnpc("<p,neutral>Plant cure, worked into the roots. I have not been able to get any up here since the trolls came back.");
+
+[proc,garden_check_seeds]
+if (%garden_quest ! ^garden_started) {
+    return;
+}
+if (%garden_elstan_varbit < 2) { return; }
+if (%garden_kragen_varbit < 2) { return; }
+if (%garden_lyra_varbit < 2) { return; }
+if (%garden_dantaera_varbit < 2) { return; }
+if (%garden_althric_varbit < 2) { return; }
+if (%garden_bernald_varbit < 5) { return; }
+%garden_quest = ^garden_seeds;
+~send_quest_progress(questlist:garden, %garden_quest, ^garden_complete);
+~mesbox("That is everything on the list. Now there are nine beds of weeds between you and a garden.");

@@ -1,0 +1,311 @@
+// Garden of Tranquillity - the beds, the pots, the tree and the two statues.
+//
+// Nine patches, all the same eight-state multiloc, so raking, sowing and watering are one shared
+// label each and the patch type is a parameter. Every tile of a patch type shares one varbit, so
+// raking any delphinium bed rakes all four of them.
+
+// =========================================================================== raking
+[oplocu,garden_delphinium_patch] @garden_rake(%garden_delphiniums_varbit, 1);
+[oplocu,garden_rosebush_patch_white] @garden_rake(%garden_rosebush_white_varbit, 2);
+[oplocu,garden_rosebush_patch_red] @garden_rake(%garden_rosebush_red_varbit, 3);
+[oplocu,garden_rosebush_patch_pink] @garden_rake(%garden_rosebush_pink_varbit, 4);
+[oplocu,garden_snowdrop_patch] @garden_rake(%garden_snowdrops_varbit, 5);
+[oplocu,garden_vine_patch] @garden_rake(%garden_vines_varbit, 6);
+[oplocu,garden_white_tree_patch] @garden_rake(%garden_white_tree_varbit, 7);
+[oplocu,garden_orchid_pink_patch] @garden_pot(%garden_orchids_pink_varbit, 8);
+[oplocu,garden_orchid_yellow_patch] @garden_pot(%garden_orchids_yellow_varbit, 9);
+
+[label,garden_rake](int $state, int $which)
+def_obj $item = last_useitem;
+p_arrivedelay;
+if (%garden_quest < ^garden_started) {
+    ~displaymessage(^dm_default);
+    return;
+}
+switch_obj ($item) {
+    case rake : @garden_do_rake($state, $which);
+    case default : @garden_sow($state, $which, $item);
+}
+
+[label,garden_do_rake](int $state, int $which)
+if ($state >= ^garden_weeded) {
+    mes("There is nothing left to rake out of that one.");
+    return;
+}
+mes("You rake the weeds out.");
+p_delay(3);
+@garden_set_patch($which, add($state, 1));
+stat_advance(farming, 40);
+if (add($state, 1) >= ^garden_weeded) {
+    mes("That bed is clear. It wants sowing.");
+    return;
+}
+mes("More weed than bed, still.");
+
+// The orchids are pots rather than beds: 0 is an empty pot and 1 is a pot with soil, and there is
+// no 2 or 3 at all, so they take compost instead of a rake.
+[label,garden_pot](int $state, int $which)
+def_obj $item = last_useitem;
+p_arrivedelay;
+if (%garden_quest < ^garden_started) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if ($item = bucket_compost & $state = ^garden_pot_empty) {
+    inv_del(inv, bucket_compost, 1);
+    inv_add(inv, bucket_empty, 1);
+    mes("You fill the pot with compost.");
+    @garden_set_patch($which, ^garden_pot_soil);
+    return;
+}
+@garden_sow($state, $which, $item);
+
+// =========================================================================== sowing
+[label,garden_sow](int $state, int $which, obj $item)
+def_namedobj $seed;
+def_int $count;
+switch_int ($which) {
+    case 1 : $seed = garden_delphinium_seed; $count = ^garden_need_delphinium;
+    case 2 : $seed = garden_rosebush_seed_white; $count = ^garden_need_rose;
+    case 3 : $seed = garden_rosebush_seed_red; $count = ^garden_need_rose;
+    case 4 : $seed = garden_rosebush_seed_pink; $count = ^garden_need_rose;
+    case 5 : $seed = garden_snowdrop_seed; $count = ^garden_need_snowdrop;
+    case 6 : $seed = garden_vine_seed; $count = ^garden_need_vine;
+    case 7 : $seed = garden_white_tree_shoot; $count = 1;
+    case 8 : $seed = garden_orchid_pink_seed; $count = ^garden_need_orchid;
+    case 9 : $seed = garden_orchid_yellow_seed; $count = ^garden_need_orchid;
+}
+// The cans are watering_can_1 through _8 with the dose in the name, and _0 is the empty one, so
+// watering costs a dose the same way every other farming action does.
+switch_obj ($item) {
+    case watering_can_8 : @garden_water($state, $which, watering_can_8, watering_can_7);
+    case watering_can_7 : @garden_water($state, $which, watering_can_7, watering_can_6);
+    case watering_can_6 : @garden_water($state, $which, watering_can_6, watering_can_5);
+    case watering_can_5 : @garden_water($state, $which, watering_can_5, watering_can_4);
+    case watering_can_4 : @garden_water($state, $which, watering_can_4, watering_can_3);
+    case watering_can_3 : @garden_water($state, $which, watering_can_3, watering_can_2);
+    case watering_can_2 : @garden_water($state, $which, watering_can_2, watering_can_1);
+    case watering_can_1 : @garden_water($state, $which, watering_can_1, watering_can_0);
+    case watering_can_0 :
+        mes("The can is empty.");
+        return;
+}
+if ($item ! $seed) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if ($state < ^garden_weeded & $which < 8) {
+    mes("You would be sowing into a weed bed.");
+    return;
+}
+if ($which >= 8 & $state ! ^garden_pot_soil) {
+    mes("The pot has nothing in it to sow into.");
+    return;
+}
+if ($state >= ^garden_seed) {
+    mes("That one is already sown.");
+    return;
+}
+if (inv_total(inv, $seed) < $count) {
+    mes("The list says <tostring($count)>. You have <tostring(inv_total(inv, $seed))>.");
+    return;
+}
+inv_del(inv, $seed, $count);
+mes("You sow the bed.");
+p_delay(2);
+@garden_set_patch($which, ^garden_seed);
+stat_advance(farming, 200);
+mes("Sown. It will want watering.");
+
+// =========================================================================== watering
+// One watering takes a bed all the way up, through the two growth states the multiloc has, so
+// every model in the table gets used rather than only the first and the last.
+[label,garden_water](int $state, int $which, namedobj $can, namedobj $spent)
+if ($state < ^garden_seed) {
+    mes("There is nothing in there to water.");
+    return;
+}
+if ($which = 7) {
+    if ($state >= ^garden_tree_grown) {
+        mes("The tree does not need you any more.");
+        return;
+    }
+    inv_del(inv, $can, 1);
+    inv_add(inv, $spent, 1);
+    mes("You water the seedling.");
+    p_delay(2);
+    @garden_set_patch(7, 5);
+    p_delay(2);
+    @garden_set_patch(7, 6);
+    p_delay(2);
+    @garden_set_patch(7, 7);
+    p_delay(2);
+    @garden_set_patch(7, ^garden_tree_grown);
+    stat_advance(farming, 800);
+    ~mesbox("It comes up white, the way the one on Ice Mountain does, and keeps going until it is taller than the wall.");
+    ~garden_check_grown;
+    return;
+}
+if ($state >= ^garden_fullygrown) {
+    mes("That one is done.");
+    return;
+}
+inv_del(inv, $can, 1);
+inv_add(inv, $spent, 1);
+mes("You water the bed.");
+p_delay(2);
+@garden_set_patch($which, ^garden_growing_1);
+p_delay(2);
+@garden_set_patch($which, ^garden_growing_2);
+p_delay(2);
+@garden_set_patch($which, ^garden_fullygrown);
+stat_advance(farming, 400);
+mes("It comes up while you are still standing there.");
+~garden_check_grown;
+
+// A switch rather than a pointer, because a varbit cannot be passed by reference.
+[label,garden_set_patch](int $which, int $value)
+switch_int ($which) {
+    case 1 : %garden_delphiniums_varbit = $value;
+    case 2 : %garden_rosebush_white_varbit = $value;
+    case 3 : %garden_rosebush_red_varbit = $value;
+    case 4 : %garden_rosebush_pink_varbit = $value;
+    case 5 : %garden_snowdrops_varbit = $value;
+    case 6 : %garden_vines_varbit = $value;
+    case 7 : %garden_white_tree_varbit = $value;
+    case 8 : %garden_orchids_pink_varbit = $value;
+    case 9 : %garden_orchids_yellow_varbit = $value;
+}
+
+// =========================================================================== progress
+[proc,garden_all_sown]()(boolean)
+if (%garden_delphiniums_varbit < ^garden_seed) { return(false); }
+if (%garden_rosebush_white_varbit < ^garden_seed) { return(false); }
+if (%garden_rosebush_red_varbit < ^garden_seed) { return(false); }
+if (%garden_rosebush_pink_varbit < ^garden_seed) { return(false); }
+if (%garden_snowdrops_varbit < ^garden_seed) { return(false); }
+if (%garden_vines_varbit < ^garden_seed) { return(false); }
+if (%garden_white_tree_varbit < ^garden_tree_seedling) { return(false); }
+if (%garden_orchids_pink_varbit < ^garden_seed) { return(false); }
+if (%garden_orchids_yellow_varbit < ^garden_seed) { return(false); }
+return(true);
+
+[proc,garden_all_grown]()(boolean)
+if (%garden_delphiniums_varbit < ^garden_fullygrown) { return(false); }
+if (%garden_rosebush_white_varbit < ^garden_fullygrown) { return(false); }
+if (%garden_rosebush_red_varbit < ^garden_fullygrown) { return(false); }
+if (%garden_rosebush_pink_varbit < ^garden_fullygrown) { return(false); }
+if (%garden_snowdrops_varbit < ^garden_fullygrown) { return(false); }
+if (%garden_vines_varbit < ^garden_fullygrown) { return(false); }
+if (%garden_white_tree_varbit < ^garden_tree_grown) { return(false); }
+if (%garden_orchids_pink_varbit < ^garden_fullygrown) { return(false); }
+if (%garden_orchids_yellow_varbit < ^garden_fullygrown) { return(false); }
+return(true);
+
+// A proc cannot jump to a label, so the two outcomes are both decided here rather than one of them
+// being a jump out.
+[proc,garden_check_grown]
+if (%garden_quest ! ^garden_seeds & %garden_quest ! ^garden_planted) {
+    return;
+}
+if (~garden_all_grown = true) {
+    %garden_quest = ^garden_grown;
+    ~send_quest_progress(questlist:garden, %garden_quest, ^garden_complete);
+    ~mesbox("Every bed in the garden is up. What is left is the two lumps of stone the King keeps mentioning.");
+    return;
+}
+if (%garden_quest = ^garden_seeds & ~garden_all_sown = true) {
+    %garden_quest = ^garden_planted;
+    ~send_quest_progress(questlist:garden, %garden_quest, ^garden_complete);
+}
+
+// =========================================================================== the statues
+// garden_trolley_obj is an inventory item and the trolley npc is neither placed nor clickable, so
+// the obj is the trolley and garden_trolley_varbit is what is on it.
+[oplocu,falador_statue_saradomin] @garden_load_statue(garden_trolley_obj, ^garden_trolley_saradomin, "Saradomin");
+[oplocu,garden_lumbridge_statue] @garden_load_statue(garden_trolley_obj, ^garden_trolley_king, "King Roald");
+
+[label,garden_load_statue](namedobj $trolley, int $load, string $who)
+def_obj $item = last_useitem;
+p_arrivedelay;
+if ($item ! $trolley) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%garden_quest < ^garden_grown) {
+    ~mesbox("The King has not asked for this yet, and taking a town's statue without being asked is a different kind of afternoon.");
+    return;
+}
+if (%garden_trolley_varbit ! ^garden_trolley_empty) {
+    mes("There is already a statue on the trolley.");
+    return;
+}
+mes("You lever the statue over onto the trolley.");
+p_delay(4);
+if ($load = ^garden_trolley_saradomin) {
+    %garden_saradomin_statue_varbit = ^garden_statue_taken;
+} else {
+    %garden_king_statue_varbit = ^garden_statue_taken;
+}
+%garden_trolley_varbit = $load;
+~mesbox("The plinth is empty and you are now the person wheeling <$who> across the countryside.");
+
+[oplocu,garden_saradomin_statue_multi] @garden_unload(^garden_trolley_saradomin);
+[oplocu,garden_king_statue_multi] @garden_unload(^garden_trolley_king);
+
+[label,garden_unload](int $load)
+def_obj $item = last_useitem;
+p_arrivedelay;
+if ($item ! garden_trolley_obj) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%garden_trolley_varbit ! $load) {
+    mes("That is not what is on the trolley.");
+    return;
+}
+mes("You tip the statue off onto the plinth.");
+p_delay(4);
+%garden_trolley_varbit = ^garden_trolley_empty;
+if ($load = ^garden_trolley_saradomin) {
+    %garden_saradomin_statue_varbit = ^garden_statue_placed;
+} else {
+    %garden_king_statue_varbit = ^garden_statue_placed;
+}
+stat_advance(strength, 1000);
+mes("It settles, more or less straight.");
+~garden_check_statues;
+
+[proc,garden_check_statues]
+if (%garden_quest ! ^garden_grown) {
+    return;
+}
+if (%garden_saradomin_statue_varbit ! ^garden_statue_placed) { return; }
+if (%garden_king_statue_varbit ! ^garden_statue_placed) { return; }
+%garden_quest = ^garden_statues;
+~send_quest_progress(questlist:garden, %garden_quest, ^garden_complete);
+~mesbox("Both of them are up. Falador and Lumbridge are going to notice eventually.");
+
+// =========================================================================== Bernald's vinery
+// [garden_burthorpe_vines] is 0-3 diseased and 4-5 cured, so curing them is a write to 4.
+[oplocu,garden_burthorpe_vines]
+def_obj $item = last_useitem;
+p_arrivedelay;
+if ($item ! plant_cure) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%garden_bernald_varbit >= ^garden_vines_cured) {
+    mes("They are already coming back.");
+    return;
+}
+if (%garden_quest < ^garden_started) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, plant_cure, 1);
+mes("You work the cure into the roots.");
+p_delay(3);
+%garden_bernald_varbit = ^garden_vines_cured;
+stat_advance(farming, 600);
+~mesbox("The whole row stops looking like something out of a warning poster. Bernald will have noticed.");
