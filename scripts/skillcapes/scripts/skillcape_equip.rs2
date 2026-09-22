@@ -14,19 +14,24 @@ if ($level < 99) {
 }
 ~equip($slot);
 
-// Hunter does not exist on this server, so its cape is imported but cannot be worn. Construction
-// used to be here too and no longer is - the skill landed, so the cape did. Replace this with a
-// real skillcape_require call if Hunter ever arrives, and add it to the stats enum in the same
-// breath: the Max cape's requirement and Mac's price are both counted out of that enum.
+// Hunter's cape is imported but cannot be worn. As of 2026-09-22 Hunter IS a stat - it levels,
+// saves and shows on the stats tab - but nothing in the world trains it and no Hunter emote has
+// been converted out of the OSRS cache, so the cape stays shut off until the skill has content.
+//
+// Turning it on is four edits and they belong together: skillcape_cape, skillcape_cape_t and
+// skillcape_hood gain a hunter row, skillcape_emotes.seq/.spotanim gain a converted emote, and
+// these two lines become ~skillcape_require(stat_base(hunter), "Hunter", last_slot). The Max cape
+// then counts 23 on its own - ~skillcape_stats reads skillcape_cape, not the stats enum, exactly
+// so that this stays one decision in one place.
 [label,skillcape_unavailable](string $what)
 mes("<$what> is not available on this server yet, so this cape cannot be worn.");
 
-// THE MAX CAPE: level 99 in every skill there is. "Every skill there is" is the stats enum - 22 of
-// them, Construction included since the houses landed, Hunter excluded because this server has no
-// Hunter - so the gate is a count rather than a list of names and follows the enum on its own.
+// THE MAX CAPE: level 99 in every skill that HAS a cape - ~skillcape_stats, 22 of them, and see the
+// note on that proc in skillcape_shop.rs2 for why it is no longer the stats enum outright. The gate
+// is still a count rather than a list of names, and still follows the data on its own.
 [opheld2,max_cape]
-if (~skillcape_count_99s < enum_getoutputcount(stats)) {
-    mes("You need level 99 in all <tostring(enum_getoutputcount(stats))> skills to wear the Max cape.");
+if (~skillcape_count_99s < ~skillcape_stats) {
+    mes("You need level 99 in all <tostring(~skillcape_stats)> skills to wear the Max cape.");
     return;
 }
 ~equip(last_slot);

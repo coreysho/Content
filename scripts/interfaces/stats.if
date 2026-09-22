@@ -1088,11 +1088,95 @@ shadowed=yes
 text=%1
 colour=0xFFFF00
 
+// Hunter, stat 22 (2026-09-22). Column 2 of the bottom row.
+//
+// x=63, not 62: construction_row sits at x=0 with its background starting at local x=-1, which
+// puts that background on absolute 61..123 - one short of where column 2 of every row above it
+// starts. Offsetting this layer by 63 lands bg1 on 62 and bg2 on 92, and the icon, level and base
+// numbers on 68/96/108, which is column 2 of com_0..com_35 to the pixel.
+//
+// The icon needs no new art. staticons2 ships six drawn 25x25 cells and 377 only ever referenced
+// four of them (0 slayer, 1 farming, 2 runecraft, 5 construction). Cell 4 is a brown long-tailed
+// creature - Jagex's own Hunter icon, in the cache two years before the skill it belongs to.
+// Cell 3, a spade, is still unused.
+[hunter_row]
+type=layer
+x=63
+y=217
+width=62
+height=36
+
+[hunter_bg1]
+layer=hunter_row
+type=graphic
+x=-1
+y=0
+width=30
+height=36
+graphic=miscgraphics,4
+
+[hunter_bg2]
+layer=hunter_row
+type=graphic
+x=29
+y=0
+width=33
+height=36
+graphic=miscgraphics,5
+
+[hunter_icon]
+layer=hunter_row
+type=graphic
+x=5
+y=5
+width=25
+height=25
+graphic=staticons2,4
+
+[hunter_level]
+layer=hunter_row
+type=text
+x=33
+y=5
+width=15
+height=12
+script1op1=stat_level,hunter
+center=yes
+font=p11_full
+shadowed=yes
+text=%1
+colour=0xFFFF00
+
+[hunter_base]
+layer=hunter_row
+type=text
+x=45
+y=17
+width=15
+height=12
+script1op1=stat_base_level,hunter
+center=yes
+font=p11_full
+shadowed=yes
+text=%1
+colour=0xFFFF00
+
+// The summary cell - Combat, Total level and quest points.
+//
+// This used to be 126 wide at x=62, spanning the bottom row's last TWO cells, with Total Lvl
+// across the top and Combat and QP side by side underneath. Hunter needs one of those cells, so
+// the panel is now one cell at x=125 - column 3 of the rows above it - and 63 wide, which is 55px
+// of usable interior. "Total Lvl: 2277" does not fit in 55px at p12_full, and neither do Combat
+// and QP beside each other, so the cell keeps the number that belongs on the stats tab and the
+// other two move one hover away, to total_hover below.
+//
+// The stats tab is the only place in the game that shows quest points - the quest list tab does
+// not, and inter_238 is the quest-complete screen - so QP had to keep a home, not be dropped.
 [com_42]
 type=layer
-x=62
+x=125
 y=217
-width=126
+width=63
 height=36
 
 [com_43]
@@ -1100,7 +1184,7 @@ layer=com_42
 type=rect
 x=2
 y=1
-width=122
+width=59
 height=34
 colour=0x726451
 
@@ -1109,7 +1193,7 @@ layer=com_42
 type=rect
 x=3
 y=2
-width=120
+width=57
 height=32
 colour=0x726451
 
@@ -1118,7 +1202,7 @@ layer=com_42
 type=rect
 x=3
 y=2
-width=121
+width=58
 height=33
 colour=0x2E2B23
 
@@ -1127,48 +1211,119 @@ layer=com_42
 type=rect
 x=4
 y=3
-width=118
+width=55
 height=30
 fill=yes
 
-[com_65]
+[total_label]
 layer=com_42
 type=text
-x=8
-y=18
-width=62
+x=4
+y=4
+width=55
 height=14
-script1op1=op8
+center=yes
 font=p12_full
 shadowed=yes
-text=Combat: %1
+text=Total
 colour=0xFFFF00
 
 [com_66]
 layer=com_42
 type=text
 x=4
-y=4
-width=118
+y=18
+width=55
 height=14
 script1op1=op9
 center=yes
 font=p12_full
 shadowed=yes
-text=Total Lvl: %1
+text=%1
+colour=0xFFFF00
+
+// The hover target. No buttontype and no option on purpose: Client.handleInterfaceInput raises a
+// component's overlayer on `overlayer >= 0` and the bounds alone, so this shows the panel without
+// adding a right-click entry - and therefore without a menu option that has no [if_button] behind
+// it. font= and shadowed= are here although this draws nothing: PackShared.nameToFont returns -1
+// for a missing font and Component.decode indexes an array of four with it, which kills the client
+// at "Unpacking interfaces" before the login screen. genxplock.py's header records that lesson.
+//
+// It is also skipped by genxplock.py's skill-box scan, which needs buttontype=normal.
+[total_hover_target]
+type=text
+x=126
+y=219
+width=62
+height=31
+font=p12_full
+shadowed=yes
+
+[total_hover]
+type=layer
+x=2
+y=216
+width=183
+height=43
+hide=yes
+
+[total_hover_box]
+layer=total_hover
+type=rect
+x=4
+y=7
+width=174
+height=32
+fill=yes
+
+[total_hover_label]
+layer=total_hover
+type=text
+x=6
+y=7
+width=94
+height=14
+font=p12_full
+shadowed=yes
+text=Combat level:
+colour=0xFFFF00
+
+[com_65]
+layer=total_hover
+type=text
+x=103
+y=7
+width=15
+height=14
+script1op1=op8
+font=p12_full
+shadowed=yes
+text=%1
+colour=0xFFFF00
+
+[total_hover_qp_label]
+layer=total_hover
+type=text
+x=6
+y=23
+width=94
+height=14
+font=p12_full
+shadowed=yes
+text=Quest points:
 colour=0xFFFF00
 
 [com_67]
-layer=com_42
+layer=total_hover
 type=text
-x=76
-y=18
-width=44
+x=103
+y=23
+width=15
 height=14
 script1op1=pushvar,qp
 font=p12_full
 shadowed=yes
-text=QP: %1
+text=%1
 colour=0xFFFF00
 
 [com_54]
@@ -1442,6 +1597,18 @@ overlayer=construction_hover
 font=p12_full
 shadowed=yes
 option=Toggle @or1@Construction @whi@XP-lock
+
+[xplock_hunter]
+type=text
+x=63
+y=219
+buttontype=normal
+width=62
+height=31
+overlayer=hunter_hover
+font=p12_full
+shadowed=yes
+option=Toggle @or1@Hunter @whi@XP-lock
 
 [com_68]
 type=text
@@ -3348,6 +3515,85 @@ y=23
 width=15
 height=14
 script1op1=stat_xp_remaining,construction
+font=p12_full
+shadowed=yes
+text=%1
+colour=0xFFFF00
+
+[hunter_button]
+type=text
+x=63
+y=219
+buttontype=normal
+width=62
+height=31
+overlayer=hunter_hover
+font=p12_full
+shadowed=yes
+option=View @or1@Hunter @whi@guide
+
+[hunter_hover]
+type=layer
+x=2
+y=216
+width=183
+height=43
+hide=yes
+
+[hunter_hover_box]
+layer=hunter_hover
+type=rect
+x=4
+y=7
+width=174
+height=32
+fill=yes
+
+[hunter_hover_label]
+layer=hunter_hover
+type=text
+x=6
+y=7
+width=94
+height=14
+font=p12_full
+shadowed=yes
+text=Hunter XP:
+colour=0xFFFF00
+
+[hunter_hover_next]
+layer=hunter_hover
+type=text
+x=6
+y=23
+width=74
+height=14
+font=p12_full
+shadowed=yes
+text=Next Level At:
+colour=0xFFFF00
+
+[hunter_hover_xp]
+layer=hunter_hover
+type=text
+x=103
+y=7
+width=15
+height=14
+script1op1=stat_xp,hunter
+font=p12_full
+shadowed=yes
+text=%1
+colour=0xFFFF00
+
+[hunter_hover_remaining]
+layer=hunter_hover
+type=text
+x=84
+y=23
+width=15
+height=14
+script1op1=stat_xp_remaining,hunter
 font=p12_full
 shadowed=yes
 text=%1
