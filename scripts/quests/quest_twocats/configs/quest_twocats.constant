@@ -1,0 +1,131 @@
+// A Tail of Two Cats.
+//
+// The whole quest is one small house in Burthorpe and one cat in Lumbridge. Everything below is
+// pinned by what the cache will actually render.
+//
+// ---------------------------------------------------------------------------- the hard pin
+//
+//   [twocats_niete]  multivar=twocats_quest
+//                    multinpc=60,ics_little_cat_visible
+//                    multinpc=65,ics_little_cat_visible
+//                    multinpc=70,ics_little_cat_visible
+//
+// Neite is placed at 2923,3566 (m45_55, 0 43 46) and she renders at EXACTLY those three values.
+// Not 55, not 75. So the final act has to be three stages long and completion has to be a fourth
+// value outside the set - she leaves with Bob when it is over, which is also what the story wants.
+//
+// ---------------------------------------------------------------------------- the chores
+//
+// [twocats_chores] (the obj Bob hands over) is already readable in
+// general_use/scripts/readables_generated.rs2:123 and its text is the spec:
+//
+//     "Bob's list of chores: | Tidy house | Warm human | Feed human | Tidy human | Tend garden"
+//
+// Five lines, five varbits on twocats_varbit, in that order:
+//
+//   twocats_chores_tidyhouse   bit 7        0-1    -> [twocats_bed]        0 unmade, 1 made
+//   twocats_chores_warmhuman   bits 8-9     0-3    -> [twocats_fireplace]  0 out, 1 wood, 2 lit
+//   twocats_chores_feedhuman   bits 10-12   0-7    -> [twocats_table]      0 bare .. 5 cleared
+//   twocats_chores_tidyhuman   bits 13-16   0-15   -> [twocats_unferth]    0 bald .. 4 long
+//   twocats_chores_tidygarden  bits 17-20   0-15   -> [twocats_patch]      0 weediest .. 8 potatoes
+//
+// Note that the patch runs BACKWARDS relative to how a player thinks about raking:
+//
+//   multiloc=0,twocats_patch_weed3   (thick weeds)   <- the untouched state
+//   multiloc=1,twocats_patch_weed2
+//   multiloc=2,twocats_patch_weed1   (sparse weeds)
+//   multiloc=3,twocats_patch_weeded  (clear soil)
+//   multiloc=4..8,twocats_patch_potato1..5
+//
+// so raking INCREASES the varbit, and 0 - the value a fresh account has - is the overgrown state.
+// That is the right default for every chore varbit here except one.
+//
+// ---------------------------------------------------------------------------- Unferth's hair
+//
+// [twocats_unferth] multinpc runs 0..8 and mirrors around the middle:
+//   0 bald, 1 short, 2 medium, 3 spikey, 4 long, 5 spikey, 6 medium, 7 short, 8 bald.
+//
+// A fresh account is therefore at 0 and Unferth renders BALD before the quest is started - which
+// is exactly the state the quest is about, so it is left alone. ~twocats_start sets the varbit to
+// ^twocats_hair_long when the quest begins (he has not been out of the house in months and it has
+// grown back wild), the "Tidy human" chore cuts it back down to ^twocats_hair_bald one step per
+// snip, and lifting the curse at the end restores it to ^twocats_hair_medium.
+//
+// ---------------------------------------------------------------------------- ops, or the lack of them
+//
+// Almost none of the children carry ops. Checked, the complete list is:
+//   twocats_bed_unmade    op1=Make
+//   twocats_table_*       op1=Inspect  (all five)
+//   twocats_bookcase      op1=Search
+//
+// The fireplace, the patch and every other table state have NO op at all, so lighting the fire,
+// raking and planting all have to go through [oplocu] with the tool in hand. Handlers go on the
+// SHELLS ([twocats_bed], [twocats_fireplace], [twocats_table], [twocats_patch]), never on the
+// children: the map places the shell and OpLocHandler resolves the multi before dispatch.
+//
+// twocats_bookcase is NOT a multiloc - it is a plain loc with op1=Search - so its handler is on it
+// directly.
+//
+// ---------------------------------------------------------------------------- the other varbits
+//
+//   twocats_gotreward  bit 25  - used, guards the present so it cannot be claimed twice.
+//   twocats_reldo      bit 26  - used, and load-bearing: it is the ONLY record that Reldo has told
+//                                you who Robert the Strong was. There is deliberately no stage
+//                                between ^twocats_bob_story and ^twocats_neite_here, so at stage 40
+//                                Bob reads this bit to decide whether you have anything to tell him
+//                                and the journal reads it to decide what to point you at.
+//   twocats_locator_direction bits 21-24 - NOT used. It drives the enchanted amulet's "which way
+//                                is Bob" readout in the live game, and Bob does not wander here:
+//                                he is a fixed spawn in Bob's Axes. Left at 0.
+
+// =========================================================================== stages
+^twocats_not_started = 0
+^twocats_started = 10        // Unferth has complained; his cat is gone and his hair with it
+^twocats_met_bob = 20        // Bob has been spoken to; the chore list and the recipe hunt
+^twocats_chores_done = 30    // all five chores are done, Bob has not heard about it yet
+^twocats_bob_story = 40      // Bob half-remembers being someone called Robert
+^twocats_neite_here = 60     // Neite is at the house                          <- RENDERS
+^twocats_told_unferth = 65   // Unferth has been made to say the name out loud <- RENDERS
+^twocats_curse_lifted = 70   // the curse is off; the reward is unclaimed      <- RENDERS
+^twocats_complete = 80       // Neite and Bob are gone
+
+// =========================================================================== chore states
+^twocats_bed_unmade = 0
+^twocats_bed_made = 1
+
+^twocats_fire_out = 0
+^twocats_fire_wood = 1
+^twocats_fire_lit = 2
+
+^twocats_table_bare = 0
+^twocats_table_laid = 1
+^twocats_table_milk = 2
+^twocats_table_cake = 3
+^twocats_table_ready = 4
+^twocats_table_cleared = 5
+
+^twocats_hair_bald = 0
+^twocats_hair_medium = 2
+^twocats_hair_long = 4
+
+^twocats_patch_weediest = 0
+^twocats_patch_clear = 3
+^twocats_patch_planted = 4
+^twocats_patch_grown = 8
+
+^twocats_flag_clear = 0
+^twocats_flag_set = 1
+
+// =========================================================================== places
+// Unferth's house and garden, m45_55. Every loc below is the SHELL as the map places it.
+^twocats_bed_coord = 0_45_55_37_36        // 2917,3556
+^twocats_bookcase_coord = 0_45_55_37_39   // 2917,3559
+^twocats_fireplace_coord = 0_45_55_39_37  // 2919,3557
+^twocats_table_coord = 0_45_55_40_36      // 2920,3556
+^twocats_unferth_coord = 0_45_55_38_38    // 2918,3558
+^twocats_neite_coord = 0_45_55_43_46      // 2923,3566
+// Bob is not in the cache's map data at all. twocats_bob_bow_tie has been added to m50_50 at
+// 0 32 2 - 3232,3202, inside Bob's Axes in Lumbridge, one tile north of Bob the axe seller.
+// The patch is twelve tiles: localx 37-39 by localz 42-45, i.e. 2917-2919 by 3562-3565. They all
+// share one varbit, so raking any one of them rakes the lot - which is why the chore is a single
+// counter and not twelve.

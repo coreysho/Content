@@ -90,4 +90,13 @@ if (%ics_little_var >= ^icslittle_devoured) {
 stat_advance(thieving, 40000);
 stat_advance(agility, 40000);
 session_log(^log_adventure, "Quest complete: Icthlarin's Little Helper");
+// FIXED: the reward scroll advertised the catspeak amulet and nothing ever handed it over.
+// ~send_quest_complete only draws the obj on the scroll (if_setobject) - every quest that gives an
+// item has to add it itself. Nothing else in the cache grants this amulet, and A Tail of Two Cats
+// cannot be started without one, so the quest was unfinishable from here.
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, ics_little_amulet_of_catspeak, 1);
+} else {
+    obj_add(coord, ics_little_amulet_of_catspeak, 1, ^lootdrop_duration);
+}
 ~send_quest_complete(questlist:ics_little, ics_little_amulet_of_catspeak, 250, ^icslittle_questpoints, "You have completed\\nIcthlarin's Little Helper!", "2 Quest Points|4,000 Thieving XP|4,000 Agility XP|The catspeak amulet");

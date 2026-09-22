@@ -1,0 +1,244 @@
+// A Tail of Two Cats - the chores, the bookcase and the reward items.
+//
+// Every loc handler below sits on the SHELL, not on the child that carries the op. The map places
+// the shell and OpLocHandler resolves the multiloc before dispatch, so a handler on
+// twocats_bed_unmade would never fire once the bed was made and a handler on twocats_table_bare
+// would stop working the moment anything was put on the table.
+
+// =========================================================================== chore 1: Tidy house
+// [twocats_bed] multivar=twocats_chores_tidyhouse, multiloc 0 unmade / 1 made.
+// twocats_bed_unmade is the only child with an op (op1=Make), so this only ever arrives at state 0.
+[oploc1,twocats_bed]
+p_arrivedelay;
+if (%twocats_quest < ^twocats_met_bob) {
+    mes("It is not your bed and you have not been asked to touch it.");
+    return;
+}
+if (%twocats_chores_tidyhouse = ^twocats_bed_made) {
+    mes("The bed is already made.");
+    return;
+}
+mes("You straighten the sheets and plump what is left of the pillow.");
+p_delay(2);
+%twocats_chores_tidyhouse = ^twocats_bed_made;
+mes("That is the house tidied, such as it is.");
+~twocats_check_chores;
+
+// =========================================================================== chore 2: Warm human
+// [twocats_fireplace] multivar=twocats_chores_warmhuman, multiloc 0 gone out / 1 got wood / 2 lit.
+// None of the three children carry an op, so the only way in is with an item.
+[oplocu,twocats_fireplace]
+// p_arrivedelay corrupts last_useitem, so the item is read before the walk.
+def_obj $item = last_useitem;
+p_arrivedelay;
+if (%twocats_quest < ^twocats_met_bob) {
+    ~displaymessage(^dm_default);
+    return;
+}
+switch_obj ($item) {
+    case logs :
+        if (%twocats_chores_warmhuman ! ^twocats_fire_out) {
+            mes("There is already wood in the grate.");
+            return;
+        }
+        inv_del(inv, logs, 1);
+        %twocats_chores_warmhuman = ^twocats_fire_wood;
+        mes("You stack the logs in the grate.");
+    case tinderbox :
+        if (%twocats_chores_warmhuman = ^twocats_fire_out) {
+            mes("There is nothing in the grate to light.");
+            return;
+        }
+        if (%twocats_chores_warmhuman = ^twocats_fire_lit) {
+            mes("The fire is burning perfectly well already.");
+            return;
+        }
+        mes("You strike the tinderbox over the grate.");
+        p_delay(2);
+        %twocats_chores_warmhuman = ^twocats_fire_lit;
+        stat_advance(firemaking, 400);
+        mes("The fire catches. The room stops being quite so miserable.");
+        ~twocats_check_chores;
+    case default : ~displaymessage(^dm_default);
+}
+
+// =========================================================================== chore 3: Feed human
+// [twocats_table] multivar=twocats_chores_feedhuman:
+//   0 bare, 1 laid (cloth and plates), 2 milk, 3 cake, 4 cake and milk, 5 cleared.
+// All five table children carry op1=Inspect, so Inspect is the one op that works at every state -
+// it lays the table at 0 and describes it everywhere else.
+[oploc1,twocats_table]
+p_arrivedelay;
+if (%twocats_quest < ^twocats_met_bob) {
+    mes("A nice sturdy table.");
+    return;
+}
+if (%twocats_chores_feedhuman = ^twocats_table_bare) {
+    mes("You find a cloth and two plates in the dresser and lay the table.");
+    %twocats_chores_feedhuman = ^twocats_table_laid;
+    mes("Now it needs something on it. The recipe on Bob's list was for chocolate cake, and Unferth could do with the milk too.");
+    return;
+}
+switch_int (%twocats_chores_feedhuman) {
+    case ^twocats_table_laid : mes("Laid, and completely empty.");
+    case ^twocats_table_milk : mes("Milk, and nothing to go with it.");
+    case ^twocats_table_cake : mes("Cake, and nothing to wash it down with.");
+    case ^twocats_table_ready : mes("Chocolate cake and a glass of milk. Unferth should be told.");
+    case ^twocats_table_cleared : mes("Crumbs, an empty glass and a very slightly happier man.");
+    case default : mes("A nice sturdy table.");
+}
+
+[oplocu,twocats_table]
+// p_arrivedelay corrupts last_useitem, so the item is read before the walk.
+def_obj $item = last_useitem;
+p_arrivedelay;
+if (%twocats_quest < ^twocats_met_bob) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%twocats_chores_feedhuman = ^twocats_table_bare) {
+    mes("The table needs laying first.");
+    return;
+}
+if (%twocats_chores_feedhuman >= ^twocats_table_cleared) {
+    mes("Unferth has eaten. Anything else would be showing off.");
+    return;
+}
+switch_obj ($item) {
+    case bucket_milk : @twocats_serve(bucket_milk, ^twocats_table_milk, "You pour Unferth a glass of milk.");
+    case chocolate_cake : @twocats_serve(chocolate_cake, ^twocats_table_cake, "You set the chocolate cake down on the plate.");
+    case default : ~displaymessage(^dm_default);
+}
+
+// $paired is the state this item alone produces. If the OTHER item is already on the table the
+// result is ^twocats_table_ready instead, and the order the player serves in does not matter.
+[label,twocats_serve](namedobj $obj, int $paired, string $message)
+if (%twocats_chores_feedhuman = $paired) {
+    mes("That is already on the table.");
+    return;
+}
+inv_del(inv, $obj, 1);
+if (%twocats_chores_feedhuman = ^twocats_table_laid) {
+    %twocats_chores_feedhuman = $paired;
+} else {
+    %twocats_chores_feedhuman = ^twocats_table_ready;
+}
+mes($message);
+if (%twocats_chores_feedhuman = ^twocats_table_ready) {
+    mes("That is a meal. Unferth should be told there is one on the table.");
+}
+
+// =========================================================================== chore 5: Tend garden
+// [twocats_patch] multivar=twocats_chores_tidygarden, and the ordering is inverted relative to how
+// raking feels: 0 is the THICKEST weeds and 3 is clear soil, so raking counts UP. 4-8 are the
+// potato growth stages.
+//
+// All twelve patch tiles share the one varbit, so raking any tile rakes the garden. That is a
+// property of the cache, not a shortcut: there is nowhere else to store twelve separate states.
+[oplocu,twocats_patch]
+// p_arrivedelay corrupts last_useitem, so the item is read before the walk.
+def_obj $item = last_useitem;
+p_arrivedelay;
+if (%twocats_quest < ^twocats_met_bob) {
+    ~displaymessage(^dm_default);
+    return;
+}
+switch_obj ($item) {
+    case rake :
+        if (%twocats_chores_tidygarden >= ^twocats_patch_clear) {
+            mes("There is nothing left to rake.");
+            return;
+        }
+        mes("You rake the weeds out of Unferth's patch.");
+        p_delay(3);
+        %twocats_chores_tidygarden = add(%twocats_chores_tidygarden, 1);
+        stat_advance(farming, 40);
+        if (%twocats_chores_tidygarden >= ^twocats_patch_clear) {
+            mes("The patch is clear. It wants planting now.");
+        } else {
+            mes("Still more weeds than patch.");
+        }
+    case potato_seed :
+        if (%twocats_chores_tidygarden < ^twocats_patch_clear) {
+            mes("You would be planting into a weed bed.");
+            return;
+        }
+        if (%twocats_chores_tidygarden >= ^twocats_patch_planted) {
+            mes("The potatoes are already in.");
+            return;
+        }
+        inv_del(inv, potato_seed, 1);
+        mes("You dib the seed potatoes in along the row.");
+        p_delay(2);
+        %twocats_chores_tidygarden = ^twocats_patch_planted;
+        stat_advance(farming, 80);
+        mes("That is the garden tended.");
+        ~twocats_check_chores;
+    case default : ~displaymessage(^dm_default);
+}
+
+// =========================================================================== the bookcase
+// A plain loc with op1=Search - not a multiloc - so this handler goes on it directly.
+[oploc1,twocats_bookcase]
+p_arrivedelay;
+if (%twocats_quest < ^twocats_met_bob) {
+    mes("You search the bookcase. Fishing, mostly, and one book about axes.");
+    return;
+}
+if (inv_total(inv, twocats_recipe) > 0 | inv_total(bank, twocats_recipe) > 0) {
+    mes("You already have the recipe.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room to take anything out of the bookcase.");
+    return;
+}
+mes("You search the bookcase.");
+p_delay(2);
+inv_add(inv, twocats_recipe, 1);
+mes("Tucked inside a book about axes is a handwritten recipe card.");
+
+// =========================================================================== the chore tally
+// Called after every chore. The four chores that can be finished off-NPC end here; "Feed human"
+// finishes in twocats_npcs.rs2 when Unferth actually eats, and calls this too.
+[proc,twocats_chores_complete]()(boolean)
+if (%twocats_chores_tidyhouse ! ^twocats_bed_made) { return(false); }
+if (%twocats_chores_warmhuman ! ^twocats_fire_lit) { return(false); }
+if (%twocats_chores_feedhuman ! ^twocats_table_cleared) { return(false); }
+if (%twocats_chores_tidyhuman ! ^twocats_hair_bald) { return(false); }
+if (%twocats_chores_tidygarden < ^twocats_patch_planted) { return(false); }
+return(true);
+
+[proc,twocats_check_chores]
+if (%twocats_quest ! ^twocats_met_bob) {
+    return;
+}
+if (~twocats_chores_complete = false) {
+    return;
+}
+%twocats_quest = ^twocats_chores_done;
+~send_quest_progress(questlist:twocats, %twocats_quest, ^twocats_complete);
+~mesbox("That is every line on Bob's list. Somewhere behind you a cat that is not in the room starts purring.");
+
+// =========================================================================== reward items
+// These three were generated stubs in general_use/scripts/item_ops_generated.rs2 - "You open the
+// present." with nothing in it, and "Nothing interesting happens." twice. They have moved here so
+// the quest owns them, and a trigger can only be declared once.
+[opheld1,twocats_present]
+if (inv_freespace(inv) < 2) {
+    mes("You need two free inventory spaces to open the present.");
+    return;
+}
+inv_del(inv, twocats_present, 1);
+inv_add(inv, twocats_rewardlamp, 1);
+inv_add(inv, twocats_mouse_toy, 1);
+~mesbox("Inside the present is an antique lamp and, wrapped separately and rather more carefully, a toy mouse.");
+
+// Same interface the genie lamp and Recipe for Disaster's lamp use. ~xplamp_consume decides which
+// lamp to take out of the inventory, so this only has to open it.
+[opheld1,twocats_rewardlamp]
+%xplamp = ^xplamp_none;
+if_openmain(xplamp);
+
+[opheld3,twocats_amuletofcatspeak]
+~mesbox("The amulet is sealed shut. It purrs when you hold it to your ear, which is either Neite's blessing or a very good imitation of one.");
