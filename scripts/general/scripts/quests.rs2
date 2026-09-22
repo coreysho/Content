@@ -301,6 +301,9 @@ if (%mdaughter_quest_var >= ^mdaughter_complete) {
 if (%fenk_quest >= ^fenk_complete) {
     $questpoints = add($questpoints, ^fenk_questpoints);
 }
+if (%devious_main >= ^devious_complete) {
+    $questpoints = add($questpoints, ^devious_questpoints);
+}
 // Recipe for Disaster is ten sub-quests worth one point each, tracked as ten bits in
 // %hundred_subquest_tally, so it counts bits rather than comparing a stage to a completion value.
 $questpoints = add($questpoints, ~hundred_subquests_done);
@@ -318,6 +321,7 @@ $total = add($total, ^rag_questpoints);
 $total = add($total, ^lost_tribe_questpoints);
 $total = add($total, ^mdaughter_questpoints);
 $total = add($total, ^fenk_questpoints);
+$total = add($total, ^devious_questpoints);
 $total = add($total, ^runemysteries_questpoints);
 $total = add($total, ^doric_questpoints);
 $total = add($total, ^cook_questpoints);
@@ -470,6 +474,7 @@ if (testbit(%ibanmulti, ^upass_started_bit) = ^true & %upass ! ^upass_complete) 
 ~send_quest_progress_colour(questlist:lost_tribe, %lost_tribe_quest, ^lost_tribe_complete);
 ~send_quest_progress_colour(questlist:mdaughter, %mdaughter_quest_var, ^mdaughter_complete);
 ~send_quest_progress_colour(questlist:creatureoffenkenstrain, %fenk_quest, ^fenk_complete);
+~send_quest_progress_colour(questlist:devious, %devious_main, ^devious_complete);
 ~send_quest_progress_colour(questlist:troll, %troll_quest, ^troll_complete);
 if_settab(questlist, ^tab_quest_journal);
 

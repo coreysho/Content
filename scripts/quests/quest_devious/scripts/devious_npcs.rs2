@@ -1,0 +1,131 @@
+// The hooded monk at Paterdomus, and reporting what happened to the High Priest of Entrana.
+
+// The map places both shells - devious_monk_hooded at m53_54 local(14,36) and devious_monk_dead
+// one tile west at (13,36) - and both read %devious_monk. So the moment that varbit flips, the man
+// you have been talking to is a body lying where he stood, and nothing had to be spawned.
+[opnpc1,devious_monk_hooded]
+switch_int (%devious_main) {
+    case ^devious_not_started : @devious_monk_hire;
+    case ^devious_hired : @devious_monk_waiting;
+    case ^devious_blade_made : @devious_monk_disguise;
+    case ^devious_blade_hidden : @devious_monk_deliver;
+    case ^devious_delivered : @devious_monk_killed_scene;
+    // Past that he is not standing here any more.
+    case default : ~chatnpc("<p,neutral>...");
+}
+
+[label,devious_monk_hire]
+~chatnpc("<p,neutral>You look like someone who can be discreet.");
+switch_int (~p_choice2("Depends what it pays.", 1, "Not especially.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>Not especially.");
+        ~chatnpc("<p,neutral>Then we have nothing to discuss.");
+        return;
+    case 1 :
+        ~chatplayer("<p,neutral>Depends what it pays.");
+}
+~chatnpc("<p,neutral>It pays. I need something taken to Entrana, and Entrana is particular about what comes ashore.");
+~chatplayer("<p,quiz>What sort of something?");
+~chatnpc("<p,shifty>A blade. Slender enough to hide, and hidden well enough that a monk on a dock will not find it.");
+~chatplayer("<p,angry>Weapons are banned on Entrana. That's the whole point of Entrana.");
+~chatnpc("<p,neutral>I am aware. That is why I am paying.");
+switch_int (~p_choice2("Fine. I'll do it.", 1, "Find someone else.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>Find someone else.");
+        ~chatnpc("<p,neutral>I expect I shall.");
+        return;
+    case 1 :
+        ~chatplayer("<p,neutral>Fine. I'll do it.");
+}
+~chatnpc("<p,neutral>Grind a steel two-hander down on Doric's wheel until there is nothing left of it but edge. Then hide it in something innocent.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>And take this - when you have a hand free for it.");
+    return;
+}
+%devious_main = ^devious_hired;
+~send_quest_progress(questlist:devious, %devious_main, ^devious_complete);
+inv_add(inv, devious_glowingpouch, 1);
+~chatnpc("<p,neutral>Carry it in this. Nobody has ever searched an essence pouch.");
+mes("The monk gives you a large pouch.");
+
+// The pouch is the only one there is, and at stage ^devious_blade_hidden the bow-sword is inside
+// it - so losing it would otherwise end the quest with no way back. He grumbles and starts the
+// player over rather than leaving them stuck.
+[proc,devious_replace_pouch]()(boolean)
+if (~obj_gettotal(devious_glowingpouch) > 0) {
+    return (false);
+}
+~chatnpc("<p,angry>You have lost it. The one thing I gave you, and you have lost it.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>Come back with a free hand and I will find you another.");
+    return (true);
+}
+if (%devious_main > ^devious_hired) {
+    %devious_main = ^devious_hired;
+    ~send_quest_progress(questlist:devious, %devious_main, ^devious_complete);
+    ~chatnpc("<p,angry>And the blade with it, I suppose. Start again.");
+}
+inv_add(inv, devious_glowingpouch, 1);
+mes("The monk gives you another pouch.");
+return (true);
+
+[label,devious_monk_waiting]
+if (~devious_replace_pouch = true) {
+    return;
+}
+~chatnpc("<p,quiz>Have you the blade?");
+~chatplayer("<p,sad>Not yet.");
+~chatnpc("<p,neutral>Doric's wheel. North of Falador. A steel two-hander goes on it and something useful comes off.");
+
+[label,devious_monk_disguise]
+if (~devious_replace_pouch = true) {
+    return;
+}
+~chatnpc("<p,happy>That is a very thin sword.");
+~chatplayer("<p,neutral>It's what you asked for.");
+~chatnpc("<p,neutral>It is. Now put it somewhere a shortbow would go, and put the whole thing in the pouch.");
+
+[label,devious_monk_deliver]
+if (~devious_replace_pouch = true) {
+    return;
+}
+~chatnpc("<p,neutral>Behind the altar in the church on Entrana. Leave it and walk away. Do not wait about.");
+~chatplayer("<p,quiz>Who's collecting it?");
+~chatnpc("<p,neutral>Not your concern.");
+
+// Reporting back. He gets about four words out.
+[label,devious_monk_killed_scene]
+~chatplayer("<p,neutral>It's behind the altar.");
+~chatnpc("<p,happy>Good. Then that is the end of your part in it, and you will forget the whole -");
+if_close;
+mes("Something comes out of the dark behind him, very fast.");
+p_delay(2);
+%devious_monk = ^devious_monk_killed;
+%devious_altar = ^devious_altar_burnt;
+p_delay(1);
+~mesbox("By the time you have turned round there is nobody there but the monk, and he is not standing any more.");
+
+// =========================================================================== the High Priest
+
+// His own handler is [opnpc1,high_priest_of_entrana] in areas/area_entrana/scripts, a chain of ifs
+// with no menu, so this goes in as a proc that runs before the rest of it and stops there if it
+// had something to say - the same shape Mountain Daughter uses on Brundt.
+[proc,devious_high_priest]()(boolean)
+if (%devious_main ! ^devious_found_body) {
+    return (false);
+}
+if (inv_total(inv, devious_relic_fragment_saradomin) = 0) {
+    return (false);
+}
+~chatplayer("<p,sad>Someone had a sword brought onto this island, past your gate, in a pouch. I brought it.");
+~chatnpc("<p,shock>...you did what?");
+~chatplayer("<p,neutral>I didn't know what it was. The man who paid me is dead, and this was in his hand.");
+mes("You show the High Priest the broken relic.");
+~chatnpc("<p,sad>That is ours. Or it was - there is a good deal of it missing.");
+~chatnpc("<p,angry>So the blade was never for a person at all. It was for the reliquary.");
+~chatplayer("<p,quiz>Who would want a piece of it?");
+~chatnpc("<p,neutral>Someone who intends to be somewhere else entirely by the time anyone notices. As, I suspect, they now are.");
+~chatnpc("<p,neutral>You have been used, and you have had the sense to come and say so. That is worth something.");
+inv_del(inv, devious_relic_fragment_saradomin, 1);
+queue(devious_quest_complete, 0, 0);
+return (true);

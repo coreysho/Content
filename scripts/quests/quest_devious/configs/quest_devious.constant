@@ -1,0 +1,31 @@
+// Devious Minds.
+//
+// Three varbits, and two of them are multi drivers, so they set the shape of the whole quest:
+//
+//   [devious_altar] (Entrana church, m44_52 local 37,20) multivar=devious_altar
+//       0 -> altar          the ordinary altar
+//       1 -> devious_altar_pouch      a large pouch sitting on it
+//       2 -> devious_altar_scorched   afterwards
+//
+//   [devious_monk_hooded] / [devious_monk_dead] multivar=devious_monk
+//       0 -> devious_monk_hooded_visable  "Monk",      Talk-to
+//       1 -> devious_monk_dead_visable    "Dead Monk", Search
+//     The two shells are placed one tile apart at Paterdomus (m53_54 local 14,36 and 13,36), so
+//     flipping the varbit puts a body where the man who hired you was standing. Nothing is spawned
+//     or removed.
+//
+// %devious_main is eight bits and nothing switches on it, so it is numbered in tens.
+^devious_not_started = 0
+^devious_hired = 10
+^devious_blade_made = 20
+^devious_blade_hidden = 30
+^devious_delivered = 40
+^devious_found_body = 50
+
+// The two states each multi is ever written to, named so nothing writes a bare 1 or 2. The
+// starting values (a plain altar, a living monk) are the varbits' defaults and are never assigned,
+// so they are not declared - and the altar needs no coord constant, since it is reached through
+// its own [oploc1,devious_altar].
+^devious_altar_holding = 1
+^devious_altar_burnt = 2
+^devious_monk_killed = 1

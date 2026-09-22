@@ -1,0 +1,46 @@
+[if_button,questlist:devious]
+def_string $text;
+
+switch_int (%devious_main) {
+    case ^devious_not_started :
+        $text = "@dbl@I can start this quest by speaking to the @dre@hooded monk|";
+        $text = append($text, "@dbl@at the @dre@temple on the Salve|");
+        $text = append($text, "@dbl@I will need a @dre@steel 2h sword@dbl@ and a @dre@shortbow");
+
+    case ^devious_hired :
+        $text = "@str@A hooded monk is paying me to get a blade onto Entrana,|";
+        $text = append($text, "@str@where weapons are banned. I have not asked why.|");
+        $text = append($text, "@dbl@I should grind a @dre@steel 2h sword@dbl@ down on @dre@Doric's|@dre@whetstone@dbl@, north of Falador");
+
+    case ^devious_blade_made :
+        $text = "@str@The sword is now a blade thin enough to hide.|";
+        $text = append($text, "@dbl@I should conceal it in a @dre@shortbow");
+
+    case ^devious_blade_hidden :
+        $text = "@str@The blade is hidden in a bow and the bow is in a large|";
+        $text = append($text, "@str@pouch. Nobody searches essence pouches.|");
+        $text = append($text, "@dbl@I should leave it behind the @dre@altar@dbl@ in the church on|@dre@Entrana");
+
+    case ^devious_delivered :
+        $text = "@str@I left the pouch behind the altar on Entrana and walked|";
+        $text = append($text, "@str@away without looking back.|");
+        $text = append($text, "@dbl@I should tell the @dre@monk@dbl@ it is done");
+
+    case ^devious_found_body :
+        $text = "@str@The monk who hired me was killed the moment he had no|";
+        $text = append($text, "@str@further use for me. He was holding a piece of a relic, and|");
+        $text = append($text, "@str@most of it is missing - the blade was never meant for a|");
+        $text = append($text, "@str@person at all.|");
+        $text = append($text, "@dbl@I should own up to the @dre@High Priest@dbl@ on @dre@Entrana");
+
+    case ^devious_complete :
+        $text = "@str@A hooded monk paid me to smuggle a blade onto Entrana|";
+        $text = append($text, "@str@inside an essence pouch. I did it, and he was murdered as|");
+        $text = append($text, "@str@soon as he had no further use for me.|");
+        $text = append($text, "@str@The blade was never for a person. Somebody cut a piece out|");
+        $text = append($text, "@str@of Entrana's relic and was gone before anyone noticed.|");
+        $text = append($text, "@str@I told the High Priest what I had done.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+}
+
+~quest_journal("Devious Minds", $text);
