@@ -1,0 +1,487 @@
+// Enakhra's Lament - the temple. Three planes of m48_145.
+//
+//   plane 0  the ring: four quadrants, four sigil pedestals, four corner doors, four sigil doors
+//            into the middle, and the fallen statue
+//   plane 1  the temple proper: the pedestal, the four elements, Akthanakos, the big wall
+//   plane 2  the altar, with the boneguard in the corridor to it
+//
+// The geometry is the puzzle and it is all in the map data. Each quadrant holds a landing ladder,
+// one sigil pedestal and one corner door, and the sigil a quadrant HOLDS is never the sigil whose
+// door is on that side of the middle - the Z sigil sits in the south-west at 3097,9336 while the Z
+// door is due north at 3104,9305. So a sigil has to be carried round the ring, and the only way
+// round is through the four corner doors, each of which wants a limb off the fallen statue.
+
+// =========================================================================== ladders
+// enakh_temple_ladderup and enakh_temple_ladderdown are plain locs placed in five matching pairs
+// (3079,9306 / 3087,9336 / 3104,9309 / 3121,9286 / 3127,9329, plus 3104,9332 between planes 1 and
+// 2), and the pillar ladders are two more pairs. Every one of them is the same tile on two
+// adjacent planes, so one handler each does the lot: move the PLAYER up or down a plane, not the
+// loc, and they arrive on whichever tile they were standing on.
+[oploc1,enakh_temple_ladderup] @enakh_climb(1);
+[oploc1,enakh_temple_pillar_ladder] @enakh_climb(1);
+[oploc1,enakh_temple_ladderdown] @enakh_climb(calc(0 - 1));
+[oploc1,enakh_temple_pillar_ladder_top] @enakh_climb(calc(0 - 1));
+
+[label,enakh_climb](int $planes)
+p_arrivedelay;
+mes("You climb the ladder.");
+p_teleport(movecoord(coord, 0, $planes, 0));
+// Lazim is four fixed spawns, so he only "follows" when enakh_where_is_lazim is written. The first
+// climb out of the ring is what moves him from the fallen statue to the pedestal; ~enakh_check_
+// elements takes him the rest of the way up to the altar.
+if (%enakh_quest = ^enakh_inside & %enakh_where_is_lazim = ^enakh_lazim_at_fallen & coordy(coord) = 1) {
+    %enakh_where_is_lazim = ^enakh_lazim_at_pedestal;
+}
+
+// The four sand piles are flanking scenery, one beside each of the ring's landing ladders - they
+// are how four thousand years of desert got in. They carry op1=Climb and there is nothing above
+// them on plane 2 that the map says is walkable, so climbing one is a look, not a shortcut.
+[oploc1,enakh_temple_sand_pile]
+p_arrivedelay;
+mes("You scramble up the sand pile. From the top you can see how far the drift has spread across the temple floor.");
+
+// =========================================================================== the fallen statue
+// [enakh_fallen_statue_east_multiloc] renders only once enakh_statue_fallen is 3, which is the
+// same write that turned the statue upstairs into a hole. Its multiloc index is
+// 3 + 4 * (limbs taken), so prising a limb off changes the model as well as handing over the key.
+[oplocu,enakh_fallen_statue_east_multiloc]
+def_obj $item = last_useitem;
+p_arrivedelay;
+if (~enakh_is_chisel($item) = false) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%enakh_left_arm_taken = ^enakh_limb_attached) {
+    @enakh_take_limb(enakh_arm_left, "left arm");
+}
+if (%enakh_right_arm_taken = ^enakh_limb_attached) {
+    @enakh_take_limb(enakh_arm_right, "right arm");
+}
+if (%enakh_left_leg_taken = ^enakh_limb_attached) {
+    @enakh_take_limb(enakh_leg_left, "left leg");
+}
+if (%enakh_right_leg_taken = ^enakh_limb_attached) {
+    @enakh_take_limb(enakh_leg_right, "right leg");
+}
+mes("There is nothing left on it to prise off.");
+
+[label,enakh_take_limb](namedobj $obj, string $which)
+if (inv_freespace(inv) = 0) {
+    mes("You have no room to carry a stone <$which>.");
+    return;
+}
+mes("You work the chisel into the seam.");
+p_delay(3);
+inv_add(inv, $obj, 1);
+switch_obj ($obj) {
+    case enakh_arm_left : %enakh_left_arm_taken = ^enakh_limb_taken;
+    case enakh_arm_right : %enakh_right_arm_taken = ^enakh_limb_taken;
+    case enakh_leg_left : %enakh_left_leg_taken = ^enakh_limb_taken;
+    case enakh_leg_right : %enakh_right_leg_taken = ^enakh_limb_taken;
+}
+stat_advance(crafting, 500);
+mes("The <$which> comes away clean. It is the shape of a key and nothing else.");
+
+// =========================================================================== the corner doors
+// enakh_door_left_arm_inactive's description - "There's a recess in it in the shape of a left arm"
+// - is the whole mechanic. The map places the ACTIVE variant, the one with op1=Open, so there is
+// no loc to swap: the lock lives in enakh_varbits instead and the limb is a key, not a component.
+// It is never consumed - there are four doors and four limbs and no spares.
+[oploc1,enakh_door_left_arm] @enakh_limb_door(enakh_arm_left, "a left arm");
+[oploc1,enakh_door_right_arm] @enakh_limb_door(enakh_arm_right, "a right arm");
+[oploc1,enakh_door_left_leg] @enakh_limb_door(enakh_leg_left, "a left leg");
+[oploc1,enakh_door_right_leg] @enakh_limb_door(enakh_leg_right, "a right leg");
+
+[label,enakh_limb_door](namedobj $key, string $shape)
+def_coord $door = loc_coord;
+p_arrivedelay;
+if (~enakh_door_unlocked($key) = true) {
+    @enakh_walk_through($door);
+}
+if (inv_total(inv, $key) = 0) {
+    ~mesbox("The door has a recess in it in the shape of <$shape>. Something goes in there.");
+    return;
+}
+mes("The stone limb drops into the recess and the door swings back.");
+switch_obj ($key) {
+    case enakh_arm_left : %enakh_left_armlock = ^enakh_on;
+    case enakh_arm_right : %enakh_right_armlock = ^enakh_on;
+    case enakh_leg_left : %enakh_left_leglock = ^enakh_on;
+    case enakh_leg_right : %enakh_right_leglock = ^enakh_on;
+}
+p_delay(1);
+@enakh_walk_through($door);
+
+[proc,enakh_door_unlocked](namedobj $key)(boolean)
+switch_obj ($key) {
+    case enakh_arm_left : if (%enakh_left_armlock = ^enakh_on) { return(true); }
+    case enakh_arm_right : if (%enakh_right_armlock = ^enakh_on) { return(true); }
+    case enakh_leg_left : if (%enakh_left_leglock = ^enakh_on) { return(true); }
+    case enakh_leg_right : if (%enakh_right_leglock = ^enakh_on) { return(true); }
+    case enakh_sigil_z : if (%enakh_z_door = ^enakh_on) { return(true); }
+    case enakh_sigil_m : if (%enakh_m_door = ^enakh_on) { return(true); }
+    case enakh_sigil_r : if (%enakh_r_door = ^enakh_on) { return(true); }
+    case enakh_sigil_k : if (%enakh_k_door = ^enakh_on) { return(true); }
+}
+return(false);
+
+// All nine doors in here are walls, and the engine has no door-swing for a loc the map placed in
+// its open form, so passage is a two-tile step to the far side. Which side that is depends on
+// where the player is standing, so it is worked out from the difference rather than hardcoded per
+// door - there are four rotations in play across the eight doors and hardcoding got one wrong.
+[label,enakh_walk_through](coord $door)
+def_int $dx = 0;
+def_int $dz = 0;
+if (coordx($door) > coordx(coord)) {
+    $dx = 2;
+} else if (coordx($door) < coordx(coord)) {
+    $dx = calc(0 - 2);
+}
+if (coordz($door) > coordz(coord)) {
+    $dz = 2;
+} else if (coordz($door) < coordz(coord)) {
+    $dz = calc(0 - 2);
+}
+p_teleport(movecoord(coord, $dx, 0, $dz));
+
+// =========================================================================== the sigils
+// Four pedestals in four quadrants, op1=Take-sigil. enakh_pedestal_sigil_nothing exists in the
+// cache but is not placed and there is no multiloc for these, so a taken sigil cannot empty its
+// pedestal visually. The guard below is what stops a player stockpiling them.
+[oploc1,enakh_pedestal_sigil_z] @enakh_take_sigil(enakh_sigil_z);
+[oploc1,enakh_pedestal_sigil_m] @enakh_take_sigil(enakh_sigil_m);
+[oploc1,enakh_pedestal_sigil_r] @enakh_take_sigil(enakh_sigil_r);
+[oploc1,enakh_pedestal_sigil_k] @enakh_take_sigil(enakh_sigil_k);
+
+[label,enakh_take_sigil](namedobj $sigil)
+p_arrivedelay;
+if (inv_total(inv, $sigil) > 0) {
+    mes("You already have that one.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room for the sigil.");
+    return;
+}
+inv_add(inv, $sigil, 1);
+mes("You lift the <oc_name($sigil)> off its pedestal. Its door is on the other side of the ring, of course.");
+
+// =========================================================================== the sigil doors
+// Same arrangement as the corner doors: the sigil is a key, not a component, and the lock is a
+// varbit. Any ONE of the four gets you into the middle - there is only one ladder up in there and
+// four ways to reach it.
+[oploc1,enakh_door_z_sigil] @enakh_sigil_door(enakh_sigil_z, "a Z");
+[oploc1,enakh_door_m_sigil] @enakh_sigil_door(enakh_sigil_m, "an M");
+[oploc1,enakh_door_r_sigil] @enakh_sigil_door(enakh_sigil_r, "an R");
+[oploc1,enakh_door_k_sigil] @enakh_sigil_door(enakh_sigil_k, "a K");
+
+[label,enakh_sigil_door](namedobj $sigil, string $shape)
+def_coord $door = loc_coord;
+p_arrivedelay;
+if (~enakh_door_unlocked($sigil) = true) {
+    @enakh_walk_through($door);
+}
+if (inv_total(inv, $sigil) = 0) {
+    ~mesbox("The door has a recess in it in the shape of <$shape>. Z, M, R, K - four doors, and somebody had a sense of humour about the order.");
+    return;
+}
+mes("The sigil slots home.");
+switch_obj ($sigil) {
+    case enakh_sigil_z : %enakh_z_door = ^enakh_on;
+    case enakh_sigil_m : %enakh_m_door = ^enakh_on;
+    case enakh_sigil_r : %enakh_r_door = ^enakh_on;
+    case enakh_sigil_k : %enakh_k_door = ^enakh_on;
+}
+p_delay(1);
+@enakh_walk_through($door);
+
+// =========================================================================== element 1: ice
+// enakh_dummy_fountain is a size 2 invisible npc sitting on the fountain with op2=Melt, and the
+// shell declares multinpc=0 only - so melting the crust is the same write that makes the npc
+// vanish and turns enakh_fountain_multiloc from a frozen fountain into a running one.
+[opnpc2,enakh_dummy_fountain_multinpc]
+p_arrivedelay;
+if (%enakh_quest < ^enakh_inside) {
+    mes("Nothing here is any of your business yet.");
+    return;
+}
+if (inv_total(inv, tinderbox) = 0) {
+    mes("You would need something to put a flame to it.");
+    return;
+}
+if (stat(firemaking) < ^enakh_req_firemaking) {
+    mes("You need a Firemaking level of <tostring(^enakh_req_firemaking)> to get a fire going against ice that thick.");
+    return;
+}
+mes("You build a fire against the crust and keep feeding it.");
+p_delay(5);
+%enakh_ice_room = ^enakh_element_on;
+stat_advance(firemaking, 1500);
+mes("The crust goes all at once and the fountain starts running for the first time in four thousand years.");
+~enakh_check_elements;
+
+// =========================================================================== element 2: smoke
+// Same shape: enakh_dummy_furnace has op2=Clear, its shell is multinpc=0 only, and
+// enakh_furnace_multiloc is 0 unlit / 1 lit on the same bit. So clearing the grate and the furnace
+// catching are one action, because they are one bit.
+[opnpc2,enakh_dummy_furnace_multinpc]
+p_arrivedelay;
+if (%enakh_quest < ^enakh_inside) {
+    mes("Nothing here is any of your business yet.");
+    return;
+}
+if (~enakh_has_chisel = false) {
+    mes("The grate is packed solid. You would need a chisel to get at it.");
+    return;
+}
+mes("You chip the packed sand out of the grate a handful at a time.");
+p_delay(5);
+%enakh_smoke_room = ^enakh_element_on;
+stat_advance(crafting, 750);
+mes("Air gets to it, and whatever was banked in there four thousand years ago is still hot enough to catch.");
+~enakh_check_elements;
+
+// =========================================================================== element 3: shadow
+// Six braziers, six separate bits, each a 0 log-remains / 1 lit multiloc. All six lit is what
+// throws the shadow the temple wants - which is why this is the shadow element and not the fire
+// one. Every child of every brazier carries op1=Investigate, lit or not, so Investigate is the one
+// op that works in both states and lighting has to be the tinderbox.
+[oplocu,enakh_brazier_1_multiloc] @enakh_light_brazier(1);
+[oplocu,enakh_brazier_2_multiloc] @enakh_light_brazier(2);
+[oplocu,enakh_brazier_3_multiloc] @enakh_light_brazier(3);
+[oplocu,enakh_brazier_4_multiloc] @enakh_light_brazier(4);
+[oplocu,enakh_brazier_5_multiloc] @enakh_light_brazier(5);
+[oplocu,enakh_brazier_6_multiloc] @enakh_light_brazier(6);
+
+[oploc1,enakh_brazier_1_multiloc] @enakh_look_brazier(%enakh_brazier_1_multivar);
+[oploc1,enakh_brazier_2_multiloc] @enakh_look_brazier(%enakh_brazier_2_multivar);
+[oploc1,enakh_brazier_3_multiloc] @enakh_look_brazier(%enakh_brazier_3_multivar);
+[oploc1,enakh_brazier_4_multiloc] @enakh_look_brazier(%enakh_brazier_4_multivar);
+[oploc1,enakh_brazier_5_multiloc] @enakh_look_brazier(%enakh_brazier_5_multivar);
+[oploc1,enakh_brazier_6_multiloc] @enakh_look_brazier(%enakh_brazier_6_multivar);
+
+[label,enakh_look_brazier](int $state)
+p_arrivedelay;
+if ($state = ^enakh_element_on) {
+    mes("It is burning steadily. <tostring(~enakh_braziers_lit)> of the six are.");
+    return;
+}
+mes("The logs in it have been laid ready and never lit. <tostring(~enakh_braziers_lit)> of the six are burning.");
+
+[label,enakh_light_brazier](int $which)
+def_obj $item = last_useitem;
+p_arrivedelay;
+if ($item ! tinderbox) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%enakh_quest < ^enakh_inside) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (stat(firemaking) < ^enakh_req_firemaking) {
+    mes("You need a Firemaking level of <tostring(^enakh_req_firemaking)> to light these.");
+    return;
+}
+if (~enakh_brazier_state($which) = ^enakh_element_on) {
+    mes("That one is already burning.");
+    return;
+}
+mes("You put the tinderbox to the laid logs.");
+p_delay(2);
+switch_int ($which) {
+    case 1 : %enakh_brazier_1_multivar = ^enakh_element_on;
+    case 2 : %enakh_brazier_2_multivar = ^enakh_element_on;
+    case 3 : %enakh_brazier_3_multivar = ^enakh_element_on;
+    case 4 : %enakh_brazier_4_multivar = ^enakh_element_on;
+    case 5 : %enakh_brazier_5_multivar = ^enakh_element_on;
+    case 6 : %enakh_brazier_6_multivar = ^enakh_element_on;
+}
+stat_advance(firemaking, 400);
+if (~enakh_braziers_lit < 6) {
+    mes("It catches. <tostring(~enakh_braziers_lit)> of the six are burning now.");
+    return;
+}
+%enakh_shadow_room = ^enakh_element_on;
+~mesbox("The sixth catches, and with all six going the shadows they throw meet in the middle of the floor and stop moving.");
+~enakh_check_elements;
+
+[proc,enakh_brazier_state](int $which)(int)
+switch_int ($which) {
+    case 1 : return(%enakh_brazier_1_multivar);
+    case 2 : return(%enakh_brazier_2_multivar);
+    case 3 : return(%enakh_brazier_3_multivar);
+    case 4 : return(%enakh_brazier_4_multivar);
+    case 5 : return(%enakh_brazier_5_multivar);
+    case 6 : return(%enakh_brazier_6_multivar);
+}
+return(^enakh_element_off);
+
+[proc,enakh_braziers_lit]()(int)
+def_int $lit = 0;
+def_int $i = 1;
+while ($i <= 6) {
+    if (~enakh_brazier_state($i) = ^enakh_element_on) {
+        $lit = calc($lit + 1);
+    }
+    $i = calc($i + 1);
+}
+return($lit);
+
+// =========================================================================== element 4: blood
+// enakh_light_prison carries no ops at all and Pentyn inside it has only op1=Talk-to, so breaking
+// the ward has to be an oplocu. Pentyn has been kept alive in there for thousands of years and the
+// ward runs on what it takes out of him; letting him out is what puts the blood back in the
+// temple's channels. See enakh_npcs.rs2 - he has to be talked to first, because walking up and
+// chiselling a stranger's prison without asking is not a thing the quest should reward.
+[oplocu,enakh_light_prison]
+def_obj $item = last_useitem;
+p_arrivedelay;
+if (~enakh_is_chisel($item) = false) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%enakh_blood_room = ^enakh_element_on) {
+    mes("The ward is already broken.");
+    return;
+}
+if (stat(magic) < ^enakh_req_magic) {
+    mes("You need a Magic level of <tostring(^enakh_req_magic)> to see where the ward is anchored, let alone hit it there.");
+    return;
+}
+if (stat(prayer) < ^enakh_req_prayer) {
+    mes("You need a Prayer level of <tostring(^enakh_req_prayer)> to hold the thing off you while you work.");
+    return;
+}
+if_close;
+mes("You find the anchor point and put the chisel through it.");
+p_delay(4);
+%enakh_blood_room = ^enakh_element_on;
+stat_advance(magic, 1500);
+stat_advance(prayer, 1000);
+~mesbox("The light goes out. Pentyn sits down on the floor, and four thousand years of what the ward was taking out of him goes back into the channels it came from.");
+~enakh_check_elements;
+
+// =========================================================================== the elements tally
+// The four bits are bits 0-3 of enakh_multivarbits and they are also the bottom four bits of
+// enakh_pedestal_multivar - which is why nothing shows on the pedestal until the head goes in:
+// indices 0-15 are all enakh_pedestal_headless whatever the elements are doing.
+[proc,enakh_all_elements]()(boolean)
+if (%enakh_blood_room ! ^enakh_element_on) { return(false); }
+if (%enakh_ice_room ! ^enakh_element_on) { return(false); }
+if (%enakh_smoke_room ! ^enakh_element_on) { return(false); }
+if (%enakh_shadow_room ! ^enakh_element_on) { return(false); }
+return(true);
+
+[proc,enakh_check_elements]
+if (%enakh_quest ! ^enakh_inside) {
+    return;
+}
+if (~enakh_all_elements = false) {
+    return;
+}
+%enakh_quest = ^enakh_elements_lit;
+%enakh_where_is_lazim = ^enakh_lazim_at_altar;
+~send_quest_progress(questlist:enakh, %enakh_quest, ^enakh_complete);
+~mesbox("All four are running. Somewhere above you something that was being held upright stops being held upright.");
+
+// =========================================================================== the magic barrier
+// enakh_magic_wall, three tiles of it at 3103-3105,9319, between the pedestal and the only ladder
+// up to the altar level. Pass-through is the op; the four elements are the price.
+[oploc1,enakh_magic_wall]
+def_coord $wall = loc_coord;
+p_arrivedelay;
+if (~enakh_all_elements = false) {
+    ~mesbox("The barrier is fed by the four channels in this room and every one of them is dry. It does not give.");
+    return;
+}
+mes("The barrier thins where you push at it.");
+p_delay(1);
+@enakh_walk_through($wall);
+
+// =========================================================================== the boneguard
+// [enakh_boneguard_multinpc] multivar=enakh_quest: enakh_boneguard (op2=Talk-to) at 0-40 and
+// enakh_bone_pile (op1=Climb-over) at 50-70. It stands at 3104,9307 on plane 2, in the corridor
+// between the pillar ladder and the altar, and it is the reason the elements have to be done
+// before the head is fetched.
+[opnpc2,enakh_boneguard_multinpc]
+~chatnpc("<p,angry>She built me out of what was left of the last one who asked.");
+~chatplayer("<p,quiz>Asked what?");
+~chatnpc("<p,angry>To go past. Do not ask.");
+// Read by the journal, which stops pointing at the altar level until the player has found out for
+// themselves that something is standing in the corridor.
+%enakh_player_seen_boneguard = ^enakh_on;
+
+[opnpc1,enakh_boneguard_multinpc]
+p_arrivedelay;
+if (%enakh_quest < ^enakh_elements_lit) {
+    ~displaymessage(^dm_default);
+    return;
+}
+mes("You climb over the heap of bones.");
+p_delay(1);
+def_int $dz = 2;
+if (coordz(npc_coord) < coordz(coord)) {
+    $dz = calc(0 - 2);
+}
+p_teleport(movecoord(coord, 0, 0, $dz));
+
+// =========================================================================== the pedestal
+// enakh_stone_head_akthanakos is "A granite head that will fit exactly into the pedestal" and it
+// is the only obj in the quest described that way. Lazim carries it - see enakh_npcs.rs2 - and
+// hands it over at the altar once the bones are down.
+[oplocu,enakh_pedestal_multiloc]
+def_obj $item = last_useitem;
+p_arrivedelay;
+if ($item = enakh_stone_head_akthanakos) {
+    @enakh_place_pedestal_head;
+}
+switch_obj ($item) {
+    case enakh_statue_head_lazim : @enakh_wrong_head;
+    case enakh_statue_head_zamorak : @enakh_wrong_head;
+    case enakh_statue_head_icthlarin : @enakh_wrong_head;
+    case enakh_statue_head_camel : @enakh_wrong_head;
+    case default : ~displaymessage(^dm_default);
+}
+
+[label,enakh_wrong_head]
+%enakh_used_wrong_head_on_pedestal = ^enakh_on;
+~mesbox("It sits in the recess about as well as a fist in a glove three sizes down. Whatever this pedestal was cut for, it was not a god and it was not a camel.");
+
+[label,enakh_place_pedestal_head]
+if (%enakh_pedestal_head = ^enakh_pedestal_head_in) {
+    mes("The head is already in the recess.");
+    return;
+}
+if (~enakh_all_elements = false) {
+    mes("The recess is cold. Nothing would come of it yet.");
+    return;
+}
+inv_del(inv, enakh_stone_head_akthanakos, 1);
+if_close;
+mes("The head drops into the recess without a gap anywhere round it.");
+%enakh_pedestal_head = ^enakh_pedestal_head_in;
+p_delay(3);
+// Head plus all four elements is pedestal index 31, the brightest state the multiloc has.
+mes("All four channels light at once and run into it.");
+p_delay(3);
+%enakh_akthanakos_form = ^enakh_akth_freed;
+%enakh_quest = ^enakh_akthanakos;
+~send_quest_progress(questlist:enakh, %enakh_quest, ^enakh_complete);
+~mesbox("Somewhere down the hall the boneguard that has not moved in four thousand years comes apart, and something steps out of it.");
+
+// =========================================================================== the rubble
+// enakh_rubblepile_by_largewall, op1=Take-rock, at 3108,9295 - "bricks dislodged from the wall
+// nearby". The big wall only sheds them once Akthanakos has gone through it.
+[oploc1,enakh_rubblepile_by_largewall]
+p_arrivedelay;
+if (%enakh_largewall_multivar ! ^enakh_wall_fallen) {
+    mes("The bricks are all still in the wall.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room for a lump of rock.");
+    return;
+}
+inv_add(inv, enakh_granite_medium, 1);
+mes("You pick a usable lump of granite out of the rubble.");

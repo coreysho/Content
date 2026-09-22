@@ -1,0 +1,215 @@
+// Enakhra's Lament.
+//
+// Three varps, and every one of them is load-bearing for something the client has to draw:
+//
+//   enakh_quest_expositbits  holds enakh_quest (bits 0-6), the stage
+//   enakh_multivarbits       holds every multiloc key - the statue, the pedestal, the fountain,
+//                            the furnace, the six braziers, the big wall and the four boulders
+//   enakh_varbits            holds enakh_where_is_lazim, enakh_enakhra_form and
+//                            enakh_akthanakos_form - three multinpc keys - plus the door locks
+//
+// Only enakh_multivarbits shipped with transmit=yes. The other two are read by multis as well, so
+// without transmit the client can never resolve them: the boneguard, Lazim, Enakhra and Akthanakos
+// would all have rendered as nothing. None of the three had scope=perm, so the whole quest would
+// also have reset on every logout. Both fixed in _unpack/377/all.varp.
+//
+// ---------------------------------------------------------------------------- the stage pin
+//
+//   [enakh_boneguard_multinpc]  multivar=enakh_quest
+//     multinpc=0,10,20,30,40 -> enakh_boneguard   (alive, size 2, op2=Talk-to)
+//     multinpc=50,60,65,70   -> enakh_bone_pile   (op1=Climb-over)
+//
+// That is the whole legal stage set: {0,10,20,30,40,50,60,65,70}. Nothing else renders the
+// boneguard at all. It also fixes where the boneguard falls - exactly at 50 - and 70 is the last
+// value in the set, so completion is 70 and the bones stay where they dropped.
+^enakh_not_started = 0
+^enakh_started = 10       // Lazim has taken you on as labour
+^enakh_statue_built = 20  // body and base are up; the statue wants a head
+^enakh_head_on = 30       // a head is on, the statue has cracked and fallen, the way in is open
+^enakh_inside = 40        // in the temple, working the four elements
+^enakh_elements_lit = 50  // all four elements burning                      <- BONES FALL HERE
+^enakh_akthanakos = 60    // head on the pedestal, Akthanakos out, wall down
+^enakh_confronted = 65    // Enakhra has dropped the hood
+^enakh_complete = 70
+
+// The order above is forced, not chosen. The boneguard on plane 2 stands between the pillar ladder
+// and the altar, and the altar is where the head for the pedestal is. The multinpc only turns it
+// into a climbable pile at 50, so the four elements HAVE to come before the head - the other way
+// round and the quest deadlocks on a corridor you cannot pass to fetch the thing that would open
+// it.
+
+// =========================================================================== the statue
+// [enakh_statue_east_multiloc] multivar=enakh_statue_multivar = enakh_multivarbits bits 13-17,
+// read as a 5-bit index. The cache splits those same bits into three named varbits, and the
+// arithmetic is the design:
+//
+//   enakh_statue_whathead  bits 13-14  which head (0-3)
+//   enakh_statue_stage     bits 13-15  head + 4 if the statue is up, so 0-3 during construction
+//                                      and 4..7 once it is finished
+//   enakh_statue_fallen    bits 16-17  0 intact, 1 cracked, 2 cracked more, 3 collapsed
+//
+//   index 0..3   -> flat ground, stage 1, stage 2, stage 3   (bit 15 clear: still building)
+//   index 4..7   -> the finished statue with the lazim/zamorak/icthlarin/camel head
+//   index 12..15 -> the same four, crack 1
+//   index 20..23 -> the same four, crack 2
+//   index 28..31 -> enakh_bighole, whatever head it had
+//
+// Writing %enakh_statue_stage therefore sets the head as a side effect: 4 is a Lazim head, 5 a
+// Zamorak head, 6 Icthlarin, 7 camel. Construction is written through %enakh_statue_stage too.
+^enakh_build_flatground = 0
+^enakh_build_base = 1
+^enakh_build_body = 2
+^enakh_build_ready_for_head = 3
+^enakh_build_head_lazim = 4
+^enakh_build_head_zamorak = 5
+^enakh_build_head_icthlarin = 6
+^enakh_build_head_camel = 7
+
+^enakh_head_lazim = 0
+^enakh_head_zamorak = 1
+^enakh_head_icthlarin = 2
+^enakh_head_camel = 3
+
+^enakh_statue_intact = 0
+^enakh_statue_crack1 = 1
+^enakh_statue_crack2 = 2
+^enakh_statue_collapsed = 3
+
+// ---------------------------------------------------------------------------- the fallen statue
+// [enakh_fallen_statue_east_multiloc] multivar=enakh_fallen_statue_multivar = bits 16-21, so its
+// bottom two bits ARE enakh_statue_fallen. Every multiloc it declares is 3, 7, 11 ... 63 - all of
+// them congruent to 3 mod 4 - which means the fallen statue renders ONLY once bits 16 and 17 are
+// both set, i.e. only once the standing statue upstairs has become enakh_bighole. One write does
+// both, which is why ^enakh_statue_collapsed is the only value that opens the temple.
+//
+// Bits 18-21 are the four limbs, and the *_taken varbits say the limb has been PRISED OFF:
+//   18 enakh_left_arm_taken  19 enakh_right_arm_taken
+//   20 enakh_left_leg_taken  21 enakh_right_leg_taken
+// index 3 is limbful, 63 is limbless.
+^enakh_limb_attached = 0
+^enakh_limb_taken = 1
+
+// =========================================================================== the pedestal
+// [enakh_pedestal_multiloc] multivar=enakh_pedestal_multivar = enakh_multivarbits bits 0-4:
+//   bit 0 blood, bit 1 ice, bit 2 smoke, bit 3 shadow, bit 4 head in the recess.
+// index 0-15 are all enakh_pedestal_headless regardless of the element bits, so the four elements
+// are invisible until the head goes in; 16 is enakh_pedestal_dim and 17-31 light up one element at
+// a time. 31 - all four elements and the head - is what frees Akthanakos.
+^enakh_element_off = 0
+^enakh_element_on = 1
+^enakh_pedestal_head_out = 0
+^enakh_pedestal_head_in = 1
+
+// =========================================================================== where Lazim is
+// Four separate multinpc shells, all keyed on enakh_where_is_lazim, each declaring exactly one
+// value. He is a different spawn in each place, not a walking npc.
+^enakh_lazim_at_statue = 0    // the building site, m49_45
+^enakh_lazim_at_fallen = 1    // beside the fallen statue, temple plane 0
+^enakh_lazim_at_pedestal = 2  // the main temple, plane 1
+^enakh_lazim_at_altar = 3     // the altar, plane 2
+
+// =========================================================================== the two Mahjarrat
+// [enakh_enakhra_multinpc]  0 hooded (op1=Talk-to), 1 mahjarrat (NO ops - she is revealed, not
+//                           talkable, so the reveal has to be the end of a conversation)
+// [enakh_akthanakos_multinpc] 0 boneguard (size 3, op1=Talk-to), 1 freed, 2 mahjarrat
+^enakh_enakhra_hooded = 0
+^enakh_enakhra_revealed = 1
+^enakh_akth_boneguard = 0
+^enakh_akth_freed = 1
+^enakh_akth_mahjarrat = 2
+
+// =========================================================================== the big wall
+// [enakh_largewall_r_multiloc] and [enakh_largewall_l_multiloc], both multivar=
+// enakh_largewall_multivar, both 5 tiles wide, placed side by side. The multiloc ordering is NOT
+// the construction order - 5 is stage 1:
+//   5 -> stage 1, 0 -> stage 2, 1 -> stage 3, 2 -> stage 4, 3 -> stage 5, 4 -> fallen
+// Default 0 is therefore stage 2, a half-built wall, which is how it is found.
+^enakh_wall_stage1 = 5
+^enakh_wall_stage2 = 0
+^enakh_wall_stage3 = 1
+^enakh_wall_stage4 = 2
+^enakh_wall_stage5 = 3
+^enakh_wall_fallen = 4
+
+// ---------------------------------------------------------------------------- what is not used
+// Plane 3 of m48_145 is a complete black-and-white mirror of the plane 0 ring - 4096 tiles of it,
+// with its own arm and leg doors and its own pedestal at 32,32 - and nothing in the cache says
+// what is supposed to happen there. It is almost certainly the Lament itself, the flashback, which
+// would need a cutscene director this engine does not have. Nothing in this quest goes there; the
+// area is left exactly as the cache has it rather than invented over.
+//
+// Two varbits are likewise left at 0 because nothing in the cache determines them:
+//   enakh_akthanakos_hits_dodged   (enakh_varbits 18-19) a staged fight this quest does not run
+//   enakh_largewall_needs_trimming (enakh_varbits 31) the wall comes down in one piece here
+//   enakh_seen_pedestal            (enakh_varbits 29) nothing here branches on having looked at it
+//   enakh_player_helps_akthanakos  (expositbits 18) the wall bit already records the same thing
+//
+// And there is no varbit anywhere for "Pentyn has been spoken to" - the expositbits varp has nine
+// named Lazim dialogue flags and not one for him - so breaking his ward does not require the
+// conversation first.
+
+// =========================================================================== flags
+^enakh_off = 0
+^enakh_on = 1
+
+// The camulet's charges live in enakh_camulet_charge, bits 29-31 of enakh_quest_expositbits, so it
+// holds 0-7. The reward hands it over with the full eight.
+^enakh_camulet_full = 7
+
+// =========================================================================== places
+// Surface, m49_45 (mapsquare origin 3136,2880), all plane 0.
+^enakh_statue_site = 0_49_45_53_45      // 3189,2925  the statue shell
+^enakh_lazim_site = 0_49_45_55_46       // 3191,2926
+^enakh_pickaxe_rock = 0_49_45_37_38     // 3173,2918  enakh_mining_stone, op1 is Take-axe
+^enakh_boulder_n = 0_49_45_12_57        // 3148,2937
+^enakh_boulder_e = 0_49_45_58_45        // 3194,2925
+^enakh_boulder_s = 0_49_45_53_8         // 3189,2888
+^enakh_boulder_w = 0_49_45_10_28        // 3146,2908
+
+// Temple, m48_145 (mapsquare origin 3072,9280). Three planes.
+//
+// Plane 0 is the outer ring: four quadrants, each with a sigil pedestal, a limb door and one of
+// the four sigil doors into the middle. The middle holds the only ladder up into the temple.
+^enakh_p0_door_z = 0_48_145_32_25       // 3104,9305
+^enakh_p0_door_m = 0_48_145_25_32       // 3097,9312
+^enakh_p0_door_r = 0_48_145_32_39       // 3104,9319
+^enakh_p0_door_k = 0_48_145_39_32       // 3111,9312
+^enakh_p0_sigil_z = 0_48_145_25_56      // 3097,9336
+^enakh_p0_sigil_m = 0_48_145_56_39      // 3128,9319
+^enakh_p0_sigil_r = 0_48_145_39_8       // 3111,9288
+^enakh_p0_sigil_k = 0_48_145_8_25       // 3080,9305
+^enakh_p0_door_larm = 0_48_145_10_7     // 3082,9287
+^enakh_p0_door_rarm = 0_48_145_54_57    // 3126,9337
+^enakh_p0_door_lleg = 0_48_145_7_54     // 3079,9334
+^enakh_p0_door_rleg = 0_48_145_57_10    // 3129,9290
+^enakh_p0_fallen_statue = 0_48_145_57_45 // 3129,9325
+^enakh_p0_centre_ladder = 0_48_145_32_29 // 3104,9309  the only way up out of the ring
+
+// The four secret boulders drop into the four quadrant ladders, one each, and each quadrant's
+// ladder is the one nearest that quadrant's sigil pedestal.
+^enakh_p0_land_nw = 0_48_145_7_26       // 3079,9306   K quadrant
+^enakh_p0_land_sw = 0_48_145_15_56      // 3087,9336   Z quadrant
+^enakh_p0_land_ne = 0_48_145_49_6       // 3121,9286   R quadrant
+^enakh_p0_land_se = 0_48_145_55_49      // 3127,9329   M quadrant
+
+// Plane 1, the temple proper.
+^enakh_p1_pedestal = 1_48_145_32_32     // 3104,9312
+^enakh_p1_ice = 1_48_145_19_27          // 3091,9307   fountain and the crust of ice
+^enakh_p1_smoke = 1_48_145_43_43        // 3115,9323   furnace and the blocked grate
+^enakh_p1_blood = 1_48_145_19_44        // 3091,9324   the light prison, with Pentyn inside it
+^enakh_p1_enakhra = 1_48_145_32_6       // 3104,9286   behind the big wall
+^enakh_p1_akthanakos = 1_48_145_33_17   // 3105,9297
+^enakh_p1_rubble = 1_48_145_36_15       // 3108,9295
+^enakh_p1_up_to_altar = 1_48_145_32_52  // 3104,9332
+
+// Plane 2, the altar level. The boneguard stands between the pillar ladder and the altar.
+^enakh_p2_boneguard = 2_48_145_32_27    // 3104,9307
+^enakh_p2_altar = 2_48_145_36_40        // 3108,9320
+^enakh_p2_down = 2_48_145_32_52         // 3104,9332
+
+// =========================================================================== requirements
+^enakh_req_crafting = 50
+^enakh_req_firemaking = 45
+^enakh_req_mining = 45
+^enakh_req_magic = 43
+^enakh_req_prayer = 45

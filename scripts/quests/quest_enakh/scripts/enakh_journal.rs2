@@ -1,0 +1,83 @@
+[if_button,questlist:enakh]
+def_string $text;
+
+switch_int (%enakh_quest) {
+    case ^enakh_not_started :
+        $text = "@dbl@I can start this quest by speaking to @dre@Lazim@dbl@ at the|";
+        $text = append($text, "@dbl@half-built statue in the @dre@Kharidian Desert|");
+        $text = append($text, "@dbl@I will need @dre@<tostring(^enakh_req_crafting)> Crafting@dbl@, @dre@<tostring(^enakh_req_mining)> Mining@dbl@, @dre@<tostring(^enakh_req_firemaking)> Firemaking|");
+        $text = append($text, "@dbl@@dre@<tostring(^enakh_req_magic)> Magic@dbl@ and @dre@<tostring(^enakh_req_prayer)> Prayer");
+
+    case ^enakh_started :
+        $text = "@str@Lazim is building a statue for a client he will not name|";
+        $text = append($text, "@str@and has not seen.|");
+        $text = append($text, "@dbl@I need a @dre@32kg@dbl@ and a @dre@20kg@dbl@ block of sandstone from the|");
+        $text = append($text, "@dbl@@dre@rock@dbl@ nearby, both @dre@chiselled@dbl@ square, then set on the site");
+
+    case ^enakh_statue_built :
+        $text = "@str@The base and the body are up and Lazim has squared off|";
+        $text = append($text, "@str@the joins.|");
+        $text = append($text, "@dbl@I need @dre@5kg of granite@dbl@ and a @dre@chisel@dbl@ to carve a head|");
+        $text = append($text, "@dbl@Aristarchus out in the desert has a @dre@camel mould@dbl@ if I want|");
+        $text = append($text, "@dbl@a fourth option");
+
+    case ^enakh_head_on :
+        $text = "@str@The head went on and the whole statue went straight down|";
+        $text = append($text, "@str@into the sand. Four boulders out in the desert have moved|");
+        $text = append($text, "@str@off entrances underneath them.|");
+        $text = append($text, "@dbl@I should @dre@climb down");
+
+    case ^enakh_inside :
+        $text = "@str@The way in is a ring of four quadrants around a middle|";
+        $text = append($text, "@str@chamber, and the sigil each quadrant holds is never the one|");
+        $text = append($text, "@str@whose door is on that side.|");
+        $text = append($text, "@dbl@The @dre@corner doors@dbl@ want @dre@limbs@dbl@ off the @dre@fallen statue|");
+        $text = append($text, "@dbl@Above, the temple wants four things running: @dre@blood@dbl@ from|");
+        $text = append($text, "@dbl@@dre@Pentyn's ward@dbl@, @dre@ice@dbl@ from the @dre@fountain@dbl@, @dre@smoke@dbl@ from the|");
+        $text = append($text, "@dbl@@dre@furnace@dbl@ and @dre@shadow@dbl@ from all @dre@six braziers");
+        if (%enakh_player_seen_larger_boneguard = ^enakh_on) {
+            $text = append($text, "|@str@There is something sealed in a boneguard down here that|");
+            $text = append($text, "@str@says the pedestal was cut to fit its head.");
+        }
+
+    case ^enakh_elements_lit :
+        $text = "@str@All four channels are running and the boneguard on the|";
+        $text = append($text, "@str@altar level has come apart.|");
+        $text = append($text, "@dbl@@dre@Lazim@dbl@ is up at the altar and has been carrying something|");
+        $text = append($text, "@dbl@cut to fit the @dre@pedestal@dbl@ since the day he was hired");
+        if (%enakh_player_seen_boneguard = ^enakh_on) {
+            $text = append($text, "|@str@The thing that would not let me past is a heap now.");
+        }
+
+    case ^enakh_akthanakos :
+        if (%enakh_largewall_multivar = ^enakh_wall_fallen) {
+            $text = "@str@Akthanakos put the big wall down in one piece. There is a|";
+            $text = append($text, "@str@hooded woman behind it who heard every word.|");
+            $text = append($text, "@dbl@I should speak to @dre@Enakhra");
+        } else {
+            $text = "@str@The head fitted the pedestal exactly, and what came out|";
+            $text = append($text, "@str@of the boneguard down the hall is not a boneguard.|");
+            $text = append($text, "@dbl@I should speak to @dre@Akthanakos");
+        }
+
+    case ^enakh_confronted :
+        $text = "@str@Enakhra took the hood off, said something in a language|";
+        $text = append($text, "@str@older than the desert, and left.|");
+        $text = append($text, "@dbl@I should speak to @dre@Akthanakos");
+
+    case ^enakh_complete :
+        $text = "@str@Lazim was paid four months up front to build a statue in|";
+        $text = append($text, "@str@the middle of the desert. It was a door, and under it was|");
+        $text = append($text, "@str@Enakhra's temple with Akthanakos sealed in a boneguard at|");
+        $text = append($text, "@str@the bottom of it.|");
+        $text = append($text, "@str@I lit the four channels, freed the man her ward had been|");
+        $text = append($text, "@str@running on for four thousand years, and put the head back|");
+        $text = append($text, "@str@where it came off.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+
+    case default :
+        $text = "@dbl@I can start this quest by speaking to @dre@Lazim@dbl@ at the|";
+        $text = append($text, "@dbl@half-built statue in the @dre@Kharidian Desert");
+}
+
+~quest_journal("Enakhra's Lament", $text);
