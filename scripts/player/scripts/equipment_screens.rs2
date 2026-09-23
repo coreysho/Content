@@ -50,6 +50,7 @@ while ($i < $keep) {
     ~deathpreview_take_priciest;
     $i = calc($i + 1);
 }
+~deathpreview_compact;
 
 if ($skulled = true) {
     if_settext(items_kept:keep_title, "Items you will keep on death (you are skulled):");
@@ -58,14 +59,15 @@ if ($skulled = true) {
     if_settext(items_kept:keep_title, "Items you will keep on death if not skulled:");
     if_settext(items_kept:lose_title, "Items you will lose on death if not skulled:");
 }
-def_string $info = "You keep the three most valuable\\nthings you are carrying or wearing.";
+// this client does not wrap text, so the lines are broken here to fit the 149-pixel panel
+def_string $info = "You keep the three items\\nyou are carrying or\\nwearing that are worth\\nthe most.";
 if ($skulled = true) {
-    $info = "You are skulled, so you keep\\nnothing unless you pray.";
+    $info = "You are skulled, so you\\nkeep nothing unless you\\nare praying.";
 }
 if ($protecting = true) {
-    $info = append($info, "\\n\\nProtect Item is on: one more\\nitem is kept.");
+    $info = append($info, "\\n\\nProtect Item is on, so\\nyou keep one more item.");
 } else {
-    $info = append($info, "\\n\\nThe Protect Item prayer keeps\\none more item.");
+    $info = append($info, "\\n\\nThe Protect Item prayer\\nkeeps one more item.");
 }
 if_settext(items_kept:info, $info);
 if_settext(items_kept:info2, "");
@@ -92,6 +94,22 @@ while ($i < $size) {
 }
 if ($priciest ! null) {
     inv_moveitem(deathpreview_lose, deathpreview_keep, $priciest, 1);
+}
+
+// taking the kept items out of the copy leaves holes where they were; close them up, so the lost
+// items are drawn one after another rather than with gaps
+[proc,deathpreview_compact]
+def_int $size = inv_size(deathpreview_lose);
+def_int $to = 0;
+def_int $from = 0;
+while ($from < $size) {
+    if (inv_getnum(deathpreview_lose, $from) > 0) {
+        if ($from ! $to) {
+            inv_movetoslot(deathpreview_lose, deathpreview_lose, $from, $to);
+        }
+        $to = calc($to + 1);
+    }
+    $from = calc($from + 1);
 }
 
 [if_close,items_kept]
