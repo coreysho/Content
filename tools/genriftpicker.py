@@ -33,11 +33,13 @@ BASE = 'skillpet_rift_guardian'
 PANEL_X, PANEL_Y, PANEL_W, PANEL_H = 12, 20, 488, 300
 TILE_W, TILE_H = 88, 60
 # Only the colours an altar in THIS build can unlock get a cell. The ring is still fifteen long -
-# three of its colours belong to the blood, soul, astral and wrath altars, which are not here - and
-# a cell for a colour nothing can ever unlock is a dead square. Twelve cells: the plain guardian
-# and the eleven altars.
-COLS, ROWS = 4, 3
-CELL_W, CELL_H = 116, 78
+# two of its colours belong to the soul and wrath altars, which are not here - and a cell for a
+# colour nothing can ever unlock is a dead square. Thirteen cells: the plain guardian and the twelve
+# altars, the Astral altar on Lunar Isle (2026-09-23) the twelfth - which is why the grid is five
+# across and 92 wide rather than the four by 116 that held twelve: a fourth row would run off the
+# panel, and five 92s sit inside its 488 with the widest label ("Cosmic") to spare.
+COLS, ROWS = 5, 3
+CELL_W, CELL_H = 92, 78
 GRID_X = PANEL_X + (PANEL_W - COLS * CELL_W) // 2
 GRID_Y = 56
 # The model box inside a cell, and the camera for it. 32204 is a small mesh and these are the
