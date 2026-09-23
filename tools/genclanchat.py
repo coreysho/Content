@@ -19,8 +19,7 @@ clan_chat/scripts/clan_chat.rs2.
 THE WINDOW is Clan Setup: the channel's name and who may enter, talk and kick. Its values are set by
 script (~clan_setup_refresh) from the engine's clan_name / clan_rank.
 
-The 474 border art is i474_*.png in sprites/, brought over by LostCityServer's
-tools/models/port474if.py from 474 interface 550.
+The frame is 474's, which is 377's own art under 474 numbers, so it uses the existing sprites.
 
 After writing, pack/interface.pack and .order are brought into line with tools/ifids.py.
 """
@@ -33,18 +32,19 @@ ORANGE = '0xFF9933'
 MAX_MEMBERS = 100
 ROW = 15
 
-# 474 interface 550's frame, as port474if.py converts it: corners, then the tiled edges (the last
-# tile of the top and bottom edges is a cropped copy, because 377 cannot clip a graphic to its box)
-FRAME = [(3, 20, 25, 30, 'i474_310'), (146, 20, 25, 30, 'i474_311'), (3, 194, 25, 30, 'i474_312'),
-         (146, 194, 25, 30, 'i474_313'),
-         (28, 5, 36, 36, 'i474_314'), (64, 5, 36, 36, 'i474_314'), (100, 5, 36, 36, 'i474_314'),
-         (136, 5, 11, 36, 'i474_314_11x36'),
-         (150, 50, 36, 36, 'i474_315'), (150, 86, 36, 36, 'i474_315'), (150, 122, 36, 36, 'i474_315'),
-         (150, 158, 36, 36, 'i474_315'),
-         (-12, 50, 36, 36, 'i474_172'), (-12, 86, 36, 36, 'i474_172'), (-12, 122, 36, 36, 'i474_172'),
-         (-12, 158, 36, 36, 'i474_172'),
-         (28, 203, 36, 36, 'i474_173'), (64, 203, 36, 36, 'i474_173'), (100, 203, 36, 36, 'i474_173'),
-         (136, 203, 10, 36, 'i474_173_10x36')]
+# 474 interface 550's frame, as port474if.py converts it. It is 377's own Friends-tab art under 474
+# numbers - steelborder, steelborder2, miscgraphics 2-3 - so it is written by those names, the last
+# tile of each edge overlapping the one before the way friends.if does it.
+FRAME = [(3, 20, 25, 30, 'steelborder,0'), (146, 20, 25, 30, 'steelborder,1'),
+         (3, 194, 25, 30, 'steelborder,2'), (146, 194, 25, 30, 'steelborder,3'),
+         (28, 5, 36, 36, 'steelborder2,0'), (64, 5, 36, 36, 'steelborder2,0'),
+         (100, 5, 36, 36, 'steelborder2,0'), (111, 5, 36, 36, 'steelborder2,0'),
+         (150, 50, 36, 36, 'steelborder2,1'), (150, 86, 36, 36, 'steelborder2,1'),
+         (150, 122, 36, 36, 'steelborder2,1'), (150, 158, 36, 36, 'steelborder2,1'),
+         (-12, 50, 36, 36, 'miscgraphics,2'), (-12, 86, 36, 36, 'miscgraphics,2'),
+         (-12, 122, 36, 36, 'miscgraphics,2'), (-12, 158, 36, 36, 'miscgraphics,2'),
+         (28, 203, 36, 36, 'miscgraphics,3'), (64, 203, 36, 36, 'miscgraphics,3'),
+         (100, 203, 36, 36, 'miscgraphics,3'), (110, 203, 36, 36, 'miscgraphics,3')]
 
 
 class If:
@@ -68,7 +68,7 @@ def tab():
             '// Drawn by the client (Client.updateClanContent); Clan Setup is clan_chat/scripts/clan_chat.rs2.',
             'type=overlay'])
     for i, (x, y, w, h, g) in enumerate(FRAME):
-        f.com('frame%d' % i, type='graphic', x=x, y=y, width=w, height=h, graphic='%s,0' % g)
+        f.com('frame%d' % i, type='graphic', x=x, y=y, width=w, height=h, graphic=g)
     f.com('title', type='text', x=4, y=4, width=180, height=14, center='yes', font='b12_full',
           shadowed='yes', text='Clan Chat', colour=ORANGE)
     f.com('talking', type='text', x=10, y=24, clientcode=1001, width=160, height=14, font='p12_full',
@@ -84,9 +84,9 @@ def tab():
               width=56, height=14, font='p12_full', shadowed='yes', colour='0xFFFFFF')
     # the two buttons and their labels, where 550 has Add Friend and Del Friend
     f.com('join', type='graphic', x=15, y=224, buttontype='normal', clientcode=1003, width=72,
-          height=36, graphic='i474_293,0', option='Join Chat')
+          height=36, graphic='combatboxes,0', option='Join Chat')
     f.com('setup', type='graphic', x=95, y=224, buttontype='normal', width=72, height=36,
-          graphic='i474_293,0', option='Clan Setup')
+          graphic='combatboxes,0', option='Clan Setup')
     f.com('join_label', type='text', x=21, y=236, clientcode=1003, width=61, height=13, center='yes',
           font='p11_full', shadowed='yes', text='Join Chat', colour=ORANGE)
     f.com('setup_label', type='text', x=101, y=236, width=60, height=13, center='yes',
