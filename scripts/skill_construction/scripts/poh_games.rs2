@@ -137,7 +137,12 @@ mes("There is no dungeon under this house to open.");
 // The whole line, not a fragment: interpolating a string VARIABLE (<$var>) is one of the four
 // idioms this repo has no precedent for, and battery check 24 enforces that.
 [proc,poh_needs_company](string $line)
-if (~poh_in_own_house = false) {
+if (~poh_in_house(loc_coord) = false) {
+    return;
+}
+// with company, the honest answer is the other half: the game itself is not here yet
+if (~poh_house_players > 1) {
+    mes("That game cannot be played in this world yet.");
     return;
 }
 mes($line);
