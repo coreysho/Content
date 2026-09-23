@@ -142,12 +142,13 @@ if_settab(inventory, ^tab_inventory);
 if_settab(wornitems, ^tab_wornitems);
 
 if_settab(prayer, ^tab_prayer);
-// restore whichever spellbook the player was last on (%spellbook: 0=normal, 1=ancient)
-if (%spellbook = 1) {
-    if_settab(ancient_magic, ^tab_magic);
-} else {
-    if_settab(magic, ^tab_magic);
+// restore whichever spellbook the player was last on - normal, Ancient or Lunar. A book borrowed by
+// Spellbook Swap is not kept through a logout: that player goes back to Lunar (lunar/lunar_contact.rs2).
+if (%spellbook_swapped = true) {
+    %spellbook_swapped = false;
+    %spellbook = ^spellbook_lunar;
 }
+~spellbook_tab;
 if_settab(friends, ^tab_friends);
 if_settab(ignore, ^tab_ignore);
 if_settab(clanchat, ^tab_clan_chat);

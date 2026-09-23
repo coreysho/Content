@@ -1,0 +1,198 @@
+// Heal Other (92), Heal Group (95) and Energy Transfer (91), the Lunar spellbook (2026-09-23).
+//
+// THE RULES ARE OLD SCHOOL'S, checked against its wiki - the classic spells, from before the May
+// 2021 rework that gave the two heals a 90-second cooldown:
+//   * Heal Other "transfers up to 75% of the caster's current hitpoints to the targeted player",
+//     who must have Accept Aid on, and "a player needs at least 11% of their hitpoints to cast
+//     this spell";
+//   * Heal Group "reduces the caster's current hitpoints by 75% and heals up to five injured
+//     players that are standing within 1 square from the casting player (including players
+//     standing on the same spot as the caster) for the amount lost plus 5 hitpoints, split evenly";
+//     Accept Aid again, the same 11% floor ("it is not possible to die from using this spell"), and
+//     "it does not work in single-way PvP";
+//   * Energy Transfer "costs 100% special attack energy and 10 hitpoints to cast, and restores all
+//     of the target's run energy and special attack", Accept Aid, "You need more hitpoints to cast
+//     this spell." at 10 hitpoints or less, and never in single-combat PvP - neither from where you
+//     stand nor onto somebody standing in it (the 2015 and 2016 changes).
+//
+// CHOICES OF THIS SERVER'S, where the wiki is silent:
+//   * Heal Other takes only what the target can use - "up to" 75%: a target missing 4 hitpoints
+//     costs you 4, not three quarters of you. Heal Group is the classic spell and costs the full
+//     75% whatever the group needs; the 5 on top is the spell's own.
+//   * Heal Other also refuses single-combat Wilderness, as Vengeance Other and Energy Transfer do -
+//     the aid spells that change a fight all answer to the same rule here.
+//   * A heal on nobody who needs it is refused before the runes go, and says why.
+//   * Energy Transfer takes whatever special attack energy you have - Old School's wiki says 100%
+//     and does not say it refuses less - and restarts your special attack regeneration from empty
+//     through ~set_sa_vars, exactly as spending it on a special attack would.
+//   * The hitpoints a heal costs are taken with stat_sub, not a hitsplat: they are given, not hit.
+//
+// Hitpoints go onto the other player straight from here (.stat_heal needs no protected access);
+// special attack energy and run energy go through a queue on the target, because %sa_energy is a
+// protected varp and healenergy has no secondary-pointer form the engine will run.
+
+// ---------------------------------------------------------------------------------- Heal Other
+
+[opplayert,lunar_magic:heal_other] @lunar_heal_other;
+[applayert,lunar_magic:heal_other] @lunar_heal_other;
+
+[label,lunar_heal_other]
+if (.uid = uid) {
+    mes("You can't cast that on yourself.");
+    return;
+}
+if (.%option_aid = ^aid_no) {
+    mes("<.displayname> is not accepting aid.");
+    return;
+}
+if (~lunar_single_wilderness(coord) = true | ~lunar_single_wilderness(.coord) = true) {
+    mes("You can't cast this spell in a single-combat area of the Wilderness.");
+    return;
+}
+def_int $need = sub(.stat_base(hitpoints), .stat(hitpoints));
+if ($need < 1 | .stat(hitpoints) < 1) {
+    mes("<.displayname> doesn't need healing.");
+    return;
+}
+if (~lunar_heal_floor_ok = false) {
+    mes("You don't have enough hitpoints to cast this spell.");
+    return;
+}
+def_int $give = min(scale(^lunar_heal_percent, 100, stat(hitpoints)), $need);
+if ($give < 1) {
+    mes("You don't have enough hitpoints to cast this spell.");
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^heal_other);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_cast_lunar_other, 0);
+.spotanim_pl(heal_other, 92, 0);
+stat_sub(hitpoints, $give, 0);
+.stat_heal(hitpoints, $give, 0);
+.mes("<displayname> has healed you.");
+mes("You transfer <tostring($give)> hitpoints to <.displayname>.");
+
+// ---------------------------------------------------------------------------------- Heal Group
+
+[if_button,lunar_magic:heal_group]
+if (p_finduid(uid) = false) {
+    return;
+}
+if (~lunar_single_wilderness(coord) = true) {
+    mes("You can't cast this spell in a single-combat area of the Wilderness.");
+    return;
+}
+if (~lunar_heal_floor_ok = false) {
+    mes("You don't have enough hitpoints to cast this spell.");
+    return;
+}
+def_int $lost = scale(^lunar_heal_percent, 100, stat(hitpoints));
+if ($lost < 1) {
+    mes("You don't have enough hitpoints to cast this spell.");
+    return;
+}
+// Counted BEFORE the runes go, and the heal below walks the same squares in the same tick in the
+// same order, so it finds exactly these players and stops at the same five.
+def_int $count = ~lunar_heal_group_count;
+if ($count < 1) {
+    mes("There is nobody close enough who needs healing.");
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^heal_group);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_cast_lunar_group, 0);
+stat_sub(hitpoints, $lost, 0);
+// the split rounds down, as any division of a hitpoint would; stat_heal never lifts anybody over
+// their own maximum
+def_int $each = divide(add($lost, ^lunar_heal_group_bonus), $count);
+def_int $healed = 0;
+huntall(coord, ^lunar_group_radius, ^vis_off);
+while (.huntnext = true & $healed < $count) {
+    if (.uid ! uid & .%option_aid ! ^aid_no & .stat(hitpoints) > 0 & .stat(hitpoints) < .stat_base(hitpoints)) {
+        .spotanim_pl(heal_group, 92, 0);
+        .stat_heal(hitpoints, $each, 0);
+        .mes("<displayname> has healed you.");
+        $healed = add($healed, 1);
+    }
+}
+mes("You share <tostring($lost)> hitpoints with <~pluralise($count, "player")> around you.");
+
+// The injured players Heal Group would heal - not the caster, Accept Aid on, alive and below their
+// maximum - capped at the spell's five.
+[proc,lunar_heal_group_count]()(int)
+def_int $count = 0;
+huntall(coord, ^lunar_group_radius, ^vis_off);
+while (.huntnext = true & $count < ^lunar_heal_group_max) {
+    if (.uid ! uid & .%option_aid ! ^aid_no & .stat(hitpoints) > 0 & .stat(hitpoints) < .stat_base(hitpoints)) {
+        $count = add($count, 1);
+    }
+}
+return($count);
+
+// ---------------------------------------------------------------------------------- Energy Transfer
+
+[opplayert,lunar_magic:energy_transfer] @lunar_energy_transfer;
+[applayert,lunar_magic:energy_transfer] @lunar_energy_transfer;
+
+[label,lunar_energy_transfer]
+if (.uid = uid) {
+    mes("You can't cast that on yourself.");
+    return;
+}
+if (.%option_aid = ^aid_no) {
+    mes("<.displayname> is not accepting aid.");
+    return;
+}
+if (~lunar_single_wilderness(coord) = true | ~lunar_single_wilderness(.coord) = true) {
+    mes("You can't cast this spell in a single-combat area of the Wilderness.");
+    return;
+}
+if (stat(hitpoints) <= ^lunar_energy_transfer_hp) {
+    mes("You need more hitpoints to cast this spell.");
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^energy_transfer);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_cast_lunar_other, 0);
+.spotanim_pl(energy_transfer, 92, 0);
+stat_sub(hitpoints, ^lunar_energy_transfer_hp, 0);
+~set_sa_vars(^sa_max_energy);
+.queue*(lunar_energy_transfer_receive, 0)(displayname);
+mes("You transfer your energy to <.displayname>.");
+
+// On the target, from their own queue: all their special attack energy and all their run energy.
+// ~sa_reset is what a full special bar is everywhere else (specwep.rs2) - it also stops the
+// regeneration timer, which has nothing left to do.
+[queue,lunar_energy_transfer_receive](string $caster)
+~sa_reset;
+healenergy(10000);
+mes("<$caster> has transferred their energy to you.");
+
+// ---------------------------------------------------------------------------------- shared
+
+// "A player needs at least 11% of their hitpoints to cast this spell" - of their maximum, compared
+// without dividing so that nothing is lost to rounding.
+[proc,lunar_heal_floor_ok]()(boolean)
+if (multiply(stat(hitpoints), 100) < multiply(stat_base(hitpoints), ^lunar_heal_floor_percent)) {
+    return(false);
+}
+return(true);
+
+// Single-combat Wilderness, the test vengeance.rs2 makes for Vengeance Other.
+[proc,lunar_single_wilderness](coord $coord)(boolean)
+if (~wilderness_level($coord) > 0 & map_multiway($coord) = false) {
+    return(true);
+}
+return(false);

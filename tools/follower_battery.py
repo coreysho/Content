@@ -512,7 +512,7 @@ check('~pet_form_set(' in (wear or '') and '~follower_spawn($form);' in (wear or
 check('if ($out = true & npc_finduid(%follower_uid) = true) {' in (wear or ''),
       '...and only respawned when there is something standing there to respawn')
 
-# The rift guardian: eleven altars, eleven colours, and the mapping covers exactly the altars this
+# The rift guardian: twelve altars, twelve colours, and the mapping covers exactly the altars this
 # build has - no more (a colour nothing can unlock) and no fewer (an altar that paints nothing).
 RUNES = re.findall(r'data=rune,(\w+)', RCROW)
 RIFT = enum_rows('rift_rune_form')
@@ -604,7 +604,8 @@ check('if_settext(rift_metamorph:' not in code(VAR) and not blank,
 # what gets measured here is the DRAWN rectangle and the label INK. Re-measure if either changes -
 # tools/genriftpicker.py holds the same four numbers and a note saying so.
 DRAWN_W, DRAWN_H, DRAWN_OX, DRAWN_OY, NAME_INK = 26, 28, 9, 0, 9
-CELL_W, CELL_H = 116, 78
+# 92 wide since the Astral altar made it thirteen cells, five across (genriftpicker.py says why)
+CELL_W, CELL_H = 92, 78
 
 
 def geom(name, i):

@@ -223,8 +223,11 @@ missing = [n for n, _, _ in NEW if pack['%s:%s' % (IFACE, n)] not in order]
 check(not missing, '...and is in interface.order: %s' % (missing[:3] or 'all of them'))
 ids = [pack['%s:%s' % (IFACE, n)] for n, _, _ in NEW]
 check(len(set(ids)) == len(ids), 'no id is used twice inside the book')
-check('if_settab(%s, ^tab_magic);' % IFACE in read('scripts/login_logout/scripts/login.rs2'),
-      'login.rs2 still puts it on the magic tab')
+# login.rs2 restores the book through ~spellbook_tab, which since the Lunar book is the one place a
+# %spellbook value becomes a tab (skill_magic/scripts/spellbooks.rs2) - so the send is there
+check('~spellbook_tab;' in read('scripts/login_logout/scripts/login.rs2')
+      and 'case ^spellbook_ancient : if_settab(%s, ^tab_magic);' % IFACE in read('scripts/skill_magic/scripts/spellbooks.rs2'),
+      'login.rs2 still puts it on the magic tab (through ~spellbook_tab)')
 
 # ============================================================================ 5
 print('5. the port still produces exactly what is checked in')

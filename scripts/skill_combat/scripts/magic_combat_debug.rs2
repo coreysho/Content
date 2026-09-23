@@ -39,18 +39,12 @@ if (p_finduid(uid) = true) {
     }
 }
 
-// Flips %spellbook (0=normal, 1=ancient) and swaps the magic tab to match. login.rs2 restores
-// whichever book you were last on.
+// Steps %spellbook normal -> Ancient -> Lunar -> normal and swaps the magic tab to match. login.rs2
+// restores whichever book you were last on. It does not unlock anything: %lunar_unlocked is the
+// Astral altar's.
 [debugproc,spellbook]
 // varp writes need the protected active player, which a debugproc does not start with.
 if (p_finduid(uid) = true) {
-    if (%spellbook = 0) {
-        %spellbook = 1;
-        if_settab(ancient_magic, ^tab_magic);
-        mes("Spellbook switched to Ancient Magicks.");
-    } else {
-        %spellbook = 0;
-        if_settab(magic, ^tab_magic);
-        mes("Spellbook switched to normal.");
-    }
+    ~set_spellbook(modulo(add(%spellbook, 1), 3));
+    mes("Spellbook switched to <~spellbook_name(%spellbook)>.");
 }

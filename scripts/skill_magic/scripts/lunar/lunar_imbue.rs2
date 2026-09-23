@@ -1,0 +1,50 @@
+// Magic Imbue (82), the Lunar spellbook (2026-09-23).
+//
+// THE RULES ARE OLD SCHOOL'S, checked against its wiki:
+//   * for 12.6 seconds (21 ticks, ^magic_imbue_ticks) combination runes bind at an elemental altar
+//     without the opposing talisman: you use the opposing RUNES on the altar, and bring the pure
+//     essence as ever;
+//   * it does nothing for the 50% chance each rune has to fail - that is still the binding
+//     necklace's job;
+//   * it can only be cast once every 12.6 seconds, which is the same span as the effect, so one
+//     varp (%magic_imbue_until, skill_magic/configs/lunar_skilling.varp) is both the effect and the
+//     cooldown: while it is in the future you are imbued and cannot cast again.
+//
+// What reads it: ~magic_imbue_active, from ~runecraft_combo_rune
+// (skill_runecraft/scripts/runecraft_combo_runes.rs2), which skips asking for the talisman and does
+// not use one up while it is true.
+//
+// Messages are Old School's as players remember them; the wiki does not quote them.
+
+[if_button,lunar_magic:magic_imbue]
+if (p_finduid(uid) = false) {
+    return;
+}
+if (~magic_imbue_active = true) {
+    mes("You can only cast Magic Imbue every 12 seconds.");
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^magic_imbue);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_castbonestobananas, 0);
+spotanim_pl(magic_imbue, 92, 0);
+%magic_imbue_until = add(map_clock, ^magic_imbue_ticks);
+mes("You are charged to combine runes!");
+queue(lunar_magic_imbue_end, ^magic_imbue_ticks, 0);
+
+// Tells you it is over. The varp is what decides, not this queue, so a queue that fires late (you
+// were busy) or not at all (you logged out, and the temp varp went with you) changes nothing.
+[queue,lunar_magic_imbue_end]
+if (~magic_imbue_active = false) {
+    mes("Your Magic Imbue charge has ended.");
+}
+
+[proc,magic_imbue_active]()(boolean)
+if (%magic_imbue_until > map_clock) {
+    return(true);
+}
+return(false);

@@ -1,0 +1,98 @@
+// Lunar Isle (2026-09-23): the map is 474's (configs/lunar_isle.loc has how it came in), and three
+// things on it do something - the Astral altar, the bank, and the boat.
+//
+// There is no Lunar Diplomacy here, and no Fremennik Trials in the way. The Moonclan's magic is the
+// Astral altar's to give: pray at it with 65 Magic and the Lunar spellbook is yours for good.
+
+// ================================================================================ the Astral altar
+//
+// Craft-rune is runecrafting's own (category rc_altar; the astral row of runecraft.dbrow). Pray is
+// the spellbook. The first prayer with 65 Magic sets %lunar_unlocked, which never unsets, and puts
+// the book in your hands; from then on the altar trades Lunar for the normal book and back, as the
+// Desert Treasure altar does with Ancients, and the Magic cape will offer Lunar too. Unlike that
+// altar it asks no Prayer of you: the Moonclan's price was the voyage.
+
+[oploc2,astral_altar]
+if (%lunar_unlocked ! true) {
+    if (stat(magic) < ^lunar_unlock_magic) {
+        ~mesbox("The altar hums with a power you cannot make sense of.|You need a Magic level of <tostring(^lunar_unlock_magic)> to learn from it.");
+        return;
+    }
+    mes("You kneel at the altar.");
+    anim(human_pray, 0);
+    sound_synth(magical_barrier, 1, 0);
+    p_delay(3);
+    %lunar_unlocked = true;
+    ~set_spellbook(^spellbook_lunar);
+    session_log(^log_adventure, "Unlocked the Lunar spellbook at the Astral altar");
+    ~mesbox("The moon's light fills your mind, and the words of the Moonclan with it.|You can now cast Lunar spells.");
+    return;
+}
+def_int $choice = -1;
+if (%spellbook = ^spellbook_lunar) {
+    $choice = ~p_choice2("Return to the normal spellbook.", 1, "Leave the altar alone.", 2);
+} else {
+    $choice = ~p_choice2("Switch to the Lunar spellbook.", 1, "Leave the altar alone.", 2);
+}
+if ($choice ! 1) {
+    return;
+}
+if_close;
+mes("You kneel at the altar.");
+anim(human_pray, 0);
+sound_synth(magical_barrier, 1, 0);
+p_delay(3);
+if (%spellbook = ^spellbook_lunar) {
+    ~set_spellbook(^spellbook_normal);
+    ~mesbox("The moon's words leave you.|You are back on the normal spellbook.");
+    return;
+}
+~set_spellbook(^spellbook_lunar);
+~mesbox("The moon's light fills your mind.|You can now cast Lunar spells.");
+
+// ================================================================================ the bank
+
+// 474's own booth: 377 never had Lunar Isle, so it came in as a loc of its own and not as a
+// bankbooth. There is no teller behind it (the Sirsal Banker is not imported), so both ops bank,
+// which is what [oploc1,bankbooth] does when it finds no teller either.
+[oploc1,lunar_bankbooth] @openbank;
+[oploc2,lunar_bankbooth] @openbank;
+
+// ================================================================================ the boat
+//
+// Lokar Searunner, on both piers. In 2007 he took you from Rellekka to Pirates' Cove, and Lunar
+// Diplomacy's ship went on from there; this build has neither, so he goes the whole way. Free, and
+// no quest, because the island is how the spellbook is reached and nothing else gates that.
+// Which way is his coord's: the island is north of z 3800 and Rellekka south of it.
+
+[opnpc1,lokar_searunner]
+if (coordz(coord) > ^lunar_isle_south_z) {
+    ~chatnpc("<p,neutral>Had your fill of the Moonclan? I'm sailing back to Rellekka whenever you're ready.");
+    def_int $back = ~p_choice2("Take me to Rellekka.", 1, "Not yet.", 2);
+    if ($back = 1) {
+        @lunar_isle_sail;
+    }
+    return;
+}
+~chatnpc("<p,neutral>Ahoy! Lokar Searunner, at your service. Sailed with pirates once - don't ask.");
+~chatnpc("<p,quiz>I run a boat north to Lunar Isle, where the Moonclan live. They say there's an altar there that teaches a whole new kind of magic. Fancy it?");
+def_int $go = ~p_choice2("Take me to Lunar Isle.", 1, "No thanks.", 2);
+if ($go = 1) {
+    @lunar_isle_sail;
+}
+
+[opnpc3,lokar_searunner] @lunar_isle_sail;
+
+[label,lunar_isle_sail]
+if_close;
+if (coordz(coord) > ^lunar_isle_south_z) {
+    mes("You board the boat, and Lokar sets a course south.");
+    p_delay(4);
+    p_telejump(^lunar_isle_rellekka_pier);
+    ~mesbox("The boat arrives at Rellekka.");
+    return;
+}
+mes("You board the boat, and Lokar sets a course north.");
+p_delay(4);
+p_telejump(^lunar_isle_pier);
+~mesbox("The boat arrives at Lunar Isle.");

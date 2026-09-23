@@ -84,6 +84,13 @@ return(^poh_portal_east);
 [proc,poh_portal_get](int $index)(int)
 return(getbit_range(%poh_portals, calc($index * 3), calc($index * 3 + 2)));
 
+// The same, in the house the player is in: a guest scrying reads the owner's portals.
+[proc,poh_portal_get_here](int $index)(int)
+if (%poh_instance = null & %poh_visiting ! null & .finduid(%poh_host) = true) {
+    return(getbit_range(.%poh_portals, calc($index * 3), calc($index * 3 + 2)));
+}
+return(~poh_portal_get($index));
+
 [proc,poh_portal_set](int $index, int $dest)
 %poh_portals = setbit_range_toint(%poh_portals, $dest, calc($index * 3), calc($index * 3 + 2));
 
@@ -267,6 +274,6 @@ if (~poh_portal_slot($spot) < 0) {
 // somewhere the player is not standing in, so it reads the three portals out instead - which is
 // the thing a player actually wants to know when they are standing over the pool.
 [oploc2,poh_scrying_pool]
-mes("North: <enum(int, string, poh_portal_name, ~poh_portal_get(^poh_portal_north))>.");
-mes("East: <enum(int, string, poh_portal_name, ~poh_portal_get(^poh_portal_east))>.");
-mes("West: <enum(int, string, poh_portal_name, ~poh_portal_get(^poh_portal_west))>.");
+mes("North: <enum(int, string, poh_portal_name, ~poh_portal_get_here(^poh_portal_north))>.");
+mes("East: <enum(int, string, poh_portal_name, ~poh_portal_get_here(^poh_portal_east))>.");
+mes("West: <enum(int, string, poh_portal_name, ~poh_portal_get_here(^poh_portal_west))>.");

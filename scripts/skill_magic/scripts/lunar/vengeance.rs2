@@ -1,0 +1,138 @@
+// Vengeance (94) and Vengeance Other (93), the Lunar spellbook (2026-09-23).
+//
+// THE RULES ARE OLD SCHOOL'S, checked against its wiki:
+//   * the next hit that does damage is rebounded at 75%, rounded down but never under 1 - so a hit
+//     of 1 rebounds 1, and a 0 (a splash, a block) neither rebounds nor uses the effect up;
+//   * it rebounds when that hit LANDS, onto whoever dealt it, and the player says "Taste vengeance!";
+//   * it still goes off on the hit that kills you ("reflect damage more reliably when you are on
+//     low health", 2013): what is asked is that you were alive when the hit arrived, as recoil asks;
+//   * it stacks with the ring of recoil, and neither rebound sets off the other or itself: both
+//     land through a queue of their own that goes straight to ~damage_self, never through
+//     [queue,pvp_damage] or [queue,combat_damage_player], which is where both are set off;
+//   * "Vengeance spells may only be cast every 30 seconds by the same caster": one 50-tick cooldown
+//     for both spells, held on the caster, so Vengeance Other puts YOU on cooldown and not them;
+//   * it wears off on logout (%vengeance is scope=temp);
+//   * Vengeance Other needs the target's Accept Aid on, and cannot be cast in a single-combat part
+//     of the Wilderness.
+//
+// Two choices of this server's. Casting while the effect is already on you is refused and costs
+// nothing - Old School's wiki does not say, and a second cast could only ever waste four astrals.
+// And a rebound onto an npc credits you with the damage (npc_heropoints), as any hit of yours
+// would, so a monster that dies of your vengeance still drops for you.
+//
+// THE HOOKS: skill_combat/scripts/pvp/pvp_combat.rs2 ([queue,pvp_damage], which now carries the
+// attacker's uid, so the rebound goes to whoever dealt THIS hit and not merely whoever attacked
+// last) and skill_combat/scripts/npc/npc_combat.rs2 ([queue,combat_damage_player], which reaches
+// the npc the way the ring of recoil beside it does). Engine-TS tools/sim/run.ts `vengeance`
+// exercises all of it against the real engine.
+
+[if_button,lunar_magic:vengeance]
+if (p_finduid(uid) = false) {
+    return;
+}
+if (%vengeance_cooldown > map_clock) {
+    mes("You can only cast vengeance spells every 30 seconds.");
+    return;
+}
+if (%vengeance = true) {
+    mes("You already have the power of vengeance.");
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^vengeance);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_cast_vengeance, 0);
+spotanim_pl(vengeance, 92, 0);
+%vengeance = true;
+%vengeance_cooldown = add(map_clock, ^vengeance_cooldown_ticks);
+
+// ---------------------------------------------------------------------------------- Vengeance Other
+
+[opplayert,lunar_magic:vengeance_other] @vengeance_other_cast;
+[applayert,lunar_magic:vengeance_other] @vengeance_other_cast;
+
+[label,vengeance_other_cast]
+if (.uid = uid) {
+    mes("You can't cast that on yourself.");
+    return;
+}
+if (%vengeance_cooldown > map_clock) {
+    mes("You can only cast vengeance spells every 30 seconds.");
+    return;
+}
+// ^aid_no is 2, and a save that has never opened the options tab holds 0 - accepting, as in Old
+// School (skill_magic/scripts/spells/teleother.rs2 has the whole story of this varp)
+if (.%option_aid = ^aid_no) {
+    mes("<.displayname> is not accepting aid.");
+    return;
+}
+if (~wilderness_level(coord) > 0 & map_multiway(coord) = false) {
+    mes("You can't cast this spell in a single-combat area of the Wilderness.");
+    return;
+}
+if (.%vengeance = true) {
+    mes("<.displayname> already has the power of vengeance.");
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^vengeance_other);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_cast_lunar_other, 0);
+.spotanim_pl(vengeance_other, 92, 0);
+.%vengeance = true;
+.mes("You have the power of vengeance!");
+%vengeance_cooldown = add(map_clock, ^vengeance_cooldown_ticks);
+
+// ---------------------------------------------------------------------------------- the rebound
+
+// 75% of the damage the hit did, rounded down, never under 1. "Did": a hit is never more than the
+// hitpoints it lands on - Player.applyDamage clamps it, and so does the splat - so a 20 on 5 hitpoints
+// is a 5, and rebounds 3.
+[proc,vengeance_amount](int $damage)(int)
+return(max(1, scale(75, 100, min($damage, stat(hitpoints)))));
+
+// A player's hit on a vengeanced player, from [queue,pvp_damage]: the active player is the one
+// hit, $attacker the one who hit them.
+[proc,vengeance_rebound_player](int $damage, player_uid $attacker)
+if (%vengeance ! true | $damage < 1 | stat(hitpoints) < 1) {
+    return;
+}
+if (.finduid($attacker) = false) {
+    return;
+}
+%vengeance = false;
+say("Taste vengeance!");
+if (.stat(hitpoints) > 0) {
+    .queue(vengeance_damage, 0, min(~vengeance_amount($damage), .stat(hitpoints)));
+}
+
+// An npc's hit on a vengeanced player, from [queue,combat_damage_player]. The npc is the one the
+// ring of recoil there rebounds onto, found the same way and under the same conditions.
+[proc,vengeance_rebound_npc](int $damage)
+if (%vengeance ! true | $damage < 1 | stat(hitpoints) < 1) {
+    return;
+}
+if (npc_finduid(%aggressive_npc) = false) {
+    return;
+}
+if (npc_hasop(2) = false | %npc_attacking_uid ! uid | npc_stat(hitpoints) < 1) {
+    return;
+}
+%vengeance = false;
+say("Taste vengeance!");
+def_int $rebound = min(~vengeance_amount($damage), npc_stat(hitpoints));
+npc_heropoints($rebound);
+npc_queue(2, $rebound, 0);
+
+// Its own queue, as recoil's is, so a rebound is never itself a hit that rebounds: no recoil, no
+// vengeance, no Smite drain. Nothing but the damage.
+[queue,vengeance_damage](int $damage)
+if (stat(hitpoints) > 0) {
+    ~damage_self($damage);
+}

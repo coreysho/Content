@@ -1,0 +1,30 @@
+// The Lunar spellbook (2026-09-23).
+
+// Whether the Astral altar on Lunar Isle has given you the book: the first prayer there with 65
+// Magic sets it, for good. What the altar reads to know it is a toggle from then on, and what the
+// Magic cape reads to know it may offer Lunar (area_lunar_isle/scripts/lunar_isle.rs2,
+// skillcapes/scripts/skillcape_perks.rs2). No quest does it; this server has no Lunar Diplomacy.
+[lunar_unlocked]
+type=boolean
+scope=perm
+
+// Vengeance is on you: the next hit that does damage is rebounded, and this goes false
+// (skill_combat/scripts/pvp/pvp_combat.rs2, npc/npc_combat.rs2). scope=temp, which is Old
+// School's "the effect will wear off upon logout". protect=no because Vengeance Other writes it
+// through the secondary pointer, from the caster's script - the same as teleother.varp.
+[vengeance]
+type=boolean
+protect=no
+
+// The map_clock tick this player may next cast a Vengeance spell on. One cooldown for both,
+// held on the CASTER: "Vengeance spells may only be cast every 30 seconds by the same caster".
+// Temp, as map_clock is: it restarts with the world, so a stored tick would not survive one.
+[vengeance_cooldown]
+type=int
+
+// Spellbook Swap has lent you the normal book or Ancients, for one spell or two minutes
+// (skill_magic/scripts/lunar/lunar_contact.rs2). Perm, so that login.rs2 can see a swap that was
+// still open at logout and put the Lunar book back: a temp one would read as never swapped.
+[spellbook_swapped]
+type=boolean
+scope=perm

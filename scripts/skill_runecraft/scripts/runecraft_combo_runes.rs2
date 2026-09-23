@@ -10,7 +10,8 @@ def_int $rune_count = inv_total(inv, $required_rune);
 
 def_namedobj $missing_obj = null;
 
-if (last_useitem = $required_rune & inv_total(inv, $required_talisman) <= 0) {
+// Magic Imbue stands in for the talisman while it lasts (skill_magic/scripts/lunar/lunar_imbue.rs2)
+if (last_useitem = $required_rune & inv_total(inv, $required_talisman) <= 0 & ~magic_imbue_active = false) {
     $missing_obj = $required_talisman;
 } else if (last_useitem = $required_talisman & $rune_count <= 0) {
     $missing_obj = $required_rune;
@@ -65,7 +66,7 @@ inv_del(inv, $required_rune, $runes_to_craft);
 
 if (last_useitem = $required_talisman) {
     inv_delslot(inv, last_useslot);
-} else {
+} else if (~magic_imbue_active = false) {
     inv_del(inv, $required_talisman, 1);
 }
 

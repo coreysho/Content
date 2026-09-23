@@ -15,8 +15,11 @@
 // owner reaching into each guest, because an instance_delete takes the floor away with no warning
 // and the guest's own script is the one that can put them somewhere real.
 //
-// Furniture stays the owner's: its ops check ~poh_in_own_house-style that the loc is in the
-// clicker's own instance, and a guest has none.
+// What a guest may use is what only READS the house: a seat, the altar (by the owner's lit burners),
+// the mounted glory, the portal chamber's portals and scrying pool, climbing into the combat ring.
+// What WRITES it - building, removing, lighting, the stores and the costume room - stays the owner's,
+// checked against the clicker's own %poh_instance as it always was. ~poh_in_house is the test for
+// the first kind, and the owner's furniture records are read through ~poh_furn_get_here.
 
 [oploc3,poh_house_portal]
 def_coord $portal = loc_coord;
@@ -101,7 +104,33 @@ cleartimer(poh_guest);
 if (%poh_instance = null) {
     return(0);
 }
+return(max(0, calc(~poh_house_players - 1)));
+
+// Everyone in the house the player is in, the player included.
+[proc,poh_house_players]()(int)
+def_coord $base = ~poh_here;
+if ($base = null) {
+    return(0);
+}
 def_int $lo = calc(^poh_grid_origin * 8);
 def_int $hi = calc((^poh_grid_origin + ^poh_grid) * 8 - 1);
-def_int $all = map_playercount(movecoord(%poh_instance, $lo, 0, $lo), movecoord(%poh_instance, $hi, 0, $hi));
-return(max(0, calc($all - 1)));
+return(map_playercount(movecoord($base, $lo, 0, $lo), movecoord($base, $hi, 0, $hi)));
+
+// The house the player is standing in - their own, or the one they are a guest in - as its
+// instance's base, or null.
+[proc,poh_here]()(coord)
+if (%poh_instance ! null) {
+    return(%poh_instance);
+}
+return(%poh_visiting);
+
+// Whether $spot is in that house.
+[proc,poh_in_house](coord $spot)(boolean)
+def_coord $base = ~poh_here;
+if ($base = null) {
+    return(false);
+}
+if (instance_find($spot) ! $base) {
+    return(false);
+}
+return(true);

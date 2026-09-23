@@ -1,0 +1,38 @@
+// The Lunar spells that look after other people (2026-09-23): skill_magic/scripts/lunar/
+// lunar_cure.rs2, lunar_heal.rs2, lunar_pot_share.rs2, lunar_insight.rs2 and lunar_dream.rs2.
+// Every figure is Old School's, from its wiki.
+
+// "players within 1 square radius of the caster" - Cure Group and Heal Group. huntall measures
+// from the south-west tile in whole squares, so 1 is the caster's own square and the eight round it.
+^lunar_group_radius = 1
+
+// "each player in a 5x5 square area around the caster" - both Pot Shares.
+^lunar_pot_share_radius = 2
+
+// Heal Other and Heal Group give away 75% of the caster's CURRENT hitpoints, and refuse to be cast
+// below 11% of the caster's hitpoints - which is what makes them impossible to die of.
+^lunar_heal_percent = 75
+^lunar_heal_floor_percent = 11
+// Heal Group: the amount lost "plus 5 hitpoints, split evenly across" up to five injured players.
+^lunar_heal_group_bonus = 5
+^lunar_heal_group_max = 5
+
+// Energy Transfer costs 10 hitpoints, and "if you try to cast it with 10 hitpoints or less you will
+// get the message: You need more hitpoints to cast this spell."
+^lunar_energy_transfer_hp = 10
+
+// What a potion row is to the Pot Share spells (~lunar_potion_kind).
+^lunar_potion_none = 0
+^lunar_potion_restore = 1
+^lunar_potion_boost = 2
+
+// Dream: "hitpoints will regenerate three times faster than normal, healing 1 hitpoint every 20
+// seconds, or 3 hitpoints per minute", on a timer of its own beside the ordinary one. The ordinary
+// one (player/scripts/stat.rs2 [timer,health_regen], 100 ticks) still gives its 1 a minute, so the
+// dream's own timer gives the other 2: one every 50 ticks.
+^lunar_dream_heal_ticks = 50
+// How often the Zzz goes up over the sleeper's head - the length of dream_anim, 216 client frames.
+^lunar_dream_zzz_ticks = 7
+// The dream's token on the weak queue (see lunar_dream.rs2). It only has to outlast nothing: when
+// it does fire it puts itself straight back.
+^lunar_dream_token_ticks = 500

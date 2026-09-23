@@ -329,8 +329,10 @@ for l in r.stdout.split('\n'):
     if l.replace(chr(92), '/').startswith('scripts/'):
         raw.append(l.split()[0])
         state[l.replace(chr(92), '/').split()[0]] = l.split()[-1]
-check(len(state) == 7,
-      'seven interfaces count runes, and the generator finds them itself rather than being told: %d'
+# eight since the Lunar spellbook (skill_magic/interfaces/lunar_magic.if), which the generator found
+# on its own - the point of this check
+check(len(state) == 8,
+      'eight interfaces count runes, and the generator finds them itself rather than being told: %d'
       % len(state))
 for rel in sorted(state):
     check(state[rel] == 'unchanged',

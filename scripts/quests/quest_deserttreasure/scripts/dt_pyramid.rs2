@@ -159,10 +159,11 @@ if (%deserttreasure < ^deserttreasure_complete) {
 @dt_swap_spellbook;
 
 // The 2006 spellbook switch: this altar, and nothing else. It costs all your Prayer points and does
-// not give them back.
+// not give them back. It trades in Ancient Magicks only: from the Lunar book it offers Ancients, as it
+// does from the normal one, and Lunar is the Astral altar's to give back (area_lunar_isle).
 [label,dt_swap_spellbook]
 def_int $choice = -1;
-if (%spellbook = 1) {
+if (%spellbook = ^spellbook_ancient) {
     $choice = ~p_choice2("Return to the normal spellbook.", 1, "Leave the altar alone.", 2);
 } else {
     $choice = ~p_choice2("Switch to Ancient Magicks.", 1, "Leave the altar alone.", 2);
@@ -176,14 +177,12 @@ anim(human_pray, 0);
 sound_synth(magical_barrier, 1, 0);
 p_delay(3);
 stat_sub(prayer, stat(prayer), 0);
-if (%spellbook = 1) {
-    %spellbook = 0;
-    if_settab(magic, ^tab_magic);
+if (%spellbook = ^spellbook_ancient) {
+    ~set_spellbook(^spellbook_normal);
     ~mesbox("You feel the ancient words drain out of you.|Your prayer points have been used up.");
     return;
 }
-%spellbook = 1;
-if_settab(ancient_magic, ^tab_magic);
+~set_spellbook(^spellbook_ancient);
 ~mesbox("An ancient power flows into you.|Your prayer points have been used up.");
 
 // ================================================================================ Azzanadra
@@ -226,8 +225,7 @@ if (%deserttreasure = ^dt_azzanadra_freed) {
 [queue,dt_quest_complete]
 session_log(^log_adventure, "Quest complete: Desert Treasure");
 %deserttreasure = ^deserttreasure_complete;
-%spellbook = 1;
-if_settab(ancient_magic, ^tab_magic);
+~set_spellbook(^spellbook_ancient);
 stat_advance(magic, 2000000);
 ~send_quest_complete(questlist:deserttreasure, staff_of_zaros, 250, ^deserttreasure_questpoints, "You have completed\\nDesert Treasure!", "Ancient Magicks|20,000 Magic XP|The Ring of Visibility|Access to the Smoke and Shadow Dungeons|The Ancient Staff, from Eblis");
 
