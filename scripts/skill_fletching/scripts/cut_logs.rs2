@@ -22,19 +22,33 @@ def_int $shaft_count = db_getfield($data, fletch_bow_table:shafts, 0);
 def_namedobj $obj2;
 def_namedobj $obj3;
 $obj2, $obj3 = db_getfield($data, fletch_bow_table:objchoices, 0);
+// a crossbow stock too, from every log that makes one (474); teak and mahogany make nothing else
+def_namedobj $stock;
+def_int $stock_level;
+def_int $stock_experience;
+$stock, $stock_level, $stock_experience = db_getfield($data, fletch_bow_table:stock, 0);
+def_string $wood = ~string_removeright(oc_name($log), 5);
 def_namedobj $product;
-// guess based off 2004
-if ($shaft_count < 1) {
+if ($obj2 = null) {
+    $product = $stock;
+} else if ($shaft_count < 1 & $stock = null) {
+    // guess based off 2004
     $product = ~multiobj2("What would you like to make?", 
-        $obj2, 0, -15, 175, "<~string_removeright(oc_name($log), 5)> Short Bow.", 0, 0,
-        $obj3, 0, -15, 175, "<~string_removeright(oc_name($log), 5)> Long Bow.", 0, 0
+        $obj2, 0, -15, 175, "<$wood> Short Bow.", 0, 0,
+        $obj3, 0, -15, 175, "<$wood> Long Bow.", 0, 0
+    );
+} else if ($shaft_count < 1) {
+    $product = ~multiobj3("What would you like to make?",
+        $obj2, 0, 0, 175, "<$wood> Short Bow.", 0, 0,
+        $obj3, 0, 0, 175, "<$wood> Long Bow.", 0, 0,
+        $stock, 0, 0, 175, "<$wood> Stock.", 0, 0
     );
 } else {
-    // 2004
-    $product = ~multiobj3_close("What would you like to make?", 
-        $obj1, 175, "Arrow Shafts.",
-        $obj2, 175, "Short Bow.",
-        $obj3, 175, "Long Bow."
+    $product = ~multiobj4("What would you like to make?",
+        $obj1, 0, 0, 175, "Arrow Shafts.", 0, 0,
+        $obj2, 0, 0, 175, "Short Bow.", 0, 0,
+        $obj3, 0, 0, 175, "Long Bow.", 0, 0,
+        $stock, 0, 0, 175, "Crossbow Stock.", 0, 0
     );
 }
 if ($product = null) {
@@ -47,7 +61,11 @@ def_int $count = 1;
 def_int $fletching_experience = multiply($shaft_count, 5);
 def_string $message;
 // 2005-osrs, rsc
-if ($product = $obj2) {
+if ($product = $stock) {
+    $level = $stock_level;
+    $fletching_experience = $stock_experience;
+    $message = "You carefully cut the wood into a crossbow stock.";
+} else if ($product = $obj2) {
     $product, $level, $fletching_experience = db_getfield($data, fletch_bow_table:shortbow, 0);
     $message = "You carefully cut the wood into a shortbow.";
 } else if ($product = $obj3) {

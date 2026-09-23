@@ -31,7 +31,15 @@ switch_obj(last_useitem) {
 [opheldu,_bolts]
 switch_obj(last_useitem) {
     case weapon_poison : @make_weapon_poisoned(last_slot, last_useslot);
-    case default : ~displaymessage(^dm_default);
+    case default :
+        // bolt tips on a metal bolt (skill_fletching/scripts/bolts.rs2); a category trigger can be
+        // reached with the two items either way round
+        if (oc_category(last_useitem) = category_530) {
+            @make_bolts(last_useitem, last_item);
+        } else if (oc_category(last_item) = category_530) {
+            @make_bolts(last_item, last_useitem);
+        }
+        ~displaymessage(^dm_default);
 }
 
 [opheldu,_arrows]

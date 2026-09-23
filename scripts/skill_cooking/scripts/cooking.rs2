@@ -1,4 +1,12 @@
-[oplocu,_cooking_oven] @attempt_cook_item(last_useitem);
+[oplocu,_cooking_oven]
+// raw beef and bear meat can instead be dried into sinew for a crossbow string (skill_cooking/scripts/sinew.rs2)
+def_obj $item = last_useitem;
+if (($item = raw_beef | $item = raw_bear_meat) & map_members = ^true) {
+    if (~p_choice2("Dry the meat into sinew.", 1, "Cook the meat.", 2) = 1) {
+        @make_sinew($item);
+    }
+}
+@attempt_cook_item($item);
 [oplocu,_cooking_fire]
 if(oc_param(last_useitem, unlit_arrow) = ^true) { // might not work on every fire?
     @light_firearrow(last_useitem);
