@@ -1,0 +1,105 @@
+// CROSSBOWS (474): a stock cut from logs (cut_logs.rs2), a pair of limbs from the anvil, a hammer to fix
+// them together, and a crossbow string (spun from sinew) to finish; and unfinished bolts from the anvil,
+// feathered here ten at a time. The recipes are skill_fletching/configs/crossbows/crossbows.dbrow.
+
+// limbs on a stock, or a stock on limbs - the stock's trigger is found either way
+[opheldu,wooden_stock] @fletch_crossbow_limbs(last_item, last_useitem);
+[opheldu,oak_stock] @fletch_crossbow_limbs(last_item, last_useitem);
+[opheldu,willow_stock] @fletch_crossbow_limbs(last_item, last_useitem);
+[opheldu,teak_stock] @fletch_crossbow_limbs(last_item, last_useitem);
+[opheldu,maple_stock] @fletch_crossbow_limbs(last_item, last_useitem);
+[opheldu,mahogany_stock] @fletch_crossbow_limbs(last_item, last_useitem);
+[opheldu,yew_stock] @fletch_crossbow_limbs(last_item, last_useitem);
+
+[opheldu,crossbow_string]
+switch_obj (last_useitem) {
+    case bronze_crossbow_u : @string_crossbow(fletching_bronze_crossbow);
+    case blurite_crossbow_u : @string_crossbow(fletching_blurite_crossbow);
+    case iron_crossbow_u : @string_crossbow(fletching_iron_crossbow);
+    case steel_crossbow_u : @string_crossbow(fletching_steel_crossbow);
+    case mithril_crossbow_u : @string_crossbow(fletching_mithril_crossbow);
+    case adamant_crossbow_u : @string_crossbow(fletching_adamant_crossbow);
+    case runite_crossbow_u : @string_crossbow(fletching_runite_crossbow);
+    case default : ~displaymessage(^dm_default);
+}
+
+[label,fletch_crossbow_limbs](obj $stock, obj $limbs)
+db_find(fletch_crossbow_table:stock, $stock);
+def_dbrow $data = db_findnext;
+if ($data = null | db_getfield($data, fletch_crossbow_table:limbs, 0) ! $limbs) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (map_members = ^false) {
+    mes(^mes_members_fletching);
+    return;
+}
+def_int $level = db_getfield($data, fletch_crossbow_table:level, 0);
+if (stat(fletching) < $level) {
+    ~doubleobjbox($stock, $limbs, "You need a Fletching level of <tostring($level)> to attach these limbs.", 200);
+    return;
+}
+if (inv_total(inv, hammer) < 1) {
+    ~mesbox("You need a hammer to attach the limbs.");
+    return;
+}
+inv_del(inv, $stock, 1);
+inv_del(inv, $limbs, 1);
+inv_add(inv, db_getfield($data, fletch_crossbow_table:unstrung, 0), 1);
+stat_advance(fletching, db_getfield($data, fletch_crossbow_table:limbs_experience, 0));
+mes("You attach the metal limbs to the stock.");
+
+[label,string_crossbow](dbrow $data)
+def_namedobj $unstrung = db_getfield($data, fletch_crossbow_table:unstrung, 0);
+if (map_members = ^false) {
+    mes(^mes_members_fletching);
+    return;
+}
+def_int $level = db_getfield($data, fletch_crossbow_table:level, 0);
+if (stat(fletching) < $level) {
+    ~doubleobjbox($unstrung, crossbow_string, "You need a Fletching level of <tostring($level)> to string this crossbow.", 200);
+    return;
+}
+inv_del(inv, $unstrung, 1);
+inv_del(inv, crossbow_string, 1);
+inv_add(inv, db_getfield($data, fletch_crossbow_table:strung, 0), 1);
+stat_advance(fletching, db_getfield($data, fletch_crossbow_table:string_experience, 0));
+mes("You add a string to the crossbow.");
+
+// feathers on unfinished bolts (darts.rs2's feather trigger sends them here)
+[label,make_feathered_bolts](obj $unf)
+if (map_members = ^false) {
+    mes(^mes_members_fletching);
+    return;
+}
+def_dbrow $data = ~get_fletching_data($unf);
+if ($data = null) {
+    ~displaymessage(^dm_default);
+    return;
+}
+def_namedobj $product;
+def_int $max_count;
+$product, $max_count = db_getfield($data, fletching_table:product, 0);
+def_int $level = db_getfield($data, fletching_table:level, 0);
+if (stat(fletching) < $level) {
+    ~doubleobjbox($unf, feather, "You need a Fletching level of <tostring($level)> to fletch these bolts.", 200);
+    return;
+}
+def_int $count = min(min(inv_total(inv, $unf), inv_total(inv, feather)), $max_count);
+if ($count < 1) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (inv_itemspace(inv, $product, $count, inv_size(inv)) = false & inv_total(inv, $unf) > $count & inv_total(inv, feather) > $count) {
+    mes("You do not have enough inventory space for the bolts.");
+    return;
+}
+inv_del(inv, $unf, $count);
+inv_del(inv, feather, $count);
+inv_add(inv, $product, $count);
+stat_advance(fletching, multiply($count, db_getfield($data, fletching_table:experience, 0)));
+if ($count > 1) {
+    mes("You fletch <tostring($count)> bolts.");
+} else {
+    mes("You fletch a bolt.");
+}

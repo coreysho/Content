@@ -48,17 +48,105 @@ def parse_if(path):
             coms[cur][k] = v
     return order, coms
 
+# Every background and border graphic of the 377 smithing window, in its own order - the frame these
+# windows are drawn in. The anvil now has 474's window (tools/models/gensmithing474.py), so the 377
+# one's frame is kept here as it was rather than read from a file that no longer holds it.
+FRAME = [
+    (12, 20, 88, 60, 'tradebacking,0'),
+    (12, 80, 88, 60, 'tradebacking,0'),
+    (12, 140, 88, 60, 'tradebacking,0'),
+    (12, 200, 88, 60, 'tradebacking,0'),
+    (12, 260, 88, 60, 'tradebacking,0'),
+    (100, 20, 88, 60, 'tradebacking,0'),
+    (100, 80, 88, 60, 'tradebacking,0'),
+    (100, 140, 88, 60, 'tradebacking,0'),
+    (100, 200, 88, 60, 'tradebacking,0'),
+    (188, 20, 88, 60, 'tradebacking,0'),
+    (100, 260, 88, 60, 'tradebacking,0'),
+    (188, 80, 88, 60, 'tradebacking,0'),
+    (188, 140, 88, 60, 'tradebacking,0'),
+    (188, 200, 88, 60, 'tradebacking,0'),
+    (188, 260, 88, 60, 'tradebacking,0'),
+    (276, 20, 88, 60, 'tradebacking,0'),
+    (364, 80, 88, 60, 'tradebacking,0'),
+    (276, 80, 88, 60, 'tradebacking,0'),
+    (276, 140, 88, 60, 'tradebacking,0'),
+    (276, 200, 88, 60, 'tradebacking,0'),
+    (276, 260, 88, 60, 'tradebacking,0'),
+    (364, 140, 88, 60, 'tradebacking,0'),
+    (364, 20, 88, 60, 'tradebacking,0'),
+    (364, 200, 88, 60, 'tradebacking,0'),
+    (364, 260, 88, 60, 'tradebacking,0'),
+    (412, 20, 88, 60, 'tradebacking,0'),
+    (412, 80, 88, 60, 'tradebacking,0'),
+    (412, 140, 88, 60, 'tradebacking,0'),
+    (412, 200, 88, 60, 'tradebacking,0'),
+    (412, 260, 88, 60, 'tradebacking,0'),
+    (12, 20, 25, 30, 'steelborder,0'),
+    (-3, 49, 36, 36, 'miscgraphics,2'),
+    (-3, 85, 36, 36, 'miscgraphics,2'),
+    (-3, 121, 36, 36, 'miscgraphics,2'),
+    (-3, 157, 36, 36, 'miscgraphics,2'),
+    (-3, 193, 36, 36, 'miscgraphics,2'),
+    (-3, 229, 36, 36, 'miscgraphics,2'),
+    (-3, 265, 36, 36, 'miscgraphics,2'),
+    (479, 50, 36, 36, 'steelborder2,1'),
+    (479, 86, 36, 36, 'steelborder2,1'),
+    (479, 122, 36, 36, 'steelborder2,1'),
+    (479, 158, 36, 36, 'steelborder2,1'),
+    (479, 194, 36, 36, 'steelborder2,1'),
+    (479, 230, 36, 36, 'steelborder2,1'),
+    (479, 266, 36, 36, 'steelborder2,1'),
+    (73, 299, 36, 36, 'miscgraphics,3'),
+    (109, 299, 36, 36, 'miscgraphics,3'),
+    (145, 299, 36, 36, 'miscgraphics,3'),
+    (181, 299, 36, 36, 'miscgraphics,3'),
+    (217, 299, 36, 36, 'miscgraphics,3'),
+    (253, 299, 36, 36, 'miscgraphics,3'),
+    (289, 299, 36, 36, 'miscgraphics,3'),
+    (325, 299, 36, 36, 'miscgraphics,3'),
+    (361, 299, 36, 36, 'miscgraphics,3'),
+    (397, 299, 36, 36, 'miscgraphics,3'),
+    (433, 299, 36, 36, 'miscgraphics,3'),
+    (72, 5, 36, 36, 'steelborder2,0'),
+    (108, 5, 36, 36, 'steelborder2,0'),
+    (144, 5, 36, 36, 'steelborder2,0'),
+    (180, 5, 36, 36, 'steelborder2,0'),
+    (216, 5, 36, 36, 'steelborder2,0'),
+    (252, 5, 36, 36, 'steelborder2,0'),
+    (288, 5, 36, 36, 'steelborder2,0'),
+    (324, 5, 36, 36, 'steelborder2,0'),
+    (360, 5, 36, 36, 'steelborder2,0'),
+    (396, 5, 36, 36, 'steelborder2,0'),
+    (432, 5, 36, 36, 'steelborder2,0'),
+    (252, 34, 36, 36, 'steelborder2,0'),
+    (37, 5, 36, 36, 'steelborder2,0'),
+    (37, 299, 36, 36, 'miscgraphics,3'),
+    (12, 290, 25, 30, 'steelborder,2'),
+    (475, 20, 25, 30, 'steelborder,1'),
+    (439, 5, 36, 36, 'steelborder2,0'),
+    (475, 290, 25, 30, 'steelborder,3'),
+    (439, 299, 36, 36, 'miscgraphics,3'),
+    (288, 34, 36, 36, 'steelborder2,0'),
+    (324, 34, 36, 36, 'steelborder2,0'),
+    (360, 34, 36, 36, 'steelborder2,0'),
+    (396, 34, 36, 36, 'steelborder2,0'),
+    (432, 34, 36, 36, 'steelborder2,0'),
+    (459, 34, 36, 36, 'steelborder2,0'),
+    (216, 34, 36, 36, 'steelborder2,0'),
+    (180, 34, 36, 36, 'steelborder2,0'),
+    (144, 34, 36, 36, 'steelborder2,0'),
+    (108, 34, 36, 36, 'steelborder2,0'),
+    (72, 34, 36, 36, 'steelborder2,0'),
+    (36, 34, 36, 36, 'steelborder2,0'),
+    (17, 34, 36, 36, 'steelborder2,0'),
+]
+
+
 def frame():
-    """Every background and border graphic of the smithing window, in its own order."""
-    order, coms = parse_if(SMITH)
-    out = []
-    for n in order:
-        c = coms[n]
-        if c.get('type') != 'graphic':
-            continue
-        out.append(dict(type='graphic', x=c['x'], y=c['y'], width=c['width'],
-                        height=c['height'], graphic=c['graphic']))
-    return out
+    """The 377 smithing window's frame, as components."""
+    return [dict(type='graphic', x=str(x), y=str(y), width=str(w), height=str(h), graphic=g)
+            for x, y, w, h, g in FRAME]
 
 # --------------------------------------------------------------------------- emit
 

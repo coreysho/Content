@@ -1,40 +1,101 @@
 // Fletching skill guide, shown on the original RS2 skill guide interface
 // (see content/scripts/interfaces/skill_guide.rs2 for the generic driver).
-// Unstrung bows share their strung level, so they are collapsed into one row each.
+// Unstrung bows share their strung level, so they are collapsed into one row each. Four pages since
+// the crossbows (474) - bows, arrows and darts, crossbows, bolts - as smithing_guide.rs2 has seven.
 [proc,open_fletching_guide]
+%skillguide_page = 1;
+~fletching_guide_render;
+
+[proc,fletching_guide_render]
 ~skillguide_begin(^guide_fletching, "Fletching");
 ~skillguide_members;
+~skillguide_panels(4);
+~skillguide_button(1, "Bows");
+~skillguide_button(2, "Ammo");
+~skillguide_button(3, "Crossbows");
+~skillguide_button(4, "Bolts");
 def_int $lvl = stat(fletching);
+switch_int (%skillguide_page) {
+    case 2 : ~fletching_guide_ammo($lvl);
+    case 3 : ~fletching_guide_crossbows($lvl);
+    case 4 : ~fletching_guide_bolts($lvl);
+    case default : ~fletching_guide_bows($lvl);
+}
+~skillguide_show;
+
+[proc,fletching_guide_bows](int $lvl)
 ~skillguide_row(1, $lvl, 1, arrow_shaft, "Arrow shaft");
 ~skillguide_row(2, $lvl, 1, headless_arrow, "Headless arrow");
-~skillguide_row(3, $lvl, 1, bronze_arrow, "Bronze arrow");
-~skillguide_row(4, $lvl, 1, bronze_dart, "Bronze dart");
-~skillguide_row(5, $lvl, 5, shortbow, "Shortbow");
-~skillguide_row(6, $lvl, 5, ogre_arrow, "Ogre arrow");
-~skillguide_row(7, $lvl, 10, longbow, "Longbow");
-~skillguide_row(8, $lvl, 11, opal_bolttips, "Opal bolttips");
-~skillguide_row(9, $lvl, 11, opal_bolt, "Opal bolts");
-~skillguide_row(10, $lvl, 15, iron_arrow, "Iron arrow");
-~skillguide_row(11, $lvl, 20, oak_shortbow, "Oak shortbow");
-~skillguide_row(12, $lvl, 22, iron_dart, "Iron dart");
-~skillguide_row(13, $lvl, 25, oak_longbow, "Oak longbow");
-~skillguide_row(14, $lvl, 30, steel_arrow, "Steel arrow");
-~skillguide_row(15, $lvl, 35, willow_shortbow, "Willow shortbow");
-~skillguide_row(16, $lvl, 37, steel_dart, "Steel dart");
-~skillguide_row(17, $lvl, 40, willow_longbow, "Willow longbow");
-~skillguide_row(18, $lvl, 41, pearl_bolttips, "Pearl bolttips");
-~skillguide_row(19, $lvl, 41, pearl_bolt, "Pearl bolts");
-~skillguide_row(20, $lvl, 45, mithril_arrow, "Mithril arrow");
-~skillguide_row(21, $lvl, 50, maple_shortbow, "Maple shortbow");
-~skillguide_row(22, $lvl, 51, barbed_bolt, "Barbed bolts");
-~skillguide_row(23, $lvl, 52, mithril_dart, "Mithril dart");
-~skillguide_row(24, $lvl, 55, maple_longbow, "Maple longbow");
-~skillguide_row(25, $lvl, 60, adamant_arrow, "Adamant arrow");
-~skillguide_row(26, $lvl, 65, yew_shortbow, "Yew shortbow");
-~skillguide_row(27, $lvl, 67, adamant_dart, "Adamant dart");
-~skillguide_row(28, $lvl, 70, yew_longbow, "Yew longbow");
-~skillguide_row(29, $lvl, 75, rune_arrow, "Rune arrow");
-~skillguide_row(30, $lvl, 80, magic_shortbow, "Magic shortbow");
-~skillguide_row(31, $lvl, 81, rune_dart, "Rune dart");
-~skillguide_row(32, $lvl, 85, magic_longbow, "Magic longbow");
-~skillguide_show;
+~skillguide_row(3, $lvl, 5, shortbow, "Shortbow");
+~skillguide_row(4, $lvl, 10, longbow, "Longbow");
+~skillguide_row(5, $lvl, 20, oak_shortbow, "Oak shortbow");
+~skillguide_row(6, $lvl, 25, oak_longbow, "Oak longbow");
+~skillguide_row(7, $lvl, 35, willow_shortbow, "Willow shortbow");
+~skillguide_row(8, $lvl, 40, willow_longbow, "Willow longbow");
+~skillguide_row(9, $lvl, 50, maple_shortbow, "Maple shortbow");
+~skillguide_row(10, $lvl, 55, maple_longbow, "Maple longbow");
+~skillguide_row(11, $lvl, 65, yew_shortbow, "Yew shortbow");
+~skillguide_row(12, $lvl, 70, yew_longbow, "Yew longbow");
+~skillguide_row(13, $lvl, 80, magic_shortbow, "Magic shortbow");
+~skillguide_row(14, $lvl, 85, magic_longbow, "Magic longbow");
+
+[proc,fletching_guide_ammo](int $lvl)
+~skillguide_row(1, $lvl, 1, bronze_arrow, "Bronze arrow");
+~skillguide_row(2, $lvl, 1, bronze_dart, "Bronze dart");
+~skillguide_row(3, $lvl, 5, ogre_arrow, "Ogre arrow");
+~skillguide_row(4, $lvl, 15, iron_arrow, "Iron arrow");
+~skillguide_row(5, $lvl, 22, iron_dart, "Iron dart");
+~skillguide_row(6, $lvl, 30, steel_arrow, "Steel arrow");
+~skillguide_row(7, $lvl, 37, steel_dart, "Steel dart");
+~skillguide_row(8, $lvl, 45, mithril_arrow, "Mithril arrow");
+~skillguide_row(9, $lvl, 52, mithril_dart, "Mithril dart");
+~skillguide_row(10, $lvl, 60, adamant_arrow, "Adamant arrow");
+~skillguide_row(11, $lvl, 67, adamant_dart, "Adamant dart");
+~skillguide_row(12, $lvl, 75, rune_arrow, "Rune arrow");
+~skillguide_row(13, $lvl, 81, rune_dart, "Rune dart");
+
+[proc,fletching_guide_crossbows](int $lvl)
+~skillguide_row(1, $lvl, 9, wooden_stock, "Wooden stock");
+~skillguide_row(2, $lvl, 9, bronze_crossbow, "Bronze crossbow");
+~skillguide_row(3, $lvl, 24, oak_stock, "Oak stock");
+~skillguide_row(4, $lvl, 24, blurite_crossbow, "Blurite crossbow");
+~skillguide_row(5, $lvl, 39, willow_stock, "Willow stock");
+~skillguide_row(6, $lvl, 39, iron_crossbow, "Iron crossbow");
+~skillguide_row(7, $lvl, 46, teak_stock, "Teak stock");
+~skillguide_row(8, $lvl, 46, steel_crossbow, "Steel crossbow");
+~skillguide_row(9, $lvl, 54, maple_stock, "Maple stock");
+~skillguide_row(10, $lvl, 54, mithril_crossbow, "Mithril crossbow");
+~skillguide_row(11, $lvl, 61, mahogany_stock, "Mahogany stock");
+~skillguide_row(12, $lvl, 61, adamant_crossbow, "Adamant crossbow");
+~skillguide_row(13, $lvl, 69, yew_stock, "Yew stock");
+~skillguide_row(14, $lvl, 69, rune_crossbow, "Rune crossbow");
+
+[proc,fletching_guide_bolts](int $lvl)
+~skillguide_row(1, $lvl, 9, bolt, "Bronze bolts");
+~skillguide_row(2, $lvl, 11, opal_bolttips, "Opal bolt tips");
+~skillguide_row(3, $lvl, 11, opal_bolt, "Opal bolts");
+~skillguide_row(4, $lvl, 24, blurite_bolts, "Blurite bolts");
+~skillguide_row(5, $lvl, 26, jade_bolttips, "Jade bolt tips");
+~skillguide_row(6, $lvl, 26, jade_bolts, "Jade bolts");
+~skillguide_row(7, $lvl, 39, iron_bolts, "Iron bolts");
+~skillguide_row(8, $lvl, 41, pearl_bolttips, "Pearl bolt tips");
+~skillguide_row(9, $lvl, 41, pearl_bolt, "Pearl bolts");
+~skillguide_row(10, $lvl, 46, steel_bolts, "Steel bolts");
+~skillguide_row(11, $lvl, 48, topaz_bolttips, "Red topaz bolt tips");
+~skillguide_row(12, $lvl, 48, topaz_bolts, "Red topaz bolts");
+~skillguide_row(13, $lvl, 51, barbed_bolt, "Barbed bolts");
+~skillguide_row(14, $lvl, 54, mithril_bolts, "Mithril bolts");
+~skillguide_row(15, $lvl, 56, sapphire_bolttips, "Sapphire bolt tips");
+~skillguide_row(16, $lvl, 56, sapphire_bolts, "Sapphire bolts");
+~skillguide_row(17, $lvl, 58, emerald_bolttips, "Emerald bolt tips");
+~skillguide_row(18, $lvl, 58, emerald_bolts, "Emerald bolts");
+~skillguide_row(19, $lvl, 61, adamant_bolts, "Adamant bolts");
+~skillguide_row(20, $lvl, 63, ruby_bolttips, "Ruby bolt tips");
+~skillguide_row(21, $lvl, 63, ruby_bolts, "Ruby bolts");
+~skillguide_row(22, $lvl, 65, diamond_bolttips, "Diamond bolt tips");
+~skillguide_row(23, $lvl, 65, diamond_bolts, "Diamond bolts");
+~skillguide_row(24, $lvl, 69, runite_bolts, "Runite bolts");
+~skillguide_row(25, $lvl, 71, dragon_bolttips, "Dragon bolt tips");
+~skillguide_row(26, $lvl, 71, dragon_bolts, "Dragon bolts");
+~skillguide_row(27, $lvl, 73, onyx_bolttips, "Onyx bolt tips");
+~skillguide_row(28, $lvl, 73, onyx_bolts, "Onyx bolts");
