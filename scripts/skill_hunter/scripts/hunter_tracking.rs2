@@ -1,0 +1,135 @@
+// Hunter - tracking: the Feldip weasel. See configs/hunter.constant for the numbers.
+//
+// The trail is made of the map's own jungle plants and burrows (every one carries
+// category=hunter_track_node, listed by coord in configs/hunter_tracking.enum) and it ends in one of
+// the grounds' bushes. Inspecting a burrow picks up a fresh trail: a bush at random, and a route of
+// two to three plants toward it, each chosen at random among the nodes a few tiles on that are
+// closer to the bush than the last. Every correct Inspect says which way the tracks lead next; the
+// last one points at the bush. Attack the bush with a noose wand and the weasel is caught - or
+// slips out and the trail is lost.
+//
+// Nothing is drawn on the ground. OSRS highlights the next step of a trail; 377 has no per-player
+// highlight to do it with, and a trail of directions is the part that makes it tracking.
+
+// ------------------------------------------------------------------------------ inspecting
+
+[oploc1,_hunter_track_node]
+if (stat(hunter) < ^hunter_weasel_level) {
+    ~mesbox("You need a Hunter level of <tostring(^hunter_weasel_level)> to track Feldip weasels.");
+    return;
+}
+def_coord $at = loc_coord;
+anim(human_pickupfloor, 0);
+p_delay(1);
+// On the trail: this is the next step.
+if (%hunter_track_next ! null & $at = %hunter_track_next) {
+    @hunter_track_advance($at);
+}
+// A burrow always has fresh tracks leading out of it.
+if (loc_type = loc474_19593 | loc_type = loc474_19594) {
+    @hunter_track_start($at);
+}
+mes("You search the <lowercase(loc_name)> but find no tracks.");
+
+[label,hunter_track_start](coord $burrow)
+def_coord $bush = enum(int, coord, hunter_track_bushes, random(enum_getoutputcount(hunter_track_bushes)));
+%hunter_track_bush = $bush;
+%hunter_track_hops = calc(^hunter_track_hops_min + random(calc(^hunter_track_hops_extra + 1)));
+def_coord $next = ~hunter_track_pick($burrow, $bush);
+%hunter_track_next = $next;
+mes("You find some tracks leading out of the burrow, heading <~hunter_track_direction($burrow, $next)>.");
+
+[label,hunter_track_advance](coord $at)
+%hunter_track_hops = calc(%hunter_track_hops - 1);
+def_coord $bush = %hunter_track_bush;
+if (%hunter_track_hops <= 0) {
+    %hunter_track_next = $bush;
+    mes("The tracks lead to a bush to the <~hunter_track_direction($at, $bush)>.");
+    return;
+}
+def_coord $next = ~hunter_track_pick($at, $bush);
+%hunter_track_next = $next;
+if ($next = $bush) {
+    mes("The tracks lead to a bush to the <~hunter_track_direction($at, $bush)>.");
+    return;
+}
+mes("The tracks continue to the <~hunter_track_direction($at, $next)>.");
+
+// A node a few tiles on from $from that is closer to $bush than $from is, at random - or the bush
+// itself, when nothing qualifies. Reservoir-picked in one pass over the node list.
+[proc,hunter_track_pick](coord $from, coord $bush)(coord)
+def_coord $pick = $bush;
+def_int $seen = 0;
+def_int $here = distance($from, $bush);
+def_int $i = 0;
+while ($i < enum_getoutputcount(hunter_track_nodes)) {
+    def_coord $node = enum(int, coord, hunter_track_nodes, $i);
+    def_int $step = distance($from, $node);
+    if ($node ! $from & $step >= ^hunter_track_step_min & $step <= ^hunter_track_step_max & distance($node, $bush) < $here) {
+        $seen = calc($seen + 1);
+        if (random($seen) = 0) {
+            $pick = $node;
+        }
+    }
+    $i = calc($i + 1);
+}
+return($pick);
+
+// Eight-way compass from one coord to another, the way a trail is described: "north-east".
+[proc,hunter_track_direction](coord $from, coord $to)(string)
+def_int $dx = calc(coordx($to) - coordx($from));
+def_int $dz = calc(coordz($to) - coordz($from));
+def_int $ax = $dx;
+if ($ax < 0) $ax = calc(0 - $ax);
+def_int $az = $dz;
+if ($az < 0) $az = calc(0 - $az);
+def_string $ns = "";
+def_string $ew = "";
+if ($dz > 0) $ns = "north";
+if ($dz < 0) $ns = "south";
+if ($dx > 0) $ew = "east";
+if ($dx < 0) $ew = "west";
+// Mostly one way: name only that way.
+if ($ax > calc($az * 2)) return($ew);
+if ($az > calc($ax * 2)) return($ns);
+if (string_length($ns) = 0) return($ew);
+if (string_length($ew) = 0) return($ns);
+return("<$ns>-<$ew>");
+
+// ---------------------------------------------------------------------------------------- the bush
+
+[oploc1,loc474_19427]
+anim(human_pickupfloor, 0);
+// The end of the trail is "the next step is this bush" - not a hop count, because a route can run
+// out of closer plants and turn to the bush early.
+if (%hunter_track_next ! null & loc_coord = %hunter_track_next & loc_coord = %hunter_track_bush) {
+    mes("There's a Feldip weasel hiding in the bush.");
+    return;
+}
+mes("You search the bush but find nothing but leaves.");
+
+[oploc2,loc474_19427]
+if (inv_total(inv, noose_wand) < 1 & inv_total(worn, noose_wand) < 1) {
+    mes("You need a noose wand to catch anything hiding in there.");
+    return;
+}
+if (%hunter_track_next = null | loc_coord ! %hunter_track_next | loc_coord ! %hunter_track_bush) {
+    mes("There's nothing in there to catch.");
+    return;
+}
+if (inv_freespace(inv) < 2) {
+    mes("You don't have enough inventory space.");
+    return;
+}
+anim(human_hunter_noose, 0);
+p_delay(2);
+%hunter_track_next = null;
+%hunter_track_bush = null;
+if (stat_random(hunter, ^hunter_weasel_low, ^hunter_weasel_high) = false) {
+    mes("The weasel slips out of the noose and bolts. You'll have to find its tracks again.");
+    return;
+}
+inv_add(inv, bones, 1);
+inv_add(inv, feldip_weasel_fur, 1);
+mes("You've caught a Feldip weasel.");
+~hunter_xp(^hunter_weasel_xp);
