@@ -114,13 +114,13 @@ MUTS = [
   'xp_locked is still varp 1177'),
 
  # ---- 10 the stats tab
- (STATSIF, '[xplock_attack]\ntype=text\nx=1\ny=1\nbuttontype=normal\nwidth=62\nheight=30\noverlayer=com_122\nfont=p12_full\nshadowed=yes\noption=Toggle @or1@Attack @whi@XP-lock\n\n',
+ (STATSIF, '[xplock_attack]\ntype=text\nx=0\ny=2\nbuttontype=normal\nwidth=64\nheight=31\noverlayer=com_122\nfont=p12_full\nshadowed=yes\noption=Toggle @or1@Attack @whi@XP-lock\n\n',
            '',
   'one lock button per skill box'),
  # THE ONE THIS ROUND EXISTS FOR: a lock button no longer paired with its own box, which is the
  # same shape as one emitted after the guide button - the left click would stop being the guide.
- (STATSIF, '[com_68]\ntype=text\nx=1\ny=1\nbuttontype=normal\nwidth=62\nheight=30\noverlayer=com_122',
-           '[com_68]\ntype=text\nx=1\ny=1\nbuttontype=normal\nwidth=62\nheight=30\noverlayer=com_164',
+ (STATSIF, '[com_68]\ntype=text\nx=0\ny=2\nbuttontype=normal\nwidth=64\nheight=31\noverlayer=com_122',
+           '[com_68]\ntype=text\nx=0\ny=2\nbuttontype=normal\nwidth=64\nheight=31\noverlayer=com_164',
   'each one is emitted BEFORE its guide button, so left click still opens the guide'),
  (STATSIF, 'option=Toggle @or1@Attack @whi@XP-lock', 'option=Toggle @or1@Defence @whi@XP-lock',
   'no two say the same thing'),
