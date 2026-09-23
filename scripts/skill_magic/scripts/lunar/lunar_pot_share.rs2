@@ -165,7 +165,8 @@ return($next);
 // "super attack" out of "Super attack(4)": the name with its dose count taken off.
 [proc,lunar_potion_name](obj $potion)(string)
 def_string $name = lowercase(oc_name($potion));
-def_int $bracket = string_indexof_char($name, '(');
+// by string, not by char: tools/rs2check.py counts a '(' char literal as an open paren
+def_int $bracket = string_indexof_string("(", $name);
 if ($bracket > 0) {
     $name = substring($name, 0, $bracket);
 }

@@ -1,0 +1,47 @@
+// Hunter Kit (71), the Lunar spellbook (2026-09-23). The spell gives 474's Hunter kit, a box; opening
+// it gives the gear. What the box holds is configs/hunter_kit.enum, which is short of Old School's
+// eight while Hunter is still arriving - see there.
+
+[if_button,lunar_magic:hunter_kit]
+if (p_finduid(uid) = false) {
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("You don't have enough inventory space to cast this spell.");
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^hunter_kit);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_cast_hunter_kit, 0);
+inv_add(inv, hunter_kit, 1);
+p_delay(2);
+
+[opheld1,hunter_kit]
+def_int $count = enum_getoutputcount(hunter_kit_contents);
+// the box's own slot is freed as it opens, so it counts as room for one of them
+if (inv_freespace(inv) < sub($count, 1)) {
+    mes("You need <tostring($count)> free inventory spaces to open the hunter kit.");
+    return;
+}
+inv_delslot(inv, last_slot);
+def_int $i = 0;
+while ($i < $count) {
+    inv_add(inv, enum(int, namedobj, hunter_kit_contents, $i), 1);
+    $i = add($i, 1);
+}
+mes("You open the hunter kit.");
+
+[opheld5,hunter_kit]
+// the slot is read before the question: a dialogue suspends the script, and last_slot does not
+// survive that
+def_int $slot = last_slot;
+if (~p_choice2_header("Yes, destroy it.", 1, "No.", 2, "Destroy the hunter kit? You can cast another.") = 1) {
+    if (inv_getobj(inv, $slot) = hunter_kit) {
+        inv_delslot(inv, $slot);
+        mes("You destroy the hunter kit.");
+    }
+}
