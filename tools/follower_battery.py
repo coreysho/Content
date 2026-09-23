@@ -451,9 +451,13 @@ check('~follower_refollow;' in code(TALK),
       'and the pet goes back to following afterwards - ~chatnpc leaves it on playerfaceclose')
 follow = {p: t.count('npc_setmode(playerfollow)') for p, t in RS2.items()
           if 'npc_setmode(playerfollow)' in t and 'macro' not in p}
+# The third is not a follower at all: a teased spined larupia chases the hunter who poked it, which is
+# what springs a pitfall (skill_hunter, 2026-09-23). It is named here so that the set stays closed -
+# a fourth file setting playerfollow still has to explain itself.
 check(set(follow) == {'scripts/npc/scripts/follower.rs2',
-                      'scripts/quests/quest_fluffs/scripts/pet.rs2'},
-      'follow mode is set in the slot\'s own file and, for the cats\' vermin hunt, the cat quest: %s'
+                      'scripts/quests/quest_fluffs/scripts/pet.rs2',
+                      'scripts/skill_hunter/scripts/hunter_traps.rs2'},
+      'follow mode is set in the slot\'s own file, for the cats\' vermin hunt in the cat quest, and for a teased larupia: %s'
       % sorted(os.path.basename(p) for p in follow))
 
 print('\n-- 9. the looks that are not a right-click -----------------------------------')

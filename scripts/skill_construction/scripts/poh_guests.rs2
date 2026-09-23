@@ -1,0 +1,107 @@
+// HOUSE GUESTS (474): visiting another player's house through the town portal's Friend's house.
+//
+// A house is the owner's instance (poh.rs2) and everything in it is the owner's varps, so a guest
+// only ever looks the owner up - findname by the name typed, and afterwards .finduid by the uid kept
+// in %poh_host - and never builds or keeps anything of their own. The rules are 474's:
+//
+//   - the friend must be online and at home, in the house on THIS portal's town;
+//   - not while they are in building mode - their house is being rebuilt under you;
+//   - a guest arrives where the owner does (%poh_entry, kept by ~poh_enter), and leaves by the exit
+//     portal, which drops them outside the owner's town portal.
+//
+// A guest is sent out, to that same spot, the moment the house they are in stops being the house
+// they came to: the owner logs out or leaves, rebuilds it (building mode, moving house), or presses
+// Expel Guests in House Options (%poh_expel). The poh_guest timer watches for that rather than the
+// owner reaching into each guest, because an instance_delete takes the floor away with no warning
+// and the guest's own script is the one that can put them somewhere real.
+//
+// Furniture stays the owner's: its ops check ~poh_in_own_house-style that the loc is in the
+// clicker's own instance, and a guest has none.
+
+[oploc3,poh_house_portal]
+def_coord $portal = loc_coord;
+if (%poh_instance ! null | %poh_visiting ! null) {
+    mes("You are already in a house.");
+    return;
+}
+p_dialogprompt("Enter name:");
+p_namedialog;
+if (string_length(last_string) = 0) {
+    return;
+}
+def_string $name = last_string;
+if (.findname($name) = false) {
+    mes("They do not seem to be at home.");
+    return;
+}
+if (.uid = uid) {
+    mes("Use Enter to go into your own house.");
+    return;
+}
+if (.%poh_instance = null | .%poh_entry = null | enum(int, coord, poh_loc_portal, .%poh_location) ! $portal) {
+    mes("They do not seem to be at home.");
+    return;
+}
+if (.%poh_buildmode = 1) {
+    mes("That player is in building mode.");
+    return;
+}
+%poh_host = .uid;
+%poh_visiting = .%poh_instance;
+%poh_visit_expel = .%poh_expel;
+%poh_visit_exit = enum(int, coord, poh_loc_exit, .%poh_location);
+if (%poh_visit_exit = null) {
+    %poh_visit_exit = ^poh_exit;
+}
+p_telejump(.%poh_entry);
+settimer(poh_guest, 2);
+
+// Whether the house this guest came to is still there for them, every two ticks; out if not.
+[timer,poh_guest]
+if (%poh_visiting = null) {
+    cleartimer(poh_guest);
+    return;
+}
+// gone by some other way - a teleport, a death - so no longer a guest
+if (instance_find(coord) ! %poh_visiting & coordx(coord) < 6400) {
+    ~poh_guest_forget;
+    return;
+}
+def_string $why = "";
+if (.finduid(%poh_host) = false) {
+    $why = "The owner of the house has left.";
+} else if (.%poh_instance ! %poh_visiting) {
+    if (.%poh_buildmode = 1) {
+        $why = "The owner of the house has switched to building mode.";
+    } else {
+        $why = "The owner of the house has left.";
+    }
+} else if (.%poh_expel ! %poh_visit_expel) {
+    $why = "You have been expelled from the house.";
+}
+if (string_length($why) > 0) {
+    mes($why);
+    ~poh_guest_out;
+}
+
+// through the exit portal, or sent out
+[proc,poh_guest_out]
+def_coord $exit = %poh_visit_exit;
+~poh_guest_forget;
+p_telejump($exit);
+
+[proc,poh_guest_forget]
+%poh_visiting = null;
+%poh_host = null;
+%poh_visit_exit = null;
+cleartimer(poh_guest);
+
+// How many other players are in the owner's house.
+[proc,poh_guest_count]()(int)
+if (%poh_instance = null) {
+    return(0);
+}
+def_int $lo = calc(^poh_grid_origin * 8);
+def_int $hi = calc((^poh_grid_origin + ^poh_grid) * 8 - 1);
+def_int $all = map_playercount(movecoord(%poh_instance, $lo, 0, $lo), movecoord(%poh_instance, $hi, 0, $hi));
+return(max(0, calc($all - 1)));
