@@ -1,0 +1,78 @@
+// ENCHANTED BOLTS against monsters (the 2006 bolts; skill_combat/configs/ranged/crossbows.obj). Fired
+// from a crossbow, each enchanted bolt has a chance on every shot of an effect of its own, with its own
+// graphic on the target (474's spotanims 749-758, configs/ranged/bolt_effects.spotanim). The chances
+// and sizes are OSRS's:
+//
+//   opal (e)      5%   Lucky Lightning   the hit, plus a tenth of your Ranged level
+//   pearl (e)     6%   Sea Curse         the hit, plus a fifteenth of your Ranged level
+//   emerald (e)  55%   Magical Poison    a hit that lands poisons (severity 5)
+//   ruby (e)      6%   Blood Forfeit     a fifth of the target's hitpoints (at most 100), for a tenth of yours
+//   diamond (e)  10%   Armour Piercing   hits for certain, and up to 15% harder
+//   dragon (e)    6%   Dragon's Breath   the hit, plus a fifth of your Ranged level
+//   onyx (e)     11%   Life Leech        a fifth harder, and heals you a quarter of it
+//
+// Jade, red topaz and sapphire (e) act only on other players, which is not here. An effect that
+// fires lands whatever the accuracy roll says - player_ranged.rs2 asks ~bolt_effect_roll first.
+
+// which effect this shot has, if any (emerald's is not here: it needs the hit to land, see below)
+[proc,bolt_effect_roll](obj $rhand, obj $ammo)(int)
+if (oc_category($rhand) ! weapon_crossbow) {
+    return(^bolt_none);
+}
+switch_obj ($ammo) {
+    case opal_bolts_e :
+        if (random(100) < 5) return(^bolt_opal);
+    case pearl_bolts_e :
+        if (random(100) < 6) return(^bolt_pearl);
+    case ruby_bolts_e :
+        if (random(100) < 6) return(^bolt_ruby);
+    case diamond_bolts_e :
+        if (random(100) < 10) return(^bolt_diamond);
+    case dragon_bolts_e :
+        if (random(100) < 6) return(^bolt_dragon);
+    case onyx_bolts_e :
+        if (random(100) < 11) return(^bolt_onyx);
+}
+return(^bolt_none);
+
+// the shot's damage once the effect has fired, and the effect's graphic and cost
+[proc,bolt_effect_damage](int $effect, int $maxhit)(int)
+def_int $damage = randominc($maxhit);
+switch_int ($effect) {
+    case ^bolt_opal :
+        $damage = add($damage, divide(stat(ranged), 10));
+        spotanim_npc(bolt_opal_effect, 0, 0);
+    case ^bolt_pearl :
+        $damage = add($damage, divide(stat(ranged), 15));
+        spotanim_npc(bolt_pearl_effect, 0, 0);
+    case ^bolt_ruby :
+        $damage = min(scale(20, 100, npc_stat(hitpoints)), 100);
+        def_int $cost = scale(10, 100, stat(hitpoints));
+        if ($cost > 0) {
+            ~damage_self($cost);
+        }
+        spotanim_npc(bolt_ruby_effect, 0, 0);
+    case ^bolt_diamond :
+        $damage = randominc(scale(115, 100, $maxhit));
+        spotanim_npc(bolt_diamond_effect, 0, 0);
+    case ^bolt_dragon :
+        $damage = add($damage, divide(stat(ranged), 5));
+        spotanim_npc(bolt_dragon_effect, 0, 0);
+    case ^bolt_onyx :
+        $damage = scale(120, 100, $damage);
+        if ($damage > 0) {
+            stat_heal(hitpoints, divide($damage, 4), 0);
+        }
+        spotanim_npc(bolt_onyx_effect, 0, 0);
+}
+return($damage);
+
+// emerald (e): a hit that lands may poison
+[proc,bolt_effect_after_hit](obj $rhand, obj $ammo, int $damage)
+if ($damage < 1 | $ammo ! emerald_bolts_e | oc_category($rhand) ! weapon_crossbow) {
+    return;
+}
+if (random(100) < 55) {
+    ~npc_poison_start(5);
+    spotanim_npc(bolt_emerald_effect, 0, 0);
+}
