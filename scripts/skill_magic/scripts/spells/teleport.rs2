@@ -115,10 +115,14 @@ p_delay(2);
 ~p_telejump_safe($coord);
 
 [proc,p_telejump_safe](coord $coord)
+// Every teleport animation ends shrunk and holds that frame (human_castteleport for 400 seconds),
+// and walking cannot end it, so a teleport that does not happen still has to let it go.
 if (stat(hitpoints) = 0) {
+    anim(null, 0);
     return;
 }
 if (~in_castlewars_game(coord) = true | ~in_castlewars_waitingroom(coord) = true) {
+    anim(null, 0);
     return; // https://youtu.be/Yk7DSYxGucE?t=111 Random event is supposed to teleport you & note. But he only notes
 }
 p_telejump($coord);

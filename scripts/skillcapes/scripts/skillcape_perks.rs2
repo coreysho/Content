@@ -197,7 +197,8 @@ if ($choice = -1) {
     return;
 }
 %skillcape_magic_uses = add(%skillcape_magic_uses, 1);
-anim(human_castteleport, 0);
+// Spellbook Swap's own cast: human_castteleport would leave you shrunk, with no teleport to reset it
+anim(human_cast_spellbook_swap, 0);
 sound_synth(magical_barrier, 1, 0);
 ~set_spellbook($choice);
 mes("You switch to <~spellbook_name($choice)>. (<tostring(sub(5, %skillcape_magic_uses))> changes left today.)");

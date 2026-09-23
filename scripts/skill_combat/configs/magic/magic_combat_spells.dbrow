@@ -704,6 +704,14 @@ data=runesrequired,airrune,1,firerune,4,bloodrune,2
 // AoE needs a "find npcs in radius" primitive this framework doesn't have yet.
 // ============================================================
 
+// ANCIENT MAGICKS GRAPHICS. Jagex's 377 names for spotanims 362-369 do not follow the spells: the
+// ice a spell leaves on its target is 361 rush, 363 burst ("ice_blitz_impact"), 367 blitz
+// ("ice_burst_impact") and 369 barrage - RuneLite's GraphicID.ICE_RUSH/BURST/BLITZ/BARRAGE, which it
+// reads off the live game to time freezes. Only Rush fires a missile; Burst, Blitz and Barrage land on
+// the target with no projectile (362, 366 and 368 are tall columns reaching from 512 up, not missiles,
+// and flown sideways as one they drew a pillar sliding across the ground). The ice, shadow and blood
+// impacts are modelled standing on the ground, so they play at height 0; played at 92 like a standard
+// spell's splash they hung in the air over the target. Smoke's are chest-height clouds and stay at 92.
 [magic_combat_ice_rush]
 table=magic_spell_table
 data=spell,^ice_rush
@@ -715,7 +723,7 @@ data=experience,340
 data=maxhit,16
 data=anim,zaros_casting
 data=spotanim_proj,ice_rush_travel,43,31,51,16,-5,64,10
-data=spotanim_target,ice_rush_impact,92
+data=spotanim_target,ice_rush_impact,0
 data=sound_cast,ice_cast
 data=sound_hit,ice_rush_impact
 data=freeze_time,8
@@ -732,8 +740,7 @@ data=levelrequired,70
 data=experience,400
 data=maxhit,22
 data=anim,zaros_vertical_casting
-data=spotanim_proj,ice_burst_travel,43,31,51,16,-5,64,10
-data=spotanim_target,ice_burst_impact,92
+data=spotanim_target,ice_blitz_impact,0
 data=sound_cast,ice_cast
 data=sound_hit,ice_burst_impact
 data=freeze_time,16
@@ -751,8 +758,7 @@ data=levelrequired,82
 data=experience,460
 data=maxhit,26
 data=anim,zaros_casting
-data=spotanim_proj,ice_blitz_travel,43,31,51,16,-5,64,10
-data=spotanim_target,ice_blitz_impact,92
+data=spotanim_target,ice_burst_impact,0
 data=sound_cast,ice_cast
 data=sound_hit,ice_blitz_impact
 data=freeze_time,24
@@ -769,8 +775,7 @@ data=levelrequired,94
 data=experience,520
 data=maxhit,30
 data=anim,zaros_vertical_casting
-data=spotanim_proj,ice_barrage_travel,43,31,51,16,-5,64,10
-data=spotanim_target,ice_barrage_impact,92
+data=spotanim_target,ice_barrage_impact,0
 data=sound_cast,ice_cast
 data=sound_hit,ice_barrage_impact
 data=freeze_time,32
@@ -789,7 +794,7 @@ data=experience,330
 data=maxhit,15
 data=anim,zaros_casting
 data=spotanim_proj,blood_rush_travel,43,31,51,16,-5,64,10
-data=spotanim_target,blood_rush_impact,92
+data=spotanim_target,blood_rush_impact,0
 data=sound_cast,blood_rush_casting
 data=sound_hit,blood_rush_impact
 data=continue_by_autocast,yes
@@ -808,7 +813,7 @@ data=levelrequired,68
 data=experience,390
 data=maxhit,21
 data=anim,zaros_vertical_casting
-data=spotanim_target,spell_blood_burst_impact,92
+data=spotanim_target,spell_blood_burst_impact,0
 data=sound_cast,blood_rush_casting
 data=sound_hit,blood_burst_impact
 data=continue_by_autocast,yes
@@ -827,7 +832,7 @@ data=experience,450
 data=maxhit,25
 data=anim,zaros_casting
 data=spotanim_proj,blood_blitz_travel,43,31,51,16,-5,64,10
-data=spotanim_target,blood_blitz_impact,92
+data=spotanim_target,blood_blitz_impact,0
 data=sound_cast,blood_cast
 data=sound_hit,blood_blitz_impact
 data=continue_by_autocast,yes
@@ -844,7 +849,7 @@ data=levelrequired,92
 data=experience,510
 data=maxhit,29
 data=anim,zaros_vertical_casting
-data=spotanim_target,spell_blood_barrage_impact,92
+data=spotanim_target,spell_blood_barrage_impact,0
 data=sound_cast,blood_cast
 data=sound_hit,blood_barrage_impact
 data=continue_by_autocast,yes
@@ -852,6 +857,9 @@ data=aoe,1
 data=heal_percent,25
 data=runesrequired,bloodrune,4,deathrune,4,soulrune,1
 
+// SMOKE POISON. poison_severity is ~npc_poison_start's scale, not damage: each hit is
+// (severity + 4) / 5 after the tick's decrement (npc_poison.rs2), so the 2 and 4 Old School's smoke
+// spells start at are 10 (Rush, Burst) and 20 (Blitz, Barrage). Written as 2 and 4 they hit for 1.
 [magic_combat_smoke_rush]
 table=magic_spell_table
 data=spell,^smoke_rush
@@ -868,7 +876,7 @@ data=spotanim_proj,smoke_rush_travel,43,31,51,16,-5,64,10
 data=spotanim_target,smoke_rush_impact,92
 data=continue_by_autocast,yes
 data=poison_chance,8
-data=poison_severity,2
+data=poison_severity,10
 data=runesrequired,airrune,1,firerune,1,chaosrune,2
 data=rune4,deathrune,2
 
@@ -889,7 +897,7 @@ data=spotanim_target,smoke_burst_impact,92
 data=continue_by_autocast,yes
 data=aoe,1
 data=poison_chance,8
-data=poison_severity,2
+data=poison_severity,10
 data=runesrequired,airrune,2,firerune,2,chaosrune,4
 data=rune4,deathrune,2
 
@@ -909,7 +917,7 @@ data=spotanim_proj,smoke_blitz_travel,43,31,51,16,-5,64,10
 data=spotanim_target,smoke_blitz_impact,92
 data=continue_by_autocast,yes
 data=poison_chance,8
-data=poison_severity,4
+data=poison_severity,20
 data=runesrequired,airrune,2,firerune,2,bloodrune,2
 data=rune4,deathrune,2
 
@@ -930,7 +938,7 @@ data=spotanim_target,smoke_barrage_impact,92
 data=continue_by_autocast,yes
 data=aoe,1
 data=poison_chance,8
-data=poison_severity,4
+data=poison_severity,20
 data=runesrequired,airrune,4,firerune,4,bloodrune,2
 data=rune4,deathrune,4
 
@@ -947,7 +955,7 @@ data=anim,zaros_casting
 data=sound_cast,shadow_cast
 data=sound_hit,shadow_rush_impact
 data=spotanim_proj,shadow_rush_travel,43,31,51,16,-5,64,10
-data=spotanim_target,shadow_rush_impact,92
+data=spotanim_target,shadow_rush_impact,0
 data=continue_by_autocast,no
 data=stat_change,attack,0,-10
 data=runesrequired,airrune,1,chaosrune,2,deathrune,2
@@ -966,7 +974,7 @@ data=maxhit,18
 data=anim,zaros_vertical_casting
 data=sound_cast,shadow_cast
 data=sound_hit,shadow_burst_impact
-data=spotanim_target,shadow_burst_impact,92
+data=spotanim_target,shadow_burst_impact,0
 data=continue_by_autocast,no
 data=aoe,1
 data=stat_change,attack,0,-10
@@ -986,7 +994,7 @@ data=anim,zaros_casting
 data=sound_cast,shadow_cast
 data=sound_hit,shadow_blitz_impact
 data=spotanim_proj,shadow_blitz_travel,43,31,51,16,-5,64,10
-data=spotanim_target,shadow_blitz_impact,92
+data=spotanim_target,shadow_blitz_impact,0
 data=continue_by_autocast,no
 data=stat_change,attack,0,-15
 data=runesrequired,airrune,2,bloodrune,2,deathrune,2
@@ -1005,7 +1013,7 @@ data=maxhit,28
 data=anim,zaros_vertical_casting
 data=sound_cast,shadow_cast
 data=sound_hit,shadow_barrage_impact
-data=spotanim_target,shadow_barrage_impact,92
+data=spotanim_target,shadow_barrage_impact,0
 data=continue_by_autocast,no
 data=aoe,1
 data=stat_change,attack,0,-15

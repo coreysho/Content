@@ -304,6 +304,8 @@ if (db_getfieldcount($spell_data, magic_spell_table:spotanim_origin) > 0) {
 def_int $duration = 0;
 if (db_getfieldcount($spell_data, magic_spell_table:spotanim_proj) > 0) {
     $duration = ~player_projectile(coord, .coord, .uid, db_getfield($spell_data, magic_spell_table:spotanim_proj, 0));
+} else {
+    $duration = ~spell_flight(distance(coord, .coord));
 }
 
 // continue by autocast

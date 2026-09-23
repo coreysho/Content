@@ -3,17 +3,15 @@
 // %option_nodef is 0 on, 1 off (^player_auto_retaliate_on / _off).
 
 [proc,toggle_auto_retaliate]
-if_close; // closes interfaces in osrs
-if (p_finduid(uid) = true) {
-    p_stopaction; // https://oldschool.runescape.wiki/w/Update:Slayer_Cave_%26_High_Risk_Worlds
-    if (%option_nodef = ^player_auto_retaliate_on) {
-        %option_nodef = ^player_auto_retaliate_off;
-    } else {
-        %option_nodef = ^player_auto_retaliate_on;
-    }
-    return;
+// Only the setting changes: no p_stopaction and no if_close, so flipping it mid-fight, mid-skill or
+// with a bank open carries on with whatever you were doing. (Old School made the button stop you in
+// its 2016 Slayer Cave update; this build takes the older behaviour, which players here prefer.)
+// Nothing here needs protected access, so it cannot be refused while you are busy either.
+if (%option_nodef = ^player_auto_retaliate_on) {
+    %option_nodef = ^player_auto_retaliate_off;
+} else {
+    %option_nodef = ^player_auto_retaliate_on;
 }
-%option_nodef = %option_nodef; // resync varp
 
 [if_button,combat_axe:auto_retaliate] ~toggle_auto_retaliate;
 [if_button,combat_blunt:auto_retaliate] ~toggle_auto_retaliate;

@@ -1,21 +1,30 @@
-// ENCHANTED BOLTS against monsters (the 2006 bolts; skill_combat/configs/ranged/crossbows.obj). Fired
-// from a crossbow, each enchanted bolt has a chance on every shot of an effect of its own, with its own
-// graphic on the target (474's spotanims 749-758, configs/ranged/bolt_effects.spotanim). The chances
-// and sizes are OSRS's:
+// ENCHANTED BOLTS (the 2006 bolts; skill_combat/configs/ranged/crossbows.obj). Fired from a crossbow,
+// each enchanted bolt has a chance on every shot of an effect of its own, with its own graphic on the
+// target as the bolt lands (474's spotanims 749-758, configs/ranged/bolt_effects.spotanim). The
+// chances and sizes are OSRS's (https://oldschool.runescape.wiki/w/Enchanted_bolts), against a
+// monster / against a player:
 //
-//   opal (e)      5%   Lucky Lightning   the hit, plus a tenth of your Ranged level
-//   pearl (e)     6%   Sea Curse         the hit, plus a fifteenth of your Ranged level
-//   emerald (e)  55%   Magical Poison    a hit that lands poisons (severity 5)
-//   ruby (e)      6%   Blood Forfeit     a fifth of the target's hitpoints (at most 100), for a tenth of yours
-//   diamond (e)  10%   Armour Piercing   hits for certain, and up to 15% harder
-//   dragon (e)    6%   Dragon's Breath   the hit, plus a fifth of your Ranged level
-//   onyx (e)     11%   Life Leech        a fifth harder, and heals you a quarter of it
+//   opal (e)      5% /  5%  Lucky Lightning  the hit, plus a tenth of your Ranged level
+//   jade (e)       - /  6%  Earth's Fury     holds the target still for 8 ticks, if they fail an Agility roll
+//   pearl (e)     6% /  6%  Sea Curse        the hit, plus a twentieth of your Ranged level (a fifteenth on the fiery)
+//   topaz (e)      - /  4%  Down to Earth    drains the target's Magic by 1
+//   sapphire (e)   - /  5%  Clear Mind       drains a twentieth of your Ranged level in Prayer; you get half
+//   emerald (e)  55% / 54%  Magical Poison   poisons, 5 damage a hit
+//   ruby (e)      6% / 11%  Blood Forfeit    a fifth of the target's hitpoints (at most 100), for a tenth of yours
+//   diamond (e)  10% /  5%  Armour Piercing  hits for certain, and up to 15% harder
+//   dragon (e)    6% /  6%  Dragon's Breath  the hit, plus a fifth of your Ranged level
+//   onyx (e)     11% / 10%  Life Leech       a fifth harder, and heals you a quarter of what it dealt
 //
-// Jade, red topaz and sapphire (e) act only on other players, which is not here. An effect that
-// fires lands whatever the accuracy roll says - player_ranged.rs2 asks ~bolt_effect_roll first.
+// Opal, jade, pearl, topaz, ruby and diamond roll whatever the accuracy roll says, and those that
+// change the damage land even on a miss. Sapphire, emerald, dragonstone and onyx roll only on a shot
+// that passed it. Some targets are out of reach: Dragon's Breath does nothing to the fiery or the
+// draconic (npc params fiery and draconic, npc_combat.param) or to a player guarded against
+// dragonfire, Life Leech nothing to the undead, and Blood Forfeit needs you to spare at least 1
+// hitpoint, so 10 or more. Jade, topaz and sapphire (e) act only on other players - OSRS's later
+// monster-side Clear Mind drains a Prayer that monsters here do not have.
 
-// which effect this shot has, if any (emerald's is not here: it needs the hit to land, see below)
-[proc,bolt_effect_roll](obj $rhand, obj $ammo)(int)
+// which effect this shot at a monster has, if any. $hit is the shot's accuracy roll.
+[proc,bolt_effect_roll](obj $rhand, obj $ammo, boolean $hit)(int)
 if (oc_category($rhand) ! weapon_crossbow) {
     return(^bolt_none);
 }
@@ -24,55 +33,188 @@ switch_obj ($ammo) {
         if (random(100) < 5) return(^bolt_opal);
     case pearl_bolts_e :
         if (random(100) < 6) return(^bolt_pearl);
+    case emerald_bolts_e :
+        if ($hit = true & random(100) < 55) return(^bolt_emerald);
     case ruby_bolts_e :
-        if (random(100) < 6) return(^bolt_ruby);
+        if (stat(hitpoints) >= 10 & random(100) < 6) return(^bolt_ruby);
     case diamond_bolts_e :
         if (random(100) < 10) return(^bolt_diamond);
     case dragon_bolts_e :
-        if (random(100) < 6) return(^bolt_dragon);
+        if ($hit = true & npc_param(fiery) = false & npc_param(draconic) = false & random(100) < 6) return(^bolt_dragon);
     case onyx_bolts_e :
-        if (random(100) < 11) return(^bolt_onyx);
+        // "they have no 'life' to leech" - the OSRS wiki
+        if ($hit = true & npc_param(undead) ! ^true & random(100) < 11) return(^bolt_onyx);
 }
 return(^bolt_none);
 
-// the shot's damage once the effect has fired, and the effect's graphic and cost
+// the shot's damage once the effect has fired, and what it costs you. The caller caps it.
 [proc,bolt_effect_damage](int $effect, int $maxhit)(int)
 def_int $damage = randominc($maxhit);
 switch_int ($effect) {
     case ^bolt_opal :
         $damage = add($damage, divide(stat(ranged), 10));
-        spotanim_npc(bolt_opal_effect, 0, 0);
     case ^bolt_pearl :
-        $damage = add($damage, divide(stat(ranged), 15));
-        spotanim_npc(bolt_pearl_effect, 0, 0);
+        if (npc_param(fiery) = true) {
+            $damage = add($damage, divide(stat(ranged), 15));
+        } else {
+            $damage = add($damage, divide(stat(ranged), 20));
+        }
     case ^bolt_ruby :
         $damage = min(scale(20, 100, npc_stat(hitpoints)), 100);
-        def_int $cost = scale(10, 100, stat(hitpoints));
-        if ($cost > 0) {
-            ~damage_self($cost);
-        }
-        spotanim_npc(bolt_ruby_effect, 0, 0);
+        ~damage_self(scale(10, 100, stat(hitpoints)));
     case ^bolt_diamond :
         $damage = randominc(scale(115, 100, $maxhit));
-        spotanim_npc(bolt_diamond_effect, 0, 0);
     case ^bolt_dragon :
         $damage = add($damage, divide(stat(ranged), 5));
-        spotanim_npc(bolt_dragon_effect, 0, 0);
     case ^bolt_onyx :
         $damage = scale(120, 100, $damage);
-        if ($damage > 0) {
-            stat_heal(hitpoints, divide($damage, 4), 0);
-        }
-        spotanim_npc(bolt_onyx_effect, 0, 0);
 }
 return($damage);
 
-// emerald (e): a hit that lands may poison
-[proc,bolt_effect_after_hit](obj $rhand, obj $ammo, int $damage)
-if ($damage < 1 | $ammo ! emerald_bolts_e | oc_category($rhand) ! weapon_crossbow) {
-    return;
+// The effect as the bolt lands on the monster: its graphic, $delay client cycles on - when the
+// target flinches, not when the bolt leaves the crossbow - and what it does beyond the hit.
+// $damage is the shot's final damage, after the caller's caps.
+[proc,bolt_effect_land](int $effect, int $damage, int $delay)
+switch_int ($effect) {
+    case ^bolt_opal :
+        spotanim_npc(bolt_opal_effect, 0, $delay);
+    case ^bolt_pearl :
+        spotanim_npc(bolt_pearl_effect, 0, $delay);
+    case ^bolt_emerald :
+        // 25 is a poison of 5 a hit: npc_poison.rs2 hits for (severity + 4) / 5
+        ~npc_poison_start(25);
+        spotanim_npc(bolt_emerald_effect, 0, $delay);
+    case ^bolt_ruby :
+        spotanim_npc(bolt_ruby_effect, 0, $delay);
+    case ^bolt_diamond :
+        spotanim_npc(bolt_diamond_effect, 0, $delay);
+    case ^bolt_dragon :
+        spotanim_npc(bolt_dragon_effect, 0, $delay);
+    case ^bolt_onyx :
+        // a quarter of what the monster really lost, not of an overkill it had no hitpoints for
+        def_int $healed = divide(min($damage, npc_stat(hitpoints)), 4);
+        if ($healed > 0) {
+            stat_heal(hitpoints, $healed, 0);
+        }
+        spotanim_npc(bolt_onyx_effect, 0, $delay);
 }
-if (random(100) < 55) {
-    ~npc_poison_start(5);
-    spotanim_npc(bolt_emerald_effect, 0, 0);
+
+// which effect this shot at another player has, if any. $hit is the shot's accuracy roll.
+[proc,bolt_effect_roll_pvp](obj $rhand, obj $ammo, boolean $hit)(int)
+if (oc_category($rhand) ! weapon_crossbow) {
+    return(^bolt_none);
 }
+switch_obj ($ammo) {
+    case opal_bolts_e :
+        if (random(100) < 5) return(^bolt_opal);
+    case jade_bolts_e :
+        // Protect from Magic blocks it, and the target rolls their Agility to keep their feet: never at
+        // level 1, always from 92 - the wiki's -16% at 1 to 110% at 99, in a straight line
+        if (random(100) < 6 & ~.check_protect_prayer(^magic_style) = false) {
+            if (random(100) >= calc((.stat(agility) - 1) * 126 / 98 - 16)) return(^bolt_jade);
+        }
+    case pearl_bolts_e :
+        if (~.bolt_pearl_divisor ! 0 & random(100) < 6) return(^bolt_pearl);
+    case topaz_bolts_e :
+        if (random(100) < 4) return(^bolt_topaz);
+    case sapphire_bolts_e :
+        if ($hit = true & random(100) < 5) return(^bolt_sapphire);
+    case emerald_bolts_e :
+        if ($hit = true & random(100) < 54) return(^bolt_emerald);
+    case ruby_bolts_e :
+        if (stat(hitpoints) >= 10 & random(100) < 11) return(^bolt_ruby);
+    case diamond_bolts_e :
+        if (random(100) < 5) return(^bolt_diamond);
+    case dragon_bolts_e :
+        if ($hit = true & ~.bolt_dragonfire_immune = false & random(100) < 6) return(^bolt_dragon);
+    case onyx_bolts_e :
+        if ($hit = true & random(100) < 10) return(^bolt_onyx);
+}
+return(^bolt_none);
+
+// The shot's damage once the effect has fired, and what it costs you. $damage is the shot's own
+// roll - 0 on a miss - which jade, topaz, sapphire and emerald leave as it is; the rest land a hit
+// whatever the accuracy roll said, as they do on a monster.
+[proc,bolt_effect_damage_pvp](int $effect, int $maxhit, int $damage)(int)
+switch_int ($effect) {
+    case ^bolt_opal :
+        return(add(randominc($maxhit), divide(stat(ranged), 10)));
+    case ^bolt_pearl :
+        return(add(randominc($maxhit), divide(stat(ranged), ~.bolt_pearl_divisor)));
+    case ^bolt_ruby :
+        ~damage_self(scale(10, 100, stat(hitpoints)));
+        return(min(scale(20, 100, .stat(hitpoints)), 100));
+    case ^bolt_diamond :
+        return(randominc(scale(115, 100, $maxhit)));
+    case ^bolt_dragon :
+        return(add($damage, divide(stat(ranged), 5)));
+    case ^bolt_onyx :
+        return(scale(120, 100, $damage));
+}
+return($damage);
+
+// The effect as the bolt lands on the player, $delay client cycles on. $damage is the shot's final
+// damage, already capped at the target's hitpoints.
+[proc,bolt_effect_land_pvp](int $effect, int $damage, int $delay)
+switch_int ($effect) {
+    case ^bolt_opal :
+        .spotanim_pl(bolt_opal_effect, 0, $delay);
+    case ^bolt_jade :
+        // the same hold as the binding spells' (pvp_magic.rs2): not on a player already held, in
+        // the five immune ticks after a hold, or in a no-movement duel
+        if (calc(.%frozen + 5) <= map_clock & .getwalktrigger() ! duel_arena_no_move) {
+            .%pk_binder = uid;
+            .queue(pvp_freeze_player, calc($delay / 30), 8);
+        }
+        .spotanim_pl(bolt_jade_effect, 0, $delay);
+    case ^bolt_pearl :
+        .spotanim_pl(bolt_pearl_effect, 0, $delay);
+    case ^bolt_topaz :
+        .stat_sub(magic, 1, 0);
+        .spotanim_pl(bolt_topaz_effect, 0, $delay);
+    case ^bolt_sapphire :
+        // a twentieth of YOUR Ranged level, and half of what was really drained comes back to you
+        def_int $drained = min(divide(stat(ranged), 20), .stat(prayer));
+        .stat_sub(prayer, $drained, 0);
+        stat_heal(prayer, divide($drained, 2), 0);
+        .spotanim_pl(bolt_sapphire_effect, 0, $delay);
+    case ^bolt_emerald :
+        // 25 is a poison of 5 a hit: poison.rs2 hits for (severity + 4) / 5
+        .queue(poison_player, calc($delay / 30), 25);
+        .spotanim_pl(bolt_emerald_effect, 0, $delay);
+    case ^bolt_ruby :
+        .spotanim_pl(bolt_ruby_effect, 0, $delay);
+    case ^bolt_diamond :
+        .spotanim_pl(bolt_diamond_effect, 0, $delay);
+    case ^bolt_dragon :
+        .spotanim_pl(bolt_dragon_effect, 0, $delay);
+    case ^bolt_onyx :
+        def_int $healed = divide($damage, 4);
+        if ($healed > 0) {
+            stat_heal(hitpoints, $healed, 0);
+        }
+        .spotanim_pl(bolt_onyx_effect, 0, $delay);
+}
+
+// Sea Curse against the target player (the secondary): the divisor of your Ranged level it adds.
+// A water staff washes it out (0), a fire staff or the fire cape feeds it like a fiery monster (15),
+// anything else is the usual twentieth. Staves that are both, steam, count as water.
+[proc,.bolt_pearl_divisor]()(int)
+switch_obj (.inv_getobj(worn, ^wearpos_rhand)) {
+    case staff_of_water, water_battlestaff, mystic_water_staff, mud_battlestaff, mystic_mud_staff, steam_battlestaff, mystic_steam_staff :
+        return(0);
+    case staff_of_fire, fire_battlestaff, mystic_fire_staff, lava_battlestaff, mystic_lava_staff :
+        return(15);
+}
+if (.inv_total(worn, tzhaar_cape_fire) > 0) {
+    return(15);
+}
+return(20);
+
+// whether the target player is guarded against Dragon's Breath: an anti-dragon shield, an antifire
+// potion still working (anti_fire.rs2), or Protect from Magic, which the wiki says blocks it too
+[proc,.bolt_dragonfire_immune]()(boolean)
+if (.inv_total(worn, antidragonbreathshield) > 0 | map_clock < .%dragonresist | .%prayer12 = ^true) {
+    return(true);
+}
+return(false);

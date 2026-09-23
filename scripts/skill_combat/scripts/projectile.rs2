@@ -10,6 +10,12 @@ def_int $duration = calc($delay + $flight);
 projanim_npc($coord, $uid, $spotanim, $startheight, $endheight, $delay, $duration, $angle, $offset);
 return($duration);
 
+// How long a spell with no missile (Burst, Blitz, Barrage) takes to land: as long as a standard
+// spell's missile would have taken to fly the same distance (43, 31, 51, 16, -5, 64, 10 below), so
+// the hit and the impact graphic keep the timing they had when these spells fired one.
+[proc,spell_flight](int $range)(int)
+return(calc(51 - 5 + $range * 10));
+
 [proc,npc_to_npc_projectile](npc_uid $uid, spotanim $spotanim, int $startheight, int $endheight, int $delay, int $angle, int $length, int $offset, int $step)(int)
 def_int $flight = calc($length + (npc_range(.npc_coord) * $step));
 def_int $duration = calc($delay + $flight);

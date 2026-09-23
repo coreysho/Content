@@ -33,12 +33,22 @@ p_opplayer(2);
 def_int $damage = 0;
 // not sure if xp multipler exists for us or not?!
 // https://oldschool.runescape.wiki/w/Combat#PvP_bonus_experience
-if (~pvp_hit_roll(%damagetype) = true) {
+// an enchanted bolt's effect (bolt_effects.rs2): some roll only on a hit, and the ones that change
+// the damage without needing one land whatever the accuracy roll says
+def_boolean $hit = ~pvp_hit_roll(%damagetype);
+def_int $bolt_effect = ~bolt_effect_roll_pvp($rhand, $ammo, $hit);
+if ($hit = true | $bolt_effect ! ^bolt_none) {
     def_int $maxhit = %com_maxhit;
     if (~.check_protect_prayer(^ranged_style) = true) {
         $maxhit = scale(6, 10, $maxhit); // reduction of 40%
     }
-    $damage = min(randominc($maxhit), .stat(hitpoints)); // tick eating existed! https://oldschool.runescape.wiki/w/Update:The_Wintertodt
+    if ($hit = true) {
+        $damage = randominc($maxhit);
+    }
+    if ($bolt_effect ! ^bolt_none) {
+        $damage = ~bolt_effect_damage_pvp($bolt_effect, $maxhit, $damage);
+    }
+    $damage = min($damage, .stat(hitpoints)); // tick eating existed! https://oldschool.runescape.wiki/w/Update:The_Wintertodt
     ~give_combat_experience_pvp(%damagestyle, $damage, ~pvp_xp_multiplier(~.player_combat_level));
     both_heropoints($damage);
     // Karil's Agility drain, and Guthan's heal, which is not style-restricted.
@@ -58,6 +68,8 @@ sound_synth(%com_attacksound, 0, 0);
 ~.pvp_damage(calc($delay / 30), $damage);
 
 .anim(.%com_defendanim, $delay);
+// the bolt effect as the bolt lands, with the flinch
+~bolt_effect_land_pvp($bolt_effect, $damage, $delay);
 // .sound_synth(.%com_defendsound, 0, 20);
 // sound_synth(.%com_defendsound, 0, 20);
 

@@ -6,11 +6,9 @@
 
 // Which spellbook is active: ^spellbook_normal 0, ^spellbook_ancient 1, ^spellbook_lunar 2
 // (skill_magic/configs/spellbook.constant). ~set_spellbook in skill_magic/scripts/spellbooks.rs2 is
-// what changes it and the tab together. Originally a 0/1 flag toggled by the ::spellbook dev command:
-// NOTE: this only flips the underlying state - it does not swap the client-side interface, since this
-// repo has no raw interface source to confirm which of the ~540 unlabeled magic:com_NN components are
-// the ancient spellbook icons. Spells are cast directly via the ::cast dev command regardless of this
-// varp's value; this exists so the underlying "which book" state is real and correct for whenever the
-// interface side gets sorted out, and so quest/dialogue scripts can check it if needed.
+// what changes it and the tab together. It is transmitted, clientcode 11, so the client can draw the
+// magic tab's icon for the book you are on (Client.java's spellbookIcon, sideicons 15 and 16).
 [spellbook]
 scope=perm
+transmit=yes
+clientcode=11

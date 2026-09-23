@@ -19,18 +19,22 @@ def_int $duration = ~npc_projectile(coord, npc_uid, oc_param($ammo, proj_travel)
 ~ranged_dropammo_npc($ammo, divide($duration, 30));
 
 def_int $damage = 0;
-def_int $bolt_effect = ~bolt_effect_roll($rhand, $ammo);
-if ($bolt_effect ! ^bolt_none | ~player_npc_hit_roll_boosted(%damagetype, 2, 1) = true) {
+def_boolean $hit = ~player_npc_hit_roll_boosted(%damagetype, 2, 1);
+def_int $bolt_effect = ~bolt_effect_roll($rhand, $ammo, $hit);
+if ($bolt_effect ! ^bolt_none | $hit = true) {
     def_int $maxhit = %com_maxhit;
     $damage = randominc(min($maxhit, npc_param(max_dealt)));
     if ($bolt_effect ! ^bolt_none & $maxhit > 0) {
         $damage = min(~bolt_effect_damage($bolt_effect, $maxhit), npc_param(max_dealt));
+    } else {
+        $bolt_effect = ^bolt_none;
     }
     def_int $damage_capped = min($damage, npc_stat(hitpoints));
     ~give_combat_experience(%damagestyle, $damage_capped, %npc_combat_xp_multiplier);
     npc_heropoints($damage_capped);
 }
-~bolt_effect_after_hit($rhand, $ammo, $damage);
+// the bolt effect's graphic as the bolt lands, with the flinch
+~bolt_effect_land($bolt_effect, $damage, $duration);
 
 ~npc_retaliate(add(divide($duration, 30), 1));
 npc_queue(2, $damage, add(divide($duration, 30), 1));

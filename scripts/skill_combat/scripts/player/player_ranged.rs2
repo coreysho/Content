@@ -42,9 +42,11 @@ if (~black_mask_imbued_on_task = true) {
     $mask_num = 23;
     $mask_div = 20;
 }
-// an enchanted bolt's effect lands whatever the accuracy roll says (bolt_effects.rs2)
-def_int $bolt_effect = ~bolt_effect_roll($rhand, $ammo);
-if ($bolt_effect ! ^bolt_none | ~player_npc_hit_roll_boosted(%damagetype, $mask_num, $mask_div) = true) {
+// an enchanted bolt's effect (bolt_effects.rs2): some roll only on a hit, and those that roll
+// regardless land whatever the accuracy roll says
+def_boolean $hit = ~player_npc_hit_roll_boosted(%damagetype, $mask_num, $mask_div);
+def_int $bolt_effect = ~bolt_effect_roll($rhand, $ammo, $hit);
+if ($bolt_effect ! ^bolt_none | $hit = true) {
     def_int $maxhit = %com_maxhit;
     if (npc_type = count_draynor & inv_total(inv, garlic) > 0) {
         $maxhit = add($maxhit, 1);
@@ -77,6 +79,8 @@ if ($bolt_effect ! ^bolt_none | ~player_npc_hit_roll_boosted(%damagetype, $mask_
     // not where the target is immune to ranged (a max hit of 0 above)
     if ($bolt_effect ! ^bolt_none & $maxhit > 0) {
         $damage = min(~bolt_effect_damage($bolt_effect, $maxhit), npc_param(max_dealt));
+    } else {
+        $bolt_effect = ^bolt_none;
     }
     // A cave kraken's hide turns arrows aside: a seventh of the damage (OSRS; area_kraken_cove).
     if (npc_type = cave_kraken) {
@@ -88,8 +92,6 @@ if ($bolt_effect ! ^bolt_none | ~player_npc_hit_roll_boosted(%damagetype, $mask_
     ~give_combat_experience(%damagestyle, $damage_capped, %npc_combat_xp_multiplier);
     npc_heropoints($damage_capped);
 }
-
-~bolt_effect_after_hit($rhand, $ammo, $damage);
 
 def_int $poison_severity = oc_param($ammo, poison_severity);
 if ($damage > 0 & $poison_severity > 0 & random(8) = 0) { // 1/8 chance to poison
@@ -109,6 +111,8 @@ npc_anim(npc_param(defend_anim), sub($delay, 30)); // delay npc this tick
 if (npc_param(defend_sound) ! null) {
     sound_synth(npc_param(defend_sound), 0, sub($delay, 30)); // delay 1 client tick for the hit queue
 }
+// the bolt effect's graphic as the bolt lands, with the flinch
+~bolt_effect_land($bolt_effect, $damage, sub($delay, 30));
 
 [proc,player_ranged_check_ammo](obj $rhand)(obj)
 // The crystal bow makes its own arrows, so it is its own ammo. This has to come before the

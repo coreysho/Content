@@ -4,11 +4,12 @@
 //
 // The cast is 474's, in five stages, with 474's five graphics (spotanims 800-804, imported into
 // skill_magic/configs/home_teleport.seq and .spotanim): a circle drawn in the dirt, a book, rings of
-// light round the book, and the vortex that carries you off. The player's own movements are this
-// build's - digging, praying, casting - because 474's (anims 4847-4857) are rigged for 474's player
-// models, and on these ones they pull the head off the neck. Each stage waits in a WEAK queue, which
-// the engine clears the moment you do anything else, so walking or clicking away stops the teleport.
-// The stage lengths are the graphics' own, rounded up to whole ticks.
+// light round the book, and the vortex that carries you off. The player's own movements are the
+// same seqs from the OSRS cache (4847, 4850, 4853, 4855, 4857 in home_teleport_osrs.seq) - 474's
+// copies are rigged for 474's player models, and on these ones they pull the head off the neck; the
+// OSRS ones play on the OSRS skeleton the other imported player animations use. Each stage waits in a
+// WEAK queue, which the engine clears the moment you do anything else, so walking or clicking away
+// stops the teleport. The stage lengths are the graphics' own, rounded up to whole ticks.
 
 [if_button,magic:home_teleport] @home_teleport;
 [if_button,ancient_magic:home_teleport] @home_teleport;
@@ -43,29 +44,27 @@ p_stopaction;
 // one stage: its animation and graphic now, and the next stage when this one has played out
 [proc,home_teleport_stage](int $stage)
 if ($stage = 1) {
-    // drawing the circle: the kneel twice over, while the circle graphic plays its twelve ticks
-    anim(human_farming, 0);
+    // drawing the circle with a stick, while the circle graphic plays its twelve ticks
+    anim(human_hometele_1, 0);
     spotanim_pl(hometele_1, 0, 0);
-    weakqueue(home_teleport_next, 6, 2);
+    weakqueue(home_teleport_next, 12, 2);
 } else if ($stage = 2) {
-    anim(human_farming, 0);
-    weakqueue(home_teleport_next, 6, 3);
-} else if ($stage = 3) {
-    anim(human_pray, 0);
+    // reading the book, over the circle's glow
+    anim(human_hometele_2, 0);
     spotanim_pl(hometele_2, 0, 0);
-    weakqueue(home_teleport_next, 8, 4);
-} else if ($stage = 4) {
-    anim(human_pray, 0);
+    weakqueue(home_teleport_next, 8, 3);
+} else if ($stage = 3) {
+    anim(human_hometele_3, 0);
     spotanim_pl(hometele_3, 0, 0);
-    weakqueue(home_teleport_next, 5, 5);
-} else if ($stage = 5) {
-    anim(human_casting, 0);
+    weakqueue(home_teleport_next, 5, 4);
+} else if ($stage = 4) {
+    anim(human_hometele_4, 0);
     spotanim_pl(hometele_4, 0, 0);
-    weakqueue(home_teleport_next, 7, 6);
+    weakqueue(home_teleport_next, 7, 5);
 } else {
-    anim(human_castteleport, 0);
+    anim(human_hometele_5, 0);
     spotanim_pl(hometele_5, 0, 0);
-    weakqueue(home_teleport_arrive, 9, 7);
+    weakqueue(home_teleport_arrive, 9, 6);
 }
 
 [queue,home_teleport_next](int $stage)
