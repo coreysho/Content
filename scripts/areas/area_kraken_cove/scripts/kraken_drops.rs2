@@ -21,6 +21,7 @@ def_coord $at = ~kraken_loot_coord;
 if (random(^bosspet_droprate) = 0 & ~pet_owned(bosspet_kraken_item) = false) {
     obj_add($at, bosspet_kraken_item, 1, ^lootdrop_duration);
     mes("You have a funny feeling like you're being followed.");
+    ~broadcast_pet(bosspet_kraken_item);
 }
 obj_add($at, coins, ~random_range(10000, 19999), ^lootdrop_duration);
 if (random(400) = 0) {
@@ -219,7 +220,7 @@ return(coord);
 
 [proc,kraken_rare_at](coord $at, namedobj $obj, int $count)
 obj_add($at, $obj, $count, ^lootdrop_duration);
-broadcast_mes(append(append(displayname(), " received a rare drop: "), oc_name($obj)));
+~broadcast_drop($obj);
 
 // The tentacles drop nothing, in OSRS as here; they still die properly.
 [ai_queue3,kraken_tentacle] gosub(npc_death);

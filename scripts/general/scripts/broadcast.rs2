@@ -1,0 +1,66 @@
+// SERVER-WIDE ANNOUNCEMENTS: rare drops, pets, capes, and ::yell. Every line that goes to every
+// player's chatbox is built here, so they all look like one thing.
+//
+// It was fourteen copies of broadcast_mes(append(append(displayname(), " received a rare drop: "),
+// oc_name($drop))) in fourteen files - plain black text, indistinguishable from "You catch a
+// shrimp", with no crown on a staff member and no way to tell a Realism drop from a 10x one. Now a
+// drop table says ~broadcast_drop($drop) and this file decides what that looks like.
+//
+// HOW A LINE LOOKS:
+//     [Rare drop!]  <crown><badge>Name  received  Abyssal whip.
+//      gold, shadowed   dark blue             dark red
+// The chatbox is parchment, and only black, dark blue and dark red read on it - every bright colour
+// is under 2.5:1 against it. So the name and the item are the two readable colours, and the label is
+// bright but SHADOWED (@sh1@ ... @sh0@), which is what makes it the thing the eye lands on without
+// being the thing that is hard to read. The client side of this is jagex2/client/ChatIcons.java.
+//
+// THE ICONS are markers the client swaps for sprites from mod_icons: @cr1@ the silver crown and
+// @cr2@ the gold one, as public chat already used them, then @cr3@ @cr4@ @cr5@ for the Realism, 5x
+// and 10x badges, and @cr6@ the purple crown for a developer. The badge is this server's answer to
+// OSRS's ironman helmets on a broadcast: the same drop means more on Realism, and now everyone can
+// see which it was.
+
+// The crown for a staff member, the badge for their XP mode, and the name.
+//
+// The crown is the one this player's name carries in public and private chat - engine
+// ChatCrown.chatCrown: 1 the silver crown, 2 and 3 the gold, 4 and up the purple developer crown -
+// so a broadcast never shows a different rank from the player's own chat lines. (::yell used to give
+// mod level 2 the silver crown while their chat showed gold.)
+//
+// The mode comes from ~xprate_current, not %xp_rate: gamemodes/ is the only place that reads the
+// varp (gamemode_battery holds it to that, so no skill can multiply xp on top of the engine), and
+// the proc already answers Realism for a character who was never asked - the rate the engine plays
+// them at, so the badge that tells the truth about them.
+[proc,broadcast_name]()(string)
+def_string $icons = "";
+if (staffmodlevel >= 4) {
+    $icons = "@cr6@";
+} else if (staffmodlevel >= 2) {
+    $icons = "@cr2@";
+} else if (staffmodlevel >= 1) {
+    $icons = "@cr1@";
+}
+switch_int (~xprate_current) {
+    case ^xprate_10x : $icons = append($icons, "@cr5@");
+    case ^xprate_5x : $icons = append($icons, "@cr4@");
+    case default : $icons = append($icons, "@cr3@");
+}
+return("<$icons>@dbl@<displayname>@bla@");
+
+// The one shape every announcement shares: a shadowed gold label, then who, then what happened.
+[proc,broadcast_news](string $label, string $what)
+broadcast_mes("@sh1@@or1@<$label>@sh0@@bla@ <~broadcast_name> <$what>");
+
+// A rare drop. The item is in dark red so it reads as the point of the line.
+[proc,broadcast_drop](obj $drop)
+~broadcast_news("Rare drop!", "received @dre@<oc_name($drop)>@bla@.");
+
+// A pet. Every pet announces itself the same way whether it came from a boss, a skill or a cave.
+[proc,broadcast_pet](obj $pet)
+~broadcast_news("Pet!", "has a funny feeling like they're being followed: @dre@<oc_name($pet)>@bla@.");
+
+// ::yell. The engine has already checked the mute and the length and taken every '@' out of the
+// text, so nothing typed into a yell can forge a crown or a colour; the label is cyan to tell it
+// apart from the gold of the news at a glance.
+[proc,yell](string $text)
+broadcast_mes("@sh1@@cya@[Yell]@sh0@@bla@ <~broadcast_name>: <$text>");
