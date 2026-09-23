@@ -23,6 +23,7 @@ import LocType from '#/cache/config/LocType.js';
 import InvType from '#/cache/config/InvType.js';
 import VarPlayerType from '#/cache/config/VarPlayerType.js';
 import SeqType from '#/cache/config/SeqType.js';
+import NpcType from '#/cache/config/NpcType.js';
 import SpotanimType from '#/cache/config/SpotanimType.js';
 import Component from '#/cache/config/Component.js';
 const PlayerStat = { HUNTER: 22 };
@@ -136,7 +137,8 @@ if (process.env.HTRAP === 'deadfall') {
     for (const [x, z] of NORTH.slice(0, max)) await set(x, z);
     check(slotsN().length === max, `${max} deadfalls set at level ${LEVEL} (${slotsN().length})`);
     check(tot('logs') === 5 - max, `...one log each (${tot('logs')} left)`);
-    for (const [x, z] of NORTH.slice(0, max)) check(dfAt(x, z)?.name === 'hunter_deadfall_set', `...the boulder at ${x},${z} is a set deadfall`);
+    // any deadfall state: a kebbit can walk into one in the ticks between setting it and this look
+    for (const [x, z] of NORTH.slice(0, max)) check(dfAt(x, z) !== null, `...the boulder at ${x},${z} is a deadfall (${dfAt(x, z)?.name})`);
 
     let caught: any = null; const seen = new Map<string, string>();
     for (let t = 0; t < (CATCHES ? 900 : 300) && !caught; t++) {
@@ -152,6 +154,13 @@ if (process.env.HTRAP === 'deadfall') {
                 await set(x, z);
             }
         }
+    }
+    if (!caught) {
+        // where the barb-tailed kebbits are, if nothing came - so a miss says whether they wandered off
+        const kid = NpcType.getId('hunter_barbtailed_kebbit');
+        const where: string[] = [];
+        for (const npc of World.npcs) if (npc && npc.type === kid) where.push(`${npc.x},${npc.z}`);
+        log('barb-tailed kebbits at', where.join(' '));
     }
     if (CATCHES) {
         check(caught !== null, 'a kebbit was caught within 900 ticks');
