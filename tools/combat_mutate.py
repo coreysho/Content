@@ -53,12 +53,20 @@ MUTS = [
  (ROWS, 'data=spell,^crumble_undead\n', 'data=spell,^crumble_undead_gone\n',
   '2 a spell script asking for a row that is not there (rs2check)'),
  # a number that is not the wiki's
- # ANCHORED ON THE ROW. magic_dart is also level 50 for 3000xp and sits ABOVE iban_blast in the
+ # ANCHORED ON THE ROW. magic_dart is also level 50 for 30xp and sits ABOVE iban_blast in the
  # file, so the first version of this mutation edited the wrong spell and the battery - which does
  # not check magic_dart - stayed green.
  (ROWS, '''data=spellcom,magic:iban_blast
 data=levelrequired,50''', '''data=spellcom,magic:iban_blast
 data=levelrequired,55''',
+  '2 iban_blast: level 50, 30.0 xp, max 25'),
+ # the units: stat_advance takes tenths, and this file stored x100 - ten times the wiki - until
+ # 2026-09-23
+ (ROWS, '''data=levelrequired,50
+data=experience,300
+data=maxhit,25''', '''data=levelrequired,50
+data=experience,3000
+data=maxhit,25''',
   '2 iban_blast: level 50, 30.0 xp, max 25'),
  (ROWS, 'data=runesrequired,firerune,5,deathrune,1,null,null',
         'data=runesrequired,firerune,4,deathrune,1,null,null',

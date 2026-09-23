@@ -68,16 +68,17 @@ check('testbit(%autocast_set, 0) = ^true & %autocast_spell > 0' in AUTO,
 print()
 print('2. the five spells that had no row')
 
-# EVERY NUMBER HERE IS THE WIKI'S, read 2026-09-21. Experience is stored x100 as every other row in
-# that file is. This is the check that cannot come from the code, because the code is what it is
-# checking - so the figures are written out once, here, with what they mean.
+# EVERY NUMBER HERE IS THE WIKI'S, read 2026-09-21. Experience is stored in tenths, which is what
+# stat_advance takes and what every other row in that file is (it said x100 until 2026-09-23, and
+# paid ten times the wiki's figure). This is the check that cannot come from the code, because the
+# code is what it is checking - so the figures are written out once, here, with what they mean.
 WIKI = {
-    # row name                       level xp/100 maxhit runes                              worn
-    'magic_combat_iban_blast':       (50, 3000, 25, 'firerune,5,deathrune,1,null,null',     'ibanstaff'),
-    'magic_combat_crumble_undead':   (39, 2450, 15, 'airrune,2,earthrune,2,chaosrune,1',    None),
-    'magic_combat_saradomin_strike': (60, 3500, 20, 'airrune,4,firerune,2,bloodrune,2',     'saradomin_staff'),
-    'magic_combat_claws_of_guthix':  (60, 3500, 20, 'airrune,4,firerune,1,bloodrune,2',     'guthix_staff'),
-    'magic_combat_flames_of_zamorak':(60, 3500, 20, 'airrune,1,firerune,4,bloodrune,2',     'zamorak_staff'),
+    # row name                       level xp/10 maxhit  runes                              worn
+    'magic_combat_iban_blast':       (50, 300, 25,  'firerune,5,deathrune,1,null,null',     'ibanstaff'),
+    'magic_combat_crumble_undead':   (39, 245, 15,  'airrune,2,earthrune,2,chaosrune,1',    None),
+    'magic_combat_saradomin_strike': (60, 350, 20,  'airrune,4,firerune,2,bloodrune,2',     'saradomin_staff'),
+    'magic_combat_claws_of_guthix':  (60, 350, 20,  'airrune,4,firerune,1,bloodrune,2',     'guthix_staff'),
+    'magic_combat_flames_of_zamorak':(60, 350, 20,  'airrune,1,firerune,4,bloodrune,2',     'zamorak_staff'),
 }
 for name, (lvl, xp, maxhit, runes, worn) in sorted(WIKI.items()):
     d = row(name)
@@ -91,7 +92,7 @@ for name, (lvl, xp, maxhit, runes, worn) in sorted(WIKI.items()):
           '%s has a row under its own spell id - this is the whole bug' % short)
     check(d.get('levelrequired') == str(lvl) and d.get('experience') == str(xp)
           and d.get('maxhit') == str(maxhit),
-          '...%s: level %d, %s xp, max %d' % (short, lvl, xp / 100.0, maxhit))
+          '...%s: level %d, %s xp, max %d' % (short, lvl, xp / 10.0, maxhit))
     check(d.get('runesrequired') == runes, '...and costs %s' % runes.replace(',null,null', ''))
     if worn:
         check(d.get('wornrequired') == worn and 'reqmessage' in ' '.join(d),
