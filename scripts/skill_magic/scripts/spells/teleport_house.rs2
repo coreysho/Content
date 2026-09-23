@@ -1,0 +1,40 @@
+// TELEPORT TO HOUSE (474's normal book): into your own house, out of building mode - the house is
+// an instance built from the saved layout, so arriving is ~poh_enter, the same thing the portal
+// does. The runes and level are its magic_spell_table row; the checks are the other teleports'.
+
+[if_button,magic:teleport_house]
+if_close;
+if (p_finduid(uid) = false) {
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^teleport_house);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+if (%poh_owned = 0) {
+    mes("You don't own a house. The estate agent in Rimmington will sell you one.");
+    return;
+}
+if (~wilderness_level(coord) > 20) {
+    mes("A mysterious force blocks your teleport spell!");
+    mes("You can't use this teleport after level 20 wilderness.");
+    return;
+}
+if (~pre_tele_checks(coord) = false) {
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+p_stopaction;
+sound_synth(teleport_all, 1, 0);
+anim(human_castteleport, 0);
+spotanim_pl(teleport_casting, 92, 0);
+p_delay(2);
+~poh_enter(false);
+
+// ENCHANT CROSSBOW BOLT (474's normal book, level 4). It enchants gem-tipped bolts into their (e)
+// forms, and this world has neither the gem bolts past opal and pearl nor any enchanted ones - nor
+// the effects they have in combat - so there is nothing yet for it to work on.
+[if_button,magic:enchant_bolt]
+if_close;
+mes("There are no enchanted crossbow bolts in this world yet.");

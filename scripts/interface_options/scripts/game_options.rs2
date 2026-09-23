@@ -1,113 +1,143 @@
-// volume setting if_closes here (interupts the cooking weakqueue)
-// https://youtu.be/neAoU0yiGFY?t=98
+// 474's Options tab (options.if, 474 interface 261). Every setting here is a varp the client reads
+// itself - brightness, the two volumes, mouse buttons, chat effects and split private chat all have
+// a clientcode - so a handler only has to store what was clicked.
+//
+// THE TOGGLES FLIP IN THE CLIENT FIRST. A buttontype=toggle component sets its varp to 1 - itself the
+// moment it is clicked, then tells the server; the handler sets the value it should really have, and
+// that goes back. For the plain 0/1 settings that is the same value. Accept aid is 0 unset / 1 yes /
+// 2 no (game_options.constant), so the client's guess can be wrong for a moment and the server's
+// write is what settles it.
+//
+// Volume setting if_closes here (interrupts the cooking weakqueue): https://youtu.be/neAoU0yiGFY?t=98
 
-[if_button,options:com_0]
-if_close;
-%option_brightness = 1;
+[if_button,options:brightness_1] ~options_set_brightness(1);
+[if_button,options:brightness_2] ~options_set_brightness(2);
+[if_button,options:brightness_3] ~options_set_brightness(3);
+[if_button,options:brightness_4] ~options_set_brightness(4);
 
-[if_button,options:com_1]
+[proc,options_set_brightness](int $level)
 if_close;
-%option_brightness = 1;
+%option_brightness = $level;
 
-[if_button,options:com_2]
-if_close;
-%option_brightness = 2;
+[if_button,options:music_4] ~options_set_music(4);
+[if_button,options:music_3] ~options_set_music(3);
+[if_button,options:music_2] ~options_set_music(2);
+[if_button,options:music_1] ~options_set_music(1);
+[if_button,options:music_0] ~options_set_music(0);
 
-[if_button,options:com_3]
+[proc,options_set_music](int $level)
 if_close;
-%option_brightness = 2;
+%option_music = $level;
 
-[if_button,options:com_4]
-if_close;
-%option_brightness = 3;
+[if_button,options:sound_4] ~options_set_sounds(4);
+[if_button,options:sound_3] ~options_set_sounds(3);
+[if_button,options:sound_2] ~options_set_sounds(2);
+[if_button,options:sound_1] ~options_set_sounds(1);
+[if_button,options:sound_0] ~options_set_sounds(0);
 
-[if_button,options:com_5]
+[proc,options_set_sounds](int $level)
 if_close;
-%option_brightness = 3;
+%option_sounds = $level;
 
-[if_button,options:com_6]
-if_close;
-%option_brightness = 4;
+// Area sounds are kept but not played yet - see game_options.varp.
+[if_button,options:area_4] ~options_set_areasounds(4);
+[if_button,options:area_3] ~options_set_areasounds(3);
+[if_button,options:area_2] ~options_set_areasounds(2);
+[if_button,options:area_1] ~options_set_areasounds(1);
+[if_button,options:area_0] ~options_set_areasounds(0);
 
-[if_button,options:com_7]
+[proc,options_set_areasounds](int $level)
 if_close;
-%option_brightness = 4;
+%option_areasounds = $level;
 
-[if_button,options:com_8]
+// Mouse buttons: 0 two, 1 one.
+[if_button,options:mouse]
 if_close;
-%option_mouse = 0;
+if (%option_mouse = 0) {
+    %option_mouse = 1;
+} else {
+    %option_mouse = 0;
+}
+~options_tooltips;
 
-[if_button,options:com_9]
+// Chat effects: 0 on, 1 off.
+[if_button,options:chat_effects]
 if_close;
-%option_mouse = 1;
+if (%option_chat = 0) {
+    %option_chat = 1;
+} else {
+    %option_chat = 0;
+}
+~options_tooltips;
 
-[if_button,options:com_10]
+// Split private chat: 1 on, 0 off.
+[if_button,options:split_pm]
 if_close;
-%option_chat = 0;
+if (%option_pm = 1) {
+    %option_pm = 0;
+} else {
+    %option_pm = 1;
+}
+~options_tooltips;
 
-[if_button,options:com_11]
+// ACCEPT AID. Teleother reads it (skill_magic/scripts/spells/teleother.rs2). These set %option_aid;
+// the Split Private-chat pair above is the only thing that sets %option_pm - which the 377 tab once
+// got the wrong way round, so that clicking "Accept Aid: Yes" turned private chat split on instead.
+[if_button,options:accept_aid]
 if_close;
-%option_chat = 1;
+if (%option_aid = ^aid_no) {
+    %option_aid = ^aid_yes;
+} else {
+    %option_aid = ^aid_no;
+}
+~options_tooltips;
 
-[if_button,options:com_25]
+// Run, which 474 put here rather than on a tab of its own.
+[if_button,options:run]
 if_close;
-%option_music = 4;
+if (p_finduid(uid) = true) {
+    p_clearpendingaction; // https://youtu.be/XhJ0tjJ9J60?t=62
+    if (%option_run = ^player_run_on | runenergy < 100) {
+        p_run(^player_run_off);
+    } else {
+        if (%tutorial = ^tutorial_open_player_controls) {
+            %tutorial = ^tutorial_has_toggled_on_run;
+            ~set_tutorial_progress;
+        }
+        p_run(^player_run_on);
+    }
+    ~options_tooltips;
+    return;
+}
+%option_run = %option_run; // resync varp
 
-[if_button,options:com_26]
+[if_button,options:house_options]
 if_close;
-%option_music = 3;
+if (p_finduid(uid) = true) {
+    ~house_options_open;
+}
 
-[if_button,options:com_27]
-if_close;
-%option_music = 2;
+// Each toggle has two hover tooltips in 474 - "Chat Effects (currently on)" and "(currently off)" -
+// in layers of their own, one of each pair hidden. This shows the one that is true. Called at
+// login (~initalltabs) and after every toggle.
+[proc,options_tooltips]
+~options_tooltip_pair(options:run_on, options:run_off, %option_run, ^player_run_on);
+~options_tooltip_pair(options:chat_effects_on, options:chat_effects_off, %option_chat, 0);
+~options_tooltip_pair(options:split_pm_on, options:split_pm_off, %option_pm, 1);
+~options_tooltip_pair(options:mouse_two, options:mouse_one, %option_mouse, 0);
+// aid is on unless it is No - unset reads as yes (game_options.constant)
+if (%option_aid = ^aid_no) {
+    ~options_tooltip_pair(options:accept_aid_on, options:accept_aid_off, 0, 1);
+} else {
+    ~options_tooltip_pair(options:accept_aid_on, options:accept_aid_off, 1, 1);
+}
 
-[if_button,options:com_28]
-if_close;
-%option_music = 1;
-
-[if_button,options:com_29]
-if_close;
-%option_music = 0;
-
-[if_button,options:com_36]
-if_close;
-%option_sounds = 4;
-
-[if_button,options:com_37]
-if_close;
-%option_sounds = 3;
-
-[if_button,options:com_38]
-if_close;
-%option_sounds = 2;
-
-[if_button,options:com_39]
-if_close;
-%option_sounds = 1;
-
-[if_button,options:com_40]
-if_close;
-%option_sounds = 0;
-
-[if_button,options:com_47]
-if_close;
-%option_pm = 1;
-
-[if_button,options:com_48]
-if_close;
-%option_pm = 0;
-
-// ACCEPT AID, and these two were setting the WRONG VARP. options.if's com_52 and com_53 are the
-// Accept Aid Yes/No pair - both carry `script1op1=pushvar,option_aid` - but the handlers here set
-// %option_pm, which belongs to com_47/com_48 above, the Split Private-chat pair. So clicking
-// "Accept Aid: Yes" turned your private chat split ON and left aid exactly where it was, and
-// nothing in the build read %option_aid at all, so nobody could see it. The low-detail tab
-// (game_options_ld.rs2) had it right all along, which is what made the pair readable as a slip
-// rather than a design.
-[if_button,options:com_52]
-if_close;
-%option_aid = ^aid_yes;
-
-[if_button,options:com_53]
-if_close;
-%option_aid = ^aid_no;
+// Show $on's layer when $value is $onvalue, $off's otherwise.
+[proc,options_tooltip_pair](component $on, component $off, int $value, int $onvalue)
+if ($value = $onvalue) {
+    if_sethide($on, false);
+    if_sethide($off, true);
+} else {
+    if_sethide($on, true);
+    if_sethide($off, false);
+}

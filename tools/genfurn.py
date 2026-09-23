@@ -79,7 +79,15 @@ WOOD_PLANK = {1: 'planks', 2: 'oak planks', 3: 'teak planks', 4: 'mahogany plank
 # places (a switch in the .rs2 and the constants) until the garden arrived needing materials that are
 # not planks at all; now every piece carries its materials and its experience as data, and these are
 # what the plank families' rows are built from.
-WOOD_OBJ = {1: 'plank', 2: 'oak_plank', 3: 'teak_plank', 4: 'mahogany_plank'}
+# BASIC PLANKS ARE woodplank, NOT plank. 377 already had a plank - obj 960, woodplank, name
+# "Plank" - and the Construction import added a second, 8187, with the same name and description.
+# Observatory Quest, Horror from the Deep's bridge and Dragon Slayer's hull all check woodplank, so
+# handing out 8187 meant standing in front of the Observatory Professor holding three planks and
+# being told to come back with three planks. Commit 6e425140 moved the sawmill and all 55 rows of
+# poh_furniture.enum onto woodplank - but not this table, which is what WRITES those rows, so the
+# next regenerate put them all back and nothing would have noticed until a house refused a plank.
+# The three higher woods have only one obj each and are unaffected.
+WOOD_OBJ = {1: 'woodplank', 2: 'oak_plank', 3: 'teak_plank', 4: 'mahogany_plank'}
 XP_WOOD = {1: 29, 2: 60, 3: 90, 4: 140}
 
 # The three sizes the first twelve families used. Kept verbatim: the wood decides the level and the

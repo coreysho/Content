@@ -1131,6 +1131,26 @@
 [command,tp_collect](inv $inv, int $slot, int $count, boolean $noted)(string)
 [command,tp_login]()(int)
 
+// Clan chat (custom, 2026-09-23) - the active player's OWN channel; see Engine-TS src/engine/clan/ClanChat.ts
+// info: custom - the channel's name, "" when it has none (closed)
+[command,clan_name]()(string)
+// info: custom - who may enter (0), talk (1) or kick (2): ^clan_rank_anyone, ^clan_rank_friends or ^clan_rank_owner
+[command,clan_rank](int $setting)(int)
+// info: custom - "" closes the channel and puts everybody in it out
+[command,clan_setname](string $name)
+// info: custom - set who may enter (0), talk (1) or kick (2)
+[command,clan_setrank](int $setting, int $rank)
+// info: custom (2026-09-23) - add a copy of every item in $from to $to (Items Kept on Death's preview)
+[command,inv_copy](inv $from, inv $to)
+// info: custom (2026-09-23) - how many friends the active player has (Clan Setup's rank list)
+[command,clan_friend_count]()(int)
+// info: custom - the active player's $index-th friend, by name; "" past the end
+[command,clan_friend](int $index)(string)
+// info: custom - that friend's clan rank: 0 not ranked, 1 Recruit .. 6 General
+[command,clan_friend_rank](int $index)(int)
+// info: custom - give that friend a clan rank, 0 (none) to 6 (General)
+[command,clan_setfriendrank](int $index, int $rank)
+
 // Debug ops (10000-11000)
 // info: Raise a script error on the server
 [command,error](string $text)

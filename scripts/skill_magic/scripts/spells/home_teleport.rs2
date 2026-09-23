@@ -1,0 +1,85 @@
+// HOME TELEPORT, the first spell in both of 474's books. It takes you to Edgeville from either book.
+// No runes; it can only be cast once every thirty real minutes (%home_teleport_last, in
+// date_minutes, so the wait runs while you are logged out too).
+//
+// The cast is 474's, in five stages, with 474's five graphics (spotanims 800-804, imported into
+// skill_magic/configs/home_teleport.seq and .spotanim): a circle drawn in the dirt, a book, rings of
+// light round the book, and the vortex that carries you off. The player's own movements are this
+// build's - digging, praying, casting - because 474's (anims 4847-4857) are rigged for 474's player
+// models, and on these ones they pull the head off the neck. Each stage waits in a WEAK queue, which
+// the engine clears the moment you do anything else, so walking or clicking away stops the teleport.
+// The stage lengths are the graphics' own, rounded up to whole ticks.
+
+[if_button,magic:home_teleport] @home_teleport;
+[if_button,ancient_magic:home_teleport] @home_teleport;
+
+[label,home_teleport]
+if_close;
+if (p_finduid(uid) = false) {
+    return;
+}
+if (~wilderness_level(coord) > 20) {
+    mes("A mysterious force blocks your teleport spell!");
+    mes("You can't use this teleport after level 20 wilderness.");
+    return;
+}
+if (~pre_tele_checks(coord) = false) {
+    return;
+}
+def_int $wait = calc(%home_teleport_last + 30 - date_minutes);
+if (%home_teleport_last > 0 & $wait > 0) {
+    if ($wait = 1) {
+        mes("You need to wait another minute to cast this spell.");
+    } else {
+        mes("You need to wait another <tostring($wait)> minutes to cast this spell.");
+    }
+    return;
+}
+p_stopaction;
+~home_teleport_stage(1);
+
+// one stage: its animation and graphic now, and the next stage when this one has played out
+[proc,home_teleport_stage](int $stage)
+if ($stage = 1) {
+    // drawing the circle: the kneel twice over, while the circle graphic plays its twelve ticks
+    anim(human_farming, 0);
+    spotanim_pl(hometele_1, 0, 0);
+    weakqueue(home_teleport_next, 6, 2);
+} else if ($stage = 2) {
+    anim(human_farming, 0);
+    weakqueue(home_teleport_next, 6, 3);
+} else if ($stage = 3) {
+    anim(human_pray, 0);
+    spotanim_pl(hometele_2, 0, 0);
+    weakqueue(home_teleport_next, 8, 4);
+} else if ($stage = 4) {
+    anim(human_pray, 0);
+    spotanim_pl(hometele_3, 0, 0);
+    weakqueue(home_teleport_next, 5, 5);
+} else if ($stage = 5) {
+    anim(human_casting, 0);
+    spotanim_pl(hometele_4, 0, 0);
+    weakqueue(home_teleport_next, 7, 6);
+} else {
+    anim(human_castteleport, 0);
+    spotanim_pl(hometele_5, 0, 0);
+    weakqueue(home_teleport_arrive, 9, 7);
+}
+
+[queue,home_teleport_next](int $stage)
+if (~pre_tele_checks(coord) = false) {
+    anim(null, 0);
+    return;
+}
+~home_teleport_stage($stage);
+
+[queue,home_teleport_arrive](int $stage)
+if (~pre_tele_checks(coord) = false) {
+    anim(null, 0);
+    return;
+}
+%home_teleport_last = date_minutes;
+// stage 5 has already carried you off, so no ordinary teleport cast on top of it
+anim(null, 0);
+sound_synth(teleport_all, 1, 0);
+~p_telejump_safe(map_findsquare(0_48_54_15_40, 0, 2, ^map_findsquare_lineofwalk));

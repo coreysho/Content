@@ -716,14 +716,36 @@ for c in ('sawmill_cost_saw', 'sawmill_cost_hammer'):
 # every log and plank the script names resolves, and the pairing is log -> its own plank
 pairs = re.findall(r'~sawmill_cut\((\w+), (\w+), \^(\w+)\)', sw)
 check(len(pairs) == 4, 'four log/plank pairs, got %d' % len(pairs))
+# THE BASIC PLANK IS woodplank AND THAT IS THE POINT. 377 shipped obj 960 "Plank", the
+# Construction import added obj 8187 with the same name and description, and the sawmill handed out
+# 8187 - while Observatory Quest, Horror from the Deep's bridge and Dragon Slayer's hull all check
+# 960. Buying three planks and being told to come back with three planks was the reported bug.
+# 6e425140 moved the sawmill and all 55 poh_furn_mat rows onto woodplank; this used to assert the
+# opposite, which is how a check outlives the decision it was written for.
 for log, plank, fee in pairs:
     check(log in OBJS, '%s is in obj.pack' % log)
     check(plank in OBJS, '%s is in obj.pack' % plank)
-    check(plank in OBJCFG, '%s is one of the new planks' % plank)
+    check(plank in OBJCFG or plank == 'woodplank',
+          '%s is a plank this build hands out' % plank)
     check(const(fee) is not None, '^%s resolves' % fee)
     stem = plank.replace('_plank', '')
-    check(log.startswith(stem) or (plank == 'plank' and log == 'logs'),
+    check(log.startswith(stem) or (plank == 'woodplank' and log == 'logs'),
           '%s is cut from %s' % (plank, log))
+check(('logs', 'woodplank') in [(l, p) for l, p, _ in pairs],
+      'plain logs cut into woodplank - the obj the quests check, not the import\'s duplicate')
+check(not any(p == 'plank' for _, p, _ in pairs),
+      '...and obj 8187 is not handed out by the sawmill')
+
+# AND THE SAME THING EVERYWHERE ELSE THAT SPENDS A PLANK. The hand-fix reached the enum and the
+# sawmill but not the two files that WRITE the enum, so a regenerate put all 55 rows back - caught
+# by the idempotence check below, but only after the fact. These two hold the inputs.
+GENF = read('tools/genfurn.py')
+check("WOOD_OBJ = {1: 'woodplank'" in GENF,
+      "genfurn.py's WOOD_OBJ starts at woodplank, or a regenerate reverts every plank row")
+SPEC = read('tools/furnspec.json')
+check('"plank",' not in SPEC,
+      'and furnspec.json names no bare plank either: %s'
+      % (SPEC.count('"plank",') or 'none'))
 cut = sw.split('[proc,sawmill_cut]')[1].split('\n[')[0]
 check(before(cut, 'inv_del', 'inv_add'), 'the logs and the coins go before the planks arrive')
 check('inv_total(inv, coins)' in cut, 'the purse is read before it is charged')
@@ -3316,7 +3338,10 @@ print('63. hedging, and nothing buildable out of something you cannot get')
 # the table below with the script that makes it - and that script has to actually mention it. The
 # table is not an allowlist; a plank nobody mills goes red the same as a flower nobody sells.
 MADE = {
-    'plank':          'skill_construction/scripts/sawmill.rs2',
+    # woodplank, not plank: the sawmill cuts obj 960 (see group 27). Left as 'plank' this passed
+    # anyway - on the word "plank" appearing in a COMMENT in sawmill.rs2, since \bplank\b does not
+    # match inside "woodplank" or "sawmill_fee_plank" - which is a check agreeing with itself.
+    'woodplank':      'skill_construction/scripts/sawmill.rs2',
     'oak_plank':      'skill_construction/scripts/sawmill.rs2',
     'teak_plank':     'skill_construction/scripts/sawmill.rs2',
     'mahogany_plank': 'skill_construction/scripts/sawmill.rs2',
@@ -3334,7 +3359,7 @@ for _root, _dirs, _fs in os.walk(os.path.join(C, 'scripts')):
             _stocked.setdefault(_m.group(1), set()).add(_fn)
 _mats = sorted({m[0] for f in _spec['families'] for p in f.get('pieces', [])
                 for m in p['mats']}
-               | {WOOD_OBJ for WOOD_OBJ in ('plank', 'oak_plank', 'teak_plank', 'mahogany_plank')})
+               | {'woodplank', 'oak_plank', 'teak_plank', 'mahogany_plank'})
 _orphan = [m for m in _mats if m not in _stocked and m not in MADE]
 check(not _orphan, 'every material is bought somewhere or made somewhere: %s'
       % (_orphan or '%d of them' % len(_mats)))
@@ -3343,7 +3368,9 @@ _notmade = [(m, f) for m, f in MADE.items()
 check(not _notmade, 'and every "made" one is really named by the script that makes it: %s'
       % (_notmade or 'all %d' % len([m for m in MADE if m in _mats])))
 _bought = [m for m in _mats if m in _stocked]
-check(len(_bought) == 29, '%d of them come off a shop shelf' % len(_bought))
+# 30, not 29: the basic plank is woodplank, which a shop stocks, where the import's `plank` was
+# bought nowhere. The number moved because the material set was corrected, not because a shop did.
+check(len(_bought) == 30, '%d of them come off a shop shelf' % len(_bought))
 # ...and the six that started this are among them
 _flowers = ['poh_bag_flower', 'poh_bag_daffodils', 'poh_bag_bluebells',
             'poh_bag_sunflower', 'poh_bag_marigolds', 'poh_bag_roses']

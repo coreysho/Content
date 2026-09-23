@@ -933,7 +933,12 @@ def _spellbook_buttons():
         if cur:
             blocks.append((cur, start, kv))
         for name, n, kv in blocks:
-            if not kv.get("graphic", "").startswith("magicoff"):
+            # the 377 spell art, or the 474 icons the two spellbooks have been repainted with
+            # (LostCityServer tools/models/portmagic474.py) - those only in the books, since other
+            # interfaces reuse 474 sprites for things that are not spells
+            g = kv.get("graphic", "")
+            if not (g.startswith("magicoff") or
+                    (iface in ("magic", "ancient_magic") and g.startswith("i474_") and "buttontype" in kv)):
                 continue
             act = kv.get("action") or kv.get("option")
             if act:

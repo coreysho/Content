@@ -139,7 +139,9 @@ print('4. a prayer pressed while you are busy')
 # canAccess() is true again, so the press survives the delay instead of being thrown away.
 import glob as _glob
 _PRAY = sorted(_glob.glob(os.path.join(C, 'scripts/skill_prayer/scripts/prayers/*.rs2')))
-check(len(_PRAY) == 18, 'all %d prayers are here' % len(_PRAY))
+# 26 since 474's tab (2026-09-23): 377's 18 and Sharp Eye, Mystic Will, Hawk Eye, Mystic Lore, Eagle
+# Eye, Mystic Might, Chivalry and Piety - every one of them held to the same rules below
+check(len(_PRAY) == 26, 'all %d prayers are here' % len(_PRAY))
 _bad, _noclear, _stale = [], [], []
 for _f in _PRAY:
     _t = open(_f, newline='').read().replace('\r\n', '\n')
