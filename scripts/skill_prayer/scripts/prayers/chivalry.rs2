@@ -1,0 +1,66 @@
+[if_button,prayer:prayer_chivalry]
+if_close;
+if (p_finduid(uid) = true) {
+    @activate_prayer_chivalry;
+    return;
+}
+// PRESSED WHILE DELAYED USED TO DO NOTHING AT ALL. p_finduid(uid) fails whenever canAccess()
+// does - Player.busy() is delayed || containsModalInterface - so a prayer pressed during a spec,
+// a teleport or a skilling swing fell straight through to the resync that used to be here, and
+// the orb the client had already lit flicked back off. Reported from play 2026-09-21 as "prayer
+// activation has bad delays".
+//
+// A queue gets protected access AND only runs once canAccess() is true again (Player.processQueue
+// checks it every tick), so the prayer comes on the moment the delay ends rather than being
+// thrown away. The button is buttontype=toggle with pushvar, so the CLIENT flips the varp on
+// every press - queueing one toggle per press keeps the parity the player can see, and the
+// activate label writes the varp itself either way, which is the resync.
+//
+// This does NOT change whether praying interrupts what you were doing; see the
+// p_clearpendingaction below, which upstream cites period footage for.
+queue(retry_prayer_chivalry, 0, 0);
+
+[queue,retry_prayer_chivalry]
+@activate_prayer_chivalry;
+
+[label,activate_prayer_chivalry]
+// A PRAYER TOGGLE NO LONGER STOPS WHAT YOU WERE DOING. p_clearpendingaction used to sit here and
+// it nulls Player.target, so turning a prayer on dropped whatever you were attacking - half of
+// "actions get cancelled for doing anything", reported from play 2026-09-21.
+//
+// THIS IS A DELIBERATE DIVERGENCE FROM UPSTREAM, decided by Corey on 2026-09-21, and upstream had
+// evidence: clarity.rs2 carried three pieces of period footage for the line. The argument for
+// keeping it was 2006 authenticity; the argument for removing it is that this server should feel
+// like Old School, where prayers are free and 1-tick flicking is ordinary. The videos are kept in
+// clarity.rs2 beside the decision so the next reader can see what was traded away.
+//
+// combat_battery group 4 pins the new behaviour the way it used to pin the old one.
+def_dbrow $data = ~get_prayer_data(^prayer_chivalry);
+if ($data = null) {
+    return;
+}
+if (%prayer24 = ^true) {
+    %prayer24 = ^false;
+    ~prayer_deactivate(^prayer_chivalry);
+    return;
+}
+if (~prayer_checks($data) = false) {
+    %prayer24 = ^false;
+    return;
+}
+// 474 also asked for Defence (and the Knight Waves, which this world does not have)
+if (stat_base(defence) < 65) {
+    %prayer24 = ^false;
+    sound_synth(prayer_off, 1, 0);
+    ~mesbox("You need a @dbl@Defence level of 65 to use Chivalry.");
+    return;
+}
+def_int $levelreq = db_getfield($data, prayers:level, 0);
+if (stat_base(prayer) < $levelreq){
+    %prayer24 = ^false;
+    sound_synth(prayer_off, 1, 0);
+    ~mesbox("You need a @dbl@Prayer level of <tostring($levelreq)> to use <db_getfield($data, prayers:name, 0)>.");
+    return;
+}
+%prayer24 = ^true;
+~prayer_activate($data);
