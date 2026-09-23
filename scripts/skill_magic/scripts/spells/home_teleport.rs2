@@ -1,0 +1,48 @@
+// HOME TELEPORT, the first spell in both of 474's books: Lumbridge from the normal one, Edgeville
+// from the Ancient Magicks. No runes; instead it takes ten seconds to cast, anything you do in
+// that time stops it (it waits in a WEAK queue, which the engine clears the moment you act), and
+// it can only be cast once every thirty real minutes (%home_teleport_last, in date_minutes, so the
+// wait runs while you are logged out too).
+//
+// 474 cast it with a sequence of its own animations, which this build does not have yet; while it
+// waits you use the normal casting animation, and it arrives with the ordinary teleport.
+
+[if_button,magic:home_teleport] @home_teleport(0);
+[if_button,ancient_magic:home_teleport] @home_teleport(1);
+
+[label,home_teleport](int $where)
+if_close;
+if (p_finduid(uid) = false) {
+    return;
+}
+if (~wilderness_level(coord) > 20) {
+    mes("A mysterious force blocks your teleport spell!");
+    mes("You can't use this teleport after level 20 wilderness.");
+    return;
+}
+if (~pre_tele_checks(coord) = false) {
+    return;
+}
+def_int $wait = calc(%home_teleport_last + 30 - date_minutes);
+if (%home_teleport_last > 0 & $wait > 0) {
+    if ($wait = 1) {
+        mes("You need to wait another minute to cast this spell.");
+    } else {
+        mes("You need to wait another <tostring($wait)> minutes to cast this spell.");
+    }
+    return;
+}
+p_stopaction;
+anim(human_castteleport, 0);
+weakqueue(home_teleport_arrive, 16, $where);
+
+[queue,home_teleport_arrive](int $where)
+if (~pre_tele_checks(coord) = false) {
+    return;
+}
+%home_teleport_last = date_minutes;
+if ($where = 1) {
+    ~player_teleport_normal(map_findsquare(0_48_54_15_40, 0, 2, ^map_findsquare_lineofwalk));
+} else {
+    ~player_teleport_normal(map_findsquare(0_50_50_21_18, 0, 2, ^map_findsquare_lineofwalk));
+}

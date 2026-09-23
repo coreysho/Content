@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Mutation test for tools/ancientbook_battery.py.
 
-THE THING THIS IS FOR. The swap renamed 24 buttons by joining on a sprite index. A wrong join is
+THE THING THIS IS FOR. The swap renamed 24 buttons by joining on a sprite index, and the 474 port
+then moved each one to a slot named from a hand-written list. A wrong join is
 invisible: the icon is right, the tooltip is right - it travelled with the panel - and the trigger
 under it casts something else. So most of what is below breaks the join in a different place and
 expects the check that would notice.
@@ -40,8 +41,18 @@ MUTS = [
  # ---- 1 the join
  (IF, '[ice_barrage]', '[ice_barrag3]',
   'every component a trigger names exists, and every button has one'),
- (SRC, 'action=Ice Barrage', 'action=Shadow Rush',
-  "and every one is under that spell's symbol"),
+ (IF, 'action=Ice Barrage', 'action=Shadow Rush',
+  "and every one is under that spell's name"),
+ (IF, 'graphic=i474_378,0', 'graphic=i474_377,0',
+  "each spell's icon is the one 474's sprite order gives it"),
+ (IF, 'activegraphic=i474_328,0', 'activegraphic=i474_327,0',
+  '...and lights up as its own lit frame, 50 below it'),
+ (IF, 'graphic=i474_356,0', 'graphic=i474_406,0',
+  'Home Teleport needs no runes, so it is always its lit icon'),
+ # ice_barrage into the empty slot beside Ghorrock: still in the tab, overlapping nothing, and
+ # now read after a level 96 spell
+ (IF, '[ice_barrage]\ntype=graphic\nx=151\ny=148', '[ice_barrage]\ntype=graphic\nx=64\ny=176',
+  "and in 474's grid, read like a page, the levels only go up"),
  (IF, 'text=Level 94 : Ice Barrage', 'text=Level 93 : Ice Barrage',
   "and the CACHE's level for it is this fork's levelrequired"),
  (IF, 'text=Level 94 : Ice Barrage', 'text=Level 94 : Ice Barrag',
@@ -52,24 +63,24 @@ MUTS = [
   'each tooltip lives in an info_<spell> panel'),
 
  # ---- 2 it is the cache panel
- (IF, 'graphic=magicoff2,9\nactivegraphic=magicon2,9',
-      'graphic=magicoff2,5\nactivegraphic=magicon2,9',
-  'on magicoff2 frames 6..29 with none missing or doubled'),
- (IF, 'activegraphic=magicon2,9\nactionverb=Cast on',
+ (IF, 'activegraphic=i474_328,0\nactionverb=Cast on',
       'actionverb=Cast on',
-  'lit-icon graphics carried over from the cache panel unchanged'),
- (IF, 'script3op13=inv_contains,wornitems:worn,mystic_mud_staff\nscript4op1=stat_level,magic\nscript1=gt,3\nscript2=gt,1\nscript3=gt,5\nscript4=gt,93',
+  'every lit icon the cache panel had is a lit 474 icon here'),
+ (IF, 'script3op18=inv_contains,wornitems:worn,twinflame_staff\nscript4op1=stat_level,magic\nscript1=gt,3\nscript2=gt,1\nscript3=gt,5\nscript4=gt,93',
       'script4op1=stat_level,magic\nscript1=gt,3\nscript2=gt,1\nscript3=gt,5\nscript4=gt,93',
   'script operands carried over from the cache panel unchanged'),
  (IF, 'type=rect\nx=3\ny=9', 'type=graphic\nx=3\ny=9',
-  'the bordered description frame is here - four nested rects'),
+  "the 377 panel's own description box is still here, hidden"),
+ (IF, '[ice_barrage]\ntype=graphic\nx=151\ny=148',
+      '[ice_barrage]\ntype=graphic\nx=151\ny=250',
+  'every icon is inside the tab'),
+ (IF, '[ice_barrage]\ntype=graphic\nx=151\ny=148',
+      '[ice_barrage]\ntype=graphic\nx=130\ny=148',
+  'and no two overlap'),
 
  # ---- 3 the triggers
- (IF, '[ice_barrage]\ntype=graphic\nx=110\ny=148',
-      '[ice_barrage]\ntype=graphic\nx=111\ny=148',
-  'every button sits where Jagex put it'),
- (IF, 'buttontype=target\nwidth=20\nheight=20\noverlayer=info_ice_barrage',
-      'buttontype=normal\nwidth=20\nheight=20\noverlayer=info_ice_barrage',
+ (IF, 'buttontype=target\nwidth=24\nheight=24\noverlayer=info_ice_barrage',
+      'buttontype=normal\nwidth=24\nheight=24\noverlayer=info_ice_barrage',
   '...and its button is buttontype=target aimed at npc,player'),
  (IF, 'overlayer=info_ice_barrage', 'overlayer=info_ice_rush',
   'every button opens its own panel on hover'),
@@ -86,9 +97,8 @@ MUTS = [
  (PACK, '=ancient_magic:ice_barrage\n', '=ancient_magic:ice_barrag3\n',
   'every component has one'),
 
- # ---- 5 reproducibility
- (IF, '// Ancient Magicks spellbook - THE 377 CACHE', '// Ancient Magicks spellbook - hand edited',
-  're-running it changes nothing'),
+ # ---- 5 reproducibility has no mutation here: it reruns LostCityServer's portmagic474.py, which
+ # needs the orchestrator checkout around it, and this runs on a copy in TMPDIR, where it skips.
 ]
 
 
