@@ -10,6 +10,13 @@ def_int $duration = calc($delay + $flight);
 projanim_npc($coord, $uid, $spotanim, $startheight, $endheight, $delay, $duration, $angle, $offset);
 return($duration);
 
+// A crossbow bolt at a monster: Old School's bolt, which leaves the crossbow at the shoulder and
+// flies nearly flat (angle 5 where an arrow's arc is 15), released 41 client ticks in - the frame
+// the OSRS crossbow animation (osrs_crossbow_fire, seq 4230) jerks back on. The player's PvP shot
+// (pvp_ranged.rs2) uses the same numbers.
+[proc,bolt_projectile_npc](obj $ammo)(int)
+return(~npc_projectile(coord, npc_uid, oc_param($ammo, proj_travel), 38, 36, 41, 5, 5, 11, 5));
+
 // How long a spell with no missile (Burst, Blitz, Barrage) takes to land: as long as a standard
 // spell's missile would have taken to fly the same distance (43, 31, 51, 16, -5, 64, 10 below), so
 // the hit and the impact graphic keep the timing they had when these spells fired one.

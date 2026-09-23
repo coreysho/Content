@@ -9,7 +9,10 @@
 // copies are rigged for 474's player models, and on these ones they pull the head off the neck; the
 // OSRS ones play on the OSRS skeleton the other imported player animations use. Each stage waits in a
 // WEAK queue, which the engine clears the moment you do anything else, so walking or clicking away
-// stops the teleport. The stage lengths are the graphics' own, rounded up to whole ticks.
+// stops the teleport. The cast is Old School's 24 ticks (the OSRS wiki's cast time): each stage
+// lasts its movement and a moment of the held pose it ends on - every one of these seqs ends on a
+// frame held for up to 200 client ticks, and waiting out those holds (41 ticks in all) was a slow
+// teleport that stood still between stages. Stage lengths 7, 6, 3, 5 and 3.
 
 [if_button,magic:home_teleport] @home_teleport;
 [if_button,ancient_magic:home_teleport] @home_teleport;
@@ -44,27 +47,27 @@ p_stopaction;
 // one stage: its animation and graphic now, and the next stage when this one has played out
 [proc,home_teleport_stage](int $stage)
 if ($stage = 1) {
-    // drawing the circle with a stick, while the circle graphic plays its twelve ticks
+    // drawing the circle with a stick (5 ticks of movement)
     anim(human_hometele_1, 0);
     spotanim_pl(hometele_1, 0, 0);
-    weakqueue(home_teleport_next, 12, 2);
+    weakqueue(home_teleport_next, 7, 2);
 } else if ($stage = 2) {
-    // reading the book, over the circle's glow
+    // reading the book, over the circle's glow (which loops for 6.7 ticks)
     anim(human_hometele_2, 0);
     spotanim_pl(hometele_2, 0, 0);
-    weakqueue(home_teleport_next, 8, 3);
+    weakqueue(home_teleport_next, 6, 3);
 } else if ($stage = 3) {
     anim(human_hometele_3, 0);
     spotanim_pl(hometele_3, 0, 0);
-    weakqueue(home_teleport_next, 5, 4);
+    weakqueue(home_teleport_next, 3, 4);
 } else if ($stage = 4) {
     anim(human_hometele_4, 0);
     spotanim_pl(hometele_4, 0, 0);
-    weakqueue(home_teleport_next, 7, 5);
+    weakqueue(home_teleport_next, 5, 5);
 } else {
     anim(human_hometele_5, 0);
     spotanim_pl(hometele_5, 0, 0);
-    weakqueue(home_teleport_arrive, 9, 6);
+    weakqueue(home_teleport_arrive, 3, 6);
 }
 
 [queue,home_teleport_next](int $stage)

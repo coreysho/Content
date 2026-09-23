@@ -46,62 +46,55 @@ def_npc $npc = npc_type;
 ~monster_examine_name(npc_name);
 def_int $level = nc_vislevel($npc);
 if ($level > 0) {
-    if_settext(monster_examine:line1, "Combat level: <tostring($level)>");
+    if_settext(monster_examine:val_level, tostring($level));
 } else {
-    if_settext(monster_examine:line1, "No combat level");
+    if_settext(monster_examine:val_level, "-");
 }
-if_settext(monster_examine:line2, "Hitpoints: <tostring(npc_stat(hitpoints))>/<tostring(npc_basestat(hitpoints))>\\nMax hit: <tostring(~npc_melee_maxhit)>");
-if_settext(monster_examine:line3, ~monster_examine_stats(npc_stat(attack), npc_stat(strength), npc_stat(defence), npc_stat(magic), npc_stat(ranged)));
+if_settext(monster_examine:val_hitpoints, "<tostring(npc_stat(hitpoints))> / <tostring(npc_basestat(hitpoints))>");
+if_settext(monster_examine:val_maxhit, tostring(~npc_melee_maxhit));
+if_settext(monster_examine:val_attack, tostring(npc_stat(attack)));
+if_settext(monster_examine:val_strength, tostring(npc_stat(strength)));
+if_settext(monster_examine:val_defence, tostring(npc_stat(defence)));
+if_settext(monster_examine:val_magic, tostring(npc_stat(magic)));
+if_settext(monster_examine:val_ranged, tostring(npc_stat(ranged)));
 ~monster_examine_about($npc);
 if_openside(monster_examine);
 
-// The name, in the quill font beside the icon: wrapped to 474's 116 pixels (a long name
-// takes two lines, "Witches experiment fourth form" three) and centred on the icon's middle.
+// The name, in bold beside the icon: wrapped to the name box's 94 pixels (a long name takes two
+// lines, "Witches experiment fourth form" three) and centred on the icon's middle, 12 pixels a line.
+// if_setposition moves a component BY x, y from where its .if puts it (Client IF_SETPOSITION).
 [proc,monster_examine_name](string $name)
-split_init($name, 116, 3, q8_full);
+split_init($name, 94, 3, b12_full);
 def_int $lines = split_linecount(0);
 if_settext(monster_examine:name, ~monster_examine_lines(0, $lines));
-// if_setposition moves a component BY x, y from where its .if puts it (Client IF_SETPOSITION)
-if_setposition(monster_examine:name, 0, calc(15 - $lines * 15 / 2));
+if_setposition(monster_examine:name, 0, calc(24 - $lines * 6));
 
-// Attack, Strength and Defence on one line and Magic and Ranged on the next - the quill font's 164
-// pixels hold that, with the gaps closed up when a stat has three figures.
-[proc,monster_examine_stats](int $attack, int $strength, int $defence, int $magic, int $ranged)(string)
-def_string $gap = "  ";
-if ($attack > 99 | $strength > 99 | $defence > 99) {
-    $gap = " ";
-}
-return("Att <tostring($attack)><$gap>Str <tostring($strength)><$gap>Def <tostring($defence)>\\nMagic <tostring($magic)>  Ranged <tostring($ranged)>");
-
-// The ordinary Examine's words (~npc_examine) on the last of 474's lines: the elemental weakness
-// first when there is one, then the description, cut short with "..." in the few cases it would not
-// fit. There is room for four quill lines above the bottom of the tab if the fourth starts five
-// pixels higher than 474's line does (a quill "g" hangs five below its line), so a fourth line
-// moves it up.
+// The lower box: the elemental weakness in red when there is one, then the ordinary Examine's
+// words (~npc_examine's), cut short with "..." in the few cases they would not fit. The box holds
+// five lines of the small font, 10 pixels each; whatever is there is centred in it. Both texts
+// start at the box's top (y 191 in monster_examine.if), so each moves down to its place.
 [proc,monster_examine_about](npc $npc)
 def_string $desc = nc_desc($npc);
 if (compare($desc, "null") = 0 | string_length($desc) < 1) {
     $desc = "It's a <nc_name($npc)>.";
 }
-def_string $text = "";
-def_int $lines = 0;
+def_int $weak = 0;
 def_int $w = enum(npc, int, elemental_weakness, $npc);
 if ($w > 0) {
-    $text = "@dre@Weakness: <~element_name(divide($w, 1000))> (<tostring(modulo($w, 1000))>%)@bla@\\n";
-    $lines = 1;
+    if_settext(monster_examine:weakness, "Weakness: <~element_name(divide($w, 1000))> (<tostring(modulo($w, 1000))>%)");
+    $weak = 1;
+} else {
+    if_settext(monster_examine:weakness, "");
 }
-split_init($desc, 164, calc(4 - $lines), q8_full);
-$lines = add($lines, split_linecount(0));
-$text = append($text, ~monster_examine_lines(0, split_linecount(0)));
+split_init($desc, 166, calc(5 - $weak), p11_full);
+def_string $text = ~monster_examine_lines(0, split_linecount(0));
 if (split_pagecount > 1) {
     $text = append($text, "...");
 }
-if_settext(monster_examine:line4, $text);
-if ($lines > 3) {
-    if_setposition(monster_examine:line4, 0, -5);
-} else {
-    if_setposition(monster_examine:line4, 0, 0);
-}
+if_settext(monster_examine:desc, $text);
+def_int $top = calc(218 - (split_linecount(0) + $weak) * 5);
+if_setposition(monster_examine:weakness, 0, calc($top - 191));
+if_setposition(monster_examine:desc, 0, calc($top + $weak * 10 - 191));
 
 // Page $page of the last split_init, its first $count lines joined into one text.
 [proc,monster_examine_lines](int $page, int $count)(string)
