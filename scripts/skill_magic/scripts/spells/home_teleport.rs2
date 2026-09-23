@@ -1,16 +1,19 @@
-// HOME TELEPORT, the first spell in both of 474's books: Lumbridge from the normal one, Edgeville
-// from the Ancient Magicks. No runes; instead it takes ten seconds to cast, anything you do in
-// that time stops it (it waits in a WEAK queue, which the engine clears the moment you act), and
-// it can only be cast once every thirty real minutes (%home_teleport_last, in date_minutes, so the
-// wait runs while you are logged out too).
+// HOME TELEPORT, the first spell in both of 474's books. It takes you to Edgeville from either book.
+// No runes; it can only be cast once every thirty real minutes (%home_teleport_last, in
+// date_minutes, so the wait runs while you are logged out too).
 //
-// 474 cast it with a sequence of its own animations, which this build does not have yet; while it
-// waits you use the normal casting animation, and it arrives with the ordinary teleport.
+// The cast is 474's, in five stages, with 474's five graphics (spotanims 800-804, imported into
+// skill_magic/configs/home_teleport.seq and .spotanim): a circle drawn in the dirt, a book, rings of
+// light round the book, and the vortex that carries you off. The player's own movements are this
+// build's - digging, praying, casting - because 474's (anims 4847-4857) are rigged for 474's player
+// models, and on these ones they pull the head off the neck. Each stage waits in a WEAK queue, which
+// the engine clears the moment you do anything else, so walking or clicking away stops the teleport.
+// The stage lengths are the graphics' own, rounded up to whole ticks.
 
-[if_button,magic:home_teleport] @home_teleport(0);
-[if_button,ancient_magic:home_teleport] @home_teleport(1);
+[if_button,magic:home_teleport] @home_teleport;
+[if_button,ancient_magic:home_teleport] @home_teleport;
 
-[label,home_teleport](int $where)
+[label,home_teleport]
 if_close;
 if (p_finduid(uid) = false) {
     return;
@@ -33,16 +36,50 @@ if (%home_teleport_last > 0 & $wait > 0) {
     return;
 }
 p_stopaction;
-anim(human_castteleport, 0);
-weakqueue(home_teleport_arrive, 16, $where);
+~home_teleport_stage(1);
 
-[queue,home_teleport_arrive](int $where)
+// one stage: its animation and graphic now, and the next stage when this one has played out
+[proc,home_teleport_stage](int $stage)
+if ($stage = 1) {
+    // drawing the circle: the kneel twice over, while the circle graphic plays its twelve ticks
+    anim(human_farming, 0);
+    spotanim_pl(hometele_1, 0, 0);
+    weakqueue(home_teleport_next, 6, 2);
+} else if ($stage = 2) {
+    anim(human_farming, 0);
+    weakqueue(home_teleport_next, 6, 3);
+} else if ($stage = 3) {
+    anim(human_pray, 0);
+    spotanim_pl(hometele_2, 0, 0);
+    weakqueue(home_teleport_next, 8, 4);
+} else if ($stage = 4) {
+    anim(human_pray, 0);
+    spotanim_pl(hometele_3, 0, 0);
+    weakqueue(home_teleport_next, 5, 5);
+} else if ($stage = 5) {
+    anim(human_casting, 0);
+    spotanim_pl(hometele_4, 0, 0);
+    weakqueue(home_teleport_next, 7, 6);
+} else {
+    anim(human_castteleport, 0);
+    spotanim_pl(hometele_5, 0, 0);
+    weakqueue(home_teleport_arrive, 9, 7);
+}
+
+[queue,home_teleport_next](int $stage)
 if (~pre_tele_checks(coord) = false) {
+    anim(null, 0);
+    return;
+}
+~home_teleport_stage($stage);
+
+[queue,home_teleport_arrive](int $stage)
+if (~pre_tele_checks(coord) = false) {
+    anim(null, 0);
     return;
 }
 %home_teleport_last = date_minutes;
-if ($where = 1) {
-    ~player_teleport_normal(map_findsquare(0_48_54_15_40, 0, 2, ^map_findsquare_lineofwalk));
-} else {
-    ~player_teleport_normal(map_findsquare(0_50_50_21_18, 0, 2, ^map_findsquare_lineofwalk));
-}
+// stage 5 has already carried you off, so no ordinary teleport cast on top of it
+anim(null, 0);
+sound_synth(teleport_all, 1, 0);
+~p_telejump_safe(map_findsquare(0_48_54_15_40, 0, 2, ^map_findsquare_lineofwalk));
