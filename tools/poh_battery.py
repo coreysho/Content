@@ -3654,16 +3654,11 @@ check(not _stillexcused,
 _bydesign = _sw.stdout.split('BUILT WITH NO SOURCE ON PURPOSE', 1)[-1].split('NOTHING ANYWHERE', 1)[0]
 check(not any(re.search(r'\b%s\b' % p, _bydesign) for p in _GUILD_HUNTER),
       'and the sweep no longer puts any of them in its by-design section')
-# The cape's hood is the piece that IS still shut off, and for a reason that had to be rewritten:
-# the old one said [skillcape_hood] cannot be keyed on a stat that does not exist, which stopped
-# being true the day the stat did.
-_hood = _nospec.get('hunter_hood')
-check(_hood is not None, "the Hunter cape's hood is still specced, because the cape is still off")
-if _hood:
-    check('Hunter is not a skill' not in _hood['why'],
-          '...and its reason is no longer the one that went stale when Hunter became a stat')
-    check('skillcape' in _hood['why'].lower() and 'emote' in _hood['why'].lower(),
-          '...it names the cape and the missing emote, which is what actually holds now')
+# The cape's hood was the last Hunter piece shut off, specced in nosourcespec.json until the cape
+# opened on 2026-09-23 (box traps, bird snares, the Hunting expert). It is sold with the cape now, so
+# an excuse left behind for it would be exactly the stale reason this section exists to catch.
+check('hunter_hood' not in _nospec,
+      "the Hunter cape's hood is no longer excused - the Hunting expert sells it with the cape")
 
 # A STORAGE LIST IS NOT A MENTION EITHER. Excluding the costume room from the SOURCE rule was not
 # enough: it still counted as a mention, which demotes an obj out of "nothing anywhere mentions

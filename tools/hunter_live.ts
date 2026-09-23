@@ -22,6 +22,9 @@ import ObjType from '#/cache/config/ObjType.js';
 import LocType from '#/cache/config/LocType.js';
 import InvType from '#/cache/config/InvType.js';
 import VarPlayerType from '#/cache/config/VarPlayerType.js';
+import SeqType from '#/cache/config/SeqType.js';
+import SpotanimType from '#/cache/config/SpotanimType.js';
+import Component from '#/cache/config/Component.js';
 const PlayerStat = { HUNTER: 22 };
 import { getExpByLevel } from '#/engine/entity/Player.js';
 
@@ -31,7 +34,12 @@ for (const k of ['loginThread', 'friendThread', 'loggerThread']) (World as any)[
 
 const LEVEL = parseInt(process.env.HLEVEL ?? '70');
 const CONST = fs.readFileSync(`${process.env.BUILD_SRC_DIR}/scripts/skill_hunter/configs/hunter.constant`, 'utf8');
-const GREY = parseInt(/\^hunter_chinchompa_level = (\d+)/.exec(CONST)![1]);
+// HTRAP=box (default) lays box traps in the grey chinchompas' clearing; HTRAP=snare lays bird snares
+// among the tropical wagtails. The level gate is the lowest-level prey near the traps.
+const SNARE = process.env.HTRAP === 'snare';
+const TRAPNAME = SNARE ? 'hunter_bird_snare' : 'hunter_box_trap';
+const GATE_NAME = SNARE ? 'tropical wagtail' : 'grey chinchompa';
+const GREY = parseInt((SNARE ? /\^hunter_wagtail_level = (\d+)/ : /\^hunter_chinchompa_level = (\d+)/).exec(CONST)![1]);
 const CAN_CATCH = LEVEL >= GREY;
 const log = (...a: unknown[]) => console.log(`[t${World.currentTick}]`, ...a);
 let player: any;
@@ -63,14 +71,52 @@ player.messageGame = (m: string) => { msgs.push(m); log('MES', m); };
 World.newPlayers.add(player);
 await waitTicks(3);
 check(World.getPlayerByUsername('hunttest') !== null, 'player is in the world');
-const TRAP = ObjType.getId('hunter_box_trap');
+// HTRAP=cape: the Hunter skillcape instead of the traps - worn at 99, and its emote plays.
+if (process.env.HTRAP === 'cape') {
+    const inv0 = player.getInventory(InvType.INV)!;
+    const worn = player.getInventory(InvType.WORN)!;
+    const played: number[] = [], spots: number[] = [];
+    const pa = player.playAnimation.bind(player); (player as any).playAnimation = (a: number, d: number) => { played.push(a); return pa(a, d); };
+    const sp = player.spotanim.bind(player); (player as any).spotanim = (a: number, h: number, d: number) => { spots.push(a); return sp(a, h, d); };
+    for (const cape of ['hunter_cape', 'hunter_cape_t']) {
+        const id = ObjType.getId(cape);
+        player.invAdd(InvType.INV, id, 1);
+        const wear = () => {
+            player.lastItem = id; player.lastSlot = inv0.getItemIndex(id);
+            const script = ScriptProvider.getByTrigger(ServerTriggerType.OPHELD2, id, ObjType.get(id).category);
+            player.executeScript(ScriptRunner.init(script!, player), true);
+        };
+        wear(); await waitTicks(2);
+        check(worn.getItemCount(id) === 0, `${cape}: refused below 99 Hunter (level ${LEVEL})`);
+        player.stats[PlayerStat.HUNTER] = getExpByLevel(99); player.baseLevels[PlayerStat.HUNTER] = 99; player.levels[PlayerStat.HUNTER] = 99;
+        wear(); await waitTicks(2);
+        check(worn.getItemCount(id) === 1, `${cape}: worn at 99`);
+        played.length = 0; spots.length = 0;
+        const com = Component.getId('emotes:skill_cape');
+        const script = ScriptProvider.getByTrigger(ServerTriggerType.IF_BUTTON, com, -1);
+        player.executeScript(ScriptRunner.init(script!, player), true);
+        await waitTicks(2);
+        check(played.includes(SeqType.getId('skillcape_hunter_emote')), `${cape}: the Skillcape emote plays skillcape_hunter_emote`);
+        check(spots.includes(SpotanimType.getId('skillcape_hunter')), `${cape}: ...with the skillcape_hunter graphic`);
+        check(!msgs.some(m => m.includes('need to be wearing a Skillcape')), `${cape}: ...and does not refuse`);
+        // take it off again and drop back below 99 for the next one
+        worn.removeAll(); inv0.remove(id, 1);
+        player.stats[PlayerStat.HUNTER] = getExpByLevel(LEVEL); player.baseLevels[PlayerStat.HUNTER] = LEVEL; player.levels[PlayerStat.HUNTER] = LEVEL;
+    }
+    console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
+    process.exit(fails ? 1 : 0);
+}
+
+const TRAP = ObjType.getId(TRAPNAME);
 const inv = player.getInventory(InvType.INV)!;
 const total = (name: string) => inv.getItemCount(ObjType.getId(name));
 player.invAdd(InvType.INV, TRAP, 5);
-check(total('hunter_box_trap') === 5, 'five box traps in the pack');
+check(total(TRAPNAME) === 5, `five ${TRAPNAME} in the pack`);
 
 const TYPES = ['hunter_boxtrap_laid', 'hunter_boxtrap_collapsed', 'hunter_boxtrap_catching_chinchompa', 'hunter_boxtrap_catching_chinchompa_red',
-    'hunter_boxtrap_catching_ferret', 'hunter_boxtrap_shaking_chinchompa', 'hunter_boxtrap_shaking_chinchompa_red', 'hunter_boxtrap_shaking_ferret'];
+    'hunter_boxtrap_catching_ferret', 'hunter_boxtrap_shaking_chinchompa', 'hunter_boxtrap_shaking_chinchompa_red', 'hunter_boxtrap_shaking_ferret',
+    'hunter_snare_laid', 'hunter_snare_springing', 'hunter_snare_collapsed', 'hunter_snare_catching_swift', 'hunter_snare_catching_wagtail',
+    'hunter_snare_caught_swift', 'hunter_snare_caught_wagtail'];
 const typeIds = TYPES.map(t => LocType.getId(t));
 const locAt = (x: number, z: number) => {
     for (let i = 0; i < typeIds.length; i++) {
@@ -102,27 +148,30 @@ function oploc(op: number, loc: any) {
 // Open tiles beside the grey chinchompas' spawns (checked against the engine's own collision). A
 // tile the game refuses - a fern is active and so blocks loc_add - is skipped, not counted.
 const max = Math.min(5, 1 + Math.floor(LEVEL / 20));
-const CANDIDATES = [[2560, 2891], [2562, 2891], [2564, 2891], [2558, 2891], [2566, 2891], [2560, 2889], [2562, 2889], [2558, 2889], [2556, 2891], [2568, 2891]];
+const CANDIDATES = SNARE
+    ? [[2597, 2884], [2599, 2884], [2601, 2884], [2597, 2886], [2599, 2886], [2601, 2886], [2595, 2884], [2603, 2884], [2595, 2886], [2603, 2886]]
+    : [[2560, 2891], [2562, 2891], [2564, 2891], [2558, 2891], [2566, 2891], [2560, 2889], [2562, 2889], [2558, 2889], [2556, 2891], [2568, 2891]];
+const HOME = CANDIDATES[0];
 let refusedTile = 0;
 for (const [x, z] of CANDIDATES) {
     if (slots().filter(c => c !== -1).length >= max) break;
     player.teleport(x, z, 0);
     await waitTicks(2);
     const n = msgs.length;
-    opheld1('hunter_box_trap');
+    opheld1(TRAPNAME);
     await waitTicks(6);
     if (msgs.slice(n).some(m => m.includes("can't lay a trap here"))) refusedTile++;
 }
 log('tiles refused', refusedTile);
 {
     const n = msgs.length;
-    player.teleport(2570, 2891, 0); await waitTicks(2);
-    opheld1('hunter_box_trap'); await waitTicks(6);
+    player.teleport(SNARE ? 2605 : 2570, SNARE ? 2888 : 2891, 0); await waitTicks(2);
+    opheld1(TRAPNAME); await waitTicks(6);
     check(msgs.slice(n).some(m => m.includes('more than')), `a trap over the limit of ${max} is refused`);
 }
 const laid = slots().filter(c => c !== -1);
 check(laid.length === max, `laid exactly ${max} traps at level ${LEVEL} (${laid.length})`);
-check(total('hunter_box_trap') === 5 - max, `${5 - max} traps left in the pack (${total('hunter_box_trap')})`);
+check(total(TRAPNAME) === 5 - max, `${5 - max} traps left in the pack (${total(TRAPNAME)})`);
 for (const c of laid) {
     const { x, z } = coordXZ(c);
     check(locAt(x, z) !== null, `a trap stands at ${x},${z} (${locAt(x, z)?.name})`);
@@ -139,36 +188,56 @@ for (let t = 0; t < (CAN_CATCH ? 600 : 300) && firstShaking.length === 0; t++) {
         const s = locAt(x, z)?.name ?? '(none)';
         const k = `${x},${z}`;
         if (seen.get(k) !== s) { log('trap', k, '->', s); seen.set(k, s); }
-        if (s.startsWith('hunter_boxtrap_shaking')) firstShaking.push({ x, z, s });
+        if (s.startsWith('hunter_boxtrap_shaking') || s.startsWith('hunter_snare_caught')) firstShaking.push({ x, z, s });
         if (s === 'hunter_boxtrap_collapsed') {
             const l = locAt(x, z)!.loc;
             oploc(2, l); // Reset
             await waitTicks(5);
             check(locAt(x, z)?.name === 'hunter_boxtrap_laid', `Reset on the collapsed trap at ${k} lays it again`);
         }
+        if (s === 'hunter_snare_collapsed') {
+            // A collapsed snare has no Reset, only Dismantle - then it is laid again on the same tile.
+            const before = total(TRAPNAME), held = slots().filter(c => c !== -1).length;
+            oploc(1, locAt(x, z)!.loc);
+            await waitTicks(2);
+            check(locAt(x, z) === null && total(TRAPNAME) === before + 1 && slots().filter(c => c !== -1).length === held - 1,
+                `Dismantle on the collapsed snare at ${k} takes it up and frees its slot`);
+            player.teleport(x, z, 0); await waitTicks(2);
+            opheld1(TRAPNAME); await waitTicks(6);
+        }
     }
 }
 if (CAN_CATCH) check(firstShaking.length > 0, 'something was caught within 600 ticks');
 else {
-    check(firstShaking.length === 0, `at level ${LEVEL}, below the grey chinchompa's ${GREY}, nothing in their clearing goes in`);
+    check(firstShaking.length === 0, `at level ${LEVEL}, below the ${GATE_NAME}'s ${GREY}, nothing in their clearing goes in`);
     // 300 ticks untouched is past ^hunter_trap_duration, so the expiry path has run too.
     check(slots().every(c => c === -1), '...and traps left untouched past their duration fall over and free their slots');
     check(msgs.some(m => m.includes('fallen over')), '...with a message');
-    player.teleport(2560, 2891, 0); await waitTicks(2);
-    opheld1('hunter_box_trap'); await waitTicks(6);
+    player.teleport(HOME[0], HOME[1], 0); await waitTicks(2);
+    opheld1(TRAPNAME); await waitTicks(6);
 }
 
 // ---- 3. Check
 if (firstShaking.length) {
     const { x, z, s } = firstShaking[0];
-    const before = { trap: total('hunter_box_trap'), grey: total('chinchompa'), red: total('red_chinchompa'), ferret: total('ferret'), xp: player.stats[PlayerStat.HUNTER] };
+    const LOOT = ['chinchompa', 'red_chinchompa', 'ferret', 'bones', 'raw_bird_meat', 'red_feather', 'stripy_feather'];
+    const before: any = { trap: total(TRAPNAME), xp: player.stats[PlayerStat.HUNTER] };
+    for (const n of LOOT) before[n] = total(n);
     const slotsBefore = slots().filter(c => c !== -1).length;
     oploc(1, locAt(x, z)!.loc);
     await waitTicks(2);
-    check(locAt(x, z) === null, 'Check removes the shaking box');
-    check(total('hunter_box_trap') === before.trap + 1, '...gives the trap back');
-    const got = total('chinchompa') - before.grey + total('red_chinchompa') - before.red + total('ferret') - before.ferret;
-    check(got === 1, `...gives exactly one catch (${s})`);
+    check(locAt(x, z) === null, `Check removes the ${s}`);
+    check(total(TRAPNAME) === before.trap + 1, '...gives the trap back');
+    const got = Object.fromEntries(LOOT.map(n => [n, total(n) - before[n]]).filter(([, d]) => d !== 0));
+    if (SNARE) {
+        const feather = s.endsWith('swift') ? 'red_feather' : 'stripy_feather';
+        const n = parseInt(/\^hunter_bird_feathers = (\d+)/.exec(CONST)![1]);
+        check(JSON.stringify(got) === JSON.stringify({ bones: 1, raw_bird_meat: 1, [feather]: n }),
+            `...pays bones, raw bird meat and ${n} ${feather}, and nothing else (${JSON.stringify(got)})`);
+    } else {
+        check(Object.values(got).reduce((a: number, b: any) => a + b, 0) === 1 && ['chinchompa', 'red_chinchompa', 'ferret'].includes(Object.keys(got)[0]),
+            `...gives exactly one animal (${JSON.stringify(got)})`);
+    }
     check(player.stats[PlayerStat.HUNTER] > before.xp, `...and experience (+${(player.stats[PlayerStat.HUNTER] - before.xp) / 10})`);
     check(slots().filter(c => c !== -1).length === slotsBefore - 1, '...and frees the slot');
 }
@@ -194,7 +263,7 @@ if (firstShaking.length) {
 // ---- 5. walk away: the leash
 {
     const held = slots().filter(c => c !== -1);
-    const trapsBefore = total('hunter_box_trap');
+    const trapsBefore = total(TRAPNAME);
     player.teleport(2570, 2887 + 30, 0);
     await waitTicks(6);
     check(slots().every(c => c === -1), 'walking 30 tiles away collapses every trap and frees every slot');
@@ -202,26 +271,34 @@ if (firstShaking.length) {
         const { x, z } = coordXZ(c);
         check(locAt(x, z) === null, `...the loc at ${x},${z} is gone`);
     }
-    check(total('hunter_box_trap') === trapsBefore, '...and the traps are on the ground, not in the pack');
+    check(total(TRAPNAME) === trapsBefore, '...and the traps are on the ground, not in the pack');
     check(msgs.some(m => m.includes('moved too far away')), '...with a message');
 }
 
 // ---- 6. logout gives them back
 {
-    player.teleport(2560, 2891, 0);
+    player.teleport(HOME[0], HOME[1], 0);
     await waitTicks(3);
-    if (total('hunter_box_trap') < 2) player.invAdd(InvType.INV, TRAP, 2 - total('hunter_box_trap'));
-    const before = total('hunter_box_trap');
-    opheld1('hunter_box_trap'); await waitTicks(6);
-    opheld1('hunter_box_trap'); await waitTicks(6);
+    if (total(TRAPNAME) < 2) player.invAdd(InvType.INV, TRAP, 2 - total(TRAPNAME));
+    // In snare mode the second trap is a BOX trap, so [logout] has to hand back one of each - which
+    // only works if the slot remembered its kind (%hunter_trap_kinds).
+    const OTHER = SNARE ? 'hunter_box_trap' : TRAPNAME;
+    // A box trap needs Hunter 27 (refused with a mesbox, which is not a chat line), and level 10
+    // only allows one trap - so the snare passes step up to 40 for this.
+    if (SNARE) { player.stats[PlayerStat.HUNTER] = getExpByLevel(40); player.baseLevels[PlayerStat.HUNTER] = 40; player.levels[PlayerStat.HUNTER] = 40; }
+    if (SNARE && total(OTHER) < 1) player.invAdd(InvType.INV, ObjType.getId(OTHER), 1);
+    const before = total(TRAPNAME), beforeOther = total(OTHER);
+    opheld1(TRAPNAME); await waitTicks(6);
+    opheld1(OTHER); await waitTicks(6);
     const held = slots().filter(c => c !== -1);
-    check(held.length === 2, 'two laid again');
+    check(held.length === 2, SNARE ? 'a snare and a box trap laid side by side' : 'two laid again');
     const script = ScriptProvider.getByTrigger(ServerTriggerType.LOGOUT, -1, -1);
     player.executeScript(ScriptRunner.init(script!, player), true);
     await waitTicks(2);
     check(slots().every(c => c === -1), '[logout] frees every slot');
     for (const c of held) { const { x, z } = coordXZ(c); check(locAt(x, z) === null, `...and takes up the trap at ${x},${z}`); }
-    check(total('hunter_box_trap') === before, `...and puts them back in the pack (${total('hunter_box_trap')}/${before})`);
+    check(total(TRAPNAME) === before && (!SNARE || total(OTHER) === beforeOther),
+        `...and puts each back in the pack as what it was (${TRAPNAME} ${total(TRAPNAME)}/${before}${SNARE ? `, ${OTHER} ${total(OTHER)}/${beforeOther}` : ''})`);
 }
 
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
