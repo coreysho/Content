@@ -42,7 +42,9 @@ if (~black_mask_imbued_on_task = true) {
     $mask_num = 23;
     $mask_div = 20;
 }
-if (~player_npc_hit_roll_boosted(%damagetype, $mask_num, $mask_div) = true) {
+// an enchanted bolt's effect lands whatever the accuracy roll says (bolt_effects.rs2)
+def_int $bolt_effect = ~bolt_effect_roll($rhand, $ammo);
+if ($bolt_effect ! ^bolt_none | ~player_npc_hit_roll_boosted(%damagetype, $mask_num, $mask_div) = true) {
     def_int $maxhit = %com_maxhit;
     if (npc_type = count_draynor & inv_total(inv, garlic) > 0) {
         $maxhit = add($maxhit, 1);
@@ -72,6 +74,10 @@ if (~player_npc_hit_roll_boosted(%damagetype, $mask_num, $mask_div) = true) {
         $maxhit = 0;
     }
     $damage = randominc(min($maxhit, npc_param(max_dealt)));
+    // not where the target is immune to ranged (a max hit of 0 above)
+    if ($bolt_effect ! ^bolt_none & $maxhit > 0) {
+        $damage = min(~bolt_effect_damage($bolt_effect, $maxhit), npc_param(max_dealt));
+    }
     // A cave kraken's hide turns arrows aside: a seventh of the damage (OSRS; area_kraken_cove).
     if (npc_type = cave_kraken) {
         $damage = divide($damage, 7);
@@ -82,6 +88,8 @@ if (~player_npc_hit_roll_boosted(%damagetype, $mask_num, $mask_div) = true) {
     ~give_combat_experience(%damagestyle, $damage_capped, %npc_combat_xp_multiplier);
     npc_heropoints($damage_capped);
 }
+
+~bolt_effect_after_hit($rhand, $ammo, $damage);
 
 def_int $poison_severity = oc_param($ammo, poison_severity);
 if ($damage > 0 & $poison_severity > 0 & random(8) = 0) { // 1/8 chance to poison

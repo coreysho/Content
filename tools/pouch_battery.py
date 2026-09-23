@@ -329,8 +329,8 @@ for l in r.stdout.split('\n'):
     if l.replace(chr(92), '/').startswith('scripts/'):
         raw.append(l.split()[0])
         state[l.replace(chr(92), '/').split()[0]] = l.split()[-1]
-check(len(state) == 6,
-      'six interfaces count runes, and the generator finds them itself rather than being told: %d'
+check(len(state) == 7,
+      'seven interfaces count runes, and the generator finds them itself rather than being told: %d'
       % len(state))
 for rel in sorted(state):
     check(state[rel] == 'unchanged',

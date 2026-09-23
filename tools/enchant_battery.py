@@ -133,13 +133,13 @@ buttons, cur, kv = {}, None, {}
 for raw in MAGICIF.split('\n'):
     s = raw.split('//')[0].strip()
     if s.startswith('[') and s.endswith(']'):
-        if cur and kv.get('graphic', '').startswith('magicoff'):
+        if cur and kv.get('graphic', '').startswith(('magicoff', 'i474_')) and 'buttontype' in kv:
             buttons[cur] = kv
         cur, kv = s[1:-1], {}
     elif '=' in s and cur:
         k, v = s.split('=', 1)
         kv.setdefault(k.strip(), v.strip())
-if cur and kv.get('graphic', '').startswith('magicoff'):
+if cur and kv.get('graphic', '').startswith(('magicoff', 'i474_')) and 'buttontype' in kv:
     buttons[cur] = kv
 spec_keys = [k for k in SPEC if not k.startswith('_')]
 # PINNED, and the pin moves when the spec legitimately does - it was 5 until the Teleother round

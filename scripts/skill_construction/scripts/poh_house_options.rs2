@@ -1,0 +1,62 @@
+// House Options, from the Options tab (474 interface 398). Building mode on or off, expel guests,
+// leave the house, and how many rooms it has.
+//
+// Building mode is chosen at the portal as you go in (poh_portal.rs2). Changing it here, in your own
+// house, rebuilds the house in the other mode and puts you back at its entrance - the house is an
+// instance built from the saved layout, so "turning building mode on" is building it again with the
+// hotspots left in. Anywhere else the switch only says where it can be used.
+
+[proc,house_options_open]
+%if1 = %poh_buildmode;
+%if2 = ~poh_room_total;
+if_openside(house_options);
+
+[if_button,house_options:build_on]
+if (p_finduid(uid) = true) {
+    ~house_options_buildmode(true);
+}
+
+[if_button,house_options:build_off]
+if (p_finduid(uid) = true) {
+    ~house_options_buildmode(false);
+}
+
+[proc,house_options_buildmode](boolean $on)
+def_int $want = 0;
+if ($on = true) {
+    $want = 1;
+}
+if (%poh_instance = null) {
+    mes("You can only change building mode inside your own house.");
+    %if1 = %poh_buildmode;
+    return;
+}
+if (%poh_buildmode = $want) {
+    %if1 = $want;
+    return;
+}
+if ($on = true) {
+    mes("Building mode is now on.");
+} else {
+    mes("Building mode is now off.");
+}
+~poh_enter($on);
+%if1 = %poh_buildmode;
+
+[if_button,house_options:expel]
+if (%poh_instance = null) {
+    mes("You are not in your house.");
+    return;
+}
+mes("There are no guests in your house.");
+
+[if_button,house_options:leave]
+if (%poh_instance = null) {
+    mes("You are not in your house.");
+    return;
+}
+if (p_finduid(uid) = false) {
+    return;
+}
+if_close;
+~poh_leave;

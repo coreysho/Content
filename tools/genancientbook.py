@@ -36,6 +36,10 @@ that sprite index is the key. For the sixteen combat buttons the real panel ALSO
 disagreement is refused rather than resolved. Only the 24 buttons and their 24 hover layers are
 renamed - every other component keeps its com_<n>, because nothing names them.
 
+SINCE SUPERSEDED. The book this wrote was then laid out as 474's, in place, by LostCityServer's
+tools/models/portmagic474.py, and this now refuses to run over it. tools/ancientbook_battery.py
+checks the port.
+
     python3 tools/genancientbook.py
     python3 tools/ifrender.py scripts/skill_magic/interfaces/ancient_magic.if /tmp/book.png
 """
@@ -99,6 +103,11 @@ def buttons(bs):
 
 def main():
     src_raw, dst_raw = read(SRC), read(DST)
+    if 'portmagic474.py' in dst_raw.split('\n', 1)[0]:
+        # this ran once, joining the reconstruction to inter_267; the book has since been laid out
+        # as 474's, and that file is not a reconstruction this could join against any more
+        raise SystemExit("%s has been laid out as 474's by LostCityServer tools/models/portmagic474.py - "
+                         "rerun that instead; this generator's one job is done" % os.path.relpath(DST, ROOT))
     nl = nl_of(dst_raw)
     src, old = blocks(src_raw), blocks(dst_raw)
     sb, ob = buttons(src), buttons(old)

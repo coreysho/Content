@@ -199,8 +199,8 @@ MUTS = [
  # ---- 9, Accept aid
  (AIDCONST, '^aid_no = 2', '^aid_no = 0', '9 the tri-state is 0 unset / 1 yes / 2 no'),
  (OPTRS, '%option_aid = ^aid_yes;', '%option_pm = 1;',
-  '9 options:com_52 and com_53 set %option_aid - they used to set %option_pm, which belongs to '
-  'com_47/com_48, so Accept Aid silently moved your private chat setting and never moved aid'),
+  "9 options:accept_aid sets %option_aid both ways - the 377 tab's Yes/No pair once set %option_pm, "
+  'which belongs to Split Private-chat, so Accept Aid silently moved your private chat setting'),
  (OPTLDRS, '%option_aid = ^aid_no;', '%option_aid = 0;',
   '9 the low-detail tab - which had it right all along - uses the same constants'),
  (OPTIF, 'script1op1=pushvar,option_aid\nscript1=lt,2',

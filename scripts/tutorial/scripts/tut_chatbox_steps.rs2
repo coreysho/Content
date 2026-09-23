@@ -84,13 +84,8 @@ hint_coord(2, 0_48_48_3_9, 100);
 
 [proc,tutorial_step_click_music_player]
 hint_stop();
-if (lowmem = true) {
-    tut_flash(^tab_musicplayer);
-    if_settab(music_ld, ^tab_musicplayer);
-} else {
-    tut_flash(^tab_musicplayer);
-    if_settab(music, ^tab_musicplayer);
-}
+tut_flash(^tab_musicplayer);
+if_settab(music, ^tab_musicplayer);
 ~tutorialstep("Well done, your first loaf of bread. As you gain experience in", "cooking you will be able to make other things like pies, cakes|and even kebabs. Now you've got the hang of cooking let's|move on. Click on the flashing icon in the bottom right to see|the jukebox.");
 
 [proc,tutorial_step_music_player]
@@ -102,11 +97,13 @@ if (lowmem = true) { // https://web.archive.org/web/20040408025047/http://www.im
 }
 
 [proc,tutorial_step_click_run_icon]
-tut_flash(^tab_player_controls);
-if_settab(controls, ^tab_player_controls);
+// Run is on the Options tab in 474, not on a player-controls tab of its own; the emotes that shared
+// that tab have one of their own, given here as the controls tab was.
+tut_flash(^tab_game_options);
+if_settab(emotes, ^tab_emotes);
 ~update_weight; // update weight
 
-~tutorialstep("It's only a short distance to the next guide.", "|Why not try running there. Start by opening the player|controls, that's the flashing icon of a running man.");
+~tutorialstep("It's only a short distance to the next guide.", "|Why not try running there. Start by opening the game|options, that's the flashing icon of a spanner.");
 
 [proc,tutorial_step_enable_run]
 if (p_finduid(uid) = true) {
@@ -114,7 +111,7 @@ if (p_finduid(uid) = true) {
     return;
 }
 %option_run = %option_run;
-~tutorialstep("Running.", "In this menu you will see many options from waving to walking.|At the top of the panel there are two buttons. One is walk the|other one is run. Click on the run button.");
+~tutorialstep("Running.", "In this menu you will see many options. Near the bottom there|is a button with a running boot on it, and your energy under it.|Click on it to turn running on.");
 
 [proc,tutorial_step_enter_newbie_quest_instructor_house]
 hint_coord(^hint_south, 0_48_48_14_54, 150);
@@ -307,6 +304,7 @@ if_settab(friends, ^tab_friends);
 [proc,tutorial_ignore_tab]
 tut_flash(^tab_ignore);
 if_settab(ignore, ^tab_ignore);
+if_settab(clanchat, ^tab_clan_chat);
 ~tutorialstep("This is your friends list.", "|This will be explained by Brother Brace shortly, but first click|on the other flashing icon next to the friends list one.");
 
 [proc,tutorial_your_ignore_list]

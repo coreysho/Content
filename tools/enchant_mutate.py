@@ -30,7 +30,7 @@ MUTS = [
  # ---- 1, the numbers, and the cache's own button as the second opinion
  (DBROW, 'data=levelrequired,87', 'data=levelrequired,88',
   '1 the row asks for level 87'),
- (MAGICIF, 'script4=gt,86\ngraphic=magicoff2,34', 'script4=gt,87\ngraphic=magicoff2,34',
+ (MAGICIF, 'script4=gt,86\ngraphic=i474_403,0', 'script4=gt,87\ngraphic=i474_403,0',
   '1 ...and the button the client draws lights up above 86, which is 87'),
  (DBROW, 'data=runesrequired,firerune,20,earthrune,20,cosmicrune,1',
          'data=runesrequired,firerune,15,earthrune,15,cosmicrune,1',
@@ -97,8 +97,8 @@ MUTS = [
   '5 rs2check has the uncastable-button rule'),
  (RS2, '    23:   ("probe_spellbook.if", 3),\n', '',
   '5 ...and the selftest proves it can go red, which an inert rule cannot'),
- (RS2, '        check_interfaces()\n        check_castable_buttons()\n\n    errors',
-       '        check_interfaces()\n\n    errors',
+ (RS2, '        check_castable_buttons()\n        check_varp_booleans(T)\n\n    errors',
+       '        check_varp_booleans(T)\n\n    errors',
   '5 ...and main() actually runs it'),
  # RETARGETED 2026-09-21: the three Teleother keys these used to point at are gone, because the
  # Teleother round built the spells. Tele Block is the entry that remains, and its note is the

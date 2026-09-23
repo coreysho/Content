@@ -62,9 +62,9 @@ $ranged_stylebonus = ~combat_get_damagestyle_bonuses($damagestyle);
 def_int $effective_attack = ~combat_effective_stat($attack_level, $attack_prayer);
 def_int $effective_strength = ~combat_effective_stat($strength_level, $strength_prayer);
 def_int $effective_defence = ~combat_effective_stat($defence_level, $defence_prayer);
-def_int $effective_magic = ~combat_effective_stat($magic_level, 100); // no magic prayers
+def_int $effective_magic = ~combat_effective_stat($magic_level, ~check_magic_prayer);
 def_int $effective_magic_defence = divide(add(multiply(7, $effective_magic), multiply(3, $effective_defence)), 10);
-def_int $effective_ranged = ~combat_effective_stat($ranged_level, 100); // no ranged prayers
+def_int $effective_ranged = ~combat_effective_stat($ranged_level, ~check_ranged_prayer);
 
 // apply style bonuses
 $effective_attack = add(add($effective_attack, 8), $attack_stylebonus);
@@ -166,9 +166,9 @@ $ranged_stylebonus = ~combat_get_damagestyle_bonuses($damagestyle);
 def_int $effective_attack = ~combat_effective_stat($attack_level, $attack_prayer);
 def_int $effective_strength = ~combat_effective_stat($strength_level, $strength_prayer);
 def_int $effective_defence = ~combat_effective_stat($defence_level, $defence_prayer);
-def_int $effective_magic = ~combat_effective_stat($magic_level, 100); // no magic prayers
+def_int $effective_magic = ~combat_effective_stat($magic_level, ~.check_magic_prayer);
 def_int $effective_magic_defence = divide(add(multiply(7, $effective_magic), multiply(3, $effective_defence)), 10);
-def_int $effective_ranged = ~combat_effective_stat($ranged_level, 100); // no ranged prayers
+def_int $effective_ranged = ~combat_effective_stat($ranged_level, ~.check_ranged_prayer);
 
 // apply style bonuses
 $effective_attack = add(add($effective_attack, 8), $attack_stylebonus);
@@ -208,22 +208,42 @@ switch_int(.%damagetype) {
 .%com_defendanim = ~combat_defend_anim($weapon);
 
 [proc,check_attack_prayer]()(int)
+if (%prayer25 = ^true) return (120); // Piety
+if (%prayer24 = ^true) return (115); // Chivalry
 if (%prayer2 = ^true) return (105);
 if (%prayer5 = ^true) return (110);
 if (%prayer11 = ^true) return (115);
 else return(100);
 
 [proc,check_defence_prayer]()(int)
+if (%prayer25 = ^true) return (125); // Piety
+if (%prayer24 = ^true) return (120); // Chivalry
 if (%prayer0 = ^true) return (105);
 if (%prayer3 = ^true) return (110);
 if (%prayer9 = ^true) return (115);
 else return(100);
 
 [proc,check_strength_prayer]()(int)
+if (%prayer25 = ^true) return (123); // Piety
+if (%prayer24 = ^true) return (118); // Chivalry
 if (%prayer1 = ^true) return (105);
 if (%prayer4 = ^true) return (110);
 if (%prayer10 = ^true) return (115);
 else return(100);
+
+// Sharp Eye, Hawk Eye, Eagle Eye: ranged accuracy and strength (474's prayers, 2026-09-23)
+[proc,check_ranged_prayer]()(int)
+if (%prayer22 = ^true) return (115);
+if (%prayer20 = ^true) return (110);
+if (%prayer18 = ^true) return (105);
+return (100);
+
+// Mystic Will, Mystic Lore, Mystic Might: magic attack, and magic defence through it
+[proc,check_magic_prayer]()(int)
+if (%prayer23 = ^true) return (115);
+if (%prayer21 = ^true) return (110);
+if (%prayer19 = ^true) return (105);
+return (100);
 
 [proc,check_protect_prayer](int $style)(boolean)
 if (($style = ^melee_style | $style = ^stab_style | $style = ^slash_style | $style = ^crush_style) & %prayer14 = ^true) return (true);
@@ -232,22 +252,42 @@ if (($style = ^magic_style) & %prayer12 = ^true) return (true);
 else return (false);
 
 [proc,.check_attack_prayer]()(int)
+if (.%prayer25 = ^true) return (120); // Piety
+if (.%prayer24 = ^true) return (115); // Chivalry
 if (.%prayer2 = ^true) return (105);
 if (.%prayer5 = ^true) return (110);
 if (.%prayer11 = ^true) return (115);
 else return(100);
 
 [proc,.check_defence_prayer]()(int)
+if (.%prayer25 = ^true) return (125); // Piety
+if (.%prayer24 = ^true) return (120); // Chivalry
 if (.%prayer0 = ^true) return (105);
 if (.%prayer3 = ^true) return (110);
 if (.%prayer9 = ^true) return (115);
 else return(100);
 
 [proc,.check_strength_prayer]()(int)
+if (.%prayer25 = ^true) return (123); // Piety
+if (.%prayer24 = ^true) return (118); // Chivalry
 if (.%prayer1 = ^true) return (105);
 if (.%prayer4 = ^true) return (110);
 if (.%prayer10 = ^true) return (115);
 else return(100);
+
+// Sharp Eye, Hawk Eye, Eagle Eye: ranged accuracy and strength (474's prayers, 2026-09-23)
+[proc,.check_ranged_prayer]()(int)
+if (.%prayer22 = ^true) return (115);
+if (.%prayer20 = ^true) return (110);
+if (.%prayer18 = ^true) return (105);
+return (100);
+
+// Mystic Will, Mystic Lore, Mystic Might: magic attack, and magic defence through it
+[proc,.check_magic_prayer]()(int)
+if (.%prayer23 = ^true) return (115);
+if (.%prayer21 = ^true) return (110);
+if (.%prayer19 = ^true) return (105);
+return (100);
 
 [proc,.check_protect_prayer](int $style)(boolean)
 if (($style = ^melee_style | $style = ^stab_style | $style = ^slash_style | $style = ^crush_style) & .%prayer14 = ^true) return (true);

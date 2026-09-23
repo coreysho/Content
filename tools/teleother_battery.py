@@ -365,21 +365,26 @@ print('9. Accept aid: the setting this spell reads, and the two handlers that we
 check('^aid_unset = 0' in AIDCONST and '^aid_yes = 1' in AIDCONST and '^aid_no = 2' in AIDCONST,
       'the tri-state is 0 unset / 1 yes / 2 no')
 check('%option_aid = ^aid_yes;' in OPTRS and '%option_aid = ^aid_no;' in OPTRS,
-      "options:com_52 and com_53 set %option_aid - they used to set %option_pm, which belongs to "
-      'com_47/com_48, so Accept Aid silently moved your private chat setting and never moved aid')
+      "options:accept_aid sets %option_aid both ways - the 377 tab's Yes/No pair once set %option_pm, "
+      'which belongs to Split Private-chat, so Accept Aid silently moved your private chat setting')
 check(OPTRS.count('%option_pm = 1;') == 1 and OPTRS.count('%option_pm = 0;') == 1,
-      '...and exactly one pair still sets %option_pm, which is the Split Private-chat pair')
+      '...and exactly one handler still sets %option_pm, which is Split Private-chat')
 check('%option_aid = ^aid_yes;' in OPTLDRS and '%option_aid = ^aid_no;' in OPTLDRS,
       'the low-detail tab - which had it right all along - uses the same constants')
-for name, f, yes, no in (('options', OPTIF, 'com_52', 'com_53'),
-                         ('options_ld', OPTLDIF, 'com_33', 'com_34')):
-    by, bn = block(f, yes), block(f, no)
-    check('pushvar,option_aid' in by and 'pushvar,option_aid' in bn,
-          '%s: both buttons really are the Accept Aid pair' % name)
-    check('script1=lt,2' in by,
-          '%s: Yes lights below 2, so an account that has never opened this tab shows Yes - '
-          'a varp has no default and 0 is what every existing save holds' % name)
-    check('script1=eq,2' in bn, '%s: No lights on 2' % name)
+# 474's Options tab has ONE Accept Aid toggle, lit while aid is on; the low-detail tab keeps 377's pair.
+ba = block(OPTIF, 'accept_aid')
+check('pushvar,option_aid' in ba and 'buttontype=toggle' in ba,
+      'options: accept_aid really is the Accept Aid toggle')
+check('script1=lt,2' in ba,
+      'options: Yes lights below 2, so an account that has never opened this tab shows Yes - '
+      'a varp has no default and 0 is what every existing save holds')
+by, bn = block(OPTLDIF, 'com_33'), block(OPTLDIF, 'com_34')
+check('pushvar,option_aid' in by and 'pushvar,option_aid' in bn,
+      'options_ld: both buttons really are the Accept Aid pair')
+check('script1=lt,2' in by,
+      'options_ld: Yes lights below 2, so an account that has never opened this tab shows Yes - '
+      'a varp has no default and 0 is what every existing save holds')
+check('script1=eq,2' in bn, 'options_ld: No lights on 2')
 check('.%option_aid = ^aid_no' in CODE,
       'and Teleother is the first thing in the build that reads the setting at all')
 

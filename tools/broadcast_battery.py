@@ -9,10 +9,10 @@ What it holds in place, and why each is a thing that has already gone wrong once
   gone on printing plain black text. broadcast_mes is called from general/scripts/broadcast.rs2
   and nowhere else.
   EVERY PET ANNOUNCES. Only the Jad pet did; boss pets, skill pets and the Kraken's did not.
-  THE ICON SHEET HAS ALL SEVEN ICONS, keyed on magenta. The packer takes 0xff00ff as transparent and
+  THE ICON SHEET HAS ALL EIGHT ICONS, keyed on magenta. The packer takes 0xff00ff as transparent and
   ignores alpha, so an icon drawn with alpha-transparent corners ships with black ones.
   THE CROWN RULE IS THE ENGINE'S. ~broadcast_name must give the crown engine ChatCrown gives the
-  same player's chat lines - 1 silver, 2 and 3 gold, 4 purple, 5 and up red - or a moderator's yell and
+  same player's chat lines - 1 silver, 2 and 3 gold, 4 purple, 5 red, 6 and up blue and gold - or a moderator's yell and
   their chat show different ranks, which is exactly what ::yell used to do.
 """
 import os
@@ -74,7 +74,7 @@ try:
     opt = read('sprites/meta/mod_icons.opt').split('\n')[0].strip()
     tw, th = (int(n) for n in opt.split('x'))
     check((tw, th) == (13, 13), 'tiles are 13x13 (%s)' % opt)
-    check(im.size == (7 * tw, th), 'seven tiles - two crowns, three XP-mode badges, the developer and owner crowns (%dx%d)' % im.size)
+    check(im.size == (8 * tw, th), 'eight tiles - two crowns, three XP-mode badges, the developer crown and both owner crowns (%dx%d)' % im.size)
     alpha = sum(1 for y in range(im.height) for x in range(im.width) if im.getpixel((x, y))[3] < 255)
     check(alpha == 0, 'transparency is magenta, not alpha - the packer ignores alpha (%d alpha pixels)' % alpha)
     for t in range(im.width // tw):
@@ -87,8 +87,8 @@ print('the crown rule')
 m = re.search(r'\[proc,broadcast_name\]\(\)\(string\)(.*?)\n\[', BC + '\n[', re.S)
 body = m.group(1) if m else ''
 rule = re.findall(r'staffmodlevel >= (\d)\) \{\s*\$icons = "(@cr\d@)"', body)
-check(rule == [('5', '@cr7@'), ('4', '@cr6@'), ('2', '@cr2@'), ('1', '@cr1@')],
-      '5+ red, 4 purple, 2+ gold, 1+ silver - engine ChatCrown\'s rule (%s)' % rule)
+check(rule == [('6', '@cr8@'), ('5', '@cr7@'), ('4', '@cr6@'), ('2', '@cr2@'), ('1', '@cr1@')],
+      '6+ blue and gold, 5 red, 4 purple, 2+ gold, 1+ silver - engine ChatCrown\'s rule (%s)' % rule)
 badges = dict(re.findall(r'case (\^xprate_\w+|default) : \$icons = append\(\$icons, "(@cr\d@)"\)', body))
 check(badges.get('^xprate_10x') == '@cr5@' and badges.get('^xprate_5x') == '@cr4@' and badges.get('default') == '@cr3@',
       '10x, 5x, and Realism for everything else, unset included (%s)' % badges)
