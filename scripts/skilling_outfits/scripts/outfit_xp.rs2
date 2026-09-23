@@ -21,14 +21,17 @@
 // run energy recovery are numbers the engine reads - see that file's header for why that is the
 // right place for a continuous effect and not a dodge.
 //
-//   Guild hunter - still nothing, and the only outfit that cannot have a source of this shape,
-//                  because Hunter does not exist in this build. See outfits.constant.
+// THE CARPENTER'S OUTFIT USED TO BE ON THAT LIST, because Construction did not exist when this
+// file was written. It does now, so ~construction_xp is below with the others and the carpenter's
+// outfit pays its 2.5% like everything else. A comment that names a reason goes stale when the
+// reason does; this is the second one this week to have been quietly wrong (the Garden Centre's
+// note about the flowers was the first).
 //
-// THE CARPENTER'S OUTFIT USED TO BE ON THAT LIST TOO, next to the Guild hunter's, because Construction
-// did not exist when this file was written. It does now, so ~construction_xp is below with the
-// other six and the carpenter's outfit pays its 2.5% like everything else. A comment that names a
-// reason goes stale when the reason does; this is the second one this week to have been quietly
-// wrong (the Garden Centre's note about the flowers was the first).
+// THE GUILD HUNTER OUTFIT WAS THE LAST NAME ON IT, for the same reason one skill later: Hunter did
+// not exist either. It does now (stat 22, 2026-09-22), so ~hunter_xp is below and the outfit is
+// found the way every other one is - while training the skill it belongs to. Its four pieces have
+// been imported and unobtainable since the OSRS gear import; this is the first thing that can
+// drop them.
 
 // Four pieces in the usual hat / torso / legs / feet slots.
 [proc,outfit_xp_bonus](obj $hat, obj $torso, obj $legs, obj $feet)(int)
@@ -136,6 +139,15 @@ def_int $bonus = ~outfit_xp_bonus(carpenters_helm, carpenters_shirt, carpenters_
 def_int $extra = calc(($xp * $bonus) / 1000);
 ~outfit_roll(^outfit_carpenters, $xp);
 stat_advance(construction, calc($xp + $extra));
+
+[proc,hunter_xp](int $xp)
+if ($xp <= 0) {
+    return;
+}
+def_int $bonus = ~outfit_xp_bonus(hunter_headwear, hunter_top, hunter_legs, hunter_boots);
+def_int $extra = calc(($xp * $bonus) / 1000);
+~outfit_roll(^outfit_hunter, $xp);
+stat_advance(hunter, calc($xp + $extra));
 
 // ---------------------------------------------------------------- the three with no bonus
 // Agility, Thieving and Prayer. No ~outfit_xp_bonus call and no $extra, because OSRS gives these

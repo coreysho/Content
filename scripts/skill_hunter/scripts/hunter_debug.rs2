@@ -1,0 +1,22 @@
+// ::hunter [xp] - a small fishing net and some Hunter experience, so butterfly netting can be
+// tried at every tier without an afternoon of swinging.
+//
+// Bare `::hunter` grants enough to clear the Tiger Swallowtail's level 35; `::hunter 500` grants
+// 50 xp, in the same x10 form stat_advance takes everywhere else. A debugproc needs staff level 4
+// (ClientCheatHandler), and this build currently allows them in production - see the note there.
+[debugproc,hunter](int $xp)
+if (inv_total(inv, net) = 0) {
+    if (inv_freespace(inv) < 1) {
+        mes("No room for a net.");
+        return;
+    }
+    inv_add(inv, net, 1);
+}
+def_int $grant = $xp;
+if ($grant <= 0) {
+    $grant = ^hunter_debug_xp;
+}
+// Straight to the stat rather than through ~hunter_xp: this is a test grant, not a skilling
+// action, and it should not roll for a Guild hunter piece.
+stat_advance(hunter, $grant);
+mes("Hunter is now <tostring(stat(hunter))>. Use the net on a butterfly.");

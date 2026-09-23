@@ -1,0 +1,60 @@
+// Hunter - butterfly netting. See configs/hunter.constant for where the butterflies are, why this
+// is an [opnpcu] rather than an [opnpc1], and why the net is the plain small fishing net.
+//
+// Five npcs, four tiers: butterfly and butterfly2 are the same catch under two ids, because the
+// cache ships two plain butterflies with different models and the same name.
+
+[opnpcu,butterfly]
+@hunter_net_butterfly(^hunter_butterfly_level, ^hunter_butterfly_xp, ^hunter_butterfly_low, ^hunter_butterfly_high, "butterfly");
+
+[opnpcu,butterfly2]
+@hunter_net_butterfly(^hunter_butterfly_level, ^hunter_butterfly_xp, ^hunter_butterfly_low, ^hunter_butterfly_high, "butterfly");
+
+[opnpcu,butterfly_viceroy]
+@hunter_net_butterfly(^hunter_viceroy_level, ^hunter_viceroy_xp, ^hunter_viceroy_low, ^hunter_viceroy_high, "Viceroy");
+
+[opnpcu,butterfly_bluemorpo]
+@hunter_net_butterfly(^hunter_bluemorpo_level, ^hunter_bluemorpo_xp, ^hunter_bluemorpo_low, ^hunter_bluemorpo_high, "Blue Morpho");
+
+[opnpcu,butterfly_tigerswallowtail]
+@hunter_net_butterfly(^hunter_swallowtail_level, ^hunter_swallowtail_xp, ^hunter_swallowtail_low, ^hunter_swallowtail_high, "Tiger Swallowtail");
+
+// $name is the species as it appears in a sentence: "You catch the Viceroy." The two plain ones
+// pass "butterfly" in lower case for the same reason.
+[label,hunter_net_butterfly](int $level, int $xp, int $low, int $high, string $name)
+// FIRST, before anything that can move the player. p_arrivedelay corrupts last_useitem - the
+// compiler rejects a read of it afterwards - and every level and equipment check below wants to
+// know what was used. See claude/rs2-compile-traps.md.
+def_obj $used = last_useitem;
+if ($used ! net) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (stat(hunter) < $level) {
+    ~mesbox("You need a Hunter level of <tostring($level)> to catch a <$name>.");
+    return;
+}
+p_arrivedelay;
+anim(human_smallnet, 0);
+sound_synth(net, 1, 0);
+// The roll and the removal happen together, with the delay after them rather than between. These
+// are shared world npcs, not per-player spawns, so a delay in the middle opens a window where two
+// players both roll a success on the same butterfly and both get paid for it. npc_del on an npc
+// somebody else already took is harmless - World.removeNpc returns early on an inactive one - but
+// the experience would not be, and the butterfly vanishing as the net comes down is what it should
+// look like anyway.
+if (stat_random(hunter, $low, $high) = false) {
+    mes("You swing the net and miss. The <$name> flits out of reach.");
+    p_delay(2);
+    return;
+}
+// A static map npc: npc_del schedules its respawn rather than destroying it, at the type's own
+// respawnrate. The butterflies declare none, so they take the engine's default of 100 ticks - a
+// minute, which is about right for a catch this cheap.
+npc_del;
+~hunter_xp($xp);
+// No jar to put it in yet - see the note in hunter.constant - so the catch is the reward. One
+// line rather than a ~mesbox: this fires every few ticks while training and a modal that has to
+// be clicked away would make the skill unplayable.
+mes("You catch the <$name>, look at it properly, and let it go.");
+p_delay(2);

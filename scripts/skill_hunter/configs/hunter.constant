@@ -1,0 +1,63 @@
+// Hunter. Stat 22, added 2026-09-22 (engine PlayerStat.HUNTER, content stat.enum index 23).
+//
+// BUTTERFLY NETTING is the first thing in it, and it is built entirely out of what the 377 cache
+// already has on the map. No import, no new art, no new npc:
+//
+//   butterfly                    id 153   126 placements
+//   butterfly2                   id 154    64
+//   butterfly_viceroy            id 157    42
+//   butterfly_bluemorpo          id 155    12
+//   butterfly_tigerswallowtail   id 156     5
+//
+// 249 of them across 20 map squares, the thickest of it in Tirannwn (m34_49, m34_50, m35_49,
+// m35_50, m36_49) with smaller clusters round Lumbridge and Draynor (m48_48, m49_50, m50_50) and
+// in the upper map band. Jagex placed them as scenery years before Hunter existed, and scenery is
+// exactly what they have been ever since: not one of the five carries an op, so there has never
+// been anything to click.
+//
+// WHICH IS WHY THIS IS AN [opnpcu] AND NOT AN [opnpc1]. A handler on an op the npc does not
+// declare never fires - the dead-click class this repo has been clearing all month. But
+// Client.addNpcOptions adds "Use <item> with <npc>" from the bounds and the interact flag alone,
+// with no reference to the ops array at all, and the butterflies never set active=no. So using a
+// net on one works today, on npcs nobody has touched, and it is also how the real skill reads.
+//
+// THE NET IS THE PLAIN SMALL FISHING NET. A proper butterfly net is 2006 art this cache does not
+// have, and inventing one is the thing that goes wrong (claude/black-mask-slayer-helm-ma2.md).
+// `net` is already in every fishing shop, already wieldable, and needs no trigger of its own: the
+// handler lives on the BUTTERFLY and reads last_useitem, so nothing about fishing changes.
+//
+// NO JARS YET. OSRS puts the butterfly in a butterfly jar; the cache's only jar is the Digsite's
+// specimen_jar, which that quest counts, and there is no Hunter expert to sell anything. So a
+// catch is worth experience and nothing else until there is somewhere to buy a jar from - which
+// is the next thing this skill needs, not a thing to fake now.
+
+// The rarer the species, the higher the level - and the cache's own placement counts are what
+// order them. 190 plain butterflies, 42 viceroys, 12 blue morphos, 5 tiger swallowtails.
+^hunter_butterfly_level = 1
+^hunter_viceroy_level = 15
+^hunter_bluemorpo_level = 25
+^hunter_swallowtail_level = 35
+
+// Experience, in the x10 form stat_advance takes throughout this repo. OSRS pays 24/34/44/54 for
+// its four butterflies; these are the same shape one tier lower, because the first of ours is a
+// level 1 catch and OSRS's first is level 15.
+^hunter_butterfly_xp = 120
+^hunter_viceroy_xp = 240
+^hunter_bluemorpo_xp = 340
+^hunter_swallowtail_xp = 440
+
+// stat_random(stat, low, high) is the engine's own interpolated roll: `low` out of 256 at level 1,
+// `high` out of 256 at 99, straight-line between. A harder butterfly starts worse and ends a
+// little worse, so the level that unlocks a species is never the level you farm it at.
+^hunter_butterfly_low = 100
+^hunter_butterfly_high = 250
+^hunter_viceroy_low = 70
+^hunter_viceroy_high = 235
+^hunter_bluemorpo_low = 60
+^hunter_bluemorpo_high = 225
+^hunter_swallowtail_low = 50
+^hunter_swallowtail_high = 215
+
+// Enough experience to clear the Tiger Swallowtail's level 35, for [debugproc,hunter]. 22,406 xp
+// is level 35 on the standard table; this is the x10 form plus a little slack.
+^hunter_debug_xp = 230000
