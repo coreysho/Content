@@ -21,21 +21,69 @@
 // with two) every untrimmed cape they hold - inventory, worn or banked - is swapped for the trimmed
 // one (~skillcape_trim_all, called from [label,levelup] and [login,_]).
 
-[proc,skillcape_count_99s]()(int)
+// THE SKILLS THE MAX CAPE COUNTS. This used to be the stats enum outright, on the reasoning that
+// "every skill there is" is what that enum means. Hunter (stat 22, 2026-09-22) broke that: it is a
+// real stat that levels and saves, but nothing in the world trains it, it has no cape entry in
+// skillcape_cape, and no Hunter emote has been converted out of the OSRS cache. Counting it would
+// have made the Max cape unbuyable AND unwearable - including for anyone already holding one,
+// because [opheld2,max_cape] re-checks on every equip.
+//
+// So the count is now "skills with a cape you can earn", which is skillcape_cape - the one table
+// that knows. Adding `val=hunter,hunter_cape` to it (plus the hood, the trim and an emote) is the
+// single edit that makes the Max cape 23 skills, Mac's price go up, and the emote pick include it,
+// with nothing here to change.
+[proc,skillcape_stats]()(int)
 def_int $count = 0;
 def_int $i = 1;
 while ($i <= enum_getoutputcount(stats)) {
-    if (stat_base(enum(int, stat, stats, $i)) >= 99) {
+    if (enum(stat, namedobj, skillcape_cape, enum(int, stat, stats, $i)) ! null) {
         $count = add($count, 1);
     }
     $i = add($i, 1);
 }
 return($count);
 
+[proc,skillcape_count_99s]()(int)
+def_int $count = 0;
+def_int $i = 1;
+while ($i <= enum_getoutputcount(stats)) {
+    if (enum(stat, namedobj, skillcape_cape, enum(int, stat, stats, $i)) ! null
+        & stat_base(enum(int, stat, stats, $i)) >= 99) {
+        $count = add($count, 1);
+    }
+    $i = add($i, 1);
+}
+return($count);
+
+// One of the caped skills, uniformly. Walks to the $pick-th skill that has a cape rather than
+// indexing the stats enum directly, because a stat without a cape would otherwise come up null and
+// the Max cape emote would refuse itself - "You need to be wearing a Skillcape" while wearing one.
+[proc,skillcape_random_cape]()(namedobj)
+def_int $pick = random(~skillcape_stats);
+def_int $i = 1;
+def_namedobj $cape = null;
+while ($i <= enum_getoutputcount(stats)) {
+    $cape = enum(stat, namedobj, skillcape_cape, enum(int, stat, stats, $i));
+    if ($cape ! null) {
+        if ($pick = 0) {
+            return($cape);
+        }
+        $pick = sub($pick, 1);
+    }
+    $i = add($i, 1);
+}
+return(null);
+
 // Offered at the top of a master's Talk-to. Returns true when the cape conversation replaced the
 // npc's normal dialogue, so the caller should stop.
 [proc,skillcape_offer](stat $stat)(boolean)
 if (stat_base($stat) < 99) {
+    return(false);
+}
+// A stat can now exist without a cape - Hunter does - and ~skillcape_sell would hand out a null
+// obj. No master offers one today, so this cannot be reached; it is here because the invariant it
+// used to rely on ("every stat has a cape") is the one that just stopped being true.
+if (enum(stat, namedobj, skillcape_cape, $stat) = null) {
     return(false);
 }
 def_string $skill = enum(stat, string, stat_names, $stat);
@@ -147,14 +195,15 @@ def_obj $cape = inv_getobj(worn, ^wearpos_back);
 // overhead - and it is not the 24-wide block of skillcape emotes this build imported, so there is
 // nothing to look up and nothing worth guessing at (claude/black-mask-slayer-helm-ma2.md is what
 // guessing at an unseen asset costs). The cape that stands for all 22 skills performs one of their
-// emotes instead, picked at random each time. Every skill in the stats enum has a cape with both an
-// emote and a graphic - battery check 8 holds that - so the pick can never come up empty.
+// emotes instead, picked at random each time. Every skill WITH A CAPE has both an emote and a
+// graphic - battery check 8 holds that - so the pick can never come up empty. It is ~skillcape_stats
+// wide, not the stats enum: Hunter is a stat with no cape, and picking it returned null.
 // A VARIANT emotes the same way, which is the one thing OSRS lets a variant keep besides the
 // four guild-and-warmth perks. Written as one condition with the plain cape rather than a second
 // copy of the random pick: the variant IS a Max cape underneath, and if the real animation is ever
 // identified there is still only one line to change.
 if ($cape = max_cape | enum(obj, namedobj, maxvariant_source, $cape) ! null) {
-    $cape = enum(stat, namedobj, skillcape_cape, enum(int, stat, stats, calc(random(enum_getoutputcount(stats)) + 1)));
+    $cape = ~skillcape_random_cape;
 }
 def_seq $seq = null;
 if ($cape ! null) {
@@ -251,17 +300,17 @@ if (~skillcape_offer(hitpoints) = true) {
 // Mac sells it, and his price is OSRS's: 99,000 a skill, which comes to 2,376,000 there for 24
 // skills and to ^skillcape_price x the stats enum here. Counted rather than written down, so a
 // skill added to that enum raises the price and the requirement together - the same reason
-// ~maxcape_ready counts instead of naming: this server has no Hunter, and the enum is the only
-// place that knows which skills exist.
+// ~maxcape_ready counts instead of naming: ~skillcape_stats is the number of skills with a cape,
+// which is the only place that knows, and it moves on its own when one is added.
 //
 // A lost cape or hood is replaced free, as in OSRS. %maxcape_bought remembers only that you once
 // bought one; what happened to it is not Mac's business.
 
 [proc,maxcape_price]()(int)
-return(calc(^skillcape_price * enum_getoutputcount(stats)));
+return(calc(^skillcape_price * ~skillcape_stats));
 
 [proc,maxcape_ready]()(boolean)
-if (~skillcape_count_99s >= enum_getoutputcount(stats)) {
+if (~skillcape_count_99s >= ~skillcape_stats) {
     return(true);
 }
 return(false);
@@ -281,7 +330,7 @@ return($missing);
 [opnpc1,skillcape_mac]
 ~chatnpc("<p,happy>Hello there. I'm Mac. I keep an eye on the ones who have finished the lot.");
 if (~maxcape_ready = false) {
-    ~chatnpc("<p,neutral>The Max cape is for those who have reached level 99 in all <tostring(enum_getoutputcount(stats))> skills. You have <tostring(~skillcape_count_99s)> of them.");
+    ~chatnpc("<p,neutral>The Max cape is for those who have reached level 99 in all <tostring(~skillcape_stats)> skills. You have <tostring(~skillcape_count_99s)> of them.");
     ~chatnpc("<p,happy>Come back when you've got the rest and I'll sell you one for <tostring(~maxcape_price)> coins.");
     return;
 }
@@ -302,7 +351,7 @@ if (~p_choice2("Can I buy a Max cape?", 1, "Something else.", 2) ! 1) {
     return;
 }
 ~chatplayer("<p,quiz>Can I buy a Max cape?");
-~chatnpc("<p,happy>All <tostring(enum_getoutputcount(stats))> skills mastered - not many manage that. <tostring(~maxcape_price)> coins and it's yours, hood and all.");
+~chatnpc("<p,happy>All <tostring(~skillcape_stats)> skills mastered - not many manage that. <tostring(~maxcape_price)> coins and it's yours, hood and all.");
 if (~p_choice2("Okay, here you go.", 1, "No thanks.", 2) ! 1) {
     ~chatplayer("<p,neutral>No thanks.");
     ~chatnpc("<p,neutral>Come back if you change your mind.");

@@ -259,6 +259,10 @@ PARAMCFG = readat(ENGINE, 'tools/pack/config/ParamConfig.ts')
 XPLOCK = read('scripts/gamemodes/scripts/xplock.rs2')
 GENLOCK = read('tools/genxplock.py')
 STATSIF = read('scripts/interfaces/stats.if')
+# How many stats this build has. Read from the engine when it is beside us, and counted from the
+# ^xplock_ constants when it is not, so section 10 below stops being a number that has to be edited
+# by hand every time a skill is added - it was still 22 the day Hunter became 23.
+NSTATS = len([k for k, _ in re.findall(r'(?m)^\^xplock_([a-z]+) = (\d+)$', CONST) if k != 'skills'])
 if PARAMCFG is None:
     check(False, 'the engine repo is not beside content - pass its path as argv[1]')
 else:
@@ -281,6 +285,7 @@ else:
     gen_stats = re.findall(r"'([a-z]+)'", g.group(1)) if g else []
     check(gen_stats == engine_stats,
           'tools/genxplock.py\'s STAT_ORDER is the engine\'s list, in order')
+    NSTATS = len(engine_stats)
 
 # ============================================================================ 9
 print('9. the engine refuses a locked skill\'s experience, and only that')
@@ -321,7 +326,7 @@ else:
           '...throttled by a plain field sized to the stat count, not by a varp')
 
 # ============================================================================ 10
-print('10. the stats tab: 22 second options that cannot become the left click')
+print('10. the stats tab: %d second options that cannot become the left click' % NSTATS)
 IFS = []
 for chunk in re.split(r'(?m)^(?=\[)', STATSIF):
     mm = re.match(r'\[(\w+)\]', chunk)
@@ -332,10 +337,11 @@ byn = dict(IFS)
 locks = [n for n, _ in IFS if n.startswith('xplock_')]
 guides = [(n, d) for n, d in IFS if d.get('buttontype') == 'normal' and 'overlayer' in d
           and not n.startswith('xplock_')]
-check(len(locks) == len(guides) == 22,
-      'one lock button per skill box: %d locks, %d boxes' % (len(locks), len(guides)))
+check(len(locks) == len(guides) == NSTATS,
+      'one lock button per skill box: %d locks, %d boxes, %d stats'
+      % (len(locks), len(guides), NSTATS))
 bad = [n for n in locks if 'option' not in byn[n] or byn[n].get('buttontype') != 'normal']
-check(not bad, 'every one is a normal button with an option: %s' % (bad or 'all 22'))
+check(not bad, 'every one is a normal button with an option: %s' % (bad or 'all %d' % NSTATS))
 # THE CHECK THIS ROUND EXISTS FOR. Client.java: the left-click action is menuOption[menuSize - 1],
 # the LAST option appended, and components are walked in child order - so a lock button after its
 # guide button would make LOCKING the left click on a skill box.
@@ -345,22 +351,22 @@ for n in locks:
     if not same or pos[n] > pos[same[0]]:
         late.append(n)
 check(not late, 'each one is emitted BEFORE its guide button, so left click still opens the '
-                'guide: %s' % (late or 'all 22'))
+                'guide: %s' % (late or 'all %d' % NSTATS))
 def guide_for(n):
     same = [g for g, d in guides if d['overlayer'] == byn[n]['overlayer']]
     return same[0] if same else None
 geom = [n for n in locks
         if guide_for(n) is None
         or any(byn[n][k] != byn[guide_for(n)][k] for k in ('x', 'y', 'width', 'height'))]
-check(not geom, 'each one covers exactly its own skill box: %s' % (geom or 'all 22'))
+check(not geom, 'each one covers exactly its own skill box: %s' % (geom or 'all %d' % NSTATS))
 names = [byn[n]['option'] for n in locks]
 check(len(set(names)) == len(names), 'no two say the same thing: %d distinct' % len(set(names)))
 packed = dict(l.split('=', 1)[::-1] for l in IPACK.split('\n') if '=' in l)
 missing = [n for n in locks if 'stats:' + n not in packed]
-check(not missing, 'every one has an id in interface.pack: %s' % (missing or 'all 22'))
+check(not missing, 'every one has an id in interface.pack: %s' % (missing or 'all %d' % NSTATS))
 ordered = {l.strip() for l in IORDER.split('\n') if l.strip()}
 missing = [n for n in locks if packed.get('stats:' + n) not in ordered]
-check(not missing, '...and is in interface.order: %s' % (missing or 'all 22'))
+check(not missing, '...and is in interface.order: %s' % (missing or 'all %d' % NSTATS))
 driven = sorted(set(re.findall(r'\[if_button,stats:(\w+)\]', XPLOCK)))
 check(driven == sorted(locks), 'every button has a trigger and every trigger has a button')
 # the label each trigger rewrites has to belong to that skill's OWN hover panel
@@ -372,7 +378,7 @@ for n in locks:
         if byn.get(lab, {}).get('layer') != ov:
             crossed.append((n, lab))
 check(not crossed, 'and rewrites a label inside its own skill\'s hover panel: %s'
-      % (crossed[:3] or 'all 22'))
+      % (crossed[:3] or 'all %d' % NSTATS))
 # THE CHECK THE BUILD EARNED. An [if_button] is handed active_player and NOT p_active_player
 # (claude/rs2-player-pointer-contexts.md). Without p_finduid these bodies fail TWICE: ~p_choice2
 # reaches p_pausebutton, which is a build error, and writing a protect=yes varp from an
@@ -385,7 +391,7 @@ for n in locks:
     if not lines or lines[0].strip() != 'if (p_finduid(uid) = true) {':
         unprot.append(n)
 check(not unprot, 'and takes protected access FIRST, because an [if_button] is not handed it: %s'
-      % (unprot[:3] or 'all 22'))
+      % (unprot[:3] or 'all %d' % NSTATS))
 # THE CHECK THE SECOND DEPLOY EARNED. A type=text with no font= packs as fonts[255] and kills the
 # CLIENT on load - "loaderror Unpacking interfaces 95" - with no server-side symptom at all.
 # rs2check rule 20 holds this repo-wide now; this one is here because these 22 are the components
@@ -393,12 +399,12 @@ check(not unprot, 'and takes protected access FIRST, because an [if_button] is n
 IF_FONTS = {'p11_full', 'p12_full', 'b12_full', 'q8_full'}
 nofont = [n for n in locks if byn[n].get('font') not in IF_FONTS]
 check(not nofont, 'and names a font the packer knows, or the client dies unpacking interfaces: %s'
-      % (nofont[:3] or 'all 22'))
+      % (nofont[:3] or 'all %d' % NSTATS))
 outside = [n for n in locks
            if re.search(r'(?m)^%xp_locked = ', code(XPLOCK.split('[if_button,stats:%s]' % n, 1)[1]
                                                     .split('\n[', 1)[0]))]
 check(not outside, '...with every %%xp_locked write inside that branch, not beside it: %s'
-      % (outside[:3] or 'all 22'))
+      % (outside[:3] or 'all %d' % NSTATS))
 lkv = varpblock(VARP, 'xp_locked')
 check('protect=no' not in lkv,
       '...so the varp stays protected rather than being opened up to get round it')

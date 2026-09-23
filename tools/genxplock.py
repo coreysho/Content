@@ -56,6 +56,7 @@ STAT_ORDER = [
     'attack', 'defence', 'strength', 'hitpoints', 'ranged', 'prayer', 'magic', 'cooking',
     'woodcutting', 'fletching', 'fishing', 'firemaking', 'crafting', 'smithing', 'mining',
     'herblore', 'agility', 'thieving', 'slayer', 'farming', 'runecraft', 'construction',
+    'hunter',
 ]
 
 MARKER_TEXT = '@red@XP locked'

@@ -133,27 +133,40 @@ check(MAXOBJ['max_hood'].get('iop2') == ['Wear'] and len(
 check(MAXOBJ['max_hood'].get('param') is None, 'and carries no bonuses at all, as in OSRS')
 
 # ============================================================================ 3
-print('3. it needs 99 in every skill there is, and Mac charges by the skill')
+print('3. it needs 99 in every skill that HAS a cape, and Mac charges by the skill')
+# THE COUNT IS NOT THE STATS ENUM ANY MORE. Hunter (stat 22, 2026-09-22) is a real stat that levels
+# and saves with no way to train it, no cape row and no converted emote, so counting it would have
+# made the Max cape unbuyable and unwearable - re-checked on every equip - for a skill nobody can
+# advance. ~skillcape_stats counts the skills with a cape instead, which is skillcape_cape, and
+# adding a hunter row there is the single edit that folds it back in.
+CAPED = sorted(set(enum_rows(SCENUM, 'skillcape_cape')))
+UNCAPED = sorted(set(STATS.values()) - set(CAPED))
 gate = EQUIP.split('[opheld2,max_cape]', 1)[1].split('\n[', 1)[0]
-check('~skillcape_count_99s < enum_getoutputcount(stats)' in gate,
-      'the gate counts 99s against the stats enum rather than naming skills')
+check('~skillcape_count_99s < ~skillcape_stats' in gate,
+      'the gate counts 99s against the caped skills rather than naming skills')
 check('~equip(last_slot)' in gate, 'and equips when they are all there')
+stats_proc = SHOP.split('[proc,skillcape_stats]', 1)[1].split('\n[', 1)[0]
+check('skillcape_cape' in stats_proc and '! null' in stats_proc,
+      'and that count is read off skillcape_cape, so a capeless stat cannot lock the cape')
+count_proc = SHOP.split('[proc,skillcape_count_99s]', 1)[1].split('\n[', 1)[0]
+check('skillcape_cape' in count_proc,
+      '...and so is the tally of 99s, or the two would disagree and the gate could never be met')
 # VALUES AFTER THE CLAIM, NOT INSIDE IT. A mutation's label is the wording of the check it is
 # written for, so a number in the middle of a claim changes the wording the moment the number
 # changes, and the label stops matching. Three labels in this file were unmatchable for that
 # reason; tools/mutate_labels.py is what found them.
-check(len(STATS) == 22,
-      'the enum holds every skill this build has, Construction in and Hunter out: %d'
-      % len(STATS))
-check('construction' in STATS.values() and 'hunter' not in STATS.values(),
-      'Construction is one of them and Hunter is not, which is what makes the cape reachable')
+check('construction' in CAPED, 'Construction has a cape, as it has since the houses landed')
+check(set(CAPED) <= set(STATS.values()),
+      'every caped skill is a real stat: %s' % (sorted(set(CAPED) - set(STATS.values())) or 'yes'))
+check(UNCAPED == ['hunter'],
+      'and the only stat without one is Hunter, which has no content yet: %s' % (UNCAPED,))
 price = SHOP.split('[proc,maxcape_price]', 1)[1].split('\n[', 1)[0]
-check('^skillcape_price * enum_getoutputcount(stats)' in price,
+check('^skillcape_price * ~skillcape_stats' in price,
       'the price is the skillcape price times that same count')
 check(const('skillcape_price') == 99000, 'a skillcape is 99,000 coins, as in OSRS')
-check(const('skillcape_price') * len(STATS) == 2178000,
+check(const('skillcape_price') * len(CAPED) == 2178000,
       'so the Max cape comes to %s coins - 99,000 a skill, the way OSRS prices its own'
-      % format(const('skillcape_price') * len(STATS), ','))
+      % format(const('skillcape_price') * len(CAPED), ','))
 check(not re.search(r'\b2178000\b', SHOP), 'and that total is nowhere written down as a literal')
 mac = SHOP.split('[opnpc1,skillcape_mac]', 1)[1].split('\n[', 1)[0]
 check('~maxcape_ready = false' in mac, 'Mac checks the requirement before he offers anything')
@@ -165,27 +178,32 @@ check(give.count('~obj_gettotal') == 2,
       'and looks in the inventory, the bank and the worn slots for each piece')
 
 # ============================================================================ 4
-print('4. every skill has a cape, and every cape has an emote - the random pick cannot come up empty')
+print('4. every caped skill has all three pieces and an emote - the random pick cannot come up empty')
 capes = enum_rows(SCENUM, 'skillcape_cape')
 capes_t = enum_rows(SCENUM, 'skillcape_cape_t')
 hoods = enum_rows(SCENUM, 'skillcape_hood')
-for tbl, name in ((capes, 'skillcape_cape'), (capes_t, 'skillcape_cape_t'), (hoods, 'skillcape_hood')):
-    missing = sorted(set(STATS.values()) - set(tbl))
-    check(not missing, '%s covers all %d skills: %s' % (name, len(STATS), missing or 'yes'))
+for tbl, name in ((capes_t, 'skillcape_cape_t'), (hoods, 'skillcape_hood')):
+    missing = sorted(set(CAPED) - set(tbl))
+    check(not missing, '%s covers every caped skill: %s' % (name, missing or 'yes'))
+    extra = sorted(set(tbl) - set(CAPED))
+    check(not extra, '...and no skill the plain table does not have: %s' % (extra or 'yes'))
 eseq = enum_rows(SCENUM, 'skillcape_emote_seq')
 espot = enum_rows(SCENUM, 'skillcape_emote_spot')
-bad = [s for s in STATS.values() if capes[s] not in eseq or capes[s] not in espot]
+bad = [k for k in CAPED if capes[k] not in eseq or capes[k] not in espot]
 check(not bad, 'and every one of those capes has both an emote and a graphic: %s' % (bad or 'yes'))
-bad = [s for s in STATS.values() if capes_t[s] not in eseq or capes_t[s] not in espot]
+bad = [k for k in CAPED if capes_t[k] not in eseq or capes_t[k] not in espot]
 check(not bad, 'trimmed included: %s' % (bad or 'yes'))
 emote = SHOP.split('[if_button,controls:skillcape]', 1)[1].split('\n[', 1)[0]
 check('$cape = max_cape' in emote, 'the emote button knows about the Max cape')
 check('maxvariant_source' in emote,
       '...and about the variants, which keep the emote and almost nothing else')
-check('enum(int, stat, stats, calc(random(enum_getoutputcount(stats)) + 1))' in emote,
-      'and picks one of the 22 skills, 1-based like the enum')
+check('~skillcape_random_cape' in emote,
+      'and picks a CAPED skill, not a stat - a capeless stat came up null and refused the emote')
+pick = SHOP.split('[proc,skillcape_random_cape]', 1)[1].split('\n[', 1)[0]
+check('random(~skillcape_stats)' in pick, '...uniformly over exactly the skills that have one')
+check('return(null)' in pick, '...and still answers null rather than running off the end')
 check(sorted(int(k) for k in STATS) == list(range(1, len(STATS) + 1)),
-      'the stats enum really is 1..%d with no gap, or that pick could miss' % len(STATS))
+      'the stats enum really is 1..%d with no gap, or that walk could miss' % len(STATS))
 
 # ============================================================================ 5
 print('5. it has every perk, through the one proc that answers them all')

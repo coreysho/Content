@@ -106,6 +106,9 @@ if (~xplock_is(^xplock_farming) = true) {
 if (~xplock_is(^xplock_construction) = true) {
     if_settext(stats:construction_hover_next, "@red@XP locked");
 }
+if (~xplock_is(^xplock_hunter) = true) {
+    if_settext(stats:hunter_hover_next, "@red@XP locked");
+}
 
 [if_button,stats:xplock_attack]
 // p_finduid FIRST. An [if_button] is handed active_player and NOT p_active_player -
@@ -610,5 +613,28 @@ if (p_finduid(uid) = true) {
         %xp_locked = setbit(%xp_locked, ^xplock_construction);
         if_settext(stats:construction_hover_next, "@red@XP locked");
         mes("Your Construction experience is locked. You will gain no more of it.");
+    }
+}
+
+[if_button,stats:xplock_hunter]
+// p_finduid FIRST. An [if_button] is handed active_player and NOT p_active_player -
+// see claude/rs2-player-pointer-contexts.md - so both halves of this body need it:
+// ~p_choice2 reaches p_pausebutton, which is a build error without it, and writing a
+// protect=yes varp from an unprotected script compiles fine and DROPS THE CONNECTION
+// when it runs. Taking the pointer fixes both and keeps the varp protected. Same shape
+// as [label,magic_teleport], which the spellbook buttons reach.
+if (p_finduid(uid) = true) {
+    if (~xplock_is(^xplock_hunter) = true) {
+        if (~p_choice2("Unlock Hunter experience?", 1, "No, keep it locked.", 2) = 1) {
+            %xp_locked = clearbit(%xp_locked, ^xplock_hunter);
+            if_settext(stats:hunter_hover_next, "Next Level At:");
+            mes("Your Hunter experience is no longer locked.");
+        }
+        return;
+    }
+    if (~p_choice2("Lock Hunter experience?", 1, "No, leave it.", 2) = 1) {
+        %xp_locked = setbit(%xp_locked, ^xplock_hunter);
+        if_settext(stats:hunter_hover_next, "@red@XP locked");
+        mes("Your Hunter experience is locked. You will gain no more of it.");
     }
 }

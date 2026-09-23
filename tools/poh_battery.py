@@ -3450,7 +3450,7 @@ print('64. the skilling outfits, and the funnel they are found through')
 # skills rolls, at a chance proportional to what the action was worth.
 
 OUTFITS = ['prospector', 'angler', 'lumberjack', 'pyromancer', 'eye', 'smiths', 'carpenters',
-           'graceful', 'rogue', 'zealots']
+           'graceful', 'rogue', 'zealots', 'hunter']
 XPPROC = {'prospector': ('mining_xp', 'mining'), 'angler': ('fishing_xp', 'fishing'),
           'lumberjack': ('woodcutting_xp', 'woodcutting'), 'pyromancer': ('firemaking_xp', 'firemaking'),
           'eye': ('runecraft_xp', 'runecraft'), 'smiths': ('smithing_xp', 'smithing'),
@@ -3458,7 +3458,10 @@ XPPROC = {'prospector': ('mining_xp', 'mining'), 'angler': ('fishing_xp', 'fishi
           # Graceful, Rogue and Zealot's give no experience bonus in OSRS, so their procs have no
           # $extra to add. They exist for the roll alone.
           'graceful': ('agility_xp', 'agility'), 'rogue': ('thieving_xp', 'thieving'),
-          'zealots': ('prayer_xp', 'prayer')}
+          'zealots': ('prayer_xp', 'prayer'),
+          # Guild hunter, the last one to get a source: its four pieces were imported with the OSRS
+          # gear and sat unobtainable until Hunter became a stat (2026-09-22).
+          'hunter': ('hunter_xp', 'hunter')}
 NOBONUS = ('graceful', 'rogue', 'zealots')
 OSLOTS = ['hat', 'torso', 'legs', 'feet', 'hands', 'back']
 OX = read('scripts/skilling_outfits/scripts/outfit_xp.rs2')
@@ -3473,12 +3476,12 @@ def _oconst(n):
     return int(m.group(1)) if m else None
 
 check([_oconst('outfit_' + o) for o in OUTFITS] == list(range(len(OUTFITS))),
-      'the ten outfits are 0..9 with no gap: %s' % [_oconst('outfit_' + o) for o in OUTFITS])
+      'the outfits are numbered from zero with no gap: %s' % [_oconst('outfit_' + o) for o in OUTFITS])
 # Values AFTER the claim, not inside it. A mutation harness matches a check by its wording, so a
 # number interpolated into the claim changes the claim whenever the number moves - and a mutation
 # aimed at this check stopped matching it for exactly that reason. Third time this session.
 check(_oconst('outfit_count') == len(OUTFITS) and _oconst('outfit_pieces') == len(OSLOTS),
-      '^outfit_count and ^outfit_pieces are the ten outfits and the six slots: got %s and %s'
+      '^outfit_count and ^outfit_pieces are every outfit and the six slots: got %s and %s'
       % (_oconst('outfit_count'), _oconst('outfit_pieces')))
 
 PIECE = enumtable(OE, 'outfit_piece')
@@ -3541,9 +3544,9 @@ for o in OUTFITS:
             _bad.append((proc, 'does not award %s with its bonus' % stat))
         if '~outfit_xp_bonus' not in body:
             _bad.append((proc, 'does not read its own bonus'))
-check(not _bad, 'all ten experience procs roll for their own outfit: %s' % (_bad[:3] or 'all ten'))
+check(not _bad, 'every experience proc rolls for its own outfit: %s' % (_bad[:3] or 'all %d' % len(OUTFITS)))
 check(len(re.findall(r'~outfit_roll\(', OX)) == len(OUTFITS),
-      'ten rolls, one per proc: %d' % len(re.findall(r'~outfit_roll\(', OX)))
+      'one roll per proc and no more: %d' % len(re.findall(r'~outfit_roll\(', OX)))
 
 # THE FUNNEL. A skilling script that calls stat_advance directly gets neither the bonus nor a roll,
 # which is how the carpenter's outfit could have been wired and still never turn up. Every direct
@@ -3554,6 +3557,10 @@ DIRECT_OK = {
     # A quest lump sum that happens to live in an area file rather than under scripts/quests -
     # finishing Regicide is not five hours on an agility course, so it does not roll.
     'scripts/areas/area_ardougne_east/scripts/king_lathas.rs2': 'the Regicide reward',
+    # A staff-only debugproc that grants experience for testing. It is deliberately NOT routed
+    # through ~hunter_xp: a test grant is not a skilling action and must not roll for a Guild
+    # hunter piece, which would put the outfit in a tester's bank without anyone catching anything.
+    'scripts/skill_hunter/scripts/hunter_debug.rs2': 'the ::hunter test grant',
 }
 _direct = []
 for _root, _dirs, _fs in os.walk(os.path.join(C, 'scripts')):
@@ -3564,11 +3571,11 @@ for _root, _dirs, _fs in os.walk(os.path.join(C, 'scripts')):
         if _rel.endswith('outfit_xp.rs2') or _rel == 'scripts/engine.rs2':
             continue
         for _m in re.finditer(r'stat_advance\((mining|fishing|woodcutting|firemaking|runecraft|'
-                              r'smithing|construction|agility|thieving|prayer),', read(_rel)):
+                              r'smithing|construction|agility|thieving|prayer|hunter),', read(_rel)):
             if _rel.startswith('scripts/quests/') or _rel in DIRECT_OK:
                 continue
             _direct.append((_rel, _m.group(1)))
-check(not _direct, 'nothing outside a quest awards these ten directly: %s'
+check(not _direct, 'nothing outside a quest awards these skills directly: %s'
       % (sorted(set(_direct))[:3] or 'every repeatable action goes through the procs'))
 
 # the construction one is the newest and the whole reason the carpenter's outfit works
@@ -3604,27 +3611,32 @@ _hard = _sw.stdout.split('NOTHING ANYWHERE MENTIONS THESE', 1)[-1].split('MENTIO
 _stillorphan = [p for p in PIECE.values() if re.search(r'\b%s\b' % re.escape(p), _hard)]
 check(not _stillorphan, 'and it agrees every piece in the table is obtainable now: %s'
       % (_stillorphan[:4] or 'all %d of them' % len(PIECE)))
-# THE GUILD HUNTER SET MOVED, and this check moved with it. It used to assert the four pieces were
-# still in the real orphan list; they are now in the by-design list with a written reason, because
-# the sources round specced every orphan and the real list is empty. The stronger question is not
-# "is it still unobtainable" - the empty list answers that - but "is the REASON still on file",
-# which is what stops it being quietly excused.
+# THE GUILD HUNTER SET HAS A SOURCE NOW, and this check moved with it for the third time. It first
+# asserted the four pieces were in the real orphan list; then that a written reason excused them in
+# the by-design list; now that they are in NEITHER, because Hunter became a stat on 2026-09-22 and
+# butterfly netting rolls for them the way every other outfit is found. The shape of the check is
+# the same each time: ask the sweep where they are, and require the spec to agree.
 _GUILD_HUNTER = ['hunter_headwear', 'hunter_top', 'hunter_legs', 'hunter_boots']
 _nospec = _json.loads(read('tools/nosourcespec.json'))['objs']
-_hunterspec = [k for k, v in _nospec.items()
-               if set(_GUILD_HUNTER) <= set([k] + v.get('also', []))]
-check(len(_hunterspec) == 1,
-      'the guild hunter outfit is still the outfit without a source, and all four pieces are '
-      'accounted for by one entry in nosourcespec.json rather than scattered or dropped: %s'
-      % (_hunterspec or 'no entry covers all four'))
-if _hunterspec:
-    _hw = _nospec[_hunterspec[0]]['why']
-    check('Hunter is not a skill' in _hw,
-          'and the reason on file is still that Hunter is not a skill here, not something vaguer')
+_stillexcused = [k for k, v in _nospec.items()
+                 if set(_GUILD_HUNTER) & set([k] + v.get('also', []))]
+check(not _stillexcused,
+      'no guild hunter piece is excused in nosourcespec.json any more - they are found while '
+      'training Hunter, and an excuse left behind is how a stale reason outlives its reason: %s'
+      % (_stillexcused or 'none of the four'))
 _bydesign = _sw.stdout.split('BUILT WITH NO SOURCE ON PURPOSE', 1)[-1].split('NOTHING ANYWHERE', 1)[0]
-check(all(re.search(r'\b%s\b' % p, _bydesign) for p in _GUILD_HUNTER),
-      'and the sweep puts all four in its by-design section, so they are excused on the record '
-      'rather than by being forgotten')
+check(not any(re.search(r'\b%s\b' % p, _bydesign) for p in _GUILD_HUNTER),
+      'and the sweep no longer puts any of them in its by-design section')
+# The cape's hood is the piece that IS still shut off, and for a reason that had to be rewritten:
+# the old one said [skillcape_hood] cannot be keyed on a stat that does not exist, which stopped
+# being true the day the stat did.
+_hood = _nospec.get('hunter_hood')
+check(_hood is not None, "the Hunter cape's hood is still specced, because the cape is still off")
+if _hood:
+    check('Hunter is not a skill' not in _hood['why'],
+          '...and its reason is no longer the one that went stale when Hunter became a stat')
+    check('skillcape' in _hood['why'].lower() and 'emote' in _hood['why'].lower(),
+          '...it names the cape and the missing emote, which is what actually holds now')
 
 # A STORAGE LIST IS NOT A MENTION EITHER. Excluding the costume room from the SOURCE rule was not
 # enough: it still counted as a mention, which demotes an obj out of "nothing anywhere mentions

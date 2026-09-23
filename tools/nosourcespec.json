@@ -1,184 +1,179 @@
 {
- "_": "Objs this repo built or imported with nothing in the game that gives one out.",
- "why": "Per-round specs already carry their own: slayerhelmspec.json for the sourceless helmet colours, petspec.json for the pets whose skill is not built yet. This file is for everything else. tools/obtainable.py reads all three, so an obj here that GAINS a source is reported as a disagreement rather than excused forever - which is what happened to the bottomless compost bucket and the Thread of Elidinis, both of which were in this file until they were given real sources and had to come out of it.",
- "the_shape_of_this_list": "Most entries are a CATEGORY, keyed on one member with the rest under 'also' - because most of these objs have no source for one shared reason, and 100 copies of that reason is 100 places for it to go stale. obtainable.py checks every name under 'also' for disagreement exactly as it checks the key, so grouping costs no coverage.",
- "what_a_why_is_for": "Not to excuse the obj. To stop the next round re-investigating it: every one of these took a grep and a judgement, and the judgement is the part worth keeping.",
- "not_a_source_is": "objs that DO have a source, but that something also adds in a way that is not one - a swap, a refund, a restyle. 'ignore' inside an objs entry only helps while the obj is sourceless, and both of the objs below stopped being sourceless: the bottomless bucket is now found while farming and the Thread of Elidinis comes out of a hard clue. Without this section their swap and refund would silently become their 'source', and deleting the real one would leave the sweep still calling them obtainable - which is the regression the script-grained exemption was invented to stop. Same format as 'ignore': 'file.rs2:script,header'.",
- "not_a_source": {
-  "bottomless_bucket": [
-   "compost_bucket.rs2:proc,compost_bucket_restyle"
-  ],
-  "bottomless_bucket_filled": [
-   "compost_bucket.rs2:proc,compost_bucket_restyle"
-  ],
-  "thread_of_elidinis": [
-   "rune_pouch.rs2:opheld4,divine_rune_pouch"
-  ]
- },
- "not_a_source_why": {
-  "bottomless_bucket": "the restyle swaps the empty bucket for the filled one and back to keep the inventory icon honest; each add has a matching delete, so it moves a bucket rather than making one",
-  "thread_of_elidinis": "Revert hands back the thread the upgrade spent, which is a refund and not a source: you cannot revert a pouch you never stitched"
- },
- "ignore_is": "the scripts whose inv_add of this obj is a swap rather than a source, as 'file.rs2:script,header'. Named at script grain on purpose: a whole-file exemption would also excuse a real source added to that file later.",
- "objs": {
-  "macro_mime_mask": {
-   "osrs_source": "the Mime random event, seven completions for the full set",
-   "why": "the Mime is not one of the 26 random events this build implements - there is no macro_event_mime.rs2 and no npc for it. The outfit was imported with the rest of the antimacro table; it waits on the event, not on art",
-   "also": [
-    "macro_mime_boots",
-    "macro_mime_gloves",
-    "macro_mime_legs",
-    "macro_mime_top"
-   ]
+  "_": "Objs this repo built or imported with nothing in the game that gives one out.",
+  "why": "Per-round specs already carry their own: slayerhelmspec.json for the sourceless helmet colours, petspec.json for the pets whose skill is not built yet. This file is for everything else. tools/obtainable.py reads all three, so an obj here that GAINS a source is reported as a disagreement rather than excused forever - which is what happened to the bottomless compost bucket and the Thread of Elidinis, both of which were in this file until they were given real sources and had to come out of it.",
+  "the_shape_of_this_list": "Most entries are a CATEGORY, keyed on one member with the rest under 'also' - because most of these objs have no source for one shared reason, and 100 copies of that reason is 100 places for it to go stale. obtainable.py checks every name under 'also' for disagreement exactly as it checks the key, so grouping costs no coverage.",
+  "what_a_why_is_for": "Not to excuse the obj. To stop the next round re-investigating it: every one of these took a grep and a judgement, and the judgement is the part worth keeping.",
+  "not_a_source_is": "objs that DO have a source, but that something also adds in a way that is not one - a swap, a refund, a restyle. 'ignore' inside an objs entry only helps while the obj is sourceless, and both of the objs below stopped being sourceless: the bottomless bucket is now found while farming and the Thread of Elidinis comes out of a hard clue. Without this section their swap and refund would silently become their 'source', and deleting the real one would leave the sweep still calling them obtainable - which is the regression the script-grained exemption was invented to stop. Same format as 'ignore': 'file.rs2:script,header'.",
+  "not_a_source": {
+    "bottomless_bucket": [
+      "compost_bucket.rs2:proc,compost_bucket_restyle"
+    ],
+    "bottomless_bucket_filled": [
+      "compost_bucket.rs2:proc,compost_bucket_restyle"
+    ],
+    "thread_of_elidinis": [
+      "rune_pouch.rs2:opheld4,divine_rune_pouch"
+    ]
   },
-  "laderhosen_top": {
-   "osrs_source": "the Freaky Forester random event - the lederhosen as a reward, the pheasants as the thing he sends you to kill",
-   "why": "the Freaky Forester is not implemented here. Both halves of it are in this list together because they are one event: without the forester there is nothing to kill a pheasant for and nobody to pay you in lederhosen for doing it",
-   "also": [
-    "laderhosen_hat",
-    "laderhosen_legs",
-    "raw_macro_pheasant_bad",
-    "raw_macro_pheasant_good"
-   ]
+  "not_a_source_why": {
+    "bottomless_bucket": "the restyle swaps the empty bucket for the filled one and back to keep the inventory icon honest; each add has a matching delete, so it moves a bucket rather than making one",
+    "thread_of_elidinis": "Revert hands back the thread the upgrade spent, which is a refund and not a source: you cannot revert a pouch you never stitched"
   },
-  "macro_quiz_food1": {
-   "osrs_source": "the Quiz Master random event",
-   "why": "the Quiz Master is not implemented. These ten are the quiz's own answer props - two each of food, weapon, armour, tool and jewel - and they exist only inside the event, so they have no source of their own even in OSRS",
-   "also": [
-    "macro_quiz_armour1",
-    "macro_quiz_armour2",
-    "macro_quiz_food2",
-    "macro_quiz_jewel1",
-    "macro_quiz_jewel2",
-    "macro_quiz_tool1",
-    "macro_quiz_tool2",
-    "macro_quiz_weapon1",
-    "macro_quiz_weapon2"
-   ]
-  },
-  "evil_bob_uncooked_fish_correct": {
-   "osrs_source": "the Evil Bob random event, on his island",
-   "why": "Evil Bob is not implemented. The fishlike things and the man speak amulet exist only inside that event in OSRS too - they are how it is played, not a reward you keep",
-   "also": [
-    "evil_bob_amulet_of_manspeak",
-    "evil_bob_cooked_fish_correct",
-    "evil_bob_cooked_fish_incorrect",
-    "evil_bob_uncooked_fish_incorrect"
-   ]
-  },
-  "macro_frog_token": {
-   "osrs_source": "the Kiss the Frog random event: a frog token, traded for the mask or the royal frog costume",
-   "why": "Kiss the Frog is not implemented. The token is the currency and the prince and princess clothing is what it buys, so all six stand or fall together",
-   "also": [
-    "macro_frog_mask",
-    "macro_prince_legs",
-    "macro_prince_torso",
-    "macro_princess_legs",
-    "macro_princess_torso"
-   ]
-  },
-  "macro_digger_shirt": {
-   "osrs_source": "the Gravedigger random event, five completions for the five zombie pieces",
-   "why": "the Gravedigger is not implemented. Five of these 27 are the zombie outfit; the other 22 are the props you sort into the coffins - an apron, a cake, a kebab, stone tools - which exist only inside the event",
-   "also": [
-    "macro_digger_apron",
-    "macro_digger_bones",
-    "macro_digger_boots",
-    "macro_digger_bowl_empty",
-    "macro_digger_cake",
-    "macro_digger_chefshat",
-    "macro_digger_dibber",
-    "macro_digger_gloves",
-    "macro_digger_hatchet",
-    "macro_digger_kebab",
-    "macro_digger_knife",
-    "macro_digger_legs",
-    "macro_digger_mask",
-    "macro_digger_nuggets",
-    "macro_digger_pick_axe",
-    "macro_digger_plant_pot_empty",
-    "macro_digger_pot_empty",
-    "macro_digger_potato_seeded",
-    "macro_digger_secateurs",
-    "macro_digger_skull",
-    "macro_digger_stoneaxe",
-    "macro_digger_stonecook",
-    "macro_digger_stonemine",
-    "macro_digger_stonespade",
-    "macro_digger_stonevase",
-    "macro_digger_woodlogs"
-   ]
-  },
-  "macro_cube_redtriangle": {
-   "osrs_source": "nothing: these are not items in OSRS either",
-   "why": "THE STRANGE BOX EVENT IS IMPLEMENTED, and it does not use these. The 15 colour-and-shape cubes at ids 3063-3091 are drawn by scripts/interfaces/macro_cube.if as MODELS - model=obj_macro_cube_redtriangle - never handed out as objs, and the 15 unnamed objs interleaved between them at the even ids are their cache twins, which the unpacker names whoopsie_objNNNN because the cache gives them no name at all. The objs the event really does hand out are macro_cube and the 7000-series, and those are obtainable",
-   "note": "a loose grep for macro_cube_redtriangle in the .if file finds a hit and looks like a source. It is the model name with obj_ in front of it. Match on a word boundary",
-   "also": [
-    "macro_cube_bluecircle",
-    "macro_cube_bluehalfmoon",
-    "macro_cube_bluesquare",
-    "macro_cube_bluestar",
-    "macro_cube_bluetriangle",
-    "macro_cube_redcircle",
-    "macro_cube_redhalfmoon",
-    "macro_cube_redsquare",
-    "macro_cube_redstar",
-    "macro_cube_yellowcircle",
-    "macro_cube_yellowhalfmoon",
-    "macro_cube_yellowsquare",
-    "macro_cube_yellowstar",
-    "macro_cube_yellowtriangle",
-    "whoopsie_obj3064",
-    "whoopsie_obj3066",
-    "whoopsie_obj3068",
-    "whoopsie_obj3070",
-    "whoopsie_obj3072",
-    "whoopsie_obj3074",
-    "whoopsie_obj3076",
-    "whoopsie_obj3078",
-    "whoopsie_obj3080",
-    "whoopsie_obj3082",
-    "whoopsie_obj3084",
-    "whoopsie_obj3086",
-    "whoopsie_obj3088",
-    "whoopsie_obj3090",
-    "whoopsie_obj3092"
-   ]
-  },
-  "hunter_hood": {
-   "osrs_source": "the Hunter cape hood at 99 Hunter, and the guild hunter outfit from the Hunter Guild",
-   "why": "Hunter is not a skill in this build, and this is structural rather than missing work. [skillcape_hood] in skillcape.enum is keyed by STAT, so a hood cannot be listed for a stat that does not exist - which is why hunter_cape is in the enum (keyed by int) and hunter_hood cannot be. The four guild hunter pieces are the same story: every other skilling outfit is found while training its own skill and there is no Hunter to train",
-   "also": [
-    "hunter_boots",
-    "hunter_headwear",
-    "hunter_legs",
-    "hunter_top"
-   ]
-  },
-  "magic_secateurs": {
-   "osrs_source": "the Fairy Tale I reward",
-   "why": "A DUPLICATE, AND THE TRAP IS THE POINT. This build already has the working magic secateurs under the name the 377 cache gives them - fairy_enchanted_secateurs, id 7409 - and that is the one farming_actions.rs2 reads for the 10% harvest bonus and farming_useitem.rs2 reads for pruning. magic_secateurs (8109) came in with a later-cache import of items already present, does nothing, and sits one autocomplete away from the one that works",
-   "why_not_deleted": "removing an obj id is not free: a character who was handed one with ::give would be holding an item the server no longer defines, and dropping the pack/obj.pack line leaves a nameless default obj at 8109 rather than closing the gap. The trap is closed by a check instead - poh_battery group 66 fails if any script names it - which costs nothing and cannot corrupt a save"
-  },
-  "rotten_net": {
-   "osrs_source": "nothing: it is a 2004-era item with no source in OSRS either",
-   "why": "a cache-native item this repo has no content for. It is also the obj that sits one id past the law talisman, which is why the unpacker called the law talisman note \"cert_law_talisman\" and withdrawing one used to hand over a Rotten net - see claude/certificates-and-notes.md"
-  },
-  "soul_talisman": {
-   "osrs_source": "a drop from anything that drops talismans, for the Soul altar",
-   "why": "there is no soul altar in the 377 cache - the Runecrafting altars stop at nature, law and cosmic. A talisman for an altar that does not exist has nowhere to be used, so giving it a source would be worse than leaving it out"
-  },
-  "broken_tiara": {
-   "osrs_source": "nothing in OSRS: it is an unused cache item",
-   "why": "a cache-native item with no content anywhere, here or in OSRS. Runecrafting tiaras in this build do not break"
-  },
-  "castlewars_catapult": {
-   "osrs_source": "nothing: it is a scenery item, not something a player holds",
-   "why": "Castle Wars is implemented here but its catapult is not, and this obj is the cache's inventory record for a thing that in OSRS is a loc you operate rather than an item you carry. It has no place in a pack even if the catapult were built"
-  },
-  "burnt_uw_oomlie": {
-   "osrs_source": "nothing: an oomlie cooked without a palm leaf is destroyed outright, so OSRS never gives you a burnt one either",
-   "why": "the burnt version exists in the cache because every other cookable has one. Cooking an oomlie wrong in this build follows OSRS and destroys it, so this obj is correctly unreachable - giving it a source would be a bug, not a fix"
+  "ignore_is": "the scripts whose inv_add of this obj is a swap rather than a source, as 'file.rs2:script,header'. Named at script grain on purpose: a whole-file exemption would also excuse a real source added to that file later.",
+  "objs": {
+    "macro_mime_mask": {
+      "osrs_source": "the Mime random event, seven completions for the full set",
+      "why": "the Mime is not one of the 26 random events this build implements - there is no macro_event_mime.rs2 and no npc for it. The outfit was imported with the rest of the antimacro table; it waits on the event, not on art",
+      "also": [
+        "macro_mime_boots",
+        "macro_mime_gloves",
+        "macro_mime_legs",
+        "macro_mime_top"
+      ]
+    },
+    "laderhosen_top": {
+      "osrs_source": "the Freaky Forester random event - the lederhosen as a reward, the pheasants as the thing he sends you to kill",
+      "why": "the Freaky Forester is not implemented here. Both halves of it are in this list together because they are one event: without the forester there is nothing to kill a pheasant for and nobody to pay you in lederhosen for doing it",
+      "also": [
+        "laderhosen_hat",
+        "laderhosen_legs",
+        "raw_macro_pheasant_bad",
+        "raw_macro_pheasant_good"
+      ]
+    },
+    "macro_quiz_food1": {
+      "osrs_source": "the Quiz Master random event",
+      "why": "the Quiz Master is not implemented. These ten are the quiz's own answer props - two each of food, weapon, armour, tool and jewel - and they exist only inside the event, so they have no source of their own even in OSRS",
+      "also": [
+        "macro_quiz_armour1",
+        "macro_quiz_armour2",
+        "macro_quiz_food2",
+        "macro_quiz_jewel1",
+        "macro_quiz_jewel2",
+        "macro_quiz_tool1",
+        "macro_quiz_tool2",
+        "macro_quiz_weapon1",
+        "macro_quiz_weapon2"
+      ]
+    },
+    "evil_bob_uncooked_fish_correct": {
+      "osrs_source": "the Evil Bob random event, on his island",
+      "why": "Evil Bob is not implemented. The fishlike things and the man speak amulet exist only inside that event in OSRS too - they are how it is played, not a reward you keep",
+      "also": [
+        "evil_bob_amulet_of_manspeak",
+        "evil_bob_cooked_fish_correct",
+        "evil_bob_cooked_fish_incorrect",
+        "evil_bob_uncooked_fish_incorrect"
+      ]
+    },
+    "macro_frog_token": {
+      "osrs_source": "the Kiss the Frog random event: a frog token, traded for the mask or the royal frog costume",
+      "why": "Kiss the Frog is not implemented. The token is the currency and the prince and princess clothing is what it buys, so all six stand or fall together",
+      "also": [
+        "macro_frog_mask",
+        "macro_prince_legs",
+        "macro_prince_torso",
+        "macro_princess_legs",
+        "macro_princess_torso"
+      ]
+    },
+    "macro_digger_shirt": {
+      "osrs_source": "the Gravedigger random event, five completions for the five zombie pieces",
+      "why": "the Gravedigger is not implemented. Five of these 27 are the zombie outfit; the other 22 are the props you sort into the coffins - an apron, a cake, a kebab, stone tools - which exist only inside the event",
+      "also": [
+        "macro_digger_apron",
+        "macro_digger_bones",
+        "macro_digger_boots",
+        "macro_digger_bowl_empty",
+        "macro_digger_cake",
+        "macro_digger_chefshat",
+        "macro_digger_dibber",
+        "macro_digger_gloves",
+        "macro_digger_hatchet",
+        "macro_digger_kebab",
+        "macro_digger_knife",
+        "macro_digger_legs",
+        "macro_digger_mask",
+        "macro_digger_nuggets",
+        "macro_digger_pick_axe",
+        "macro_digger_plant_pot_empty",
+        "macro_digger_pot_empty",
+        "macro_digger_potato_seeded",
+        "macro_digger_secateurs",
+        "macro_digger_skull",
+        "macro_digger_stoneaxe",
+        "macro_digger_stonecook",
+        "macro_digger_stonemine",
+        "macro_digger_stonespade",
+        "macro_digger_stonevase",
+        "macro_digger_woodlogs"
+      ]
+    },
+    "macro_cube_redtriangle": {
+      "osrs_source": "nothing: these are not items in OSRS either",
+      "why": "THE STRANGE BOX EVENT IS IMPLEMENTED, and it does not use these. The 15 colour-and-shape cubes at ids 3063-3091 are drawn by scripts/interfaces/macro_cube.if as MODELS - model=obj_macro_cube_redtriangle - never handed out as objs, and the 15 unnamed objs interleaved between them at the even ids are their cache twins, which the unpacker names whoopsie_objNNNN because the cache gives them no name at all. The objs the event really does hand out are macro_cube and the 7000-series, and those are obtainable",
+      "note": "a loose grep for macro_cube_redtriangle in the .if file finds a hit and looks like a source. It is the model name with obj_ in front of it. Match on a word boundary",
+      "also": [
+        "macro_cube_bluecircle",
+        "macro_cube_bluehalfmoon",
+        "macro_cube_bluesquare",
+        "macro_cube_bluestar",
+        "macro_cube_bluetriangle",
+        "macro_cube_redcircle",
+        "macro_cube_redhalfmoon",
+        "macro_cube_redsquare",
+        "macro_cube_redstar",
+        "macro_cube_yellowcircle",
+        "macro_cube_yellowhalfmoon",
+        "macro_cube_yellowsquare",
+        "macro_cube_yellowstar",
+        "macro_cube_yellowtriangle",
+        "whoopsie_obj3064",
+        "whoopsie_obj3066",
+        "whoopsie_obj3068",
+        "whoopsie_obj3070",
+        "whoopsie_obj3072",
+        "whoopsie_obj3074",
+        "whoopsie_obj3076",
+        "whoopsie_obj3078",
+        "whoopsie_obj3080",
+        "whoopsie_obj3082",
+        "whoopsie_obj3084",
+        "whoopsie_obj3086",
+        "whoopsie_obj3088",
+        "whoopsie_obj3090",
+        "whoopsie_obj3092"
+      ]
+    },
+    "hunter_hood": {
+      "osrs_source": "the Hunter cape's hood, bought from the Hunter Guild master at 99 Hunter",
+      "why": "The Hunter SKILLCAPE is deliberately shut off in this build, and the hood goes with it. Hunter became a stat on 2026-09-22, so the structural reason this entry used to give - that [skillcape_hood] is keyed by STAT and there was no Hunter stat to key on - no longer holds. What holds now is that no Hunter emote has been converted out of the OSRS cache and no npc sells the cape, so skillcape_cape/_cape_t/_hood carry no hunter row and [opheld2,hunter_cape] is still @skillcape_unavailable. The four guild hunter outfit pieces are NOT part of this any more: Hunter actions roll for them like every other skilling outfit",
+      "also": []
+    },
+    "magic_secateurs": {
+      "osrs_source": "the Fairy Tale I reward",
+      "why": "A DUPLICATE, AND THE TRAP IS THE POINT. This build already has the working magic secateurs under the name the 377 cache gives them - fairy_enchanted_secateurs, id 7409 - and that is the one farming_actions.rs2 reads for the 10% harvest bonus and farming_useitem.rs2 reads for pruning. magic_secateurs (8109) came in with a later-cache import of items already present, does nothing, and sits one autocomplete away from the one that works",
+      "why_not_deleted": "removing an obj id is not free: a character who was handed one with ::give would be holding an item the server no longer defines, and dropping the pack/obj.pack line leaves a nameless default obj at 8109 rather than closing the gap. The trap is closed by a check instead - poh_battery group 66 fails if any script names it - which costs nothing and cannot corrupt a save"
+    },
+    "rotten_net": {
+      "osrs_source": "nothing: it is a 2004-era item with no source in OSRS either",
+      "why": "a cache-native item this repo has no content for. It is also the obj that sits one id past the law talisman, which is why the unpacker called the law talisman note \"cert_law_talisman\" and withdrawing one used to hand over a Rotten net - see claude/certificates-and-notes.md"
+    },
+    "soul_talisman": {
+      "osrs_source": "a drop from anything that drops talismans, for the Soul altar",
+      "why": "there is no soul altar in the 377 cache - the Runecrafting altars stop at nature, law and cosmic. A talisman for an altar that does not exist has nowhere to be used, so giving it a source would be worse than leaving it out"
+    },
+    "broken_tiara": {
+      "osrs_source": "nothing in OSRS: it is an unused cache item",
+      "why": "a cache-native item with no content anywhere, here or in OSRS. Runecrafting tiaras in this build do not break"
+    },
+    "castlewars_catapult": {
+      "osrs_source": "nothing: it is a scenery item, not something a player holds",
+      "why": "Castle Wars is implemented here but its catapult is not, and this obj is the cache's inventory record for a thing that in OSRS is a loc you operate rather than an item you carry. It has no place in a pack even if the catapult were built"
+    },
+    "burnt_uw_oomlie": {
+      "osrs_source": "nothing: an oomlie cooked without a palm leaf is destroyed outright, so OSRS never gives you a burnt one either",
+      "why": "the burnt version exists in the cache because every other cookable has one. Cooking an oomlie wrong in this build follows OSRS and destroys it, so this obj is correctly unreachable - giving it a source would be a bug, not a fix"
+    }
   }
- }
 }
