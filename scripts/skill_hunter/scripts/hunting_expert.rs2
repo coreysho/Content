@@ -1,0 +1,26 @@
+// The Hunting expert - Hunter's skill master, at the north edge of the Feldip hunting grounds. He
+// sells the Hunter cape to a player with 99 (skillcapes/scripts/skillcape_shop.rs2), and otherwise
+// says what can be hunted here and with what: the two things a new hunter arriving at Feldip needs.
+[opnpc1,hunting_expert]
+if (~skillcape_offer(hunter) = true) {
+    return;
+}
+~chatnpc("<p,happy>Welcome to the Feldip hunting grounds. Mind where you put your feet - there's more than one trap out here.");
+@hunting_expert_menu;
+
+[label,hunting_expert_menu]
+switch_int (~p_choice3("What can I hunt here?", 1, "Where do I get traps?", 2, "Thanks, I'll be off.", 3)) {
+    case 1 :
+        ~chatplayer("<p,quiz>What can I hunt here?");
+        ~chatnpc("<p,neutral>Birds, to start with. Lay a bird snare where the crimson swifts fly and one'll blunder into it sooner or later - any hunter can manage that. The tropical wagtails east of here want a bit more skill.");
+        ~chatnpc("<p,neutral>Once you're handier, try a box trap. Ferrets in the north-west, chinchompas in the clearing to the south, and the carnivorous ones north-east of those - but keep your fingers away from those.");
+        ~chatnpc("<p,neutral>Stay near your traps. Wander off and they'll collapse, and nothing walks into a trap it knows you couldn't hold it with.");
+        @hunting_expert_menu;
+    case 2 :
+        ~chatplayer("<p,quiz>Where do I get traps?");
+        ~chatnpc("<p,neutral>The ogre trader in Gu'Tanoth keeps box traps and bird snares, strange as that sounds. Ogres do love a trap.");
+        @hunting_expert_menu;
+    case 3 :
+        ~chatplayer("<p,neutral>Thanks, I'll be off.");
+        ~chatnpc("<p,happy>Good hunting.");
+}

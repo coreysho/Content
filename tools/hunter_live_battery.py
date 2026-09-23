@@ -5,8 +5,10 @@
 
 Build first (the test reads the packed scripts and maps). The TS file has to sit inside the engine
 to resolve its '#/' imports, so it is copied into <engine>/tools for the run and removed after.
-Two passes: level 70 (four traps, everything must work) and level 40 (below the grey chinchompa's
-53, so a trap in their clearing must stay empty - the level gate)."""
+Four passes. Box traps at level 70 (four traps, everything must work) and 40 (below the grey
+chinchompa's 53, so a trap in their clearing must stay empty - the level gate). Bird snares at 25,
+among the tropical wagtails, and at 10, below the wagtail's 19 - the same gate for snares. And the
+Hunter skillcape: refused at 50, worn at 99, and its emote and graphic play."""
 import os, shutil, subprocess, sys
 
 C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -18,11 +20,11 @@ tp_existed = os.path.exists(tp)
 shutil.copy(os.path.join(C, 'tools', 'hunter_live.ts'), dst)
 failed = 0
 try:
-    for level in ('70', '40'):
-        env = dict(os.environ, HLEVEL=level, BUILD_SRC_DIR=C, NODE_PRODUCTION='true', NODE_MEMBERS='true')
+    for trap, level in (('box', '70'), ('box', '40'), ('snare', '25'), ('snare', '10'), ('cape', '50')):
+        env = dict(os.environ, HTRAP=trap, HLEVEL=level, BUILD_SRC_DIR=C, NODE_PRODUCTION='true', NODE_MEMBERS='true')
         r = subprocess.run(['npx', 'tsx', 'tools/_hunter_live.ts'], cwd=E, env=env, capture_output=True, text=True, timeout=900)
         lines = [l for l in r.stdout.splitlines() if l.startswith('  ok') or l.startswith('  FAIL')]
-        print(f'== Hunter {level}')
+        print(f'== {trap}, Hunter {level}')
         print('\n'.join(lines))
         bad = sum(1 for l in lines if l.startswith('  FAIL')) + (1 if r.returncode and not any('FAIL' in l for l in lines) else 0)
         if r.returncode and not bad:

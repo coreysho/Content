@@ -158,16 +158,17 @@ check('skillcape_cape' in count_proc,
 check('construction' in CAPED, 'Construction has a cape, as it has since the houses landed')
 check(set(CAPED) <= set(STATS.values()),
       'every caped skill is a real stat: %s' % (sorted(set(CAPED) - set(STATS.values())) or 'yes'))
-check(UNCAPED == ['hunter'],
-      'and the only stat without one is Hunter, which has no content yet: %s' % (UNCAPED,))
+# Hunter was the one stat without a cape from 2026-09-22 until box traps and bird snares gave it
+# content on the 23rd; every stat has one again.
+check(UNCAPED == [], 'and every stat has one: %s' % (UNCAPED or 'yes'))
 price = SHOP.split('[proc,maxcape_price]', 1)[1].split('\n[', 1)[0]
 check('^skillcape_price * ~skillcape_stats' in price,
       'the price is the skillcape price times that same count')
 check(const('skillcape_price') == 99000, 'a skillcape is 99,000 coins, as in OSRS')
-check(const('skillcape_price') * len(CAPED) == 2178000,
+check(const('skillcape_price') * len(CAPED) == 2277000,
       'so the Max cape comes to %s coins - 99,000 a skill, the way OSRS prices its own'
       % format(const('skillcape_price') * len(CAPED), ','))
-check(not re.search(r'\b2178000\b', SHOP), 'and that total is nowhere written down as a literal')
+check(not re.search(r'\b2277000\b', SHOP), 'and that total is nowhere written down as a literal')
 mac = SHOP.split('[opnpc1,skillcape_mac]', 1)[1].split('\n[', 1)[0]
 check('~maxcape_ready = false' in mac, 'Mac checks the requirement before he offers anything')
 check('%maxcape_bought = 1' in mac, 'remembers that you bought one')
@@ -246,7 +247,13 @@ check('@skillcape_unavailable("Construction")' not in EQUIP,
       'it is no longer refused for a skill that does not exist')
 check(EQUIP.count('@skillcape_require(stat_base(construction), "Construction", last_slot)') == 2,
       'both the plain and the trimmed cape gate on 99 Construction')
-check('@skillcape_unavailable("Hunter")' in EQUIP, 'Hunter is still the only unavailable one')
+check(not re.search(r'^\[opheld2,\w+\] @skillcape_unavailable', EQUIP, re.M),
+      'no cape is refused as unavailable any more')
+check(EQUIP.count('@skillcape_require(stat_base(hunter), "Hunter", last_slot)') == 2,
+      'both Hunter capes gate on 99 Hunter')
+EXPERT = read('scripts/skill_hunter/scripts/hunting_expert.rs2')
+check('~skillcape_offer(hunter) = true' in EXPERT.split('[opnpc1,hunting_expert]', 1)[1].split('\n[', 1)[0],
+      'and the Hunting expert sells it, first thing on Talk-to like every master')
 check('[opheld3,construction_cape] @skillcape_teleport_house;' in PERKS
       and '[opheld3,construction_cape_t] @skillcape_teleport_house;' in PERKS,
       'and its own op is the teleport home OSRS gives it')

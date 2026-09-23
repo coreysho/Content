@@ -31,7 +31,7 @@ ALLOBJ = 'scripts/_unpack/377/all.obj'
 THIEF = 'scripts/skill_thieving/scripts/thieving.rs2'
 PICKROW = 'scripts/skill_thieving/configs/pickpocking/pickpocket.dbrow'
 STALLROW = 'scripts/skill_thieving/configs/stalls/stealing.dbrow'
-HUNT = 'scripts/skill_hunter/scripts/hunter_boxtrap.rs2'
+HUNT = 'scripts/skill_hunter/scripts/hunter_traps.rs2'
 
 MUTS = [
  # 1 - the formula itself
