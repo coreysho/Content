@@ -193,7 +193,12 @@ bad = [k for k in CAPED if capes[k] not in eseq or capes[k] not in espot]
 check(not bad, 'and every one of those capes has both an emote and a graphic: %s' % (bad or 'yes'))
 bad = [k for k in CAPED if capes_t[k] not in eseq or capes_t[k] not in espot]
 check(not bad, 'trimmed included: %s' % (bad or 'yes'))
-emote = SHOP.split('[if_button,controls:skillcape]', 1)[1].split('\n[', 1)[0]
+# The emote button moved with the 474 Emotes tab (c1113a88): controls.if is gone, and the Skillcape
+# emote is emotes:skill_cape now. Asked for by name, so a later move fails here as a check rather than
+# as an IndexError on the split.
+EMOTE_TRIGGER = '[if_button,emotes:skill_cape]'
+check(EMOTE_TRIGGER in SHOP, 'the Skillcape emote button is %s' % EMOTE_TRIGGER)
+emote = SHOP.split(EMOTE_TRIGGER, 1)[1].split('\n[', 1)[0] if EMOTE_TRIGGER in SHOP else ''
 check('$cape = max_cape' in emote, 'the emote button knows about the Max cape')
 check('maxvariant_source' in emote,
       '...and about the variants, which keep the emote and almost nothing else')

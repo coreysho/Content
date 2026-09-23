@@ -62,7 +62,10 @@ def main():
     text, rows = build()
     if '--check' in sys.argv:
         cur = open(OUT, newline='').read() if os.path.exists(OUT) else ''
-        if cur != text:
+        # Compared by content, not bytes. This writes CRLF, and git (text=auto) checks the file out
+        # with whatever line endings the machine uses - LF on the Linux server - so a byte compare
+        # called an up-to-date table stale everywhere but Windows.
+        if cur.replace('\r\n', '\n') != text.replace('\r\n', '\n'):
             print('elemental_weakness.enum is out of date - run tools/genelementalweakness.py')
             return 1
         print('elemental_weakness.enum up to date: %d npcs' % len(rows))

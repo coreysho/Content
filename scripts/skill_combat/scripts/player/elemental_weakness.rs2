@@ -50,3 +50,30 @@ if ($spell >= ^wind_bolt & $spell <= ^fire_wave) {
     return(true);
 }
 return(false);
+
+// EXAMINE (2026-09-23). 377 printed an npc's description inside the client and the server never
+// heard about it; the client now sends the examine here (engine ExamineNpcHandler, which has
+// already resolved a multinpc to the form this player sees) so it can say more than the
+// description. The first line is exactly what the client used to print - the desc, or "It's a
+// <name>." for an npc without one - and a monster with an elemental weakness adds its element and
+// how much, so a player can find out which spell to bring without leaving the game.
+[proc,npc_examine](npc $npc)
+def_string $desc = nc_desc($npc);
+if (compare($desc, "null") = 0 | string_length($desc) < 1) {
+    $desc = "It's a <nc_name($npc)>.";
+}
+mes($desc);
+def_int $w = enum(npc, int, elemental_weakness, $npc);
+if ($w > 0) {
+    mes("Elemental weakness: @dre@<~element_name(divide($w, 1000))> (<tostring(modulo($w, 1000))>%)@bla@");
+}
+
+// The enum's element numbering, as a word.
+[proc,element_name](int $element)(string)
+switch_int ($element) {
+    case 1 : return("Air");
+    case 2 : return("Water");
+    case 3 : return("Earth");
+    case 4 : return("Fire");
+}
+return("None");

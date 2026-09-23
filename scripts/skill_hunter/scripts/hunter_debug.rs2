@@ -24,3 +24,19 @@ if ($grant <= 0) {
 // action, and it should not roll for a Guild hunter piece.
 stat_advance(hunter, $grant);
 mes("Hunter is now <tostring(stat(hunter))>. Use the net on a butterfly.");
+
+// ::feldip - to the Feldip hunting grounds with five box traps, for trying the trap loop. Lands in
+// the grey chinchompas' clearing; the ferrets are north-west of it and the carnivorous chinchompas
+// north-east. Pair with ::hunter 250000 (level 60, three traps) or more to catch all three.
+[debugproc,feldip]
+if (p_finduid(uid) = false) {
+    return;
+}
+if (inv_total(inv, hunter_box_trap) < 5) {
+    if (inv_itemspace(inv, hunter_box_trap, 5, inv_size(inv)) = false) {
+        mes("No room for the traps.");
+        return;
+    }
+    inv_add(inv, hunter_box_trap, calc(5 - inv_total(inv, hunter_box_trap)));
+}
+p_telejump(0_40_45_10_7);
