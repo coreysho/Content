@@ -29,6 +29,12 @@
 // It costs logs and needs a knife; an unsprung deadfall gives its logs back, a sprung one has used
 // them.
 //
+// A PITFALL is set the same way, on the map's own Pit (loc474_19227) - but nothing wanders into it.
+// You tease a spined larupia with a teasing stick so that it follows you, and Jump the pit with it
+// behind you: if it is still close when you land, it rolls to fall in. The pits are trenches two
+// tiles across that can be reached from one side only, so the jump runs from where you stand to
+// the first open tile past the hole.
+//
 // No experience for laying, dismantling or resetting a collapsed trap - OSRS pays only for a catch.
 
 // ------------------------------------------------------------------------------------ laying
@@ -117,6 +123,134 @@ inv_del(inv, logs, 1);
 loc_change(hunter_deadfall_set, ^hunter_trap_duration);
 settimer(hunter_traps, ^hunter_trap_interval);
 
+// ---------------------------------------------------------------------------------- pitfalls
+
+[oploc3,loc474_19227]
+if (stat(hunter) < ^hunter_pitfall_level) {
+    ~mesbox("You need a Hunter level of <tostring(^hunter_pitfall_level)> to set up a pitfall.");
+    return;
+}
+if (inv_total(inv, knife) < 1) {
+    mes("You need a knife to set up a pitfall.");
+    return;
+}
+if (inv_total(inv, logs) < 1) {
+    mes("You need some logs to set up a pitfall.");
+    return;
+}
+if (~hunter_trap_free_slot = 0) {
+    mes("You don't have a high enough Hunter level to set up more than <~pluralise(~hunter_trap_max, "trap")>.");
+    return;
+}
+def_coord $at = loc_coord;
+anim(human_hunter_set_deadfall, 0);
+sound_synth(springtrap_reset, 1, 0);
+mes("You begin setting up the trap.");
+p_delay(2);
+if (loc_find($at, loc474_19227) = false) {
+    mes("Somebody else has set a trap over that pit.");
+    return;
+}
+def_int $slot = ~hunter_trap_free_slot;
+if ($slot = 0 | inv_total(inv, logs) < 1) {
+    return;
+}
+inv_del(inv, logs, 1);
+~hunter_trap_set($slot, $at);
+~hunter_trap_set_kind($slot, ^hunter_kind_pitfall);
+loc_change(hunter_pit_spiked, ^hunter_trap_duration);
+settimer(hunter_traps, ^hunter_trap_interval);
+mes("You lay the spiked logs across the pit.");
+
+// Tease a larupia: it follows you, and the jump over a spiked pit looks for it.
+[opnpc1,hunter_spined_larupia]
+if (stat(hunter) < ^hunter_larupia_level) {
+    ~mesbox("You need a Hunter level of <tostring(^hunter_larupia_level)> to hunt spined larupias.");
+    return;
+}
+if (inv_total(inv, teasing_stick) < 1 & inv_total(worn, teasing_stick) < 1) {
+    mes("You need a teasing stick to tease the larupia.");
+    return;
+}
+anim(fenk_human_poke, 0);
+facesquare(npc_coord);
+%hunter_tease_npc = npc_uid;
+%hunter_tease_clock = map_clock;
+npc_setmode(playerfollow);
+mes("You poke the larupia with the stick. It turns on you, snarling.");
+
+// Jump the spiked pit. Owner only, like every other op on a trap.
+[oploc1,hunter_pit_spiked]
+if (~hunter_trap_slot(loc_coord) = 0) {
+    mes("This isn't your trap.");
+    return;
+}
+def_coord $pit = loc_coord;
+def_coord $from = coord;
+def_coord $land = ~hunter_pit_landing($from, $pit);
+if ($land = null) {
+    mes("You can't jump the pit from here.");
+    return;
+}
+sound_synth(jump_no_land, 1, 0);
+~agility_exactmove(human_longjump, 0, 2, $from, $land, 20, 50, ~hunter_pit_direction($from, $land), false);
+// Is the larupia this player teased still on them - close behind the tile they jumped FROM? Then it
+// follows them over. Measured from the take-off tile, not the pit: a larupia that never moved but
+// happened to stand near the pit has not chased anyone (the live test caught exactly that).
+if (%hunter_tease_npc = null | calc(map_clock - %hunter_tease_clock) > ^hunter_tease_window) {
+    return;
+}
+if (npc_finduid(%hunter_tease_npc) = false) {
+    return;
+}
+if (distance(npc_coord, $from) > ^hunter_pit_reach) {
+    return;
+}
+%hunter_tease_npc = null;
+if (loc_find($pit, hunter_pit_spiked) = false) {
+    return;
+}
+if (stat_random(hunter, ^hunter_larupia_low, ^hunter_larupia_high) = false) {
+    npc_setmode(null);
+    loc_change(hunter_pit_collapsed, ^hunter_trap_duration);
+    mes("The larupia leaps the pit, and the spiked logs give way under it.");
+    return;
+}
+npc_del;
+loc_change(hunter_pit_larupia, ^hunter_trap_duration);
+sound_synth(springtrap_release, 1, 0);
+mes("The larupia follows you straight into the pit!");
+
+// Where a jump from $from over the pit at $pit lands: straight across, on the first open tile past
+// the hole (the trenches are two tiles wide). Null from a diagonal, or if nothing is open.
+[proc,hunter_pit_landing](coord $from, coord $pit)(coord)
+def_int $dx = calc(coordx($pit) - coordx($from));
+def_int $dz = calc(coordz($pit) - coordz($from));
+if ($dx ! 0 & $dz ! 0) {
+    return(null);
+}
+def_int $sx = 0;
+def_int $sz = 0;
+if ($dx > 0) $sx = 1;
+if ($dx < 0) $sx = -1;
+if ($dz > 0) $sz = 1;
+if ($dz < 0) $sz = -1;
+def_int $k = 2;
+while ($k <= 4) {
+    def_coord $t = movecoord($from, calc($sx * $k), 0, calc($sz * $k));
+    if (map_blocked($t) = false) {
+        return($t);
+    }
+    $k = calc($k + 1);
+}
+return(null);
+
+[proc,hunter_pit_direction](coord $from, coord $to)(int)
+if (coordz($to) > coordz($from)) return(^exact_north);
+if (coordz($to) < coordz($from)) return(^exact_south);
+if (coordx($to) > coordx($from)) return(^exact_east);
+return(^exact_west);
+
 // ------------------------------------------------------------------------------- the empty trap
 
 [oploc1,hunter_boxtrap_laid] @hunter_trap_takeup(^hunter_catch_none);
@@ -125,6 +259,8 @@ settimer(hunter_traps, ^hunter_trap_interval);
 [oploc1,hunter_snare_collapsed] @hunter_trap_takeup(^hunter_catch_none);
 [oploc1,hunter_deadfall_set] @hunter_trap_takeup(^hunter_catch_none);
 [oploc1,hunter_deadfall_collapsed] @hunter_trap_takeup(^hunter_catch_none);
+[oploc2,hunter_pit_spiked] @hunter_trap_takeup(^hunter_catch_none);
+[oploc2,hunter_pit_collapsed] @hunter_trap_takeup(^hunter_catch_none);
 
 [oploc2,hunter_boxtrap_laid] @hunter_trap_investigate;
 [oploc2,hunter_snare_laid] @hunter_trap_investigate;
@@ -166,6 +302,7 @@ mes("You reset the trap.");
 [oploc1,hunter_snare_caught_wagtail] @hunter_trap_takeup(^hunter_catch_wagtail);
 [oploc1,hunter_deadfall_wild] @hunter_trap_takeup(^hunter_catch_wild_kebbit);
 [oploc1,hunter_deadfall_barbtailed] @hunter_trap_takeup(^hunter_catch_barbtailed_kebbit);
+[oploc2,hunter_pit_larupia] @hunter_trap_takeup(^hunter_catch_larupia);
 
 [oploc2,hunter_boxtrap_shaking_chinchompa] @hunter_trap_reset(^hunter_catch_chinchompa);
 [oploc2,hunter_boxtrap_shaking_chinchompa_red] @hunter_trap_reset(^hunter_catch_chinchompa_red);
@@ -259,6 +396,11 @@ switch_int ($catch) {
         inv_add(inv, barbtail_harpoon, 1);
         mes("You've caught a barb-tailed kebbit.");
         ~hunter_xp(^hunter_barbtailed_kebbit_xp);
+    case ^hunter_catch_larupia :
+        inv_add(inv, big_bones, 1);
+        inv_add(inv, larupia_fur, 1);
+        mes("You've caught a spined larupia.");
+        ~hunter_xp(^hunter_larupia_xp);
 }
 
 // ------------------------------------------------------------------------------------ the loop
@@ -479,13 +621,18 @@ return(getbit_range(%hunter_trap_kinds, $lo, calc($lo + 1)));
 switch_int (~hunter_trap_kind($slot)) {
     case ^hunter_kind_snare : return(hunter_bird_snare);
     case ^hunter_kind_deadfall : return(logs);
+    case ^hunter_kind_pitfall : return(logs);
 }
 return(hunter_box_trap);
 
-// What comes back when a trap in this state is taken up: the trap itself, except a deadfall that
-// has come down - its logs are spent - which gives nothing back but the boulder.
+// What comes back when a trap in this state is taken up: the trap itself, except a deadfall or a
+// pitfall that has been sprung - its logs are spent - which gives nothing back but the map's loc.
 [proc,hunter_trap_returns](int $slot, loc $type)(namedobj)
-if (~hunter_trap_kind($slot) = ^hunter_kind_deadfall & $type ! hunter_deadfall_set) {
+def_int $kind = ~hunter_trap_kind($slot);
+if ($kind = ^hunter_kind_deadfall & $type ! hunter_deadfall_set) {
+    return(null);
+}
+if ($kind = ^hunter_kind_pitfall & $type ! hunter_pit_spiked) {
     return(null);
 }
 return(~hunter_trap_item($slot));
@@ -512,6 +659,9 @@ if (loc_find($at, hunter_deadfall_set) = true) return(hunter_deadfall_set);
 if (loc_find($at, hunter_deadfall_collapsed) = true) return(hunter_deadfall_collapsed);
 if (loc_find($at, hunter_deadfall_wild) = true) return(hunter_deadfall_wild);
 if (loc_find($at, hunter_deadfall_barbtailed) = true) return(hunter_deadfall_barbtailed);
+if (loc_find($at, hunter_pit_spiked) = true) return(hunter_pit_spiked);
+if (loc_find($at, hunter_pit_collapsed) = true) return(hunter_pit_collapsed);
+if (loc_find($at, hunter_pit_larupia) = true) return(hunter_pit_larupia);
 return(null);
 
 // ------------------------------------------------------------------------------------ inventory
@@ -530,6 +680,7 @@ switch_int ($catch) {
     case ^hunter_catch_wagtail : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(raw_bird_meat) + ~hunter_slot_need(stripy_feather));
     case ^hunter_catch_wild_kebbit : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(kebbit_claws));
     case ^hunter_catch_barbtailed_kebbit : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(barbtail_harpoon));
+    case ^hunter_catch_larupia : $need = calc($need + ~hunter_slot_need(big_bones) + ~hunter_slot_need(larupia_fur));
 }
 if (inv_freespace(inv) < $need) {
     return(false);

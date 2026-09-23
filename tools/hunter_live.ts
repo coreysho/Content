@@ -108,6 +108,179 @@ if (process.env.HTRAP === 'cape') {
     process.exit(fails ? 1 : 0);
 }
 
+// HTRAP=tracking: Feldip weasel trails from the burrow at 2525,2889, followed to the bush.
+if (process.env.HTRAP === 'tracking') {
+    const inv0 = player.getInventory(InvType.INV)!;
+    const tot = (n: string) => inv0.getItemCount(ObjType.getId(n));
+    const NODE_TYPES = [...Array.from({ length: 15 }, (_, i) => `loc474_${19403 + i}`), 'loc474_19593', 'loc474_19594'].map(n => LocType.getId(n));
+    const BUSH = LocType.getId('loc474_19427');
+    const locAtXZ = (x: number, z: number) => { for (const t of [...NODE_TYPES, BUSH]) { const l = World.getLoc(x, z, 0, t); if (l) return l; } return null; };
+    const v = (n: string) => player.getVar(VarPlayerType.getId(n)) as number;
+    const xz = (c: number) => ({ x: (c >> 14) & 0x3fff, z: c & 0x3fff });
+    const op = async (opn: number, loc: any) => {
+        player.teleport(loc.x, loc.z - 1, 0); await waitTicks(1);
+        const t = LocType.get(loc.type);
+        const script = ScriptProvider.getByTrigger(ServerTriggerType.OPLOC1 + (opn - 1), t.id, t.category);
+        player.executeScript(ScriptRunner.init(script!, player, loc), true);
+        await waitTicks(3);
+    };
+    // the same compass the script uses, to check each hint against the real bearing
+    const dir = (fx: number, fz: number, tx: number, tz: number) => {
+        const dx = tx - fx, dz = tz - fz, ax = Math.abs(dx), az = Math.abs(dz);
+        const ns = dz > 0 ? 'north' : dz < 0 ? 'south' : '', ew = dx > 0 ? 'east' : dx < 0 ? 'west' : '';
+        if (ax > az * 2) return ew; if (az > ax * 2) return ns; if (!ns) return ew; if (!ew) return ns; return `${ns}-${ew}`;
+    };
+    const BURROW = World.getLoc(2525, 2889, 0, LocType.getId('loc474_19594')) ?? World.getLoc(2525, 2889, 0, LocType.getId('loc474_19593'));
+    check(BURROW !== null, 'the burrow at 2525,2889 is where the map put it');
+    // level gate
+    player.stats[PlayerStat.HUNTER] = getExpByLevel(5); player.baseLevels[PlayerStat.HUNTER] = 5; player.levels[PlayerStat.HUNTER] = 5;
+    await op(1, BURROW);
+    check(v('hunter_track_next') === -1, 'below Hunter 7 a burrow gives no trail');
+    player.stats[PlayerStat.HUNTER] = getExpByLevel(LEVEL); player.baseLevels[PlayerStat.HUNTER] = LEVEL; player.levels[PlayerStat.HUNTER] = LEVEL;
+    // a bush with no trail
+    { const b = locAtXZ(2531, 2890)!; const n = msgs.length; player.invAdd(InvType.INV, ObjType.getId('noose_wand'), 1);
+      await op(2, b); check(msgs.slice(n).some(m => m.includes('nothing in there')), 'Attack on a bush with no trail finds nothing'); inv0.remove(ObjType.getId('noose_wand'), 1); }
+    let caught = false, trails = 0, hintsOk = true, hints = 0, steps = 0;
+    while (!caught && trails < 10) {
+        trails++;
+        let n = msgs.length;
+        await op(1, BURROW);
+        check(trails > 1 || v('hunter_track_next') !== -1, 'a burrow starts a trail');
+        let from = { x: BURROW!.x, z: BURROW!.z };
+        for (let hop = 0; hop < 8; hop++) {
+            const next = xz(v('hunter_track_next')), bush = xz(v('hunter_track_bush'));
+            const said = msgs.slice(n).reverse().find(m => m.includes('tracks'));
+            hints++; if (!said || !said.includes(dir(from.x, from.z, next.x, next.z))) { hintsOk = false; log('hint mismatch', said, from, next, dir(from.x, from.z, next.x, next.z)); }
+            if (next.x === bush.x && next.z === bush.z) break;
+            const loc = locAtXZ(next.x, next.z);
+            if (!loc) { check(false, `the trail's next step ${next.x},${next.z} has something to inspect`); break; }
+            if (hop === 0 && trails === 1) {
+                // a node that is not the next step: no tracks, and the trail is unchanged
+                const other = [[2522, 2881], [2524, 2891], [2555, 2881]].map(([x, z]) => locAtXZ(x, z)).find(l => l && (l.x !== next.x || l.z !== next.z));
+                if (other) { const m0 = msgs.length; await op(1, other); check(msgs.slice(m0).some(m => m.includes('find no tracks')) && v('hunter_track_next') === ((next.x << 14) | next.z), 'inspecting the wrong plant finds no tracks and keeps the trail'); }
+            }
+            n = msgs.length; await op(1, loc); steps++;
+            from = next;
+        }
+        const bush = xz(v('hunter_track_bush'));
+        const bl = locAtXZ(bush.x, bush.z);
+        check(bl !== null, `the trail ends at a bush (${bush.x},${bush.z})`);
+        if (!bl) break;
+        if (trails === 1) {
+            const n0 = msgs.length; await op(1, bl); check(msgs.slice(n0).some(m => m.includes('weasel hiding')), '...Search on it finds the weasel');
+            const n1 = msgs.length; await op(2, bl); check(msgs.slice(n1).some(m => m.includes('need a noose wand')), '...which needs a noose wand to catch');
+            player.invAdd(InvType.INV, ObjType.getId('noose_wand'), 1);
+        }
+        const b = { bones: tot('bones'), fur: tot('feldip_weasel_fur'), xp: player.stats[PlayerStat.HUNTER] };
+        await op(2, bl);
+        await waitTicks(4); // the noose is an anim and a two-tick delay before the roll resolves
+        if (tot('feldip_weasel_fur') > b.fur) {
+            caught = true;
+            check(tot('bones') === b.bones + 1, '...caught: bones and Feldip weasel fur');
+            check(player.stats[PlayerStat.HUNTER] - b.xp === parseInt(/\^hunter_weasel_xp = (\d+)/.exec(CONST)![1]), `...${(player.stats[PlayerStat.HUNTER] - b.xp) / 10} xp`);
+        }
+        check(v('hunter_track_next') === -1, `...and the trail is spent either way (trail ${trails})`);
+    }
+    check(caught, `a weasel caught within 10 trails (${trails})`);
+    check(hintsOk, `every hint named the real direction of the next step (${hints} hints, ${steps} plants)`);
+    console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
+    process.exit(fails ? 1 : 0);
+}
+
+// HTRAP=pitfall: spiked logs over the pit at 2543,2908 (reached only from 2543,2907, south), a
+// tease, and the jump north to 2543,2910 with the larupia behind.
+if (process.env.HTRAP === 'pitfall') {
+    const inv0 = player.getInventory(InvType.INV)!;
+    const tot = (n: string) => inv0.getItemCount(ObjType.getId(n));
+    const PIT = LocType.getId('loc474_19227');
+    const ST = ['hunter_pit_spiked', 'hunter_pit_collapsed', 'hunter_pit_larupia'];
+    const [PX, PZ] = [2543, 2908], [SX, SZ] = [2543, 2907], [LX, LZ] = [2543, 2910];
+    const pitAt = () => { for (const n of ST) { const l = World.getLoc(PX, PZ, 0, LocType.getId(n)); if (l) return { name: n, loc: l }; } return null; };
+    const plainPit = () => World.getLoc(PX, PZ, 0, PIT);
+    const run = (trigger: number, id: number, cat: number, target: any) => {
+        const script = ScriptProvider.getByTrigger(trigger, id, cat);
+        player.executeScript(ScriptRunner.init(script!, player, target), true);
+    };
+    const oploc = (op: number, loc: any) => { const t = LocType.get(loc.type); run(ServerTriggerType.OPLOC1 + (op - 1), t.id, t.category, loc); };
+    const LARUPIA = NpcType.getId('hunter_spined_larupia');
+    const nearestLarupia = () => { let best: any = null, bd = 99; for (const n of World.npcs) if (n && n.type === LARUPIA) { const d = Math.max(Math.abs(n.x - SX), Math.abs(n.z - SZ)); if (d < bd) { bd = d; best = n; } } return best; };
+    const tease = (npc: any) => { const t = NpcType.get(npc.type); run(ServerTriggerType.OPNPC1, t.id, t.category, npc); };
+    const teased = () => player.getVar(VarPlayerType.getId('hunter_tease_npc')) as number;
+    const setPit = async () => { player.teleport(SX, SZ, 0); await waitTicks(2); oploc(3, plainPit()); await waitTicks(5); };
+    const jump = async () => { player.teleport(SX, SZ, 0); await waitTicks(1); oploc(1, pitAt()!.loc); await waitTicks(4); };
+
+    player.invAdd(InvType.INV, ObjType.getId('knife'), 1);
+    // Fifteen, not five: each failed jump spends a log and each re-set another, and a run of bad rolls
+    // used to leave the last re-set with none ("You need some logs") - one flake in five runs.
+    player.invAdd(InvType.INV, ObjType.getId('logs'), 15);
+    check(plainPit() !== null, 'the pit is where the map put it, on the ground floor (a linkbelow bridge tile)');
+    await setPit();
+    check(pitAt()?.name === 'hunter_pit_spiked' && tot('logs') === 14, 'spiked logs laid over the pit, for one log');
+    await jump();
+    check(player.x === LX && player.z === LZ, `a jump from ${SX},${SZ} lands across the trench at ${LX},${LZ} (${player.x},${player.z})`);
+    check(pitAt()?.name === 'hunter_pit_spiked', '...and with nothing chasing, the pit is untouched');
+    // the tease level gate
+    player.stats[PlayerStat.HUNTER] = getExpByLevel(25); player.baseLevels[PlayerStat.HUNTER] = 25; player.levels[PlayerStat.HUNTER] = 25;
+    player.teleport(SX, SZ, 0); await waitTicks(1);
+    tease(nearestLarupia()); await waitTicks(2);
+    check(teased() === -1, 'below Hunter 31 the larupia cannot be teased');
+    player.stats[PlayerStat.HUNTER] = getExpByLevel(LEVEL); player.baseLevels[PlayerStat.HUNTER] = LEVEL; player.levels[PlayerStat.HUNTER] = LEVEL;
+    { const n = msgs.length; tease(nearestLarupia()); await waitTicks(1); check(msgs.slice(n).some(m => m.includes('need a teasing stick')) && teased() === -1, 'no tease without a teasing stick'); }
+    player.invAdd(InvType.INV, ObjType.getId('teasing_stick'), 1);
+    let fell = false;
+    for (let attempt = 0; attempt < 12 && !fell; attempt++) {
+        if (pitAt() === null) await setPit(); // a spiked pit untouched for its duration reverts to the plain pit
+        if (pitAt()?.name !== 'hunter_pit_spiked') {
+            if (pitAt()?.name === 'hunter_pit_collapsed') {
+                const logs = tot('logs');
+                oploc(2, pitAt()!.loc); await waitTicks(2);
+                check(plainPit() !== null && tot('logs') === logs, 'a collapsed pit dismantles back to the pit, and the log is spent');
+            }
+            await setPit();
+        }
+        player.teleport(SX, SZ, 0); await waitTicks(1);
+        const npc = nearestLarupia();
+        if (!npc) { await waitTicks(60); continue; }
+        tease(npc); await waitTicks(1);
+        if (attempt === 0) {
+            // It FOLLOWS: its mode is PLAYERFOLLOW (4), and when the player steps away it moves after them.
+            check(teased() !== -1 && npc.targetOp === 4, `a teased larupia is set to follow (targetOp ${npc.targetOp})`);
+            const [nx, nz] = [npc.x, npc.z];
+            // stand on the take-off tile and let it come: it must actually move to be behind you
+            for (let i = 0; i < 8; i++) { await waitTicks(1); if (process.env.HTRACE) log('larupia', npc.x, npc.z, 'op', npc.targetOp, 'player', player.x, player.z); }
+            if (process.env.HTRACE) {
+                const n: any = npc;
+                const { findNaivePath } = await import('#/engine/GameMap.js');
+                const wp = findNaivePath(0, n.x, n.z, player.x, player.z, n.width, n.length, 1, 1, 0, 0);
+                log('moveStrategy', n.moveStrategy, 'collisionStrategy', n.getCollisionStrategy?.(), 'blockWalkFlag', n.blockWalkFlag?.(), 'size', n.width, n.length, 'moveRestrict', (NpcType.get(n.type) as any).moverestrict);
+                log('naive waypoints', Array.from(wp as any).map((c: any) => `${(c >> 14) & 0x3fff},${c & 0x3fff}`).join(' '));
+                const { isMapBlocked } = await import('#/engine/GameMap.js');
+                for (let z = n.z + 3; z >= n.z - 1; z--) { let row = `${z} `; for (let x = n.x - 2; x <= n.x + 3; x++) row += isMapBlocked(x, z, 0) ? '#' : '.'; log(row); }
+            }
+            const wasBehind = Math.max(Math.abs(nx - SX), Math.abs(nz - SZ)) <= 2;
+            check(npc.x !== nx || npc.z !== nz || wasBehind, `...and moves after the player, unless it was already at their heels (${nx},${nz} -> ${npc.x},${npc.z})`);
+            check(Math.max(Math.abs(npc.x - SX), Math.abs(npc.z - SZ)) <= 3, `...until it is right behind them (${npc.x},${npc.z})`);
+        } else await waitTicks(3);
+        await jump();
+        log('jump', attempt, '->', pitAt()?.name);
+        if (pitAt()?.name === 'hunter_pit_larupia') fell = true;
+    }
+    check(fell, 'the larupia followed the jump into the pit within 12 tries');
+    if (fell) {
+        const b = { bones: tot('big_bones'), fur: tot('larupia_fur'), logs: tot('logs'), xp: player.stats[PlayerStat.HUNTER] };
+        player.teleport(SX, SZ, 0); await waitTicks(1);
+        oploc(2, pitAt()!.loc); await waitTicks(2);
+        check(tot('big_bones') === b.bones + 1 && tot('larupia_fur') === b.fur + 1, '...Dismantle pays big bones and larupia fur');
+        check(player.stats[PlayerStat.HUNTER] - b.xp === parseInt(/\^hunter_larupia_xp = (\d+)/.exec(CONST)![1]), `...${(player.stats[PlayerStat.HUNTER] - b.xp) / 10} xp`);
+        check(tot('logs') === b.logs && plainPit() !== null, '...no log back, and the pit is a pit again');
+    }
+    { const n = msgs.length; await setPit();
+      if (pitAt()?.name !== 'hunter_pit_spiked') check(false, `re-setting the pit took (${pitAt()?.name ?? (plainPit() ? 'plain pit' : 'nothing')}; delayed ${player.delayed}, protect ${player.protect}, at ${player.x},${player.z}; said: ${JSON.stringify(msgs.slice(n))})`); }
+    if (pitAt()?.name === 'hunter_pit_spiked') { const logs = tot('logs'); oploc(2, pitAt()!.loc); await waitTicks(2); check(tot('logs') === logs + 1 && plainPit() !== null, 'Dismantle on an unsprung pit gives its log back'); }
+    console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
+    process.exit(fails ? 1 : 0);
+}
+
 // HTRAP=deadfall: deadfalls on the four northern boulders, where only barb-tailed kebbits (33) live.
 if (process.env.HTRAP === 'deadfall') {
     const inv0 = player.getInventory(InvType.INV)!;
