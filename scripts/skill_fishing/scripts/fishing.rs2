@@ -19,8 +19,9 @@ if (string_length($message) > 0) {
 // inv space check doesnt seem to have consistent behavior so its not included in this proc.
 [proc,check_fish_equipment](namedobj $fish_equipment)(boolean)
 def_struct $struct = oc_param($fish_equipment, fish_equipment_struct);
-// check if they have fishing equipment
-if (inv_total(inv, $fish_equipment) < 1) {
+// check if they have fishing equipment. A barb-tail harpoon (Hunter: barb-tailed kebbits) fishes
+// anything a harpoon does, as in OSRS; ~fish_harpoon_held is the one place that knows it.
+if (inv_total(inv, $fish_equipment) < 1 & ($fish_equipment ! harpoon | inv_total(inv, barbtail_harpoon) < 1)) {
     anim(null, 0);
     ~mesbox(struct_param($struct, fish_equipment_failmessage));
     return(false);
@@ -104,3 +105,11 @@ if ($fish1 ! null) { // else if fish1 isnt null and roll for 1st fish passes
         mes(struct_param($struct1, productmessage));
     }
 }
+
+// Which harpoon the player is actually carrying - the plain one first, else a barb-tail harpoon -
+// for the two things that TAKE the harpoon away: a whirlpool, and dropping it in the lava.
+[proc,fish_harpoon_held](namedobj $equipment)(namedobj)
+if ($equipment = harpoon & inv_total(inv, harpoon) < 1 & inv_total(inv, barbtail_harpoon) > 0) {
+    return(barbtail_harpoon);
+}
+return($equipment);

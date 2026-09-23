@@ -28,6 +28,12 @@
 @attempt_smithing(last_item, 5);
 [inv_button3,smithing:column5]
 @attempt_smithing(last_item, 10);
+[inv_button1,smithing:column_bolts]
+@attempt_smithing(last_item, 1);
+[inv_button2,smithing:column_bolts]
+@attempt_smithing(last_item, 5);
+[inv_button3,smithing:column_bolts]
+@attempt_smithing(last_item, 10);
 [inv_button1,smithing:column_claws]
 @attempt_smithing(last_item, 1);
 [inv_button2,smithing:column_claws]
@@ -63,6 +69,7 @@ inv_stoptransmit(smithing:column3);
 inv_stoptransmit(smithing:column4);
 inv_stoptransmit(smithing:column5);
 inv_stoptransmit(smithing:column_claws);
+inv_stoptransmit(smithing:column_bolts);
 
 [label,smithing_anvil_interface](obj $last_item)
 def_struct $struct = oc_param($last_item, smithing_anvil_struct);
@@ -83,6 +90,11 @@ if (inv_total(inv, hammer) < 1) {
     ~mesbox("You need a hammer to work the metal with.");
     return;
 }
+// blurite makes only crossbow parts (474), so it asks which rather than opening a window of
+// nothing else
+if ($last_item = blurite_bar) {
+    @smith_blurite;
+}
 //set varps
 %smithbars = inv_total(inv, struct_param($struct, namedobj));
 %modified_smith = $player_level;
@@ -92,36 +104,23 @@ if (%desertrescue >= ^desertrescue_learned_darts) {
 } else {
     %if1 = 0;
 }
-// hide wire button if its not bronze
-// hide studs button if its not steel
+// the last column's fourth row is the metal's odd one out - bronze wire, an iron spit, steel studs -
+// named here, and white once you can make it
+if_sethide(smithing:stud_layer, true);
 if ($last_item = bronze_bar) {
     // bronze plate bodies are unlocked at lvl 18, but the interface data uses gt,18. so i have to +1 here
     if (%modified_smith = 18) {
         %modified_smith = 19;
     }
-    if_sethide (smithing:other_layer, false);
     // https://web.archive.org/web/20050410152119/http://www.tip.it/runescape/smithing_tables.php?metal=bronze
-    if_settext (smithing:com_101, "Bronze wire");
+    ~smithing_other_row("Bronze wire", 4);
+} else if ($last_item = iron_bar) {
+    ~smithing_other_row("Iron spit", 17);
 } else if ($last_item = steel_bar) {
-    if_sethide (smithing:stud_layer, false);
-    if_sethide (smithing:other_layer, false);
     // https://imgur.com/CdcGdXD
-    if_settext (smithing:com_101, "Steel studs");
-}  else {
-    if_sethide (smithing:other_layer, true);
-    if_sethide (smithing:stud_layer, true);
-}
-// hide studs button if its not steel
-if ($last_item ! steel_bar) {
-    if_sethide (smithing:stud_layer, true);
+    ~smithing_other_row("Steel studs", 36);
 } else {
-    if_sethide (smithing:stud_layer, false);
-}
-// hide lantern frame if its not iron
-if ($last_item ! iron_bar) {
-    if_sethide (smithing:com_145, true);
-} else {
-    if_sethide (smithing:com_145, false);
+    if_sethide(smithing:other_layer, true);
 }
 // hide claws button if death plateau is not complete
 if(%death_equiproom < ^death_complete) {
@@ -143,8 +142,8 @@ switch_obj ($last_item)
         inv_transmit(smithing_bronze3, smithing:column3);
         inv_transmit(smithing_bronze4, smithing:column4);
         inv_transmit(smithing_bronze5, smithing:column5);
-        inv_transmit(smithing_bronze5, smithing:column5);
         inv_transmit(smithing_bronze_claws, smithing:column_claws);
+        inv_transmit(smithing_bronze_bolts, smithing:column_bolts);
     case iron_bar :
         %modified_smith = calc($player_level - 14);
         inv_transmit(smithing_iron1, smithing:column1);
@@ -153,6 +152,7 @@ switch_obj ($last_item)
         inv_transmit(smithing_iron4, smithing:column4);
         inv_transmit(smithing_iron5, smithing:column5);
         inv_transmit(smithing_iron_claws, smithing:column_claws);
+        inv_transmit(smithing_iron_bolts, smithing:column_bolts);
     case steel_bar :
         %modified_smith = calc($player_level - 29);
         inv_transmit(smithing_steel1, smithing:column1);
@@ -161,6 +161,7 @@ switch_obj ($last_item)
         inv_transmit(smithing_steel4, smithing:column4);
         inv_transmit(smithing_steel5, smithing:column5);
         inv_transmit(smithing_steel_claws, smithing:column_claws);
+        inv_transmit(smithing_steel_bolts, smithing:column_bolts);
     case mithril_bar :
         %modified_smith = calc($player_level - 49);
         inv_transmit(smithing_mithril1, smithing:column1);
@@ -169,6 +170,7 @@ switch_obj ($last_item)
         inv_transmit(smithing_mithril4, smithing:column4);
         inv_transmit(smithing_mithril5, smithing:column5);
         inv_transmit(smithing_mithril_claws, smithing:column_claws);
+        inv_transmit(smithing_mithril_bolts, smithing:column_bolts);
     case adamantite_bar :
         %modified_smith = calc($player_level - 69);
         inv_transmit(smithing_adamant1, smithing:column1);
@@ -177,6 +179,7 @@ switch_obj ($last_item)
         inv_transmit(smithing_adamant4, smithing:column4);
         inv_transmit(smithing_adamant5, smithing:column5);
         inv_transmit(smithing_adamant_claws, smithing:column_claws);
+        inv_transmit(smithing_adamant_bolts, smithing:column_bolts);
     case runite_bar :
         // rune platebody, legs, and skirt go past 99 smithing
         if ($player_level > 98) {
@@ -190,6 +193,7 @@ switch_obj ($last_item)
         inv_transmit(smithing_rune4, smithing:column4);
         inv_transmit(smithing_rune5, smithing:column5);
         inv_transmit(smithing_rune_claws, smithing:column_claws);
+        inv_transmit(smithing_rune_bolts, smithing:column_bolts);
     case default :
         ~displaymessage(^dm_default);
         return;
@@ -300,3 +304,34 @@ anim(human_smithing, 0);
 sound_synth(anvil_4, 1, 0);
 weakqueue*(smith_anvil, 5)($ifproduct, $count);
 //--------------------------
+
+[proc,smithing_other_row](string $name, int $level)
+if_sethide(smithing:other_layer, false);
+if_settext(smithing:other_text, $name);
+if (stat(smithing) >= $level) {
+    if_setcolour(smithing:other_text, ^white_rgb);
+} else {
+    if_setcolour(smithing:other_text, ^black_rgb);
+}
+
+// Blurite bolts (unf) or limbs, then as many as the bars make (the batch stops on any other action).
+// The bar check is the batch's own; the members check was the anvil's.
+[label,smith_blurite]
+def_namedobj $choice = ~multiobj2("What would you like to make?",
+    blurite_bolts_unf, 0, -15, 175, "Blurite bolts (unf).", 0, 0,
+    blurite_limbs, 0, -15, 175, "Blurite limbs.", 0, 0
+);
+if ($choice = null) {
+    return;
+}
+db_find(smithing:ifproduct, $choice);
+def_dbrow $data = db_findnext;
+def_int $levelrequired = db_getfield($data, smithing:levelrequired, 0);
+if (stat(smithing) < $levelrequired) {
+    ~mesbox("You need a Smithing level of <tostring($levelrequired)> to make <db_getfield($data, smithing:levelfailmessage, 0)>.");
+    return;
+}
+// the anvil window's batch, for every bar carried
+anim(human_smithing, 0);
+sound_synth(anvil_4, 1, 0);
+weakqueue*(smith_anvil, 2)($choice, inv_total(inv, blurite_bar));

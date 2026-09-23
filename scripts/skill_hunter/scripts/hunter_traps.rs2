@@ -1,0 +1,552 @@
+// Hunter - traps: box traps, bird snares and deadfalls. See configs/hunter.constant for the numbers and where
+// the art came from, and configs/hunter_trap.varp for why ownership lives on the player.
+//
+// THE LOOP. A laid trap is a world loc. It does nothing by itself: every OWNER carries a timer,
+// [timer,hunter_traps], that looks at that owner's traps every ^hunter_trap_interval ticks and
+// moves each one along -
+//
+//     laid       --prey wanders within ^hunter_trap_lure_radius, 1 in ^hunter_trap_lure_chance-->
+//                   roll stat_random:  pass -> catching_<prey>  (the prey npc is deleted; the loc's
+//                                                                own animation shows it going in)
+//                                      fail -> collapsed        (a snare shows itself springing
+//                                                                empty first; the prey flies off)
+//     catching   --next look-->  shaking box / caught snare   (Check; a box can also be Reset)
+//     collapsed  -- stays until Dismantle (or Reset, for a box)
+//
+// and collapses any trap its owner has walked away from. Driving it from the owner rather than the
+// loc is what lets the prey choice depend on the owner's level: in OSRS a creature ignores a trap
+// its hunter could not catch it with, and here a level-40 hunter's trap in the chinchompa clearing
+// simply stays empty.
+//
+// Box traps, bird snares and deadfalls share the loop, the five slots and the cap, as they share
+// OSRS's: the limit is on traps, not on traps of a kind. Which kind a slot holds is two bits of
+// %hunter_trap_kinds, so a trap can be handed back as the right obj even after its loc has gone.
+//
+// A DEADFALL is the odd one: it is not laid, it is SET on a boulder the map already has
+// (loc474_19205, placed by 474 across the Feldip grounds). Setting one loc_changes that boulder,
+// and everything that ends a deadfall - Check, Dismantle, the leash, a duration running out,
+// [logout] - hands the boulder back, because a static loc changed with a duration reverts to itself.
+// It costs logs and needs a knife; an unsprung deadfall gives its logs back, a sprung one has used
+// them.
+//
+// No experience for laying, dismantling or resetting a collapsed trap - OSRS pays only for a catch.
+
+// ------------------------------------------------------------------------------------ laying
+
+[opheld1,hunter_box_trap] @hunter_trap_lay(hunter_box_trap, ^hunter_boxtrap_level, hunter_boxtrap_laid);
+[opheld1,hunter_bird_snare] @hunter_trap_lay(hunter_bird_snare, ^hunter_snare_level, hunter_snare_laid);
+
+[label,hunter_trap_lay](namedobj $trap, int $level, loc $laid)
+if (stat(hunter) < $level) {
+    ~mesbox("You need a Hunter level of <tostring($level)> to set up <~add_article(lowercase(oc_name($trap)))>.");
+    return;
+}
+if (~hunter_trap_free_slot = 0) {
+    mes("You don't have a high enough Hunter level to set up more than <~pluralise(~hunter_trap_max, "trap")>.");
+    return;
+}
+if (~area_allow_loc_add(coord) = false) {
+    mes("You can't lay a trap here.");
+    return;
+}
+def_coord $at = coord;
+inv_del(inv, $trap, 1);
+anim(human_hunter_lay_trap, 0);
+sound_synth(springtrap_reset, 1, 0);
+mes("You begin setting up the trap.");
+p_delay(2);
+// The slot is claimed only now, AFTER the delay. Claimed before it, the owner's timer - which may
+// already be running for another trap - would look at the slot during the delay, find no loc on the
+// tile, take it for a trap whose duration had run out, and drop a trap on the ground: a free one,
+// since this one is out of the pack. So everything is asked again here instead: a free slot (the
+// player is delayed, not the world), and a free tile, since somebody may have stepped into it or
+// laid their own while we knelt, and loc_add would put a second trap on top of theirs.
+def_int $slot = ~hunter_trap_free_slot;
+if ($slot = 0 | ~area_allow_loc_add($at) = false) {
+    inv_add(inv, $trap, 1);
+    mes("Something else is in the way now.");
+    return;
+}
+~hunter_trap_set($slot, $at);
+if ($trap = hunter_bird_snare) {
+    ~hunter_trap_set_kind($slot, ^hunter_kind_snare);
+} else {
+    ~hunter_trap_set_kind($slot, ^hunter_kind_box);
+}
+loc_add($at, $laid, 0, centrepiece_straight, ^hunter_trap_duration);
+settimer(hunter_traps, ^hunter_trap_interval);
+~push_player($at);
+
+// ---------------------------------------------------------------------------------- deadfalls
+
+[oploc1,loc474_19205]
+if (stat(hunter) < ^hunter_deadfall_level) {
+    ~mesbox("You need a Hunter level of <tostring(^hunter_deadfall_level)> to set up a deadfall.");
+    return;
+}
+if (inv_total(inv, knife) < 1) {
+    mes("You need a knife to set up a deadfall.");
+    return;
+}
+if (inv_total(inv, logs) < 1) {
+    mes("You need some logs to set up a deadfall.");
+    return;
+}
+if (~hunter_trap_free_slot = 0) {
+    mes("You don't have a high enough Hunter level to set up more than <~pluralise(~hunter_trap_max, "trap")>.");
+    return;
+}
+def_coord $at = loc_coord;
+anim(human_hunter_set_deadfall, 0);
+sound_synth(springtrap_reset, 1, 0);
+mes("You begin setting up the trap.");
+p_delay(2);
+// As with laying, everything is asked again after the delay - and here the boulder itself, since
+// somebody else may have set a deadfall on it while we worked.
+if (loc_find($at, loc474_19205) = false) {
+    mes("Somebody else has set a trap on that boulder.");
+    return;
+}
+def_int $slot = ~hunter_trap_free_slot;
+if ($slot = 0 | inv_total(inv, logs) < 1) {
+    return;
+}
+inv_del(inv, logs, 1);
+~hunter_trap_set($slot, $at);
+~hunter_trap_set_kind($slot, ^hunter_kind_deadfall);
+loc_change(hunter_deadfall_set, ^hunter_trap_duration);
+settimer(hunter_traps, ^hunter_trap_interval);
+
+// ------------------------------------------------------------------------------- the empty trap
+
+[oploc1,hunter_boxtrap_laid] @hunter_trap_takeup(^hunter_catch_none);
+[oploc1,hunter_boxtrap_collapsed] @hunter_trap_takeup(^hunter_catch_none);
+[oploc1,hunter_snare_laid] @hunter_trap_takeup(^hunter_catch_none);
+[oploc1,hunter_snare_collapsed] @hunter_trap_takeup(^hunter_catch_none);
+[oploc1,hunter_deadfall_set] @hunter_trap_takeup(^hunter_catch_none);
+[oploc1,hunter_deadfall_collapsed] @hunter_trap_takeup(^hunter_catch_none);
+
+[oploc2,hunter_boxtrap_laid] @hunter_trap_investigate;
+[oploc2,hunter_snare_laid] @hunter_trap_investigate;
+[oploc2,hunter_deadfall_set] @hunter_trap_investigate;
+
+[label,hunter_trap_investigate]
+if (~hunter_trap_slot(loc_coord) = 0) {
+    mes("This isn't your trap.");
+    return;
+}
+mes("The trap is set. Nothing has wandered into it yet.");
+
+// Reset a collapsed BOX trap. A collapsed snare has no Reset in OSRS - only Dismantle - and has
+// none here.
+[oploc2,hunter_boxtrap_collapsed]
+if (~hunter_trap_slot(loc_coord) = 0) {
+    mes("This isn't your trap.");
+    return;
+}
+def_coord $at = loc_coord;
+anim(human_hunter_lay_trap, 0);
+sound_synth(springtrap_reset, 1, 0);
+p_delay(2);
+// Found again rather than trusted: the owner's timer runs during the delay, and a trap whose
+// duration ran out in it is an obj on the ground now, not a loc to change.
+if (loc_find($at, hunter_boxtrap_collapsed) = false) {
+    return;
+}
+loc_change(hunter_boxtrap_laid, ^hunter_trap_duration);
+settimer(hunter_traps, ^hunter_trap_interval);
+mes("You reset the trap.");
+
+// ---------------------------------------------------------------------------------- a catch
+
+[oploc1,hunter_boxtrap_shaking_chinchompa] @hunter_trap_takeup(^hunter_catch_chinchompa);
+[oploc1,hunter_boxtrap_shaking_chinchompa_red] @hunter_trap_takeup(^hunter_catch_chinchompa_red);
+[oploc1,hunter_boxtrap_shaking_ferret] @hunter_trap_takeup(^hunter_catch_ferret);
+[oploc1,hunter_snare_caught_swift] @hunter_trap_takeup(^hunter_catch_swift);
+[oploc1,hunter_snare_caught_wagtail] @hunter_trap_takeup(^hunter_catch_wagtail);
+[oploc1,hunter_deadfall_wild] @hunter_trap_takeup(^hunter_catch_wild_kebbit);
+[oploc1,hunter_deadfall_barbtailed] @hunter_trap_takeup(^hunter_catch_barbtailed_kebbit);
+
+[oploc2,hunter_boxtrap_shaking_chinchompa] @hunter_trap_reset(^hunter_catch_chinchompa);
+[oploc2,hunter_boxtrap_shaking_chinchompa_red] @hunter_trap_reset(^hunter_catch_chinchompa_red);
+[oploc2,hunter_boxtrap_shaking_ferret] @hunter_trap_reset(^hunter_catch_ferret);
+
+// Pick the trap up, with whatever is in it (^hunter_catch_none for an empty one: Dismantle).
+[label,hunter_trap_takeup](int $catch)
+def_int $slot = ~hunter_trap_slot(loc_coord);
+if ($slot = 0) {
+    mes("This isn't your trap.");
+    return;
+}
+def_namedobj $trap = ~hunter_trap_returns($slot, loc_type);
+if (~hunter_catch_room($trap, $catch) = false) {
+    mes("You don't have enough inventory space.");
+    return;
+}
+def_coord $at = loc_coord;
+anim(human_hunter_check_trap, 0);
+sound_synth(disarm_trap, 1, 0);
+// The loc goes and the slot is freed before anything is paid, and nothing yields between them, so
+// a double click cannot check one trap twice: the second finds no loc to be clicked.
+loc_del(1);
+~hunter_trap_set($slot, null);
+if ($trap ! null) {
+    inv_add(inv, $trap, 1);
+}
+if ($catch = ^hunter_catch_none) {
+    mes("You dismantle the trap.");
+} else {
+    ~hunter_catch_pay($catch);
+}
+facesquare($at);
+
+// Take the catch and lay the same box again where it stands. Box traps only: a snare has no Reset.
+[label,hunter_trap_reset](int $catch)
+if (~hunter_trap_slot(loc_coord) = 0) {
+    mes("This isn't your trap.");
+    return;
+}
+// Only the catch needs room: the trap never leaves the tile.
+if (~hunter_catch_room(null, $catch) = false) {
+    mes("You don't have enough inventory space.");
+    return;
+}
+anim(human_hunter_check_trap, 0);
+sound_synth(disarm_trap, 1, 0);
+loc_change(hunter_boxtrap_laid, ^hunter_trap_duration);
+~hunter_catch_pay($catch);
+settimer(hunter_traps, ^hunter_trap_interval);
+
+// What a catch pays. OSRS's: a box trap gives the animal; a bird snare gives bones, raw bird meat
+// and the bird's feathers.
+[proc,hunter_catch_pay](int $catch)
+switch_int ($catch) {
+    case ^hunter_catch_ferret :
+        inv_add(inv, ferret, 1);
+        mes("You've caught a ferret.");
+        ~hunter_xp(^hunter_ferret_xp);
+    case ^hunter_catch_chinchompa :
+        inv_add(inv, chinchompa, 1);
+        mes("You've caught a chinchompa.");
+        ~hunter_xp(^hunter_chinchompa_xp);
+        // The Baby chinchompa is rolled on the catch, and only for chinchompas - OSRS gives
+        // ferrets and birds none.
+        ~skillpet_roll(skillpet_chinchompa_item, hunter, ^skillpet_chinchompa_grey);
+    case ^hunter_catch_chinchompa_red :
+        inv_add(inv, red_chinchompa, 1);
+        mes("You've caught a carnivorous chinchompa.");
+        ~hunter_xp(^hunter_chinchompa_red_xp);
+        ~skillpet_roll(skillpet_chinchompa_item, hunter, ^skillpet_chinchompa_red);
+    case ^hunter_catch_swift :
+        inv_add(inv, bones, 1);
+        inv_add(inv, raw_bird_meat, 1);
+        inv_add(inv, red_feather, ^hunter_bird_feathers);
+        mes("You've caught a crimson swift.");
+        ~hunter_xp(^hunter_swift_xp);
+    case ^hunter_catch_wagtail :
+        inv_add(inv, bones, 1);
+        inv_add(inv, raw_bird_meat, 1);
+        inv_add(inv, stripy_feather, ^hunter_bird_feathers);
+        mes("You've caught a tropical wagtail.");
+        ~hunter_xp(^hunter_wagtail_xp);
+    case ^hunter_catch_wild_kebbit :
+        inv_add(inv, bones, 1);
+        inv_add(inv, kebbit_claws, 1);
+        mes("You've caught a wild kebbit.");
+        ~hunter_xp(^hunter_wild_kebbit_xp);
+    case ^hunter_catch_barbtailed_kebbit :
+        inv_add(inv, bones, 1);
+        inv_add(inv, barbtail_harpoon, 1);
+        mes("You've caught a barb-tailed kebbit.");
+        ~hunter_xp(^hunter_barbtailed_kebbit_xp);
+}
+
+// ------------------------------------------------------------------------------------ the loop
+
+[timer,hunter_traps]
+def_int $held = 0;
+def_int $slot = 1;
+while ($slot <= 5) {
+    def_coord $at = ~hunter_trap_get($slot);
+    if ($at ! null) {
+        if (~hunter_trap_tick($slot, $at) = true) {
+            $held = calc($held + 1);
+        }
+    }
+    $slot = calc($slot + 1);
+}
+if ($held = 0) {
+    cleartimer(hunter_traps);
+}
+
+// One trap, one look. Returns whether the slot is still holding a trap afterwards.
+//
+// The loc is found HERE, not in ~hunter_trap_type: a loc_find inside a proc sets active_loc for
+// that proc only, and the compiler (rightly) refuses a loc_del out here on the strength of it.
+[proc,hunter_trap_tick](int $slot, coord $at)(boolean)
+def_loc $type = ~hunter_trap_type($at);
+if ($type = null) {
+    // The loc's own duration ran out: untouched for ^hunter_trap_duration ticks. It has already
+    // gone from the world, so what is left to do is give the trap back as an obj where it stood.
+    obj_add($at, ~hunter_trap_item($slot), 1, ^lootdrop_duration);
+    ~hunter_trap_set($slot, null);
+    mes("One of your traps has fallen over.");
+    return(false);
+}
+if (loc_find($at, $type) = true) {
+    if (coordy($at) ! coordy(coord) | distance($at, coord) > ^hunter_trap_leash) {
+        loc_del(1);
+        obj_add($at, ~hunter_trap_item($slot), 1, ^lootdrop_duration);
+        ~hunter_trap_set($slot, null);
+        mes("You've moved too far away from one of your traps, and it has collapsed.");
+        return(false);
+    }
+    switch_loc ($type) {
+        case hunter_boxtrap_laid : ~hunter_trap_lure_box($at);
+        case hunter_boxtrap_catching_chinchompa : loc_change(hunter_boxtrap_shaking_chinchompa, ^hunter_trap_duration);
+        case hunter_boxtrap_catching_chinchompa_red : loc_change(hunter_boxtrap_shaking_chinchompa_red, ^hunter_trap_duration);
+        case hunter_boxtrap_catching_ferret : loc_change(hunter_boxtrap_shaking_ferret, ^hunter_trap_duration);
+        case hunter_snare_laid : ~hunter_trap_lure_snare($at);
+        case hunter_snare_springing : loc_change(hunter_snare_collapsed, ^hunter_trap_duration);
+        case hunter_snare_catching_swift : loc_change(hunter_snare_caught_swift, ^hunter_trap_duration);
+        case hunter_snare_catching_wagtail : loc_change(hunter_snare_caught_wagtail, ^hunter_trap_duration);
+        case hunter_deadfall_set : ~hunter_trap_lure_deadfall($at);
+    }
+}
+return(true);
+
+// A laid trap and the prey around it. The hardest prey the owner can catch is tried first, so a
+// trap laid where two kinds overlap goes to the better one, and the rest are never considered.
+[proc,hunter_trap_lure_box](coord $at)
+if (random(^hunter_trap_lure_chance) ! 0) {
+    return;
+}
+def_int $lvl = stat(hunter);
+if ($lvl >= ^hunter_chinchompa_red_level & npc_find($at, hunter_chinchompa_red, ^hunter_trap_lure_radius, 0) = true) {
+    ~hunter_trap_spring(hunter_boxtrap_catching_chinchompa_red, hunter_boxtrap_collapsed, ^hunter_chinchompa_red_low, ^hunter_chinchompa_red_high);
+    return;
+}
+if ($lvl >= ^hunter_chinchompa_level & npc_find($at, hunter_chinchompa, ^hunter_trap_lure_radius, 0) = true) {
+    ~hunter_trap_spring(hunter_boxtrap_catching_chinchompa, hunter_boxtrap_collapsed, ^hunter_chinchompa_low, ^hunter_chinchompa_high);
+    return;
+}
+if ($lvl >= ^hunter_ferret_level & npc_find($at, hunter_ferret, ^hunter_trap_lure_radius, 0) = true) {
+    ~hunter_trap_spring(hunter_boxtrap_catching_ferret, hunter_boxtrap_collapsed, ^hunter_ferret_low, ^hunter_ferret_high);
+    return;
+}
+
+[proc,hunter_trap_lure_snare](coord $at)
+if (random(^hunter_trap_lure_chance) ! 0) {
+    return;
+}
+def_int $lvl = stat(hunter);
+if ($lvl >= ^hunter_wagtail_level & npc_find($at, hunter_tropical_wagtail, ^hunter_trap_lure_radius, 0) = true) {
+    ~hunter_trap_spring(hunter_snare_catching_wagtail, hunter_snare_springing, ^hunter_wagtail_low, ^hunter_wagtail_high);
+    return;
+}
+if ($lvl >= ^hunter_swift_level & npc_find($at, hunter_crimson_swift, ^hunter_trap_lure_radius, 0) = true) {
+    ~hunter_trap_spring(hunter_snare_catching_swift, hunter_snare_springing, ^hunter_swift_low, ^hunter_swift_high);
+    return;
+}
+
+// A deadfall's catch and its capture are one loc: the log coming down and the kebbit under it are
+// the same animation, which ends on its held last frame - so there is no catching state to move on.
+[proc,hunter_trap_lure_deadfall](coord $at)
+if (random(^hunter_trap_lure_chance) ! 0) {
+    return;
+}
+def_int $lvl = stat(hunter);
+if ($lvl >= ^hunter_barbtailed_kebbit_level & npc_find($at, hunter_barbtailed_kebbit, ^hunter_trap_lure_radius, 0) = true) {
+    ~hunter_trap_spring(hunter_deadfall_barbtailed, hunter_deadfall_collapsed, ^hunter_barbtailed_kebbit_low, ^hunter_barbtailed_kebbit_high);
+    return;
+}
+if ($lvl >= ^hunter_wild_kebbit_level & npc_find($at, hunter_wild_kebbit, ^hunter_trap_lure_radius, 0) = true) {
+    ~hunter_trap_spring(hunter_deadfall_wild, hunter_deadfall_collapsed, ^hunter_wild_kebbit_low, ^hunter_wild_kebbit_high);
+    return;
+}
+
+// active_npc is the prey npc_find settled on and active_loc is the trap; both are still set.
+[proc,hunter_trap_spring](loc $catching, loc $failed, int $low, int $high)
+sound_synth(springtrap_release, 1, 0);
+if (stat_random(hunter, $low, $high) = false) {
+    loc_change($failed, ^hunter_trap_duration);
+    return;
+}
+// A static map npc: npc_del schedules its respawn at the type's respawnrate rather than destroying
+// it, exactly as a netted butterfly does. The prey is not walked into the trap - the catching loc's
+// own model has the animal in it, and its animation is the animal going in and the trap closing.
+npc_del;
+loc_change($catching, ^hunter_trap_duration);
+
+// ------------------------------------------------------------------------------------- logout
+
+// Every trap is taken up and handed back - into the pack, or at the owner's feet if the pack is
+// full. Leaving them in the world would strand them: the varps that say whose they are are temp,
+// so after this nobody could dismantle them until their duration ran out. Anything caught is lost,
+// as in OSRS.
+[proc,hunter_trap_logout]
+def_int $slot = 1;
+while ($slot <= 5) {
+    def_coord $at = ~hunter_trap_get($slot);
+    if ($at ! null) {
+        def_loc $type = ~hunter_trap_type($at);
+        if ($type ! null & loc_find($at, $type) = true) {
+            def_namedobj $trap = ~hunter_trap_returns($slot, $type);
+            loc_del(1);
+            if ($trap = null) {
+                // a sprung deadfall: the logs are spent, and the boulder is back
+            } else if (inv_itemspace(inv, $trap, 1, inv_size(inv)) = true) {
+                inv_add(inv, $trap, 1);
+            } else {
+                obj_add(coord, $trap, 1, ^lootdrop_duration);
+            }
+        }
+        ~hunter_trap_set($slot, null);
+    }
+    $slot = calc($slot + 1);
+}
+
+// ---------------------------------------------------------------------------------- ownership
+
+// OSRS: one trap at Hunter 1, and one more at 20, 40, 60 and 80.
+[proc,hunter_trap_max]()(int)
+return(calc(1 + stat(hunter) / 20));
+
+[proc,hunter_trap_free_slot]()(int)
+def_int $max = ~hunter_trap_max;
+if ($max > 5) {
+    $max = 5;
+}
+def_int $used = 0;
+def_int $free = 0;
+def_int $slot = 1;
+while ($slot <= 5) {
+    if (~hunter_trap_get($slot) ! null) {
+        $used = calc($used + 1);
+    } else if ($free = 0) {
+        $free = $slot;
+    }
+    $slot = calc($slot + 1);
+}
+if ($used >= $max) {
+    return(0);
+}
+return($free);
+
+// Which of the five slots holds this coord, or 0: the only question ownership ever asks.
+[proc,hunter_trap_slot](coord $at)(int)
+if ($at = null) {
+    return(0);
+}
+if (%hunter_trap1 = $at) return(1);
+if (%hunter_trap2 = $at) return(2);
+if (%hunter_trap3 = $at) return(3);
+if (%hunter_trap4 = $at) return(4);
+if (%hunter_trap5 = $at) return(5);
+return(0);
+
+[proc,hunter_trap_get](int $slot)(coord)
+switch_int ($slot) {
+    case 1 : return(%hunter_trap1);
+    case 2 : return(%hunter_trap2);
+    case 3 : return(%hunter_trap3);
+    case 4 : return(%hunter_trap4);
+    case 5 : return(%hunter_trap5);
+}
+return(null);
+
+[proc,hunter_trap_set](int $slot, coord $at)
+switch_int ($slot) {
+    case 1 : %hunter_trap1 = $at;
+    case 2 : %hunter_trap2 = $at;
+    case 3 : %hunter_trap3 = $at;
+    case 4 : %hunter_trap4 = $at;
+    case 5 : %hunter_trap5 = $at;
+}
+
+// Which kind of trap a slot holds: bits 2(slot-1) and 2(slot-1)+1 of %hunter_trap_kinds, one of the
+// ^hunter_kind_* values. Written on every lay, so a slot never carries a stale kind into its next trap.
+[proc,hunter_trap_set_kind](int $slot, int $kind)
+def_int $lo = calc(($slot - 1) * 2);
+%hunter_trap_kinds = setbit_range_toint(%hunter_trap_kinds, $kind, $lo, calc($lo + 1));
+
+[proc,hunter_trap_kind](int $slot)(int)
+def_int $lo = calc(($slot - 1) * 2);
+return(getbit_range(%hunter_trap_kinds, $lo, calc($lo + 1)));
+
+// What the trap in a slot IS, as an obj: what comes back when it is taken up whole.
+[proc,hunter_trap_item](int $slot)(namedobj)
+switch_int (~hunter_trap_kind($slot)) {
+    case ^hunter_kind_snare : return(hunter_bird_snare);
+    case ^hunter_kind_deadfall : return(logs);
+}
+return(hunter_box_trap);
+
+// What comes back when a trap in this state is taken up: the trap itself, except a deadfall that
+// has come down - its logs are spent - which gives nothing back but the boulder.
+[proc,hunter_trap_returns](int $slot, loc $type)(namedobj)
+if (~hunter_trap_kind($slot) = ^hunter_kind_deadfall & $type ! hunter_deadfall_set) {
+    return(null);
+}
+return(~hunter_trap_item($slot));
+
+// Which trap, in which state, is on this tile - or null. Only says which: the caller does its own
+// loc_find with the answer, because the pointer a loc_find sets does not outlive the proc it is in.
+[proc,hunter_trap_type](coord $at)(loc)
+if (loc_find($at, hunter_boxtrap_laid) = true) return(hunter_boxtrap_laid);
+if (loc_find($at, hunter_boxtrap_collapsed) = true) return(hunter_boxtrap_collapsed);
+if (loc_find($at, hunter_boxtrap_catching_chinchompa) = true) return(hunter_boxtrap_catching_chinchompa);
+if (loc_find($at, hunter_boxtrap_catching_chinchompa_red) = true) return(hunter_boxtrap_catching_chinchompa_red);
+if (loc_find($at, hunter_boxtrap_catching_ferret) = true) return(hunter_boxtrap_catching_ferret);
+if (loc_find($at, hunter_boxtrap_shaking_chinchompa) = true) return(hunter_boxtrap_shaking_chinchompa);
+if (loc_find($at, hunter_boxtrap_shaking_chinchompa_red) = true) return(hunter_boxtrap_shaking_chinchompa_red);
+if (loc_find($at, hunter_boxtrap_shaking_ferret) = true) return(hunter_boxtrap_shaking_ferret);
+if (loc_find($at, hunter_snare_laid) = true) return(hunter_snare_laid);
+if (loc_find($at, hunter_snare_springing) = true) return(hunter_snare_springing);
+if (loc_find($at, hunter_snare_collapsed) = true) return(hunter_snare_collapsed);
+if (loc_find($at, hunter_snare_catching_swift) = true) return(hunter_snare_catching_swift);
+if (loc_find($at, hunter_snare_catching_wagtail) = true) return(hunter_snare_catching_wagtail);
+if (loc_find($at, hunter_snare_caught_swift) = true) return(hunter_snare_caught_swift);
+if (loc_find($at, hunter_snare_caught_wagtail) = true) return(hunter_snare_caught_wagtail);
+if (loc_find($at, hunter_deadfall_set) = true) return(hunter_deadfall_set);
+if (loc_find($at, hunter_deadfall_collapsed) = true) return(hunter_deadfall_collapsed);
+if (loc_find($at, hunter_deadfall_wild) = true) return(hunter_deadfall_wild);
+if (loc_find($at, hunter_deadfall_barbtailed) = true) return(hunter_deadfall_barbtailed);
+return(null);
+
+// ------------------------------------------------------------------------------------ inventory
+
+// Room for the trap coming back (null if it stays on the tile) and everything the catch pays.
+[proc,hunter_catch_room](namedobj $trap, int $catch)(boolean)
+def_int $need = 0;
+if ($trap ! null) {
+    $need = calc($need + ~hunter_slot_need($trap));
+}
+switch_int ($catch) {
+    case ^hunter_catch_ferret : $need = calc($need + ~hunter_slot_need(ferret));
+    case ^hunter_catch_chinchompa : $need = calc($need + ~hunter_slot_need(chinchompa));
+    case ^hunter_catch_chinchompa_red : $need = calc($need + ~hunter_slot_need(red_chinchompa));
+    case ^hunter_catch_swift : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(raw_bird_meat) + ~hunter_slot_need(red_feather));
+    case ^hunter_catch_wagtail : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(raw_bird_meat) + ~hunter_slot_need(stripy_feather));
+    case ^hunter_catch_wild_kebbit : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(kebbit_claws));
+    case ^hunter_catch_barbtailed_kebbit : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(barbtail_harpoon));
+}
+if (inv_freespace(inv) < $need) {
+    return(false);
+}
+return(true);
+
+// A stackable obj already in the pack joins its stack; anything else needs a slot of its own.
+[proc,hunter_slot_need](namedobj $obj)(int)
+if (oc_stackable($obj) = true & inv_total(inv, $obj) > 0) {
+    return(0);
+}
+return(1);
+
+// ------------------------------------------------------------------------------------- ferrets
+
+// A ferret is a pet you cannot keep here (OSRS uses them for rabbit hunting, which this build does
+// not have), so the one op it carries lets it go.
+[opheld5,ferret]
+inv_del(inv, ferret, 1);
+mes("You let the ferret go. It scampers off into the undergrowth.");

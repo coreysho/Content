@@ -31,6 +31,7 @@ ALLOBJ = 'scripts/_unpack/377/all.obj'
 THIEF = 'scripts/skill_thieving/scripts/thieving.rs2'
 PICKROW = 'scripts/skill_thieving/configs/pickpocking/pickpocket.dbrow'
 STALLROW = 'scripts/skill_thieving/configs/stalls/stealing.dbrow'
+HUNT = 'scripts/skill_hunter/scripts/hunter_traps.rs2'
 
 MUTS = [
  # 1 - the formula itself
@@ -132,11 +133,16 @@ if (random($chance) ! 0) {
  (THIEF, '~skillpet_roll(skillpet_rocky_item, thieving,',
          '~skillpet_roll(skillpet_rocky_item, mining,', '5 ...against thieving'),
 
- # ---- 6, the last pending pet quietly wired, which would put it in the game at a rate nobody has
- # checked and against a skill that does not exist
- (FISH, '~fishing_xp(struct_param($struct1, productexp));',
-  '~fishing_xp(struct_param($struct1, productexp));\n        ~skillpet_roll(skillpet_chinchompa_item, hunter, 116129);',
-  '6 skillpet_chinchompa is handed over nowhere'),
+ # ---- 5 again, for the chinchompa: rolled on a box trap, against Hunter
+ (HUNT, '~skillpet_roll(skillpet_chinchompa_item, hunter, ^skillpet_chinchompa_grey);',
+        '~skillpet_roll(skillpet_chinchompa_item, fishing, ^skillpet_chinchompa_grey);',
+  '5 ...against hunter'),
+
+ # ---- 6, a pet quietly marked unwired in the spec. Every pet has a source since box trapping
+ # (2026-09-23); one that stops having one has to be said out loud, not slip past as "pending".
+ (SPEC, '"skillpet_chinchompa": {\n   "stat": "hunter",\n   "wired": true',
+        '"skillpet_chinchompa": {\n   "stat": "hunter",\n   "wired": false',
+  '6 none is pending'),
 
  # ---- 8, WHEN each of the three rolls
  # A tier of fish rolling at another tier's rate. Invisible without this: the roll still happens,

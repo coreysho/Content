@@ -24,3 +24,35 @@ if ($grant <= 0) {
 // action, and it should not roll for a Guild hunter piece.
 stat_advance(hunter, $grant);
 mes("Hunter is now <tostring(stat(hunter))>. Use the net on a butterfly.");
+
+// ::feldip - to the Feldip hunting grounds with five box traps, five bird snares, a knife and three
+// logs, for trying
+// the trap loop. Lands in the grey chinchompas' clearing; the ferrets and the crimson swifts are
+// north-west of it, the carnivorous chinchompas north-east, the tropical wagtails east. ::hunter
+// takes experience in the x10 form, so pair this with ::hunter 3700000 - 370,000 xp, just past
+// level 63's 368,599 - to catch everything, with four traps.
+[debugproc,feldip]
+if (p_finduid(uid) = false) {
+    return;
+}
+def_int $want = calc(10 - inv_total(inv, hunter_box_trap) - inv_total(inv, hunter_bird_snare));
+if (inv_freespace(inv) < 2 & $want > 0) {
+    mes("No room for the traps.");
+    return;
+}
+if (inv_total(inv, hunter_box_trap) < 5) {
+    inv_add(inv, hunter_box_trap, calc(5 - inv_total(inv, hunter_box_trap)));
+}
+if (inv_total(inv, hunter_bird_snare) < 5) {
+    inv_add(inv, hunter_bird_snare, calc(5 - inv_total(inv, hunter_bird_snare)));
+}
+// and a knife and three logs, for the deadfalls on the boulders north of the chinchompas
+if (inv_total(inv, knife) < 1 & inv_freespace(inv) > 0) {
+    inv_add(inv, knife, 1);
+}
+def_int $logs = 0;
+while ($logs < 3 & inv_freespace(inv) > 0) {
+    inv_add(inv, logs, 1);
+    $logs = calc($logs + 1);
+}
+p_telejump(0_40_45_10_7);

@@ -1,0 +1,43 @@
+// WHICH BOX TRAPS ARE YOURS. One coord per trap you have laid, null when the slot is free.
+//
+// A laid trap is an ordinary world loc - loc_add is world-scoped, and there is no such thing as a
+// per-player loc in this engine - so ownership cannot live on the trap. It lives here instead,
+// on the owner, the way %ownedmcannon keeps the dwarf multicannon: a trap is yours if and only if
+// its coord is in one of these five, and every op on a trap asks that first. Two players can
+// never share a tile either, because loc_add refuses a tile that already holds an interactable
+// loc (~area_allow_loc_add).
+//
+// Five because OSRS caps traps at five: one at level 1 and one more at 20, 40, 60 and 80. See
+// ~hunter_trap_max.
+//
+// scope=temp. The traps themselves do not outlive a session - [logout] takes them up and gives
+// them back (~hunter_trap_logout) - so a pointer to one must not either: a perm coord surviving
+// into the next login would make the player the owner of whatever somebody else laid on that tile
+// in the meantime.
+[hunter_trap1]
+type=coord
+scope=temp
+
+[hunter_trap2]
+type=coord
+scope=temp
+
+[hunter_trap3]
+type=coord
+scope=temp
+
+[hunter_trap4]
+type=coord
+scope=temp
+
+[hunter_trap5]
+type=coord
+scope=temp
+
+// Which KIND of trap each slot holds: two bits per slot, bits 2(slot-1) and 2(slot-1)+1, holding a
+// ^hunter_kind_* value (box, snare, deadfall). Every kind shares the five slots and OSRS's cap. The kind has to live here and not
+// be read off the loc, because the two times it matters most are the two when there is no loc to
+// read - a trap whose duration ran out, handed back as an obj where it stood, and [logout]. Temp for
+// the same reason as the coords.
+[hunter_trap_kinds]
+scope=temp

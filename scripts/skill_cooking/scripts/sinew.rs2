@@ -1,0 +1,24 @@
+// Sinew (474): raw beef or bear meat dried on a range, as many as you carry, for the spinning wheel to
+// make a crossbow string of (skill_crafting/scripts/spinning/spinning.rs2). OSRS's numbers: any Cooking
+// level, 3 experience, and it never burns. Like cooking's batches it runs on a weak queue, so walking
+// off or doing anything else stops it.
+[label,make_sinew](obj $meat)
+p_arrivedelay;
+~dry_sinew($meat);
+
+[queue,make_sinew_next](obj $meat)
+~dry_sinew($meat);
+
+[proc,dry_sinew](obj $meat)
+if (inv_total(inv, $meat) < 1) {
+    return;
+}
+anim(human_cooking, 0);
+sound_synth(fry, 1, 0);
+inv_del(inv, $meat, 1);
+inv_add(inv, sinew, 1);
+stat_advance(cooking, 30);
+mes("You dry a piece of meat and extract the sinew.");
+if (inv_total(inv, $meat) > 0) {
+    weakqueue*(make_sinew_next, 4)($meat);
+}

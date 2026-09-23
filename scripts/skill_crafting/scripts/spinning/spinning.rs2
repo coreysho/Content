@@ -26,38 +26,53 @@ switch_obj (last_useitem)
     case wool : ~spinning_menu;
     case flax : ~spinning_menu;
     case magic_roots : ~spinning_menu;
+    case sinew : ~spinning_menu;
     case ball_of_wool : ~objbox(ball_of_wool, "You have already spun this wool.", 250, 0, divide(^objbox_height, 2));
     case bow_string : ~objbox(bow_string, "You have already spun this bow string.", 250, 0, divide(^objbox_height, 2));
     case magic_string : ~objbox(magic_string, "You have already spun these magic roots.", 250, 0, divide(^objbox_height, 2));
+    case crossbow_string : ~objbox(crossbow_string, "You have already spun this sinew.", 250, 0, divide(^objbox_height, 2));
     case default : ~displaymessage(^dm_default);
 };
 
 [proc,spinning_menu]
+// what the player carries, in the panel's order; sinew spins into a crossbow string (474)
 def_namedobj $o1 = null;
 def_namedobj $o2 = null;
 def_namedobj $o3 = null;
+def_namedobj $o4 = null;
 def_int $n = 0;
-if (inv_total(inv, wool) > 0) {
-    $o1 = ball_of_wool;
-    $n = 1;
-}
-if (inv_total(inv, flax) > 0) {
-    if ($n = 0) {
-        $o1 = bow_string;
-    } else {
-        $o2 = bow_string;
+def_int $i = 0;
+def_namedobj $product = null;
+while ($i < 4) {
+    $product = null;
+    switch_int ($i) {
+        case 0 :
+            if (inv_total(inv, wool) > 0) {
+                $product = ball_of_wool;
+            }
+        case 1 :
+            if (inv_total(inv, flax) > 0) {
+                $product = bow_string;
+            }
+        case 2 :
+            if (inv_total(inv, magic_roots) > 0) {
+                $product = magic_string;
+            }
+        case 3 :
+            if (inv_total(inv, sinew) > 0) {
+                $product = crossbow_string;
+            }
     }
-    $n = add($n, 1);
-}
-if (inv_total(inv, magic_roots) > 0) {
-    if ($n = 0) {
-        $o1 = magic_string;
-    } else if ($n = 1) {
-        $o2 = magic_string;
-    } else {
-        $o3 = magic_string;
+    if ($product ! null) {
+        switch_int ($n) {
+            case 0 : $o1 = $product;
+            case 1 : $o2 = $product;
+            case 2 : $o3 = $product;
+            case 3 : $o4 = $product;
+        }
+        $n = add($n, 1);
     }
-    $n = add($n, 1);
+    $i = add($i, 1);
 }
 
 if ($n = 0) {
@@ -65,14 +80,15 @@ if ($n = 0) {
     return;
 }
 
-def_namedobj $product = null;
 def_int $count = 0;
 if ($n = 1) {
     $product, $count = ~skillmulti1($o1);
 } else if ($n = 2) {
     $product, $count = ~skillmulti2($o1, $o2);
-} else {
+} else if ($n = 3) {
     $product, $count = ~skillmulti3($o1, $o2, $o3);
+} else {
+    $product, $count = ~skillmulti4($o1, $o2, $o3, $o4);
 }
 if ($product = null | $count < 1) {
     return;
@@ -85,6 +101,7 @@ switch_obj ($product) {
     case ball_of_wool : return(wool);
     case bow_string : return(flax);
     case magic_string : return(magic_roots);
+    case crossbow_string : return(sinew);
     case default : return(null);
 }
 return(null);

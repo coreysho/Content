@@ -80,9 +80,9 @@ return(null);
 if (stat_base($stat) < 99) {
     return(false);
 }
-// A stat can now exist without a cape - Hunter does - and ~skillcape_sell would hand out a null
-// obj. No master offers one today, so this cannot be reached; it is here because the invariant it
-// used to rely on ("every stat has a cape") is the one that just stopped being true.
+// A stat can exist without a cape - Hunter did, from 2026-09-22 until its cape opened on the 23rd -
+// and ~skillcape_sell would hand out a null obj. Every stat has one again, so this cannot be reached
+// today; it stays because "every stat has a cape" is an invariant that has broken once already.
 if (enum(stat, namedobj, skillcape_cape, $stat) = null) {
     return(false);
 }
@@ -194,10 +194,10 @@ def_obj $cape = inv_getobj(worn, ^wearpos_back);
 // THE MAX CAPE HAS NO EMOTE OF ITS OWN HERE. OSRS's is a 2015 animation - the skill icons circling
 // overhead - and it is not the 24-wide block of skillcape emotes this build imported, so there is
 // nothing to look up and nothing worth guessing at (claude/black-mask-slayer-helm-ma2.md is what
-// guessing at an unseen asset costs). The cape that stands for all 22 skills performs one of their
+// guessing at an unseen asset costs). The cape that stands for all 23 skills performs one of their
 // emotes instead, picked at random each time. Every skill WITH A CAPE has both an emote and a
 // graphic - battery check 8 holds that - so the pick can never come up empty. It is ~skillcape_stats
-// wide, not the stats enum: Hunter is a stat with no cape, and picking it returned null.
+// wide, not the stats enum: a stat with no cape (Hunter, until 2026-09-23) picked null.
 // A VARIANT emotes the same way, which is the one thing OSRS lets a variant keep besides the
 // four guild-and-warmth perks. Written as one condition with the plain cape rather than a second
 // copy of the random pick: the variant IS a Max cape underneath, and if the real animation is ever
