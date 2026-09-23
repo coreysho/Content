@@ -107,6 +107,89 @@ if (process.env.HTRAP === 'cape') {
     process.exit(fails ? 1 : 0);
 }
 
+// HTRAP=deadfall: deadfalls on the four northern boulders, where only barb-tailed kebbits (33) live.
+if (process.env.HTRAP === 'deadfall') {
+    const inv0 = player.getInventory(InvType.INV)!;
+    const tot = (n: string) => inv0.getItemCount(ObjType.getId(n));
+    const BOULDER = LocType.getId('loc474_19205');
+    const DF = ['hunter_deadfall_set', 'hunter_deadfall_collapsed', 'hunter_deadfall_wild', 'hunter_deadfall_barbtailed'];
+    const dfAt = (x: number, z: number) => { for (const n of DF) { const l = World.getLoc(x, z, 0, LocType.getId(n)); if (l) return { name: n, loc: l }; } return null; };
+    const boulderAt = (x: number, z: number) => World.getLoc(x, z, 0, BOULDER);
+    const slotsN = () => [1, 2, 3, 4, 5].map(i => player.getVar(VarPlayerType.getId(`hunter_trap${i}`)) as number).filter(c => c !== -1);
+    const oploc = (op: number, loc: any) => {
+        const t = LocType.get(loc.type);
+        const script = ScriptProvider.getByTrigger(ServerTriggerType.OPLOC1 + (op - 1), t.id, t.category);
+        player.executeScript(ScriptRunner.init(script!, player, loc), true);
+    };
+    // Far north first: the wild kebbits wander up from the boulder at 2574,2910 and can reach the one
+    // at 2574,2916 (the live test caught one there at level 30), but not these two - so the level-30
+    // gate pass, which gets two traps, only ever sees barb-tailed kebbits.
+    const NORTH = [[2576, 2925], [2572, 2930], [2574, 2916], [2583, 2913]];
+    const CATCHES = LEVEL >= parseInt(/\^hunter_barbtailed_kebbit_level = (\d+)/.exec(CONST)![1]);
+    const set = async (x: number, z: number) => { player.teleport(x, z - 1, 0); await waitTicks(2); oploc(1, boulderAt(x, z)); await waitTicks(5); };
+
+    player.invAdd(InvType.INV, ObjType.getId('logs'), 5);
+    check(boulderAt(NORTH[0][0], NORTH[0][1]) !== null, 'the boulders are where the map put them');
+    { const n = msgs.length; await set(NORTH[0][0], NORTH[0][1]); check(msgs.slice(n).some(m => m.includes('need a knife')) && slotsN().length === 0, 'no deadfall without a knife'); }
+    player.invAdd(InvType.INV, ObjType.getId('knife'), 1);
+    const max = Math.min(5, 1 + Math.floor(LEVEL / 20));
+    for (const [x, z] of NORTH.slice(0, max)) await set(x, z);
+    check(slotsN().length === max, `${max} deadfalls set at level ${LEVEL} (${slotsN().length})`);
+    check(tot('logs') === 5 - max, `...one log each (${tot('logs')} left)`);
+    for (const [x, z] of NORTH.slice(0, max)) check(dfAt(x, z)?.name === 'hunter_deadfall_set', `...the boulder at ${x},${z} is a set deadfall`);
+
+    let caught: any = null; const seen = new Map<string, string>();
+    for (let t = 0; t < (CATCHES ? 900 : 300) && !caught; t++) {
+        await waitTicks(1);
+        for (const [x, z] of NORTH.slice(0, max)) {
+            const st = dfAt(x, z)?.name ?? (boulderAt(x, z) ? 'boulder' : '(none)');
+            if (seen.get(`${x},${z}`) !== st) { log('deadfall', x, z, '->', st); seen.set(`${x},${z}`, st); }
+            if (st === 'hunter_deadfall_barbtailed' || st === 'hunter_deadfall_wild') { caught = { x, z, st }; break; }
+            if (st === 'hunter_deadfall_collapsed') {
+                const logs = tot('logs');
+                oploc(1, dfAt(x, z)!.loc); await waitTicks(3);
+                check(dfAt(x, z) === null && boulderAt(x, z) !== null && tot('logs') === logs, `a collapsed deadfall dismantles to the boulder, and the log is spent (${x},${z})`);
+                await set(x, z);
+            }
+        }
+    }
+    if (CATCHES) {
+        check(caught !== null, 'a kebbit was caught within 900 ticks');
+        if (caught) {
+            const b = { bones: tot('bones'), harpoon: tot('barbtail_harpoon'), claws: tot('kebbit_claws'), logs: tot('logs'), xp: player.stats[PlayerStat.HUNTER] };
+            oploc(1, dfAt(caught.x, caught.z)!.loc); await waitTicks(3);
+            const barb = caught.st === 'hunter_deadfall_barbtailed';
+            check(barb ? tot('barbtail_harpoon') === b.harpoon + 1 && tot('kebbit_claws') === b.claws
+                       : tot('kebbit_claws') === b.claws + 1 && tot('barbtail_harpoon') === b.harpoon,
+                `...Check pays the ${barb ? 'barb-tail harpoon' : 'kebbit claws'} for a ${caught.st}`);
+            check(tot('bones') === b.bones + 1, '...and bones');
+            check(tot('logs') === b.logs, '...gives no log back - it came down');
+            const xpc = barb ? /\^hunter_barbtailed_kebbit_xp = (\d+)/ : /\^hunter_wild_kebbit_xp = (\d+)/;
+            check(player.stats[PlayerStat.HUNTER] - b.xp === parseInt(xpc.exec(CONST)![1]), `...and ${(player.stats[PlayerStat.HUNTER] - b.xp) / 10} xp`);
+            check(dfAt(caught.x, caught.z) === null && boulderAt(caught.x, caught.z) !== null, '...and the boulder is a boulder again');
+        }
+    } else {
+        check(caught === null, `at level ${LEVEL}, below the barb-tailed kebbit's level, nothing comes to the far-north boulders (${caught?.st ?? 'none'})`);
+    }
+    // an unsprung deadfall gives its log back, and so does [logout]
+    const live = NORTH.slice(0, max).filter(([x, z]) => dfAt(x, z)?.name === 'hunter_deadfall_set');
+    if (live.length) {
+        const [x, z] = live[0]; const logs = tot('logs');
+        oploc(1, dfAt(x, z)!.loc); await waitTicks(3);
+        check(tot('logs') === logs + 1 && boulderAt(x, z) !== null, 'Dismantle on an unsprung deadfall gives its log back and leaves the boulder');
+    }
+    for (const [x, z] of NORTH.slice(0, max)) if (boulderAt(x, z) && slotsN().length < max && tot('logs') > 0) await set(x, z);
+    const held = slotsN().length, logs = tot('logs');
+    const unsprung = NORTH.slice(0, max).filter(([x, z]) => dfAt(x, z)?.name === 'hunter_deadfall_set').length;
+    const lo = ScriptProvider.getByTrigger(ServerTriggerType.LOGOUT, -1, -1);
+    player.executeScript(ScriptRunner.init(lo!, player), true); await waitTicks(3);
+    check(slotsN().length === 0, `[logout] frees every slot (${held} held)`);
+    check(NORTH.slice(0, max).every(([x, z]) => boulderAt(x, z) !== null), '...every boulder is a boulder again');
+    check(tot('logs') === logs + unsprung, `...and each unsprung deadfall's log comes back (${unsprung}: ${logs} -> ${tot('logs')})`);
+    console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
+    process.exit(fails ? 1 : 0);
+}
+
 const TRAP = ObjType.getId(TRAPNAME);
 const inv = player.getInventory(InvType.INV)!;
 const total = (name: string) => inv.getItemCount(ObjType.getId(name));

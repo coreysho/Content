@@ -1,4 +1,4 @@
-// Hunter - traps: box traps and bird snares. See configs/hunter.constant for the numbers and where
+// Hunter - traps: box traps, bird snares and deadfalls. See configs/hunter.constant for the numbers and where
 // the art came from, and configs/hunter_trap.varp for why ownership lives on the player.
 //
 // THE LOOP. A laid trap is a world loc. It does nothing by itself: every OWNER carries a timer,
@@ -18,9 +18,16 @@
 // its hunter could not catch it with, and here a level-40 hunter's trap in the chinchompa clearing
 // simply stays empty.
 //
-// Box traps and bird snares share the loop, the five slots and the cap, as they share OSRS's: the
-// limit is on traps, not on traps of a kind. Which kind a slot holds is a bit in %hunter_trap_kinds,
-// so a trap can be handed back as the right obj even after its loc has gone.
+// Box traps, bird snares and deadfalls share the loop, the five slots and the cap, as they share
+// OSRS's: the limit is on traps, not on traps of a kind. Which kind a slot holds is two bits of
+// %hunter_trap_kinds, so a trap can be handed back as the right obj even after its loc has gone.
+//
+// A DEADFALL is the odd one: it is not laid, it is SET on a boulder the map already has
+// (loc474_19205, placed by 474 across the Feldip grounds). Setting one loc_changes that boulder,
+// and everything that ends a deadfall - Check, Dismantle, the leash, a duration running out,
+// [logout] - hands the boulder back, because a static loc changed with a duration reverts to itself.
+// It costs logs and needs a knife; an unsprung deadfall gives its logs back, a sprung one has used
+// them.
 //
 // No experience for laying, dismantling or resetting a collapsed trap - OSRS pays only for a catch.
 
@@ -61,10 +68,54 @@ if ($slot = 0 | ~area_allow_loc_add($at) = false) {
     return;
 }
 ~hunter_trap_set($slot, $at);
-~hunter_trap_set_kind($slot, $trap);
+if ($trap = hunter_bird_snare) {
+    ~hunter_trap_set_kind($slot, ^hunter_kind_snare);
+} else {
+    ~hunter_trap_set_kind($slot, ^hunter_kind_box);
+}
 loc_add($at, $laid, 0, centrepiece_straight, ^hunter_trap_duration);
 settimer(hunter_traps, ^hunter_trap_interval);
 ~push_player($at);
+
+// ---------------------------------------------------------------------------------- deadfalls
+
+[oploc1,loc474_19205]
+if (stat(hunter) < ^hunter_deadfall_level) {
+    ~mesbox("You need a Hunter level of <tostring(^hunter_deadfall_level)> to set up a deadfall.");
+    return;
+}
+if (inv_total(inv, knife) < 1) {
+    mes("You need a knife to set up a deadfall.");
+    return;
+}
+if (inv_total(inv, logs) < 1) {
+    mes("You need some logs to set up a deadfall.");
+    return;
+}
+if (~hunter_trap_free_slot = 0) {
+    mes("You don't have a high enough Hunter level to set up more than <~pluralise(~hunter_trap_max, "trap")>.");
+    return;
+}
+def_coord $at = loc_coord;
+anim(human_hunter_set_deadfall, 0);
+sound_synth(springtrap_reset, 1, 0);
+mes("You begin setting up the trap.");
+p_delay(2);
+// As with laying, everything is asked again after the delay - and here the boulder itself, since
+// somebody else may have set a deadfall on it while we worked.
+if (loc_find($at, loc474_19205) = false) {
+    mes("Somebody else has set a trap on that boulder.");
+    return;
+}
+def_int $slot = ~hunter_trap_free_slot;
+if ($slot = 0 | inv_total(inv, logs) < 1) {
+    return;
+}
+inv_del(inv, logs, 1);
+~hunter_trap_set($slot, $at);
+~hunter_trap_set_kind($slot, ^hunter_kind_deadfall);
+loc_change(hunter_deadfall_set, ^hunter_trap_duration);
+settimer(hunter_traps, ^hunter_trap_interval);
 
 // ------------------------------------------------------------------------------- the empty trap
 
@@ -72,9 +123,12 @@ settimer(hunter_traps, ^hunter_trap_interval);
 [oploc1,hunter_boxtrap_collapsed] @hunter_trap_takeup(^hunter_catch_none);
 [oploc1,hunter_snare_laid] @hunter_trap_takeup(^hunter_catch_none);
 [oploc1,hunter_snare_collapsed] @hunter_trap_takeup(^hunter_catch_none);
+[oploc1,hunter_deadfall_set] @hunter_trap_takeup(^hunter_catch_none);
+[oploc1,hunter_deadfall_collapsed] @hunter_trap_takeup(^hunter_catch_none);
 
 [oploc2,hunter_boxtrap_laid] @hunter_trap_investigate;
 [oploc2,hunter_snare_laid] @hunter_trap_investigate;
+[oploc2,hunter_deadfall_set] @hunter_trap_investigate;
 
 [label,hunter_trap_investigate]
 if (~hunter_trap_slot(loc_coord) = 0) {
@@ -110,6 +164,8 @@ mes("You reset the trap.");
 [oploc1,hunter_boxtrap_shaking_ferret] @hunter_trap_takeup(^hunter_catch_ferret);
 [oploc1,hunter_snare_caught_swift] @hunter_trap_takeup(^hunter_catch_swift);
 [oploc1,hunter_snare_caught_wagtail] @hunter_trap_takeup(^hunter_catch_wagtail);
+[oploc1,hunter_deadfall_wild] @hunter_trap_takeup(^hunter_catch_wild_kebbit);
+[oploc1,hunter_deadfall_barbtailed] @hunter_trap_takeup(^hunter_catch_barbtailed_kebbit);
 
 [oploc2,hunter_boxtrap_shaking_chinchompa] @hunter_trap_reset(^hunter_catch_chinchompa);
 [oploc2,hunter_boxtrap_shaking_chinchompa_red] @hunter_trap_reset(^hunter_catch_chinchompa_red);
@@ -122,7 +178,7 @@ if ($slot = 0) {
     mes("This isn't your trap.");
     return;
 }
-def_namedobj $trap = ~hunter_trap_item($slot);
+def_namedobj $trap = ~hunter_trap_returns($slot, loc_type);
 if (~hunter_catch_room($trap, $catch) = false) {
     mes("You don't have enough inventory space.");
     return;
@@ -134,7 +190,9 @@ sound_synth(disarm_trap, 1, 0);
 // a double click cannot check one trap twice: the second finds no loc to be clicked.
 loc_del(1);
 ~hunter_trap_set($slot, null);
-inv_add(inv, $trap, 1);
+if ($trap ! null) {
+    inv_add(inv, $trap, 1);
+}
 if ($catch = ^hunter_catch_none) {
     mes("You dismantle the trap.");
 } else {
@@ -191,6 +249,16 @@ switch_int ($catch) {
         inv_add(inv, stripy_feather, ^hunter_bird_feathers);
         mes("You've caught a tropical wagtail.");
         ~hunter_xp(^hunter_wagtail_xp);
+    case ^hunter_catch_wild_kebbit :
+        inv_add(inv, bones, 1);
+        inv_add(inv, kebbit_claws, 1);
+        mes("You've caught a wild kebbit.");
+        ~hunter_xp(^hunter_wild_kebbit_xp);
+    case ^hunter_catch_barbtailed_kebbit :
+        inv_add(inv, bones, 1);
+        inv_add(inv, barbtail_harpoon, 1);
+        mes("You've caught a barb-tailed kebbit.");
+        ~hunter_xp(^hunter_barbtailed_kebbit_xp);
 }
 
 // ------------------------------------------------------------------------------------ the loop
@@ -242,6 +310,7 @@ if (loc_find($at, $type) = true) {
         case hunter_snare_springing : loc_change(hunter_snare_collapsed, ^hunter_trap_duration);
         case hunter_snare_catching_swift : loc_change(hunter_snare_caught_swift, ^hunter_trap_duration);
         case hunter_snare_catching_wagtail : loc_change(hunter_snare_caught_wagtail, ^hunter_trap_duration);
+        case hunter_deadfall_set : ~hunter_trap_lure_deadfall($at);
     }
 }
 return(true);
@@ -280,6 +349,22 @@ if ($lvl >= ^hunter_swift_level & npc_find($at, hunter_crimson_swift, ^hunter_tr
     return;
 }
 
+// A deadfall's catch and its capture are one loc: the log coming down and the kebbit under it are
+// the same animation, which ends on its held last frame - so there is no catching state to move on.
+[proc,hunter_trap_lure_deadfall](coord $at)
+if (random(^hunter_trap_lure_chance) ! 0) {
+    return;
+}
+def_int $lvl = stat(hunter);
+if ($lvl >= ^hunter_barbtailed_kebbit_level & npc_find($at, hunter_barbtailed_kebbit, ^hunter_trap_lure_radius, 0) = true) {
+    ~hunter_trap_spring(hunter_deadfall_barbtailed, hunter_deadfall_collapsed, ^hunter_barbtailed_kebbit_low, ^hunter_barbtailed_kebbit_high);
+    return;
+}
+if ($lvl >= ^hunter_wild_kebbit_level & npc_find($at, hunter_wild_kebbit, ^hunter_trap_lure_radius, 0) = true) {
+    ~hunter_trap_spring(hunter_deadfall_wild, hunter_deadfall_collapsed, ^hunter_wild_kebbit_low, ^hunter_wild_kebbit_high);
+    return;
+}
+
 // active_npc is the prey npc_find settled on and active_loc is the trap; both are still set.
 [proc,hunter_trap_spring](loc $catching, loc $failed, int $low, int $high)
 sound_synth(springtrap_release, 1, 0);
@@ -306,9 +391,11 @@ while ($slot <= 5) {
     if ($at ! null) {
         def_loc $type = ~hunter_trap_type($at);
         if ($type ! null & loc_find($at, $type) = true) {
+            def_namedobj $trap = ~hunter_trap_returns($slot, $type);
             loc_del(1);
-            def_namedobj $trap = ~hunter_trap_item($slot);
-            if (inv_itemspace(inv, $trap, 1, inv_size(inv)) = true) {
+            if ($trap = null) {
+                // a sprung deadfall: the logs are spent, and the boulder is back
+            } else if (inv_itemspace(inv, $trap, 1, inv_size(inv)) = true) {
                 inv_add(inv, $trap, 1);
             } else {
                 obj_add(coord, $trap, 1, ^lootdrop_duration);
@@ -377,20 +464,31 @@ switch_int ($slot) {
     case 5 : %hunter_trap5 = $at;
 }
 
-// Which kind of trap a slot holds: bit (slot - 1) of %hunter_trap_kinds, set for a bird snare.
-// Written on every lay, so a slot never carries a stale kind into its next trap.
-[proc,hunter_trap_set_kind](int $slot, namedobj $trap)
-if ($trap = hunter_bird_snare) {
-    %hunter_trap_kinds = setbit(%hunter_trap_kinds, calc($slot - 1));
-} else {
-    %hunter_trap_kinds = clearbit(%hunter_trap_kinds, calc($slot - 1));
-}
+// Which kind of trap a slot holds: bits 2(slot-1) and 2(slot-1)+1 of %hunter_trap_kinds, one of the
+// ^hunter_kind_* values. Written on every lay, so a slot never carries a stale kind into its next trap.
+[proc,hunter_trap_set_kind](int $slot, int $kind)
+def_int $lo = calc(($slot - 1) * 2);
+%hunter_trap_kinds = setbit_range_toint(%hunter_trap_kinds, $kind, $lo, calc($lo + 1));
 
+[proc,hunter_trap_kind](int $slot)(int)
+def_int $lo = calc(($slot - 1) * 2);
+return(getbit_range(%hunter_trap_kinds, $lo, calc($lo + 1)));
+
+// What the trap in a slot IS, as an obj: what comes back when it is taken up whole.
 [proc,hunter_trap_item](int $slot)(namedobj)
-if (testbit(%hunter_trap_kinds, calc($slot - 1)) = 1) {
-    return(hunter_bird_snare);
+switch_int (~hunter_trap_kind($slot)) {
+    case ^hunter_kind_snare : return(hunter_bird_snare);
+    case ^hunter_kind_deadfall : return(logs);
 }
 return(hunter_box_trap);
+
+// What comes back when a trap in this state is taken up: the trap itself, except a deadfall that
+// has come down - its logs are spent - which gives nothing back but the boulder.
+[proc,hunter_trap_returns](int $slot, loc $type)(namedobj)
+if (~hunter_trap_kind($slot) = ^hunter_kind_deadfall & $type ! hunter_deadfall_set) {
+    return(null);
+}
+return(~hunter_trap_item($slot));
 
 // Which trap, in which state, is on this tile - or null. Only says which: the caller does its own
 // loc_find with the answer, because the pointer a loc_find sets does not outlive the proc it is in.
@@ -410,6 +508,10 @@ if (loc_find($at, hunter_snare_catching_swift) = true) return(hunter_snare_catch
 if (loc_find($at, hunter_snare_catching_wagtail) = true) return(hunter_snare_catching_wagtail);
 if (loc_find($at, hunter_snare_caught_swift) = true) return(hunter_snare_caught_swift);
 if (loc_find($at, hunter_snare_caught_wagtail) = true) return(hunter_snare_caught_wagtail);
+if (loc_find($at, hunter_deadfall_set) = true) return(hunter_deadfall_set);
+if (loc_find($at, hunter_deadfall_collapsed) = true) return(hunter_deadfall_collapsed);
+if (loc_find($at, hunter_deadfall_wild) = true) return(hunter_deadfall_wild);
+if (loc_find($at, hunter_deadfall_barbtailed) = true) return(hunter_deadfall_barbtailed);
 return(null);
 
 // ------------------------------------------------------------------------------------ inventory
@@ -426,6 +528,8 @@ switch_int ($catch) {
     case ^hunter_catch_chinchompa_red : $need = calc($need + ~hunter_slot_need(red_chinchompa));
     case ^hunter_catch_swift : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(raw_bird_meat) + ~hunter_slot_need(red_feather));
     case ^hunter_catch_wagtail : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(raw_bird_meat) + ~hunter_slot_need(stripy_feather));
+    case ^hunter_catch_wild_kebbit : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(kebbit_claws));
+    case ^hunter_catch_barbtailed_kebbit : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(barbtail_harpoon));
 }
 if (inv_freespace(inv) < $need) {
     return(false);
