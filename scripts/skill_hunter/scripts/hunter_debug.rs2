@@ -1,5 +1,5 @@
-// ::hunter [xp] - a small fishing net and some Hunter experience, so butterfly netting can be
-// tried at every tier without an afternoon of swinging.
+// ::hunter [xp] - a small fishing net, a butterfly jar and some Hunter experience, so netting can
+// be tried at every tier without an afternoon of swinging.
 //
 // Bare `::hunter` grants enough to clear the Tiger Swallowtail's level 35; `::hunter 500` grants
 // 50 xp, in the same x10 form stat_advance takes everywhere else. A debugproc needs staff level 4
@@ -11,6 +11,10 @@ if (inv_total(inv, net) = 0) {
         return;
     }
     inv_add(inv, net, 1);
+}
+// One jar too, so the jarred branch can be tried without twenty Crafting levels and a furnace.
+if (inv_total(inv, hunter_butterfly_jar) = 0 & inv_freespace(inv) > 0) {
+    inv_add(inv, hunter_butterfly_jar, 1);
 }
 def_int $grant = $xp;
 if ($grant <= 0) {

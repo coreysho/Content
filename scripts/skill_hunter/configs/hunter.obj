@@ -1,0 +1,83 @@
+// Hunter - butterfly jars. No imported art: all five share the cache's own obj_specimen_jar model,
+// which is the Digsite's jar and the only jar the 377 cache has.
+//
+// THE FILLED ONES ARE SEPARATE OBJS, not the Digsite's jar with a varbit on it. specimen_jar is
+// counted by quest_itexam in four places and is tradeable=no, so reusing it would have put Hunter
+// inside the Digsite's bookkeeping for nothing.
+//
+// THE RECOLOUR SOURCE IS 6380 AND THAT IS NOT A TYPO. The model stores HSL16, and ObjConfig.ts
+// converts a recolNs through rgb15toHsl16 before matching - so the number in a config is RGB15 and
+// the number in the model is not. The jar's glass is HSL16 41253, and 6380 is the one RGB15 value
+// that converts to it. Its other colour (the seal) is left alone. Checked with
+// tools/ob2render.py, which warns when a recolour source matches no face: a source that matches
+// nothing renders as a plain jar and is invisible in a diff.
+//
+// Each species tints the glass with its OWN wing colour, taken from that butterfly's npc config in
+// the cache - Viceroy 20934, Blue Morpho 5759, Tiger Swallowtail 31651. The plain butterfly's jar
+// is left untinted, which is what makes it read as the common one.
+
+[hunter_butterfly_jar]
+name=Butterfly jar
+desc=An empty jar, for catching something small and delicate.
+model=obj_specimen_jar
+2dzoom=1030
+2dyan=1772
+2dxan=96
+members=yes
+weight=2oz
+cost=45
+param=crafting_glass_struct,hunter_butterfly_jar
+
+[hunter_jar_butterfly]
+name=Butterfly jar (butterfly)
+desc=A butterfly, unhurt and unimpressed, in a glass jar.
+model=obj_specimen_jar
+2dzoom=1030
+2dyan=1772
+2dxan=96
+members=yes
+weight=2oz
+cost=60
+iop1=Release
+
+[hunter_jar_viceroy]
+name=Butterfly jar (Viceroy)
+desc=A Viceroy butterfly in a glass jar. The orange carries through the glass.
+model=obj_specimen_jar
+recol1s=6380
+recol1d=20934
+2dzoom=1030
+2dyan=1772
+2dxan=96
+members=yes
+weight=2oz
+cost=140
+iop1=Release
+
+[hunter_jar_bluemorpo]
+name=Butterfly jar (Blue Morpho)
+desc=A Blue Morpho butterfly in a glass jar, and the whole jar has gone blue with it.
+model=obj_specimen_jar
+recol1s=6380
+recol1d=5759
+2dzoom=1030
+2dyan=1772
+2dxan=96
+members=yes
+weight=2oz
+cost=260
+iop1=Release
+
+[hunter_jar_swallowtail]
+name=Butterfly jar (Tiger Swallowtail)
+desc=A Tiger Swallowtail in a glass jar, yellow enough to read by.
+model=obj_specimen_jar
+recol1s=6380
+recol1d=31651
+2dzoom=1030
+2dyan=1772
+2dxan=96
+members=yes
+weight=2oz
+cost=420
+iop1=Release

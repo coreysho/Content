@@ -5,23 +5,23 @@
 // cache ships two plain butterflies with different models and the same name.
 
 [opnpcu,butterfly]
-@hunter_net_butterfly(^hunter_butterfly_level, ^hunter_butterfly_xp, ^hunter_butterfly_low, ^hunter_butterfly_high, "butterfly");
+@hunter_net_butterfly(^hunter_butterfly_level, ^hunter_butterfly_xp, ^hunter_butterfly_low, ^hunter_butterfly_high, "butterfly", hunter_jar_butterfly);
 
 [opnpcu,butterfly2]
-@hunter_net_butterfly(^hunter_butterfly_level, ^hunter_butterfly_xp, ^hunter_butterfly_low, ^hunter_butterfly_high, "butterfly");
+@hunter_net_butterfly(^hunter_butterfly_level, ^hunter_butterfly_xp, ^hunter_butterfly_low, ^hunter_butterfly_high, "butterfly", hunter_jar_butterfly);
 
 [opnpcu,butterfly_viceroy]
-@hunter_net_butterfly(^hunter_viceroy_level, ^hunter_viceroy_xp, ^hunter_viceroy_low, ^hunter_viceroy_high, "Viceroy");
+@hunter_net_butterfly(^hunter_viceroy_level, ^hunter_viceroy_xp, ^hunter_viceroy_low, ^hunter_viceroy_high, "Viceroy", hunter_jar_viceroy);
 
 [opnpcu,butterfly_bluemorpo]
-@hunter_net_butterfly(^hunter_bluemorpo_level, ^hunter_bluemorpo_xp, ^hunter_bluemorpo_low, ^hunter_bluemorpo_high, "Blue Morpho");
+@hunter_net_butterfly(^hunter_bluemorpo_level, ^hunter_bluemorpo_xp, ^hunter_bluemorpo_low, ^hunter_bluemorpo_high, "Blue Morpho", hunter_jar_bluemorpo);
 
 [opnpcu,butterfly_tigerswallowtail]
-@hunter_net_butterfly(^hunter_swallowtail_level, ^hunter_swallowtail_xp, ^hunter_swallowtail_low, ^hunter_swallowtail_high, "Tiger Swallowtail");
+@hunter_net_butterfly(^hunter_swallowtail_level, ^hunter_swallowtail_xp, ^hunter_swallowtail_low, ^hunter_swallowtail_high, "Tiger Swallowtail", hunter_jar_swallowtail);
 
 // $name is the species as it appears in a sentence: "You catch the Viceroy." The two plain ones
 // pass "butterfly" in lower case for the same reason.
-[label,hunter_net_butterfly](int $level, int $xp, int $low, int $high, string $name)
+[label,hunter_net_butterfly](int $level, int $xp, int $low, int $high, string $name, namedobj $jar)
 // FIRST, before anything that can move the player. p_arrivedelay corrupts last_useitem - the
 // compiler rejects a read of it afterwards - and every level and equipment check below wants to
 // know what was used. See claude/rs2-compile-traps.md.
@@ -53,8 +53,34 @@ if (stat_random(hunter, $low, $high) = false) {
 // minute, which is about right for a catch this cheap.
 npc_del;
 ~hunter_xp($xp);
-// No jar to put it in yet - see the note in hunter.constant - so the catch is the reward. One
-// line rather than a ~mesbox: this fires every few ticks while training and a modal that has to
-// be clicked away would make the skill unplayable.
-mes("You catch the <$name>, look at it properly, and let it go.");
+// The jar decides what you keep, not what you learn: the experience is the same either way, so
+// netting is worth training from level 1 with nothing but the net, and a jar is what turns a catch
+// into something you can carry home. One line rather than a ~mesbox in both branches - this fires
+// every few ticks while training, and a modal that has to be clicked away would be unplayable.
+if (inv_total(inv, hunter_butterfly_jar) = 0) {
+    mes("You catch the <$name>, look at it properly, and let it go.");
+    p_delay(2);
+    return;
+}
+// inv_del then inv_add, so the slot the jar came out of is the slot it goes back into.
+inv_del(inv, hunter_butterfly_jar, 1);
+inv_add(inv, $jar, 1);
+mes("You catch the <$name> and seal it in a jar.");
 p_delay(2);
+
+
+// --- Letting one out again ---
+// The jar is the expensive part and it is not consumed: releasing empties it and gives it back. A
+// full inventory cannot happen here - one obj goes out and one comes in - so there is nothing to
+// guard.
+[opheld1,hunter_jar_butterfly] @hunter_release(hunter_jar_butterfly, "butterfly");
+[opheld1,hunter_jar_viceroy] @hunter_release(hunter_jar_viceroy, "Viceroy");
+[opheld1,hunter_jar_bluemorpo] @hunter_release(hunter_jar_bluemorpo, "Blue Morpho");
+[opheld1,hunter_jar_swallowtail] @hunter_release(hunter_jar_swallowtail, "Tiger Swallowtail");
+
+// The full jar is named rather than read off last_item: last_item is an [opheldu] thing here -
+// nothing in this repo reads it from an [opheld1] - and naming it costs one argument.
+[label,hunter_release](obj $full, string $name)
+inv_del(inv, $full, 1);
+inv_add(inv, hunter_butterfly_jar, 1);
+mes("You open the jar. The <$name> takes a moment to work out that it can leave.");
