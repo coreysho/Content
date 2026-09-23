@@ -1,0 +1,56 @@
+// ENCHANT CROSSBOW BOLT (474's normal book, level 4). The spell opens 474's window
+// (skill_magic/interfaces/enchant_bolts.if, from LostCityServer tools/models/genenchantbolts474.py);
+// each of its ten bolts is a spell row of its own in magic_spells.dbrow - its level, runes, xp
+// and which bolts become which - and one cast enchants up to ten of them, as 474 did.
+
+[if_button,magic:enchant_bolt]
+if (p_finduid(uid) = false) {
+    return;
+}
+if (stat(magic) < 4) {
+    mes("Your Magic level is not high enough for this spell.");
+    return;
+}
+if_openmain(enchant_bolts);
+
+[if_button,enchant_bolts:opal] ~enchant_bolts(^enchant_bolt_opal);
+[if_button,enchant_bolts:sapphire] ~enchant_bolts(^enchant_bolt_sapphire);
+[if_button,enchant_bolts:jade] ~enchant_bolts(^enchant_bolt_jade);
+[if_button,enchant_bolts:pearl] ~enchant_bolts(^enchant_bolt_pearl);
+[if_button,enchant_bolts:emerald] ~enchant_bolts(^enchant_bolt_emerald);
+[if_button,enchant_bolts:topaz] ~enchant_bolts(^enchant_bolt_topaz);
+[if_button,enchant_bolts:ruby] ~enchant_bolts(^enchant_bolt_ruby);
+[if_button,enchant_bolts:diamond] ~enchant_bolts(^enchant_bolt_diamond);
+[if_button,enchant_bolts:dragon] ~enchant_bolts(^enchant_bolt_dragon);
+[if_button,enchant_bolts:onyx] ~enchant_bolts(^enchant_bolt_onyx);
+
+[proc,enchant_bolts](int $spell)
+if (p_finduid(uid) = false) {
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data($spell);
+def_obj $from;
+def_namedobj $to;
+def_seq $anim;
+def_spotanim $spotanim;
+def_synth $sound;
+$from, $to, $anim, $spotanim, $sound = db_getfield($spell_data, magic_spell_table:convertobj, 0);
+def_int $count = inv_total(inv, $from);
+if ($count < 1) {
+    mes("You don't have any <lowercase(oc_name($from))> to enchant.");
+    return;
+}
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+if ($count > 10) {
+    $count = 10;
+}
+inv_del(inv, $from, $count);
+inv_add(inv, $to, $count);
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim($anim, 0);
+spotanim_pl($spotanim, 92, 0);
+sound_synth($sound, 0, 0);
+mes("The magic of the runes coaxes out the true nature of the gem tips.");
