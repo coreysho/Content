@@ -351,6 +351,20 @@ def main():
         if base and base in given:
             given[name].add('note of ' + base)
 
+    # ---- stack forms. countN=<obj>,<n> on a stackable obj names the model the CLIENT swaps in at
+    # that size; nothing ever hands one out and nothing ever will, so they read as orphans while
+    # being exactly as reachable as the base. The cache's own (coins_2, coins_3 ...) never showed up
+    # here only because they live in scripts/_unpack, which this does not audit - so the rule was
+    # missing rather than unnecessary, and the first stack item defined in the repo found that out.
+    for name, d in cfg.items():
+        if name not in given:
+            continue
+        for k, v in d.items():
+            if re.fullmatch(r'count\d+', k):
+                form = v.split(',')[0].strip()
+                if form in byname:
+                    given[form].add('stack form of ' + name)
+
     # ---- a result handed to a label or a proc, minus the storage lists (see STORAGE_LISTS). The
     # godswords are joined by
     # @godsword_join($a, $b, godsword_blade) - the obj that comes OUT is an argument, nowhere near
