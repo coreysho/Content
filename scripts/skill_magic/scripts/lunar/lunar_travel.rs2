@@ -1,0 +1,95 @@
+// The Lunar spellbook's travel (2026-09-23): Lunar Home Teleport, the eight teleports and the seven
+// Tele Groups. Levels, runes and destinations are skill_magic/configs/lunar_spells.dbrow.
+//
+// THE TELEPORTS are the other books' own label, ~magic_teleport in spells/teleport.rs2 - the same
+// wilderness rule, pre-tele checks, xp, runes and landing search - and differ only in how they look:
+// Lunar's cast is Teleother's arrival (human_teleport_other_impact, seq 1816, which 377 already had and
+// 474's Lunar spells reuse) under 474's own Lunar teleport graphic (spotanim 747). Ice Plateau lands in
+// level 53 Wilderness, as it did in 2007; like Annakarl and Ghorrock it does not ask first.
+//
+// OURANIA lands outside the cave, as Old School's does. The cave's underground altar is not in this
+// build, and the spell does not pretend it is.
+//
+// TELE GROUP takes the caster, and offers the same trip to everyone within one square of them - the
+// 3x3 they stand in the middle of - who has Accept Aid on. The offer is Teleother's: its panel ("<name>
+// wants to teleport you to <place>. Do you accept?"), its varps, its expiry and its Accept, which
+// reads the destination back off the spell's row (spells/teleother.rs2). So an offer is answered the
+// same way whichever book sent it, and nobody is moved who did not say yes. The caster goes at once;
+// the others follow when, and if, they accept.
+
+[if_button,lunar_magic:moonclan_teleport] @magic_teleport(^moonclan_teleport);
+[if_button,lunar_magic:ourania_teleport] @magic_teleport(^ourania_teleport);
+[if_button,lunar_magic:waterbirth_teleport] @magic_teleport(^waterbirth_teleport);
+[if_button,lunar_magic:barbarian_teleport] @magic_teleport(^barbarian_teleport);
+[if_button,lunar_magic:khazard_teleport] @magic_teleport(^khazard_teleport);
+[if_button,lunar_magic:fishing_guild_teleport] @magic_teleport(^fishing_guild_teleport);
+[if_button,lunar_magic:catherby_teleport] @magic_teleport(^catherby_teleport);
+[if_button,lunar_magic:ice_plateau_teleport] @magic_teleport(^ice_plateau_teleport);
+
+[if_button,lunar_magic:tele_group_moonclan] @lunar_tele_group(^tele_group_moonclan, "Moonclan Island");
+[if_button,lunar_magic:tele_group_waterbirth] @lunar_tele_group(^tele_group_waterbirth, "Waterbirth Island");
+[if_button,lunar_magic:tele_group_barbarian] @lunar_tele_group(^tele_group_barbarian, "the Barbarian Outpost");
+[if_button,lunar_magic:tele_group_khazard] @lunar_tele_group(^tele_group_khazard, "Port Khazard");
+[if_button,lunar_magic:tele_group_fishing_guild] @lunar_tele_group(^tele_group_fishing_guild, "the Fishing Guild");
+[if_button,lunar_magic:tele_group_catherby] @lunar_tele_group(^tele_group_catherby, "Catherby");
+[if_button,lunar_magic:tele_group_ice_plateau] @lunar_tele_group(^tele_group_ice_plateau, "the Ice Plateau");
+
+// A Lunar spell's id, which ~magic_teleport and Teleother's Accept ask to pick the Lunar look.
+[proc,spell_is_lunar](int $spell)(boolean)
+if ($spell >= ^lunar_home_teleport & $spell <= ^spellbook_swap) {
+    return(true);
+}
+return(false);
+
+[proc,player_teleport_lunar](coord $coord)
+if_close;
+p_stopaction;
+sound_synth(teleport_all, 1, 0);
+anim(human_teleport_other_impact, 0);
+spotanim_pl(lunar_teleport, 92, 0);
+p_delay(2);
+~p_telejump_safe($coord);
+
+[label,lunar_tele_group](int $spell, string $destination)
+if_close;
+if (p_finduid(uid) = false) {
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data($spell);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+if (~wilderness_level(coord) > 20) {
+    mes("A mysterious force blocks your teleport spell!");
+    mes("You can't use this teleport after level 20 wilderness.");
+    return;
+}
+if (~pre_tele_checks(coord) = false) {
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+// Everyone in the 3x3, on the secondary pointer, so the caster stays the one this script moves.
+// The tests are Teleother's, and for the same reasons: aid off, busy, already answering an offer, or
+// in deep Wilderness is a quiet no for that one player and not a reason to stop the spell.
+def_int $offered = 0;
+huntall(coord, 1, 0);
+while (.huntnext = true) {
+    if (.uid ! uid & .%option_aid ! ^aid_no & .busy = false & .%teleother_expires <= map_clock & ~wilderness_level(.coord) <= 20) {
+        .%teleother_caster = uid;
+        .%teleother_spell = $spell;
+        .%teleother_expires = add(map_clock, ^teleother_offer_ticks);
+        .clearsofttimer(teleother_expire);
+        .softtimer(teleother_expire, ^teleother_offer_ticks);
+        .if_settext(teleother:caster, "<displayname>");
+        .if_settext(teleother:destination, $destination);
+        .if_openmain(teleother);
+        $offered = add($offered, 1);
+    }
+}
+if ($offered = 1) {
+    mes("You offer to take one other player with you.");
+} else if ($offered > 1) {
+    mes("You offer to take <tostring($offered)> other players with you.");
+}
+~player_teleport_lunar(map_findsquare(db_getfield($spell_data, magic_spell_table:tele_coord, 0), 0, 2, ^map_findsquare_lineofwalk));

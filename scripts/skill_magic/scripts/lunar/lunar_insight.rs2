@@ -1,0 +1,117 @@
+// Monster Examine (66) and Stat Spy (75), the Lunar spellbook (2026-09-23).
+//
+// MONSTER EXAMINE. Old School's spell opens a four-tab panel (combat level, hitpoints, the five
+// combat stats, max hit and main attack style, then the bonuses and weaknesses). This build has no
+// such panel, so the same facts go to the chat box, in the same order, with nothing invented:
+//   * the name and combat level (nc_vislevel - the level the client prints over the monster);
+//   * current/maximum hitpoints and the other four current combat stats (npc_stat);
+//   * the max hit, from ~npc_melee_maxhit - the SAME sum the monster's own melee swing uses
+//     (skill_combat/scripts/npc/npc_combat_melee.rs2), so it can never disagree with what it hits;
+//   * then ~npc_examine, what the ordinary Examine prints: the description and, for a monster with
+//     one, its elemental weakness (skill_combat/scripts/player/elemental_weakness.rs2).
+// It is cast on anything with an Attack option; on anything else it says so and costs nothing.
+//
+// STAT SPY "may be cast on other players to discover stats, including current Hitpoints, all
+// skills, and boosted stats", and "the target of the spell receives a message that their stats are
+// being spied upon along with the name of the caster". No Accept Aid - Old School's wiki asks for
+// none, and it takes nothing from the target. The list is drawn on the skill guide
+// (interfaces/skill_guide.if, driven by interfaces/skill_guide.rs2): a scrolling parchment of forty
+// rows with a number column and a text column, which is the one text list in this build long
+// enough for every skill. The number is the current level; the text gives it against the real
+// level, green when boosted and red when drained.
+
+// ---------------------------------------------------------------------------------- Monster Examine
+
+[opnpct,lunar_magic:monster_examine] @lunar_monster_examine;
+[apnpct,lunar_magic:monster_examine] @lunar_monster_examine;
+
+[label,lunar_monster_examine]
+if (npc_hasop(2) = false) {
+    mes("You can only cast this spell on something you could fight.");
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^monster_examine);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_cast_monster_examine, 0);
+spotanim_npc(monster_examine, 92, 0);
+def_npc $npc = npc_type;
+def_int $level = nc_vislevel($npc);
+if ($level > 0) {
+    mes("<npc_name> (level <tostring($level)>)");
+} else {
+    mes(npc_name);
+}
+mes("Hitpoints: <tostring(npc_stat(hitpoints))>/<tostring(npc_basestat(hitpoints))>   Max hit: <tostring(~npc_melee_maxhit)>");
+mes("Attack: <tostring(npc_stat(attack))>   Strength: <tostring(npc_stat(strength))>   Defence: <tostring(npc_stat(defence))>   Magic: <tostring(npc_stat(magic))>   Ranged: <tostring(npc_stat(ranged))>");
+~npc_examine($npc);
+
+// ---------------------------------------------------------------------------------- Stat Spy
+
+[opplayert,lunar_magic:stat_spy] @lunar_stat_spy;
+[applayert,lunar_magic:stat_spy] @lunar_stat_spy;
+
+[label,lunar_stat_spy]
+if (.uid = uid) {
+    mes("You can't cast that on yourself.");
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^stat_spy);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_cast_monster_examine, 0);
+.spotanim_pl(stat_spy, 92, 0);
+.mes("<displayname> is viewing your stats.");
+// 0 is no guide: ~skillguide_selectpage has no case for it, and no category button is shown
+~skillguide_begin(0, .displayname);
+~skillguide_headers("Level", "Skill");
+def_int $i = 1;
+while ($i <= enum_getoutputcount(stats)) {
+    def_stat $stat = enum(int, stat, stats, $i);
+    ~lunar_stat_spy_row($i, $stat, .stat($stat), .stat_base($stat));
+    $i = calc($i + 1);
+}
+~skillguide_show;
+
+// One row: the current level in the number column, "Attack: 75/70" beside it.
+[proc,lunar_stat_spy_row](int $row, stat $stat, int $level, int $base)
+def_int $colour = ^black_rgb;
+if ($level > $base) {
+    $colour = ^skillguide_unlocked;
+} else if ($level < $base) {
+    $colour = ^skillguide_locked;
+}
+def_string $text = "<~stat_name($stat)>: <tostring($level)>/<tostring($base)>";
+switch_int ($row) {
+    case 1 : ~skillguide_setrow(skill_guide:lvl1, skill_guide:name1, $level, $text, $colour);
+    case 2 : ~skillguide_setrow(skill_guide:lvl2, skill_guide:name2, $level, $text, $colour);
+    case 3 : ~skillguide_setrow(skill_guide:lvl3, skill_guide:name3, $level, $text, $colour);
+    case 4 : ~skillguide_setrow(skill_guide:lvl4, skill_guide:name4, $level, $text, $colour);
+    case 5 : ~skillguide_setrow(skill_guide:lvl5, skill_guide:name5, $level, $text, $colour);
+    case 6 : ~skillguide_setrow(skill_guide:lvl6, skill_guide:name6, $level, $text, $colour);
+    case 7 : ~skillguide_setrow(skill_guide:lvl7, skill_guide:name7, $level, $text, $colour);
+    case 8 : ~skillguide_setrow(skill_guide:lvl8, skill_guide:name8, $level, $text, $colour);
+    case 9 : ~skillguide_setrow(skill_guide:lvl9, skill_guide:name9, $level, $text, $colour);
+    case 10 : ~skillguide_setrow(skill_guide:lvl10, skill_guide:name10, $level, $text, $colour);
+    case 11 : ~skillguide_setrow(skill_guide:lvl11, skill_guide:name11, $level, $text, $colour);
+    case 12 : ~skillguide_setrow(skill_guide:lvl12, skill_guide:name12, $level, $text, $colour);
+    case 13 : ~skillguide_setrow(skill_guide:lvl13, skill_guide:name13, $level, $text, $colour);
+    case 14 : ~skillguide_setrow(skill_guide:lvl14, skill_guide:name14, $level, $text, $colour);
+    case 15 : ~skillguide_setrow(skill_guide:lvl15, skill_guide:name15, $level, $text, $colour);
+    case 16 : ~skillguide_setrow(skill_guide:lvl16, skill_guide:name16, $level, $text, $colour);
+    case 17 : ~skillguide_setrow(skill_guide:lvl17, skill_guide:name17, $level, $text, $colour);
+    case 18 : ~skillguide_setrow(skill_guide:lvl18, skill_guide:name18, $level, $text, $colour);
+    case 19 : ~skillguide_setrow(skill_guide:lvl19, skill_guide:name19, $level, $text, $colour);
+    case 20 : ~skillguide_setrow(skill_guide:lvl20, skill_guide:name20, $level, $text, $colour);
+    case 21 : ~skillguide_setrow(skill_guide:lvl21, skill_guide:name21, $level, $text, $colour);
+    case 22 : ~skillguide_setrow(skill_guide:lvl22, skill_guide:name22, $level, $text, $colour);
+    case 23 : ~skillguide_setrow(skill_guide:lvl23, skill_guide:name23, $level, $text, $colour);
+    case 24 : ~skillguide_setrow(skill_guide:lvl24, skill_guide:name24, $level, $text, $colour);
+    case 25 : ~skillguide_setrow(skill_guide:lvl25, skill_guide:name25, $level, $text, $colour);
+}

@@ -1,0 +1,352 @@
+// The Lunar spells that make things out of what you carry (2026-09-23): Bake Pie (65), Humidify (68),
+// Superglass Make (77), String Jewellery (80) and Plank Make (86). Magic Imbue is in lunar_imbue.rs2,
+// Cure Plant and Fertile Soil in lunar_farming.rs2; the figures are in
+// skill_magic/configs/lunar_skilling.constant.
+//
+// THE RULES ARE OLD SCHOOL'S, checked against its wiki, and the DATA IS THE GAME'S OWN: none of these
+// spells knows a recipe of its own.
+//   * Bake Pie reads cooking_generic (skill_cooking/configs/cooking_source), the table the range
+//     reads. A pie is a row whose burnt product is burnt_pie - which is what makes a pie a pie in
+//     that table, and it picks up any pie added to it later. The Cooking level, the xp and the
+//     "You successfully bake..." line all come from the row; it simply never burns.
+//   * String Jewellery reads the crafting_jewelry_struct every unstrung amulet and symbol carries,
+//     the one stringing with a ball of wool reads (skill_crafting/scripts/jewellery/stringing.rs2).
+//   * Humidify fills what a water source fills (general_use/scripts/water_sources.rs2
+//     [oplocu,_watersource]), through each vessel's own next_obj_stage; watering cans and waterskins
+//     go to full; clay becomes soft clay; a potted seedling is watered through
+//     ~farming_pot_to_watered (skill_farming/scripts/farming_seedlings.rs2) and starts its five
+//     minutes exactly as a watering can would start them.
+//   * Superglass Make does the furnace's sums (skill_crafting/scripts/glass/glass.rs2, smelt_glass):
+//     a bucket of sand and a soda ash, or a seaweed, per molten glass.
+//   * Plank Make charges 70% of the sawmill operator's fee (skill_construction/scripts/sawmill.rs2,
+//     ^sawmill_fee_*), so the two can never drift apart.
+//
+// Bake Pie and String Jewellery work through the whole pack from one click, one item every three
+// ticks, and each item costs a full cast of runes and pays a full cast of Magic xp - Old School's
+// "the rune cost is one cast for each amulet". They run on a weak queue, so walking away or doing
+// anything else stops them, as Old School's does ("interrupted by walking around"). Clicking the
+// spell again starts the run over rather than running two at once.
+//
+// Humidify and Superglass Make do the whole pack in one cast, for one cast's runes and Magic xp.
+//
+// Messages. Old School's wiki gives none for these five, so what a failed cast says is this
+// server's, and a successful one is quiet except for Bake Pie, which says what the range would.
+// Superglass Make's empty buckets are used up, as Old School's are ("empty buckets will not be
+// returned"); there is no giant seaweed or swamp weed in this build to allow for.
+
+// ============================================================================ Bake Pie
+
+[if_button,lunar_magic:bake_pie]
+if (p_finduid(uid) = false) {
+    return;
+}
+clearqueue(lunar_bake_pie);
+def_int $slot;
+def_int $need;
+$slot, $need = ~lunar_pie_slot;
+if ($slot < 0) {
+    if ($need > 0) {
+        mes("You need a Cooking level of <tostring($need)> to bake that pie.");
+    } else {
+        mes("You have no uncooked pies to bake.");
+    }
+    return;
+}
+if (~lunar_bake_pie_cast($slot) = true) {
+    weakqueue(lunar_bake_pie, 3, 0);
+}
+
+[queue,lunar_bake_pie]
+def_int $slot;
+def_int $need;
+$slot, $need = ~lunar_pie_slot;
+// out of pies, or out of pies you can bake: the run is over, and there is nothing to say
+if ($slot < 0) {
+    return;
+}
+if (~lunar_bake_pie_cast($slot) = true) {
+    weakqueue(lunar_bake_pie, 3, 0);
+}
+
+// The cooking_generic row for an uncooked pie, or null for anything that is not one.
+[proc,lunar_pie_row](obj $obj)(dbrow)
+db_find(cooking_generic:uncooked, $obj);
+def_dbrow $data = db_findnext;
+if ($data = null) {
+    return(null);
+}
+if (db_getfield($data, cooking_generic:burnt, 0) ! burnt_pie) {
+    return(null);
+}
+return($data);
+
+// The first slot holding a pie you have the Cooking level to bake (boosts count, as at the range),
+// or -1 and the lowest level among the pies you are carrying but cannot bake yet (0 if none).
+[proc,lunar_pie_slot]()(int, int)
+def_int $slot = 0;
+def_int $need = 0;
+while ($slot < inv_size(inv)) {
+    def_obj $obj = inv_getobj(inv, $slot);
+    if ($obj ! null) {
+        def_dbrow $data = ~lunar_pie_row($obj);
+        if ($data ! null) {
+            def_int $level = db_getfield($data, cooking_generic:levelrequired, 0);
+            if (stat(cooking) >= $level) {
+                return($slot, 0);
+            }
+            if ($need = 0 | $level < $need) {
+                $need = $level;
+            }
+        }
+    }
+    $slot = add($slot, 1);
+}
+return(-1, $need);
+
+// One cast on the pie in $slot. False when the cast could not be made (the runes ran out), which
+// ends the run; check_spell_requirements has already said why.
+[proc,lunar_bake_pie_cast](int $slot)(boolean)
+def_dbrow $spell_data = ~get_spell_data(^bake_pie);
+if (~check_spell_requirements($spell_data) = false) {
+    return(false);
+}
+def_dbrow $data = ~lunar_pie_row(inv_getobj(inv, $slot));
+def_namedobj $cooked = db_getfield($data, cooking_generic:cooked, 0);
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_cast_lunar_summon2, 0);
+spotanim_pl(bake_pie, 92, 0);
+// the pie bakes where it lies
+inv_setslot(inv, $slot, $cooked, 1);
+def_namedobj $additional = db_getfield($data, cooking_generic:additional, 0);
+if ($additional ! null) {
+    inv_add(inv, $additional, 1);
+}
+def_string $message = db_getfield($data, cooking_generic:successmessage, 0);
+if (string_length($message) < 1) {
+    $message = "You successfully bake <~add_article(lowercase(oc_name($cooked)))>.";
+}
+mes($message);
+stat_advance(cooking, db_getfield($data, cooking_generic:experience, 0));
+return(true);
+
+// ============================================================================ Humidify
+
+[if_button,lunar_magic:humidify]
+if (p_finduid(uid) = false) {
+    return;
+}
+if (~lunar_humidify_slot = -1) {
+    mes("You have nothing in your inventory that this spell can humidify.");
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^humidify);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_cast_humidify, 0);
+spotanim_pl(humidify, 92, 0);
+def_int $slot = 0;
+def_boolean $seedling = false;
+while ($slot < inv_size(inv)) {
+    def_obj $obj = inv_getobj(inv, $slot);
+    if ($obj ! null) {
+        def_namedobj $filled = ~lunar_humidified($obj);
+        if ($filled ! null) {
+            if (~farming_pot_to_watered($obj) ! null) {
+                $seedling = true;
+            }
+            // vessels do not stack, so every slot is exactly one of them
+            inv_setslot(inv, $slot, $filled, 1);
+        }
+    }
+    $slot = add($slot, 1);
+}
+if ($seedling = true) {
+    // what farming_water_seedling sets: the five minutes start now
+    %farming_seedling_time = ~farming_now;
+}
+// Old School's cast speed is four ticks
+p_delay(3);
+
+// The first slot holding something Humidify would fill, or -1.
+[proc,lunar_humidify_slot]()(int)
+def_int $slot = 0;
+while ($slot < inv_size(inv)) {
+    def_obj $obj = inv_getobj(inv, $slot);
+    if ($obj ! null) {
+        if (~lunar_humidified($obj) ! null) {
+            return($slot);
+        }
+    }
+    $slot = add($slot, 1);
+}
+return(-1);
+
+// What Humidify turns $obj into, or null. The four vessels are the ones [oplocu,_watersource] fills,
+// and each fills to its own next_obj_stage, which is how the water source knows too. (The golden
+// bowls there are left out: they are Legends' Quest's, and Old School's Humidify does not list them.)
+[proc,lunar_humidified](obj $obj)(namedobj)
+switch_obj ($obj) {
+    case bucket_empty, jug_empty, vial_empty, bowl_empty : return(oc_param($obj, next_obj_stage));
+    case fishbowl_empty : return(fishbowl_water);
+    case water_skin0, water_skin1, water_skin2, water_skin3 : return(water_skin4);
+    case watering_can_0, watering_can_1, watering_can_2, watering_can_3, watering_can_4, watering_can_5, watering_can_6, watering_can_7 : return(watering_can_8);
+    case clay : return(softclay);
+    case default : return(~farming_pot_to_watered($obj));
+}
+return(null);
+
+// ============================================================================ Superglass Make
+
+[if_button,lunar_magic:superglass_make]
+if (p_finduid(uid) = false) {
+    return;
+}
+if (inv_total(inv, bucket_sand) < 1 | (inv_total(inv, soda_ash) < 1 & inv_total(inv, seaweed) < 1)) {
+    mes("You need buckets of sand, and soda ash or seaweed, to cast this spell.");
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^superglass_make);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_cast_lunar_summon2, 0);
+spotanim_pl(superglass_make, 92, 0);
+def_int $sand = 0;
+while (inv_total(inv, bucket_sand) > 0 & (inv_total(inv, soda_ash) > 0 | inv_total(inv, seaweed) > 0)) {
+    inv_del(inv, bucket_sand, 1);
+    if (inv_total(inv, soda_ash) > 0) {
+        inv_del(inv, soda_ash, 1);
+    } else {
+        inv_del(inv, seaweed, 1);
+    }
+    inv_add(inv, molten_glass, 1);
+    if (random(100) < ^superglass_bonus_percent) {
+        // A pair frees two slots and fills at most two, so the pack cannot overflow here - but if
+        // it ever did, the glass goes on the floor, where Old School puts it.
+        if (inv_freespace(inv) > 0) {
+            inv_add(inv, molten_glass, 1);
+        } else {
+            obj_add(coord, molten_glass, 1, ^lootdrop_duration);
+        }
+    }
+    $sand = add($sand, 1);
+}
+stat_advance(crafting, calc($sand * ^superglass_crafting_xp));
+p_delay(2);
+
+// ============================================================================ String Jewellery
+
+[if_button,lunar_magic:string_jewellery]
+if (p_finduid(uid) = false) {
+    return;
+}
+clearqueue(lunar_string_jewellery);
+def_int $slot = ~lunar_unstrung_slot;
+if ($slot < 0) {
+    mes("You have no unstrung amulets to string.");
+    return;
+}
+if (~lunar_string_jewellery_cast($slot) = true) {
+    weakqueue(lunar_string_jewellery, 3, 0);
+}
+
+[queue,lunar_string_jewellery]
+def_int $slot = ~lunar_unstrung_slot;
+if ($slot < 0) {
+    return;
+}
+if (~lunar_string_jewellery_cast($slot) = true) {
+    weakqueue(lunar_string_jewellery, 3, 0);
+}
+
+// The stringing struct for $obj if it is something a ball of wool would string, else null. The
+// struct's product must be $obj itself: the interface placeholders (invis_amulet*) carry the
+// amulets' structs too, and are not amulets.
+[proc,lunar_stringing_struct](obj $obj)(struct)
+def_struct $struct = oc_param($obj, crafting_jewelry_struct);
+if ($struct = null) {
+    return(null);
+}
+// through an obj local: a namedobj and an obj cannot be compared directly (as ~rune_pouch_accepts)
+def_obj $product = struct_param($struct, product);
+if (struct_param($struct, strung) = null | $product ! $obj) {
+    return(null);
+}
+return($struct);
+
+[proc,lunar_unstrung_slot]()(int)
+def_int $slot = 0;
+while ($slot < inv_size(inv)) {
+    def_obj $obj = inv_getobj(inv, $slot);
+    if ($obj ! null) {
+        if (~lunar_stringing_struct($obj) ! null) {
+            return($slot);
+        }
+    }
+    $slot = add($slot, 1);
+}
+return(-1);
+
+[proc,lunar_string_jewellery_cast](int $slot)(boolean)
+def_dbrow $spell_data = ~get_spell_data(^string_jewellery);
+if (~check_spell_requirements($spell_data) = false) {
+    return(false);
+}
+def_struct $struct = ~lunar_stringing_struct(inv_getobj(inv, $slot));
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_cast_lunar_summon1, 0);
+spotanim_pl(string_jewellery, 92, 0);
+inv_setslot(inv, $slot, struct_param($struct, strung), 1);
+stat_advance(crafting, ^string_jewellery_crafting_xp);
+return(true);
+
+// ============================================================================ Plank Make
+
+[opheldt,lunar_magic:plank_make] @lunar_plank_make(last_item, last_slot);
+
+[label,lunar_plank_make](obj $log, int $slot)
+if_settabactive(^tab_magic); // as alchemy and superheat do: the cast leaves you on the spellbook
+def_namedobj $plank;
+def_int $fee;
+$plank, $fee = ~lunar_plank_for($log);
+if ($plank = null) {
+    mes("You can only cast Plank Make on logs.");
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^plank_make);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+def_int $cost = scale(^plank_make_fee_percent, 100, $fee);
+if (inv_total(inv, coins) < $cost) {
+    mes("You need <tostring($cost)> coins to turn <lowercase(oc_name($log))> into <~add_article(lowercase(oc_name($plank)))>.");
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+inv_del(inv, coins, $cost);
+// the plank takes the log's slot, so a pack of logs becomes a pack of planks in the same order
+inv_setslot(inv, $slot, $plank, 1);
+anim(human_cast_plank_make, 0);
+spotanim_pl(plank_make, 92, 0);
+// Old School's cast speed is three ticks
+p_delay(2);
+
+// The plank a log makes and the sawmill operator's fee for it (sawmill.rs2 sawmill_buy_planks), or
+// null for anything he would not cut.
+[proc,lunar_plank_for](obj $log)(namedobj, int)
+switch_obj ($log) {
+    case logs : return(woodplank, ^sawmill_fee_plank);
+    case oak_logs : return(oak_plank, ^sawmill_fee_oak);
+    case teak_logs : return(teak_plank, ^sawmill_fee_teak);
+    case mahogany_logs : return(mahogany_plank, ^sawmill_fee_mahogany);
+    case default : return(null, 0);
+}
+return(null, 0);

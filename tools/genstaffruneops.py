@@ -23,6 +23,7 @@ import sys
 C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FILES = ['scripts/skill_magic/interfaces/magic.if',
          'scripts/skill_magic/interfaces/ancient_magic.if',
+         'scripts/skill_magic/interfaces/lunar_magic.if',
          'scripts/skill_combat/interfaces/magic/staff_spells.if',
          'scripts/interfaces/questscroll_itgronigen.if',
          'scripts/interfaces/inter_233.if',

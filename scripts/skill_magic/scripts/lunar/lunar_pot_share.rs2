@@ -1,0 +1,172 @@
+// Stat Restore Pot Share (81) and Boost Potion Share (84), the Lunar spellbook (2026-09-23).
+//
+// THE RULES ARE OLD SCHOOL'S, checked against its wiki. Cast on a potion in your pack, the spell
+// gives "1 dose of the potion to each player (up to 4 if used on a full vial) in a 5x5 square area
+// around the caster (including standing on the player's square) if they have Accept Aid turned on",
+// and "doses of potion are only used up on other players; with the caster receiving a 'free'
+// dose". So a potion with N doses reaches at most N other players, each of them costs one dose,
+// and the caster drinks too. Stat Restore shares what restores (prayer, restore, super restore,
+// energy and super energy - "despite run energy not being a stat"); Boost shares what boosts, and
+// refuses in Castle Wars - "You don't want to help your enemies".
+//
+// THE EFFECT IS THE POTION'S OWN. Nothing here knows what a potion does: it reads the row the
+// potion already has in consume_table (player/configs/consumption) and hands it to
+// ~consume_effect_stats, the half of ~consume_effect_apply that applies a row's stat_change,
+// stat_heal and healenergy - the same code drinking it runs. That also decides which spell a potion
+// belongs to, from the row itself (~lunar_potion_kind):
+//   * restore - no stat_change at all, only stat_heal and/or healenergy;
+//   * boost   - stat_change that only ever raises, and never hitpoints.
+// Everything else - the Zamorak and Saradomin brews, which drain as they boost, antipoisons and the
+// antifire, which have no row, anything that is not a potion - is refused, as Old School refuses
+// both brews for both spells.
+//
+// Another player's dose runs in THEIR queue (.queue*), because stat_boost and healenergy work on
+// the player the script is running on, and a queue on the target is how this content runs code as
+// somebody else (vengeance.rs2 hits back the same way).
+//
+// Choices of this server's, where the wiki is silent:
+//   * With nobody to share with, the cast is still a cast - the caster drinks - but it costs the
+//     dose as drinking would. A "free" dose with nobody else there would turn two astrals into an
+//     endless potion, which is not what the hidden bonus is for.
+//   * The potion's own drinking rules still hold: a duel with potions turned off refuses it
+//     (~duel_arena_consume_check).
+
+[opheldt,lunar_magic:stat_restore_pot_share] @lunar_pot_share(^stat_restore_pot_share, ^lunar_potion_restore, last_slot);
+[opheldt,lunar_magic:boost_potion_share] @lunar_pot_share(^boost_potion_share, ^lunar_potion_boost, last_slot);
+
+[label,lunar_pot_share](int $spell, int $want, int $slot)
+if_settabactive(^tab_magic); // as alchemy does: the cast leaves you on the spellbook
+def_obj $potion = inv_getobj(inv, $slot);
+// two tests, not one, so oc_category (which throws on null) never sees an empty slot
+if ($potion = null) {
+    return;
+}
+if (oc_category($potion) ! potion) {
+    mes("You can only cast this spell on a potion.");
+    return;
+}
+def_dbrow $row;
+def_int $kind;
+$row, $kind = ~lunar_potion_kind($potion);
+if ($kind ! $want) {
+    if ($want = ^lunar_potion_restore) {
+        mes("This spell can only share potions that restore stats.");
+    } else {
+        mes("This spell can only share potions that boost stats.");
+    }
+    return;
+}
+if ($want = ^lunar_potion_boost & ~in_castlewars_game(coord) = true) {
+    mes("You don't want to help your enemies.");
+    return;
+}
+if (~duel_arena_consume_check($potion) = false) {
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data($spell);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_cast_lunar_group, 0);
+
+// the others, one dose each, as many as the potion has doses
+def_int $doses = ~lunar_potion_doses($potion);
+def_int $shared = 0;
+huntall(coord, ^lunar_pot_share_radius, ^vis_off);
+while (.huntnext = true & $shared < $doses) {
+    if (.uid ! uid & .%option_aid ! ^aid_no & .stat(hitpoints) > 0) {
+        .queue*(lunar_pot_share_dose, 0)($potion, displayname);
+        $shared = add($shared, 1);
+    }
+}
+
+// and the caster, free when anybody else drank
+~consume_effect_stats($row);
+~consume_effect_sound(db_getfield($row, consume_table:consume_sound, 0));
+def_int $used = max($shared, 1);
+def_namedobj $after = ~lunar_potion_after($potion, $used);
+if ($after = null) {
+    inv_delslot(inv, $slot);
+} else {
+    inv_setslot(inv, $slot, $after, 1);
+}
+if ($shared = 0) {
+    mes("There is nobody nearby to share with, so you drink the dose yourself.");
+} else {
+    mes("You share your potion with <~pluralise($shared, "player")>.");
+}
+
+// One shared dose, on the player it was shared with. The row is found again here rather than
+// carried, since only the potion rides in the queue.
+[queue,lunar_pot_share_dose](obj $potion, string $caster)
+db_find(consume_table:consumable, $potion);
+def_dbrow $row = db_findnext;
+if ($row = null) {
+    return;
+}
+~consume_effect_stats($row);
+~consume_effect_sound(db_getfield($row, consume_table:consume_sound, 0));
+mes("<$caster> shares a dose of <~lunar_potion_name($potion)> with you.");
+
+// ---------------------------------------------------------------------------------- the potion
+
+// The potion's consume_table row and what it is to these spells: ^lunar_potion_restore,
+// ^lunar_potion_boost or ^lunar_potion_none (see the top of this file for the rule).
+[proc,lunar_potion_kind](obj $potion)(dbrow, int)
+db_find(consume_table:consumable, $potion);
+def_dbrow $row = db_findnext;
+if ($row = null) {
+    return(null, ^lunar_potion_none);
+}
+def_int $changes = db_getfieldcount($row, consume_table:stat_change);
+if ($changes = 0) {
+    if (db_getfieldcount($row, consume_table:stat_heal) > 0 | db_getfieldcount($row, consume_table:healenergy) > 0) {
+        return($row, ^lunar_potion_restore);
+    }
+    return(null, ^lunar_potion_none);
+}
+def_stat $stat;
+def_int $constant;
+def_int $percent;
+def_int $i = 0;
+while ($i < $changes) {
+    $stat, $constant, $percent = db_getfield($row, consume_table:stat_change, $i);
+    if ($constant < 0 | $percent < 0 | $stat = hitpoints) {
+        return(null, ^lunar_potion_none);
+    }
+    $i = calc($i + 1);
+}
+return($row, ^lunar_potion_boost);
+
+// How many doses the potion holds, walked down its next_obj_stage chain to the empty vial - the
+// chain ~consume_doses_left_message walks.
+[proc,lunar_potion_doses](obj $potion)(int)
+def_int $doses = 1;
+def_namedobj $next = oc_param($potion, next_obj_stage);
+while ($next ! null & $next ! vial_empty & $doses < 4) {
+    $doses = add($doses, 1);
+    $next = oc_param($next, next_obj_stage);
+}
+return($doses);
+
+// What the potion is after $used doses - an emptier potion, the empty vial, or null for a potion
+// with no next stage at all.
+[proc,lunar_potion_after](obj $potion, int $used)(namedobj)
+def_namedobj $next = oc_param($potion, next_obj_stage);
+def_int $i = 1;
+while ($i < $used & $next ! null & $next ! vial_empty) {
+    $next = oc_param($next, next_obj_stage);
+    $i = add($i, 1);
+}
+return($next);
+
+// "super attack" out of "Super attack(4)": the name with its dose count taken off.
+[proc,lunar_potion_name](obj $potion)(string)
+def_string $name = lowercase(oc_name($potion));
+def_int $bracket = string_indexof_char($name, '(');
+if ($bracket > 0) {
+    $name = substring($name, 0, $bracket);
+}
+return($name);

@@ -188,10 +188,12 @@ if ($damage < 0) {
     return;
 }
 ~smite_drain($damage);
-.queue(pvp_damage, $delay, $damage);
+// the attacker's uid rides with the hit, so what it sets off - Vengeance - answers the one who dealt
+// it (skill_magic/scripts/lunar/vengeance.rs2)
+.queue*(pvp_damage, $delay)($damage, uid);
 
 // needs to be a queue
-[queue,pvp_damage](int $damage)
+[queue,pvp_damage](int $damage, player_uid $attacker)
 if (inv_getobj(worn, ^wearpos_ring) = ring_of_recoil & map_members = ^true & .finduid(%pk_predator1) = true & $damage > 0 & stat(hitpoints) > 0) {
     // https://oldschool.runescape.wiki/w/Update:Clue_Scroll_Step_Counter
     // - "Recoil damage will now always target the entity that caused the initial damage, rather than the most recent entity to deal damage."
@@ -201,6 +203,7 @@ if (inv_getobj(worn, ^wearpos_ring) = ring_of_recoil & map_members = ^true & .fi
     .queue(recoil_damage, 0, $recoil_damage);
     ~ring_of_recoil_lose_charge($recoil_damage);
 }
+~vengeance_rebound_player($damage, $attacker);
 ~damage_self($damage);
 
 [queue,recoil_damage](int $damage) // seperate queue to avoid infinite recoil loop

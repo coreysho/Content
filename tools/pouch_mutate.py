@@ -123,7 +123,7 @@ MUTS = [
   '4 every rune a spell needs is one the pouch holds'),
  (ENUM, 'val=0,airrune', 'val=0,blankrune',
   '4 rune essence is not a rune and does not go in, as in OSRS'),
- (CONST, '^rune_pouch_kinds = 19', '^rune_pouch_kinds = 18',
+ (CONST, '^rune_pouch_kinds = 20', '^rune_pouch_kinds = 19',
   '4 the enum has as many kinds as the constant claims'),
  # 5 - an op that the item does not advertise, which is a dead click
  (OBJ, 'iop3=Check\niop5=Destroy\nparam=pouch_slots,3', 'iop5=Destroy\nparam=pouch_slots,3',

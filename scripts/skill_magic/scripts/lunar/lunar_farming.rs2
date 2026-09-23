@@ -1,0 +1,138 @@
+// Cure Plant (66) and Fertile Soil (83), the Lunar spellbook (2026-09-23). Both are cast on a
+// farming patch from the spellbook, so they arrive as [oploct,lunar_magic:...] with the patch as the
+// active loc - on ANY loc, which is why each answers for the compost bins and for everything else.
+//
+// THE RULES ARE OLD SCHOOL'S, checked against its wiki, and so are the messages, word for word:
+//   * Cure Plant does what a plant cure does: a diseased crop becomes healthy at the stage it had
+//     reached. It cannot revive a dead one. 60 Magic xp and 91.5 Farming xp.
+//   * Fertile Soil treats the patch with supercompost, "before or after planting the seeds and at
+//     any growth stage", but not once it is fully grown. 87 Magic xp and 18 Farming xp.
+//
+// THE PATCH IS FARMING'S OWN. Both spells make the same state change the item does, through the
+// same procs (skill_farming/scripts/farming_useitem.rs2): Cure Plant is ~farming_cure's
+// ~farming_set_state(~farming_encode(seed, stage, healthy, 0)), Fertile Soil is
+// ~farming_apply_compost's ~farming_set_compost plus its harvest-lives top-up. Neither can call
+// those procs whole, because they spend the plant cure or the bucket. The refusals Fertile Soil
+// shares with a bucket of compost (weeds, a dead patch, already treated) use the bucket's words, so
+// a patch answers the same whichever way you treat it. The ultracompost of Old School's ash covered
+// tome has no counterpart in this build.
+
+// ============================================================================ Cure Plant
+
+[oploct,lunar_magic:cure_plant]
+if (lc_category(loc_type) = farming_compost_bin) {
+    mes("Bins don't often get diseased.");
+    return;
+}
+if (lc_category(loc_type) ! farming_patch) {
+    say("Umm... this spell won't cure that!");
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^cure_plant);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+def_int $patch = loc_param(farming_patch);
+// bring the patch up to date first, as using an item on it does: it may have died, or grown, since
+// it was last looked at
+~farming_update($patch);
+def_int $crop = ~farming_crop_id($patch);
+if ($crop = 0) {
+    if (~farming_get_state($patch) < ^farming_state_weeded) {
+        mes("The weeds are healthy enough already.");
+    } else {
+        mes("There's nothing there to cure.");
+    }
+    return;
+}
+def_namedobj $seed = ~farming_crop_obj($crop);
+def_int $stage;
+def_int $condition;
+def_int $watered;
+$stage, $condition, $watered = ~farming_decode($patch, $seed);
+if ($condition = ^farming_dead) {
+    mes("It says 'Cure' not 'Resurrect'. Although death may arise from disease, it is not in itself a disease and hence cannot be cured. So there.");
+    return;
+}
+if ($condition ! ^farming_diseased) {
+    if ($condition = ^farming_healthy & $stage < oc_param($seed, farming_stages)) {
+        mes("It's growing just fine.");
+    } else {
+        mes("That's not diseased.");
+    }
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_cast_lunar_summon2, 0);
+spotanim_map(cure_plant, ~lunar_patch_centre, 0, 0);
+~farming_set_state($patch, ~farming_encode($seed, $stage, ^farming_healthy, 0));
+~farming_xp(^cure_plant_farming_xp);
+mes("You cure the <lowercase(oc_name($seed))> of its disease.");
+p_delay(2);
+
+// ============================================================================ Fertile Soil
+
+[oploct,lunar_magic:fertile_soil]
+if (lc_category(loc_type) = farming_compost_bin) {
+    mes("No, that would be silly.");
+    return;
+}
+if (lc_category(loc_type) ! farming_patch) {
+    say("Um... I don't want to fertilize that!");
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^fertile_soil);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+def_int $patch = loc_param(farming_patch);
+~farming_update($patch);
+if (~farming_compost($patch) >= ^farming_compost_super) {
+    mes("This patch has already been treated.");
+    return;
+}
+def_int $crop = ~farming_crop_id($patch);
+if ($crop = 0) {
+    if (~farming_get_state($patch) < ^farming_state_weeded) {
+        mes("Rake the weeds out first.");
+        return;
+    }
+} else {
+    def_namedobj $seed = ~farming_crop_obj($crop);
+    def_int $stage;
+    def_int $condition;
+    def_int $watered;
+    $stage, $condition, $watered = ~farming_decode($patch, $seed);
+    if ($condition = ^farming_dead | $condition = ^farming_stump) {
+        mes("There is nothing alive in this patch to treat.");
+        return;
+    }
+    if ($stage >= oc_param($seed, farming_stages)) {
+        mes("Composting it isn't going to make it any bigger.");
+        return;
+    }
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_cast_lunar_summon2, 0);
+spotanim_map(fertile_soil, ~lunar_patch_centre, 0, 0);
+~farming_set_compost($patch, ^farming_compost_super);
+if ($crop ! 0) {
+    // ~farming_apply_compost's top-up: harvest lives were fixed at planting, so a crop composted
+    // while growing is brought up to what planting into supercompost would have given. Only upwards.
+    def_int $lives = add(^farming_base_lives, ^farming_compost_super);
+    if ($lives > ~farming_lives($patch)) {
+        ~farming_set_lives($patch, $lives);
+    }
+}
+~farming_xp(^fertile_soil_farming_xp);
+mes("You treat the patch with supercompost.");
+p_delay(2);
+
+// ============================================================================ the graphic
+
+// The middle of the active loc, where the spell's graphic lands: loc_coord is the south-west
+// corner, and a patch is several squares across (the same sum as the Abyss's rcu_loc_face_center).
+[proc,lunar_patch_centre]()(coord)
+return(movecoord(loc_coord, calc(lc_width(loc_type) / 2), 0, calc(lc_length(loc_type) / 2)));

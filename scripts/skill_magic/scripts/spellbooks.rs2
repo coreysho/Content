@@ -1,0 +1,24 @@
+// The three spellbooks and the magic tab. %spellbook says which is yours (skill_magic/configs/
+// spellbook.constant); these are the only two places that turn it into an interface, so a fourth
+// book, or a change to how one is shown, is one edit here and not one in every swap site - the
+// Desert Treasure altar, the Astral altar, the Magic cape, Spellbook Swap and login.
+
+// Put this book in the magic tab and remember it.
+[proc,set_spellbook](int $book)
+%spellbook = $book;
+~spellbook_tab;
+
+// Show whichever book %spellbook says. login.rs2 calls this to restore it.
+[proc,spellbook_tab]
+switch_int (%spellbook) {
+    case ^spellbook_ancient : if_settab(ancient_magic, ^tab_magic);
+    case ^spellbook_lunar : if_settab(lunar_magic, ^tab_magic);
+    case default : if_settab(magic, ^tab_magic);
+}
+
+[proc,spellbook_name](int $book)(string)
+switch_int ($book) {
+    case ^spellbook_ancient : return("Ancient Magicks");
+    case ^spellbook_lunar : return("the Lunar spellbook");
+    case default : return("the normal spellbook");
+}

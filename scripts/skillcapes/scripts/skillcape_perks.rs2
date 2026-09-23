@@ -159,7 +159,22 @@ mes("You feel refreshed and ready to run.");
 [opheld3,magic_cape_t] @skillcape_spellbook;
 
 [label,skillcape_spellbook]
-if (%spellbook = 0 & %deserttreasure < ^deserttreasure_complete) {
+// The books you could switch to: never the one you are on, Ancients once Desert Treasure is done,
+// Lunar once the Astral altar has given it to you (%lunar_unlocked), and the normal book always.
+def_int $first = -1;
+def_int $second = -1;
+def_int $book = ^spellbook_normal;
+while ($book <= ^spellbook_lunar) {
+    if ($book ! %spellbook & ~skillcape_knows_spellbook($book) = true) {
+        if ($first = -1) {
+            $first = $book;
+        } else {
+            $second = $book;
+        }
+    }
+    $book = add($book, 1);
+}
+if ($first = -1) {
     mes("You don't know any other spellbook to switch to.");
     return;
 }
@@ -173,26 +188,27 @@ if (%skillcape_magic_uses >= 5) {
     return;
 }
 def_int $choice = -1;
-if (%spellbook = 1) {
-    $choice = ~p_choice2("Switch to the normal spellbook.", 1, "Cancel.", 2);
+if ($second = -1) {
+    $choice = ~p_choice2("Switch to <~spellbook_name($first)>.", $first, "Cancel.", -1);
 } else {
-    $choice = ~p_choice2("Switch to Ancient Magicks.", 1, "Cancel.", 2);
+    $choice = ~p_choice3("Switch to <~spellbook_name($first)>.", $first, "Switch to <~spellbook_name($second)>.", $second, "Cancel.", -1);
 }
-if ($choice ! 1) {
+if ($choice = -1) {
     return;
 }
 %skillcape_magic_uses = add(%skillcape_magic_uses, 1);
 anim(human_castteleport, 0);
 sound_synth(magical_barrier, 1, 0);
-if (%spellbook = 1) {
-    %spellbook = 0;
-    if_settab(magic, ^tab_magic);
-    mes("You switch to the normal spellbook. (<tostring(sub(5, %skillcape_magic_uses))> changes left today.)");
-    return;
+~set_spellbook($choice);
+mes("You switch to <~spellbook_name($choice)>. (<tostring(sub(5, %skillcape_magic_uses))> changes left today.)");
+
+[proc,skillcape_knows_spellbook](int $book)(boolean)
+switch_int ($book) {
+    case ^spellbook_ancient : if (%deserttreasure >= ^deserttreasure_complete) return(true);
+    case ^spellbook_lunar : if (%lunar_unlocked = true) return(true);
+    case ^spellbook_normal : return(true);
 }
-%spellbook = 1;
-if_settab(ancient_magic, ^tab_magic);
-mes("You switch to Ancient Magicks. (<tostring(sub(5, %skillcape_magic_uses))> changes left today.)");
+return(false);
 
 // ---- the Max cape's own two menus ----
 //

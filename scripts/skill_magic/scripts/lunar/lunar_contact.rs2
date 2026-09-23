@@ -1,0 +1,124 @@
+// NPC Contact (67) and Spellbook Swap (96), the Lunar spellbook (2026-09-23).
+
+// ================================================================================ NPC Contact
+//
+// A conversation with somebody far away. 474's list (interface 429, "Choose a character") is twelve:
+// Honest Jimmy, Bert the Sandman, Advisor Ghrim, Turael, Lanthus, Mazchna, Duradel, Vannaka, Murphy,
+// Chaeldar, Cyrisus and Random. Seven of them are in this build - the five Slayer Masters, Murphy on
+// the Port Khazard trawler and Advisor Ghrim on Miscellania - and those are the seven offered, plus
+// Random, which picks among them. Honest Jimmy, Bert, Lanthus and Cyrisus belong to minigames and
+// quests this build does not have, and are left out rather than listed and refused.
+//
+// HOW THE CALL WORKS: the spell finds the real npc where the map puts it (npc_find on its spawn) and
+// then runs that npc's own Talk-to label, so the answer is the npc's own conversation - a Slayer
+// Master assigns, checks and sells exactly as it would face to face - and nothing is written twice.
+// That is why Murphy's and Ghrim's Talk-to became labels the trigger jumps to. The menu is chat
+// options rather than 474's panel of heads; the runes go when a name is picked, not before, so a
+// cancelled call costs nothing.
+
+[if_button,lunar_magic:npc_contact]
+if (p_finduid(uid) = false) {
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^npc_contact);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+def_int $who = ~p_choice5_header("A Slayer Master.", 1, "Advisor Ghrim.", 2, "Murphy.", 3, "Anyone (random).", 4, "Nobody.", 5, "Who would you like to contact?");
+if ($who = 1) {
+    $who = ~p_choice5_header("Turael.", 11, "Mazchna.", 12, "Vannaka.", 13, "Chaeldar.", 14, "Duradel.", 15, "Which Slayer Master?");
+} else if ($who = 2) {
+    $who = 20;
+} else if ($who = 3) {
+    $who = 21;
+} else if ($who = 4) {
+    def_int $pick = random(7);
+    if ($pick < 5) {
+        $who = add(11, $pick);
+    } else {
+        $who = add(15, $pick); // 20 or 21
+    }
+} else {
+    return;
+}
+// the menu took time: the runes are asked for again when they are spent
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+// Each call is found and answered in this script, not a helper: the compiler follows the npc pointer
+// only through the script that sets it, so npc_find has to sit right in front of the jump it serves.
+switch_int ($who) {
+    case 11 : if (npc_find(0_45_55_51_16, slayer_master_1, 10, 0) = true) { ~npc_contact_cast($spell_data); @slayer_master_talk; }
+    case 12 : if (npc_find(0_54_54_55_53, slayer_master_2, 10, 0) = true) { ~npc_contact_cast($spell_data); @slayer_master_talk; }
+    case 13 : if (npc_find(0_49_154_11_58, slayer_master_3, 10, 0) = true) { ~npc_contact_cast($spell_data); @slayer_master_talk; }
+    case 14 : if (npc_find(0_38_69_12_15, slayer_master_4, 10, 0) = true) { ~npc_contact_cast($spell_data); @slayer_master_talk; }
+    case 15 : if (npc_find(1_44_46_53_38, slayer_master_5, 10, 0) = true) { ~npc_contact_cast($spell_data); @slayer_master_talk; }
+    case 20 : if (npc_find(1_39_60_3_17, misc_advisor_ghrim, 10, 0) = true) { ~npc_contact_cast($spell_data); @misc_advisor_ghrim_talk; }
+    case 21 : if (npc_find(0_41_49_44_26, murphy, 10, 0) = true) { ~npc_contact_cast($spell_data); @murphy_talk; }
+}
+// the contact is not where the map puts them - dead, or walked off - so the runes are kept
+mes("Nobody answers.");
+
+[proc,npc_contact_cast](dbrow $spell_data)
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_cast_lunar_summon2, 0);
+spotanim_pl(npc_contact, 92, 0);
+
+// ================================================================================ Spellbook Swap
+//
+// 474's own words for it: "Change to another spellbook for 1 spell cast". Pick the normal book or
+// Ancient Magicks (if Desert Treasure has given them to you); the next spell you cast from it puts
+// you back on the Lunar book, and so do two minutes going by without one - Old School's 120 seconds.
+//
+// "The next spell" is caught in ~delete_spell_runes (skill_magic/scripts/magic.rs2), which every
+// spell that costs runes calls once it is cast - teleports, alchemy, combat spells and autocasts
+// alike - so there is one hook and not one per spell. %spellbook_swapped is perm so that logging out
+// cannot keep a borrowed book: login.rs2 puts you back on Lunar if it finds it set.
+
+[if_button,lunar_magic:spellbook_swap]
+if (p_finduid(uid) = false) {
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^spellbook_swap);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+def_int $book = -1;
+if (%deserttreasure >= ^deserttreasure_complete) {
+    $book = ~p_choice3("The normal spellbook.", ^spellbook_normal, "Ancient Magicks.", ^spellbook_ancient, "Cancel.", -1);
+} else {
+    $book = ~p_choice2("The normal spellbook.", ^spellbook_normal, "Cancel.", -1);
+}
+if ($book = -1) {
+    return;
+}
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_cast_spellbook_swap, 0);
+spotanim_pl(spellbook_swap, 92, 0);
+~set_spellbook($book);
+%spellbook_swapped = true;
+settimer(spellbook_swap_expire, ^spellbook_swap_ticks);
+mes("You swap to <~spellbook_name($book)> for your next spell.");
+
+// From ~delete_spell_runes: a spell has just been cast. If it came from a borrowed book, give the
+// book back.
+[proc,spellbook_swap_spent]
+if (%spellbook_swapped = true & %spellbook ! ^spellbook_lunar) {
+    ~spellbook_swap_end;
+}
+
+[timer,spellbook_swap_expire]
+if (%spellbook_swapped = true) {
+    ~spellbook_swap_end;
+}
+
+[proc,spellbook_swap_end]
+%spellbook_swapped = false;
+cleartimer(spellbook_swap_expire);
+~set_spellbook(^spellbook_lunar);
+mes("Your spellbook returns to the Lunar spellbook.");

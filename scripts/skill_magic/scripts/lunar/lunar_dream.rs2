@@ -1,0 +1,93 @@
+// Dream (79), the Lunar spellbook (2026-09-23).
+//
+// THE RULES ARE OLD SCHOOL'S, checked against its wiki. The caster falls asleep and "hitpoints will
+// regenerate three times faster than normal, healing 1 hitpoint every 20 seconds, or 3 hitpoints
+// per minute". "Dream runs on a separate timer from the player's main hitpoints regeneration" and
+// adds to it. "The dream effect will remain indefinitely, ending only once the caster reaches full
+// health, at which point it can't be re-cast until losing health" - "You have no need to cast this
+// spell since your hitpoints are already full." - and "the dream will be interrupted if the caster
+// does anything except chat", poison damage included, and since 2007 auto-retaliating too.
+//
+// HOW IT IS BUILT. Two pieces, because each catches what the other cannot:
+//   * a TOKEN on the weak queue, [queue,lunar_dream_sleep]. The weak queue is what the engine
+//     empties whenever the player does something - a click on the map, an npc, a loc, an item, an
+//     interface closing (Player.closeModal) - and poison damage closes interfaces
+//     ([queue,poison_damage] if_close), as a player's hit does (~.pvp_damage). So the token being
+//     gone means the sleeper has been disturbed. It does nothing itself except put itself back if
+//     it ever comes due.
+//   * a WATCHER, the softtimer [softtimer,lunar_dream], every tick. A softtimer runs whatever the
+//     player is doing, so it is the one that can notice: the token gone; busy2 (walking somewhere,
+//     or an interaction - which is what auto-retaliate starts); the sleeper moved (a teleport); or
+//     hitpoints lower than last tick (a hit that closed nothing). Any one of those wakes them. It
+//     also heals 1 hitpoint every ^lunar_dream_heal_ticks, which on top of the ordinary 1 a minute
+//     from [timer,health_regen] makes Old School's 3, and wakes the sleeper when they are full.
+//     Its three arguments are the state: hitpoints and coord last tick, and ticks since the last
+//     heal; it re-arms itself with the new ones, as the board games' sitting timer does.
+//
+// Waking puts the player back on their feet (anim null), except after a hit, when the hit's own
+// animation is already playing and is left alone. Nothing is said on waking early; reaching full
+// health says so. Whether chat keeps you asleep is as Old School says: chat is not an action here.
+// Changing armour, which Old School also allows, does wake you - an inventory option empties the
+// weak queue in this engine - which is this build's one difference.
+
+[if_button,lunar_magic:dream]
+if (p_finduid(uid) = false) {
+    return;
+}
+if (stat(hitpoints) >= stat_base(hitpoints)) {
+    mes("You have no need to cast this spell since your hitpoints are already full.");
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^dream);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+// Stopped FIRST: p_stopaction empties the weak queue, and it would take the token with it. A
+// second cast while already asleep lands here too and simply starts the dream over.
+p_stopaction;
+clearsofttimer(lunar_dream);
+clearqueue(lunar_dream_sleep);
+anim(human_dream, 0);
+spotanim_pl(dream, 92, 0);
+weakqueue(lunar_dream_sleep, ^lunar_dream_token_ticks, 0);
+softtimer(lunar_dream, 1, stat(hitpoints), coord, 0);
+
+// The token. See the top of this file.
+[queue,lunar_dream_sleep]
+weakqueue(lunar_dream_sleep, ^lunar_dream_token_ticks, 0);
+
+// The watcher. $hp and $coord are last tick's, $ticks the ticks since the last dream heal.
+[softtimer,lunar_dream](int $hp, coord $coord, int $ticks)
+if (stat(hitpoints) < $hp) {
+    ~lunar_dream_wake(false);
+    return;
+}
+if (getqueue(lunar_dream_sleep) < 1 | busy2 = true | coord ! $coord | stat(hitpoints) < 1) {
+    ~lunar_dream_wake(true);
+    return;
+}
+$ticks = add($ticks, 1);
+if ($ticks >= ^lunar_dream_heal_ticks) {
+    stat_heal(hitpoints, 1, 0);
+    $ticks = 0;
+    // the sitting animation runs out after its loops; each heal starts it again
+    anim(human_dream, 0);
+}
+if (stat(hitpoints) >= stat_base(hitpoints)) {
+    mes("You wake up feeling refreshed.");
+    ~lunar_dream_wake(true);
+    return;
+}
+if (modulo($ticks, ^lunar_dream_zzz_ticks) = 0) {
+    spotanim_pl(dream, 92, 0);
+}
+softtimer(lunar_dream, 1, stat(hitpoints), coord, $ticks);
+
+[proc,lunar_dream_wake](boolean $stand)
+clearsofttimer(lunar_dream);
+clearqueue(lunar_dream_sleep);
+if ($stand = true) {
+    anim(null, 0);
+}

@@ -1,0 +1,126 @@
+// Cure Me (71), Cure Other (68) and Cure Group (74), the Lunar spellbook (2026-09-23).
+//
+// THE RULES ARE OLD SCHOOL'S, checked against its wiki:
+//   * each spell cures poison and NOTHING ELSE - "unlike antipoisons, this spell does not give the
+//     player poison immunity of any kind", so you can be poisoned again the very next hit;
+//   * Cure Other needs the target's Accept Aid on;
+//   * Cure Group cures "all players within 1 square radius of the caster" - the caster too - and
+//     only those with Accept Aid on.
+//
+// %poison (skill_combat/scripts/poison.rs2) is above 0 while you are poisoned and BELOW 0 while an
+// antipoison's immunity is counting down back to 0. A cure only ever touches the first: it goes
+// through ~clear_poison, which zeroes the varp, and it is only called when the varp is above 0 - so
+// an antipoison's immunity is never wiped out by a cure, which is what "gives no immunity" means
+// from the other side. There is no venom in this build for Cure Me to turn into poison.
+//
+// Three choices of this server's, where Old School's wiki is silent. Casting on nobody who is
+// poisoned is refused and costs nothing - it could only waste the runes - and says why. The cured
+// player is told who cured them. And the cure on another player lands through a queue on THEM,
+// because %poison is a protected varp and a script may only write another player's protected varps
+// from that player's own queue (the same reason vengeance.rs2 hits back through a queue).
+
+// ---------------------------------------------------------------------------------- Cure Me
+
+[if_button,lunar_magic:cure_me]
+if (p_finduid(uid) = false) {
+    return;
+}
+if (%poison < 1) {
+    mes("You are not poisoned.");
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^cure_me);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_cast_lunar_summon2, 0);
+spotanim_pl(cure_me, 92, 0);
+~clear_poison;
+mes("You have cured yourself of poison.");
+
+// ---------------------------------------------------------------------------------- Cure Other
+
+[opplayert,lunar_magic:cure_other] @lunar_cure_other;
+[applayert,lunar_magic:cure_other] @lunar_cure_other;
+
+[label,lunar_cure_other]
+if (.uid = uid) {
+    mes("You can't cast that on yourself.");
+    return;
+}
+// ^aid_no is 2, and a save that has never opened the options tab holds 0 - accepting, as in Old
+// School (skill_magic/scripts/spells/teleother.rs2 has the whole story of this varp)
+if (.%option_aid = ^aid_no) {
+    mes("<.displayname> is not accepting aid.");
+    return;
+}
+if (.%poison < 1) {
+    mes("<.displayname> is not poisoned.");
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^cure_other);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_cast_lunar_other, 0);
+.spotanim_pl(cure_other, 92, 0);
+.queue*(lunar_cured, 0)(displayname);
+mes("You cure <.displayname> of poison.");
+
+// ---------------------------------------------------------------------------------- Cure Group
+
+[if_button,lunar_magic:cure_group]
+if (p_finduid(uid) = false) {
+    return;
+}
+// Asked BEFORE the runes go, so a cast on nobody costs nothing. The count and the cure below walk
+// the same squares in the same tick, so they find the same people.
+if (%poison < 1 & ~lunar_cure_group_others = 0) {
+    mes("Nobody around you is poisoned.");
+    return;
+}
+def_dbrow $spell_data = ~get_spell_data(^cure_group);
+if (~check_spell_requirements($spell_data) = false) {
+    return;
+}
+~delete_spell_runes($spell_data);
+~give_spell_xp($spell_data);
+anim(human_cast_lunar_group, 0);
+spotanim_pl(cure_group, 92, 0);
+if (%poison > 0) {
+    ~clear_poison;
+    mes("You have cured yourself of poison.");
+}
+huntall(coord, ^lunar_group_radius, ^vis_off);
+while (.huntnext = true) {
+    if (.uid ! uid & .%option_aid ! ^aid_no & .%poison > 0) {
+        .spotanim_pl(cure_group, 92, 0);
+        .queue*(lunar_cured, 0)(displayname);
+    }
+}
+
+// How many OTHER players Cure Group would cure: poisoned, accepting aid, and within a square.
+[proc,lunar_cure_group_others]()(int)
+def_int $count = 0;
+huntall(coord, ^lunar_group_radius, ^vis_off);
+while (.huntnext = true) {
+    if (.uid ! uid & .%option_aid ! ^aid_no & .%poison > 0) {
+        $count = add($count, 1);
+    }
+}
+return($count);
+
+// ---------------------------------------------------------------------------------- the cure
+
+// On the cured player, from their own queue. Asked again here because the poison may have run out
+// between the cast and this - and a cure on nobody says nothing.
+[queue,lunar_cured](string $caster)
+if (%poison < 1) {
+    return;
+}
+~clear_poison;
+mes("<$caster> has cured you of poison.");

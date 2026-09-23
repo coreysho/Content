@@ -43,6 +43,16 @@ def_dbrow $effect_data = db_findnext;
 if ($effect_data = null) {
     return;
 }
+// the stats themselves - its own proc, so Lunar Pot Share can give one dose's effect to a player
+// who did not drink it (skill_magic/scripts/lunar/lunar_pot_share.rs2)
+~consume_effect_stats($effect_data);
+
+// start sound
+~consume_effect_sound(db_getfield($effect_data, consume_table:consume_sound, 0));
+// display messages
+~consume_effect_messages($consumable, $hitpoints, $say);
+
+[proc,consume_effect_stats](dbrow $effect_data)
 // stat increase/decrease
 def_int $constant;
 def_int $percent;
@@ -75,11 +85,6 @@ while ($i < db_getfieldcount($effect_data, consume_table:stat_heal)) {
 if (db_getfieldcount($effect_data, consume_table:healenergy) > 0) {
     healenergy(db_getfield($effect_data, consume_table:healenergy, 0));
 }
-
-// start sound
-~consume_effect_sound(db_getfield($effect_data, consume_table:consume_sound, 0));
-// display messages
-~consume_effect_messages($consumable, $hitpoints, $say);
 
 [proc,consume_effect_sound](synth $sound)
 if ($sound = null) {
