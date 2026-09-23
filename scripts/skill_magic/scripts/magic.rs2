@@ -29,30 +29,32 @@ def_namedobj $rune2;
 def_int $rune_count2;
 def_namedobj $rune3;
 def_int $rune_count3;
-$rune1, $rune_count1, $rune2, $rune_count2, $rune3, $rune_count3 = ~staff_runes($spell_data);
+def_namedobj $rune4;
+def_int $rune_count4;
+$rune1, $rune_count1, $rune2, $rune_count2, $rune3, $rune_count3, $rune4, $rune_count4 = ~spell_runes($spell_data);
+// an elemental rune is checked against the spell's whole need for that element, counting the
+// combination runes that carry it (see "combination runes" below)
+def_int $air;
+def_int $water;
+def_int $earth;
+def_int $fire;
+$air, $water, $earth, $fire = ~spell_element_needs($rune1, $rune_count1, $rune2, $rune_count2, $rune3, $rune_count3, $rune4, $rune_count4);
 // check if player has required runes
-if (~rune_total($rune1) < $rune_count1 & $rune1 ! null) {
+if (~spell_rune_enough($rune1, $rune_count1, $air, $water, $earth, $fire) = false) {
     mes("You do not have enough <~string_removeright(oc_name($rune1), 5)> Runes to cast this spell.");
     return (false);
 }
-if (~rune_total($rune2) < $rune_count2 & $rune2 ! null) {
+if (~spell_rune_enough($rune2, $rune_count2, $air, $water, $earth, $fire) = false) {
     mes("You do not have enough <~string_removeright(oc_name($rune2), 5)> Runes to cast this spell.");
     return (false);
 }
-if (~rune_total($rune3) < $rune_count3 & $rune3 ! null) {
+if (~spell_rune_enough($rune3, $rune_count3, $air, $water, $earth, $fire) = false) {
     mes("You do not have enough <~string_removeright(oc_name($rune3), 5)> Runes to cast this spell.");
     return (false);
 }
-// check the optional 4th rune (Smoke/Shadow ancients cost 4 different runes; runesrequired only
-// holds 3 pairs). Guarded on fieldcount so every pre-existing row without a rune4 is unaffected.
-if (db_getfieldcount($spell_data, magic_spell_table:rune4) > 0) {
-    def_namedobj $rune4;
-    def_int $rune_count4;
-    $rune4, $rune_count4 = db_getfield($spell_data, magic_spell_table:rune4, 0);
-    if (~rune_total($rune4) < $rune_count4 & $rune4 ! null) {
-        mes("You do not have enough <~string_removeright(oc_name($rune4), 5)> Runes to cast this spell.");
-        return (false);
-    }
+if (~spell_rune_enough($rune4, $rune_count4, $air, $water, $earth, $fire) = false) {
+    mes("You do not have enough <~string_removeright(oc_name($rune4), 5)> Runes to cast this spell.");
+    return (false);
 }
 // check if worn is correct
 if (db_getfieldcount($spell_data, magic_spell_table:wornrequired) > 0 & inv_total(worn, db_getfield($spell_data, magic_spell_table:wornrequired, 0)) < 1) {
@@ -131,7 +133,11 @@ if ($staff_rune = $rune3 | $staff_rune2 = $rune3) {
 }
 return($rune1, $rune_count1, $rune2, $rune_count2, $rune3, $rune_count3);
 
-[proc,delete_spell_runes](dbrow $spell_data)
+// Every rune a cast of this spell costs: the three in runesrequired after ~staff_runes, and the
+// optional 4th (Smoke/Shadow ancients cost 4 different runes; runesrequired only holds 3 pairs),
+// which is never staff-substituted and is null, 0 on every row without one. A count a staff pays
+// for is null, so read counts as "> 0", never as a number to add up.
+[proc,spell_runes](dbrow $spell_data)(namedobj, int, namedobj, int, namedobj, int, namedobj, int)
 def_namedobj $rune1;
 def_int $rune_count1;
 def_namedobj $rune2;
@@ -139,24 +145,247 @@ def_int $rune_count2;
 def_namedobj $rune3;
 def_int $rune_count3;
 $rune1, $rune_count1, $rune2, $rune_count2, $rune3, $rune_count3 = ~staff_runes($spell_data);
-if ($rune_count1 > 0) {
+def_namedobj $rune4 = null;
+def_int $rune_count4 = 0;
+if (db_getfieldcount($spell_data, magic_spell_table:rune4) > 0) {
+    $rune4, $rune_count4 = db_getfield($spell_data, magic_spell_table:rune4, 0);
+}
+return($rune1, $rune_count1, $rune2, $rune_count2, $rune3, $rune_count3, $rune4, $rune_count4);
+
+// ---------------------------------------------------------------- combination runes
+// A combination rune is one of each of its two elements, both at once: a mist rune is an air rune
+// AND a water rune, so one mist pays 1 air and 1 water of the same cast.
+//
+//     mist  = air + water     dust  = air + earth     mud  = water + earth
+//     smoke = air + fire      steam = water + fire    lava = earth + fire
+//
+// The spellbooks' buttons already count them that way (magic.if, ancient_magic.if, lunar_magic.if,
+// staff_spells.if: the air count adds smoke, mist and dust, in the pack and in the pouch); these
+// procs are the server agreeing, so a button that is lit can be cast.
+//
+// Paying is Old School's: plain runes first, and combination runes only for what the plain runes
+// cannot pay. A combination rune spent for one element pays its other element too when the spell
+// needs that element, so the plain rune it stands in for is kept. A staff has already taken its
+// elements out of the bill (~staff_runes), so a mist rune under a staff of air pays only water.
+// Everything is counted and spent through ~rune_total and ~rune_del, so the rune pouch works for
+// combination runes exactly as it does for plain ones.
+
+// What the spellbook button shows for a rune: an element counts every combination rune carrying
+// it; any other rune is just itself.
+[proc,element_rune_total](namedobj $rune)(int)
+switch_obj ($rune) {
+    case airrune : return(calc(~rune_total(airrune) + ~rune_total(mistrune) + ~rune_total(dustrune) + ~rune_total(smokerune)));
+    case waterrune : return(calc(~rune_total(waterrune) + ~rune_total(mistrune) + ~rune_total(mudrune) + ~rune_total(steamrune)));
+    case earthrune : return(calc(~rune_total(earthrune) + ~rune_total(dustrune) + ~rune_total(mudrune) + ~rune_total(lavarune)));
+    case firerune : return(calc(~rune_total(firerune) + ~rune_total(smokerune) + ~rune_total(steamrune) + ~rune_total(lavarune)));
+}
+return(~rune_total($rune));
+
+[proc,elemental_rune](namedobj $rune)(boolean)
+switch_obj ($rune) {
+    case airrune, waterrune, earthrune, firerune : return(true);
+}
+return(false);
+
+// How much of each element the four runes of a spell come to.
+[proc,spell_element_needs](namedobj $rune1, int $count1, namedobj $rune2, int $count2, namedobj $rune3, int $count3, namedobj $rune4, int $count4)(int, int, int, int)
+def_int $air = 0;
+def_int $water = 0;
+def_int $earth = 0;
+def_int $fire = 0;
+$air, $water, $earth, $fire = ~add_element_need($rune1, $count1, $air, $water, $earth, $fire);
+$air, $water, $earth, $fire = ~add_element_need($rune2, $count2, $air, $water, $earth, $fire);
+$air, $water, $earth, $fire = ~add_element_need($rune3, $count3, $air, $water, $earth, $fire);
+$air, $water, $earth, $fire = ~add_element_need($rune4, $count4, $air, $water, $earth, $fire);
+return($air, $water, $earth, $fire);
+
+[proc,add_element_need](namedobj $rune, int $count, int $air, int $water, int $earth, int $fire)(int, int, int, int)
+if ($count > 0) {
+    switch_obj ($rune) {
+        case airrune : $air = calc($air + $count);
+        case waterrune : $water = calc($water + $count);
+        case earthrune : $earth = calc($earth + $count);
+        case firerune : $fire = calc($fire + $count);
+    }
+}
+return($air, $water, $earth, $fire);
+
+// Can the player pay this one rune of a spell? An element is held to the spell's whole need for
+// it, which is what the spellbook button compares too.
+[proc,spell_rune_enough](namedobj $rune, int $count, int $air, int $water, int $earth, int $fire)(boolean)
+if ($rune = null | $count < 1) {
+    return(true);
+}
+def_int $need = $count;
+switch_obj ($rune) {
+    case airrune : $need = $air;
+    case waterrune : $need = $water;
+    case earthrune : $need = $earth;
+    case firerune : $need = $fire;
+}
+if (~element_rune_total($rune) < $need) {
+    return(false);
+}
+return(true);
+
+// What a cast pays for its elements: air, water, earth and fire runes, then mist, dust, mud,
+// smoke, steam and lava runes.
+[proc,spell_element_bill](dbrow $spell_data)(int, int, int, int, int, int, int, int, int, int)
+def_namedobj $rune1;
+def_int $rune_count1;
+def_namedobj $rune2;
+def_int $rune_count2;
+def_namedobj $rune3;
+def_int $rune_count3;
+def_namedobj $rune4;
+def_int $rune_count4;
+$rune1, $rune_count1, $rune2, $rune_count2, $rune3, $rune_count3, $rune4, $rune_count4 = ~spell_runes($spell_data);
+def_int $air;
+def_int $water;
+def_int $earth;
+def_int $fire;
+$air, $water, $earth, $fire = ~spell_element_needs($rune1, $rune_count1, $rune2, $rune_count2, $rune3, $rune_count3, $rune4, $rune_count4);
+// what the plain runes leave unpaid
+def_int $short_air = max(0, calc($air - ~rune_total(airrune)));
+def_int $short_water = max(0, calc($water - ~rune_total(waterrune)));
+def_int $short_earth = max(0, calc($earth - ~rune_total(earthrune)));
+def_int $short_fire = max(0, calc($fire - ~rune_total(firerune)));
+// first the combination runes that pay two short elements at once...
+def_int $mist;
+def_int $dust;
+def_int $mud;
+def_int $smoke;
+def_int $steam;
+def_int $lava;
+$mist, $short_air, $short_water = ~combo_rune_pays_both(mistrune, $short_air, $short_water);
+$dust, $short_air, $short_earth = ~combo_rune_pays_both(dustrune, $short_air, $short_earth);
+$mud, $short_water, $short_earth = ~combo_rune_pays_both(mudrune, $short_water, $short_earth);
+$smoke, $short_air, $short_fire = ~combo_rune_pays_both(smokerune, $short_air, $short_fire);
+$steam, $short_water, $short_fire = ~combo_rune_pays_both(steamrune, $short_water, $short_fire);
+$lava, $short_earth, $short_fire = ~combo_rune_pays_both(lavarune, $short_earth, $short_fire);
+// ...then any carrying an element still short. A combination rune with any left after the pass
+// above has at most one of its elements still short, so here each pays just the one.
+$mist, $short_air = ~combo_rune_pays_one(mistrune, $mist, $short_air);
+$dust, $short_air = ~combo_rune_pays_one(dustrune, $dust, $short_air);
+$smoke, $short_air = ~combo_rune_pays_one(smokerune, $smoke, $short_air);
+$mist, $short_water = ~combo_rune_pays_one(mistrune, $mist, $short_water);
+$mud, $short_water = ~combo_rune_pays_one(mudrune, $mud, $short_water);
+$steam, $short_water = ~combo_rune_pays_one(steamrune, $steam, $short_water);
+$dust, $short_earth = ~combo_rune_pays_one(dustrune, $dust, $short_earth);
+$mud, $short_earth = ~combo_rune_pays_one(mudrune, $mud, $short_earth);
+$lava, $short_earth = ~combo_rune_pays_one(lavarune, $lava, $short_earth);
+$smoke, $short_fire = ~combo_rune_pays_one(smokerune, $smoke, $short_fire);
+$steam, $short_fire = ~combo_rune_pays_one(steamrune, $steam, $short_fire);
+$lava, $short_fire = ~combo_rune_pays_one(lavarune, $lava, $short_fire);
+// and the plain runes pay whatever the combination runes did not - both halves of every
+// combination rune count, so this can be less than the plain runes were short of above
+return(max(0, calc($air - $mist - $dust - $smoke)), max(0, calc($water - $mist - $mud - $steam)), max(0, calc($earth - $dust - $mud - $lava)), max(0, calc($fire - $smoke - $steam - $lava)), $mist, $dust, $mud, $smoke, $steam, $lava);
+
+// Spend as many of a combination rune as both its elements are short, up to what the player has.
+[proc,combo_rune_pays_both](namedobj $combo, int $short1, int $short2)(int, int, int)
+def_int $n = min(~rune_total($combo), min($short1, $short2));
+return($n, calc($short1 - $n), calc($short2 - $n));
+
+// Spend more of a combination rune, already spending $used of it, towards one short element.
+[proc,combo_rune_pays_one](namedobj $combo, int $used, int $short)(int, int)
+def_int $n = max(0, min(calc(~rune_total($combo) - $used), $short));
+return(calc($used + $n), calc($short - $n));
+
+// How many of one rune a cast of this spell would take. For the one place that has to know before
+// the cast pays: alching a rune has to leave that rune to alch (alchemy.rs2).
+[proc,spell_rune_spend](dbrow $spell_data, obj $rune)(int)
+def_int $air;
+def_int $water;
+def_int $earth;
+def_int $fire;
+def_int $mist;
+def_int $dust;
+def_int $mud;
+def_int $smoke;
+def_int $steam;
+def_int $lava;
+$air, $water, $earth, $fire, $mist, $dust, $mud, $smoke, $steam, $lava = ~spell_element_bill($spell_data);
+switch_obj ($rune) {
+    case airrune : return($air);
+    case waterrune : return($water);
+    case earthrune : return($earth);
+    case firerune : return($fire);
+    case mistrune : return($mist);
+    case dustrune : return($dust);
+    case mudrune : return($mud);
+    case smokerune : return($smoke);
+    case steamrune : return($steam);
+    case lavarune : return($lava);
+}
+// obj rather than namedobj, to compare with the obj asked about
+def_obj $rune1;
+def_int $rune_count1;
+def_obj $rune2;
+def_int $rune_count2;
+def_obj $rune3;
+def_int $rune_count3;
+def_obj $rune4;
+def_int $rune_count4;
+$rune1, $rune_count1, $rune2, $rune_count2, $rune3, $rune_count3, $rune4, $rune_count4 = ~spell_runes($spell_data);
+def_int $spend = 0;
+if ($rune1 = $rune & $rune_count1 > 0) {
+    $spend = calc($spend + $rune_count1);
+}
+if ($rune2 = $rune & $rune_count2 > 0) {
+    $spend = calc($spend + $rune_count2);
+}
+if ($rune3 = $rune & $rune_count3 > 0) {
+    $spend = calc($spend + $rune_count3);
+}
+if ($rune4 = $rune & $rune_count4 > 0) {
+    $spend = calc($spend + $rune_count4);
+}
+return($spend);
+
+[proc,delete_spell_runes](dbrow $spell_data)
+def_namedobj $rune1;
+def_int $rune_count1;
+def_namedobj $rune2;
+def_int $rune_count2;
+def_namedobj $rune3;
+def_int $rune_count3;
+def_namedobj $rune4;
+def_int $rune_count4;
+$rune1, $rune_count1, $rune2, $rune_count2, $rune3, $rune_count3, $rune4, $rune_count4 = ~spell_runes($spell_data);
+// the elements are paid together, since one combination rune can pay two of them
+def_int $air;
+def_int $water;
+def_int $earth;
+def_int $fire;
+def_int $mist;
+def_int $dust;
+def_int $mud;
+def_int $smoke;
+def_int $steam;
+def_int $lava;
+$air, $water, $earth, $fire, $mist, $dust, $mud, $smoke, $steam, $lava = ~spell_element_bill($spell_data);
+~rune_del(airrune, $air);
+~rune_del(waterrune, $water);
+~rune_del(earthrune, $earth);
+~rune_del(firerune, $fire);
+~rune_del(mistrune, $mist);
+~rune_del(dustrune, $dust);
+~rune_del(mudrune, $mud);
+~rune_del(smokerune, $smoke);
+~rune_del(steamrune, $steam);
+~rune_del(lavarune, $lava);
+// and every other rune on its own
+if ($rune_count1 > 0 & ~elemental_rune($rune1) = false) {
     ~rune_del($rune1, $rune_count1);
 }
-if ($rune_count2 > 0) {
+if ($rune_count2 > 0 & ~elemental_rune($rune2) = false) {
     ~rune_del($rune2, $rune_count2);
 }
-if ($rune_count3 > 0) {
+if ($rune_count3 > 0 & ~elemental_rune($rune3) = false) {
     ~rune_del($rune3, $rune_count3);
 }
-// optional 4th rune (see check_spell_requirements) - never staff-substituted, so read straight
-// from the row rather than through ~staff_runes.
-if (db_getfieldcount($spell_data, magic_spell_table:rune4) > 0) {
-    def_namedobj $rune4;
-    def_int $rune_count4;
-    $rune4, $rune_count4 = db_getfield($spell_data, magic_spell_table:rune4, 0);
-    if ($rune_count4 > 0) {
-        ~rune_del($rune4, $rune_count4);
-    }
+if ($rune_count4 > 0 & ~elemental_rune($rune4) = false) {
+    ~rune_del($rune4, $rune_count4);
 }
 // a spell has been cast: if Spellbook Swap lent the book it came from, that was its one spell
 // (skill_magic/scripts/lunar/lunar_contact.rs2)

@@ -83,16 +83,27 @@ inside = code(block(MAGIC, 'proc,rune_total')) + code(block(MAGIC, 'proc,rune_de
 outside = mc
 for b in ('proc,rune_total', 'proc,rune_del'):
     outside = outside.replace(code(block(MAGIC, b)), '')
-stray = re.findall(r'inv_(?:total|del)\(inv, \$rune\w*', outside)
+stray = re.findall(r'inv_(?:total|del)\((?:inv|rune_pouch_store), [^)]*', outside)
 check(not stray, 'no rune is read or spent straight from the inventory outside those two: %s'
       % (stray or 'none'))
-check(len(re.findall(r'~rune_total\(\$rune', mc)) == 4,
-      'all four rune checks go through ~rune_total')
-check(len(re.findall(r'~rune_del\(\$rune', mc)) == 4,
-      'and all four spends through ~rune_del')
+# The four checks go through ~spell_rune_enough, which counts an element's combination runes as
+# well (~element_rune_total) - and every count in there is a ~rune_total, never the pack alone.
+check(len(re.findall(r'~spell_rune_enough\(\$rune\d', mc)) == 4,
+      'all four rune checks go through ~spell_rune_enough...')
+ert = code(block(MAGIC, 'proc,element_rune_total'))
+check(ert.count('~rune_total(') == 17,
+      '...which counts through ~rune_total: 4 kinds for each element, and the rune itself otherwise')
+# The spends: the four elements and six combination runes together, from ~spell_element_bill,
+# and every other rune one at a time - all through ~rune_del.
+dsr = code(block(MAGIC, 'proc,delete_spell_runes'))
+check(len(re.findall(r'~rune_del\(\$rune\d', dsr)) == 4,
+      'and all four non-elemental spends through ~rune_del...')
+check(all('~rune_del(%srune, $%s)' % (r, r) in dsr for r in
+          ('air', 'water', 'earth', 'fire', 'mist', 'dust', 'mud', 'smoke', 'steam', 'lava')),
+      '...as are the elements and combination runes the bill comes to')
 # and the same for the one place outside magic.rs2 that counted runes for a spell
-check('~rune_total(naturerune)' in code(ALCH) and '~rune_total(firerune)' in code(ALCH),
-      'alching a rune counts the same way the cast does')
+check('~spell_rune_spend($spell_data, $item)' in code(ALCH),
+      'alching a rune asks the cast what it will take, the same way the cast pays')
 check(not re.findall(r'inv_total\(inv, (nature|fire)rune\)', code(ALCH)),
       '...and no longer counts the pack alone')
 
