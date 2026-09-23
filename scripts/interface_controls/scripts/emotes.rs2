@@ -1,0 +1,143 @@
+// 474's Emotes tab (emotes.if). Side interfaces are treated as modals for now, so these are
+// protected by default.
+
+[if_button,emotes:yes] @emote(emote_yes);
+[if_button,emotes:no] @emote(emote_no);
+[if_button,emotes:bow] @emote(emote_bow);
+[if_button,emotes:angry] @emote(emote_angry);
+[if_button,emotes:think] @emote(emote_think);
+[if_button,emotes:wave] @emote(emote_wave);
+[if_button,emotes:shrug] @emote(emote_shrug);
+[if_button,emotes:cheer] @emote(emote_cheer);
+[if_button,emotes:beckon] @emote(emote_beckon);
+[if_button,emotes:laugh] @emote(emote_laugh);
+[if_button,emotes:jump_for_joy] @emote(emote_jump_with_joy);
+[if_button,emotes:yawn] @emote(emote_yawn);
+[if_button,emotes:dance] @emote(emote_dance);
+[if_button,emotes:jig] @emote(emote_dance_scottish);
+[if_button,emotes:spin] @emote(emote_dance_spin);
+[if_button,emotes:headbang] @emote(emote_dance_headbang);
+[if_button,emotes:cry] @emote(emote_cry);
+[if_button,emotes:blow_kiss] @emote(emote_blow_kiss);
+[if_button,emotes:panic] @emote(emote_panic);
+[if_button,emotes:raspberry] @emote(emote_ya_boo_sucks);
+[if_button,emotes:clap] @emote(emote_clap);
+[if_button,emotes:salute] @emote(emote_fremmenik_salute);
+
+[if_button,emotes:goblin_bow]
+if (p_finduid(uid) = true) {
+    if (%lost_tribe_quest < 7) {
+        @lockemote_lost_tribe;
+    }
+    @emote(human_cave_goblin_bow);
+}
+
+[if_button,emotes:goblin_salute]
+if (p_finduid(uid) = true) {
+    if (%lost_tribe_quest < 7) {
+        @lockemote_lost_tribe;
+    }
+    @emote(human_cave_goblin_dance);
+}
+
+[if_button,emotes:glass_box]
+if (p_finduid(uid) = true) {
+    if (%emote_glassbox = ^false) {
+        @lockemote_mime_event;
+    }
+    @emote(emote_glass_box);
+}
+
+[if_button,emotes:climb_rope]
+if (p_finduid(uid) = true) {
+    if (%emote_climbrope = ^false) {
+        @lockemote_mime_event;
+    }
+    @emote(emote_climbing_rope);
+}
+
+[if_button,emotes:lean]
+if (p_finduid(uid) = true) {
+    if (%emote_lean = ^false) {
+        @lockemote_mime_event;
+    }
+    @emote(emote_mime_lean);
+}
+
+[if_button,emotes:glass_wall]
+if (p_finduid(uid) = true) {
+    if (%emote_glasswall = ^false) {
+        @lockemote_mime_event;
+    }
+    @emote(emote_glass_wall);
+}
+
+// The Stronghold of Security's four. That dungeon is not in this world, so they stay locked.
+[if_button,emotes:slap_head] @lockemote_stronghold;
+[if_button,emotes:stomp] @lockemote_stronghold;
+[if_button,emotes:flap] @lockemote_stronghold;
+[if_button,emotes:idea] @lockemote_stronghold;
+
+[if_button,emotes:zombie_walk]
+if (p_finduid(uid) = true) {
+    if (%emote_zombie_walk = ^false) {
+        @lockemote_gravedigger_event;
+    }
+    @emote(zombie_walk_emote);
+}
+
+[if_button,emotes:zombie_dance]
+if (p_finduid(uid) = true) {
+    if (%emote_zombie_dance = ^false) {
+        @lockemote_gravedigger_event;
+    }
+    @emote(zombie_dance);
+}
+
+// 474's Halloween 2007 emote; no event here gives it.
+[if_button,emotes:zombie_hand]
+if (p_finduid(uid) = true) {
+    ~mesbox("This emote can be unlocked during a Halloween seasonal event.");
+}
+
+[if_button,emotes:scared]
+if (p_finduid(uid) = true) {
+    if (%emote_terrified = ^false) {
+        ~mesbox("This emote can be unlocked by doing a Halloween seasonal event."); // TODO: confirm for 2005-2006
+        return;
+    }
+    @emote(terrified_emote);
+}
+
+[if_button,emotes:bunny_hop]
+if (p_finduid(uid) = true) {
+    if (%emote_bunny_hop = ^false) {
+        ~mesbox("This emote can be unlocked by doing an Easter seasonal event."); // TODO: confirm for 2005-2006
+        return;
+    }
+    // @emote(bunny_hop);
+}
+
+// Skill Cape is skillcapes/scripts/skillcape_shop.rs2's [if_button,emotes:skill_cape].
+
+[label,emote](seq $anim)
+if_close;
+if (p_finduid(uid) = false) {
+    return;
+}
+p_stopaction;
+anim($anim, 20);
+
+[label,lockemote_mime_event]
+~mesbox("This emote can be unlocked during the mime random event.");
+
+[label,lockemote_gravedigger_event]
+~mesbox("This emote can be unlocked during the gravedigger random event.");
+
+[label,lockemote_lost_tribe]
+~mesbox("This emote can be unlocked during the Lost Tribe quest.");
+
+[label,lockemote_stronghold]
+if (p_finduid(uid) = true) {
+    ~mesbox("This emote can be unlocked in the Stronghold of Security.");
+}

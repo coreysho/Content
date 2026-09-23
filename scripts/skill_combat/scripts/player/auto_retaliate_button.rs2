@@ -1,0 +1,16 @@
+// Auto retaliate, which 474 put on every combat tab (the "Auto Retaliate" button under the attack
+// styles) rather than on the player-controls tab it had in 377. The combat tabs' buttons call this.
+// %option_nodef is 0 on, 1 off (^player_auto_retaliate_on / _off).
+
+[proc,toggle_auto_retaliate]
+if_close; // closes interfaces in osrs
+if (p_finduid(uid) = true) {
+    p_stopaction; // https://oldschool.runescape.wiki/w/Update:Slayer_Cave_%26_High_Risk_Worlds
+    if (%option_nodef = ^player_auto_retaliate_on) {
+        %option_nodef = ^player_auto_retaliate_off;
+    } else {
+        %option_nodef = ^player_auto_retaliate_on;
+    }
+    return;
+}
+%option_nodef = %option_nodef; // resync varp
