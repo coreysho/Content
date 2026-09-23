@@ -16,14 +16,15 @@
 //
 // THE ICONS are markers the client swaps for sprites from mod_icons: @cr1@ the silver crown and
 // @cr2@ the gold one, as public chat already used them, then @cr3@ @cr4@ @cr5@ for the Realism, 5x
-// and 10x badges, and @cr6@ the purple crown for a developer. The badge is this server's answer to
+// and 10x badges, @cr6@ the purple crown for a developer and @cr7@ the red one for the owner. The badge is this server's answer to
 // OSRS's ironman helmets on a broadcast: the same drop means more on Realism, and now everyone can
 // see which it was.
 
 // The crown for a staff member, the badge for their XP mode, and the name.
 //
 // The crown is the one this player's name carries in public and private chat - engine
-// ChatCrown.chatCrown: 1 the silver crown, 2 and 3 the gold, 4 and up the purple developer crown -
+// ChatCrown.chatCrown: 1 the silver crown, 2 and 3 the gold, 4 the purple developer crown, 5 and up
+// the red owner's crown -
 // so a broadcast never shows a different rank from the player's own chat lines. (::yell used to give
 // mod level 2 the silver crown while their chat showed gold.)
 //
@@ -33,7 +34,9 @@
 // them at, so the badge that tells the truth about them.
 [proc,broadcast_name]()(string)
 def_string $icons = "";
-if (staffmodlevel >= 4) {
+if (staffmodlevel >= 5) {
+    $icons = "@cr7@";
+} else if (staffmodlevel >= 4) {
     $icons = "@cr6@";
 } else if (staffmodlevel >= 2) {
     $icons = "@cr2@";
@@ -64,3 +67,9 @@ broadcast_mes("@sh1@@or1@<$label>@sh0@@bla@ <~broadcast_name> <$what>");
 // apart from the gold of the news at a glance.
 [proc,yell](string $text)
 broadcast_mes("@sh1@@cya@[Yell]@sh0@@bla@ <~broadcast_name>: <$text>");
+
+// ::broadcast, a staff announcement (engine ClientCheatHandler, rank 4 and up). The loudest of the
+// set - shadowed red - because it is the one line that should never be scrolled past. Unlike a yell
+// the text keeps its @col@ tags: only staff can send one, and colouring part of it is the point.
+[proc,broadcast_staff](string $text)
+broadcast_mes("@sh1@@red@[Announcement]@sh0@@bla@ <~broadcast_name>: <$text>");
