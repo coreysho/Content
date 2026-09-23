@@ -130,7 +130,7 @@ check(len(SPEC['boss']) == 10, 'all ten boss pets are accounted for')
 print('3. every base chance in the game is the spec\'s, and the spec cites the wiki')
 check('oldschool.runescape.wiki' in SPEC['wiki'], 'the spec says where its numbers came from')
 wired = {k: v for k, v in SPEC['skill'].items() if v['wired']}
-check(len(wired) == 7, 'seven of the eight skilling pets are wired: %s' % sorted(wired))
+check(len(wired) == 8, 'all eight skilling pets are wired: %s' % sorted(wired))
 for pet, d in sorted(wired.items()):
     for spec in d.get('tables', []):
         tbl, key = table(spec)
@@ -201,26 +201,12 @@ for pet, d in sorted(wired.items()):
                   '...and %s rolls on completing a lap' % os.path.basename(f))
 
 # ============================================================================ 6
-print('6. the one that is not wired cannot be rolled, and says so')
+print('6. every pet has a source')
+# There used to be one exception: the Baby chinchompa, built before Hunter existed and handed over
+# nowhere on purpose. Box trapping (2026-09-23) is its source now, so every pet is wired - and a
+# pet added later without one has to come back here and say why, rather than slip through.
 pending = {k: v for k, v in SPEC['skill'].items() if not v['wired']}
-check(len(pending) == 1, 'one is pending: %s' % sorted(pending))
-allrs2 = ''
-for dirpath, _dirs, files in os.walk(os.path.join(C, 'scripts')):
-    for fn in files:
-        if fn.endswith('.rs2'):
-            allrs2 += code(read(os.path.join(dirpath, fn)[len(C) + 1:]))
-# HANDED OVER nowhere, not MENTIONED nowhere: the chinchompa has a voice and a metamorphosis of
-# its own now (npc/scripts/pet_talk.rs2, npc/scripts/pet_metamorph.rs2), and neither is a source.
-# What must not exist is a call that gives one.
-GIVE = r'(?:~skillpet_roll(?:_each)?|~bosspet_roll|inv_add|obj_add|~obj_giveorbank)\([^;]*\b%s_item\b'
-for pet, d in sorted(pending.items()):
-    check(not re.search(GIVE % pet, allrs2),
-          '%s is handed over nowhere, because the skill that would drop it does not exist here'
-          % pet)
-    check('why' in d, '...and the spec says why not: %s' % d['why'][:64])
-check('hunter' == SPEC['skill']['skillpet_chinchompa']['stat'],
-      'the chinchompa waits on Hunter, which this server does not have at all')
-check(not re.search(r'stat_advance\(hunter', allrs2), '...and nothing advances Hunter, which is what makes that true')
+check(len(pending) == 0, 'none is pending: %s' % sorted(pending))
 
 # ============================================================================ 7
 print('7. each pet names its item and each item names its pet back')
