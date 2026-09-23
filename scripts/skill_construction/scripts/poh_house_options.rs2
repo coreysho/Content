@@ -48,7 +48,13 @@ if (%poh_instance = null) {
     mes("You are not in your house.");
     return;
 }
-mes("There are no guests in your house.");
+if (~poh_guest_count = 0) {
+    mes("There are no guests in your house.");
+    return;
+}
+// every guest's poh_guest timer sees the count change and sends them out (poh_guests.rs2)
+%poh_expel = calc(%poh_expel + 1);
+mes("Your guests have been expelled from the house.");
 
 [if_button,house_options:leave]
 if (%poh_instance = null) {

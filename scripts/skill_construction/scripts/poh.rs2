@@ -340,12 +340,18 @@ if ($slot < 0) {
     mes("Your house has no rooms in it.");
     return;
 }
-p_telejump(~poh_entry_coord($base, $slot));
+%poh_entry = ~poh_entry_coord($base, $slot);
+p_telejump(%poh_entry);
 
 // The way out lands at the player's OWN portal, which is not always Rimmington's any more.
 // poh_loc_exit has default=null, so a %poh_location that somehow answers nothing still lands
 // somewhere real rather than at coord 0.
 [proc,poh_leave]
+// a guest goes out by the owner's portal (poh_guests.rs2)
+if (%poh_visiting ! null) {
+    ~poh_guest_out;
+    return;
+}
 p_telejump(~poh_exit_coord);
 ~poh_free;
 
@@ -360,6 +366,7 @@ return($exit);
 if (%poh_instance ! null) {
     instance_delete(%poh_instance);
     %poh_instance = null;
+    %poh_entry = null;
 }
 
 // Logging out inside a house frees its instance; logging IN inside instance space with no instance
@@ -369,6 +376,14 @@ if (%poh_instance ! null) {
 ~poh_free;
 
 [proc,poh_login]
-if (coordx(coord) >= 6400 & coordz(coord) >= 6400 & instance_find(coord) = null) {
-    p_telejump(~poh_exit_coord);
+// A house is never the player's own at login (%poh_instance is temp), so anyone logging in in instance
+// space is out: a guest (who logged out mid-visit, which is what a set %poh_visit_exit means) outside
+// the portal they came in by, anyone else outside their own.
+if (coordx(coord) >= 6400 & coordz(coord) >= 6400) {
+    if (%poh_visit_exit ! null) {
+        p_telejump(%poh_visit_exit);
+    } else {
+        p_telejump(~poh_exit_coord);
+    }
 }
+%poh_visit_exit = null;
