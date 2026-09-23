@@ -33,13 +33,13 @@ BASE = 'skillpet_rift_guardian'
 PANEL_X, PANEL_Y, PANEL_W, PANEL_H = 12, 20, 488, 300
 TILE_W, TILE_H = 88, 60
 # Only the colours an altar in THIS build can unlock get a cell. The ring is still fifteen long -
-# two of its colours belong to the soul and wrath altars, which are not here - and a cell for a
-# colour nothing can ever unlock is a dead square. Thirteen cells: the plain guardian and the twelve
-# altars, the Astral altar on Lunar Isle (2026-09-23) the twelfth - which is why the grid is five
-# across and 92 wide rather than the four by 116 that held twelve: a fourth row would run off the
-# panel, and five 92s sit inside its 488 with the widest label ("Cosmic") to spare.
-COLS, ROWS = 5, 3
-CELL_W, CELL_H = 92, 78
+# three of its colours belong to the soul, blood and wrath altars, which are not here - and a
+# cell for a colour nothing can ever unlock is a dead square. Twelve cells, one per altar, the
+# first being the base: Jagex names it the FIRE guardian, and a tiara gives it too (see the enum).
+# The Astral altar (Lunar Isle) is the twelfth. Twelve fill four by three exactly; the five-across
+# grid at 92 was only for the thirteen cells there were while the plain guardian had its own.
+COLS, ROWS = 4, 3
+CELL_W, CELL_H = 116, 78
 GRID_X = PANEL_X + (PANEL_W - COLS * CELL_W) // 2
 GRID_Y = 56
 # The model box inside a cell, and the camera for it. 32204 is a small mesh and these are the
@@ -155,8 +155,9 @@ def main():
         # yours yet", and the line under the grid says how to change that. NOTHING in this window
         # is set by the script except those hides: a count of what you have unlocked is the grid
         # itself, so the window has no text the script has to keep current.
+        # Named for the altar, the base included - it is fire's. 'Plain' only if no altar claims it.
         rune = by_form.get(form)
-        label = 'Plain' if i == 0 else rune[:-4].capitalize()
+        label = rune[:-4].capitalize() if rune else 'Plain'
         com('name%d' % i, layer='cell%d' % i, type='text', x=0, y=NAME_Y, width=CELL_W,
             height=13, center='yes', font='p11_full', shadowed='yes', text=label,
             colour='0xFF981F')

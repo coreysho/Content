@@ -41,32 +41,46 @@ val=guam_seed,skillpet_tangleroot_herb
 // The rift guardian: the rune you were binding when it turned up, and the colour it turns up in.
 // Also the colour crafting that rune unlocks while it follows you.
 //
-// The mapping is CHOSEN, and eight of the eleven rows have real evidence behind them: air, mind,
-// water, earth, body, cosmic, nature and death each share an EXACT recolour destination with their
-// rune item's own colours. Fire, chaos and law had no exact match left and are the nearest colour
-// standing - the orange one, the dark red one and the pale blue one. The cache does not record
-// which altar Old School paints which guardian for, and nothing in it could settle it, so this
-// says plainly where the measurement stopped and the choosing began.
+// The mapping is Jagex's own, by name. Each form's OSRS npc id is noted on its record in
+// pet_forms.npc, and Jagex's config names for those ids - RuneLite's gameval table,
+// runelite-api/src/main/java/net/runelite/api/gameval/NpcID.java - name the altar each is for:
 //
-// Twelve altars, twelve colours, and the base is the thirteenth: making a TIARA rolls the pet too
-// (skill_runecraft/scripts/runecraft_tiaras.rs2) and there is no altar rune in that, so a tiara
-// gives the plain guardian. Two looks - f12 and f15 - are left over, for the soul and wrath altars
-// this build does not have (f13 went to the Astral altar, below). They are imported, because the ring
-// is fifteen long either way, and they simply never unlock.
+//   7354 SKILLPET_RUNECRAFTING_FIRE     skillpet_rift_guardian (the base)
+//   7355 SKILLPET_RUNECRAFTING_AIR      f2        7361 SKILLPET_RUNECRAFTING_CHAOS    f8
+//   7356 SKILLPET_RUNECRAFTING_MIND     f3        7362 SKILLPET_RUNECRAFTING_NATURE   f9
+//   7357 SKILLPET_RUNECRAFTING_WATER    f4        7363 SKILLPET_RUNECRAFTING_LAW      f10
+//   7358 SKILLPET_RUNECRAFTING_EARTH    f5        7364 SKILLPET_RUNECRAFTING_DEATH    f11
+//   7359 SKILLPET_RUNECRAFTING_BODY     f6        7365 SKILLPET_RUNECRAFTING_SOUL     f12
+//   7360 SKILLPET_RUNECRAFTING_COSMIC   f7        7366 SKILLPET_RUNECRAFTING_ASTRAL   f13
+//                                                 7367 SKILLPET_RUNECRAFTING_BLOOD    f14
+//                                                 8028 SKILLPET_RUNECRAFTING_WRATH    f15
+//
+// It used to be CHOSEN by matching each form's recolours against its rune item's colours, which
+// the cache alone could not settle. That got eight right and crossed four - law and water were
+// swapped, fire wore chaos's look and chaos wore blood's - and the names above are what fixed it.
+//
+// FIRE IS THE BASE, and there is no plain guardian apart from it: the base npc is the fire one.
+// Making a TIARA rolls the pet too (skill_runecraft/scripts/runecraft_tiaras.rs2) with no altar rune
+// behind it, and ~rift_form gives the base for that - so a tiara gives the fire guardian, as it
+// always gave the base. Fire still has its own row, so the enum names every altar this build has.
+//
+// Three looks - f12 soul, f14 blood and f15 wrath - belong to altars this build does not have.
+// They are imported, because the ring is fifteen long either way, and they never unlock. f13 is
+// the Astral altar's (below).
 [rift_rune_form]
 inputtype=obj
 outputtype=npc
 default=null
+val=firerune,skillpet_rift_guardian
 val=airrune,skillpet_rift_guardian_f2
 val=mindrune,skillpet_rift_guardian_f3
-val=waterrune,skillpet_rift_guardian_f10
+val=waterrune,skillpet_rift_guardian_f4
 val=earthrune,skillpet_rift_guardian_f5
-val=firerune,skillpet_rift_guardian_f8
 val=bodyrune,skillpet_rift_guardian_f6
 val=cosmicrune,skillpet_rift_guardian_f7
-val=chaosrune,skillpet_rift_guardian_f14
+val=chaosrune,skillpet_rift_guardian_f8
 val=naturerune,skillpet_rift_guardian_f9
-val=lawrune,skillpet_rift_guardian_f4
+val=lawrune,skillpet_rift_guardian_f10
 val=deathrune,skillpet_rift_guardian_f11
 // The Astral altar (Lunar Isle, 2026-09-23): f13 is OSRS npc 7366, which Jagex's own config name calls
 // SKILLPET_RUNECRAFTING_ASTRAL (RuneLite's gameval NpcID) - a name, not a colour match.

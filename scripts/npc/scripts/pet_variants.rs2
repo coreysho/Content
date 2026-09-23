@@ -87,7 +87,7 @@ return(true);
 // ~pet_form_allowed in npc/scripts/pet_metamorph.rs2 is the other half of this.
 //
 // Called from every place runecraft rolls the pet, WITH the rune being bound. A tiara passes null:
-// there is no altar rune in making one, so a tiara gives the plain guardian.
+// there is no altar rune in making one, so a tiara gives the base guardian - which is fire's.
 [proc,rift_guardian_roll](namedobj $rune, int $times)
 def_boolean $had = ~pet_owned(skillpet_rift_guardian_item);
 ~skillpet_roll_each(skillpet_rift_guardian_item, runecraft, ^skillpet_rift_guardian_base, $times);
@@ -111,7 +111,7 @@ if ($had = true) {
     }
 }
 
-// The colour an altar paints, and the plain one for anything with no rune behind it.
+// The colour an altar paints, and the base one for anything with no rune behind it.
 [proc,rift_form](namedobj $rune)(npc)
 def_npc $form = enum(obj, npc, rift_rune_form, $rune);
 if ($form = null) {
@@ -120,8 +120,8 @@ if ($form = null) {
 return($form);
 
 [proc,rift_unlock](namedobj $rune)
-// Bit 0 is the plain guardian and is always yours: a tiara gives it, and the right-click has to
-// have somewhere to go back to.
+// Bit 0 is the base guardian - the fire altar's - and is always yours: a tiara gives it, and the
+// right-click has to have somewhere to go back to.
 %rift_unlocked = setbit(%rift_unlocked, 0);
 %rift_unlocked = setbit(%rift_unlocked,
     ~pet_form_index(skillpet_rift_guardian_item, ~rift_form($rune)));
@@ -166,8 +166,8 @@ if_openmain(rift_metamorph);
 // unlocked" looks like: the cell keeps its altar name, so an empty cell reads as something you
 // have not earned rather than something missing.
 //
-// TWELVE, not fifteen, and the numbers skip 11, 12 and 14: those three colours belong to the
-// blood, soul, astral and wrath altars, which this build does not have, so they have no cell. The
+// TWELVE, not fifteen, and the numbers skip 11, 13 and 14: those are the soul, blood and wrath
+// colours, whose altars this build does not have, so they have no cell (12 is astral's). The
 // numbering is the RING INDEX rather than the cell position, which is what keeps every handler one
 // line and survives colours being skipped.
 [proc,rift_metamorph_refresh]
@@ -183,7 +183,6 @@ if_sethide(rift_metamorph:icon8, ~rift_locked(8));
 if_sethide(rift_metamorph:icon9, ~rift_locked(9));
 if_sethide(rift_metamorph:icon10, ~rift_locked(10));
 if_sethide(rift_metamorph:icon12, ~rift_locked(12));
-if_sethide(rift_metamorph:icon13, ~rift_locked(13));
 
 // The one place %rift_unlocked is read. ~pet_form_allowed asks this too, so the right-click and
 // the window cannot disagree about what you have earned.
@@ -224,4 +223,3 @@ mes("Your rift guardian shifts colour.");
 [if_button,rift_metamorph:hit9] ~rift_pick(9);
 [if_button,rift_metamorph:hit10] ~rift_pick(10);
 [if_button,rift_metamorph:hit12] ~rift_pick(12);
-[if_button,rift_metamorph:hit13] ~rift_pick(13);

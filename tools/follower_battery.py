@@ -530,14 +530,31 @@ while at and at != 'skillpet_rift_guardian':
 off = sorted(set(RIFT.values()) - set(gring))
 check(not off, "...and every colour is one of the guardian's own fifteen: %s"
       % (off or 'all %d' % len(RIFT)))
-check('skillpet_rift_guardian' not in RIFT.values(),
-      '...while the plain one belongs to the tiara, which rolls the pet with no altar behind it')
+# ...and it is Jagex's mapping, not a guess: each form's OSRS npc id is the '// OSRS npc' comment
+# on its record, and Jagex's config name for that id (RuneLite's gameval NpcID,
+# SKILLPET_RUNECRAFTING_<ALTAR>) says which altar it is for. The first mapping here was chosen by
+# recolour matching and crossed four altars; this is the check that would have caught it.
+OSRSID = {}
+for src in (read('scripts/npc/configs/skill_pets.npc'), FORMNPC):
+    for b in re.split(r'(?m)^(?=\[)', src):
+        m = re.match(r'\[(\w+)\]\n// OSRS npc (\d+)', b)
+        if m: OSRSID[m.group(1)] = m.group(2)
+GAMEVAL = V['rift_gameval']
+unnamed = [f for f in gring if GAMEVAL.get(OSRSID.get(f)) is None]
+check(not unnamed, "every one of the guardian's fifteen records names its OSRS npc, and Jagex's "
+      'config names that npc for an altar: %s' % (unnamed or 'all %d' % len(gring)))
+crossed = sorted((r, f, GAMEVAL.get(OSRSID.get(f))) for r, f in RIFT.items()
+                 if GAMEVAL.get(OSRSID.get(f)) != r[:-4])
+check(not crossed, '...and every altar paints the form Jagex names for it: %s'
+      % (crossed or 'all %d' % len(RIFT)))
+check(RIFT.get('firerune') == 'skillpet_rift_guardian',
+      '...so fire paints the base, 7354 - the same guardian a tiara gives, with no altar behind it')
 
 for f in V['rift_roll_hooks']:
     check('~rift_guardian_roll(' in code(read(f)),
           '%s rolls the guardian through the wrapper that knows the rune' % os.path.basename(f))
 check('~rift_guardian_roll(null, 1);' in code(read(V['rift_roll_hooks'][2])),
-      '...and the tiara passes null, so a tiara gives the plain guardian')
+      '...and the tiara passes null, so a tiara gives the base guardian, the fire one')
 # The combination-rune path: the colour follows the ALTAR, and a mist rune can be bound at either
 # the air altar or the water one - so every call has to pass the rune of the altar it sits under.
 altar, wrong = None, []
@@ -552,7 +569,7 @@ check(not wrong, 'every combination-rune call passes the rune of the altar it st
 
 unlock = trigger(VAR, 'proc,rift_unlock')
 check('setbit(%rift_unlocked, 0)' in (unlock or ''),
-      'bit 0 of %rift_unlocked - the plain guardian - is always set, so the right-click has '
+      'bit 0 of %rift_unlocked - the base guardian, the fire one - is always set, so the right-click has '
       'somewhere to go back to')
 check('~pet_form_index(skillpet_rift_guardian_item, ~rift_form($rune))' in (unlock or ''),
       '...and crafting at an altar sets that colour\'s own bit for good')
@@ -586,7 +603,7 @@ RUNENAME = {f: r for r, f in RIFT.items()}
 # build can unlock get one: a cell for a colour nothing can ever reach is a dead square.
 want_cells = [i for i, f in enumerate(gring) if i == 0 or f in RUNENAME]
 check(cellnums == want_cells,
-      'the picker has a cell for the plain guardian and for each of the %d altars, and for nothing '
+      'the picker has a cell for the base guardian and for each of the %d altars, and for nothing '
       'else: %s' % (len(RIFT), cellnums if cellnums != want_cells else 'ring indices %s' % want_cells))
 # The grid is the whole answer: the window carries no text the script has to keep current. It used
 # to caption the grid with a count of unlocked colours, which said what the grid already shows -
@@ -604,8 +621,8 @@ check('if_settext(rift_metamorph:' not in code(VAR) and not blank,
 # what gets measured here is the DRAWN rectangle and the label INK. Re-measure if either changes -
 # tools/genriftpicker.py holds the same four numbers and a note saying so.
 DRAWN_W, DRAWN_H, DRAWN_OX, DRAWN_OY, NAME_INK = 26, 28, 9, 0, 9
-# 92 wide since the Astral altar made it thirteen cells, five across (genriftpicker.py says why)
-CELL_W, CELL_H = 92, 78
+# twelve cells, four by three at 116 (genriftpicker.py says why)
+CELL_W, CELL_H = 116, 78
 
 
 def geom(name, i):
@@ -636,7 +653,7 @@ check(not wrong, '...each showing the model of the form at that ring index: %s'
 wrong = []
 for i in cellnums:
     rune = RUNENAME.get(gring[i])
-    want = 'Plain' if i == 0 else rune[:-4].capitalize()
+    want = rune[:-4].capitalize() if rune else 'Plain'
     got = re.search(r'text=(.*)', PICK.get('name%d' % i, ''))
     if not got or got.group(1).strip() != want:
         wrong.append((i, want, got.group(1).strip() if got else None))
