@@ -48,6 +48,39 @@ if (npc_finduid(%follower_uid) = false) {
 }
 npc_setmode(playerfollow);
 
+// ---------------------------------------------------------------------------------------------
+// Keeping up
+// ---------------------------------------------------------------------------------------------
+// The npc-side timer every follower runs: come to the owner when left behind, and go away when the
+// owner does. [ai_timer,_bosspet] and [ai_timer,_petcat] are both this, and were two copies of it.
+//
+// WHY A PET WANDERED OFF WHENEVER YOU CHANGED FLOOR. Two things, and the teleport was only one:
+//
+//   1. THE FOLLOW WAS ALREADY GONE by the time this ran. Npc.validateTarget fails the moment the
+//      target is on another level, and a failed validate calls resetDefaults() - which drops the
+//      target and puts the npc back on its default mode, wander. Teleporting the npc to the player
+//      after that moved a WANDERING npc next to them, so it milled about instead of following. The
+//      npc_setmode below is what actually fixes the report; it is only ever reached on the tick the
+//      pet was left behind, so a pet that is mid-conversation (playerfaceclose, set by pet_talk.rs2)
+//      is not yanked out of it.
+//   2. IT RAN EVERY TWENTY TICKS - twelve seconds of wandering before the teleport even came. The
+//      npc records say timer=1 now. One pet per player and four lines of script; it is not a cost.
+//
+// And the cats had no timer= at all, so for them none of this ever ran: a cat left on another floor
+// stayed there, and a cat whose owner logged out stood at the spot for good. They have timer=1 now
+// as well, which is safe because this is the whole of [ai_timer,_petcat] - the growth, hunger and
+// attention a kitten runs on are a PLAYER timer (petcat_growth), not this one.
+[proc,follower_keepup]
+if (finduid(%npc_attacking_uid) = false) {
+    npc_del;
+    return;
+}
+if (coordy(coord) = coordy(npc_coord) & npc_range(coord) <= ^follower_keepup_range) {
+    return;
+}
+npc_tele(map_findsquare(coord, 1, 1, ^map_findsquare_lineofwalk));
+npc_setmode(playerfollow);
+
 // Logout: the npc goes, the item the slot remembers does not. %follower_uid is scope=temp and would
 // be dropped anyway; clearing it here keeps the two in step for the rest of the logout script.
 [proc,follower_logout]

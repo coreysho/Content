@@ -20,6 +20,19 @@ if ($attackrange <= 1 | $distance > $attackrange) {
 if (~sa_enabled = true) {
     @pvp_special_attack;
 }
+// The trident of the seas casts its own spell whatever style is set, exactly as it does against
+// monsters (player_combat.rs2 has the same two branches). PvP had neither, so a charged trident
+// fell through to @pvp_melee_attack - and because ~player_attackrange gives a powered staff 7
+// tiles (9 on Longrange), that was a MELEE swing landing from seven tiles away in the wilderness.
+// An uncharged one swung too, where against a monster it correctly refuses.
+if (~trident_armed = true) {
+    @pvp_trident_attack;
+}
+if (~trident_uncharged_wielded = true) {
+    mes("Your trident has no charges.");
+    p_stopaction;
+    return;
+}
 if (%damagetype = ^ranged_style) {
     @pvp_ranged_attack;
 }
@@ -67,7 +80,8 @@ if (~pvp_level_check = false) {
 if (~pvp_in_combat_check = false) {
     return(false);
 }
-if (~player_autocast_enabled = false & ~inzone_coord_pair_table(mage_arena, coord) = true) {
+// A charged trident is magical combat as much as an autocast is, so it passes Kolodion too.
+if (~player_autocast_enabled = false & ~trident_armed = false & ~inzone_coord_pair_table(mage_arena, coord) = true) {
     mes("Kolodion allows only magical combat within the arena."); // osrs
     return(false);
 }

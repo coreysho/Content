@@ -88,6 +88,17 @@ if ($sound = null) {
     sound_synth($sound, 0, 0);
 }
 
+// THE SECOND LINE IS DELAYED, THE PLAYER IS NOT. message_delay is a two-tick gap between the two
+// chat lines a bite of food prints ("You eat the shark." / "It heals some health."), and it used to
+// be spent on p_delay. p_delay is not a chat timer: it sets Player.delayed, and a delayed player
+// has their walk input thrown away (World.processClientsIn), their queues held (canAccess is
+// false), and protected access refused to anybody else's script. So one swallow of food or one
+// sip of a potion
+//   - froze the player in place for two ticks,
+//   - and held up the hitsplat of whoever was hitting them, because a pvp hit lands through
+//     .queue(pvp_damage, ...) on the victim and that queue cannot run while they are delayed.
+// Both were reported from play. The gap is now a weakqueue, which prints the line two ticks later
+// and leaves the player free to walk, eat again and take hits on time.
 [proc,consume_effect_messages](obj $consumable, int $hitpoints, boolean $say)
 db_find(consume_messages_table:consumable, $consumable);
 def_dbrow $message_data = db_findnext;
@@ -124,26 +135,14 @@ if ($consumable ! null & oc_category($consumable) = potion) {
     // A potion with no consume_messages row leaves $message_data null, and db_getfieldcount on a
     // null row throws and disconnects the player - which is what drinking a Saradomin brew did.
     // The food path below already guards this; the potion path did not.
-    if ($message_data ! null & db_getfieldcount($message_data, consume_messages_table:message_delay) > 0) {
-        p_delay(db_getfield($message_data, consume_messages_table:message_delay, 0));
-    }
-    if ($consumable = vial_empty) {
-        mes("You have finished your potion.");
-        return;
-    }
-    $consumable = oc_param($consumable, next_obj_stage);
-    if ($consumable = vial_empty) {
-        mes("You have 1 dose of potion left.");
-        return;
-    }
-    $consumable = oc_param($consumable, next_obj_stage);
-    if ($consumable = vial_empty) {
-        mes("You have 2 doses of potion left.");
-        return;
-    }
-    $consumable = oc_param($consumable, next_obj_stage);
-    if ($consumable = vial_empty) {
-        mes("You have 3 doses of potion left.");
+    //
+    // The four dose lines used to be written out here, one return each, with a p_delay in front of
+    // them. Only the delay moved: the chain walk is ~consume_doses_left_message and it answers ""
+    // for anything whose next_obj_stage chain does not reach a vial within four steps - which is
+    // the case the old code left to fall through into the food messages below, and it still does.
+    def_string $doses = ~consume_doses_left_message($consumable);
+    if (string_length($doses) > 0) {
+        ~consume_second_line($doses, "", ~consume_message_delay($message_data));
         return;
     }
 }
@@ -166,22 +165,85 @@ if (compare($restore_message1, "0") ! 0 & $hitpoints < stat(hitpoints) & string_
 // gnome food probably uses this, since karambwans and gnome food are the same in osrs
 // https://oldschool.runescape.wiki/w/Update:Chat_update_and_%27Operate%27
 // https://youtu.be/Z-e_O0O6A50?t=33
-if ($message_data ! null & db_getfieldcount($message_data, consume_messages_table:message_delay) > 0) {
-    p_delay(db_getfield($message_data, consume_messages_table:message_delay, 0));
-}
-
+//
+// Both branches below are DECIDED NOW and PRINTED LATER. They used to be decided after a p_delay,
+// which meant stat(hitpoints) was re-read two ticks after the food landed - so a heal-over-time or
+// a hit taken in between could flip which line you got. Resolving them here and handing the strings
+// to the weakqueue keeps the wording the food earned at the moment it was eaten.
+def_string $second_mes = "";
+def_string $second_say = "";
 if (compare($restore_message2, "0") ! 0 & $hitpoints < stat(hitpoints)) {
     // display default if restore_message2 is not defined
     if (string_length($restore_message2) > 0) {
-        mes($restore_message2);
+        $second_mes = $restore_message2;
     } else {
-        mes("It heals some health.");
+        $second_mes = "It heals some health.";
     }
 }
 // say always replaces consume_message2
 if ($say = true) {
-    say($consume_message2);
+    $second_say = $consume_message2;
 } else if (compare($consume_message2, "0") ! 0 & string_length($consume_message2) > 0 & (string_length($restore_message2) < 0 | $hitpoints >= stat(hitpoints) | compare($restore_message2, "0") = 0)) {
-    mes($consume_message2); // kinda scuffed but since restore_message2 has a default i think this is required
+    $second_mes = $consume_message2; // kinda scuffed but since restore_message2 has a default i think this is required
 }
+~consume_second_line($second_mes, $second_say, ~consume_message_delay($message_data));
+
+// ---------------------------------------------------------------------------------------------
+// The delayed second line
+// ---------------------------------------------------------------------------------------------
+// weakqueue rather than queue: this is flavour text, and the weak queue is the one that is dropped
+// when the player opens an interface - which is what should happen to "It heals some health." if
+// you bank mid-bite. Delay 0 prints straight away rather than costing a tick.
+[proc,consume_second_line](string $mes, string $say, int $delay)
+if (string_length($mes) <= 0 & string_length($say) <= 0) {
+    return;
+}
+if ($delay <= 0) {
+    ~consume_print_second_line($mes, $say);
+    return;
+}
+weakqueue*(consume_second_line_delayed, $delay)($mes, $say);
+
+// A [queue] script, reached through weakqueue - this engine has no separate weakqueue trigger, the
+// op just puts the same kind of script on the weak list instead of the strong one.
+[queue,consume_second_line_delayed](string $mes, string $say)
+~consume_print_second_line($mes, $say);
+
+[proc,consume_print_second_line](string $mes, string $say)
+if (string_length($mes) > 0) {
+    mes($mes);
+}
+if (string_length($say) > 0) {
+    say($say);
+}
+
+[proc,consume_message_delay](dbrow $message_data)(int)
+if ($message_data = null) {
+    return(0);
+}
+if (db_getfieldcount($message_data, consume_messages_table:message_delay) <= 0) {
+    return(0);
+}
+return(db_getfield($message_data, consume_messages_table:message_delay, 0));
+
+// How many doses are left, read off the chain of next_obj_stage params the potion carries. The
+// argument is the obj the potion has ALREADY become (the caller stepped it on once before the
+// first message), so vial_empty here means the dose just drunk was the last one.
+[proc,consume_doses_left_message](obj $consumable)(string)
+if ($consumable = vial_empty) {
+    return("You have finished your potion.");
+}
+$consumable = oc_param($consumable, next_obj_stage);
+if ($consumable = vial_empty) {
+    return("You have 1 dose of potion left.");
+}
+$consumable = oc_param($consumable, next_obj_stage);
+if ($consumable = vial_empty) {
+    return("You have 2 doses of potion left.");
+}
+$consumable = oc_param($consumable, next_obj_stage);
+if ($consumable = vial_empty) {
+    return("You have 3 doses of potion left.");
+}
+return("");
 

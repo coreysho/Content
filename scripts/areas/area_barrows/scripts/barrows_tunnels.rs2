@@ -252,7 +252,11 @@ if ($left <= 0) {
 npc_add($where, $monster, ^barrows_brother_life);
 %npc_aggressive_player = uid;
 %aggressive_npc = npc_uid;
-npc_setmode(opplayer2);
+// ~barrows_brother_engage (barrows.rs2) picks opplayer2 or applayer2 - Ahrim and Karil fight from
+// range and their attacks hang off [ai_applayer2], so waking them in opplayer2 walked them into
+// melee first. It is safe for the skeleton too: anything that is not one of those two gets
+// opplayer2, which is what this line always did.
+~barrows_brother_engage;
 
 // ---------------------------------------------------------------------------------------------
 // Counting the brothers

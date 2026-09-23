@@ -1,7 +1,19 @@
-// THE ARKAN BLADE's special attack (2026-09-21), OSRS's "Flames of Ralos"
+// THE ARKAN BLADE's special attack, OSRS's "Flames of Ralos"
 // (oldschool.runescape.wiki/w/Arkan_blade): 30% energy, one slash at +50% accuracy and +50% damage,
-// and on a hit a strong burn - 10 damage over 40 ticks, as 2 every 8 - which stacks with itself.
-// The burn has no hitsplat colour of its own in 377, so it lands as ordinary damage.
+// and on a hit a burn. The burn has no hitsplat colour of its own in 377, so it lands as ordinary
+// damage.
+//
+// THE BURN IS THE WIKI'S BURN (oldschool.runescape.wiki/w/Burn), which is not what was here before.
+// One hitpoint every four ticks for forty; at most FIVE burns at once, and a sixth is discarded
+// rather than replacing one of the five. The old version dealt 2 every 8 and let burns stack
+// without any limit, so a player who kept speccing kept adding damage-over-time with no ceiling -
+// reported from play as the special being "way overpowered". The +50%/+50% and the 30% cost were
+// checked against the wiki and are correct, so they are untouched.
+//
+// THE STACK COUNT IS TRACKED, not inferred. Each burn is its own queue entry counting its own ten
+// hits down, which gives OSRS's damage exactly (N burns running is N damage per four ticks) without
+// needing one shared timer; %arkan_burn_stacks / %npc_arkan_burn_stacks exist only to enforce the
+// cap of five, and each entry gives its slot back when it finishes or when its victim dies.
 
 [label,pvm_arkan_blade_sa]
 ~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
@@ -12,8 +24,9 @@ $hit, $damage, $damage_capped = ~pvm_spec_roll(150, 150, ^slash_style);
 anim(sp_attack_dragon_scimitar, 0);
 sound_synth(oc_param(inv_getobj(worn, ^wearpos_rhand), slash_sound), 1, 0);
 ~pvm_spec_land($damage, 0);
-if ($hit = true) {
+if ($hit = true & %npc_arkan_burn_stacks < ^arkan_burn_max_stacks) {
     spotanim_npc(firewave_impact, 92, 30);
+    %npc_arkan_burn_stacks = add(%npc_arkan_burn_stacks, 1);
     npc_queue(15, ^arkan_burn_hits, ^arkan_burn_interval);
 }
 
@@ -25,36 +38,66 @@ def_int $damage = 0;
 $hit, $damage = ~pvp_spec_roll(150, 150, ^slash_style);
 anim(sp_attack_dragon_scimitar, 0);
 ~pvp_spec_land($damage, oc_param(inv_getobj(worn, ^wearpos_rhand), slash_sound));
-if ($hit = true) {
+if ($hit = true & .%arkan_burn_stacks < ^arkan_burn_max_stacks) {
     .spotanim_pl(firewave_impact, 92, 30);
+    .%arkan_burn_stacks = add(.%arkan_burn_stacks, 1);
     .queue(arkan_burn, ^arkan_burn_interval, ^arkan_burn_hits);
 }
 
 // A monster burning. Queue slot 15 is free for every npc; each queue entry is one burn, so two
-// specials are two burns, each counting down its own hits.
+// specials are two burns, each counting down its own hits - and N burns landing a point each is
+// OSRS's "damage equal to the number of stacks".
+//
+// Npc.resetEntity clears every varn and every queue entry on respawn, so a monster never carries a
+// burn or a stack count back from the dead. The slot is still given back on the last hit and on the
+// hit that kills, so a monster that survives can be burned again.
 [ai_queue15,_]
 if (npc_stat(hitpoints) = 0) {
+    %npc_arkan_burn_stacks = max(sub(%npc_arkan_burn_stacks, 1), 0);
     return;
 }
 npc_damage(^hitmark_damage, min(^arkan_burn_damage, npc_stat(hitpoints)));
 if (npc_stat(hitpoints) = 0) {
+    %npc_arkan_burn_stacks = max(sub(%npc_arkan_burn_stacks, 1), 0);
     npc_queue(3, 0, 0);
     return;
 }
 if (last_int > 1) {
     npc_queue(15, sub(last_int, 1), ^arkan_burn_interval);
+    return;
 }
+%npc_arkan_burn_stacks = max(sub(%npc_arkan_burn_stacks, 1), 0);
 
-// A player burning.
+// A player burning. Unlike a monster, a player does not get a fresh entity on death - they respawn
+// as themselves with their queue intact - so the burn has to be taken off them by hand. That is
+// ~arkan_burn_clear, which player/scripts/combat_clearqueue.rs2 calls on every death: without it a
+// spec landed seconds before a kill kept ticking on the corpse and followed the player to Lumbridge,
+// which is exactly what was reported ("arkan blade spec still affects player after death").
 [queue,arkan_burn](int $left)
 if (stat(hitpoints) = 0) {
+    ~arkan_burn_stack_release;
     return;
 }
 damage(uid, ^hitmark_damage, min(^arkan_burn_damage, stat(hitpoints)));
 if (stat(hitpoints) = 0) {
+    ~arkan_burn_stack_release;
     ~player_die;
     return;
 }
 if ($left > 1) {
     queue(arkan_burn, ^arkan_burn_interval, sub($left, 1));
+    return;
 }
+~arkan_burn_stack_release;
+
+[proc,arkan_burn_stack_release]
+%arkan_burn_stacks = max(sub(%arkan_burn_stacks, 1), 0);
+
+// Every burn off this player at once, queue entries and stack count together.
+[proc,arkan_burn_clear]
+clearqueue(arkan_burn);
+%arkan_burn_stacks = 0;
+
+[proc,.arkan_burn_clear]
+.clearqueue(arkan_burn);
+.%arkan_burn_stacks = 0;

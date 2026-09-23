@@ -311,8 +311,16 @@ check(SEARCH.index('testbit(%barrows_kills') < SEARCH.index('npc_add('),
       'searched out of his own box twice')
 check('^barrows_brother_life' in SEARCH and '^max_32bit_int' not in SEARCH,
       'a woken brother is added with ^barrows_brother_life, not forever')
-check('npc_setmode(opplayer2)' in SEARCH and '%aggressive_npc = npc_uid' in SEARCH,
+check('~barrows_brother_engage' in SEARCH and '%aggressive_npc = npc_uid' in SEARCH,
       'and he comes out fighting, and interrupts what the player was doing')
+# Opplayer2 is a melee approach: the brother walks into contact before he swings. That is right for
+# four of them and wrong for Ahrim and Karil, who stood beside the player doing nothing because the
+# melee approach never let their magic and ranged attacks fire. Applayer2 attacks from range.
+ENGAGE = nocomment(RS2.split('[proc,barrows_brother_engage]', 1)[1].split('\n[', 1)[0])
+check(re.search(r'barrows_ahrim.*barrows_karil[^\n]*\)\s*\{\s*npc_setmode\(applayer2\)', ENGAGE, re.S) is not None,
+      '...Ahrim and Karil engage from range (applayer2)')
+check('npc_setmode(opplayer2)' in ENGAGE,
+      '...and the four melee brothers walk in to fight (opplayer2)')
 # A BROTHER WHO IS ALREADY UP IS NOT IN HIS BOX. The kill bit only says he is dead; searching the
 # sarcophagus of a brother who is out and still alive used to add a second copy of him, and two of
 # him is two sets of armour for one fight.

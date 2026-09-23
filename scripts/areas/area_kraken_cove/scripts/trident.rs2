@@ -120,6 +120,42 @@ mes("Wield or check it first - the charges only come out of a trident that is ho
 // ---------------------------------------------------------------------------------------------
 // The cast - reached from [label,player_combat_start] whenever a charged trident is wielded
 // ---------------------------------------------------------------------------------------------
+// ONE SOUND PER CAST, AND WHY. Reported from play as "trident audio is off, audio 3 times to 1
+// spell". The samples were measured by running the client's own Wave decoder over them:
+//
+//   waterwave_cast_and_fire    1320ms   (a COMBINED cast-and-fire sample - two beats already)
+//   waterwave_hit              1349ms
+//   spellfail                  1100ms
+//   the trident's attack cycle 2400ms   (4 ticks)
+//
+// A cast asked for 1320 + 1349 = 2669ms of audio every 2400ms, and the client plays one wave at a
+// time - Client.updateAudio only starts a new one once the previous has all but finished, and
+// drops it otherwise. So the impact of one cast always landed on top of the next cast's sound, and
+// at close range, where the projectile is only 1120ms, the impact started before the cast sample
+// had even finished. Three overlapping sounds per spell, most of them thrown away.
+//
+// An ordinary spell does not have this problem: at 5 ticks it has 3000ms to play 2669ms in. The
+// trident is the only 4-tick caster on the server, which is why it was the only thing that sounded
+// wrong.
+//
+// So the impact sound is gone and the cast sample is what you hear: 1320ms inside 2400ms, with
+// 1080ms of quiet after it, at every range.
+//
+// A SPLASH STILL SOUNDS DIFFERENT, because Old School lets you hear that you splashed. It cannot be
+// heard at the moment it lands, though - there is no room for a second sound at any range:
+//
+//   range  1   impact at 1120ms   room before the next cast 1080ms
+//   range  4   impact at 1720ms   room before the next cast  680ms
+//   range  7   impact at 2320ms   room before the next cast   80ms
+//   range 10   impact at 2920ms   the next cast has already gone
+//
+// and the shortest splash in the pack is spellfail at 1100ms. So the ONE sound a cast is allowed
+// is the one that changes: waterwave_cast_and_fire when the roll connects, spellfail when it does
+// not. The roll is therefore made before the sound rather than after it.
+//
+// THE TARGET OF A PVP CAST ALWAYS HEARS THE NEUTRAL ONE. Giving them the splash too would tell them
+// they are safe this cast two to four ticks before the graphic says so, which is information Old
+// School does not hand out early. They hear that something was cast at them, and nothing more.
 [label,trident_attack]
 if (~npc_is_attackable = false) {
     return;
@@ -128,12 +164,9 @@ if (%action_delay > map_clock) {
     p_opnpc(2);
     return;
 }
-%action_delay = add(map_clock, 4);
+%action_delay = add(map_clock, ^trident_attackrate);
 anim(human_trident_cast, 0);
 spotanim_pl(trident_casting, 92, 0);
-sound_synth(waterwave_cast_and_fire, 0, 0);
-def_int $duration = ~npc_projectile(coord, npc_uid, trident_travel, 43, 31, 51, 16, -5, 64, 10);
-%trident_charges = sub(%trident_charges, 1);
 // same accuracy as any spell, black mask (i) included (player_magic.rs2 ~pvm_default_spell)
 def_int $mask_num = 1;
 def_int $mask_div = 1;
@@ -141,7 +174,13 @@ if (~black_mask_imbued_on_task = true) {
     $mask_num = 23;
     $mask_div = 20;
 }
-if (~player_npc_hit_roll_boosted(^magic_style, $mask_num, $mask_div) = true) {
+// ROLLED BEFORE THE SOUND, because the sound is what tells you the outcome - see above. It is the
+// same single roll it always was, just read a few lines earlier.
+def_boolean $connected = ~player_npc_hit_roll_boosted(^magic_style, $mask_num, $mask_div);
+~trident_cast_sound($connected);
+def_int $duration = ~npc_projectile(coord, npc_uid, trident_travel, 43, 31, 51, 16, -5, 64, 10);
+%trident_charges = sub(%trident_charges, 1);
+if ($connected = true) {
     def_int $maxhit = scale($mask_num, $mask_div, max(0, sub(divide(stat(magic), 3), 5)));
     def_int $damage = randominc(min($maxhit, npc_param(max_dealt)));
     def_int $damage_capped = min($damage, npc_stat(hitpoints));
@@ -151,22 +190,13 @@ if (~player_npc_hit_roll_boosted(^magic_style, $mask_num, $mask_div) = true) {
     ~give_combat_experience(~trident_xp_style, $damage_capped, %npc_combat_xp_multiplier);
     npc_heropoints($damage_capped);
     ~barrows_set_hit_npc($damage_capped, ^magic_style);
-    sound_synth(waterwave_hit, 0, $duration);
     spotanim_npc(trident_impact, 92, $duration);
 } else {
-    sound_synth(spellfail, 1, $duration);
     spotanim_npc(failedspell_impact, 92, $duration);
     ~npc_retaliate(0);
 }
-if (%trident_charges <= 0) {
-    %trident_charges = 0;
-    inv_setslot(worn, ^wearpos_rhand, trident_of_the_seas_uncharged, 1);
-    ~update_all(trident_of_the_seas);
-    mes("@red@Your trident has run out of charges.");
+if (~trident_spend_charge = false) {
     return;
-}
-if (%trident_charges = 100) {
-    mes("@red@Your trident has 100 charges left.");
 }
 p_opnpc(2);
 
@@ -186,3 +216,87 @@ if ($rhand = trident_of_the_seas_uncharged | ($rhand = trident_of_the_seas & %tr
     return(true);
 }
 return(false);
+
+// ---------------------------------------------------------------------------------------------
+// The cast, against another player - reached from [label,pvp_combat_start]
+// ---------------------------------------------------------------------------------------------
+// The PvM cast above, rewritten against the secondary player pointer. The structure is
+// pvp_ranged.rs2's: roll, then anim and sound on both sides, then the projectile, then the damage
+// and the retaliate queued on the flight time.
+//
+// It honours the two things a spell honours in PvP and a melee swing does not: the duel arena's
+// "no magic" and "flower power" options, and Protect from Magic's 40% reduction. Before this the
+// trident went down the melee path, so it was stopped by "no melee" duels and reduced by Protect
+// from Melee - both the wrong prayer and the wrong rule.
+[label,pvp_trident_attack]
+if (~duel_arena_magic_check = false) {
+    return;
+}
+if (.%death = ^true) {
+    p_stopaction;
+    return;
+}
+if (%action_delay > map_clock) {
+    p_opplayer(2); // it is guaranteed here that we are already within ap distance
+    return;
+}
+p_opplayer(2);
+~set_pk_vars;
+.if_close;
+%action_delay = add(map_clock, ^trident_attackrate);
+anim(human_trident_cast, 0);
+spotanim_pl(trident_casting, 92, 0);
+// The caster hears the outcome, the target hears the neutral cast - see the note above
+// [label,trident_attack] for why there is only one sound and why the target does not get this one.
+def_boolean $connected = ~pvp_hit_roll(^magic_style);
+~trident_cast_sound($connected);
+.sound_synth(waterwave_cast_and_fire, 0, 0);
+def_int $duration = ~player_projectile(coord, .coord, .uid, trident_travel, 43, 31, 51, 16, -5, 64, 10);
+%trident_charges = sub(%trident_charges, 1);
+if ($connected = true) {
+    def_int $maxhit = max(0, sub(divide(stat(magic), 3), 5));
+    if (~.check_protect_prayer(^magic_style) = true) {
+        $maxhit = scale(6, 10, $maxhit); // reduction of 40%
+    }
+    def_int $damage = min(randominc($maxhit), .stat(hitpoints)); // tick eating
+    ~.pvp_damage(calc($duration / 30 + 1), $damage); // delayed an extra tick, as every pvp spell is
+    ~give_combat_experience_pvp(~trident_xp_style, $damage, ~pvp_xp_multiplier(~.player_combat_level));
+    both_heropoints($damage);
+    ~barrows_set_hit_player($damage, ^magic_style);
+    .spotanim_pl(trident_impact, 92, $duration);
+    .queue*(pvp_retaliate, calc($duration / 30 + 1))(uid);
+} else {
+    .spotanim_pl(failedspell_impact, 92, $duration);
+    .queue*(pvp_retaliate, 0)(uid); // splashing causes insta auto retal
+}
+if (~trident_spend_charge = false) {
+    return;
+}
+
+// The one sound a cast is allowed to make, and the only thing that distinguishes a hit from a
+// splash by ear. See the note above [label,trident_attack] for why it cannot wait for the impact.
+[proc,trident_cast_sound](boolean $connected)
+if ($connected = true) {
+    sound_synth(waterwave_cast_and_fire, 0, 0);
+    return;
+}
+sound_synth(spellfail, 1, 0);
+
+// Shared by both casts: one charge off the counter, the warning at 100, and the staff turning back
+// into the uncharged obj when it runs dry. It was written out twice before.
+//
+// Returns false when the trident just ran dry, because the caller must NOT re-target after that -
+// the staff is uncharged now and the next tick would go looking for an attack it cannot make.
+[proc,trident_spend_charge]()(boolean)
+if (%trident_charges <= 0) {
+    %trident_charges = 0;
+    inv_setslot(worn, ^wearpos_rhand, trident_of_the_seas_uncharged, 1);
+    ~update_all(trident_of_the_seas);
+    mes("@red@Your trident has run out of charges.");
+    p_stopaction;
+    return(false);
+}
+if (%trident_charges = 100) {
+    mes("@red@Your trident has 100 charges left.");
+}
+return(true);
