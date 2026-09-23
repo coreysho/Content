@@ -1,0 +1,56 @@
+// CLAN CHAT, the content side. Almost all of it is the engine's (src/engine/clan/ClanChat.ts) and the
+// client's: joining, leaving, kicking, talking with "/" and the tab's list never pass through a script.
+// What is here is Clan Setup - your own channel's name, and who may enter, talk and kick in it - which
+// the engine keeps and these read and write with clan_name, clan_rank, clan_setname and clan_setrank.
+
+[if_button,clanchat:setup]
+if_openmain(clan_setup);
+~clan_setup_refresh;
+
+[if_button,clan_setup:name]
+p_dialogprompt("Enter chat name (blank to close the channel):");
+p_namedialog;
+clan_setname(last_string);
+~clan_setup_refresh;
+
+[if_button,clan_setup:enter]
+~clan_setup_cycle(^clan_setting_enter);
+
+[if_button,clan_setup:talk]
+~clan_setup_cycle(^clan_setting_talk);
+
+[if_button,clan_setup:kick]
+~clan_setup_cycle(^clan_setting_kick);
+
+// Anyone -> Any friends -> Only me -> Anyone, the order 2008's menu listed them in.
+[proc,clan_setup_cycle](int $setting)
+def_int $rank = clan_rank($setting);
+if ($rank = ^clan_rank_anyone) {
+    $rank = ^clan_rank_friends;
+} else if ($rank = ^clan_rank_friends) {
+    $rank = ^clan_rank_owner;
+} else {
+    $rank = ^clan_rank_anyone;
+}
+clan_setrank($setting, $rank);
+~clan_setup_refresh;
+
+[proc,clan_setup_refresh]
+def_string $name = clan_name;
+if (string_length($name) = 0) {
+    if_settext(clan_setup:name_value, "Chat disabled");
+} else {
+    if_settext(clan_setup:name_value, $name);
+}
+if_settext(clan_setup:enter_value, ~clan_rank_text(clan_rank(^clan_setting_enter)));
+if_settext(clan_setup:talk_value, ~clan_rank_text(clan_rank(^clan_setting_talk)));
+if_settext(clan_setup:kick_value, ~clan_rank_text(clan_rank(^clan_setting_kick)));
+
+[proc,clan_rank_text](int $rank)(string)
+if ($rank = ^clan_rank_anyone) {
+    return("Anyone");
+}
+if ($rank = ^clan_rank_friends) {
+    return("Any friends");
+}
+return("Only me");
