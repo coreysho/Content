@@ -51,23 +51,11 @@
 // same region (horror_mid_left_door/_mid_right_door, op1=Study; horror_far_right_door/_far_left_door,
 // op1=Open - all four tagged "Strange wall", m39_72 plane 1, local z=19 x=17-20) and the six-icon rune/
 // sword/arrow logic below is re-attached to them (wiki-reconfirmed this pass, see that section).
-// horror_ladder_top's Climb op (previously unscripted - "no known destination") now goes to
-// horror_ladder_base2 in that same region, resolving the basement connector too.
-//
-// Still open: the quest's own boss encounters. m39_156.jm2 - a different region, but with byte-
-// identical loc layout to m39_72 (same puzzle room shape, no locs of its own) - turned up placements
-// for horror_dagganoth_jr/_jr_darker/_jr_lighter and horror_dagannoth_medium/_darker/_lighter (npcs
-// 1338-1343), which is the "level 100 Dagannoth" encounter chamber referenced in Jossik's own
-// dialogue below.
-//
-// RESOLVED (2026-09-08): horror_ladder_base (loc 4412, m39_72 plane 1 local(23,10), real op1=Climb)
-// is the connector, and it now has a handler. It was the one isolated, unpaired ladder left in the
-// room, and wiring it makes every other loose end in this cave fit together at once - the two
-// declared-but-unused constants ^horror_ladder_door_room_dest and ^horror_ladder_dag_dest both land
-// exactly where they need to, and the loop Jossik's chamber -> wall room -> p1 cavern -> dagannoth
-// cavern -> back closes with no orphans left over. See quest_horror.constant for the full topology.
-// Dagannoth Mother has no world placement because she is a scripted spawn, like the level-100
-// Dagannoth: both are added on arrival in the cavern (see ~horror_dag_cavern_arrive below).
+// SUPERSEDED (2026-09-24): the basement ladders, the boss spawns and the lighthouse doorway were all
+// rewired to the OSRS layout - lighthouse -> basement south of the strange wall -> through the wall ->
+// down to Jossik's cave, where both bosses are fought. The notes that used to sit here described the
+// old, inverted wiring (lighthouse straight down to Jossik, bosses in m39_156, no way back up) and are
+// replaced by the ladder section below and quest_horror.constant.
 
 [opnpc1,horror_girlfriend_prequest]
 if (%horror = ^horror_not_started) {
@@ -113,9 +101,11 @@ if (%horror = ^horror_not_started) {
 if (%horror = ^horror_not_started) {
     ~chatnpc("<p,happy>Haha welcome to my obstacle course.|Have fun, but remember this isn't a child's playground.|People have died here.");
     ~chatnpc("<p,happy>The best way to train,|is to go round the course in a clockwise direction.");
-} else if (%horror = ^horror_started & inv_total(inv, horror_key) = 0) {
+} else if (%horror >= ^horror_started & %horror < ^horror_complete & inv_total(inv, horror_key) = 0 & testbit(%horror_bridges, ^horror_door_unlocked_bit) = 0) {
+    // Any stage, not just the first: a key lost before it has ever turned in the lock would
+    // otherwise leave the lighthouse shut for good.
     ~chatplayer("<p,neutral>Larrissa said you might be able to help me get into the lighthouse.");
-    ~chatnpc("<p,neutral>Ah, poor Jossik. Here, take this key - it should let you into the basement once you're inside.");
+    ~chatnpc("<p,neutral>Ah, poor Jossik. Here, take this key - it's the spare for the lighthouse's front door.");
     inv_add(inv, horror_key, 1);
     ~chatplayer("<p,happy>Thanks, I'll head back and see what I can do.");
 } else if (%horror >= ^horror_started) {
@@ -123,49 +113,77 @@ if (%horror = ^horror_not_started) {
 }
 
 
-// --- The Lighthouse's building doorway (loc 4577) ---
-// Corey (2026-09-03): this was giving "Nothing interesting happens" - the loc itself was placement-
-// confirmed earlier this project (see header comment above) but never actually got a handler written
-// for its one real op. Real cache def: op1=Walk-through, desc="Lets you walk through walls!" - not a
-// puzzle, not gated on quest state, just a thin decorative wall segment you click through rather than
-// path around, the same "op1=Walk-through" mechanic the raw cache also uses for a handful of other
-// quests' thin walls/doors (bedabin_tentdoor, magearena_scan, legendsquest_force_barrier,
-// freedomfighterundergrounddooropenl/r - none scripted anywhere in this codebase yet, no existing
-// precedent to copy, so this follows the established `coord()`/`movecoord()`/`p_teleport()` pattern
-// already used by this codebase's own ladder-teleport code (ladders+stairs/scripts/ladders.rs2)
-// instead. The doorway sits on the wall row at m39_56 plane 0 local z=52 (loc 4577, local(13,52)) -
-// Larrissa stands one tile south of it at local(12,51), confirming the outside/quest-start side is
-// z<=52 and the lighthouse interior is z>=53 - so this moves the player 2 tiles across whichever side
-// of that wall row they're standing on when they click it, working in both directions.
-[oploc1,horror_lighthouse_doorway]
-p_arrivedelay;
-if (coordz(coord()) <= 52) {
-    p_teleport(movecoord(coord(), 0, 0, 2));
-} else {
-    p_teleport(movecoord(coord(), 0, 0, -2));
-}
-
-
-// --- Bridges east of the Lighthouse ---
-// One broken crossing, two "Broken bridge" locs (horror_broken_bridge_left_spot /
-// _right_spot) with the impassable gap tile between them - see the geometry note under the Cross
-// handlers below.
+// --- The Lighthouse's front doorway (loc 4577) ---
+// op1=Walk-through. The doorway is a shape-0 wall on the SOUTH edge of its own tile (m39_56 plane 0
+// local(13,52) = 2509,3636, angle 3), so outside is z < 3636 and the lighthouse is z >= 3636.
 //
-// FIXED: the two spans used to be repaired independently, left span -> bit 0 and right span -> bit
-// 1, which deadlocked the quest. The gap between them is impassable, so a player on the west shore
-// can only ever reach the west span and a player on the east shore only the east one: nobody could
-// ever set both bits, and the crossing needs both. Repair is now span-agnostic - either loc accepts
-// planks and fills the next empty bit - so the same two planks and 60 nails still repair the whole
-// bridge, from whichever side you happen to be standing on.
-// Wiki: "use a hammer and 60 steel nails with 2 planks to cross the broken bridge" - 30 nails and
-// 1 plank per application. Hammer is a tool (checked, not consumed).
+// FIXED: the old handler compared coordz(coord) - an ABSOLUTE z of about 3635 - against the local
+// value 52, so the test was never true and every click took the player two tiles further south.
+// Nobody could get into the lighthouse at all. The sides are now read against the loc's own tile,
+// which also makes the same handler right for the m38_71 copy of the building.
+//
+// The door is locked until Gunnjorn's key has been through it once, as in OSRS. The key only has to
+// be carried the first time: %horror_bridges bit 2 remembers that the door has been unlocked.
+[oploc1,horror_lighthouse_doorway]
+@horror_walk_through_doorway;
+
+[oplocu,horror_lighthouse_doorway]
+if (last_useitem ! horror_key) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@horror_walk_through_doorway;
+
+[label,horror_walk_through_doorway]
+p_arrivedelay;
+if (coordz(coord) >= coordz(loc_coord)) {
+    // inside: the way out is never locked
+    p_teleport(movecoord(loc_coord, 0, 0, -1));
+    return;
+}
+if (%horror < ^horror_complete & testbit(%horror_bridges, ^horror_door_unlocked_bit) = 0) {
+    if (inv_total(inv, horror_key) = 0) {
+        if (%horror = ^horror_not_started) {
+            mes("The door is locked.");
+            return;
+        }
+        mes("The door is locked. Larrissa's cousin Gunnjorn has the spare key.");
+        return;
+    }
+    mes("You unlock the door with the lighthouse key.");
+    %horror_bridges = setbit(%horror_bridges, ^horror_door_unlocked_bit);
+}
+p_teleport(loc_coord);
+
+
+// --- The broken bridge east of the Lighthouse ---
+// One crossing, two "Broken bridge" spans (horror_broken_bridge_left_spot at 2596,3608 and
+// _right_spot at 2598,3608) with the impassable gap tile 2597,3608 between them. Geometry read out
+// of content/maps/m40_56.jm2 (plane 1, z=24): the tiles carry the LINK_BELOW bridge flag, so the
+// engine registers the whole row at level 0; x=37 is LINK_BELOW|blocked, which is the gap. Both spans
+// are blockwalk=no, so the player walks onto the span on their own side and only the gap needs a
+// script.
+//
+// FIXED: the bridge could not be repaired the way OSRS does it. OSRS (wiki, Horror from the Deep):
+// "With a hammer and 60 steel nails in your inventory, use a plank on the side of the bridge you are
+// on, then click to jump to the other side to use a plank there as well. Depending on your agility
+// level, you may take slight damage from the leap." Here the two planks had both been made to land
+// on whichever span you clicked, and Cross refused to move you until both were down - so a player
+// who nailed down their side and jumped, as the wiki says, was told the bridge was still broken and
+// could go no further. Each span is now its own repair again (bit 0 = west span, bit 1 = east span),
+// and Cross leaps the gap from any span that has its plank. Once both are down the crossing is safe.
+//
+// The quest's 35 Agility is not checked here: in OSRS it is for the pipe on the Barbarian Outpost
+// agility course that stands between you and Gunnjorn (skill_agility/scripts/barbarian_course.rs2
+// already enforces it). The leap is chance-based on Agility, like the basalt rocks.
+// Wiki: 60 steel nails and 2 planks - 30 nails and 1 plank per span. The hammer is not consumed.
 [oplocu,horror_broken_bridge_left_spot]
-@horror_repair_bridge;
+@horror_repair_bridge(0);
 
 [oplocu,horror_broken_bridge_right_spot]
-@horror_repair_bridge;
+@horror_repair_bridge(1);
 
-[label,horror_repair_bridge]
+[label,horror_repair_bridge](int $bit)
 if (last_useitem ! woodplank) {
     ~displaymessage(^dm_default);
     return;
@@ -174,83 +192,75 @@ if (%horror < ^horror_started) {
     mes("You should speak to Larrissa first.");
     return;
 }
-if (getbit_range(%horror_bridges, 0, 1) = 3) {
-    mes("This bridge has already been repaired.");
+if (testbit(%horror_bridges, $bit) = 1) {
+    mes("You have already repaired this side of the bridge.");
     return;
 }
 if (inv_total(inv, hammer) = 0) {
-    mes("You'll need a hammer to secure the plank in place.");
+    mes("You need a hammer to nail the plank in place.");
     return;
 }
 if (inv_total(inv, nails) < 30) {
-    mes("You don't have enough nails to secure the plank - you'll need at least 30.");
+    mes("You need 30 steel nails to fix the plank in place.");
     return;
 }
 inv_del(inv, woodplank, 1);
 inv_del(inv, nails, 30);
-def_int $bit = 0;
-if (testbit(%horror_bridges, 0) = 1) {
-    $bit = 1;
-}
+sound_synth(hammer_wood, 1, 0);
 %horror_bridges = setbit(%horror_bridges, $bit);
 if (getbit_range(%horror_bridges, 0, 1) = 3) {
-    mes("You nail the last plank into place. The bridge is whole again.");
+    mes("You nail the last plank into place. The bridge is safe to cross now.");
     return;
 }
-mes("You nail a plank across the broken span. It'll take another to finish the job.");
+mes("You nail a plank across this side of the bridge. Now jump across and fix the other side.");
 
-
-// The two spans also carry a real op1=Cross that nothing was wired to, so once you'd repaired the
-// bridge there was still no way over it. Geometry read straight out of content/maps/m40_56.jm2
-// (plane 1, z=24): viking_pier3_hillskew x=35, horror_broken_bridge_left_spot x=36, the decorative
-// horror_broken_bridge x=37, horror_broken_bridge_right_spot x=38, viking_pier3_hillskew x=39.
-// The MAP section gives those tiles land flags f2/f3 - f2 is GameMap.LINK_BELOW ("bridge"), so the
-// engine registers this whole row at level 0 (GameMap.ts:229-230/263-264), which is why every coord
-// below is written 0_40_56_*. x=37 carries f3 = LINK_BELOW|blocked: that is the gap, and it is the
-// only reason the crossing needs a script at all - both spans are blockwalk=no, so the player walks
-// onto them freely and only the one tile between them is impassable.
-// World coords: west span (2596,3608), gap (2597,3608), east span (2598,3608).
-//
-// [oploc1] only, unlike the basalt rocks in horror_basalt.rs2, which needed [aploc1] because no
-// tile beside them is ever walkable. Both spans here ARE walkable (blockwalk=no, and the pier runs
-// right up to each of them), so the engine can path the player onto whichever span is on their own
-// side and fire the op normally. Clicking the far span across the gap correctly says "I can't reach
-// that" - adding an ap trigger would only make that click silently do nothing from 10 tiles away,
-// since ap fires and ends the interaction before the player ever walks into range.
 [oploc1,horror_broken_bridge_left_spot]  ~horror_cross_bridge;
 [oploc1,horror_broken_bridge_right_spot] ~horror_cross_bridge;
 
 [proc,horror_cross_bridge]
 if (%horror < ^horror_started) {
-    mes("You should speak to Larrissa first.");
-    return;
-}
-if (getbit_range(%horror_bridges, 0, 1) ! 3) {
-    mes("The bridge is still broken - both spans need new planks before anyone can cross.");
+    mes("The bridge is broken. You'd need a reason to risk that jump.");
     return;
 }
 def_coord $start = 0_40_56_36_24;
 def_coord $end = 0_40_56_38_24;
 def_int $dir = ^exact_east;
+def_int $from_bit = 0;
 if (coordx(coord) > 2597) {
     $start = 0_40_56_38_24;
     $end = 0_40_56_36_24;
     $dir = ^exact_west;
+    $from_bit = 1;
 }
 def_int $dist = add(~abs_value(sub(coordx(coord), coordx($start))), ~abs_value(sub(coordz(coord), coordz($start))));
 if ($dist > 4) {
     mes("You need to be closer to the bridge to cross it.");
     return;
 }
+def_boolean $fixed = false;
+if (getbit_range(%horror_bridges, 0, 1) = 3) {
+    $fixed = true;
+} else if (testbit(%horror_bridges, $from_bit) = 0) {
+    mes("This side of the bridge is too rotten to jump from. You'll need to nail a plank across it first.");
+    return;
+}
 if ($dist > 0) {
     p_walk($start);
     p_delay($dist);
 }
-mes("You cross the repaired bridge.");
+if ($fixed = true) {
+    mes("You cross the repaired bridge.");
+} else {
+    mes("You leap across the gap in the bridge.");
+}
 sound_synth(jump_no_land, 1, 20);
 ~agility_exactmove(human_steppingstonejump, 20, 2, $start, $end, 48, 60, $dir, false);
 p_teleport($end);
 p_delay(1);
+if ($fixed = false & stat_random(agility, 60, 200) = false) {
+    mes("You land awkwardly and hurt your ankle.");
+    ~damage_self(calc(random(3) + 1));
+}
 
 // --- Lighting the lighthouse (roof) ---
 // %horror_lighting bits: 0 = swamp tar used, 1 = tinderbox used, 2 = molten glass used
@@ -381,7 +391,11 @@ gosub(horror_wall_open_attempt);
 gosub(horror_wall_open_attempt);
 
 [proc,horror_wall_open_attempt]
-if (getbit_range(%horror_wall, 0, 5) ! 63) {
+// The hinged panels sit on the south edge of their own tiles, so the lighthouse side is south of
+// z=4627 and the side with the ladder down to Jossik is north of it. From the north side it always
+// opens: nobody should be walled in behind a puzzle they came through (or round, from the Waterbirth
+// maze - ^horror_maze_exit_dest lands in the cave beyond it).
+if (getbit_range(%horror_wall, 0, 5) ! 63 & coordz(coord) < coordz(loc_coord)) {
     mes("The door won't budge - it looks like it's sealed shut somehow.");
     return;
 }
@@ -430,60 +444,63 @@ if (getbit_range(%horror_wall, 0, 5) = 63) {
 ~mesbox("Tucked among the tide tables is a keeper's journal. One page describes a sealed door beneath the lighthouse, and copies out a rhyme carved beside it:");
 ~mesbox("'Fire and air, water and earth, a blade and a shaft - press each to its own mark, and the way shall open.'");
 
-// --- The lighthouse's basement ladder (m39_56 <-> m39_72) - RESOLVED (2026-09-03) ---
-// horror_ladder_top (loc 4383, real op1=Climb, m39_56) previously had no script since there was no
-// known destination - Corey's coords this pass confirmed it. Lands at horror_ladder_base2 (loc 4413,
-// real op1=Climb, m39_72 plane 0 local(19,23)), the small chamber Jossik himself sits in
-// (local(22,25), a few tiles over - matches the wiki's "Jossik sitting injured by the ladder").
+// --- The lighthouse basement (m39_56 <-> m39_72) and the post-quest dagannoth caves (m39_156) ---
+//
+// REWIRED to the OSRS layout. The ladder models say which end of each ladder is which -
+// horror_ladder_top/_top2 use model horror_ladder_top (you climb DOWN from them) and
+// horror_ladder_base/_base2 use horror_ladder_base (you climb UP them) - and they pair up as:
+//
+//   lighthouse, horror_ladder_top (m39_56 p0 13,60)  <->  horror_ladder_base (m39_72 p1 23,10)
+//       the basement, SOUTH of the strange wall (the wall is the p1 row z=19)
+//   horror_ladder_top2 (m39_72 p1 19,22)             <->  horror_ladder_base2 (m39_72 p0 19,23)
+//       the small room NORTH of the wall, and the cave below it where Jossik lies (p0 22,25)
+//
+// OSRS walkthrough: "Descend to the basement. Locate the strange wall and use ... on it. Open the
+// eastern strange wall doorway, climb down the ladder, and speak with Jossik". The old wiring had it
+// the other way round - the lighthouse ladder dropped you straight into Jossik's cave, past the wall,
+// and horror_ladder_base (the basement's way back UP) sent you down into m39_156 instead - which left
+// nothing anywhere leading back to the lighthouse. Anyone who went down was stuck underground unless
+// they could teleport, and could never carry the casket back to Jossik upstairs on foot.
+//
+// m39_156 is the same cave with a byte-identical loc layout and 22 dagannoths placed in it: the
+// post-quest Dagannoth caves. Once the quest is done, horror_ladder_top2 leads there instead of to
+// Jossik's quiet cave. Its own copies of the ladders climb back up to the room north of the wall.
 [oploc1,horror_ladder_top]
-mes("You climb down the ladder into darkness.");
-p_telejump(^horror_ladder_cave_dest);
+p_arrivedelay;
+mes("You climb down the ladder into the lighthouse basement.");
+p_telejump(^horror_basement_arrival);
 
-// horror_ladder_base2 (loc 4413, m39_72 plane 0 local(19,23)) and horror_ladder_top2 (loc 4485, real
-// op1=Climb, m39_72 plane 1 local(19,22)) sit right on top of each other, adjacent tile/adjacent
-// plane - both are "climb up" triggers out of Jossik's chamber up to the strange-wall floor above it
-// (two ladder objects in the same small space - redundant but not a bug, same as a couple of other
-// spots this project has found duplicate functional locs). Corey corrected horror_ladder_top2's
-// destination directly (2026-09-03, round 5: "the id for the ladder is 4485 ... it takes you
-// 1,39,72,19,21") - landing one tile off the loc's own dump tile (19,22), the same "destination tile
-// is adjacent to the loc's own placement, not on top of it" pattern already seen elsewhere. No loc
-// was found leading back down to Jossik's chamber from up here, so that return trip is currently a
-// gap - flagged in the project doc rather than invented.
-[oploc1,horror_ladder_base2]
-mes("You climb up the ladder.");
-p_telejump(^horror_ladder_wallroom_dest);
-
-// FIXED (2026-09-08): horror_ladder_top2 is the ladder object on the UPPER floor (m39_72 plane 1
-// local(19,22), right beside the decorative horror_ladder_join) and it was sending the player UP to
-// the wall room they are already standing in - a no-op click, and it left the trip back down to
-// Jossik with no route at all, which the old comment above flagged as an open gap. It goes down now,
-// to ^horror_ladder_dag_dest (0_39_72_19_24) - a constant that was declared for exactly this and
-// never used, one tile north of horror_ladder_base2's own tile in Jossik's chamber.
-[oploc1,horror_ladder_top2]
-mes("You climb down the ladder.");
-p_telejump(^horror_ladder_dag_dest);
-
-
-// horror_ladder_base (loc 4412, m39_72 plane 1 local(23,10), real op1=Climb) - the unpaired ladder
-// in the big cavern south of the strange wall, which had no handler at all. It is the way into the
-// dagannoth cavern (m39_156), and the same loc in that region is the way back up to the door room.
 [oploc1,horror_ladder_base]
-if (coordz(coord) > ^horror_dag_cavern_z_min) {
-    mes("You climb back up the ladder.");
-    p_telejump(^horror_ladder_door_room_dest);
+p_arrivedelay;
+mes("You climb up the ladder.");
+p_telejump(^horror_lighthouse_return);
+
+[oploc1,horror_ladder_top2]
+p_arrivedelay;
+if (%horror >= ^horror_complete) {
+    mes("You climb down into the dagannoth caves.");
+    p_telejump(^horror_dag_cavern_arrival);
     return;
 }
-mes("You climb down into a vast, echoing cavern.");
-p_telejump(^horror_dag_cavern_arrival);
+mes("You climb down the ladder into darkness.");
+p_telejump(^horror_jossik_cave_arrival);
 ~horror_dag_cavern_arrive;
 
-// Both bosses are spawned on arrival rather than placed in the map, and only for a player who still
-// needs them - so they are never standing around for someone who has already finished, and a player
-// who logged out mid-fight gets them back simply by climbing down again. Guarded so a second player
-// arriving during a fight does not stack a duplicate.
+// Both copies (m39_72 and m39_156) climb back up to the room north of the wall; m39_156 has no
+// walkable upper floor of its own.
+[oploc1,horror_ladder_base2]
+p_arrivedelay;
+mes("You climb up the ladder.");
+p_telejump(^horror_wall_room_arrival);
+
+// Both bosses are spawned in Jossik's cave rather than placed in the map, and only for a player who
+// still needs them - so they are never standing around for someone who has already finished, and a
+// player who logged out mid-fight gets them back simply by climbing down again (or speaking to
+// Jossik, who is the one that sees the first one coming in OSRS). Searched for by radius, not by
+// exact tile: a boss that has taken a step would otherwise not be found and a second one added.
 [proc,horror_dag_cavern_arrive]
 if (%horror = ^horror_wall_opened) {
-    if (npc_findexact(^horror_dag_cavern_jr4_spawn, horror_dagannoth_jr4) = false) {
+    if (npc_find(^horror_dag_cavern_jr4_spawn, horror_dagannoth_jr4, 20, ^vis_off) = false) {
         npc_add(^horror_dag_cavern_jr4_spawn, horror_dagannoth_jr4, ^horror_boss_lifetime);
         mes("Something enormous shifts in the dark ahead of you.");
     }
@@ -496,29 +513,25 @@ if (%horror = ^horror_dagannoth_defeated) {
 }
 
 
-// --- Fallen Jossik (found injured, underground) and horror_lighthousekeeeper_well (topside, the
-// final reward exchange) - SPLIT (2026-09-03) ---
-// horror_lighthousekeeeper_injured (npc 1335, "Fallen Jossik") is genuinely placed after all -
-// content/maps/m39_72.jm2, plane 0, local(22,25), matching Corey's own in-game coord exactly. That
-// resolves the uncertainty the merged handler below used to carry (no confirmed way to changetype a
-// *different* non-combat npc instance from a loc/dialogue context) - there's no changetype needed at
-// all, since injured Jossik and well Jossik are just two separate, independently-placed npcs in two
-// separate locations: injured underground for the whole time the player's down here with him, well
-// topside in the lighthouse (m39_56, plane 1, local(13,55)) once the player's made it back up with
-// the casket. Split along that boundary.
-// FIXED (2026-09-08): this used to DRIVE the stage machine instead of reacting to it - simply
-// meeting Jossik jumped %horror from ^horror_wall_opened straight to ^horror_dagannoth_defeated,
-// and nothing anywhere ever set ^horror_mother_defeated. The quest therefore stuck at stage 3
-// forever and could not be completed by anyone. Both stages are now set by the kills themselves,
-// in quest_horror_combat.rs2, and this handler only reads them.
+// --- Fallen Jossik (injured, in the cave below the strange wall) and horror_lighthousekeeeper_well
+// (topside, the final reward exchange) ---
+// horror_lighthousekeeeper_injured (npc 1335) is placed at m39_72 p0 local(22,25); the well Jossik
+// (1334) at m39_56 p1 local(13,55). They are two separate npcs, so no changetype is needed.
+// The stage machine is driven by the kills (quest_horror_combat.rs2); this handler only reads it,
+// except for the casket hand-over.
 [opnpc1,horror_lighthousekeeeper_injured]
-if (%horror < ^horror_dagannoth_defeated) {
+if (%horror < ^horror_wall_opened) {
+    ~chatplayer("<p,shock>Jossik! Are you alright?");
+    ~chatnpc("<p,sad>Adventurer! Thank Guthix... there are creatures down here, dagannoth of some kind. Get out while you can!");
+} else if (%horror < ^horror_dagannoth_defeated) {
     ~chatplayer("<p,shock>Jossik! Are you alright?");
     ~chatnpc("<p,sad>Adventurer! Thank Guthix... there are creatures down here, dagannoth of some kind.");
-    ~chatnpc("<p,worried>There's a strange wall on the floor above us. Whatever has been making the noise, it came from behind it. Please, be careful.");
+    ~chatnpc("<p,scared>Look out - behind you!");
+    ~horror_dag_cavern_arrive;
 } else if (%horror < ^horror_mother_defeated) {
-    ~chatplayer("<p,neutral>I killed the thing behind the wall.");
-    ~chatnpc("<p,worried>That wasn't it. There's something bigger down there... I can hear it moving.");
+    ~chatplayer("<p,neutral>I killed that dagannoth.");
+    ~chatnpc("<p,scared>That wasn't the only one. There's something bigger in the water... I can hear it moving.");
+    ~horror_dag_cavern_arrive;
 } else if (%horror < ^horror_casket_given) {
     ~chatplayer("<p,happy>It's dead. I found this rusty casket where it was nesting.");
     ~chatnpc("<p,neutral>A casket? Let's get out of here and I'll take a look upstairs.");

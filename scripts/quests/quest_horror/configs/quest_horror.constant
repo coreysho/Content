@@ -17,32 +17,29 @@
 //   %horror_lighting - bit0 = swamp tar applied, bit1 = tinderbox struck, bit2 = molten glass fitted
 //   %horror_wall     - bit0=fire, bit1=air, bit2=water, bit3=earth, bit4=sword, bit5=arrow
 
-// The lighthouse basement (2026-09-03) - Corey supplied real in-game coords for this whole area,
-// resolving what the header comment in quest_horror.rs2 called "the one real remaining blocker":
-// Fallen Jossik (0,39,72,22,25) matches horror_lighthousekeeeper_injured's real cache placement
-// exactly; the strange wall puzzle's real locs and a second "iron ladder" were also confirmed
-// against content/maps/m39_72.jm2 - see quest_horror.rs2 for the full derivation.
-// horror_ladder_top (m39_56, the lighthouse building) climbs down into horror_ladder_base2's small
-// chamber (m39_72 plane 0) - the same room Jossik himself sits in.
-^horror_ladder_cave_dest = 0_39_72_19_23
-// Corey corrected this (2026-09-03, round 5): horror_ladder_top2 (loc 4485) is the real "climb up"
-// trigger out of that chamber, landing precisely at 1,39,72,19,21 - not the 19,22 this project had
-// guessed from the raw .jm2 dump alone (one tile off, same "player's own reported position, not the
-// loc's exact tile" pattern already seen elsewhere this project - trusting Corey's precise, tested
-// coordinate over the dump-derived guess).
-^horror_ladder_wallroom_dest = 1_39_72_19_21
-^horror_ladder_dag_dest = 0_39_72_19_24
-// ^horror_ladder_lighthouse_dest (0_39_56_13_60, horror_ladder_top's own tile) is deliberately not
-// declared here - no loc was found anywhere that climbs back up to it from underground, so there's
-// nothing to wire it to yet. Add it back once a real return connector turns up.
+// %horror_bridges bit 2: the lighthouse's front door has been unlocked with Gunnjorn's key (the key
+// only has to be carried the first time, as in OSRS). Bits 0 and 1 are the two bridge spans.
+^horror_door_unlocked_bit = 2
 
-^horror_ladder_lighthouse_dest = 0_39_56_14_60
-^horror_ladder_door_room_dest = 1_39_72_23_11
+// The lighthouse basement - see the ladder section of quest_horror.rs2 for the full layout. m39_72 is
+// the quest's version of the cave (Jossik, no monsters); m39_156 is the same cave with 22 dagannoths
+// placed in it - the post-quest Dagannoth caves.
+//   lighthouse horror_ladder_top (m39_56 p0 13,60)  <->  horror_ladder_base (m39_72 p1 23,10)
+//   horror_ladder_top2 (m39_72 p1 19,22)             <->  horror_ladder_base2 (m39_72 p0 19,23)
+// Every coord below was checked walkable in the sim (Engine-TS/tools/sim/horrortribe.ts).
+// Beside the basement's iron ladder, south of the strange wall.
+^horror_basement_arrival = 1_39_72_23_11
+// Beside the lighthouse's own ladder, on its ground floor.
+^horror_lighthouse_return = 0_39_56_14_60
+// The small room north of the strange wall, beside horror_ladder_top2.
+^horror_wall_room_arrival = 1_39_72_19_21
+// Jossik's cave, beside horror_ladder_base2 (Fallen Jossik stands at 22,25).
+^horror_jossik_cave_arrival = 0_39_72_19_24
+// The post-quest Dagannoth caves, beside m39_156's copy of horror_ladder_base2.
+^horror_dag_cavern_arrival = 0_39_156_19_24
 
 // Corey confirmed (2026-09-03, round 5) where the Waterbirth maze's dagexp_exit_ladder really leads -
-// straight into this same underground complex, not back to the surface as this project had guessed.
-// This ties the two Horror from the Deep entrances (the lighthouse's own basement ladder, and the
-// Waterbirth Island cave maze) together into one connected dungeon - see area_waterbirth.constant/
+// into Jossik's cave (m39_72 p0), north of the strange wall. See area_waterbirth.constant /
 // waterbirth_dungeon.rs2 for the ladder itself.
 ^horror_maze_exit_dest = 0_39_72_14_36
 
@@ -52,27 +49,11 @@
 ^horror_lighthouse_spiralstairs_middle = 1_39_56_10_56
 ^horror_lighthouse_spiralstairs_top = 2_39_56_9_57
 
-// --- The dagannoth cavern and the two boss encounters (2026-09-08) ---
-// The cave under the lighthouse exists twice in the cache with byte-identical loc layouts:
-// m39_72 (Jossik, no monsters) and m39_156 (22 placed dagannoths, no Jossik). m39_156 is the
-// void-pocket band, same as m38_158/m39_158 for Waterbirth, and the cache authors put the monsters
-// there - so it is the encounter chamber, and m39_72 is the quiet side you meet Jossik on.
-//
-// That makes every previously-unused loc and constant in this quest fall into place as one loop:
-//   Jossik's chamber (m39_72 p0)  --horror_ladder_base2 (19,23)-->  wall room (m39_72 p1 19,21)
-//   wall room  --six-icon wall at p1 z=19-->  the big p1 cavern
-//   p1 cavern  --horror_ladder_base (23,10)-->  dagannoth cavern (m39_156 p0)
-//   dagannoth cavern  --horror_ladder_base2 (19,23)-->  back up to the wall room
-//   wall room  --horror_ladder_top2 (19,22)-->  back down to Jossik (^horror_ladder_dag_dest)
-// horror_ladder_base was the one unpaired ladder left in the room and had no handler at all;
-// ^horror_ladder_door_room_dest and ^horror_ladder_dag_dest were both declared and never used.
-// Every coord below was checked walkable at level 0 against that region's own MAP section.
-^horror_dag_cavern_arrival = 0_39_156_19_24
-^horror_dag_cavern_jr4_spawn = 0_39_156_19_28
-^horror_dag_cavern_mother_spawn = 0_39_156_27_37
-// world z of m39_156 starts at 9984; m39_72 at 4608 - used to tell which side of the ladder you are
-// on without needing a separate loc.
-^horror_dag_cavern_z_min = 9000
+// --- The two boss encounters ---
+// Both are fought in Jossik's cave, as in OSRS ("Talk to Jossik and ... a Dagannoth will appear"),
+// and the Mother surfaces out of the water at its north end. Scripted spawns: nothing is placed.
+^horror_dag_cavern_jr4_spawn = 0_39_72_19_28
+^horror_dag_cavern_mother_spawn = 0_39_72_27_37
 // npc_add lifetime for both bosses. They are re-spawned by the ladder handler whenever a player who
 // still needs them arrives, so a finite lifetime just cleans up after someone who logged out.
 ^horror_boss_lifetime = 1000
