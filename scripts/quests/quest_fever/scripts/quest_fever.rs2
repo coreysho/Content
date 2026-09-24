@@ -78,11 +78,17 @@ mes("You cross the gangplank.");
 p_delay(2);
 p_teleport(^fever_pier_return);
 
+// This one is on the dock (the dock is folded to plane 0 like the Phasmatys pier), so it is the way
+// ON to the ship - it used to put you back on the island you were standing on.
 [oploc1,fever_gangplank_harmless]
 p_arrivedelay;
+if (%fever_quest < ^fever_landed) {
+    ~mesbox("Somebody else's ship.");
+    return;
+}
 mes("You cross the gangplank.");
 p_delay(2);
-p_teleport(^fever_harmless);
+p_teleport(^fever_harmless_ship);
 
 [oploc1,fever_gangplank_exit_harmless]
 p_arrivedelay;
@@ -96,9 +102,20 @@ if (%fever_quest < ^fever_aboard) {
     ~chatnpc("<p,neutral>Off my ship.");
     return;
 }
-if (%fever_quest > ^fever_aboard) {
-    ~chatnpc("<p,neutral>We've been. Ye were there.");
+// Past the cast-off this used to be "We've been. Ye were there." and nothing else - so anybody who
+// teleported, logged out or died out of the battle, or out of Mos Le'Harmless before finding Teach
+// there, could never get back to either, and the quest was stuck for good. And after the quest
+// nothing in the game sailed to Mos Le'Harmless, which the reward advertises.
+if (%fever_quest = ^fever_battle | %fever_quest = ^fever_won) {
+    ~chatnpc("<p,angry>Where did ye go? She's still out there. Back to the gun!");
+    if_close;
+    mes("The ship works its way back out to where you left the fight.");
+    p_delay(3);
+    p_teleport(^fever_quest_ship);
     return;
+}
+if (%fever_quest > ^fever_aboard) {
+    @fever_sail_harmless;
 }
 ~chatplayer("<p,neutral>Ready.");
 ~chatnpc("<p,neutral>Nobody's ready. Cast off.");
@@ -120,6 +137,38 @@ p_teleport(^fever_quest_ship);
 %fever_cannon_accuracy = 0;
 %fever_enemy_cannon = ^fever_off;
 ~mesbox("The lockers are aft. The cannon is amidships. The book said the order matters.");
+
+// The two voyages after the fight, both ways. A ship with no captain at the Mos Le'Harmless end
+// is how the island used to be a one-way trip.
+[label,fever_sail_harmless]
+~chatnpc("<p,neutral>Mos Le'Harmless, then.");
+if_close;
+mes("The ship runs south for a long time, and nobody fires at it.");
+p_delay(3);
+p_teleport(^fever_harmless);
+
+[label,fever_sail_phasmatys]
+~chatnpc("<p,neutral>Port Phasmatys, then. Mind the ghosts.");
+if_close;
+mes("The ship runs north for a long time.");
+p_delay(3);
+p_teleport(^fever_pier_return);
+
+[opnpc1,fever_harmless_port_ship_teach]
+if (%fever_quest < ^fever_landed) {
+    ~chatnpc("<p,neutral>Off my ship.");
+    return;
+}
+@fever_sail_phasmatys;
+
+// op3=Return-Home, on the ship in the middle of the fight. The fight keeps its place - the port
+// ship's Teach takes you back out to it.
+[opnpc3,fever_quest_ship_teach]
+if (%fever_quest < ^fever_battle) {
+    ~chatnpc("<p,neutral>We haven't gone anywhere yet.");
+    return;
+}
+@fever_sail_phasmatys;
 
 [opnpc1,fever_quest_ship_teach]
 switch_int (%fever_quest) {
@@ -149,6 +198,9 @@ if (%fever_quest = ^fever_landed) {
 }
 if (%fever_quest >= ^fever_complete) {
     ~chatnpc("<p,happy>Come and go as ye like. Ye're crew.");
+    if (~p_choice2("Take me back to Port Phasmatys.", 1, "I'll stay a while.", 2) = 1) {
+        @fever_sail_phasmatys;
+    }
     return;
 }
 ~chatnpc("<p,neutral>Ye're a long way from where ye started.");
@@ -229,7 +281,13 @@ if ($took = false) {
 
 [oploc2,fever_weapons_locker_open] mes("You close the locker.");
 
-[oploc1,fever_multi_gunpowder_barrel]
+// fever_multi_gunpowder_barrel stands on the ENEMY ship alongside, which nobody can walk to. Your
+// own ship's barrel, next to the gun, is fever_your_gunpowder_barrel ("Take-Powder"), and it had no
+// script - so there was no powder anywhere the player could reach and the gun could never fire.
+[oploc1,fever_your_gunpowder_barrel] @fever_take_powder;
+[oploc1,fever_multi_gunpowder_barrel] @fever_take_powder;
+
+[label,fever_take_powder]
 p_arrivedelay;
 if (inv_total(inv, fever_gunpowder) > 0) {
     ~mesbox("You have powder and it is not the sort of thing to carry two of.");
@@ -268,7 +326,7 @@ if (%fever_cannon_clean = ^fever_off) {
 }
 if (%fever_cannon_powder = ^fever_off) {
     if (inv_total(inv, fever_gunpowder) = 0) {
-        ~mesbox("Clean, and empty. There is a powder barrel below.");
+        ~mesbox("Clean, and empty. There is a powder barrel beside the gun.");
         return;
     }
     inv_del(inv, fever_gunpowder, 1);
@@ -503,22 +561,30 @@ inv_del(inv, fever_plunder, $have);
 ~mesbox("Stored. Plunder: <tostring(%fever_plunder_points)>.");
 
 // =========================================================================== ladders and nets
-[oploc1,fever_ship_ladder] @fever_up;
-[oploc1,fever_shipladder_angled] @fever_up;
-[oploc1,fever_climbing_net] @fever_up;
-[oploc1,fever_ship_laddertop] @fever_down;
-[oploc1,fever_shipladder_top_angled] @fever_down;
-[oploc1,fever_climb_down_location] @fever_down;
+// Two kinds of ship ladder. The straight ones (fever_ship_ladder/_laddertop) are stepped on and off
+// from the same side at both ends, so you land on the tile you climbed from. The angled ones and the
+// climbing nets lean over the rail, so the far end is on the other side of the loc - you land
+// mirrored through it. Both used to land on loc_coord, which is the other end of the ladder itself
+// and solid: every climb put you inside a loc. Checked placement by placement in the audit sim.
+[oploc1,fever_ship_ladder] @fever_climb(1, false);
+[oploc1,fever_ship_laddertop] @fever_climb(-1, false);
+[oploc1,fever_shipladder_angled] @fever_climb(1, true);
+[oploc1,fever_shipladder_top_angled] @fever_climb(-1, true);
+[oploc1,fever_climbing_net] @fever_climb(1, true);
+[oploc1,fever_climb_down_location] @fever_climb(-1, true);
 
-[label,fever_up]
+[label,fever_climb](int $dy, boolean $through)
 p_arrivedelay;
-mes("You climb up.");
-p_teleport(movecoord(loc_coord, 0, 1, 0));
-
-[label,fever_down]
-p_arrivedelay;
-mes("You climb down.");
-p_teleport(movecoord(loc_coord, 0, -1, 0));
+if ($dy > 0) {
+    mes("You climb up.");
+} else {
+    mes("You climb down.");
+}
+if ($through = true) {
+    p_teleport(movecoord(loc_coord, sub(coordx(loc_coord), coordx(coord)), $dy, sub(coordz(loc_coord), coordz(coord))));
+    return;
+}
+p_teleport(movecoord(coord, 0, $dy, 0));
 
 // =========================================================================== Mos Le'Harmless
 [opnpc1,fever_pirate_two_feet_charley]

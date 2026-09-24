@@ -27,11 +27,17 @@ if (%fdvw_subquest >= ^fdvw_done) {
     ~chatnpc("<p,happy>Our business is concluded. Do not make me regret it.");
     return;
 }
-if (%fdvw_subquest = ^fdvw_pot_blessed) {
+// He fills ANY blessed pot you bring from here until Dessous is dead, not only the first. Filling
+// used to happen at ^fdvw_pot_blessed alone, so a player who lost the filled pot, spilt it on the
+// grave and then died to Dessous, or let him despawn, could never make another one: Ruantun and the
+// High Priest would still make and bless a pot, but Malak would not touch it, and the Blood diamond
+// was gone for good.
+if (%fdvw_subquest >= ^fdvw_pot_blessed & %fdvw_subquest < ^fdvw_dessous_dead & inv_total(inv, fd_silver_pot_blessed) > 0) {
     @dt_malak_fills_pot;
 }
-if (%fdvw_subquest >= ^fdvw_pot_filled) {
+if (%fdvw_subquest >= ^fdvw_pot_blessed) {
     ~chatnpc("<p,neutral>Garlic and spices, and then the grave north of Castle Drakan. Do not come back until it is done.");
+    ~chatnpc("<p,neutral>And if you have wasted my pot, Ruantun can make you another and the priest can bless it. I will fill it again.");
     return;
 }
 if (%fdvw_subquest = ^fdvw_asked_malak | %fdvw_subquest = ^fdvw_got_pot) {
@@ -63,7 +69,9 @@ anim(human_death, 0);
 p_delay(2);
 inv_del(inv, fd_silver_pot_blessed, 1);
 inv_add(inv, fd_silver_pot_blood_blessed, 1);
-%fdvw_subquest = ^fdvw_pot_filled;
+if (%fdvw_subquest < ^fdvw_pot_filled) {
+    %fdvw_subquest = ^fdvw_pot_filled;
+}
 ~objbox(fd_silver_pot_blood_blessed, "Malak fills the blessed pot with your blood.", 250, 0, ^objbox_height);
 ~chatnpc("<p,neutral>Now: garlic, ground to powder, and spice from Ardougne. Add both. Then pour it on his grave.");
 ~chatnpc("<p,worried>And do not come back here with a half-finished pot. It offends me.");

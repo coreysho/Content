@@ -19,6 +19,14 @@ if (%eadgar_quest = ^eadgar_not_started) {
     ~chatnpc("<p,angry>And every scrap of it within a hundred miles is sitting in a troll storeroom, because trolls eat it.");
     ~chatplayer("<p,quiz>Trolls eat medicine?");
     ~chatnpc("<p,neutral>Trolls eat everything. If you want to try your luck, there is a man living up on Trollheim who has been trying to get at it for years. Eadgar. He is not well.");
+    // The quest's own requirements (Druidic Ritual, Troll Stronghold, 31 Herblore) were checked
+    // nowhere. Without Troll Stronghold there is no way into the stronghold this whole plan happens
+    // in, so the quest would start and then go nowhere.
+    if (%druidquest < ^druid_complete | %troll_quest < ^troll_complete | stat_base(herblore) < 31) {
+        ~chatnpc("<p,neutral>Mind you, you would need to know your way around a herb - Druidic Ritual, and a Herblore level of 31 - and around a troll stronghold. Come back when you do.");
+        ~mesbox("To start Eadgar's Ruse you need to have completed Druidic Ritual and Troll Stronghold, and to have a Herblore level of 31.");
+        return (true);
+    }
     %eadgar_quest = ^eadgar_started;
     ~send_quest_progress(questlist:eadgar, %eadgar_quest, ^eadgar_complete);
     return (true);
