@@ -22,6 +22,30 @@ mes("You push the boat out and let the current take it under the bank.");
 p_delay(3);
 p_teleport(^route_hollows_boatside);
 
+// The false wall at the back of the cellar: Search finds the way through.
+[oploc1,thrttavernbasementfalsewall]
+p_arrivedelay;
+if (coordz(coord) >= coordz(loc_coord)) {
+    mes("You find a gap behind the wall and squeeze through it.");
+    p_delay(1);
+    p_teleport(movecoord(loc_coord, 0, 0, -1));
+    return;
+}
+mes("You squeeze back through the gap into the cellar.");
+p_delay(1);
+p_teleport(loc_coord);
+
+// The Myreque's door off the Hollows.
+[oploc1,freedomfighterundergroundentrancel] @route_hideout_door;
+[oploc1,freedomfighterundergroundentrancer] @route_hideout_door;
+
+[label,route_hideout_door]
+p_arrivedelay;
+sound_synth(door_open, 1, 0);
+mes("You go through the door.");
+p_delay(1);
+p_teleport(^route_hideout_inside);
+
 [oploc1,route_stalagmite_cave_entrace]
 ~mesbox("Tooth shaped rocks, and a gap between two of them that a person could get through sideways and a horse could not get through at all. That is the entire point of it.");
 
@@ -44,6 +68,9 @@ if ($here = ^route_tunnel_b2) { @route_crawl(^route_tunnel_b1); }
 if ($here = ^route_tunnel_c1) { @route_crawl(^route_tunnel_c2); }
 if ($here = ^route_tunnel_c2) { @route_crawl(^route_tunnel_c1); }
 if ($here = ^route_tunnel_d) { @route_crawl(^route_hollows_boatside); }
+// The ground-floor mouth at the hideout's south edge is the hideout's back way out to the Hollows,
+// beside its door. It used to climb to plane 1, which is not joined to anything on foot.
+if ($here = 0_54_153_49_39) { @route_crawl(^route_hideout_door_outside); }
 // The vertical warren. Three x/z positions carry a mouth on more than one plane - (49,39) on all
 // four, (11,39) on 1-3 and (11,9) on 1 and 3 - so each one cycles up through its own set and wraps
 // at the top. movecoord's second argument is the plane.
@@ -71,6 +98,16 @@ p_teleport($to);
 // floor. It records which floor you came out on, which is what the Myreque ask you about later.
 [proc,route_roomnum]()()
 %roomnum = coordy(coord);
+
+// =========================================================================== the Hair of the Dog
+// The man in the chair: Vanstrom Klause until the quest is done, a stranger after. Talk-to had no
+// trigger in either form.
+[opnpc1,multi_vanstrom_stranger_entity]
+if (%thsfm_vanstrom_hide = ^route_on) {
+    ~chatnpc("<p,neutral>I'm just passing through. Don't mind me.");
+    return;
+}
+~chatnpc("<p,neutral>I prefer to drink alone, if it's all the same to you.");
 
 // =========================================================================== Veliaf
 [opnpc1,route_veliaf_hurtz]
