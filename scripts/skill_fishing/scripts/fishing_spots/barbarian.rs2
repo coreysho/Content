@@ -1,0 +1,146 @@
+// Barbarian Fishing (Barbarian Training, 3 July 2007): the leaping-fish spots in the lake at Otto's
+// Grotto, fished with the barbarian rod from under Otto's bed
+// (areas/area_ottos_grotto/scripts/otto.rs2). https://oldschool.runescape.wiki/w/Barbarian_Training#Fishing
+//
+// The loop is freshfish.rs2's fly fishing, tick for tick: a 4-tick cast, then a roll every 5 ticks on
+// the hidden op4. What differs is all the wiki's:
+//   * three leaping fish, each with a Fishing, an Agility and a Strength level (48/15/15, 58/30/30,
+//     70/45/45), rolled best first - sturgeon, then salmon, then trout - with the rod chart's
+//     low/high (barbarian_fishing.struct);
+//   * each catch pays Fishing (50/70/80) and the same small amount in both Agility and Strength (5/6/7);
+//   * any of five baits, taken in the order the wiki gives: fish offcuts, fishing bait, feathers, roe,
+//     caviar - so the eggs Otto wants are the last thing thrown in the water.
+// No random events here: the fishing ones are 2004's river troll, big fish and whirlpool, which need a
+// whirlpool npc per spot type and would take the rod Otto lent you.
+
+[opnpc1,barbarian_fishing_spot] @barbfish_attempt;
+
+// hidden option
+[opnpc4,barbarian_fishing_spot] @barbfish_catch;
+
+[opnpcu,barbarian_fishing_spot]
+switch_obj(last_useitem) {
+    case barbarian_rod : p_opnpc(1);
+    // the fly rod's own wrong-spot line sends you to "freshwater fish", which this lake is full of;
+    // what these want is Otto's heavier tackle (our wording - the wiki records none)
+    case fishing_rod, fly_fishing_rod : ~mesbox("These leaping fish need a heavier rod.");
+    case default : @fishing_wrong_spot_message(last_useitem);
+}
+
+[label,barbfish_attempt]
+if (~barbfish_can_fish = false) {
+    return;
+}
+if (%action_delay < map_clock) {
+    %action_delay = calc(map_clock + 4);
+    p_opnpc(1);
+    return;
+}
+if (%action_delay = calc(map_clock + 3)) {
+    anim(human_fishing_casting, 0);
+    mes("You cast out your line...");
+    p_opnpc(1);
+    return;
+}
+if (%action_delay = calc(map_clock + 2)) {
+    sound_synth(fishing_cast, 1, 0);
+    mes("You attempt to catch a fish.");
+}
+p_opnpc(4);
+
+[label,barbfish_catch]
+if (~barbfish_can_fish = false) {
+    return;
+}
+// A full pack only stops you if the bait will not free a slot when it is used: the last of a stack,
+// or a single roe or caviar, makes room for the fish.
+def_namedobj $bait = ~barbfish_bait;
+if (inv_freespace(inv) = 0 & oc_stackable($bait) = true & inv_total(inv, $bait) > 1) {
+    anim(null, 0);
+    ~mesbox("You can't carry any more fish.");
+    return;
+}
+if (%action_delay < map_clock) {
+    %action_delay = calc(map_clock + 4);
+} else if (%action_delay = map_clock) {
+    anim(human_fish_onspot, 0);
+    ~barbfish_roll($bait);
+}
+p_opnpc(4);
+
+// The rod, the trout's three levels (the least the spot asks), and some bait.
+[proc,barbfish_can_fish]()(boolean)
+def_struct $trout = oc_param(leaping_trout, fishing_struct);
+def_int $fishing = struct_param($trout, barbfish_fishing_level);
+def_int $agil_str = struct_param($trout, barbfish_agil_str_level);
+if (stat(fishing) < $fishing | stat(agility) < $agil_str | stat(strength) < $agil_str) {
+    anim(null, 0);
+    ~mesbox("You need at least <tostring($fishing)> Fishing, <tostring($agil_str)> Agility and <tostring($agil_str)> Strength to catch leaping fish.");
+    return(false);
+}
+if (inv_total(inv, barbarian_rod) < 1) {
+    anim(null, 0);
+    ~mesbox("You need a barbarian rod to catch these fish.");
+    return(false);
+}
+if (~barbfish_bait = null) {
+    anim(null, 0);
+    ~mesbox("You don't have any bait left.");
+    return(false);
+}
+return(true);
+
+// "The order in which bait is consumed from the inventory is: fish offcuts, fishing bait, feathers,
+// roe, then caviar." (wiki, Leaping trout)
+[proc,barbfish_bait]()(namedobj)
+if (inv_total(inv, fish_offcuts) > 0) {
+    return(fish_offcuts);
+}
+if (inv_total(inv, fishing_bait) > 0) {
+    return(fishing_bait);
+}
+if (inv_total(inv, feather) > 0) {
+    return(feather);
+}
+if (inv_total(inv, roe) > 0) {
+    return(roe);
+}
+if (inv_total(inv, caviar) > 0) {
+    return(caviar);
+}
+return(null);
+
+// One attempt: the best fish the player's three levels allow is rolled first, and each miss falls
+// through to the next one down ("cascade" in the wiki's chart). A miss on all three is a miss, and
+// keeps the bait, as every other rod does.
+[proc,barbfish_roll](namedobj $bait)
+def_namedobj $fish = null;
+if (~barbfish_roll_one(leaping_sturgeon) = true) {
+    $fish = leaping_sturgeon;
+} else if (~barbfish_roll_one(leaping_salmon) = true) {
+    $fish = leaping_salmon;
+} else if (~barbfish_roll_one(leaping_trout) = true) {
+    $fish = leaping_trout;
+} else {
+    return;
+}
+def_struct $struct = oc_param($fish, fishing_struct);
+inv_del(inv, $bait, 1);
+inv_add(inv, $fish, 1);
+~fishing_xp(struct_param($struct, productexp));
+stat_advance(agility, struct_param($struct, barbfish_agil_str_exp));
+stat_advance(strength, struct_param($struct, barbfish_agil_str_exp));
+~skillpet_roll(skillpet_heron_item, fishing, struct_param($struct, fishing_pet_base));
+mes(struct_param($struct, productmessage));
+// Otto senses it (otto.rs2): the first catch opens his talk of what the fish are good for
+if (%barbarian_fishing = ^barbfish_rod_allowed) {
+    %barbarian_fishing = ^barbfish_caught;
+}
+
+[proc,barbfish_roll_one](namedobj $fish)(boolean)
+def_struct $struct = oc_param($fish, fishing_struct);
+def_int $agil_str = struct_param($struct, barbfish_agil_str_level);
+if (stat(fishing) < struct_param($struct, barbfish_fishing_level) | stat(agility) < $agil_str | stat(strength) < $agil_str) {
+    return(false);
+}
+return(stat_random(fishing, struct_param($struct, success_low), struct_param($struct, success_high)));
