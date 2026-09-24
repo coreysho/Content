@@ -163,6 +163,27 @@ if (%bankpin ! 0) {
 }
 return(false);
 
+// The welcome screen's Bank PIN panel (inter_313:com_19, set by login.rs2): none, set, or set with a
+// removal counting down - the one a player most needs to hear about, since it is what someone who
+// had taken over their account would have asked for.
+[proc,bankpin_welcome_text]()(string)
+if (%bankpin_2 > 0 & date_runeday >= %bankpin_2) {
+    // a removal that came due while they were away
+    %bankpin = 0;
+    %bankpin_2 = 0;
+}
+if (~bankpin_has_pin = false) {
+    return("You do not have a Bank PIN. Please visit a bank\\nif you would like one.");
+}
+if (%bankpin_2 > 0) {
+    def_int $days = sub(%bankpin_2, date_runeday);
+    if ($days <= 1) {
+        return("@red@Your Bank PIN will be deleted tomorrow.@yel@\\nIf you did not ask for this, cancel it at a bank.");
+    }
+    return("@red@Your Bank PIN will be deleted in <tostring($days)> days.@yel@\\nIf you did not ask for this, cancel it at a bank.");
+}
+return("You have a Bank PIN set.\\nYour bank is protected by it.");
+
 [proc,bankpin_recovery_days]()(int)
 if (%bankpin_1 <= 0) {
     return(7);
