@@ -1,68 +1,246 @@
-[proc,trail_hasclue_all]()(boolean)
-if (~trail_hasclue_inv = true) {
-    return (true);
-}
-if(inv_totalcat(bank, trail_clue_easy) > 0| inv_totalcat(bank, trail_clue_medium) > 0 | inv_totalcat(bank, trail_clue_hard) > 0 | 
-    inv_totalcat(bank, trail_casket_easy) > 0 | inv_totalcat(bank, trail_casket_medium) > 0 | inv_totalcat(bank, trail_casket_hard) > 0) {
-    return (true);
-}
-return(false);
+// ---------------------------------------------------------------- one trail per tier
+//
+// OSRS lets a player work an easy, a medium and a hard clue at the same time, and hold more of each
+// tier in scroll boxes (https://oldschool.runescape.wiki/w/Scroll_box). So everything below takes a
+// tier - one of the ^trail_tier_* constants in trail.constant - and each tier keeps its own step
+// count in %trail_progress (configs/trail.varp says how the bits are laid out). Before this there
+// was one counter in %trail_status, and so one clue of any tier at a time.
 
-[proc,trail_hasclue_inv]()(boolean)
-if (inv_totalcat(inv, trail_clue_easy) > 0| inv_totalcat(inv, trail_clue_medium) > 0| inv_totalcat(inv, trail_clue_hard) > 0 | 
-    inv_totalcat(inv, trail_casket_easy) > 0 | inv_totalcat(inv, trail_casket_medium) > 0 | inv_totalcat(inv, trail_casket_hard) > 0) {
-        return (true);
-}
-return(false);
-
-[proc,trail_getclue_inv]()(obj)
-def_int $slot = 0;
-while ($slot < inv_size(inv)) {
-    def_obj $slotobj = inv_getobj(inv, $slot);
-    if ($slotobj ! null) {
-        if(oc_category($slotobj) = trail_clue_easy | oc_category($slotobj) = trail_clue_medium | oc_category($slotobj) = trail_clue_hard) {
-            return($slotobj);
+// Whether the player is on a trail of this tier: its clue scroll or its casket, in the inventory or
+// the bank, which is where the "you already have a clue" rule has always looked. A puzzle box,
+// challenge scroll or key is only ever held beside the clue, so the clue answers for them.
+[proc,trail_hasclue](int $tier)(boolean)
+switch_int ($tier) {
+    case ^trail_tier_easy :
+        if (inv_totalcat(inv, trail_clue_easy) > 0 | inv_totalcat(inv, trail_casket_easy) > 0
+            | inv_totalcat(bank, trail_clue_easy) > 0 | inv_totalcat(bank, trail_casket_easy) > 0) {
+            return(true);
         }
-    }
-    $slot = calc($slot + 1);
+    case ^trail_tier_medium :
+        if (inv_totalcat(inv, trail_clue_medium) > 0 | inv_totalcat(inv, trail_casket_medium) > 0
+            | inv_totalcat(bank, trail_clue_medium) > 0 | inv_totalcat(bank, trail_casket_medium) > 0) {
+            return(true);
+        }
+    case ^trail_tier_hard :
+        if (inv_totalcat(inv, trail_clue_hard) > 0 | inv_totalcat(inv, trail_casket_hard) > 0
+            | inv_totalcat(bank, trail_clue_hard) > 0 | inv_totalcat(bank, trail_casket_hard) > 0) {
+            return(true);
+        }
 }
-return (null);
+return(false);
 
-[proc,trail_clue_coord](obj $clue)(boolean)
-if($clue ! null & oc_param($clue, trail_coord) ! null) {
+// Which tier a clue, casket or scroll box belongs to, or -1 for anything else.
+[proc,trail_obj_tier](obj $obj)(int)
+def_category $cat = oc_category($obj);
+if ($cat = trail_scrollbox) {
+    return(oc_param($obj, trail_tier));
+}
+if ($cat = trail_clue_easy | $cat = trail_casket_easy) {
+    return(^trail_tier_easy);
+}
+if ($cat = trail_clue_medium | $cat = trail_casket_medium) {
+    return(^trail_tier_medium);
+}
+if ($cat = trail_clue_hard | $cat = trail_casket_hard) {
+    return(^trail_tier_hard);
+}
+return(-1);
+
+[proc,trail_clue_getrandom](int $tier)(namedobj)
+switch_int ($tier) {
+    case ^trail_tier_medium : return(~trail_clue_medium_getrandom);
+    case ^trail_tier_hard : return(~trail_clue_hard_getrandom);
+}
+return(~trail_clue_easy_getrandom);
+
+[proc,trail_scrollbox](int $tier)(namedobj)
+switch_int ($tier) {
+    case ^trail_tier_medium : return(trail_scrollbox_medium);
+    case ^trail_tier_hard : return(trail_scrollbox_hard);
+}
+return(trail_scrollbox_easy);
+
+[proc,trail_tier_name](int $tier)(string)
+switch_int ($tier) {
+    case ^trail_tier_medium : return("medium");
+    case ^trail_tier_hard : return("hard");
+}
+return("easy");
+
+// "an easy", "a medium", "a hard" - for the message that names a tier after an article.
+[proc,trail_tier_article](int $tier)(string)
+switch_int ($tier) {
+    case ^trail_tier_medium : return("a medium");
+    case ^trail_tier_hard : return("a hard");
+}
+return("an easy");
+
+// ---------------------------------------------------------------- scroll boxes
+//
+// THE STACK LIMIT IS SHARED ACROSS BOXES AND SCROLLS, in the wiki's words: the clue being worked on
+// counts as one. So at the base limit of 2 a player holds a clue and one box, or two boxes. Counted
+// in the inventory and the bank, the same places ~trail_hasclue looks.
+[proc,trail_stack_count](int $tier)(int)
+def_namedobj $box = ~trail_scrollbox($tier);
+def_int $count = calc(inv_total(inv, $box) + inv_total(bank, $box));
+if (~trail_hasclue($tier) = true) {
+    $count = calc($count + 1);
+}
+return($count);
+
+[proc,trail_stack_cap](int $tier)(int)
+switch_int ($tier) {
+    case ^trail_tier_medium : return(^trail_medium_stackcap);
+    case ^trail_tier_hard : return(^trail_hard_stackcap);
+}
+return(^trail_easy_stackcap);
+
+// A clue drop of this tier. With nothing of the tier held it is the clue itself, as it always was;
+// with a clue or a box already held it is a scroll box; at the limit it is nothing, and OSRS says
+// so. The rarity roll comes first, so the message only ever stands in for a drop that really rolled.
+[proc,trail_cluedrop](int $tier, int $rarity, coord $coord)
+if (random($rarity) ! 0) {
+    return;
+}
+def_int $held = ~trail_stack_count($tier);
+if ($held = 0) {
+    obj_add($coord, ~trail_clue_getrandom($tier), 1, ^lootdrop_duration);
+    // A fresh clue starts a fresh trail. Safe here because nothing of this tier is held.
+    ~clear_trail_progress($tier);
+} else if ($held < ~trail_stack_cap($tier)) {
+    obj_add($coord, ~trail_scrollbox($tier), 1, ^lootdrop_duration);
+} else {
+    mes("You have a sneaking suspicion that you would have received <~trail_tier_article($tier)> scroll box."); // OSRS
+}
+
+// Whether a clue, casket or scroll box may NOT be taken - off the floor or by Telekinetic Grab - and
+// if so, says why. Anything that is not one of the three is always allowed.
+[proc,trail_take_refused](obj $obj, int $count)(boolean)
+def_int $tier = ~trail_obj_tier($obj);
+if ($tier = -1) {
+    return(false);
+}
+if (oc_category($obj) ! trail_scrollbox) {
+    if (~trail_hasclue($tier) = true) {
+        mes("You already have a clue scroll."); // OSRS
+        return(true);
+    }
+    // A clue takes a place in the stack like a box does. With no clue held the only way to be at
+    // the limit is a full stack of boxes, and the next clue comes out of one of those.
+    $count = 1;
+}
+// OSRS destroys the boxes over the limit when a stack is picked up. Leaving them on the floor loses
+// nothing and tells the player the same thing.
+if (calc(~trail_stack_count($tier) + $count) > ~trail_stack_cap($tier)) {
+    mes("You already have as many <~trail_tier_name($tier)> clues as you can carry.");
     return(true);
 }
 return(false);
 
-[proc,trail_clue_progress]
-if(testbit(%trail_status, 4) = ^true) {
-    %trail_status = clearbit(%trail_status, 4);
+// Opening a box starts that tier's next trail, so it wants no trail of the tier under way.
+[opheld1,_trail_scrollbox]
+def_int $tier = oc_param(last_item, trail_tier);
+if (~trail_hasclue($tier) = true) {
+    mes("The clue box refuses to open - you already have a clue."); // OSRS
+    return;
 }
-%trail_status = setbit_range_toint(%trail_status, calc(~get_trail_progress + 1), 0, 3);
+// A box taken from a stack of several leaves the stack in its slot, so the clue needs one of its own.
+if (inv_total(inv, last_item) > 1 & inv_freespace(inv) = 0) {
+    mes("You don't have enough inventory space to do that.");
+    return;
+}
+inv_del(inv, last_item, 1);
+~clear_trail_progress($tier);
+inv_add(inv, ~trail_clue_getrandom($tier), 1);
+
+// ---------------------------------------------------------------- progress
+
+// The coordinate clue the player is standing on, if any: a map or sextant clue whose coord is within
+// the one tile the dig has always allowed (spade.rs2 says why one). This looks through every clue
+// held rather than taking the first, now that three tiers can be carried together.
+[proc,trail_getdigclue_inv]()(obj)
+def_int $slot = 0;
+while ($slot < inv_size(inv)) {
+    def_obj $slotobj = inv_getobj(inv, $slot);
+    if ($slotobj ! null) {
+        if (~trail_obj_tier($slotobj) ! -1 & oc_param($slotobj, trail_coord) ! null & oc_param($slotobj, trail_casket) ! null) {
+            if (distance(coord, oc_param($slotobj, trail_coord)) <= 1) {
+                return($slotobj);
+            }
+        }
+    }
+    $slot = calc($slot + 1);
+}
+return(null);
+
+[proc,trail_clue_progress](int $tier)
+def_int $lo = calc($tier * ^trail_progress_bits);
+def_int $hi = calc($lo + ^trail_progress_bits - 1);
+// A guardian beaten for this step is spent on it.
+%trail_progress = clearbit(%trail_progress, calc(^trail_guardian_bit + $tier));
+%trail_progress = setbit_range_toint(%trail_progress, calc(~get_trail_progress($tier) + 1), $lo, $hi);
 // THE CLUE HUNTER OUTFIT'S SKIPPED STEP, and this is the only place it needs to be: every tier's
 // ~progress_clue_<tier> comes through here, so easy, medium and hard are covered by one hook and
 // a fourth tier would be too. It advances the trail a second time, which is what "a step shorter"
 // means when steps are a counter - and the completeness test right after it in the caller reads
 // the higher number, so a skip can finish the trail outright.
 //
-// Nothing to guard against overflowing: bits 0-3 hold 0-15 and the longest trail is 6 steps.
+// Nothing to guard against overflowing: a tier's four bits hold 0-15 and the longest trail is 6 steps.
 if (~clue_hunter_skips = true) {
-    %trail_status = setbit_range_toint(%trail_status, calc(~get_trail_progress + 1), 0, 3);
+    %trail_progress = setbit_range_toint(%trail_progress, calc(~get_trail_progress($tier) + 1), $lo, $hi);
     mes("Your knowledge of the trails lets you skip a step.");
 }
 
-// bits 0-3 will store the progress of the clue, bit 4 is used to flag if the clue guardian (just zamorak wizard in version 225)
-// has been killed, bits 5-7 to store the progress of the "miniquest" to get sextant/chart/watch (possible this didnt use a varp in 225, it does in osrs
+[proc,get_trail_progress](int $tier)(int)
+def_int $lo = calc($tier * ^trail_progress_bits);
+return(getbit_range(%trail_progress, $lo, calc($lo + ^trail_progress_bits - 1)));
+
+// clears the tier's progress, including the bit used for tracking its guardian (the zamorak wizard)
+[proc,clear_trail_progress](int $tier)
+def_int $lo = calc($tier * ^trail_progress_bits);
+%trail_progress = clearbit_range(%trail_progress, $lo, calc($lo + ^trail_progress_bits - 1));
+%trail_progress = clearbit(%trail_progress, calc(^trail_guardian_bit + $tier));
+
+[proc,trail_guardian_defeated](int $tier)(boolean)
+if (testbit(%trail_progress, calc(^trail_guardian_bit + $tier)) = ^true) {
+    return(true);
+}
+return(false);
+
+[proc,trail_set_guardian_defeated](int $tier)
+%trail_progress = setbit(%trail_progress, calc(^trail_guardian_bit + $tier));
+
+// ONCE PER SAVE: a player part-way through a trail before %trail_progress existed has its step
+// count in %trail_status bits 0-3 and its guardian in bit 4. Only one clue of any tier could be
+// held then, so the tier is whichever one they hold; with none held there is nothing to keep.
+// Nothing writes those five bits any more, so after the first login this returns straight away.
+[proc,trail_login]
+def_int $old = getbit_range(%trail_status, 0, 4);
+if ($old = 0) {
+    return;
+}
+%trail_status = clearbit_range(%trail_status, 0, 4);
+def_int $tier = -1;
+if (~trail_hasclue(^trail_tier_easy) = true) {
+    $tier = ^trail_tier_easy;
+} else if (~trail_hasclue(^trail_tier_medium) = true) {
+    $tier = ^trail_tier_medium;
+} else if (~trail_hasclue(^trail_tier_hard) = true) {
+    $tier = ^trail_tier_hard;
+}
+if ($tier = -1) {
+    return;
+}
+def_int $lo = calc($tier * ^trail_progress_bits);
+%trail_progress = setbit_range_toint(%trail_progress, getbit_range($old, 0, 3), $lo, calc($lo + ^trail_progress_bits - 1));
+if (testbit($old, 4) = ^true) {
+    ~trail_set_guardian_defeated($tier);
+}
+
+// %trail_status bits 5-8 hold the progress of the "miniquest" to get sextant/chart/watch (possible this didnt use a varp in 225, it does in osrs
 // although it doesn't use 292 (trail_clue))
 // https://web.archive.org/web/20051214060247/http://www.tip.it/runescape/?page=treasure_trails.htm and runehq forums mention you can get the items back directly by talking
 // to the npc once you've claimed the items before meaning it likely used varp
-[proc,get_trail_progress]()(int)
-return (getbit_range(%trail_status, 0, 3));
-
-// clears the trail progess, including the bit used for tracking the zamorak wizard
-[proc,clear_trail_progress]
-%trail_status = clearbit_range(%trail_status, 0, 4);
-
 // 4 bits
 [proc,get_chart_progress]()(int)
 return (getbit_range(%trail_status, 5, 8));
@@ -105,8 +283,12 @@ return (false);
 // inventory that cannot hold it. Loot that will not fit stays in trail_rewardinv and the player is
 // told to make room, rather than being deleted or dropped where they will not see it.
 
-[proc,trail_complete]
-~clear_trail_progress;
+// THE ONE PLACE A TRAIL ENDS. Each tier's ~trail_clue_<tier>_reward rolls its loot into
+// trail_rewardinv and then calls this with its ^trail_tier_*, so anything that wants to know a trail
+// was finished - and what it paid - hooks in here, before the handover empties the inv. (The inv
+// can also hold loot left over from an earlier casket that did not fit; see below.)
+[proc,trail_complete](int $tier)
+~clear_trail_progress($tier);
 mes("Well done you've completed the Treasure Trail!");
 midi_jingle("treasure hunt win");
 inv_transmit(trail_rewardinv, trail_reward:inv);

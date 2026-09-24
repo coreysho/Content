@@ -25,9 +25,8 @@ if(oc_category(obj_type) = trail_challenge & (inv_totalcat(inv, trail_challenge)
     mes("You already have a challenge scroll."); // OSRS
     return;
 }
-if((oc_category(obj_type) = trail_clue_easy | oc_category(obj_type) = trail_clue_medium | oc_category(obj_type) = trail_clue_hard |
-    oc_category(obj_type) = trail_casket_easy | oc_category(obj_type) = trail_casket_medium | oc_category(obj_type) = trail_casket_hard) & ~trail_hasclue_all = true) {
-    mes("You already have a clue scroll."); // OSRS
+// Clues, caskets and scroll boxes: the same rule as picking one up (trail_clue_drop.rs2).
+if (~trail_take_refused(obj_type, obj_count) = true) {
     return;
 }
 // These use a different mes compared to obj's with the telegrab_disabled param (maybe make a 2nd param)
