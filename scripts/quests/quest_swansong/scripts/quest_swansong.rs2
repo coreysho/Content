@@ -20,6 +20,8 @@ switch_int (%swansong) {
     case ^swan_letter :
         ~chatnpc("<p,neutral>The boat went this morning. Whether anybody reads it is another matter.");
     case ^swan_planted : @swan_battle_scene;
+    case ^swan_battle : @swan_battle_scene;
+    case ^swan_queen : @swan_battle_scene;
     case ^swan_told : @swan_finish;
     case default :
         if (%swansong >= ^swan_complete) {
@@ -80,6 +82,64 @@ p_delay(3);
 %swansong = ^swan_wom;
 ~send_quest_progress(questlist:swansong, %swansong, ^swan_complete);
 ~mesbox("The boat comes back the next morning with one passenger on it, and he is extremely old and he is carrying nothing at all.");
+
+// =========================================================================== getting in
+// The crawl-hole through the palisade. Herman stands outside it and does not let strangers past.
+[oploc1,loc_14922]
+p_arrivedelay;
+if (coordz(coord) > coordz(loc_coord)) {
+    mes("You crawl back out through the hole.");
+    p_teleport(^swan_hole_outside);
+    return;
+}
+if (%swansong = ^swan_not_started) {
+    mes("Herman Caranos is standing right beside the hole, and he does not look like he means to let anybody through it.");
+    return;
+}
+mes("You crawl through the hole in the palisade.");
+p_teleport(^swan_hole_inside);
+
+// The colony gate, a pair of gates on the north edge of their tiles.
+[oploc1,loc_14929] @swan_colony_gate;
+[oploc1,loc_14931] @swan_colony_gate;
+
+[label,swan_colony_gate]
+p_arrivedelay;
+sound_synth(door_open, 1, 0);
+if (coordz(coord) > coordz(loc_coord)) {
+    p_teleport(movecoord(coord, 0, 0, sub(coordz(loc_coord), coordz(coord))));
+} else {
+    p_teleport(movecoord(coord, 0, 0, sub(add(coordz(loc_coord), 1), coordz(coord))));
+}
+
+// Kathy Corkat. The ground outside the colony, where Herman stands, is not joined on foot to the
+// rest of the map in this cache - her boat is the only way there, so before the quest (when her
+// multinpc shows only Talk-to) the conversation is what takes you.
+[opnpc1,swan_boat_boatwoman]
+if (%swansong = ^swan_not_started) {
+    ~chatnpc("<p,neutral>I row supplies up to the fishing colony at Piscatoris. Herman Caranos has been asking everyone who comes past for help - do you want to go and see what he wants?");
+} else {
+    ~chatnpc("<p,neutral>Up to the colony? Hop in.");
+}
+if (~p_choice2("Yes please.", 1, "No thanks.", 2) = 1) {
+    @swan_boat_travel(^swan_boat_north);
+}
+
+[opnpc3,swan_boat_boatwoman] @swan_boat_travel(^swan_boat_north);
+
+[opnpc1,swan_boatwoman_2]
+~chatnpc("<p,neutral>Back down to the Gnome Stronghold?");
+if (~p_choice2("Yes please.", 1, "No thanks.", 2) = 1) {
+    @swan_boat_travel(^swan_boat_south);
+}
+
+[opnpc3,swan_boatwoman_2] @swan_boat_travel(^swan_boat_south);
+
+[label,swan_boat_travel](coord $to)
+if_close;
+mes("Kathy Corkat rows you along the coast.");
+p_delay(3);
+p_teleport($to);
 
 // =========================================================================== the Wise Old Man
 [label,swan_wom_talk]
@@ -289,7 +349,7 @@ p_delay(5);
 ~send_quest_progress(questlist:swansong, %swansong, ^swan_complete);
 ~mesbox("The sea trolls come up out of the fishing grounds for the twelfth day running and for the first time something is standing there waiting for them.");
 p_delay(4);
-~damage_self(14);
+~swan_battle_hit(14);
 mes("It is not a clean fight and the palisade is not the point of it any more.");
 p_delay(4);
 ~mesbox("And then the water goes quiet, and something comes out of it that the small ones were in front of.");
@@ -299,10 +359,10 @@ p_delay(3);
 [proc,swan_queen_fight]()()
 mes("The Sea Troll Queen is the reason the Wise Old Man is asleep on a floor.");
 p_delay(4);
-~damage_self(22);
+~swan_battle_hit(22);
 mes("The magi go through her a rank at a time and none of them stop.");
 p_delay(4);
-~damage_self(12);
+~swan_battle_hit(12);
 mes("She goes back into the water and does not come up.");
 p_delay(4);
 %swansong_trolls = 3;
@@ -313,6 +373,16 @@ stat_advance(defence, 20000);
 %swansong = ^swan_told;
 ~send_quest_progress(questlist:swansong, %swansong, ^swan_complete);
 ~mesbox("Seventy-one people come out of the buildings very slowly. | Herman counts them twice.");
+
+// 48 damage across the scene, and nothing requires the Hitpoints to take it: a player who died
+// part-way through was left at ^swan_battle, which nobody's dialogue picks up again. The battle
+// hurts, but it leaves you standing.
+[proc,swan_battle_hit](int $amount)()
+def_int $hp = stat(hitpoints);
+if ($hp <= 1) {
+    return;
+}
+~damage_self(min($amount, sub($hp, 1)));
 
 [label,swan_finish]
 ~chatplayer("<p,neutral>It's over.");
