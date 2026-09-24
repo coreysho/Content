@@ -35,7 +35,9 @@ as `failed` and its npcs get no table, rather than a wrong one.
 
 WHAT IT WRITES
   scripts/drop_tables/configs/npc_drops.dbrow   one row per distinct table, keyed by every npc that
-                                                 shares it (db_find on npc_drops:npc)
+                                                 shares it (db_find on npc_drops:npc); data=drop is
+                                                 what the viewer lists, data=bonus what the game-mode
+                                                 drop-rate boost rolls (see BONUS below)
   scripts/drop_tables/configs/npc_drops.enum    the window's list tiers and rows by number
   scripts/drop_tables/configs/npc_drops.inv     the icon column's inv
   scripts/drop_tables/interfaces/npc_drops.if   the window (parchment, list tiers, close button)
@@ -422,7 +424,25 @@ class Unknown:
         return self.what
 
 
+class RareStr(str):
+    """An obj name that came out of the shared rare table (RARE_PROCS). Those procs RETURN their
+    drop and the monster's own script does the obj_add, so where a drop is made says nothing about
+    where it came from - the value itself has to carry it. Equal to the plain name everywhere but
+    vkey, so a gem table that can hand back an uncut diamond of its own or one via ~megararetable
+    keeps the two apart."""
+
+
+def rare(v):
+    if isinstance(v, tuple):
+        return tuple(rare(x) for x in v)
+    if isinstance(v, str) and not isinstance(v, RareStr):
+        return RareStr(v)
+    return v
+
+
 def vkey(v):
+    if isinstance(v, RareStr):
+        return ('rare', str(v))
     if isinstance(v, (Sym, Unknown)):
         return v.key()
     if isinstance(v, tuple):
@@ -530,6 +550,8 @@ class Ctx:
         self.npc, self.scripts = npc, scripts
         self.approx = set()     # questions answered "false" for want of a player
         self.acc = {}           # (obj, amount, label) -> expected drops per kill
+        self.excl = {}          # ...the part of that which comes through the shared rare table
+        self.excluding = False  # inside ~ultrarare_getitem / ~megararetable
         self.nextvar = 0
         self.parsed = {}
         self.depth = 0
@@ -540,6 +562,12 @@ class Ctx:
 # shared rare table for the killer's mode, gamemodes/scripts/droprate.rs2). That last one is the
 # PLAYER'S, not the npc's, so the viewer states it per viewer instead (~npc_drops_open).
 SKIP_PROCS = {'npc_death'}
+
+# THE SHARED RARE TABLE. What a drop owes to these is counted apart (Ctx.excl), because the game-mode
+# drop-rate boost (gamemodes/scripts/droprate.rs2) raises a monster's OWN table and not this one: the
+# viewer's rates are the sum, the bonus column is everything else. ~randomjewel (the gem table) is
+# the monster's own; only its reach into ~megararetable is excluded.
+RARE_PROCS = {'ultrarare_getitem', 'megararetable'}
 
 # Questions the shared tables ask of the killer, and what taking them as false shows.
 KNOWN_APPROX = {
@@ -926,7 +954,13 @@ def call(ctx, name, args, st, pinned):
         if len(vals) != len(params):
             raise Unsupported('~%s given %d args for %d params' % (name, len(vals), len(params)))
         if symset(tuple(vals)):
-            out.extend(run_call(ctx, key, vals, s, pinned))
+            was = ctx.excluding
+            ctx.excluding = was or name in RARE_PROCS
+            try:
+                got = run_call(ctx, key, vals, s, pinned)
+            finally:
+                ctx.excluding = was
+            out.extend((s2, rare(rv)) if name in RARE_PROCS else (s2, rv) for s2, rv in got)
             continue
         # A call whose arguments are plain values does the same thing wherever it is made from -
         # ~ultrarare_getitem from a goblin is ~ultrarare_getitem from a dragon - so it is run once
@@ -936,17 +970,28 @@ def call(ctx, name, args, st, pinned):
         if mk not in MEMO:
             saved, ctx.approx = ctx.approx, set()
             savedacc, ctx.acc = ctx.acc, {}
+            savedexcl, ctx.excl = ctx.excl, {}
+            was, ctx.excluding = ctx.excluding, name in RARE_PROCS
             res = []
-            for s2, rv in run_call(ctx, key, vals, St(Fraction(1), {}, {}), set()):
-                live = symset(rv)
-                res.append((s2.prob, rv, {v: s2.doms[v] for v in live}))
-            MEMO[mk] = (merge_results(res), ctx.approx, ctx.acc)
-            ctx.approx = saved | ctx.approx
-            ctx.acc = savedacc
-        res, approx, emitted = MEMO[mk]
+            try:
+                for s2, rv in run_call(ctx, key, vals, St(Fraction(1), {}, {}), set()):
+                    live = symset(rv)
+                    res.append((s2.prob, rv, {v: s2.doms[v] for v in live}))
+                MEMO[mk] = (merge_results(res), ctx.approx, ctx.acc, ctx.excl)
+            finally:
+                ctx.approx = saved | ctx.approx
+                ctx.acc, ctx.excl, ctx.excluding = savedacc, savedexcl, was
+        res, approx, emitted, excluded = MEMO[mk]
         ctx.approx |= approx
+        # replayed onto this caller: everything counts, and the part the memo counted as the shared
+        # rare table's stays excluded - all of it, if this caller is itself inside that table
         for d, p in emitted.items():
-            emit(ctx, d, s.prob * p)
+            ctx.acc[d] = ctx.acc.get(d, 0) + s.prob * p
+            if ctx.excluding:
+                ctx.excl[d] = ctx.excl.get(d, 0) + s.prob * p
+        if not ctx.excluding:
+            for d, p in excluded.items():
+                ctx.excl[d] = ctx.excl.get(d, 0) + s.prob * p
         for prob, rv, doms in res:
             nd = dict(s.doms)
             remap = {}
@@ -954,7 +999,8 @@ def call(ctx, name, args, st, pinned):
                 remap[v] = ctx.nextvar
                 nd[ctx.nextvar] = d
                 ctx.nextvar += 1
-            out.append((s.copy(prob=s.prob * prob, doms=nd), resym(rv, remap)))
+            rv = resym(rv, remap)
+            out.append((s.copy(prob=s.prob * prob, doms=nd), rare(rv) if name in RARE_PROCS else rv))
     return out
 
 
@@ -1181,7 +1227,10 @@ def obj_add(ctx, args, st, pinned):
             out.append((s, None)); continue
         if not isinstance(obj, str):
             raise Unsupported('obj_add of %r' % (obj,))
-        emit(ctx, (obj, qty_text(s, n), None), s.prob)
+        drop = (str(obj), qty_text(s, n), None)
+        emit(ctx, drop, s.prob)
+        if isinstance(obj, RareStr) and not ctx.excluding:
+            ctx.excl[drop] = ctx.excl.get(drop, 0) + s.prob
         out.append((s, None))
     return out
 
@@ -1192,6 +1241,8 @@ def emit(ctx, drop, p):
     = once every N kills on average), and keeping every combination of what else dropped would
     multiply out - a superior rolls its monster's whole table three times."""
     ctx.acc[drop] = ctx.acc.get(drop, 0) + p
+    if ctx.excluding:
+        ctx.excl[drop] = ctx.excl.get(drop, 0) + p
 
 
 # =========================================================================== per npc
@@ -1206,7 +1257,7 @@ def trigger_for(npc, scripts):
 
 
 def table_for(npc, scripts):
-    """([(obj, qty, label, Fraction)], approx-set)"""
+    """([(obj, qty, label, Fraction, Fraction outside the shared rare table)], approx-set)"""
     ctx = Ctx(npc, scripts)
     ctx.parsed = PARSED_CACHE
     key = trigger_for(npc, scripts)
@@ -1216,7 +1267,7 @@ def table_for(npc, scripts):
     total = sum(s.prob for s, _ in ends)
     if total != 1:
         raise Unsupported('the branches add up to %s, not 1' % total)
-    rows = [(o, q, l, p) for (o, q, l), p in ctx.acc.items()]
+    rows = [(o, q, l, p, p - ctx.excl.get((o, q, l), 0)) for (o, q, l), p in ctx.acc.items()]
     return rows, ctx.approx, key
 
 
@@ -1263,7 +1314,7 @@ DISPLAY_NAMES = {'rcu_pouch_small': 'Essence pouch (next)'}
 
 def display(rows):
     out = []
-    for o, q, l, p in rows:
+    for o, q, l, p, pb in rows:
         name = l or DISPLAY_NAMES.get(o) or obj_name(o)
         base = OBJS[o]['certlink'] if l is None and o in OBJS and 'certlink' in OBJS[o] else o
         # Every unidentified herb in 377 is called "Herb" and they share a model, so eleven rows of
@@ -1273,7 +1324,7 @@ def display(rows):
         if base != o:
             name = name + ' (noted)'
         name = name.replace(',', '')  # a dbrow value cannot hold a comma
-        out.append((o, name, q, rate_text(p), p))
+        out.append((o, name, q, rate_text(p), p, pb))
     out.sort(key=lambda r: (-r[4], r[1].lower(), qty_sort(r[2])))
     return out
 
@@ -1508,11 +1559,38 @@ def build_inv():
             '[%s]\nsize=%d\nprotect=no\n' % (INVNAME, TIERS[-1]))
 
 
+# THE DROP-RATE BOOST'S DATA (gamemodes/scripts/droprate.rs2). A boosted kill rolls each of these on
+# its own, at the row's chance times the killer's boost, so every drop on the monster's own table
+# comes that much more often - the viewer's rates times 1.25 on realism, say - and the shared rare
+# table not at all. The chance is the row's own, less what it owes to that table; a row the monster
+# always drops (bones) has nothing to boost, nor does one whose obj is chosen per killer.
+#   kind 0  the obj, least..most of it
+#   kind 1  a pet: ~bosspet_roll's rules (not if one is owned already), at a chance of 1
+#   kind 2+ a clue scroll, easy/medium/hard: the tier's own drop proc at a chance of 1, which picks
+#           the clue and keeps the one-clue-at-a-time rule
+BONUS_UNITS = 10000000
+CLUE_KINDS = {'Clue scroll (easy)': 2, 'Clue scroll (medium)': 3, 'Clue scroll (hard)': 4}
+
+
+def bonus_of(o, name, q, p, pb):
+    """(obj, least, most, chance in BONUS_UNITS, kind) or None."""
+    if p >= 1 or pb <= 0 or o in DISPLAY_NAMES:
+        return None
+    m = re.fullmatch(r'(\d+)(?:-(\d+))?', q)
+    if not m:
+        return None
+    least = int(m.group(1))
+    most = int(m.group(2) or m.group(1))
+    kind = CLUE_KINDS.get(name, 1 if o.startswith('bosspet_') else 0)
+    return (o, least, most, max(1, round(pb * BONUS_UNITS)), kind)
+
+
 def build_dbrow(groups):
     L = ['// Every attackable npc\'s drops, as its death script rolls them. GENERATED by',
          '// tools/gennpcdrops.py from the [ai_queue3] scripts - do not hand-edit; re-run it when a drop',
          '// table changes. One row per distinct table; data=npc lists every npc that shares it.',
          '// data=drop is obj, name as shown, amount, rarity ("Always" or "1/N", N = 1 / the chance).',
+         '// data=bonus is obj, least, most, chance in ten million, kind - for the drop-rate boost.',
          '']
     for rowname, (npcs, rows, key, approx) in groups:
         L.append('[%s]' % rowname)
@@ -1522,8 +1600,12 @@ def build_dbrow(groups):
             L.append('// assumed false: %s' % ', '.join(sorted(approx)))
         for n in npcs:
             L.append('data=npc,%s' % n)
-        for o, name, q, r, p in rows:
+        for o, name, q, r, p, pb in rows:
             L.append('data=drop,%s,%s,%s,%s' % (o, name, q, r))
+        for o, name, q, r, p, pb in rows:
+            b = bonus_of(o, name, q, p, pb)
+            if b:
+                L.append('data=bonus,%s,%d,%d,%d,%d' % b)
         L.append('')
     return '\n'.join(L).rstrip('\n') + '\n'
 
@@ -1601,7 +1683,7 @@ def main():
         if show in tables:
             disp, key, approx = tables[show]
             print('%s  <- [%s,%s]%s' % (show, key[0], key[1], ('   assumed false: ' + ', '.join(sorted(approx))) if approx else ''))
-            for o, name, q, r, p in disp:
+            for o, name, q, r, p, pb in disp:
                 print('  %-32s %-14s %-10s %s' % (name, q, r, o))
         else:
             for (key, why), ns in failed.items():
@@ -1613,7 +1695,7 @@ def main():
     # one dbrow per distinct table
     bytable = {}
     for name, (disp, key, approx) in tables.items():
-        sig = tuple((o, n, q, r) for o, n, q, r, p in disp)
+        sig = tuple((o, n, q, r, bonus_of(o, n, q, p, pb)) for o, n, q, r, p, pb in disp)
         bytable.setdefault(sig, []).append(name)
     groups = []
     used = set()

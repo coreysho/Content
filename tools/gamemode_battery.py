@@ -475,118 +475,87 @@ check(len(_vp) == len(_vpl), '...and no varp NAME is used twice either')
 
 # ============================================================ the drop-rate boost
 print()
-print('-- drop-rate boost: the gate, the counts, and the one hook')
+print("-- drop-rate boost: the monster's own table, never the rare drop table")
 DROPRS = read('scripts/gamemodes/scripts/droprate.rs2')
-DROPENUM = read('scripts/gamemodes/configs/droprate.enum')
 DEATH = read('scripts/skill_combat/scripts/npc/npc_death.rs2')
 CONST = read('scripts/gamemodes/configs/gamemode.constant')
+DBROW = read('scripts/drop_tables/configs/npc_drops.dbrow')
+DBTABLE = read('scripts/drop_tables/configs/npc_drops.dbtable')
 
 def const(n):
     m = re.search(r'^\^%s\s*=\s*(-?\d+)\s*$' % n, CONST, re.M)
     return int(m.group(1)) if m else None
 
-# THE MEMBERSHIP IS RE-DERIVED, not trusted. The whole point of the gate is that a boosted kill can
-# only produce a drop that monster could already have produced, and the only way that stays true is
-# if the checked-in list still matches what the drop tables actually say.
-PROC = '~ultrarare_getitem'
-trig, nfiles = set(), 0
-SKIPDIR = os.path.join('scripts', 'gamemodes') + os.sep
-for root, _, files in os.walk(os.path.join(C, 'scripts')):
-    for f in sorted(files):
-        if not f.endswith('.rs2'):
-            continue
-        # droprate.rs2 calls the proc too; counting the boost as a drop table is how the enum
-        # stopped matching its own regeneration the first time this ran
-        if SKIPDIR in os.path.relpath(os.path.join(root, f), C) + os.sep:
-            continue
-        c = code(open(os.path.join(root, f), newline='').read().replace('\r\n', '\n'))
-        if PROC not in c:
-            continue
-        nfiles += 1
-        trig |= set(re.findall(r'^\[ai_queue3,(\w+)\]', c, re.M))
-bycat = {}
-for root, _, files in os.walk(os.path.join(C, 'scripts')):
-    for f in sorted(files):
-        if not f.endswith('.npc'):
-            continue
-        cur = None
-        for line in code(open(os.path.join(root, f), newline='').read().replace('\r\n', '\n')).split('\n'):
-            m = re.match(r'^\[([^\]]+)\]$', line.strip())
-            if m:
-                cur = m.group(1); continue
-            m = re.match(r'^category=(\w+)$', line.strip())
-            if m and cur:
-                bycat.setdefault(m.group(1), set()).add(cur)
-want = {t for t in trig if not t.startswith('_')}
-for t in sorted(t for t in trig if t.startswith('_')):
-    members = bycat.get(t[1:], set())
-    check(bool(members), '[ai_queue3,%s] expands to at least one npc' % t)
-    want |= members
-have = set(re.findall(r'^val=(\w+),1$', DROPENUM, re.M))
-check(nfiles > 0, '%d scripts call %s' % (nfiles, PROC))
-check(have == want,
-      'droprate_shared_rare is exactly the %d monsters whose own table reaches it - missing %s, '
-      'extra %s' % (len(want), sorted(want - have)[:3] or 'none', sorted(have - want)[:3] or 'none'))
-check('default=' not in block(DROPENUM, 'droprate_shared_rare'),
-      'and it carries NO default= on purpose: a miss answers 0, which is "no shared rare slot here"')
-check('outputtype=int' in block(DROPENUM, 'droprate_shared_rare'),
-      'outputtype is int, so that 0 is a real answer rather than a null')
+# the percentages, and which way round they go
+r1, r5, r10 = const('droprate_boost_realism'), const('droprate_boost_5x'), const('droprate_boost_10x')
+check((r1, r5, r10) == (25, 10, 0), 'realism +25%%, 5x +10%%, 10x nothing: %s' % [r1, r5, r10])
+check('droprate_bonus_' not in CONST and not os.path.exists(os.path.join(C, 'scripts/gamemodes/configs/droprate.enum')),
+      'the old rare-table roll counts and their gate are gone')
 
-# the counts, and which way round they go
-r1, r5, r10 = const('droprate_bonus_realism'), const('droprate_bonus_5x'), const('droprate_bonus_10x')
-check(None not in (r1, r5, r10), 'all three bonus-roll counts are declared: %s' % [r1, r5, r10])
-check(r10 == 0, '10x gets no bonus roll')
-check(r1 > r5 > r10, 'and the slower the rate the more rolls it gets: realism %s, 5x %s, 10x %s'
-      % (r1, r5, r10))
-
-# the proc: gate, then hero, then the rolls
-b = block_proc = DROPRS.split('[proc,droprate_bonus]', 1)[1].split('\n[', 1)[0]
-check('droprate_shared_rare' in b, 'the boost checks the gate')
-check('npc_findhero' in b, 'and asks who the kill belongs to')
-check(b.index('droprate_shared_rare') < b.index('npc_findhero'),
-      'gate first, so an unboosted monster costs one enum lookup and nothing else')
-check(b.index('npc_findhero') < b.index('~droprate_bonus_rolls'),
-      'and the hero is found before %xp_rate is read - it is the hero\'s varp, not the killer\'s')
-check(b.count('obj_add(npc_coord, ~ultrarare_getitem') == 1,
-      'one draw per loop pass, on the same proc and the same call shape the 63 tables use')
-check('while (true)' not in code(b), 'the loop is bounded by the roll count')
-check('~megararetable' not in code(DROPRS) and 'random(' not in code(DROPRS),
-      'the boost rolls nothing of its own - a bonus draw has exactly a natural draw\'s odds')
-rolls = DROPRS.split('[proc,droprate_bonus_rolls]', 1)[1].split('\n[', 1)[0]
-check('^droprate_bonus_realism' in rolls.split('return(')[-1],
+# the proc rolls the bonus list and nothing else
+b = DROPRS.split('[proc,droprate_bonus]', 1)[1].split('\n[', 1)[0]
+check('~ultrarare_getitem' not in code(DROPRS) and '~megararetable' not in code(DROPRS),
+      'the boost never touches the shared rare table')
+check('npc_findhero' in b and 'npc_drops:bonus' in b and b.index('npc_findhero') < b.index('npc_drops:bonus'),
+      'it finds the hero - whose %xp_rate it is - before it reads the bonus list')
+check('scale($percent, 100, $chance)' in b and 'random(^droprate_units)' in b,
+      "each row at its own chance times the boost, in the generator's units")
+check(const('droprate_units') == 10000000, '^droprate_units is BONUS_UNITS, ten million')
+check('while (true)' not in code(b), 'the loop is bounded by the row count')
+g = DROPRS.split('[proc,droprate_give]', 1)[1].split('\n[', 1)[0]
+check('~pet_owned($obj)' in g and '~broadcast_pet($obj)' in g, "a pet keeps ~bosspet_roll's rules")
+check(all(x in g for x in ('~trail_easycluedrop(1, $at)', '~trail_mediumcluedrop(1, $at)', '~trail_hardcluedrop(1, $at)')),
+      "a clue goes through its tier's own proc, one clue at a time")
+check('collection_log_item_index' in g and '~broadcast_drop($obj)' in g,
+      'a collection log item is announced and logged, as the tables do their rares')
+rolls = DROPRS.split('[proc,droprate_boost_percent]', 1)[1].split('\n[', 1)[0]
+check('^droprate_boost_realism' in rolls.split('return(')[-1],
       'realism is the DEFAULT branch, so ^xprate_unset (0) gets the boost too')
 check('^xprate_10x' in rolls and '^xprate_5x' in rolls,
       'and it compares against the same rate constants the engine multiplies by')
 
-# shared_droptables is untouched: 63 callers depend on it
-SHARED = read('scripts/drop_tables/scripts/shared_droptables.rs2')
-check('droprate' not in SHARED,
-      'shared_droptables.rs2 knows nothing about the boost - it is 63 callers wide')
+# the data: the bonus column, and nothing in it that the rare table owns
+check('column=bonus,namedobj,int,int,int,int,LIST' in DBTABLE, 'npc_drops has its bonus column')
+bon = re.findall(r'^data=bonus,(\w+),(\d+),(\d+),(\d+),(\d)$', DBROW, re.M)
+check(len(bon) > 1000, '%d bonus rows across the tables' % len(bon))
+check(all(0 < int(c) < 10000000 and int(lo) <= int(hi) for _, lo, hi, c, _k in bon),
+      'every chance is under one, and every amount a range the right way round')
+rows = {}
+cur = None
+for line in DBROW.split('\n'):
+    m = re.match(r'^\[(\w+)\]$', line)
+    if m:
+        cur = rows.setdefault(m.group(1), {'drop': [], 'bonus': []})
+    elif line.startswith('data=drop,') and cur is not None:
+        cur['drop'].append(line.split(',')[1])
+    elif line.startswith('data=bonus,') and cur is not None:
+        cur['bonus'].append(line.split(',')[1])
+check(all(set(r['bonus']) <= set(r['drop']) for r in rows.values()),
+      'a bonus row is only ever for something that table already drops')
+gd = rows.get('npc_drops_superior_greater_abyssal', {'drop': [], 'bonus': []})
+check('dragon_med_helm' in gd['drop'] and 'dragon_med_helm' not in gd['bonus'] and 'rune_spear' not in gd['bonus'],
+      "the greater abyssal demon's rare-table items are listed, and not boosted")
+check('abyssal_whip' in gd['bonus'] and 'abyssal_head' in gd['bonus'],
+      '...while its own whip and head are')
+check(all(r['bonus'].count(o) <= r['drop'].count(o) for r in rows.values() for o in set(r['bonus'])),
+      'and never more bonus rows for an item than drop rows')
 
 # one hook, in the funnel, beside the two that are already there
 check(DEATH.count('~droprate_bonus;') == 1, 'the hook is in [proc,npc_death] exactly once')
 check('~boss_kill_record' in DEATH and
       DEATH.index('~boss_kill_record') < DEATH.index('~droprate_bonus'),
       'next to the other two hooks that use that funnel for the same reason')
-hooks = [f for f in ('scripts/skill_combat/scripts/npc/npc_death.rs2',
-                     'scripts/drop_tables/scripts/shared_droptables.rs2')
-         if '~droprate_bonus;' in read(f)]
-check(hooks == ['scripts/skill_combat/scripts/npc/npc_death.rs2'],
-      'and nothing else calls it: %s' % hooks)
+SHARED = read('scripts/drop_tables/scripts/shared_droptables.rs2')
+check('droprate' not in SHARED, 'shared_droptables.rs2 knows nothing about the boost')
 check('%xp_rate' not in code(DEATH), 'the death funnel never reads %xp_rate itself')
 
 # the generator still produces what is checked in
 import subprocess as _sp2
-kept2 = {DROPFILE: open(os.path.join(C, DROPFILE), 'rb').read()
-         for DROPFILE in ['scripts/gamemodes/configs/droprate.enum']}
-r2 = _sp2.run([sys.executable, os.path.join(C, 'tools/gendroprate.py')],
+r2 = _sp2.run([sys.executable, os.path.join(C, 'tools/gennpcdrops.py'), '--check'],
               capture_output=True, text=True, cwd=C)
-check(r2.returncode == 0, 'tools/gendroprate.py runs clean'
+check(r2.returncode == 0 and 'wrote' not in r2.stdout.split('gennpcdrops:')[0],
+      'tools/gennpcdrops.py --check: the drop data is what the death scripts say'
       + ('' if r2.returncode == 0 else ': ' + (r2.stderr or r2.stdout)[-300:]))
-moved2 = [f for f in kept2 if open(os.path.join(C, f), 'rb').read() != kept2[f]]
-for f in moved2:
-    open(os.path.join(C, f), 'wb').write(kept2[f])
-check(not moved2, 're-running it changes nothing: %s' % (moved2 or 'byte-identical'))
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

@@ -1,59 +1,102 @@
 // Drop-rate boost: the second half of backlog item 6, and the companion to xprate.rs2.
 //
-// A boosted kill gets EXTRA DRAWS on ~ultrarare_getitem - realism two, 5x one, 10x none. The rest of
-// the monster's table is untouched, so nothing about a normal kill changes.
+// A boosted kill makes the monster's OWN drop table pay more often: realism +25%, 5x +10%, 10x
+// nothing (gamemode.constant). A 1/128 drop is about 1/102 on realism. The shared rare drop table is
+// left exactly as it is - an earlier version of this gave the slow modes extra draws on it instead,
+// and that is what this replaced (2026-09-24).
 //
-// WHY ONE HOOK AND NOT 363 EDITS. The xp half put its multiplier in the engine because there are 288
-// stat_advance call sites and no wrapper proc, so doing it content-side would have meant editing all
-// of them and the next skill anybody wrote would have missed it. The same argument decides this one:
-// there are 363 random() calls across 214 drop-table scripts, most of them not even the main ladder,
-// and [proc,npc_death] is the single funnel every death already passes through - ~barrows_potential
-// and ~boss_kill_record are both hooked there for exactly that reason. One hook means the boost
-// means the same thing on every table, including the ones written after this.
+// HOW. The monster's death script runs as it always has, and then, from [proc,npc_death], this rolls
+// each row of the monster's bonus list (npc_drops:bonus, written by tools/gennpcdrops.py) once, at
+// the row's own chance times the boost. The generator reads that chance out of the death scripts
+// themselves, less whatever part of it comes through ~ultrarare_getitem / ~megararetable, so a row
+// the rare table can give is boosted only by what the monster's own table gives of it. The expected
+// number of every drop therefore goes up by exactly the boost, the drop the table rolled is untouched,
+// and nothing can drop that the monster could not already drop.
 //
-// WHY IT IS GATED. ~ultrarare_getitem is the SHARED rare table. Granting a draw on it from any
-// monster would let a goblin pay out a dragon med helm, which is a new drop source rather than a
-// rate boost, and it would read worst in realism - the mode that is supposed to be the authentic
-// one. droprate_shared_rare lists the 182 monsters whose own table already reaches that proc, so a
-// boosted kill can only ever produce a drop that monster could already have produced.
+// WHAT IS NOT BOOSTED: what the monster always drops (bones, ashes - there is no rate to raise), the
+// rare drop table, and a drop the table picks per killer (the next essence pouch).
 //
-// WHY IT IS ALLOWED TO WHIFF. ~ultrarare_getitem gives nothing on about 10.3% of draws - 15/128 of
-// its ladder delegates to ~megararetable, which itself only pays on 15/128 and falls through the
-// rest of the time, returning (null, 0) that obj_add discards. A bonus draw has exactly the odds a
-// natural draw has, which is what makes the whole thing statable as "the rare slot is rolled twice".
-// Re-rolling until it paid would make a bonus draw strictly better than a natural one - a different
-// mechanic wearing the same name - and would mean editing the proc all 63 callers depend on.
+// WHY ONE HOOK AND NOT 214 EDITS: the drop tables are [ai_queue3] triggers, not procs, so nothing
+// outside them can add to one; [proc,npc_death] is the one funnel every death passes through, as it
+// is for ~barrows_potential and ~boss_kill_record.
 
 [proc,droprate_bonus]
-// the gate first: a miss on this table answers 0, which is the correct "no shared rare slot here"
-if (enum(npc, int, droprate_shared_rare, npc_type) ! 1) {
-    return;
-}
 // npc_findhero sets the active player, which is both who the drop belongs to and whose %xp_rate
-// decides the count. It clones before it sorts and the hero list is fixed-length and pre-filled, so
-// calling it here as well as in the monster's own table changes nothing and cannot throw on a kill
-// nobody is credited with.
+// decides the boost. It clones before it sorts and the hero list is fixed-length and pre-filled, so
+// calling it here as well as in the monster's own table changes nothing.
 if (npc_findhero = ^false) {
     return;
 }
-def_int $rolls = ~droprate_bonus_rolls;
+def_int $percent = ~droprate_boost_percent;
+if ($percent <= 0) {
+    return;
+}
+db_find(npc_drops:npc, npc_type);
+def_dbrow $row = db_findnext;
+if ($row = null) {
+    return;
+}
+def_coord $at = ~droprate_coord;
+def_namedobj $obj;
+def_int $least;
+def_int $most;
+def_int $chance;
+def_int $kind;
+def_int $count = db_getfieldcount($row, npc_drops:bonus);
 def_int $i = 0;
-while ($i < $rolls) {
-    obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);
-    $i = calc($i + 1);
+while ($i < $count) {
+    $obj, $least, $most, $chance, $kind = db_getfield($row, npc_drops:bonus, $i);
+    // the row's chance (in ^droprate_units) times the boost
+    if (random(^droprate_units) < scale($percent, 100, $chance)) {
+        ~droprate_give($obj, $least, $most, $kind, $at);
+    }
+    $i = add($i, 1);
 }
 
-// How many extra draws this player's mode is worth. %xp_rate holds the RATE, not a mode index, so
-// this compares against the same three constants the engine multiplies by.
+// One bonus drop, the way the monster's table would have made it.
+[proc,droprate_give](namedobj $obj, int $least, int $most, int $kind, coord $at)
+switch_int ($kind) {
+    case ^droprate_kind_pet :
+        // ~bosspet_roll's rules: not if one is owned already
+        if (~pet_owned($obj) = true) {
+            return;
+        }
+        obj_add($at, $obj, 1, ^lootdrop_duration);
+        mes("You have a funny feeling like you're being followed.");
+        ~broadcast_pet($obj);
+    // a clue goes through its tier's own drop proc at a chance of 1, which picks the clue and keeps
+    // the one-clue-at-a-time rule
+    case ^droprate_kind_clue_easy : ~trail_easycluedrop(1, $at);
+    case ^droprate_kind_clue_medium : ~trail_mediumcluedrop(1, $at);
+    case ^droprate_kind_clue_hard : ~trail_hardcluedrop(1, $at);
+    case default :
+        obj_add($at, $obj, add($least, random(add(sub($most, $least), 1))), ^lootdrop_duration);
+        // announced and logged if the collection log lists it, as the tables do their rares -
+        // ~broadcast_drop is the collection log's way in (general/scripts/broadcast.rs2)
+        if (enum(obj, int, collection_log_item_index, oc_uncert($obj)) ! -1) {
+            ~broadcast_drop($obj);
+        }
+}
+
+// Where the monster's own loot lands. The Kraken's two die in the water and drop under the player
+// (area_kraken_cove/scripts/kraken_drops.rs2); everything else drops where it died.
+[proc,droprate_coord]()(coord)
+if (npc_type = kraken | npc_type = cave_kraken) {
+    return(~kraken_loot_coord);
+}
+return(npc_coord);
+
+// The boost for this player's mode, in percent. %xp_rate holds the RATE, not a mode index, so this
+// compares against the same three constants the engine multiplies by.
 //
 // Realism is the DEFAULT branch on purpose: ^xprate_unset is 0, the engine already reads that as 1x,
 // and a character who has never been asked should get the compensation that goes with the slow rate
 // rather than silently getting neither.
-[proc,droprate_bonus_rolls]()(int)
+[proc,droprate_boost_percent]()(int)
 if (%xp_rate = ^xprate_10x) {
-    return(^droprate_bonus_10x);
+    return(^droprate_boost_10x);
 }
 if (%xp_rate = ^xprate_5x) {
-    return(^droprate_bonus_5x);
+    return(^droprate_boost_5x);
 }
-return(^droprate_bonus_realism);
+return(^droprate_boost_realism);

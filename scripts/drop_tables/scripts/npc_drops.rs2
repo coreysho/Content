@@ -75,19 +75,15 @@ if_setscrollpos(enum(int, component, npc_drops_tier_list, $tier), 0);
 if_sethide(npc_drops:back, true);
 if_openmain(npc_drops);
 
-// The combat level, and - for a monster whose table reaches the shared rare drop table - the extra
-// draws on it this player's game mode gives (gamemodes/scripts/droprate.rs2). Those are the killer's,
-// not the monster's, so the rates in the list leave them out and this line says what they add.
+// The combat level, and the drop-rate boost this player's game mode gives
+// (gamemodes/scripts/droprate.rs2). That is the killer's, not the monster's, so the rates in the list
+// leave it out and this line says what it adds. The table has only one boost to state: every row
+// but the rare drop table's share and the always-drops is raised by the same percentage.
 [proc,npc_drops_subtitle](npc $npc)(string)
 def_string $line = "Combat level <tostring(nc_vislevel($npc))>";
-if (enum(npc, int, droprate_shared_rare, $npc) = 1) {
-    def_int $rolls = ~droprate_bonus_rolls;
-    if ($rolls > 0) {
-        $line = append($line, ". Your game mode: +<tostring($rolls)> rare drop table roll");
-        if ($rolls > 1) {
-            $line = append($line, "s");
-        }
-    }
+def_int $percent = ~droprate_boost_percent;
+if ($percent > 0) {
+    $line = append($line, ". Your game mode: drop rates +<tostring($percent)>%");
 }
 return($line);
 

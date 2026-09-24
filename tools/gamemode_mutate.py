@@ -41,35 +41,28 @@ STATSIF = 'scripts/interfaces/stats.if'
 LOGIN = 'scripts/login_logout/scripts/login.rs2'
 PARAMCFG = 'engine:tools/pack/config/ParamConfig.ts'
 DROPRS = 'scripts/gamemodes/scripts/droprate.rs2'
-DROPENUM = 'scripts/gamemodes/configs/droprate.enum'
+DBROW = 'scripts/drop_tables/configs/npc_drops.dbrow'
 DEATH = 'scripts/skill_combat/scripts/npc/npc_death.rs2'
 BLACKDEMON = 'scripts/drop_tables/scripts/black_demon.rs2'
 
 MUTS = [
  # ---- the drop-rate boost
- (CONST, '^droprate_bonus_10x = 0', '^droprate_bonus_10x = 1',
-  '10x gets no bonus roll'),
- (CONST, '^droprate_bonus_realism = 2\n^droprate_bonus_5x = 1',
-  '^droprate_bonus_realism = 1\n^droprate_bonus_5x = 2',
-  'the slower the rate the more rolls it gets'),
- (DROPENUM, 'val=black_dragon,1\n', '',
-  'droprate_shared_rare is exactly the'),
- (DROPENUM, 'val=cyclops,1', 'val=goblin,1',
-  'droprate_shared_rare is exactly the'),
- (DROPENUM, '[droprate_shared_rare]\ninputtype=npc\noutputtype=int',
-  '[droprate_shared_rare]\ninputtype=npc\noutputtype=int\ndefault=null',
-  'it carries NO default= on purpose'),
- (DROPRS, 'if (enum(npc, int, droprate_shared_rare, npc_type) ! 1) {\n    return;\n}\n', '',
-  'the boost checks the gate'),
- (DROPRS, 'obj_add(npc_coord, ~ultrarare_getitem, ^lootdrop_duration);',
-  'obj_add(npc_coord, ~megararetable, ^lootdrop_duration);',
-  'the boost rolls nothing of its own'),
- (DROPRS, 'return(^droprate_bonus_realism);', 'return(^droprate_bonus_10x);',
+ (CONST, '^droprate_boost_10x = 0', '^droprate_boost_10x = 5',
+  'realism +25%, 5x +10%, 10x nothing'),
+ (CONST, '^droprate_boost_realism = 25', '^droprate_boost_realism = 50',
+  'realism +25%, 5x +10%, 10x nothing'),
+ (DROPRS, 'scale($percent, 100, $chance)', '$chance',
+  "each row at its own chance times the boost"),
+ (DROPRS, '        if (~pet_owned($obj) = true) {\n            return;\n        }\n', '',
+  "a pet keeps ~bosspet_roll's rules"),
+ (DROPRS, 'return(^droprate_boost_realism);', 'return(^droprate_boost_10x);',
   'realism is the DEFAULT branch'),
  (DEATH, '~droprate_bonus;\n', '',
   'the hook is in [proc,npc_death] exactly once'),
- (BLACKDEMON, '[ai_queue3,_black_demon]', '[ai_queue3,black_demon]',
-  'droprate_shared_rare is exactly the'),
+ (DROPRS, '    case ^droprate_kind_clue_hard : ~trail_hardcluedrop(1, $at);\n', '',
+  "a clue goes through its tier's own proc"),
+ (DBROW, 'data=bonus,abyssal_whip,', 'data=bonus,dragon_med_helm,',
+  "the greater abyssal demon's rare-table items are listed, and not boosted"),
 
  # ---- 8 the lock bits
  (CONST, '^xplock_attack = 0', '^xplock_attack = 1',

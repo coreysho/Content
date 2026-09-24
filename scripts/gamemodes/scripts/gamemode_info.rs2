@@ -3,7 +3,7 @@
 // the tree to that, so nothing can multiply experience or test a lock behind the engine's back.
 //
 // THE GAME MODE IS THE XP RATE. There is no other mode on this server: Realism, 5x or 10x, chosen
-// once on Tutorial Island (xprate.rs2), with the slow modes paid in rare-table rolls (droprate.rs2).
+// once on Tutorial Island (xprate.rs2), with the slow modes paid in better drop rates (droprate.rs2).
 
 // How many skills refuse experience.
 [proc,xplock_count]()(int)
@@ -20,12 +20,10 @@ return($count);
 // The quest tab's Quick actions: what the mode means, in a message box.
 [proc,gamemode_explain]
 def_int $rate = ~xprate_current;
-def_int $rolls = ~droprate_bonus_rolls;
-def_string $drops = "and no extra rare drop table rolls";
-if ($rolls = 1) {
-    $drops = "and one extra roll on the rare drop table from every monster that has one";
-} else if ($rolls > 1) {
-    $drops = "and <tostring($rolls)> extra rolls on the rare drop table from every monster that has one";
+def_int $percent = ~droprate_boost_percent;
+def_string $drops = "and normal drop rates";
+if ($percent > 0) {
+    $drops = "and <tostring($percent)>% better drop rates from every monster's own drop table";
 }
 def_string $locks = "No skill is XP locked.";
 def_int $locked = ~xplock_count;
