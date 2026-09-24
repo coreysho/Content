@@ -17,6 +17,7 @@ if (inv_total(inv, arravcertificate) > 0) {
 switch_int (%garden_quest) {
     case ^garden_not_started : return(true);
     case ^garden_started : return(true);
+    case ^garden_grown : return(true);
     case ^garden_statues : return(true);
 }
 return(false);
@@ -25,6 +26,7 @@ return(false);
 switch_int (%garden_quest) {
     case ^garden_not_started : @garden_roald_start;
     case ^garden_started : @garden_roald_list;
+    case ^garden_grown : @garden_roald_trolley;
     case ^garden_statues : @garden_roald_done;
     case default :
         if (%garden_quest >= ^garden_complete) {
@@ -72,6 +74,21 @@ if (inv_freespace(inv) = 0) {
 }
 inv_add(inv, garden_list, 1);
 mes("Roald has another copy made.");
+
+// FIXED: the statues can only be moved with garden_trolley_obj and nothing anywhere handed one out,
+// so the quest stopped dead at ^garden_grown. Roald has the palace's.
+[label,garden_roald_trolley]
+if (inv_total(inv, garden_trolley_obj) > 0 | inv_total(bank, garden_trolley_obj) > 0) {
+    ~chatnpc("<p,neutral>You have the trolley. The Saradomin statue is in Falador, the one of me is in Lumbridge, and the two empty plinths are out in the garden.");
+    return;
+}
+~chatnpc("<p,happy>It is green. It is actually green. Now the statues - and you will not carry those on your back.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>Make some room and I will have the palace trolley brought round.");
+    return;
+}
+inv_add(inv, garden_trolley_obj, 1);
+~chatnpc("<p,neutral>The palace trolley. Use it on a statue to load it, and on a plinth in the garden to set it down.");
 
 [label,garden_roald_done]
 ~chatplayer("<p,happy>It's finished.");
@@ -141,7 +158,9 @@ switch_int ($who) {
 }
 return(0);
 
-[label,garden_gardener_set](int $who, int $value)
+// FIXED: was a [label] - the jump never came back, so paying a gardener skipped his thanks and
+// ~garden_check_seeds, and a list finished at a gardener (rather than at Bernald) never advanced.
+[proc,garden_gardener_set](int $who, int $value)
 switch_int ($who) {
     case 1 : %garden_elstan_varbit = $value;
     case 2 : %garden_kragen_varbit = $value;
@@ -168,7 +187,7 @@ switch_int ($who) {
         ~chatnpc("<p,neutral>A shoot off the white tree? That is not a garden plant, that is a monument.");
         ~chatnpc("<p,neutral>Bring me a bucket of compost for the monastery beds and it is yours.");
 }
-@garden_gardener_set($who, 1);
+~garden_gardener_set($who, 1);
 
 [label,garden_gardener_pay](int $who)
 if (inv_total(inv, bucket_compost) = 0) {
@@ -193,7 +212,7 @@ switch_int ($who) {
         inv_add(inv, garden_orchid_yellow_seed, ^garden_need_orchid);
     case 5 : inv_add(inv, garden_white_tree_shoot, 1);
 }
-@garden_gardener_set($who, 2);
+~garden_gardener_set($who, 2);
 ~chatnpc("<p,happy>There. Tell him it came from me.");
 ~garden_check_seeds;
 

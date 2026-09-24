@@ -34,7 +34,7 @@ if ($state >= ^garden_weeded) {
 }
 mes("You rake the weeds out.");
 p_delay(3);
-@garden_set_patch($which, add($state, 1));
+~garden_set_patch($which, add($state, 1));
 stat_advance(farming, 40);
 if (add($state, 1) >= ^garden_weeded) {
     mes("That bed is clear. It wants sowing.");
@@ -55,7 +55,7 @@ if ($item = bucket_compost & $state = ^garden_pot_empty) {
     inv_del(inv, bucket_compost, 1);
     inv_add(inv, bucket_empty, 1);
     mes("You fill the pot with compost.");
-    @garden_set_patch($which, ^garden_pot_soil);
+    ~garden_set_patch($which, ^garden_pot_soil);
     return;
 }
 @garden_sow($state, $which, $item);
@@ -113,7 +113,7 @@ if (inv_total(inv, $seed) < $count) {
 inv_del(inv, $seed, $count);
 mes("You sow the bed.");
 p_delay(2);
-@garden_set_patch($which, ^garden_seed);
+~garden_set_patch($which, ^garden_seed);
 stat_advance(farming, 200);
 mes("Sown. It will want watering.");
 
@@ -134,13 +134,13 @@ if ($which = 7) {
     inv_add(inv, $spent, 1);
     mes("You water the seedling.");
     p_delay(2);
-    @garden_set_patch(7, 5);
+    ~garden_set_patch(7, 5);
     p_delay(2);
-    @garden_set_patch(7, 6);
+    ~garden_set_patch(7, 6);
     p_delay(2);
-    @garden_set_patch(7, 7);
+    ~garden_set_patch(7, 7);
     p_delay(2);
-    @garden_set_patch(7, ^garden_tree_grown);
+    ~garden_set_patch(7, ^garden_tree_grown);
     stat_advance(farming, 800);
     ~mesbox("It comes up white, the way the one on Ice Mountain does, and keeps going until it is taller than the wall.");
     ~garden_check_grown;
@@ -154,17 +154,20 @@ inv_del(inv, $can, 1);
 inv_add(inv, $spent, 1);
 mes("You water the bed.");
 p_delay(2);
-@garden_set_patch($which, ^garden_growing_1);
+~garden_set_patch($which, ^garden_growing_1);
 p_delay(2);
-@garden_set_patch($which, ^garden_growing_2);
+~garden_set_patch($which, ^garden_growing_2);
 p_delay(2);
-@garden_set_patch($which, ^garden_fullygrown);
+~garden_set_patch($which, ^garden_fullygrown);
 stat_advance(farming, 400);
 mes("It comes up while you are still standing there.");
 ~garden_check_grown;
 
 // A switch rather than a pointer, because a varbit cannot be passed by reference.
-[label,garden_set_patch](int $which, int $value)
+// FIXED: this was a [label], and a jump to a label never comes back - so every caller stopped dead
+// at its first write. Raking skipped its messages, and watering left each bed at the first growth
+// state and never reached ~garden_check_grown, so the quest could not get past ^garden_seeds.
+[proc,garden_set_patch](int $which, int $value)
 switch_int ($which) {
     case 1 : %garden_delphiniums_varbit = $value;
     case 2 : %garden_rosebush_white_varbit = $value;

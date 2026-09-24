@@ -17,6 +17,9 @@ if (%deal_quest = ^deal_not_started) {
 [opnpc1,deal_island_pete]
 if (%deal_quest >= ^deal_complete) {
     ~chatnpc("<p,happy>Eight months and then one afternoon. I'd be annoyed if I could still feel things properly.");
+    // FIXED: this returned here, and he is the only way off the island - finishing the quest
+    // stranded you on it.
+    ~deal_cross;
     return;
 }
 ~chatplayer("<p,quiz>Can you row me back?");
@@ -96,6 +99,12 @@ p_delay(4);
 stat_advance(cooking, 70000);
 stat_advance(farming, 70000);
 stat_advance(slayer, 70000);
+// the scroll has always promised Slayer gloves and nothing ever handed them over
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, deal_slayer_gloves, 1);
+} else {
+    obj_add(coord, deal_slayer_gloves, 1, ^lootdrop_duration);
+}
 session_log(^log_adventure, "Quest complete: Rum Deal");
 ~send_quest_complete(questlist:deal, deal_slayer_gloves, 200, ^deal_questpoints, "You have completed\\nRum Deal!", "2 Quest Points|7,000 Cooking XP|7,000 Farming XP|7,000 Slayer XP|Slayer gloves");
 
@@ -274,9 +283,9 @@ if (%deal_quest < ^deal_vat) {
     return;
 }
 switch_int (%deal_farming) {
-    case ^deal_weeds3 :
-    case ^deal_weeds2 :
-    case ^deal_weeds1 :
+    // FIXED: these were three stacked case labels, and a RuneScript case does not fall through - the
+    // first two were empty, so a fresh patch (weeds3) could never be weeded at all.
+    case ^deal_weeds3, ^deal_weeds2, ^deal_weeds1 :
         anim(human_pickupfloor, 0);
         p_delay(3);
         %deal_farming = add(%deal_farming, 1);
@@ -462,9 +471,20 @@ if (%deal_quest < ^deal_island) {
 ~chatplayer("<p,quiz>Half of what?");
 ~chatnpc("<p,neutral>Exactly.");
 
+// FIXED: this gate is the only way from 50% Luke's yard to the stagnant lake, and it only ever said
+// no - so the bucket of stagnant water could never be filled. It opens, as it does in OSRS.
 [oploc1,deal_gate_closed]
 p_arrivedelay;
-~mesbox("The gate is shut and 50% Luke is on the other side of it doing half of his job, which is the half where the gate stays shut.");
+if (%deal_quest < ^deal_island) {
+    ~mesbox("The gate is shut and 50% Luke is on the other side of it doing half of his job, which is the half where the gate stays shut.");
+    return;
+}
+if (coordz(coord) > coordz(loc_coord)) {
+    p_teleport(loc_coord);
+} else {
+    p_teleport(movecoord(loc_coord, 0, 0, 1));
+}
+mes("You go through the gate.");
 
 [opheld1,deal_bucket_swill]
 ~mesbox("Sorry, I mean a bucket of 'rum'.");

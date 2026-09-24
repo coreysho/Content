@@ -169,21 +169,40 @@ if (%misc_approval < ^misc_approval_target) {
 ~chatnpc("<p,neutral>...the whole island has been talking about you. Go in.");
 %misc_grantedaudience = ^misc_on;
 
+// FIXED: the two doors are on the throne room's south wall (angle 3, at 2506,3857) and north wall
+// (angle 1, at 2506,3863), not east-west, so the old coordx test sent you to one of two tiles that
+// are both inside the room - you could never leave. And Ghrim, who starts the quest, stands in
+// the throne room, so a door that wanted 100% approval before the quest had begun kept it from
+// ever starting. Out is always allowed; in is allowed to go and find Ghrim, and after that only
+// once the island approves of you.
 [oploc1,misc_ulby_throneroomdoor]
 def_coord $door = loc_coord;
+def_int $angle = loc_angle;
 p_arrivedelay;
-if (%misc_approval < ^misc_approval_target) {
+def_boolean $inside = false;
+if ($angle = 3 & coordz(coord) >= coordz($door)) {
+    $inside = true;
+} else if ($angle = 1 & coordz(coord) <= coordz($door)) {
+    $inside = true;
+}
+if ($inside = true) {
+    mes("You go out.");
+    if ($angle = 3) {
+        p_teleport(movecoord($door, 0, 0, -1));
+    } else {
+        p_teleport(movecoord($door, 0, 0, 1));
+    }
+    return;
+}
+if (%misc_quest >= ^misc_working & %misc_approval < ^misc_approval_target) {
     ~mesbox("Two guards move in front of it without saying anything, which is worse than being told no.");
     return;
 }
-%misc_grantedaudience = ^misc_on;
-if (coordx(coord) > coordx($door)) {
-    mes("You go in.");
-    p_teleport(^misc_throne_inside);
-} else {
-    mes("You go out.");
-    p_teleport(^misc_throne_outside);
+if (%misc_approval >= ^misc_approval_target) {
+    %misc_grantedaudience = ^misc_on;
 }
+mes("You go in.");
+p_teleport($door);
 
 // =========================================================================== King Vargas
 [opnpc1,misc_king_vargas]

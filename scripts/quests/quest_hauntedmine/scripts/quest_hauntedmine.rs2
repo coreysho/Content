@@ -28,7 +28,10 @@ if (%hauntedmine < ^hm_refused) {
     ~mesbox("There is a key on his belt and no reason yet to want it.");
     return;
 }
-if (inv_total(inv, hauntedmine_lift_key) > 0 | %hauntedmine > ^hm_refused) {
+// FIXED: this also refused anyone past ^hm_refused, and setting the points before stealing the
+// key moved the quest on to ^hm_points - so the key could never be taken and the valve never
+// turned. Now it is the key itself that matters, until the lift has been ridden.
+if (inv_total(inv, hauntedmine_lift_key) > 0 | %hauntedmine >= ^hm_bottom) {
     ~mesbox("He has nothing else on him worth the trouble.");
     return;
 }
@@ -49,9 +52,12 @@ if (random(10) < 4) {
     return;
 }
 inv_add(inv, hauntedmine_lift_key, 1);
-%hauntedmine = ^hm_key;
-~send_quest_progress(questlist:hauntedmine, %hauntedmine, ^hm_complete);
+if (%hauntedmine < ^hm_key) {
+    %hauntedmine = ^hm_key;
+    ~send_quest_progress(questlist:hauntedmine, %hauntedmine, ^hm_complete);
+}
 stat_advance(thieving, 2000);
+~hm_points_check;
 ~mesbox("A heavy iron key, far too big for a robe pocket and far too new for a mine that closed eighty years ago.");
 
 // =========================================================================== getting in
@@ -129,7 +135,8 @@ if (testbit(%hauntedmine_bits, $bit) = ^true) {
 if (~hm_points_set = false) {
     return;
 }
-if (%hauntedmine >= ^hm_points) {
+// only from the key: the points on their own are not progress towards a lift you cannot unlock
+if (%hauntedmine ! ^hm_key) {
     return;
 }
 %hauntedmine = ^hm_points;
@@ -161,7 +168,17 @@ inv_add(inv, chisel, 1);
 mes("You take a chisel out of the crate.");
 
 // =========================================================================== the lift
-[oploc1,hauntedmine_lift_valve]
+// The valve is mounted on the far side of a wall edge from the only tile in front of it, so it can
+// never be operated in the ordinary way ("I can't reach that!"). Reached from one tile away instead.
+[oploc1,hauntedmine_lift_valve] @hm_lift_valve;
+[aploc1,hauntedmine_lift_valve]
+if (distance(loc_coord, coord) > 1) {
+    p_aprange(1);
+    return;
+}
+@hm_lift_valve;
+
+[label,hm_lift_valve]
 p_arrivedelay;
 if (inv_total(inv, hauntedmine_lift_key) = 0) {
     ~mesbox("The valve is locked off with a keyed collar, which is a strange thing to do to a mine that officially does not exist.");
@@ -181,16 +198,40 @@ if (%hauntedmine < ^hm_bottom) {
     ~mesbox("The bottom of the mine. Nothing has been down here in eighty years and the air says so.");
 }
 
-// The way back. The bottom level is only reachable by the lift, so this door is also the way off it.
-[oploc1,hauntedmine_boss_door]
+// The lift itself: "Go down in" works once the tank has been filled at the valve.
+[oploc1,lift_side_l] @hm_lift_down;
+[oploc1,lift_side_r] @hm_lift_down;
+[oploc1,lift_back] @hm_lift_down;
+
+[label,hm_lift_down]
 p_arrivedelay;
-if (coordy(coord) = coordy(^hm_boss_landing) & coordx(coord) > 2700 & coordz(coord) > 4400) {
-    mes("You open the door and ride the lift back up.");
-    p_delay(4);
-    p_teleport(^hm_valve);
+if (%hauntedmine < ^hm_bottom) {
+    ~mesbox("The lift does not move. It is a counterweight lift, and there is no water in the tank to make it one.");
     return;
 }
+mes("You ride the lift down.");
+p_delay(4);
+p_teleport(^hm_boss_landing);
+
+// and the flooded end of it, back up to the valve
+[oploc1,lift_flooded]
+p_arrivedelay;
+mes("You wade to the lift and ride it back up.");
+p_delay(4);
+p_teleport(^hm_lift_top);
+
+// FIXED: this door is between the stairs down from level 5 (east) and Treus Dayth's chamber
+// (west). It used to send anyone who touched it back up the lift - and the lift used to land in a
+// pocket on the east side of it - so the chamber, the key and the crystal were unreachable.
+[oploc1,hauntedmine_boss_door]
+def_coord $door = loc_coord;
+p_arrivedelay;
 mes("You open the door.");
+if (coordx(coord) >= coordx($door)) {
+    p_teleport(movecoord($door, -1, 0, 0));
+} else {
+    p_teleport(movecoord($door, 1, 0, 0));
+}
 
 // =========================================================================== Treus Dayth
 [opnpc1,hauntedmine_boss_key]
@@ -238,9 +279,15 @@ inv_add(inv, hauntedmine_reward_key, 1);
 [oploc1,hauntedmine_rewarddoor_r] @hm_reward_door;
 
 [label,hm_reward_door]
+def_coord $door = loc_coord;
 p_arrivedelay;
 if (testbit(%hauntedmine_bits, ^hm_bit_crystal) = ^true) {
-    ~mesbox("The room the crystal was in.");
+    // unlocked for good: through to the crystal room and back (the doors are on its north wall)
+    if (coordz(coord) >= coordz($door)) {
+        p_teleport(movecoord($door, 0, 0, -1));
+    } else {
+        p_teleport($door);
+    }
     return;
 }
 if (inv_total(inv, hauntedmine_reward_key) = 0) {
@@ -286,6 +333,35 @@ inv_del(inv, ball_of_wool, 1);
 inv_add(inv, crystalshard_necklace, 1);
 stat_advance(crafting, 5000);
 ~mesbox("The Salve amulet. It does not do anything at all until something dead is standing in front of you, and then it does a great deal.");
+
+// The outcrops in the crystal room carry op1=Cut and had no trigger. The shard comes out of the
+// room when the door is opened; after that they are where a lost one is replaced.
+[oploc1,crystalcorner] @hm_cut_crystal;
+[oploc1,crystaledging] @hm_cut_crystal;
+[oploc1,largecrystals] @hm_cut_crystal;
+
+[label,hm_cut_crystal]
+p_arrivedelay;
+if (inv_total(inv, chisel) = 0) {
+    ~mesbox("You would need a chisel to take anything off it.");
+    return;
+}
+if (%hauntedmine < ^hm_complete) {
+    ~mesbox("The crystal is lit from inside it and it will not take a chisel.");
+    return;
+}
+if (inv_total(inv, crystalshard_necklace_unstrung) > 0 | inv_total(inv, crystalshard_necklace) > 0 | inv_total(bank, crystalshard_necklace_unstrung) > 0 | inv_total(bank, crystalshard_necklace) > 0 | inv_total(worn, crystalshard_necklace) > 0) {
+    ~mesbox("You already have a shard of it. It does not want to give up another.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You have no room.");
+    return;
+}
+anim(human_pickupfloor, 0);
+p_delay(3);
+inv_add(inv, crystalshard_necklace_unstrung, 1);
+mes("You chip a shard off the outcrop.");
 
 [opheld1,crystalshard_necklace_unstrung]
 ~mesbox("An unstrung crystal, lit from the inside, and warm. A chisel and a ball of wool would make it into something wearable.");
