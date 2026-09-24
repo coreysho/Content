@@ -10,6 +10,14 @@ switch_int (%onesmallfavour) {
             ~chatnpc("<p,happy>Clear skies ahead, with some chance of showers, thunderstorms, ice and hail. I am very confident about that.");
             return;
         }
+        // AUDIT 2026-09-24: the scroll was only handed out at the start, and only if there was room
+        // for it - Jimmy will not touch the pillar without it.
+        if (%onesmallfavour < ^osf_vane_fixed & %rotatingpillarfixed = ^osf_off & inv_total(inv, favour_animate_rock) = 0 & inv_freespace(inv) > 0) {
+            ~chatnpc("<p,neutral>You will want this for the stonemason. I never gave it to you.");
+            inv_add(inv, favour_animate_rock, 1);
+            ~objbox(favour_animate_rock, "Phantuwti gives you a scroll.", 250, 0, 0);
+            return;
+        }
         ~chatnpc("<p,neutral>Three parts. Three people. None of them will simply do it.");
 }
 
@@ -49,6 +57,11 @@ inv_add(inv, favour_weather_report, 1);
 // =========================================================================== the weathervane
 // The shell carries no ops. Its broken child has op1=Look and op5=Search and its fixed child has
 // none at all, so Search stops working the moment the vane is mended - which is right.
+// placed above the first-floor ladder on the platform (AUDIT 2026-09-24 - see ^osf_seer_ladder)
+[oploc1,favour_seer_laddertop]
+p_arrivedelay;
+~climb_ladder(^osf_seer_first_floor, false);
+
 [oploc5,osf_weathervane] @osf_search_vane;
 [oploc1,osf_weathervane] @osf_look_vane;
 
@@ -79,6 +92,30 @@ if (%onesmallfavour = ^osf_asked) {
     ~mesbox("Three pieces come away: the directionals, the ornament and the rotating pillar. All three are past anything you can do with your hands.");
     return;
 }
+// AUDIT 2026-09-24: a part lost before the vane went back up could never be replaced. What is
+// neither in the pack mended nor broken is still up here, broken.
+if (%weathervanefixed = ^osf_off & inv_freespace(inv) > 0) {
+    def_boolean $found = false;
+    if (inv_total(inv, favour_pillar_fixed) = 0 & inv_total(inv, favour_pillar_broken) = 0) {
+        inv_add(inv, favour_pillar_broken, 1);
+        %rotatingpillarfixed = ^osf_off;
+        $found = true;
+    }
+    if (inv_freespace(inv) > 0 & inv_total(inv, favour_ornament_fixed) = 0 & inv_total(inv, favour_ornament_broken) = 0) {
+        inv_add(inv, favour_ornament_broken, 1);
+        %ornamentfixed = ^osf_off;
+        $found = true;
+    }
+    if (inv_freespace(inv) > 0 & inv_total(inv, favour_directionals_fixed) = 0 & inv_total(inv, favour_directionals_broken) = 0) {
+        inv_add(inv, favour_directionals_broken, 1);
+        %directionalsfixed = ^osf_off;
+        $found = true;
+    }
+    if ($found = true) {
+        ~mesbox("There is still a broken piece of the vane up here. You take it.");
+        return;
+    }
+}
 @osf_rebuild;
 
 // All three fixed parts go back on at once - weathervanefixed is one bit and there is no
@@ -104,6 +141,13 @@ stat_advance(crafting, 5000);
 ~mesbox("It catches the wind and turns, and somewhere below you a seer makes a noise you will remember.");
 
 // =========================================================================== Jimmy the Chisel
+// AUDIT 2026-09-24: Jimmy sits in the H.A.M. hideout's cell and its door (favour_prisondoor, Open /
+// Pick-lock) had no handlers, so he could not be reached. It is a locked_door now
+// (skill_thieving/configs/doors/locked_door.dbrow): pick the lock to get in, and it opens from the
+// inside.
+[oploc1,favour_prisondoor] ~attempt_open_locked_door(loc_type, ~check_axis_locactive(coord));
+[oploc5,favour_prisondoor] ~pick_locked_door(loc_type, loc_coord, ~check_axis_locactive(coord));
+
 // "A young man with a dark and mysterious past", in the HAM hideout. The stonemason.
 [opnpc1,favour_jimmy]
 if (%onesmallfavour < ^osf_parts) {
@@ -132,7 +176,9 @@ inv_del(inv, favour_pillar_broken, 1);
 inv_del(inv, favour_animate_rock, 1);
 inv_add(inv, favour_pillar_fixed, 1);
 %rotatingpillarfixed = ^osf_on;
-%onesmallfavour = ^osf_pillar;
+if (%onesmallfavour < ^osf_pillar) {
+    %onesmallfavour = ^osf_pillar;
+}
 stat_advance(crafting, 2000);
 ~send_quest_progress(questlist:onesmallfavour, %onesmallfavour, ^osf_complete);
 ~chatnpc("<p,neutral>It turns. Do not tell anybody it was me.");
@@ -236,10 +282,13 @@ stat_advance(smithing, 2000);
 // =========================================================================== the landing lights
 // Eight placements - four colours, twice each - and eight bits in checklandinglights. All four
 // shells key on ONE bit for rendering, so nothing shows until every one of the eight is done.
-[oploc5,osf_multi_landinglight_jade_1] @osf_light(jade, 1);
-[oploc5,osf_multi_landinglight_opal_1] @osf_light(opal, 3);
-[oploc5,osf_multi_landinglight_redtopaz_1] @osf_light(red_topaz, 5);
-[oploc5,osf_multi_landinglight_sapphire_1] @osf_light(sapphire, 7);
+// AUDIT 2026-09-24: checklandinglights is an 8-bit varbit, so its bits are 0-7. They were numbered
+// 1-8, so bit 0 was never set, bit 8 did not exist, and ^osf_all_lights (255) could never be
+// reached - the glider never flew and the quest could not be finished.
+[oploc5,osf_multi_landinglight_jade_1] @osf_light(jade, 0);
+[oploc5,osf_multi_landinglight_opal_1] @osf_light(opal, 2);
+[oploc5,osf_multi_landinglight_redtopaz_1] @osf_light(red_topaz, 4);
+[oploc5,osf_multi_landinglight_sapphire_1] @osf_light(sapphire, 6);
 
 [oploc1,osf_multi_landinglight_jade_1] @osf_look_light;
 [oploc1,osf_multi_landinglight_opal_1] @osf_look_light;
@@ -292,8 +341,8 @@ if (%checklandinglights ! ^osf_all_lights) {
 
 [proc,osf_lights_done]()(int)
 def_int $n = 0;
-def_int $i = 1;
-while ($i <= ^osf_lights_count) {
+def_int $i = 0;
+while ($i < ^osf_lights_count) {
     if (testbit(%checklandinglights, $i) = ^true) {
         $n = calc($n + 1);
     }
@@ -302,8 +351,20 @@ while ($i <= ^osf_lights_count) {
 return($n);
 
 // =========================================================================== the glider
-[oploc1,favour_gnome_glider]
-p_arrivedelay;
+// AUDIT 2026-09-24: favour_gnome_glider has no ops at all, so this used to be an [oploc1] nobody
+// could click and the quest could not end. The pilot standing beside it, Gnormadium Avlafrim,
+// had Talk-to and no script; he takes the report now.
+[opnpc1,gnormadium_avlafrim]
+if (%onesmallfavour < ^osf_lights) {
+    ~chatnpc("<p,neutral>Grounded. The storm took my landing lights and I am not landing on an ogre in the dark.");
+    return;
+}
+if (%onesmallfavour < ^osf_complete) {
+    ~chatnpc("<p,quiz>Are you the one fixing my lights?");
+}
+@osf_glider;
+
+[label,osf_glider]
 if (%onesmallfavour < ^osf_lights) {
     ~mesbox("A gnome glider, folded up, with nobody near it.");
     return;

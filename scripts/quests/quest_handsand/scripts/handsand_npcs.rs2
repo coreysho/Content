@@ -2,6 +2,22 @@
 
 // =========================================================================== Bert
 [opnpc1,handsand_bert]
+// AUDIT 2026-09-24: the hand and Bert's rota are both destroyable and nothing else hands them out,
+// so a player who lost either was stuck. Bert has more of both.
+if (%handsand_quest >= ^handsand_hand & %handsand_quest < ^handsand_kit) {
+    if (%handsand_quest = ^handsand_hand & inv_total(inv, handsand_sandyhand) = 0 & inv_total(inv, handsand_beerhand) = 0 & inv_freespace(inv) > 0) {
+        ~chatnpc("<p,sad>You lost it? There was more of him in that sack. Take this and do not lose it.");
+        inv_add(inv, handsand_sandyhand, 1);
+        ~objbox(handsand_sandyhand, "Bert gives you another hand.", 250, 0, 0);
+        return;
+    }
+    if (%handsand_quest <= ^handsand_rarve & inv_total(inv, handsand_rota_bert) = 0 & inv_freespace(inv) > 0) {
+        ~chatnpc("<p,neutral>You will want my rota. Here is another copy.");
+        inv_add(inv, handsand_rota_bert, 1);
+        ~objbox(handsand_rota_bert, "Bert gives you a copy of his rota.", 250, 0, 0);
+        return;
+    }
+}
 switch_int (%handsand_quest) {
     case ^handsand_not_started : @handsand_bert_start;
     case ^handsand_hand : @handsand_bert_guard;
@@ -234,10 +250,6 @@ if (%handsand_quest < ^handsand_rarve) {
 // it is taken, which is why this sets the bit rather than just handing the vial over.
 // Her own dialogue is in areas/area_port_sarim/scripts/betty.rs2 and jumps here.
 [label,handsand_betty]
-if (%handsand_serum >= ^handsand_lens_juice) {
-    ~chatnpc("<p,happy>You have what you needed. Redberries and white berries are your problem, not mine.");
-    return;
-}
 if (%handsand_counter_multi = ^handsand_counter_vial) {
     if (inv_freespace(inv) = 0) {
         ~chatnpc("<p,neutral>It is on the counter. It will stay on the counter until you have a hand free.");
@@ -263,10 +275,24 @@ if (%handsand_counter_multi = ^handsand_counter_vial) {
 %handsand_counter_multi = ^handsand_counter_vial;
 ~mesbox("Betty stands a bottle and a plain glass lens on the counter.");
 
+// AUDIT 2026-09-24: Betty used to be skipped once the juice had been made, so losing the juice, the
+// dye or the tinted lens left no way to make another. She now helps whenever the lens is still
+// needed and none of its stages is being carried.
+[proc,handsand_betty_wanted]()(boolean)
+if (%handsand_quest ! ^handsand_kit) {
+    return(false);
+}
+if (inv_total(inv, handsand_bottle_water) > 0 | inv_total(inv, handsand_redberry_juice) > 0 | inv_total(inv, handsand_pink_dye) > 0 | inv_total(inv, handsand_rose_lens) > 0) {
+    return(false);
+}
+return(true);
+
 // =========================================================================== Zavistic Rarve
 // His own [opnpc1,zogre_human_zavistic_rarve] is in quests/quest_zogre/scripts/zogre_npcs.rs2 and
 // jumps here when this quest wants him, the same way Reldo's does for A Tail of Two Cats.
 [label,handsand_rarve_talk]
+// AUDIT 2026-09-24: the rotas were only compared at Sandy's desk; compare them here too.
+~handsand_check_rotas;
 switch_int (%handsand_quest) {
     case ^handsand_rarve : @handsand_rarve_evidence;
     case ^handsand_rotas : @handsand_rarve_kit;
@@ -315,6 +341,20 @@ inv_add(inv, handsand_scroll_magic, 1);
 ~chatnpc("<p,neutral>The orb needs a rose-tinted lens or it will record the truth and show you what you wanted to hear. Betty in Port Sarim does the water for the dye.");
 
 [label,handsand_rarve_waiting]
+// AUDIT 2026-09-24: the orb and the serum are destroyable and only Rarve has them.
+if (inv_total(inv, handsand_orb_storage) = 0 | (inv_total(inv, handsand_truthserum) = 0 & %handsand_coffee_multi = ^handsand_mug_present)) {
+    if (inv_freespace(inv) < 2) {
+        ~chatnpc("<p,neutral>You have lost something I gave you. Make some room and I will replace it.");
+        return;
+    }
+    if (inv_total(inv, handsand_orb_storage) = 0) {
+        inv_add(inv, handsand_orb_storage, 1);
+    }
+    if (inv_total(inv, handsand_truthserum) = 0 & %handsand_coffee_multi = ^handsand_mug_present) {
+        inv_add(inv, handsand_truthserum, 1);
+    }
+    ~chatnpc("<p,angry>You lost it. Here. That is the last of my patience, if not the last of my serum.");
+}
 if (%handsand_serum < ^handsand_lens_fitted) {
     ~chatnpc("<p,neutral>A lens. Pink. Betty, water, redberries, white berries, in that order, and then put it in the orb.");
     return;
@@ -324,6 +364,22 @@ if (%handsand_serum < ^handsand_lens_fitted) {
 [label,handsand_rarve_done]
 if (inv_total(inv, handsand_orb_recording) = 0) {
     ~chatnpc("<p,angry>Where is the orb?");
+    // AUDIT 2026-09-24: the recording is destroyable; without it the quest could not finish.
+    // A fresh orb and serum, and Sandy gets asked again.
+    if (inv_freespace(inv) < 2) {
+        ~chatnpc("<p,neutral>If you have lost it, make room and I will give you another to fill.");
+        return;
+    }
+    ~chatplayer("<p,sad>I lost it.");
+    ~chatnpc("<p,angry>Then you will have to do it again.");
+    inv_add(inv, handsand_orb_storage, 1);
+    inv_add(inv, handsand_truthserum, 1);
+    %handsand_question1 = ^handsand_off;
+    %handsand_question2 = ^handsand_off;
+    %handsand_question3 = ^handsand_off;
+    %handsand_coffee_multi = ^handsand_mug_present;
+    %handsand_quest = ^handsand_ready;
+    ~send_quest_progress(questlist:handsand, %handsand_quest, ^handsand_complete);
     return;
 }
 ~chatplayer("<p,happy>He said all of it.");

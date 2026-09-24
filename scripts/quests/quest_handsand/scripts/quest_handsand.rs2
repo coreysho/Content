@@ -48,6 +48,9 @@ if (%handsand_sandy_multi ! ^handsand_sandy_at_window) {
 %handsand_sandy_multi = ^handsand_sandy_at_desk;
 if (inv_total(inv, handsand_rota_sandy) > 0) {
     mes("You already took the rota. Sandy turns back round.");
+    // AUDIT 2026-09-24: this was the only place the rotas were compared, so a player who took the
+    // original before finding Bert's copy again had no way to get the stage to move.
+    ~handsand_check_rotas;
     return;
 }
 if (inv_freespace(inv) = 0) {
@@ -108,6 +111,9 @@ if (%handsand_serum ! ^handsand_lens_fitted) {
     return;
 }
 inv_del(inv, handsand_truthserum, 1);
+// AUDIT 2026-09-24: the mug was never marked as drunk, and Sandy only answers questions once it
+// is - so the quest stopped here for everyone.
+%handsand_coffee_multi = ^handsand_mug_gone;
 mes("You tip the vial into the coffee. It does not change colour, which is the expensive part.");
 ~mesbox("Sandy turns back from the window and picks up his mug without looking at it.");
 
@@ -115,12 +121,17 @@ mes("You tip the vial into the coffee. It does not change colour, which is the e
 // Bottled water, redberry juice, pink dye, a tinted lens, the lens in the orb. Only one side of
 // each combine is declared - [opheldu,redberries] and the rest belong to Cooking and Herblore and
 // a trigger cannot be declared twice. OpHeldUHandler falls back to [opheldu,a] when the target has
-// no handler of its own and swaps last_useitem, so either order lands here.
+// no handler of its own and swaps last_useitem - but redberries and white berries DO have handlers
+// of their own (pies, herblore), so using the bottle on the berries landed there and did nothing.
+// Those two handlers now jump to the labels below as well. (AUDIT 2026-09-24)
 [opheldu,handsand_bottle_water]
 if (last_useitem ! redberries) {
     ~displaymessage(^dm_default);
     return;
 }
+@handsand_make_juice;
+
+[label,handsand_make_juice]
 inv_del(inv, handsand_bottle_water, 1);
 inv_del(inv, redberries, 1);
 inv_add(inv, handsand_redberry_juice, 1);
@@ -132,6 +143,9 @@ if (last_useitem ! white_berries) {
     ~displaymessage(^dm_default);
     return;
 }
+@handsand_make_dye;
+
+[label,handsand_make_dye]
 inv_del(inv, handsand_redberry_juice, 1);
 inv_del(inv, white_berries, 1);
 inv_add(inv, handsand_pink_dye, 1);
