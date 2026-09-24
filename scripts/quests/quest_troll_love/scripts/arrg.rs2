@@ -73,9 +73,18 @@ npc_setmode(opplayer2);
 hint_npc;
 //queue*(playerhit_n_retaliate, 0)(npc_uid); // Is this correct?
 
+// A death script runs as the npc, which cannot write %troll_love (a protected player varp) - so the
+// kill never counted and Ug went on asking whether Arrg was dead. The player's own queue does it.
 [ai_queue3,trollromance_arrg_attackable]
 npc_say("Arrg!");
 gosub(npc_death);
-if(p_finduid(%npc_aggressive_player) = true) {
-    if(%troll_love = ^troll_love_dispose_of_arrg) %troll_love = ^troll_love_defeated_arrg;
+if (npc_findhero = ^true) {
+    queue(trollromance_arrg_defeated, 0, 0);
+}
+
+[queue,trollromance_arrg_defeated]
+if (%troll_love = ^troll_love_dispose_of_arrg) {
+    %troll_love = ^troll_love_defeated_arrg;
+    ~send_quest_progress(questlist:troll_love, %troll_love, ^troll_love_complete);
+    mes("Arrg is beaten. Ug will want to hear about this.");
 }

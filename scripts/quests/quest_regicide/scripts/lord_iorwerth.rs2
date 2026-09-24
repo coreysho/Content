@@ -16,6 +16,10 @@ switch_int(%regicide_quest) {
         ~chatnpc("<p,neutral>Idris was a fool to approach you, but his death is not your doing. Tell me, why did Lathas send you into Tirannwn?");
         ~chatplayer("<p,neutral>He fears King Tyras' court has been infiltrated by agents of the Dark Lord.");
         ~chatnpc("<p,sad>That much, at least, is true. Very well, human - you may prove useful.");
+        if (inv_freespace(inv) = 0) {
+            ~chatnpc("<p,neutral>I have something for you, and you have no room to carry it. Come back when you do.");
+            return;
+        }
         mes("Lord Iorwerth hands you a crystal pendant.");
         inv_add(inv, regicide_crystal_pendant, 1);
         ~chatnpc("<p,neutral>That pendant will let you pass through our forest defences unharmed - keep it safe, and do not lose it.");
@@ -23,14 +27,24 @@ switch_int(%regicide_quest) {
         ~chatplayer("<p,neutral>Thank you, Lord Iorwerth. I'll find her.");
         %regicide_quest = ^regicide_met_iorwerth;
     case ^regicide_met_iorwerth :
+        if (~regicide_replace_pendant = true) return;
         ~chatnpc("<p,neutral>The tracker is south of the Poison Waste, human. Go on - you're wasting daylight.");
     case ^regicide_met_tracker, ^regicide_at_tyras_camp :
+        if (~regicide_replace_pendant = true) return;
         ~chatnpc("<p,neutral>Tyras Camp is south, past the forest. Come back when you have something to tell me.");
     case ^regicide_told_tracker : @regicide_iorwerth_book;
     case ^regicide_has_book :
+        if (~regicide_resupply = true) return;
         ~chatnpc("<p,neutral>The still is in Rimmington, human, on the far side of the sea. Read the book. It is all in the book.");
     case ^regicide_tyras_bombed : @regicide_iorwerth_letter;
     case ^regicide_has_letter, ^regicide_seal_broken :
+        // Lathas will not finish the quest without the letter, and it is the only copy.
+        if (~obj_gettotal(regicide_iorwerth_message) = 0 & inv_freespace(inv) > 0) {
+            ~chatnpc("<p,angry>You lost it? Careless. I will write it again, and you will not lose this one.");
+            inv_add(inv, regicide_iorwerth_message, 1);
+            if (%regicide_quest = ^regicide_has_letter) ~regicide_place_arianwyn;
+            return;
+        }
         ~chatnpc("<p,neutral>Take the letter to Lathas. Go east, over the pass - the way is open to you now.");
     case default :
         ~chatnpc("<p,neutral>Tread carefully out there, human.");
@@ -90,3 +104,50 @@ if (npc_find(^regicide_arianwyn_spot, regicide_good_elf3, 8, ^vis_off) = true) {
     return;
 }
 npc_add(^regicide_arianwyn_spot, regicide_good_elf3, ^regicide_arianwyn_lifetime);
+
+// Things only Iorwerth can hand out, handed out again if they are lost - without them the quest has
+// no way forward. The pendant is what lets a low-Agility player through the dense forest (and what
+// the tracker asks to see).
+[proc,regicide_replace_pendant]()(boolean)
+if (~obj_gettotal(regicide_crystal_pendant) > 0) {
+    return(false);
+}
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,angry>Where is my pendant, human? Make room, and I will trust you with another.");
+    return(true);
+}
+~chatnpc("<p,angry>Where is my pendant, human? Take this one, and do not lose it.");
+inv_add(inv, regicide_crystal_pendant, 1);
+mes("Lord Iorwerth hands you another crystal pendant.");
+return(true);
+
+// Limestone and empty barrels have no source anywhere else (see the note above), and a tar pit can
+// swallow all three barrels - so if the player has nothing left in either chain, he tops them up.
+[proc,regicide_resupply]()(boolean)
+def_boolean $barrels = false;
+if (~obj_gettotal(regicide_barrel_empty) = 0 & ~obj_gettotal(regicide_barrel_tar) = 0 & ~obj_gettotal(regicide_barrel_naphtha) = 0
+    & ~obj_gettotal(regicide_barrel_naphtha_sulphar_mix) = 0 & ~obj_gettotal(regicide_barrel_naphtha_quicklime_mix) = 0
+    & ~obj_gettotal(regicide_barrel_lid) = 0 & ~obj_gettotal(regicide_barrel_lid_fused) = 0 & ~regicide_still_active = false) {
+    $barrels = true;
+}
+def_boolean $lime = false;
+if (~obj_gettotal(limestone) = 0 & ~obj_gettotal(regicide_quicklime) = 0 & ~obj_gettotal(regicide_quicklime_dust) = 0
+    & ~obj_gettotal(regicide_barrel_naphtha_quicklime_mix) = 0 & ~obj_gettotal(regicide_barrel_lid) = 0 & ~obj_gettotal(regicide_barrel_lid_fused) = 0) {
+    $lime = true;
+}
+if ($barrels = false & $lime = false) {
+    return(false);
+}
+if (inv_freespace(inv) < 4) {
+    ~chatnpc("<p,neutral>You have run out of what I gave you. Make some room and I will give you more.");
+    return(true);
+}
+~chatnpc("<p,angry>Gone already? Here. Try not to feed these to the swamp as well.");
+if ($barrels = true) {
+    inv_add(inv, regicide_barrel_empty, ^regicide_barrels_given);
+}
+if ($lime = true) {
+    inv_add(inv, limestone, 1);
+}
+mes("Lord Iorwerth gives you what you were missing.");
+return(true);

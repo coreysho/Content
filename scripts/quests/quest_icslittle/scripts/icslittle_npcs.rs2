@@ -62,6 +62,13 @@ p_delay(3);
 ~chatnpc("<p,neutral>Klenter is prepared. Now go down to the tomb and bring up his four canopic jars - all four, and do not mix them up.");
 
 [label,icslittle_priest_jars]
+// The jars are only counted as they are lifted, so a set gathered with one of them in the bank never
+// assembled the burial party. Counting again here also puts back any jar that has been lost.
+~icslittle_check_jars;
+if (%ics_little_var = ^icslittle_ceremony) {
+    ~chatnpc("<p,neutral>The ceremony is below. Go down.");
+    return;
+}
 ~chatnpc("<p,neutral>Four jars. The tomb is below the city.");
 
 // =========================================================================== the Embalmer and Siamun
@@ -70,6 +77,21 @@ p_delay(3);
 if (%ics_little_var < ^icslittle_asked) {
     ~chatnpc("<p,sad>Eleven years and not one body brought to me in the proper way. Eleven.");
     return;
+}
+// Nothing else in the game makes his salt or sap, so either one lost before the embalming is
+// handed out again rather than leaving the High Priest waiting for ever.
+if (%ics_little_var = ^icslittle_has_method | %ics_little_var = ^icslittle_has_ingredients) {
+    if (~obj_gettotal(ics_little_pileofsalt) = 0 | ~obj_gettotal(ics_little_sap_bucket) = 0) {
+        if (inv_freespace(inv) < 2) {
+            ~chatnpc("<p,angry>You have lost my salt or my sap, and you have no room for more. Come back when you do.");
+            return;
+        }
+        ~chatnpc("<p,angry>You have lost it already? Eleven years of stock, and you have lost it already.");
+        if (~obj_gettotal(ics_little_pileofsalt) = 0) inv_add(inv, ics_little_pileofsalt, 1);
+        if (~obj_gettotal(ics_little_sap_bucket) = 0) inv_add(inv, ics_little_sap_bucket, 1);
+        mes("The embalmer gives you what you were missing.");
+        return;
+    }
 }
 if (%ics_little_var > ^icslittle_has_method) {
     ~chatnpc("<p,happy>Best work I have done in a decade. Nobody will ever see it.");
@@ -101,6 +123,13 @@ if (%ics_little_var < ^icslittle_has_method) {
     return;
 }
 if (%ics_gotlinen = 1) {
+    // One lost before the embalming is replaced - nobody else has any.
+    if (%ics_little_var < ^icslittle_embalmed & ~obj_gettotal(ics_little_linen) = 0 & inv_freespace(inv) > 0) {
+        ~chatnpc("<p,sad>Lost it? Then take another, and this time keep it clean.");
+        inv_add(inv, ics_little_linen, 1);
+        mes("Siamun gives you a sheet of linen.");
+        return;
+    }
     ~chatnpc("<p,neutral>You have had your sheet.");
     return;
 }
@@ -132,6 +161,7 @@ if (%ics_little_var = ^icslittle_ceremony) {
     if (inv_total(inv, ics_little_canopic_jar_liver) = 0 | inv_total(inv, ics_little_canopic_jar_lungs) = 0 | inv_total(inv, ics_little_canopic_jar_stomach) = 0 | inv_total(inv, ics_little_canopic_jar_intestines) = 0) {
         ~chatnpc("<p,quiz>All four jars. Man, ape, bug and crocodile.");
         ~chatplayer("<p,sad>I don't have all four.");
+        ~icslittle_check_jars; // puts any lost jar back on its shelf
         return;
     }
     ~chatplayer("<p,happy>All four.");
@@ -149,11 +179,23 @@ if (%ics_little_var = ^icslittle_ceremony) {
     ~mesbox("The chanting stops. Something comes into the chamber that was not there a moment ago, and every priest in the room goes face down on the stone.");
     return;
 }
+// The jars go down and the god arrives across a p_delay; a logout in between used to leave the
+// quest at 22, where nobody in the room had anything to say and Icthlarin never rendered.
+if (%ics_little_var = ^icslittle_jars_placed) {
+    %ics_little_var = ^icslittle_icthlarin;
+    ~mesbox("The chanting stops. Something comes into the chamber that was not there a moment ago, and every priest in the room goes face down on the stone.");
+    return;
+}
 if (%ics_little_var = ^icslittle_devoured) {
     ~chatnpc("<p,angry>It took him. In front of a god, in front of all of us, it took him.");
     ~chatplayer("<p,quiz>What was it?");
     ~chatnpc("<p,sad>The Devourer. Say the name quietly.");
     queue(icslittle_quest_complete, 0, 0);
+    return;
+}
+// Icthlarin's shell is placed at the foot of the tomb's ladder, not in this chamber.
+if (%ics_little_var = ^icslittle_icthlarin) {
+    ~chatnpc("<p,scared>He waits for you at the foot of the ladder, by the tomb's entrance. Do not keep a god waiting.");
     return;
 }
 ~chatnpc("<p,neutral>Be silent. This is a burial.");
