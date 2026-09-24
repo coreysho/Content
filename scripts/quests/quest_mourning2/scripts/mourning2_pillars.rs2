@@ -39,12 +39,65 @@
 [oplocu,mourning_temple_pillar_3_15] @mt_use_mirror(34);
 [oplocu,mourning_temple_pillar_3_16] @mt_use_mirror(35);
 
+// Every lit state of a pillar carries op1=Search, and none had a trigger. Searching one with the
+// hand mirror does what using the mirror on it does; without one it says what is in the socket.
+[oploc1,mourning_temple_pillar_1_1] @mt_search_pillar(1);
+[oploc1,mourning_temple_pillar_1_3] @mt_search_pillar(2);
+[oploc1,mourning_temple_pillar_1_6] @mt_search_pillar(3);
+[oploc1,mourning_temple_pillar_1_7] @mt_search_pillar(4);
+[oploc1,mourning_temple_pillar_1_a] @mt_search_pillar(5);
+[oploc1,mourning_temple_pillar_1_b] @mt_search_pillar(6);
+[oploc1,mourning_temple_pillar_1_10] @mt_search_pillar(7);
+[oploc1,mourning_temple_pillar_1_11] @mt_search_pillar(8);
+[oploc1,mourning_temple_pillar_1_12] @mt_search_pillar(9);
+[oploc1,mourning_temple_pillar_1_13] @mt_search_pillar(10);
+[oploc1,mourning_temple_pillar_1_14] @mt_search_pillar(11);
+[oploc1,mourning_temple_pillar_1_16] @mt_search_pillar(12);
+[oploc1,mourning_temple_pillar_2_2] @mt_search_pillar(13);
+[oploc1,mourning_temple_pillar_2_3] @mt_search_pillar(14);
+[oploc1,mourning_temple_pillar_2_5] @mt_search_pillar(15);
+[oploc1,mourning_temple_pillar_2_6] @mt_search_pillar(16);
+[oploc1,mourning_temple_pillar_2_7] @mt_search_pillar(17);
+[oploc1,mourning_temple_pillar_2_9] @mt_search_pillar(18);
+[oploc1,mourning_temple_pillar_2_10] @mt_search_pillar(19);
+[oploc1,mourning_temple_pillar_2_11] @mt_search_pillar(20);
+[oploc1,mourning_temple_pillar_2_15] @mt_search_pillar(21);
+[oploc1,mourning_temple_pillar_2_16] @mt_search_pillar(22);
+[oploc1,mourning_temple_pillar_3_1] @mt_search_pillar(23);
+[oploc1,mourning_temple_pillar_3_2] @mt_search_pillar(24);
+[oploc1,mourning_temple_pillar_3_3] @mt_search_pillar(25);
+[oploc1,mourning_temple_pillar_3_5] @mt_search_pillar(26);
+[oploc1,mourning_temple_pillar_3_6] @mt_search_pillar(27);
+[oploc1,mourning_temple_pillar_3_8] @mt_search_pillar(28);
+[oploc1,mourning_temple_pillar_3_a] @mt_search_pillar(29);
+[oploc1,mourning_temple_pillar_3_10] @mt_search_pillar(30);
+[oploc1,mourning_temple_pillar_3_11] @mt_search_pillar(31);
+[oploc1,mourning_temple_pillar_3_12] @mt_search_pillar(32);
+[oploc1,mourning_temple_pillar_3_13] @mt_search_pillar(33);
+[oploc1,mourning_temple_pillar_3_15] @mt_search_pillar(34);
+[oploc1,mourning_temple_pillar_3_16] @mt_search_pillar(35);
+
+[label,mt_search_pillar](int $pillar)
+p_arrivedelay;
+if (inv_total(inv, mourning_mirror) = 0) {
+    if (~mt_mirror_at($pillar) > 0) {
+        ~mesbox("A hand mirror is set in the socket at head height, turned to catch the light from one side.");
+    } else {
+        ~mesbox("An octagonal pillar with an empty socket at head height. A small hand mirror would fit it.");
+    }
+    return;
+}
+@mt_place_mirror($pillar);
+
 [label,mt_use_mirror](int $pillar)
 if (last_useitem ! mourning_mirror) {
     ~displaymessage(^dm_default);
     return;
 }
 p_arrivedelay;
+@mt_place_mirror($pillar);
+
+[label,mt_place_mirror](int $pillar)
 if (%mourning_quest_main < ^mt_inside) {
     ~mesbox("An octagonal pillar with a socket at head height, and no reason yet to put anything in it.");
     return;

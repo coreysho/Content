@@ -10,8 +10,19 @@ switch_int (%feud_var) {
             ~chatnpc("<p,happy>My cousin's cousin's cousin says you are the only outsider ever to have been useful in that village.");
             return;
         }
+        ~feud_show_leaders;
         ~chatnpc("<p,neutral>Pollnivneach. South. You cannot miss it, it is the only thing down there.");
 }
+
+// The two gang leaders are shells that render only at feud_boss_vis = 1 and feud_bandit_boss_vis =
+// 1, and nothing ever set either bit - so neither leader could be seen, let alone spoken to, and
+// the quest stopped at its first step. They are there from the moment Ali sends the player south.
+[proc,feud_show_leaders]()()
+if (%feud_var < ^feud_sent) {
+    return;
+}
+%feud_boss_vis = ^feud_on;
+%feud_bandit_boss_vis = ^feud_on;
 
 [label,feud_ali_start]
 ~chatnpc("<p,angry>Twenty crates. TWENTY. Gone between here and Pollnivneach and nobody saw a thing.");
@@ -27,6 +38,7 @@ switch_int (~p_choice2("I could look into it.", 1, "That sounds like your proble
 ~chatnpc("<p,neutral>Pollnivneach is run by two gangs who hate each other and a mayor who is frightened of both. Nothing moves through it without one of them knowing.");
 ~chatnpc("<p,neutral>Go south. Talk to both leaders. Do not take sides until you have to, and then take the winning one.");
 %feud_var = ^feud_sent;
+~feud_show_leaders;
 ~send_quest_progress(questlist:feud, %feud_var, ^feud_complete);
 
 [label,feud_ali_finish]
@@ -64,6 +76,19 @@ if (inv_freespace(inv) > 0) {
 // has to be made visible before he can be found - which is what the doormen are for.
 [opnpc1,feud_menap_boss] @feud_gang_leader(1);
 [opnpc1,feud_bandit_boss] @feud_gang_leader(2);
+
+// The Menaphite thugs on the doors (feud_egyptian_doorman_multi, op1=Talk-to) had no trigger.
+[opnpc1,feud_egyptian_doorman_multi]
+if (%feud_var < ^feud_sent) {
+    ~chatnpc("<p,angry>Move along.");
+    return;
+}
+~feud_show_leaders;
+if (%feud_var >= ^feud_complete) {
+    ~chatnpc("<p,neutral>The boss says you are all right. For an outsider.");
+    return;
+}
+~chatnpc("<p,neutral>You want the boss, he is in the house behind me. Keep your hands where I can see them.");
 
 [label,feud_gang_leader](int $which)
 if (%feud_var < ^feud_sent) {
@@ -217,11 +242,13 @@ if (%feud_var = ^feud_safe) {
 }
 mes("You unlock the door.");
 p_delay(1);
-def_int $dx = 0;
-def_int $dz = 0;
-if (coordx($door) > coordx(coord)) { $dx = 2; } else if (coordx($door) < coordx(coord)) { $dx = calc(0 - 2); }
-if (coordz($door) > coordz(coord)) { $dz = 2; } else if (coordz($door) < coordz(coord)) { $dz = calc(0 - 2); }
-p_teleport(movecoord(coord, $dx, 0, $dz));
+// Both halves are walls on the east edge of their tile (angle 2), and the player reaches one from
+// the door's own tile, so the old "two tiles away from the door" worked out to no movement at all.
+if (coordx(coord) > coordx($door)) {
+    p_teleport(movecoord($door, 0, 0, calc(coordz(coord) - coordz($door))));
+} else {
+    p_teleport(movecoord($door, 1, 0, calc(coordz(coord) - coordz($door))));
+}
 
 // =========================================================================== the blackjack
 // The seller renders at stage 28 and nowhere else, so the quest sits on 28 until the blackjack has
@@ -303,6 +330,10 @@ stat_advance(thieving, 2500);
 ~mesbox("He goes down without a sound. He is wearing a headpiece and - for reasons you decide not to examine - a false beard, and you take both.");
 
 // =========================================================================== the disguise
+// Beard and headpiece make the Desert disguise. feud_karidian_fakebeard_and_hat, which this used to
+// make, has no wearpos in the cache, so it could never be put on - and the camp guards want the
+// disguise WORN - so the quest stopped at the gate. feud_desert_disguise is the same model and
+// wears on the head.
 [opheldu,feud_karidian_turban]
 if (last_useitem ! feud_karidian_fakebeard) {
     ~displaymessage(^dm_default);
@@ -310,7 +341,7 @@ if (last_useitem ! feud_karidian_fakebeard) {
 }
 inv_del(inv, feud_karidian_turban, 1);
 inv_del(inv, feud_karidian_fakebeard, 1);
-inv_add(inv, feud_karidian_fakebeard_and_hat, 1);
+inv_add(inv, feud_desert_disguise, 1);
 if (%feud_var = ^feud_traits) {
     %feud_var = ^feud_disguise;
     ~send_quest_progress(questlist:feud, %feud_var, ^feud_complete);
@@ -333,7 +364,7 @@ if (%feud_var > ^feud_disguise) {
     ~chatnpc("<p,neutral>Brother.");
     return;
 }
-if (inv_total(worn, feud_karidian_fakebeard_and_hat) = 0) {
+if (inv_total(worn, feud_desert_disguise) = 0 & inv_total(worn, feud_karidian_fakebeard_and_hat) = 0) {
     ~chatnpc("<p,angry>Outsider. Keep walking.");
     ~mesbox("The disguise is no use in your pack. It has to be on your face.");
     return;
@@ -375,19 +406,28 @@ p_delay(3);
 npc_add(coord, feud_bandit_toughguy, 300);
 ~mesbox("The bandit champion. You are going to have to go through him.");
 
+// A death script runs as the npc: %feud_var is protected and the jewels go into a protected inv,
+// so it needs the hero's protected access - and when that is not free this frame (the player is
+// busy), it used to return and the jewels were never handed over. Queue it on the player instead.
 [ai_queue3,feud_bandit_toughguy]
 gosub(npc_death);
 if (npc_findhero = ^false) {
     return;
 }
-if (p_finduid(uid) = false) {
-    return;
+if (p_finduid(uid) = true) {
+    @feud_champion_down;
 }
+queue(feud_champion_down, 0, 0);
+
+[queue,feud_champion_down]
+@feud_champion_down;
+
+[label,feud_champion_down]
 if (%feud_var ! ^feud_camp) {
     return;
 }
 if (inv_freespace(inv) = 0) {
-    obj_add(npc_coord, feud_mayors_jewels, 1, ^lootdrop_duration);
+    obj_add(coord, feud_mayors_jewels, 1, ^lootdrop_duration);
 } else {
     inv_add(inv, feud_mayors_jewels, 1);
 }
@@ -396,3 +436,45 @@ if (inv_freespace(inv) = 0) {
 stat_advance(strength, 5000);
 ~send_quest_progress(questlist:feud, %feud_var, ^feud_complete);
 ~mesbox("The champion goes down and the leader does not wait to see it finish. The jewels were on a string round his neck.");
+// =========================================================================== the rest of the village
+// Pollnivneach's ladders and the Mayor's upstairs furniture carried ops with no trigger at all.
+// Landings checked against the collision map (tools/sim/audit2.ts).
+[oploc1,feud_ladder]
+p_arrivedelay;
+switch_coord (loc_coord) {
+    case 0_52_46_22_19 : ~climb_ladder(1_52_46_21_19, true);
+    case 0_52_46_36_59 : ~climb_ladder(1_52_46_36_58, true);
+    case 0_52_46_41_47 : ~climb_ladder(1_52_46_40_47, true);
+    case 1_52_46_28_37 : ~climb_ladder(2_52_46_28_38, true);
+    case default : ~climb_ladder(movecoord(coord, 0, 1, 0), true);
+}
+
+[oploc1,feud_laddertop_norim]
+p_arrivedelay;
+switch_coord (loc_coord) {
+    case 1_52_46_22_19 : ~climb_ladder(0_52_46_21_19, false);
+    case 1_52_46_36_59 : ~climb_ladder(0_52_46_36_58, false);
+    case 1_52_46_41_47 : ~climb_ladder(0_52_46_40_47, false);
+    case 2_52_46_28_37 : ~climb_ladder(1_52_46_28_38, false);
+    case default : ~climb_ladder(movecoord(coord, 0, -1, 0), false);
+}
+
+[oploc1,feud_mayors_bed]
+p_arrivedelay;
+mes("You search the bed. The Mayor sleeps badly, and on the side nearest the door.");
+
+[oploc1,feud_mayors_desk]
+p_arrivedelay;
+mes("You search the desk. Letters from both gangs, all of them demands, none of them answered.");
+
+[oploc1,feud_mayors_picture]
+p_arrivedelay;
+mes("A portrait of the Mayor's wife. She is looking at you as if you owe her money.");
+
+[oploc1,feud_cactus_row]
+p_arrivedelay;
+mes("You crouch behind the cacti for a moment. Nobody in Pollnivneach is fooled.");
+
+[oploc1,feud_poison_beer_table]
+p_arrivedelay;
+mes("You would not drink anything left standing about in this village.");
