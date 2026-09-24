@@ -119,3 +119,25 @@ if (%mdaughter_quest_var >= ^mdaughter_buried) {
     return;
 }
 ~chatnpc("<p,angry>We leave food out for the Kendal and the Kendal leaves us alone. That is the arrangement, and I will thank you not to meddle in it.");
+
+// The guard at the Ancient Rock's tent, and the five camp dwellers, all had Talk-to and nothing
+// behind it.
+[opnpc1,mdaughter_ancientrock_guard]
+if (%mdaughter_quest_var >= ^mdaughter_told_hamal & %mdaughter_quest_var < ^mdaughter_buried) {
+    ~chatnpc("<p,neutral>Hamal says you may take a piece of the Rock. Go on in.");
+    return;
+}
+~chatnpc("<p,neutral>The Ancient Rock. It is not for outsiders to touch.");
+
+[opnpc1,mdaughter_camp_male1] @mdaughter_camp_dweller;
+[opnpc1,mdaughter_camp_male2] @mdaughter_camp_dweller;
+[opnpc1,mdaughter_camp_female1] @mdaughter_camp_dweller;
+[opnpc1,mdaughter_camp_female2] @mdaughter_camp_dweller;
+[opnpc1,mdaughter_camp_female3] @mdaughter_camp_dweller;
+
+[label,mdaughter_camp_dweller]
+if (%mdaughter_quest_var >= ^mdaughter_complete) {
+    ~chatnpc("<p,happy>You are the one who went into the Kendal's cave. Welcome, friend.");
+    return;
+}
+~chatnpc("<p,neutral>Talk to Hamal, outsider. He speaks for all of us.");

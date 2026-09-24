@@ -8,9 +8,9 @@
 [oploc1,mdaughter_rockslide]
 p_arrivedelay;
 if (coordz(coord) < coordz(loc_coord)) {
-    p_teleport(movecoord(coord, 0, 0, ^mdaughter_rockslide_step));
+    p_teleport(^mdaughter_rockslide_north);
 } else {
-    p_teleport(movecoord(coord, 0, 0, calc(0 - ^mdaughter_rockslide_step)));
+    p_teleport(^mdaughter_rockslide_south);
 }
 mes("You scramble over the rockslide.");
 
@@ -18,12 +18,13 @@ mes("You scramble over the rockslide.");
 
 // A dead tree gives the pole. mdaughter_impassable_tree and mdaughter_impassable_tree2 are the two
 // that are meant to stay standing, so only the passable one can be felled.
+// The two passable trees are also what stands between the camp and the Kendal's cave, so felling
+// one has to work whether or not you want its pole - a player who already had one used to be told
+// so and left standing on the wrong side of the second tree.
 [oploc1,mdaughter_passable_tree]
-if (stat(woodcutting) < 1) {
-    return;
-}
 if (~obj_gettotal(mdaughter_stick) > 0 | inv_total(inv, mdaughter_polevault) > 0) {
-    mes("You already have a pole.");
+    mes("You fell the dead tree. You already have a pole, so you leave the wood where it lies.");
+    loc_change(mdaughter_passable_tree_stump, 100);
     return;
 }
 if (inv_freespace(inv) = 0) {
@@ -40,39 +41,75 @@ loc_change(mdaughter_passable_tree_stump, 100);
 [label,mdaughter_tree_too_thick]
 mes("This one is far too thick to cut a pole from.");
 
+// "Step-over": the stump is the way through the treeline, along x.
 [oploc1,mdaughter_passable_tree_stump]
-mes("There is nothing left of this tree worth taking.");
+p_arrivedelay;
+if (coordx(coord) < coordx(loc_coord)) {
+    p_teleport(movecoord(loc_coord, 1, 0, 0));
+} else {
+    p_teleport(movecoord(loc_coord, -1, 0, 0));
+}
+mes("You step over the stump.");
 
 // =========================================================================== the crossings
 
+// The tall tree on the lake shore had op3=Climb and nothing behind it, and it is the only way onto
+// the ledge the vault starts from. Neither ledge has a dry tile next to what it crosses, so these
+// are approach triggers: they fire from the ledge, across the water, in sight of the loc.
+[aploc3,mdaughter_lake_tree]
+if (distance(loc_coord, coord) > 5) {
+    p_aprange(5);
+    return;
+}
+if (coordz(coord) > coordz(^mdaughter_tree_shore)) {
+    mes("You climb back along the branches to the shore.");
+    p_delay(1);
+    p_teleport(^mdaughter_tree_shore);
+    return;
+}
+anim(human_pickupfloor, 0);
+mes("You climb the tree and drop down onto a ledge on the far side of it.");
+p_delay(1);
+p_teleport(^mdaughter_tree_ledge);
+
 // One clump of rocks to vault, then two flat stones to hop between. The vault is the only one that
-// asks anything of the player; the stones are just a path.
-[oploc1,mdaughter_polerocks]
-p_arrivedelay;
+// asks anything of the player - and only on the way out, so nobody is stranded on the island
+// without the pole they brought.
+[aploc1,mdaughter_polerocks]
+if (distance(loc_coord, coord) > 3) {
+    p_aprange(3);
+    return;
+}
+// The tree cannot be seen from the ledge, so both ways off the ledge that do not vault go back
+// round the tree to the shore - nobody can be left on it.
+if (coordz(coord) > coordz(loc_coord)) {
+    mes("You jump back down onto the ledge, and climb back round the tree to the shore.");
+    p_teleport(^mdaughter_tree_shore);
+    return;
+}
 if (inv_total(inv, mdaughter_stick) = 0) {
-    mes("The gap is too wide to jump. You would need something to vault with.");
+    mes("The gap is too wide to jump. You would need something to vault with, so you climb back to the shore.");
+    p_teleport(^mdaughter_tree_shore);
     return;
 }
 if (stat(agility) < 20) {
-    mes("You need an Agility level of 20 to make this jump.");
+    mes("You need an Agility level of 20 to make this jump, so you climb back to the shore.");
+    p_teleport(^mdaughter_tree_shore);
     return;
 }
-@mdaughter_hop(^mdaughter_rockslide_step);
+mes("You wedge the pole into the rocks and vault across.");
+p_teleport(^mdaughter_rocks_north);
 
 [oploc1,mdaughter_flatstone1] @mdaughter_stone_hop;
 [oploc1,mdaughter_flatstone2] @mdaughter_stone_hop;
 
+// The two stones are one crossing: whichever you click, you come off the far side of the pair.
 [label,mdaughter_stone_hop]
 p_arrivedelay;
-@mdaughter_hop(1);
-
-// Both crossings run east-west, so the step is along x and the direction comes from which side of
-// the loc the player is standing on - the same shape the rockslide uses for z.
-[label,mdaughter_hop](int $step)
-if (coordx(coord) < coordx(loc_coord)) {
-    p_teleport(movecoord(coord, $step, 0, 0));
+if (coordx(coord) < coordx(^mdaughter_stones_east)) {
+    p_teleport(^mdaughter_stones_east);
 } else {
-    p_teleport(movecoord(coord, calc(0 - $step), 0, 0));
+    p_teleport(^mdaughter_stones_west);
 }
 mes("You jump across.");
 
@@ -169,7 +206,15 @@ anim(human_pickuptable, 0);
 
 // Splitting the camp's own sacred stone is the whole point of the gesture, so it is gated on Hamal
 // having asked for the burial and it can only be done once.
-[oploc1,mdaughter_ancient_rock]
+// The Ancient Rock carries no ops at all, so the pickaxe is used on it.
+[oplocu,mdaughter_ancient_rock]
+if (oc_category(last_useitem) ! weapon_pickaxe) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@mdaughter_split_rock;
+
+[label,mdaughter_split_rock]
 if (%mdaughter_quest_var < ^mdaughter_told_hamal | %mdaughter_quest_var >= ^mdaughter_buried) {
     mes("The Ancient Rock of the mountain people. It is not yours to touch.");
     return;
@@ -192,6 +237,22 @@ sound_synth(mine, 1, 0);
 ~mesbox("The Ancient Rock splits cleanly in two, the way the camp says it always has for anyone who asks it honestly.");
 inv_add(inv, mdaughter_half_rock, 1);
 
+// =========================================================================== the Ancient Rock's tent
+
+// "Go-through" on the flaps of the tent the Ancient Rock stands in had no trigger. The flaps are the
+// north wall of their tile, so through is along z: the flap's own tile is the inside.
+[oploc1,mdaughter_rocktent_door] @mdaughter_rocktent;
+[oploc1,mdaughter_rocktent_doorl] @mdaughter_rocktent;
+
+[label,mdaughter_rocktent]
+p_arrivedelay;
+if (coordz(coord) > coordz(loc_coord)) {
+    p_teleport(loc_coord);
+} else {
+    p_teleport(movecoord(loc_coord, 0, 0, 1));
+}
+mes("You go through the tent flap.");
+
 // =========================================================================== the Kendal's cave
 
 [oploc1,mdaughter_caveentrance]
@@ -200,6 +261,9 @@ if (%mdaughter_quest_var < ^mdaughter_buried) {
     mes("There is something living in there. You have no reason to disturb it yet.");
     return;
 }
+// An earlier version moved the Kendal's multi off 0 when the fight began, and at any other value
+// the client draws no npc at all - so anyone it happened to would find the cave empty.
+%mdaughter_bear_multi_state = ^mdaughter_kendal_talking;
 mes("You squeeze into the cave.");
 p_teleport(^mdaughter_cave_inside);
 
@@ -210,6 +274,17 @@ p_teleport(^mdaughter_cave_outside);
 
 [oploc1,mdaughter_caveexit_fake]
 mes("This is not a way out - the passage closes up a few feet in.");
+
+// =========================================================================== scenery
+// Options the cache puts on the camp's scenery, which had nothing behind them.
+[oploc1,mdaughter_swampbubbles1]
+mes("You dig about in the mud, and find nothing but more mud.");
+
+[oploc1,mdaughter_sulphar_gas]
+mes("You listen to the pool. It bubbles, and smells of eggs.");
+
+[oploc3,mdaughter_cliff_boulder]
+mes("You push the boulder, and it does not move.");
 
 // =========================================================================== completion
 
