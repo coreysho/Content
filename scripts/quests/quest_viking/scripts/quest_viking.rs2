@@ -1,7 +1,7 @@
 // The Fremennik Trials - Brundt the Chieftain (viking_brundt, m41_57 local(35,21), the longhall).
-// Starts the quest and, once all six council votes are in, ends it.
+// Starts the quest and, once all seven council votes are in, ends it.
 //
-// Wiki: Brundt explains that to be made a Fremennik you must win over the council. The six trials
+// Wiki: Brundt explains that to be made a Fremennik you must win over the council. The seven trials
 // are done in ANY order, which is why each one is its own bit in %viking_bits rather than a step in
 // a linear %viking - see configs/quest_viking.constant.
 
@@ -22,11 +22,11 @@ if (%viking >= ^viking_complete) {
     ~chatnpc("<p,happy>Welcome home, <~viking_fremennik_name>. You are one of us now.");
     return;
 }
-if (getbit_range(%viking_bits, ^viking_votes_first, ^viking_votes_last) = ^viking_all_votes) {
+if (~viking_has_all_votes = true) {
     @viking_brundt_finish;
 }
 ~chatplayer("<p,quiz>How am I doing?");
-~chatnpc("<p,neutral>You have <tostring(~viking_votes_won)> of the six votes you need. Keep at it, outerlander.");
+~chatnpc("<p,neutral>You have <tostring(~viking_votes_won)> of the seven votes you need. Keep at it, outerlander.");
 ~viking_brundt_remaining;
 
 [label,viking_brundt_start]
@@ -34,7 +34,7 @@ if (getbit_range(%viking_bits, ^viking_votes_first, ^viking_votes_last) = ^vikin
 ~chatnpc("<p,neutral>Outerlander. You are a long way from your own people.");
 ~chatplayer("<p,quiz>Could I become one of yours?");
 ~chatnpc("<p,neutral>Ha! Every outerlander who wanders in here asks me that.");
-~chatnpc("<p,neutral>It is not mine to give. The council decides, and the council is six stubborn people who each want something different from you.");
+~chatnpc("<p,neutral>It is not mine to give. The council decides, and the council is seven stubborn people who each want something different from you.");
 def_int $op = ~p_choice2("Then I'll win them over.", 1, "That sounds like a lot of work.", 2);
 if ($op = 2) {
     ~chatplayer("<p,neutral>That sounds like a lot of work.");
@@ -42,13 +42,13 @@ if ($op = 2) {
     return;
 }
 ~chatplayer("<p,neutral>Then I'll win them over.");
-~chatnpc("<p,happy>Good. Then go and speak to them - Manni, Sigli, Olaf, Sigmund, Thorvald and Peer. Earn all six votes and come back to me.");
+~chatnpc("<p,happy>Good. Then go and speak to them - Manni, Sigli, Olaf, Sigmund, Swensen, Thorvald and Peer. Earn all seven votes and come back to me.");
 ~chatnpc("<p,neutral>They are scattered about Rellekka. Ask around; nobody here is shy.");
 %viking = ^viking_started;
 ~send_quest_progress(questlist:viking, %viking, ^viking_complete);
 
 [label,viking_brundt_finish]
-~chatplayer("<p,happy>I have all six votes.");
+~chatplayer("<p,happy>I have all seven votes.");
 ~chatnpc("<p,happy>So the council tells me. Every one of them, and not one of them easily won.");
 ~chatnpc("<p,neutral>Kneel then, outerlander, and take a Fremennik name.");
 mes("Brundt lays a hand on your head.");
@@ -89,6 +89,7 @@ if (gender() = 0) {
 }
 return("Hild");
 
+// Seven votes: bits 0-5 for the six council members who were wired first, and Swensen's on bit 27.
 [proc,viking_votes_won]()(int)
 def_int $n = 0;
 def_int $bit = ^viking_votes_first;
@@ -98,7 +99,16 @@ while ($bit <= ^viking_votes_last) {
     }
     $bit = add($bit, 1);
 }
+if (testbit(%viking_bits, ^viking_vote_swensen) = 1) {
+    $n = add($n, 1);
+}
 return($n);
+
+[proc,viking_has_all_votes]()(boolean)
+if (~viking_votes_won >= ^viking_votes_needed) {
+    return(true);
+}
+return(false);
 
 // Names the council members still owed a favour, so the quest is followable without a wiki open.
 [proc,viking_brundt_remaining]
@@ -114,6 +124,9 @@ if (testbit(%viking_bits, ^viking_vote_olaf) = 0) {
 if (testbit(%viking_bits, ^viking_vote_sigmund) = 0) {
     mes("Sigmund the Merchant has not given you his vote.");
 }
+if (testbit(%viking_bits, ^viking_vote_swensen) = 0) {
+    mes("Swensen the Navigator has not given you his vote.");
+}
 if (testbit(%viking_bits, ^viking_vote_thorvald) = 0) {
     mes("Thorvald the Warrior has not given you his vote.");
 }
@@ -128,14 +141,14 @@ if (testbit(%viking_bits, ^viking_vote_peer) = 0) {
 // by clicking it in-game; found here by sweeping every questlist component in
 // ~update_questlist against the buttons that actually exist.
 //
-// The six trials are done in any order, so the journal lists which votes are still outstanding
+// The seven trials are done in any order, so the journal lists which votes are still outstanding
 // rather than pretending there is a next step.
 
 [if_button,questlist:viking]
 def_string $n = "The Fremennik Trials";
 def_string $x;
 if (%viking >= ^viking_complete) {
-    $x = append($x, "@str@I won the votes of all six members of the Fremennik council and|");
+    $x = append($x, "@str@I won the votes of all seven members of the Fremennik council and|");
     $x = append($x, "@str@Brundt the Chieftain gave me a Fremennik name.|");
     $x = append($x, "|@dre@QUEST COMPLETE!");
     ~quest_journal($n, $x);
@@ -147,9 +160,9 @@ if (%viking = ^viking_not_started) {
     ~quest_journal($n, $x);
     return;
 }
-$x = append($x, "@str@To be made a Fremennik I must win the votes of all six members|");
+$x = append($x, "@str@To be made a Fremennik I must win the votes of all seven members|");
 $x = append($x, "@str@of the council. They can be won in any order.|");
-$x = append($x, "|@str@I have <tostring(~viking_votes_won)> of the six.|");
+$x = append($x, "|@str@I have <tostring(~viking_votes_won)> of the seven.|");
 $x = append($x, "|@dbl@Still to win over:|");
 if (testbit(%viking_bits, ^viking_vote_manni) = 0) {
     $x = append($x, "@dbl@@dre@Manni the Reveller@dbl@ - a drinking contest.|");
@@ -163,13 +176,16 @@ if (testbit(%viking_bits, ^viking_vote_olaf) = 0) {
 if (testbit(%viking_bits, ^viking_vote_sigmund) = 0) {
     $x = append($x, "@dbl@@dre@Sigmund the Merchant@dbl@ - his chain of favours.|");
 }
+if (testbit(%viking_bits, ^viking_vote_swensen) = 0) {
+    $x = append($x, "@dbl@@dre@Swensen the Navigator@dbl@ - the maze under his house.|");
+}
 if (testbit(%viking_bits, ^viking_vote_thorvald) = 0) {
     $x = append($x, "@dbl@@dre@Thorvald the Warrior@dbl@ - fight Koschei the deathless.|");
 }
 if (testbit(%viking_bits, ^viking_vote_peer) = 0) {
     $x = append($x, "@dbl@@dre@Peer the Seer@dbl@ - his riddle house.|");
 }
-if (~viking_votes_won = 6) {
+if (~viking_has_all_votes = true) {
     $x = append($x, "|@dbl@I have every vote. I should return to @dre@Brundt the Chieftain@dbl@.");
 }
 ~quest_journal($n, $x);

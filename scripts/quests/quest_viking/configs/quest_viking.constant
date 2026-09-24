@@ -23,7 +23,7 @@
 //   viking_enemy1-4      Koschei the deathless   unplaced - scripted spawns
 
 // --- Stages ---
-// The six trials are done in any order and each is a bit in %viking_bits, so %viking itself only
+// The seven trials are done in any order and each is a bit in %viking_bits, so %viking itself only
 // carries the three states that are genuinely linear.
 ^viking_not_started = 0
 ^viking_started = 1
@@ -40,6 +40,12 @@
 ^viking_votes_first = 0
 ^viking_votes_last = 5
 ^viking_all_votes = 63
+// Swensen the Navigator is the SEVENTH council member - his maze is a trial of its own and he votes
+// like the other six (wiki: all seven votes are needed). His bit is 27 because 6-26 were already
+// taken by sub-steps when this was found; ~viking_votes_won and ~viking_has_all_votes count it with
+// bits 0-5.
+^viking_vote_swensen = 27
+^viking_votes_needed = 7
 
 // Sigli's trial
 ^viking_bit_talisman_given = 6
@@ -94,9 +100,11 @@
 ^viking_fossegrimen_spot = 0_41_56_3_14
 ^viking_fossegrimen_lifetime = 300
 ^viking_bit_olaf_asked = 14
+// Wiki: Woodcutting 40 to cut the branch, Crafting 40 to carve it into a lyre with a knife, and
+// Fletching 25 to string it with the golden wool. The last two used to be the other way round.
 ^viking_lyre_woodcut_level = 40
-^viking_lyre_fletch_level = 25
-^viking_lyre_craft_level = 40
+^viking_lyre_carve_level = 40
+^viking_lyre_string_level = 25
 
 // Thorvald's trial. The arena is m41_157 plane 2 - a void-pocket region like Waterbirth's - reached
 // by the ladder in Thorvald's hut at m41_57 (43,46). viking_warrior_ladder carries op2=Climb-down
@@ -112,6 +120,10 @@
 ^viking_koschei_lo = 16
 ^viking_koschei_hi = 17
 ^viking_koschei_forms = 3
+// The arena's whole map square, plane 2 - for the safe death (wiki: dying to Koschei costs nothing).
+^viking_arena_sw = 2_41_157_0_0
+^viking_arena_ne = 2_41_157_63_63
+^viking_thorvald_hut = 0_41_57_43_45
 
 // Swensen the Navigator's portal maze. The whole thing is in the cache and placed, which is worth
 // stating plainly because it is the single most complete piece of unwired content this quest has:
@@ -128,21 +140,33 @@
 // pick the right one of four by direction - the wiki's S-W-E-N-S-E-N, which spells his name - but
 // nothing here has to reimplement that, because which portal is which is already baked into the map.
 //
-// Every landing tile below is adjacent to the portal or ladder it belongs to and was checked
-// walkable at level 0.
+// Every room is the same shape: a rope (or, in the first room, the ladder) in the middle and a
+// portal three tiles out on each side. Every landing tile below is the tile just north of that
+// middle loc, so you arrive in the centre of the room and have to pick a portal yourself.
+//
+// CORRECTED (found testing the maze end to end): the landings used to sit beside the NEXT correct
+// portal, which gave the answer away - and two of them were not in the room at all. Room 4's
+// (41,35) and room 7's (42,46) are on the far side of the room's north wall, where nothing can be
+// reached and the maze stopped dead. And the dead end was "beside the escape rope at (6,42)" - but
+// (6,42) is the middle of room 5, the room vt_mazeportal_5 leads on from, so every wrong portal
+// anywhere in the maze was a shortcut to room 5. The dead end is now the room round the rope at
+// (7,31), whose four portals are all vt_mazeportal_wrong.
+//
+// Rooms, by their middle loc: 1 (7,21) exit S, 2 (18,31) W, 3 (29,20) E, 4 (41,31) N, 5 (6,42) S,
+// 6 (29,53) E, 7 (42,42) N - S, W, E, N, S, E, N.
 ^viking_maze_enter = 0_41_156_7_22
 ^viking_maze_house = 0_41_57_20_10
-^viking_maze_room2 = 0_41_156_15_32
-^viking_maze_room3 = 0_41_156_32_21
-^viking_maze_room4 = 0_41_156_41_35
-^viking_maze_room5 = 0_41_156_6_40
-^viking_maze_room6 = 0_41_156_32_54
-^viking_maze_room7 = 0_41_156_42_46
+^viking_maze_room2 = 0_41_156_18_32
+^viking_maze_room3 = 0_41_156_29_21
+^viking_maze_room4 = 0_41_156_41_32
+^viking_maze_room5 = 0_41_156_6_43
+^viking_maze_room6 = 0_41_156_29_54
+^viking_maze_room7 = 0_41_156_42_43
 ^viking_maze_end = 0_41_156_41_54
-// One dead end serves for every wrong portal: they are all the same room from the player's side -
-// dark, empty, and only leaving by the rope - so there is nothing to gain from routing 53 portals
-// to 14 different copies of it. This one is beside the escape rope at (6,42).
-^viking_maze_deadend = 0_41_156_6_43
+// One dead end serves for every wrong portal: they are all the same room from the player's side,
+// and leaving it means the rope, so there is nothing to gain from routing 53 portals to separate
+// copies of it.
+^viking_maze_deadend = 0_41_156_7_32
 ^viking_bit_maze_done = 18
 
 // Sigmund's merchant trial - a One Small Favour-shaped chain. Five bits hold the step, 0-27.
@@ -187,13 +211,21 @@
 // The trial holds exactly ONE bit of state and nothing else. Every item in the house is re-findable
 // and every step re-runnable, so losing, dropping or banking a puzzle item can never dead-end it -
 // the same rule Sigli's talisman follows. In particular the scales chest hands out another vase,
-// and the mural another lid, whenever you are holding nothing further along the chain.
+// and the crate and bookcase another pair of disks for the mural, whenever you are holding nothing
+// further along the chain.
 ^viking_bit_peer_riddle = 24
 
 // Olaf's trial: the pet rock, and Lalli holding it. Bits 25 and 26 - the highest bit used before
 // this was 24, and the five-bit merchant range ends at 23.
 ^viking_bit_askeladden_rock = 25
 ^viking_bit_lalli_rock = 26
+// Lalli's rock soup (wiki: use the cabbage, potato, onion and pet rock on Lalli's Stew, then talk to
+// Lalli for the golden fleece). Bit 26 above now means "the pet rock is in the stew" - which is also
+// true of anyone who handed the rock to Lalli under the old wall-lifting version, so they only need
+// the vegetables. One bit per vegetable, 28-30 (27 is Swensen's vote).
+^viking_bit_stew_potato = 28
+^viking_bit_stew_cabbage = 29
+^viking_bit_stew_onion = 30
 
 // The golden sheep pen at m43_56. viking_drystonewall rings it completely with no gate on it
 // anywhere, so Lalli lifting you over is the only way in or out. The drop tile is a sheep spawn,

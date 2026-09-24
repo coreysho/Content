@@ -108,7 +108,8 @@ mes("Manni the Reveller has given you his vote.");
 // carries no name, no ops and no active= line - it is pure scenery, so that trigger could never
 // fire. Manni tells you to fetch a keg, there are six of them stacked round the bar, and not one
 // of them can be clicked. The barkeep is standing next to them and already owns a handler, so the
-// keg comes over the bar instead, which is where you would ask for one anyway.
+// keg comes over the bar instead, which is where you would ask for one anyway. (relleka.loc has
+// since given viking_keg op1=Take-from, and [oploc1,viking_keg] below now answers it too.)
 //
 // Called from [opnpc1,viking_longhall_barkeep] in viking_sigmund.rs2.
 [proc,viking_barkeep_keg]()(boolean)
@@ -134,6 +135,42 @@ if (inv_freespace(inv) < 1) {
 inv_add(inv, viking_beerkeg, 1);
 ~chatnpc("<p,happy>On the house. I want to see how this goes.");
 return(true);
+
+
+// The kegs round the bar. relleka.loc gave them op1=Take-from on 2026-09-08 for exactly this, but
+// no trigger ever went in, so taking a keg said "Nothing interesting happens" and the barkeep was
+// the only way to get one. Same rules as the barkeep: only while Manni's rematch wants one.
+[oploc1,viking_keg]
+if (%viking < ^viking_started | testbit(%viking_bits, ^viking_bit_manni_beaten) = 0 | testbit(%viking_bits, ^viking_vote_manni) = 1) {
+    mes("The keg is empty.");
+    return;
+}
+if (inv_total(inv, viking_beerkeg) > 0) {
+    mes("You are carrying a keg already. One is plenty.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("You don't have room to carry a keg.");
+    return;
+}
+p_arrivedelay;
+anim(human_pickuptable, 0);
+inv_add(inv, viking_beerkeg, 1);
+mes("You take a full keg of beer from the table.");
+
+// Low alcohol keg and keg of beer on each other - the wiki's own step. The swap itself needs every
+// head turned, which is what the rematch with Manni does once the pipe is primed, so this points
+// there rather than doing it where the whole hall can see.
+[opheldu,viking_low_alcahol_beerkeg]
+if (last_useitem ! viking_beerkeg) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (testbit(%viking_bits, ^viking_bit_firecracker_planted) = 0) {
+    mes("Not with the whole longhall watching. You would need every head in here turned the other way first.");
+    return;
+}
+mes("Best do it at Manni's table, the moment the pipe goes off. Talk to Manni and start the contest.");
 
 
 // --- The council workman at the bridge ---
@@ -187,6 +224,9 @@ mes("You light the strange object. It begins to hiss.");
 
 
 // --- Hiding it in the longhall pipe ---
+// Two ways in: use the lit strange object on the pipe, or click the pipe's own Put-inside (op1 -
+// the cache has always shipped it, but nothing was behind it, so it said "Nothing interesting
+// happens"). Put-inside takes the lit object if you carry one, and says what is missing otherwise.
 [oplocu,viking_pipe_end_longhall]
 if (last_useitem = viking_firecracker) {
     mes("It would need lighting first.");
@@ -196,6 +236,20 @@ if (last_useitem ! viking_firecracker_lit) {
     ~displaymessage(^dm_default);
     return;
 }
+@viking_pipe_plant;
+
+[oploc1,viking_pipe_end_longhall]
+if (inv_total(inv, viking_firecracker_lit) = 0) {
+    if (inv_total(inv, viking_firecracker) > 0) {
+        mes("The strange object would need lighting first. A tinderbox should do it.");
+        return;
+    }
+    mes("You have nothing you want to put in the pipe.");
+    return;
+}
+@viking_pipe_plant;
+
+[label,viking_pipe_plant]
 if (testbit(%viking_bits, ^viking_bit_firecracker_planted) = 1) {
     mes("There is already something hissing away up there.");
     return;
