@@ -8,9 +8,11 @@
 //   Player Statistics    player/scripts/player_stats.rs2's counters and the other systems' own
 //   Server Statistics    players online, the time, uptime, and a few quick actions
 //
-// NOTHING HERE TICKS. A page's texts are written when it is shown - by a button, at login, and by
-// ~send_quest_progress, which re-shows the page the player is on - so what it says is true as of
-// then. Players online and the clock are a click on the page's own button away from current.
+// A page's texts are written when it is shown - by a button, at login, and by ~send_quest_progress,
+// which re-shows the page the player is on - AND every few seconds by [softtimer,questtab_refresh],
+// and the moment an item goes in the collection log. The 377 client never tells the server that the
+// player has opened a sidebar tab, so a page cannot be drawn "when you look at it"; kept current
+// instead, it is right whenever you do.
 
 [proc,questtab_select](int $page)
 %questtab_page = $page;
@@ -21,17 +23,30 @@
 if (%questtab_page < 0 | %questtab_page >= ^questtab_pages) {
     %questtab_page = ^questtab_summary;
 }
+~questtab_draw;
+// The quest list is recoloured every time it is shown, like the other pages are refilled: the
+// client throws away a tab's interface when another replaces it (IF_SETTAB unloads the old one,
+// javaclient Component.unloadCom), so coming back to it reloads every row red from the cache.
+if (%questtab_page = ^questtab_quests) {
+    ~questlist_recolour(true);
+}
+~questtab_settab(%questtab_page);
+
+// Refill the page on show, where it is. Not the quest list: its colours only change when a quest
+// moves, and ~send_quest_progress colours it then.
+[proc,questtab_draw]
 switch_int (%questtab_page) {
     case ^questtab_summary : ~questtab_summary_draw;
     case ^questtab_collection : ~questtab_collection_draw;
     case ^questtab_pstats : ~questtab_pstats_draw;
     case ^questtab_sstats : ~questtab_sstats_draw;
-    // The quest list is recoloured every time it is shown, like the other pages are refilled: the
-    // client throws away a tab's interface when another replaces it (IF_SETTAB unloads the old one,
-    // javaclient Component.unloadCom), so coming back to it reloads every row red from the cache.
-    case ^questtab_quests : ~questlist_recolour(true);
 }
-~questtab_settab(%questtab_page);
+
+// Every ^questtab_refresh_ticks, from login (login.rs2): the page on show, refilled - the clock,
+// players online, time played, kill counts, bank value. A soft timer, so it never waits on or
+// interrupts anything the player is doing.
+[softtimer,questtab_refresh]
+~questtab_draw;
 
 // ---------------------------------------------------------------------------------------------
 // Character Summary
