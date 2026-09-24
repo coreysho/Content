@@ -290,10 +290,13 @@ inv_add(inv, $give, 1);
 
 
 // --- The mural ---
-// The disks are not consumed. They are pressed into the hollows and taken back out, which is the
-// one place this departs from the original for a reason worth stating: a consumed pair plus a lost
-// lid would mean re-cooking a herring you may no longer be able to find a crate for. Nothing in
-// this house is a one-way door.
+// CORRECTED (reported: "can't use the red discs on the mural" and "searching the study just gives
+// you the lid"). The lid used to come out of Study - op1 - whenever both disks happened to be in the
+// pack, and there was no [oplocu] at all, so using a disk on the mural said "Nothing interesting
+// happens". The wiki has it the other way round: Study only looks, and the lid comes from USING the
+// two red disks on the abstract mural. The disks stay in the hollows, as they do there - both are
+// re-findable (the crate hands out another old disk and the bookcase another wooden one whenever
+// you hold nothing further along the chain), so this is still not a one-way door.
 
 [oploc1,viking_seers_mural] @viking_mural_study;
 [oploc1,viking_seers_mural_done] @viking_mural_study;
@@ -301,20 +304,44 @@ inv_add(inv, $give, 1);
 [label,viking_mural_study]
 p_arrivedelay;
 if (~viking_has_lid_or_later = true) {
-    ~mesbox("Two round hollows sit in the swirl of colour. You already have what came out of them.");
+    ~mesbox("It is a swirl of colour with no picture in it at all. Two red disks sit snugly in the hollows where you left them.");
+    return;
+}
+~mesbox("It is a swirl of colour with no picture in it at all, and set into the swirl are two round hollows the size of a coin. The paint around both of them is red.");
+
+[oplocu,viking_seers_mural] @viking_mural_use;
+[oplocu,viking_seers_mural_done] @viking_mural_use;
+
+[label,viking_mural_use]
+def_obj $used = last_useitem;
+p_arrivedelay;
+if ($used ! viking_dummy_coin & $used ! viking_red_wooden_coin) {
+    if ($used = viking_uncoloured_wooden_coin) {
+        mes("The disk fits the hollow, but the paint around it is red and this disk is not.");
+        return;
+    }
+    ~displaymessage(^dm_default);
+    return;
+}
+if (~viking_has_lid_or_later = true) {
+    mes("Both hollows are already filled.");
     return;
 }
 if (inv_total(inv, viking_dummy_coin) = 0 | inv_total(inv, viking_red_wooden_coin) = 0) {
-    ~mesbox("It is a swirl of colour with no picture in it at all, and set into the swirl are two round hollows the size of a coin. The paint around both of them is red.");
+    mes("The red disk fits one of the hollows exactly - but there are two, and nothing happens with one of them empty. You take it back.");
     return;
 }
 if (inv_freespace(inv) < 1) {
-    ~mesbox("The hollows take the two disks and something behind the wall gives - but your hands are too full to catch what falls out.");
+    // Both disks go in and one slot comes free, so this can only happen with a full pack and a
+    // stack - kept for safety.
+    mes("Your hands are too full to catch anything that might fall out.");
     return;
 }
-loc_change(viking_seers_mural_done, ^viking_peer_loc_revert);
+inv_del(inv, viking_dummy_coin, 1);
+inv_del(inv, viking_red_wooden_coin, 1);
 inv_add(inv, viking_vase_lid, 1);
-~mesbox("You press the two red disks into the hollows. Something behind the wall turns over, and a small screw-on lid drops out at your feet. You take the disks back.");
+loc_change(viking_seers_mural_done, ^viking_peer_loc_revert);
+~objbox(viking_vase_lid, "You press the two red disks into the hollows in the mural. Something behind the wall turns over with a click, and a small screw-on lid drops out at your feet.", 250, 0, 0);
 
 
 // --- Water ---

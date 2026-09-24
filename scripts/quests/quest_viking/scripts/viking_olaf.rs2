@@ -4,9 +4,9 @@
 // Olaf wants to hear something worth listening to. You need an enchanted lyre and you need to play
 // it on the longhall stage. Two routes to the lyre, both from the wiki:
 //
-//   the long way   Cut-branch from the swaying tree (Woodcutting 40) -> fletch it with a knife
-//                  (Fletching 25) -> unstrung lyre; shear a golden sheep for the fleece, spin the
-//                  fleece into golden wool, use the wool on the lyre (Crafting 40)
+//   the long way   Cut-branch from the swaying tree (Woodcutting 40) -> carve it with a knife
+//                  (Crafting 40) -> unstrung lyre; Lalli's golden fleece (the rock soup, below),
+//                  spun into golden wool, used on the lyre (Fletching 25)
 //   the short way  kill Lanzig until he drops one (1/17, wired in drop_tables/scripts/lanzig.rs2)
 //
 // Either way the lyre is then enchanted by offering a raw shark, manta ray or sea turtle on the
@@ -26,6 +26,23 @@
 //
 // So the chain is restored: Askeladden hands over the pet rock, Lalli takes it, and a troll who is
 // finally holding something of his own will lift you over his own wall.
+//
+// CORRECTED AGAIN (reported: "can't progress with Lalli for the golden wool", "using a knife on the
+// branch does nothing"). The wall-lifting above was an invention, and Lalli never said a word that
+// pointed anyone at Askeladden. The wiki's chain is the rock soup: Lalli will not give his wool
+// away; Askeladden, who got some out of him once, hands over his pet rock; Lalli will not have a
+// rock; so you tell him it is a magic soup rock, put it in Lalli's Stew (viking_troll_cauldron,
+// placed outside his cave at m43_56 (20,39) and never wired) with a potato, a cabbage and an onion,
+// and ask him to taste it. He gives you the golden fleece. The pen stays shut as the cache built it
+// - the golden sheep are scenery - and Lalli still lifts anyone left inside by the old version back
+// out. %viking_bits 26 now means "the rock is in the stew", which is also true of anyone who gave
+// Lalli the rock under the old version, so they only need the vegetables.
+//
+// The knife: [opheldu,knife] belongs to gnome cooking, and OpHeldUHandler runs the TARGET item's
+// trigger first - so branch-on-knife landed there, fell to its default and said "Nothing
+// interesting happens". It has a case for the branch now, next to the dramen branch, and both click
+// orders come here. The skills were also swapped: carving the lyre is Crafting 40, stringing it
+// Fletching 25.
 
 [opnpc1,viking_olaf]
 // Olaf owes the sailor a ballad and wants boots for it - Sigmund's chain, not his own trial.
@@ -66,7 +83,11 @@ if (inv_total(inv, viking_strung_lyre) > 0) {
     ~chatnpc("<p,neutral>A lyre, but a dead one. Take it to the Fossegrimen at the lake shrine with something worth eating - a shark, if you have one.");
     return;
 }
-~chatnpc("<p,neutral>Come back when you have a lyre. The swaying tree east of the gates, or Lanzig, whichever suits you.");
+if (inv_total(inv, viking_unstrung_lyre) > 0) {
+    ~chatnpc("<p,neutral>A frame, but no string. Golden wool is what a lyre wants - Lalli the troll keeps the golden sheep, east past the swaying tree. He does not give it away easily.");
+    return;
+}
+~chatnpc("<p,neutral>Come back when you have a lyre. Cut a branch from the swaying tree east of the gates and carve it, then string it with golden wool from Lalli the troll. Or take one off Lanzig, whichever suits you.");
 
 
 // --- The swaying tree ---
@@ -89,23 +110,33 @@ p_delay(3);
 inv_add(inv, viking_musical_tree_branch, 1);
 mes("You cut a branch from the swaying tree. It hums faintly in your hand.");
 
-// The branch fletches with a knife. Declared on the BRANCH rather than the knife because
-// OpHeldUHandler tries the target item's trigger first and the used item's second
-// (OpHeldUHandler.ts:94-101), so one trigger here catches both directions - and [opheldu,knife] is
-// already taken by the gnome cooking fruit-cutting handler.
+// The branch is carved with a knife. Both click orders arrive here: knife-on-branch through this
+// trigger, branch-on-knife through the case in [opheldu,knife] (skill_cooking/scripts/gnome_cooking/
+// cutting_fruit.rs2), which runs first when the knife is the target.
 [opheldu,viking_musical_tree_branch]
 if (last_useitem ! knife) {
     ~displaymessage(^dm_default);
     return;
 }
-if (stat(fletching) < ^viking_lyre_fletch_level) {
-    mes("You need a Fletching level of <tostring(^viking_lyre_fletch_level)> to shape this branch.");
+@viking_carve_branch;
+
+[label,viking_carve_branch]
+if (inv_total(inv, viking_musical_tree_branch) = 0) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (stat(crafting) < ^viking_lyre_carve_level) {
+    mes("You need a Crafting level of <tostring(^viking_lyre_carve_level)> to carve this branch into a lyre.");
+    return;
+}
+anim(human_fletching, 0);
+p_delay(1);
+if (inv_total(inv, viking_musical_tree_branch) = 0) {
     return;
 }
 inv_del(inv, viking_musical_tree_branch, 1);
 inv_add(inv, viking_unstrung_lyre, 1);
-anim(human_fletching, 0);
-stat_advance(fletching, 250);
+stat_advance(crafting, 250);
 mes("You carve the branch into the frame of a lyre. It needs a string.");
 
 
@@ -147,35 +178,131 @@ mes("This one has already been shorn.");
 if (%viking < ^viking_started) {
     return;
 }
-if (testbit(%viking_bits, ^viking_bit_lalli_rock) = 0) {
-    ~chatplayer("<p,quiz>Golden sheep?");
-    ~chatnpc("<p,happy>Golden wool! Very warm. Wall is too high for you, though. Lalli built it.");
-    ~chatplayer("<p,quiz>Could you lift me over?");
-    ~chatnpc("<p,sad>Lalli watches sheep. Lalli does not leave post. Sheep would be alone.");
-    ~chatnpc("<p,sad>Lalli is alone too.");
-    return;
-}
-@viking_lalli_lift;
-
-// He will not leave his post, but he will put you over the wall and take you back out, which is
-// the only way in or out of that ring.
-[label,viking_lalli_lift]
+// Anyone the old version lifted into the pen gets lifted back out.
 if (inzone(^viking_pen_sw, ^viking_pen_ne, coord) = true) {
-    ~chatplayer("<p,quiz>Out, please.");
-    ~chatnpc("<p,happy>Up you go!");
-    if_close;
-    mes("Lalli reaches over the wall and sets you down on the grass outside.");
-    p_delay(3);
-    p_teleport(^viking_lalli_coord);
+    @viking_lalli_lift_out;
+}
+if (testbit(%viking_bits, ^viking_bit_olaf_asked) = 0 | testbit(%viking_bits, ^viking_vote_olaf) = 1) {
+    ~chatnpc("<p,happy>Golden apples, golden sheep. Lalli has everything.");
     return;
 }
-~chatplayer("<p,quiz>Could you put me over the wall?");
-~chatnpc("<p,happy>Lalli holds rock. Lalli has one hand free. Up you go!");
+if (~viking_stew_ready = true) {
+    @viking_lalli_taste;
+}
+if (testbit(%viking_bits, ^viking_bit_lalli_rock) = 1) {
+    ~chatplayer("<p,quiz>How is the soup?");
+    ~chatnpc("<p,quiz>Magic rock is in Lalli's pot. Rock is not doing much yet.");
+    ~chatplayer("<p,neutral>It needs a few things to get it going. A potato, a cabbage and an onion.");
+    ~chatnpc("<p,happy>Then human puts them in! Lalli is watching sheep.");
+    ~viking_stew_missing;
+    return;
+}
+if (inv_total(inv, vt_useless_rock) > 0) {
+    @viking_lalli_rock_soup;
+}
+~chatplayer("<p,quiz>I hear you have golden sheep. Could I have some of their wool?");
+~chatnpc("<p,angry>No! Golden wool is Lalli's. Lalli does not give golden wool to humans.");
+~chatnpc("<p,sad>Last human who got wool from Lalli was clever. Too clever. Lalli still does not know how it happened.");
+~chatplayer("<p,quiz>Who was that?");
+~chatnpc("<p,neutral>Little human. Always talking about being hero. Lives in the town.");
+~mesbox("That sounds like Askeladden, in Rellekka. He might tell you how he got the wool out of Lalli.");
+
+[label,viking_lalli_rock_soup]
+~chatplayer("<p,happy>Lalli, look what I've got.");
+~chatnpc("<p,confused>That is rock. Lalli knows rocks. Lalli is not stupid.");
+~chatplayer("<p,neutral>Ah, but it isn't just any rock. It's a magic rock. It makes soup.");
+~chatnpc("<p,quiz>...soup? From rock?");
+~chatplayer("<p,happy>The best soup you've ever tasted. Put it in your stew and I'll show you.");
+~chatnpc("<p,happy>Lalli likes soup! Human puts magic rock in Lalli's stew.");
+~mesbox("Use the pet rock on Lalli's stew by his cave, along with a potato, a cabbage and an onion.");
+
+// The fleece goes down before the dialogue that follows it: ~chatnpc ends in p_pausebutton and is
+// abortable.
+[label,viking_lalli_taste]
+if (~viking_has_fleece_or_later = true) {
+    ~chatnpc("<p,happy>Soup is good! Lalli already gave human the golden wool. Lalli is watching sheep.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,happy>Soup smells good! Human has no hands free for Lalli's thank-you, though.");
+    return;
+}
+mes("You ask Lalli to taste the soup. He dips a huge finger into the stew and licks it.");
+p_delay(2);
+inv_add(inv, viking_golden_fleece, 1);
+~chatnpc("<p,shock>Magic rock makes GOOD soup! Human is clever human.");
+~chatnpc("<p,happy>Lalli gives clever human golden wool. Soup for wool is fair trade.");
+~objbox(viking_golden_fleece, "Lalli hands you a golden fleece.", 250, 0, 0);
+
+[label,viking_lalli_lift_out]
+~chatplayer("<p,quiz>Out, please.");
+~chatnpc("<p,happy>Up you go!");
 if_close;
-mes("Lalli picks you up in one hand and puts you down among the sheep.");
+mes("Lalli reaches over the wall and sets you down on the grass outside.");
 p_delay(3);
-p_teleport(^viking_pen_drop);
-~mesbox("The golden sheep do not react to this at all, which suggests it is not the first time.");
+p_teleport(^viking_lalli_coord);
+
+// --- Lalli's stew ---
+// Each ingredient goes in on its own, the rock first or last - it makes no difference to the soup.
+[oplocu,viking_troll_cauldron]
+def_obj $used = last_useitem;
+if (%viking < ^viking_started | testbit(%viking_bits, ^viking_bit_olaf_asked) = 0 | testbit(%viking_bits, ^viking_vote_olaf) = 1) {
+    mes("You had better not - Lalli is very fond of that stew.");
+    return;
+}
+switch_obj ($used) {
+    case vt_useless_rock : @viking_stew_add(vt_useless_rock, ^viking_bit_lalli_rock, "You drop the pet rock into the stew. It sinks without complaint.");
+    case potato : @viking_stew_add(potato, ^viking_bit_stew_potato, "You drop the potato into the stew.");
+    case cabbage : @viking_stew_add(cabbage, ^viking_bit_stew_cabbage, "You drop the cabbage into the stew.");
+    case onion : @viking_stew_add(onion, ^viking_bit_stew_onion, "You drop the onion into the stew.");
+    case default : ~displaymessage(^dm_default);
+}
+
+[label,viking_stew_add](obj $item, int $bit, string $line)
+if (testbit(%viking_bits, $bit) = 1) {
+    mes("There is one of those in the stew already.");
+    return;
+}
+p_arrivedelay;
+if (inv_total(inv, $item) = 0) {
+    return;
+}
+inv_del(inv, $item, 1);
+%viking_bits = setbit(%viking_bits, $bit);
+mes($line);
+if (~viking_stew_ready = true) {
+    mes("The stew smells a good deal better than it did. Lalli should taste it.");
+    return;
+}
+~viking_stew_missing;
+
+[proc,viking_stew_ready]()(boolean)
+if (testbit(%viking_bits, ^viking_bit_lalli_rock) = 0) { return(false); }
+if (testbit(%viking_bits, ^viking_bit_stew_potato) = 0) { return(false); }
+if (testbit(%viking_bits, ^viking_bit_stew_cabbage) = 0) { return(false); }
+if (testbit(%viking_bits, ^viking_bit_stew_onion) = 0) { return(false); }
+return(true);
+
+[proc,viking_stew_missing]
+def_string $need = "";
+if (testbit(%viking_bits, ^viking_bit_lalli_rock) = 0) { $need = append($need, " the pet rock,"); }
+if (testbit(%viking_bits, ^viking_bit_stew_potato) = 0) { $need = append($need, " a potato,"); }
+if (testbit(%viking_bits, ^viking_bit_stew_cabbage) = 0) { $need = append($need, " a cabbage,"); }
+if (testbit(%viking_bits, ^viking_bit_stew_onion) = 0) { $need = append($need, " an onion,"); }
+if (string_length($need) = 0) {
+    return;
+}
+mes("The stew still needs<substring($need, 0, sub(string_length($need), 1))>.");
+
+// Anything from the fleece onwards - Lalli only hands out another if all of it is gone.
+[proc,viking_has_fleece_or_later]()(boolean)
+if (inv_total(inv, viking_golden_fleece) > 0) { return(true); }
+if (inv_total(inv, viking_golden_wool) > 0) { return(true); }
+if (inv_total(inv, viking_strung_lyre) > 0) { return(true); }
+if (inv_total(inv, viking_enchanted_strung_lyre) > 0) { return(true); }
+return(false);
+
+[opheld2,vt_useless_rock] mes("You stroke your pet rock. It does not seem to mind.");
 
 // --- The pet rock ---
 // Hooked ahead of Askeladden's merchant-chain handler in viking_sigmund.rs2.
@@ -205,10 +332,10 @@ if (testbit(%viking_bits, ^viking_bit_askeladden_rock) = 1) {
     inv_add(inv, vt_useless_rock, 1);
     return(true);
 }
-~chatplayer("<p,quiz>There's a troll guarding the golden sheep and he won't let me over the wall.");
-~chatnpc("<p,happy>Lalli! Lalli's all right. Lalli's just lonely.");
-~chatplayer("<p,quiz>Lonely.");
-~chatnpc("<p,happy>He watches sheep all day and the sheep don't talk back. You want to give him something of his own.");
+~chatplayer("<p,quiz>Lalli the troll says somebody got golden wool out of him once. Was that you?");
+~chatnpc("<p,happy>Ha! Rock soup. Trolls love soup, and Lalli thinks anything is possible if it goes in a pot.");
+~chatnpc("<p,happy>Tell him you've got a magic rock that makes soup. Put it in his stew with a potato, a cabbage and an onion, and let him taste it. He'll give you anything.");
+~chatplayer("<p,quiz>And where do I get a magic rock?");
 if (inv_freespace(inv) < 1) {
     ~chatnpc("<p,happy>I'd give you my pet rock, only you've not a hand free to take him with.");
     return(true);
@@ -216,27 +343,17 @@ if (inv_freespace(inv) < 1) {
 inv_add(inv, vt_useless_rock, 1);
 %viking_bits = setbit(%viking_bits, ^viking_bit_askeladden_rock);
 ~objbox(vt_useless_rock, "Askeladden hands over a rock. It is, as far as you can tell, a rock.", 250, 0, 0);
-~chatnpc("<p,happy>His name's... he hasn't got one. I was saving that bit.");
+~chatnpc("<p,happy>Any rock is magic if you say so loudly enough. Potato, cabbage, onion - don't forget.");
 
 [opnpcu,viking_lalli_troll]
-if (last_useitem ! vt_useless_rock) {
-    ~displaymessage(^dm_default);
+if (last_useitem = vt_useless_rock) {
+    if (%viking >= ^viking_started & testbit(%viking_bits, ^viking_bit_olaf_asked) = 1 & testbit(%viking_bits, ^viking_vote_olaf) = 0) {
+        @viking_lalli_rock_soup;
+    }
+    ~chatnpc("<p,confused>That is rock. Lalli has lots of rocks.");
     return;
 }
-if (testbit(%viking_bits, ^viking_bit_lalli_rock) = 1) {
-    ~chatnpc("<p,happy>Lalli has rock. Lalli does not need two rocks.");
-    return;
-}
-~chatplayer("<p,neutral>This is for you.");
-~chatnpc("<p,quiz>...for Lalli?");
-if_close;
-mes("Lalli turns the rock over twice and then holds it very carefully, the way you would hold an egg.");
-p_delay(4);
-inv_del(inv, vt_useless_rock, 1);
-%viking_bits = setbit(%viking_bits, ^viking_bit_lalli_rock);
-~mesbox("\"Lalli will watch it,\" he says. \"Lalli is good at watching.\"");
-p_delay(2);
-~chatnpc("<p,happy>You want sheep? Lalli puts you over wall. Lalli has hand free now.");
+~displaymessage(^dm_default);
 
 // The Rellekka wheel had op2=Spin and no handler at all. Sending it to the same menu every other
 // wheel uses rather than writing a second one.
@@ -270,14 +387,14 @@ if (last_useitem ! viking_unstrung_lyre) {
     ~displaymessage(^dm_default);
     return;
 }
-if (stat(crafting) < ^viking_lyre_craft_level) {
-    mes("You need a Crafting level of <tostring(^viking_lyre_craft_level)> to string a lyre.");
+if (stat(fletching) < ^viking_lyre_string_level) {
+    mes("You need a Fletching level of <tostring(^viking_lyre_string_level)> to string a lyre.");
     return;
 }
 inv_del(inv, viking_golden_wool, 1);
 inv_del(inv, viking_unstrung_lyre, 1);
 inv_add(inv, viking_strung_lyre, 1);
-stat_advance(crafting, 500);
+stat_advance(fletching, 500);
 mes("You string the lyre with golden wool.");
 
 
