@@ -2,9 +2,14 @@
 # Deploy the Death Plateau server. Link it as /opt/deathplateau/deploy.sh and use it instead of
 # the by-hand chain - every step below exists because leaving it out broke something.
 #
-#   ./deploy.sh            normal deploy
+#   ./deploy.sh                  normal deploy: restarts the moment the build is done
+#   ./deploy.sh --countdown      ...but warns players first: the "System update in" timer, 60 seconds
+#   ./deploy.sh --countdown=300  ...5 minutes
 #   ./deploy.sh --force-engine   deploy even if the engine has commits GitHub does not
 #
+# The options go in any order. With --countdown the build is done while the world is still up on the
+# old code, and the timer starts only once it has succeeded, so players are warned about a restart
+# that is certain to happen - and a build that fails leaves them playing, unwarned.
 set -euo pipefail
 
 # This script is tracked in the content repo, and it pulls that repo while running.
@@ -27,6 +32,21 @@ BRANCH=377-wip
 SERVICE=deathplateau.service
 systemctl cat "$SERVICE" >/dev/null 2>&1 || SERVICE=lostcity.service
 KEEP_BACKUPS=10
+PORT=${WEB_MANAGEMENT_PORT:-8898}
+
+FORCE_ENGINE=
+COUNTDOWN=
+for arg in "$@"; do
+    case "$arg" in
+        --force-engine) FORCE_ENGINE=1 ;;
+        --countdown)    COUNTDOWN=60 ;;
+        --countdown=*)  COUNTDOWN=${arg#--countdown=} ;;
+        *) printf 'unknown option: %s\n' "$arg" >&2; exit 1 ;;
+    esac
+done
+case "$COUNTDOWN" in
+    ''|*[!0-9]*) [ -z "$COUNTDOWN" ] || { printf 'bad --countdown: %s\n' "$COUNTDOWN" >&2; exit 1; } ;;
+esac
 
 say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 die() { printf '\n\033[1;31m!!! %s\033[0m\n' "$*" >&2; exit 1; }
@@ -78,7 +98,7 @@ AHEAD=$(git -C "$ENGINE" rev-list --count "origin/$BRANCH..HEAD")
 if [ "$AHEAD" -gt 0 ]; then
     printf '  \033[1;33mThis engine has %s commit(s) that are NOT on GitHub:\033[0m\n' "$AHEAD"
     git -C "$ENGINE" log --oneline "origin/$BRANCH..HEAD" | sed 's/^/    /'
-    if [ "${1:-}" != "--force-engine" ]; then
+    if [ -z "$FORCE_ENGINE" ]; then
         die "Push these from whichever machine has them, or re-run with --force-engine.
     From the server itself:  cd $ENGINE && git push origin $BRANCH"
     fi
@@ -120,10 +140,29 @@ say "Building"
 cd "$ENGINE"
 npm run build
 
-say "Restarting $SERVICE"
 # systemctl, never a manual npm start - that starts a second unsupervised world that
 # collides on port 43594 and dies with the SSH session.
-systemctl restart "$SERVICE"
+if [ -n "$COUNTDOWN" ] && systemctl is-active --quiet "$SERVICE"; then
+    # The world's own reboot (engine/src/web.ts, POST /reboot, this machine only): the "System update
+    # in" countdown, then every player saved and a clean shutdown - restart.sh's way. systemd's
+    # Restart=always, or the start below, brings it back on what was just built.
+    say "Warning players: restart in ${COUNTDOWN}s"
+    curl -sS -f -X POST "http://127.0.0.1:${PORT}/reboot?seconds=${COUNTDOWN}" \
+        || die "the server did not accept the countdown (is one already under way?) - the build is done; restart with: systemctl restart $SERVICE"
+    say "Waiting for the world to save and shut down"
+    # the process, not the unit: with Restart=always the unit can be back before is-active is asked
+    pid=$(systemctl show -p MainPID --value "$SERVICE")
+    deadline=$(( $(date +%s) + COUNTDOWN + 120 ))
+    while [ "$pid" != "0" ] && kill -0 "$pid" 2>/dev/null; do
+        [ "$(date +%s)" -le "$deadline" ] \
+            || die "still running two minutes after the countdown - check: journalctl -u $SERVICE -n 50"
+        sleep 2
+    done
+    systemctl is-active --quiet "$SERVICE" || systemctl start "$SERVICE"
+else
+    say "Restarting $SERVICE"
+    systemctl restart "$SERVICE"
+fi
 
 say "Deployed. Tailing the log - Ctrl-C to stop (the server keeps running)."
 journalctl -u "$SERVICE" -f
