@@ -153,6 +153,7 @@ switch_int (%mourning_quest_main) {
         ~chatnpc("<p,sad>It is not a list of the dead. It is a list of what they are being used for, and the answer is a temple under the Isafdar that my people sealed six hundred years ago and have not spoken about since.");
         ~chatnpc("<p,neutral>It is built round a beam of light. There is a hole in the west wall of the bottom floor and the light is supposed to come out of it, and it has not for six centuries.");
         %mourning_quest_main = ^mt_arianwyn;
+        %mourning_light_door_1_c_first_time = ^mt_on;
         ~send_quest_progress(questlist:mourning2, %mourning_quest_main, ^mt_complete);
         ~chatnpc("<p,neutral>The tunnel is off the excavation. Take a mirror or two out of the fittings cupboards when you are in there; you are going to need them.");
         return(true);
@@ -164,6 +165,9 @@ switch_int (%mourning_quest_main) {
             ~chatnpc("<p,happy>Six hundred years, and it was three mirrors and somebody prepared to count corners.");
             return(true);
         }
+        // The tunnel into the temple (cavewalltunnel_to_temple) is a multiloc on this bit and is a
+        // blank cave wall without it. Nothing used to set it, so the temple could not be entered.
+        %mourning_light_door_1_c_first_time = ^mt_on;
         ~chatnpc("<p,neutral>The light has to come out of the west wall. Everything else in that building is a way of arranging that.");
         return(true);
 }
@@ -201,15 +205,97 @@ if (%mourning_quest_main = ^mt_arianwyn) {
 }
 return(true);
 
+// Straight up from the foot of either wall ladder is the ladder top itself, which blocks - so each
+// has its own landing, checked against the collision map (tools/sim/audit2.ts).
 [oploc1,mourning_temple_ladder_wall]
 p_arrivedelay;
 mes("You climb up.");
-p_teleport(movecoord(coord, 0, 1, 0));
+switch_coord (loc_coord) {
+    case 1_29_72_42_2 : p_teleport(2_29_72_42_4);
+    case 1_29_72_42_60 : p_teleport(2_29_72_42_58);
+    case default : p_teleport(movecoord(coord, 0, 1, 0));
+}
 
 [oploc1,mourning_temple_ladder_wall_top]
 p_arrivedelay;
 mes("You climb down.");
-p_teleport(movecoord(coord, 0, -1, 0));
+switch_coord (loc_coord) {
+    case 2_29_72_42_2 : p_teleport(1_29_72_42_3);
+    case 2_29_72_42_59 : p_teleport(1_29_72_42_59);
+    case default : p_teleport(movecoord(coord, 0, -1, 0));
+}
+
+// The rope between the bottom two floors.
+[oploc1,mourning_temple_way_ropemulti]
+p_arrivedelay;
+anim(human_reachforladder, 0);
+p_delay(0);
+p_teleport(1_29_72_20_13);
+
+[oploc1,mourning_temple_way_down]
+p_arrivedelay;
+anim(human_pickupfloor, 0);
+p_delay(0);
+p_teleport(0_29_72_20_13);
+
+[oploc1,mourning_temple_wall_jump]
+p_arrivedelay;
+mes("You climb over the broken wall.");
+if (coordx(coord) < coordx(loc_coord)) {
+    p_teleport(movecoord(loc_coord, 1, 0, 0));
+} else {
+    p_teleport(movecoord(loc_coord, -1, 0, 0));
+}
+
+// =========================================================================== the doors of light
+// Fourteen doorways, each a shell on its own mourning_door_* varbit, and the only ops on them -
+// Pass, and Pass-through once lit - had no trigger. The player comes in through the tunnel into
+// floor 1 pillar 13's chamber, which is shut on both sides by two of them, so nothing past the
+// first cupboard could be reached. They let the player through (the colour logic that decides
+// which light opens which door in the original is not modelled - see mourning2_graph.rs2).
+[oploc1,mourning_door_1_1_east] @mt_door_pass;
+[oploc1,mourning_door_1_1_south] @mt_door_pass;
+[oploc1,mourning_door_1_13_east] @mt_door_pass;
+[oploc1,mourning_door_1_13_north] @mt_door_pass;
+[oploc1,mourning_door_1_16_north] @mt_door_pass;
+[oploc1,mourning_door_1_16_west] @mt_door_pass;
+[oploc1,mourning_door_1_b] @mt_door_pass;
+[oploc1,mourning_door_1_c] @mt_door_pass;
+[oploc1,mourning_door_2_16_north] @mt_door_pass;
+[oploc1,mourning_door_2_16_west] @mt_door_pass;
+[oploc1,mourning_door_2_4_south] @mt_door_pass;
+[oploc1,mourning_door_2_4_west] @mt_door_pass;
+
+// A door of light is a blocking tile in a doorway: angles 0 and 2 span east-west, so it is passed
+// north-south; 1 and 3 the other way. Step to the tile on the far side of it.
+[label,mt_door_pass]
+p_arrivedelay;
+def_coord $door = loc_coord;
+if (loc_angle = 0 | loc_angle = 2) {
+    if (coordz(coord) < coordz($door)) {
+        p_teleport(movecoord($door, 0, 0, 1));
+    } else {
+        p_teleport(movecoord($door, 0, 0, -1));
+    }
+    return;
+}
+if (coordx(coord) < coordx($door)) {
+    p_teleport(movecoord($door, 1, 0, 0));
+} else {
+    p_teleport(movecoord($door, -1, 0, 0));
+}
+
+// The hole in the west wall is where the light has to go, and it had no trigger either. It is also
+// the way back out to the tunnels.
+[oploc1,mourning_temple_light_wall_with_hole]
+p_arrivedelay;
+if (%mourning_quest_main < ^mt_lit) {
+    ~mesbox("A hole in the wall, and on the far side of it the dark of the tunnels. The light is supposed to go through here. You can squeeze through it yourself.");
+} else {
+    mes("You squeeze out through the hole the light is pouring through.");
+}
+p_delay(1);
+p_teleport(^mt_tunnel_outside);
 
 // =========================================================================== the fittings cupboards
 [oploc1,mourning_temple_light_parts_2_closed] @mt_cupboard_open(2);
@@ -218,15 +304,18 @@ p_teleport(movecoord(coord, 0, -1, 0));
 [oploc1,mourning_temple_light_parts_5_closed] @mt_cupboard_open(5);
 [oploc1,mourning_temple_light_parts_6_closed] @mt_cupboard_open(6);
 
+// The cupboards are plain locs, not multilocs, so setting the varbit alone left the closed one in
+// place - Open again, never Search - and the hand mirror could not be had. Swap the loc as every
+// other cupboard does.
 [label,mt_cupboard_open](int $n)
 p_arrivedelay;
 mes("You open the cupboard.");
 switch_int ($n) {
-    case 2 : %mourning_temple_parts_2 = ^mt_on;
-    case 3 : %mourning_temple_parts_3 = ^mt_on;
-    case 4 : %mourning_temple_parts_4 = ^mt_on;
-    case 5 : %mourning_temple_parts_5 = ^mt_on;
-    case 6 : %mourning_temple_parts_6 = ^mt_on;
+    case 2 : %mourning_temple_parts_2 = ^mt_on; loc_change(mourning_temple_light_parts_2_open, 300);
+    case 3 : %mourning_temple_parts_3 = ^mt_on; loc_change(mourning_temple_light_parts_3_open, 300);
+    case 4 : %mourning_temple_parts_4 = ^mt_on; loc_change(mourning_temple_light_parts_4_open, 300);
+    case 5 : %mourning_temple_parts_5 = ^mt_on; loc_change(mourning_temple_light_parts_5_open, 300);
+    case 6 : %mourning_temple_parts_6 = ^mt_on; loc_change(mourning_temple_light_parts_6_open, 300);
 }
 if (%mourning_quest_main = ^mt_inside) {
     %mourning_quest_main = ^mt_mirrors;
@@ -264,12 +353,13 @@ mes("A small hand mirror.");
 [oploc2,mourning_temple_light_parts_6_open] @mt_cupboard_shut(6);
 
 [label,mt_cupboard_shut](int $n)
+p_arrivedelay;
 switch_int ($n) {
-    case 2 : %mourning_temple_parts_2 = ^mt_off;
-    case 3 : %mourning_temple_parts_3 = ^mt_off;
-    case 4 : %mourning_temple_parts_4 = ^mt_off;
-    case 5 : %mourning_temple_parts_5 = ^mt_off;
-    case 6 : %mourning_temple_parts_6 = ^mt_off;
+    case 2 : %mourning_temple_parts_2 = ^mt_off; loc_change(mourning_temple_light_parts_2_closed, 300);
+    case 3 : %mourning_temple_parts_3 = ^mt_off; loc_change(mourning_temple_light_parts_3_closed, 300);
+    case 4 : %mourning_temple_parts_4 = ^mt_off; loc_change(mourning_temple_light_parts_4_closed, 300);
+    case 5 : %mourning_temple_parts_5 = ^mt_off; loc_change(mourning_temple_light_parts_5_closed, 300);
+    case 6 : %mourning_temple_parts_6 = ^mt_off; loc_change(mourning_temple_light_parts_6_closed, 300);
 }
 mes("You shut the cupboard.");
 

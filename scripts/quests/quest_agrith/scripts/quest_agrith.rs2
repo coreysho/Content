@@ -168,7 +168,13 @@ if (%agrith_quest < ^agrith_black) {
     return(false);
 }
 if (%agrith_convinced_golem = ^agrith_on) {
-    if (%agrith_quest = ^agrith_black & inv_total(inv, agrith_sigil_mould) = 0 & inv_freespace(inv) > 0) {
+    // A lost tome: the golem has kept the rest of what the cult left in its kilns.
+    if (%agrith_quest >= ^agrith_sigil & %agrith_quest < ^agrith_summoned & inv_total(inv, agrith_book) = 0 & inv_freespace(inv) > 0) {
+        inv_add(inv, agrith_book, 1);
+        ~chatnpc("<p,neutral>THEY LEFT A BOOK AS WELL. THEY ARE NOT CAREFUL PEOPLE.");
+        return(true);
+    }
+    if ((%agrith_quest = ^agrith_black | %agrith_quest = ^agrith_mould) & inv_total(inv, agrith_sigil_mould) = 0 & inv_freespace(inv) > 0) {
         inv_add(inv, agrith_sigil_mould, 1);
         ~chatnpc("<p,neutral>ANOTHER ONE. I HAVE A BOX OF THEM.");
         return(true);
@@ -198,6 +204,11 @@ if (last_useitem ! silver_bar) {
     ~displaymessage(^dm_default);
     return;
 }
+@agrith_cast_sigil;
+
+// The mould used on the bar lands on [opheldu,silver_bar] (Creature of Fenkenstrain), which hands
+// it on here.
+[label,agrith_cast_sigil]
 if (%agrith_quest ! ^agrith_mould) {
     ~mesbox("There is nowhere out here hot enough, and no reason yet.");
     return;
@@ -215,10 +226,15 @@ inv_del(inv, silver_bar, 1);
 ~send_quest_progress(questlist:agrith, %agrith_quest, ^agrith_complete);
 ~mesbox("The kiln is four hundred years old and has a hole in one side and it takes about nine seconds to melt a silver bar, which tells you something about the people who built this city.");
 
-[oploc1,golem_kiln_smashed1_lookin]
+// The kilns at Uzer are the shells agrith_kiln_1-4; op triggers resolve on the placed loc, not on
+// what its multiloc shows, so a trigger on golem_kiln_smashed1_lookin never ran. The shells only
+// offer Look-in at 60, so these cannot be clicked at any other stage.
+[oploc1,agrith_kiln_1]
 p_arrivedelay;
 if (inv_total(inv, agrith_sigil) > 0) {
-    ~mesbox("Empty, and still warm.");
+    if (~agrith_find_tome = false) {
+        ~mesbox("Empty, and still warm.");
+    }
     return;
 }
 if (%agrith_kiln = ^agrith_off) {
@@ -232,7 +248,41 @@ if (inv_freespace(inv) = 0) {
 inv_del(inv, agrith_sigil_mould, 1);
 inv_add(inv, agrith_sigil, 1);
 stat_advance(crafting, 5000);
+// Silverlight may have been stained before the sigil was cast, and then this is the stage it
+// would have been waiting for.
+~agrith_sword_check;
 ~mesbox("A demonic sigil, still too hot to be comfortable, with a name on it that you can feel more than read.");
+~agrith_find_tome;
+
+[oploc1,agrith_kiln_2] @agrith_other_kiln;
+[oploc1,agrith_kiln_3] @agrith_other_kiln;
+[oploc1,agrith_kiln_4] @agrith_other_kiln;
+
+[label,agrith_other_kiln]
+p_arrivedelay;
+if (~agrith_find_tome = false) {
+    ~mesbox("Cold ash and pieces of pot.");
+}
+
+// The tome was never handed out anywhere, and it is the only place the incantation is written
+// down. In OSRS it is found by searching the kilns at Uzer.
+[proc,agrith_find_tome]()(boolean)
+if (inv_total(inv, agrith_book) > 0 | %agrith_quest >= ^agrith_summoned) {
+    return(false);
+}
+if (inv_freespace(inv) = 0) {
+    mes("There is a book under the ash, and you have no room for it.");
+    return(true);
+}
+inv_add(inv, agrith_book, 1);
+~objbox(agrith_book, "Under the ash at the back of the kiln there is a book the cult left behind with the moulds.", 250, 0, ^objbox_height);
+return(true);
+
+[proc,agrith_sword_check]()()
+if (%agrith_quest = ^agrith_sigil & inv_total(inv, agrith_sigil) > 0 & inv_total(inv, agrith_silverlight_dyed) > 0) {
+    %agrith_quest = ^agrith_sword;
+    ~send_quest_progress(questlist:agrith, %agrith_quest, ^agrith_complete);
+}
 
 // =========================================================================== the tome
 [opheld1,agrith_book]
@@ -240,6 +290,7 @@ stat_advance(crafting, 5000);
 
 // agrith_sigil carries iop1=Chant and its generated stub said "Nothing interesting happens."
 [opheld1,agrith_sigil]
+~agrith_sword_check;
 if (%agrith_quest < ^agrith_sword) {
     ~mesbox("Chanting over a sigil with nothing prepared is how people end up as a paragraph in somebody else's tome.");
     return;
