@@ -216,6 +216,12 @@ if (%makinghistory_trader_prog >= ^mh_strand_done) {
     return;
 }
 if (%makinghistory_trader_prog = ^mh_strand_held) {
+    // Each record is the only one there is, so one lost on the way is handed over again.
+    if (~obj_gettotal(makinghistory_letter2) = 0 & inv_freespace(inv) > 0) {
+        ~chatnpc("<p,angry>Four hundred years in a chest and you lost it in a week. There is a copy. Do not lose that.");
+        inv_add(inv, makinghistory_letter2, 1);
+        return;
+    }
     ~chatnpc("<p,neutral>Take it south. It has waited long enough.");
     return;
 }
@@ -254,6 +260,11 @@ if (%makinghistory_prog ! ^mh_investigating) {
 switch_int (%makinghistory_warr_prog) {
     case ^mh_strand_refused : @mh_blanin_gives;
     case ^mh_strand_held :
+        if (~obj_gettotal(makinghistory_letter1) = 0 & inv_freespace(inv) > 0) {
+            ~chatnpc("<p,angry>You lost it? Then take the copy our grandfather made, and go, before he notices.");
+            inv_add(inv, makinghistory_letter1, 1);
+            return;
+        }
         ~chatnpc("<p,neutral>Go, before he notices.");
     case ^mh_strand_done :
         ~chatnpc("<p,happy>Dron shouted for a day and a half. Then he asked whether our name would be in it.");
@@ -331,6 +342,11 @@ switch_int (%makinghistory_ghost_prog) {
         ~chatnpc("<p,neutral>Tell her. She will know it is from me.");
     case ^mh_ghost_forgiven : @mh_droalak_journal;
     case ^mh_ghost_held :
+        if (~obj_gettotal(makinghistory_journal) = 0 & inv_freespace(inv) > 0) {
+            ~chatnpc("<p,neutral>Lost? I told you I could recite it. Here - every word, in my hand this time.");
+            inv_add(inv, makinghistory_journal, 1);
+            return;
+        }
         ~chatnpc("<p,happy>Take it south. And thank you, which I have not said to anyone in two centuries.");
     case default :
         ~chatnpc("<p,happy>She is waiting for me at the gate. I am going to walk there very slowly and enjoy all of it.");
@@ -391,21 +407,32 @@ p_delay(5);
 %makinghistory_ghost_prog = ^mh_ghost_forgiven;
 ~mesbox("\"Tell him I will speak to him,\" she says. \"Tell him to hurry. We have already been slow about this.\"");
 
+// =========================================================================== the outpost doors
+// The front double doors and the door through to the storeroom had no handler, so "Open" did nothing
+// and Jorral - the start and the end of the quest - was shut inside a building nobody could enter.
+[oploc1,makinghistory_doubledoorl] ~walk_through_door;
+[oploc1,makinghistory_doubledoorr] ~walk_through_door;
+[oploc1,makinghistory_door] ~walk_through_door;
+
 // =========================================================================== the museum
 // All four carry op1=Study and none of them had a handler, which would have made the reward for the
 // whole quest a room of things that do nothing when clicked.
-[oploc1,makinghistory_shield_display]
+//
+// The handlers go on the multiloc SHELLS the map places (*_multiloc): OpLocHandler checks the op on
+// the child but hands the engine the placed loc, so a trigger on the child never fires. The crates
+// they show before the museum opens have no ops, so these are only reached once it has.
+[oploc1,makinghistory_shield_display_multiloc]
 p_arrivedelay;
 ~mesbox("A shield, cut most of the way through and then not cut the rest of the way. The card beside it says it was found in the well and that nobody knows whose it was. | Jorral has written underneath, in smaller handwriting: one of ours.");
 
-[oploc1,makinghistory_large_display1]
+[oploc1,makinghistory_large_display1_multiloc]
 p_arrivedelay;
 ~mesbox("Grain measures, three sets of them, in three different standards - Saradominist, Zamorakian and Guthixian - all calibrated against each other so that nobody could accuse anybody of shorting the road. | They are worn almost smooth. Sixty-five years of use, and then nothing.");
 
-[oploc1,makinghistory_large_display2]
+[oploc1,makinghistory_large_display2_multiloc]
 p_arrivedelay;
 ~mesbox("The letter to the king, open at last, under glass. It is four hundred years old and it is a request for grain, written politely, and then written politely again at the bottom in a different and much less steady hand.");
 
-[oploc1,makinghistory_bookcase]
+[oploc1,makinghistory_bookcase_multiloc]
 p_arrivedelay;
 ~mesbox("Bennath's journal, the fur traders' ledgers, and eleven volumes of Jorral's own notes on a question he has now answered. | He has left a space on the end of the shelf. He says he is not done.");

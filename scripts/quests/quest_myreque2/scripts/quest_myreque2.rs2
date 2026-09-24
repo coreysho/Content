@@ -152,6 +152,22 @@ if (%burgh_bank_wall = ^m2_off) { return(false); }
 if (%burgh_furnace_fix < ^m2_furnace_fired) { return(false); }
 return(true);
 
+// =========================================================================== getting into the village
+// Burgh de Rott is fenced in, and neither the gate on the swamp road nor the low fence on the west
+// side had a handler - so nobody could get into the village this quest rebuilds. The inn's front
+// door (ahoy_harbour_door, the same door Port Phasmatys uses) is in doors/scripts. The broken back
+// wall of the inn, over which the trapdoor and its rubble are reached, had no handler either.
+[oploc1,burgh_fencegate_l] ~walk_through_door;
+[oploc1,burgh_fencegate_r] ~walk_through_door;
+
+[oploc1,burgh_agility_shortcut_fence]
+anim(human_jump_hurdle, 0);
+~walk_through_door;
+
+[oploc1,burgh_inn_climb_over]
+anim(human_jump_hurdle, 0);
+~walk_through_door;
+
 // =========================================================================== the general store
 [opnpc1,burgh_general_store_owner]
 if (%myreque_2_quest < ^m2_arrived) {
@@ -240,12 +256,13 @@ stat_advance(crafting, 2000);
 [oploc1,burgh_ladder_generalstore_up]
 p_arrivedelay;
 mes("You climb up.");
-p_teleport(^m2_store_ladder_down);
+// The constants are the ladders' own tiles, which a ladder blocks; land beside them.
+p_teleport(movecoord(^m2_store_ladder_down, 0, 0, 1));
 
 [oploc1,burgh_ladder_generalstore_down]
 p_arrivedelay;
 mes("You climb down.");
-p_teleport(^m2_store_ladder_up);
+p_teleport(movecoord(^m2_store_ladder_up, 0, 0, 1));
 
 // =========================================================================== the bank
 // burgh_bankbooth_repaired declares op1=Use and op2=Use-quickly, which is the same pair the real
@@ -441,7 +458,7 @@ mes("You carry another bucket of it out into the street.");
 p_arrivedelay;
 if (%burgh_inn_trapdoor = ^m2_on) {
     mes("You climb down.");
-    p_teleport(^m2_cellar_ladder);
+    p_teleport(movecoord(^m2_cellar_ladder, 0, 0, -1)); // the ladder's own tile is blocked
     return;
 }
 if (%burgh_inn_colapsed_wall = ^m2_off) {
@@ -465,7 +482,8 @@ mes("You close the trapdoor.");
 [oploc1,burgh_inn_basement_ladderup]
 p_arrivedelay;
 mes("You climb up.");
-p_teleport(^m2_inn_trapdoor);
+// The trapdoor sits under the rubble's footprint, which blocks; come up beside it, inside the inn.
+p_teleport(movecoord(^m2_inn_trapdoor, 1, 0, 0));
 
 [oploc1,burgh_inn_wall_plaque]
 ~mesbox("BURGH DE ROTT | A free port of the Kingdom of Hallowland | and this is as much of it as is still legible.");
@@ -498,12 +516,12 @@ p_delay(3);
 p_arrivedelay;
 mes("You climb down into the library.");
 p_delay(2);
-p_teleport(^m2_library_ladder);
+p_teleport(movecoord(^m2_library_ladder, 0, 0, -1)); // the ladder's own tile is blocked
 
 [oploc1,burgh_temple_library_ladder_up]
 p_arrivedelay;
 mes("You climb up.");
-p_teleport(^m2_temple_trapdoor);
+p_teleport(movecoord(^m2_temple_trapdoor, 0, 0, -1)); // the trapdoor sits on a blocked tile
 
 [oploc1,burgh_library_bookcase_history]
 p_arrivedelay;
@@ -574,13 +592,13 @@ if (%ivandis_tomb_boards = ^m2_off) {
 }
 mes("You go in.");
 p_delay(2);
-p_teleport(^m2_tomb_exit);
+p_teleport(movecoord(^m2_tomb_exit, 0, 0, -1)); // the exit's own tile is blocked
 
 [oploc1,burgh_ivandis_tomb_exit]
 p_arrivedelay;
 mes("You come back out into the Hollows.");
 p_delay(2);
-p_teleport(^m2_tomb_entrance);
+p_teleport(movecoord(^m2_tomb_entrance, -1, 0, -1)); // the entrance's own tile is blocked
 
 [oploc1,burgh_ancient_coffin]
 p_arrivedelay;

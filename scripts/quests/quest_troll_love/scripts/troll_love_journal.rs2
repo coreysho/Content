@@ -1,12 +1,11 @@
 
-// TODO: Stage=Complete journal entry
 
 [if_button,questlist:troll_love]
 def_string $text;
 
 if (%troll_love = ^troll_love_not_started) {
     $text = "@dbl@I can start this quest by speaking to @dre@Ug@dbl@ who is in the @dre@Troll|";
-    $text = "@dre@Stronghold@dbl@.||";
+    $text = append($text, "@dre@Stronghold@dbl@.||");
     $text = append($text, "@dbl@Requirements:|");
     if (%death_equiproom < ^death_complete) {
         $text = append($text, "@dbl@Must have completed @dre@Death Plateau|");
@@ -88,6 +87,10 @@ if (%troll_love > ^troll_love_dispose_of_arrg) {
 
 if (%troll_love = ^troll_love_defeated_arrg) {
     $text = append($text, "@dbl@I should talk to @dre@Ug@dbl@ to get my reward.");
+} else if (%troll_love >= ^troll_love_complete) {
+    $text = append($text, "@str@Ug finally found the courage to go and see Aga, and gave|");
+    $text = append($text, "@str@me some gems for my trouble.||");
+    $text = append($text, "@red@QUEST COMPLETE!");
 }
 
 ~quest_journal("Troll Romance", $text);

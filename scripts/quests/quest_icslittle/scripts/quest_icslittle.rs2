@@ -35,6 +35,15 @@ mes("You lift the canopic jar off its shelf.");
 // All four in hand is what assembles the burial party - and 19 is the lowest value at which any of
 // them render.
 [proc,icslittle_check_jars]
+if (%ics_little_var ! ^icslittle_embalmed & %ics_little_var ! ^icslittle_ceremony) {
+    return;
+}
+// A jar that is taken is gone from its shelf for good, so one lost afterwards (dropped, destroyed)
+// goes back on the shelf rather than leaving the ceremony impossible.
+if (%ics_liverpot_vis = 1 & ~obj_gettotal(ics_little_canopic_jar_liver) = 0) %ics_liverpot_vis = 0;
+if (%ics_lungpot_vis = 1 & ~obj_gettotal(ics_little_canopic_jar_lungs) = 0) %ics_lungpot_vis = 0;
+if (%ics_stomachpot_vis = 1 & ~obj_gettotal(ics_little_canopic_jar_stomach) = 0) %ics_stomachpot_vis = 0;
+if (%ics_intestinespot_vis = 1 & ~obj_gettotal(ics_little_canopic_jar_intestines) = 0) %ics_intestinespot_vis = 0;
 if (%ics_little_var ! ^icslittle_embalmed) {
     return;
 }
@@ -59,12 +68,48 @@ if (stat(agility) < 30) {
     return;
 }
 anim(human_pickuptable, 0);
+// The chasm is three tiles deep (z 9194-9196, both rows of pit locs sit on its edges), so the far
+// side is four tiles away. It jumped three, which landed inside the chasm - a blocked tile - from
+// either side.
 if (coordz(coord) < coordz(loc_coord)) {
-    p_teleport(movecoord(coord, 0, 0, 3));
+    p_teleport(movecoord(coord, 0, 0, 4));
 } else {
-    p_teleport(movecoord(coord, 0, 0, -3));
+    p_teleport(movecoord(coord, 0, 0, -4));
 }
 mes("You jump the pit.");
+
+// =========================================================================== getting in and out
+
+// Sophanem's gates stay shut, so the rocks beside the Wanderer's tent are the way in and the hole in
+// the east wall the way back out; the temple door drops into the tomb beside the ladder that climbs
+// back up to it. None of these four had a handler, so neither the town nor the tomb - where every
+// step of this quest happens - could be reached at all.
+[oploc1,ics_little_entrance_multi]
+p_arrivedelay;
+mes("You squeeze between the rocks and follow the tunnel under the wall into Sophanem.");
+p_teleport(0_51_43_56_44);
+
+[oploc1,ics_wall_crack]
+p_arrivedelay;
+mes("You climb through the hole in the wall.");
+p_teleport(0_51_44_60_40);
+
+[oploc1,icthalarins_temple_door] @icslittle_enter_tomb;
+[oploc3,icthalarins_temple_door] @icslittle_enter_tomb;
+
+[label,icslittle_enter_tomb]
+p_arrivedelay;
+mes("The door grinds open onto a stair, and you go down into the tomb.");
+p_teleport(0_51_143_13_21);
+
+[oploc1,ics_ladder]
+p_arrivedelay;
+~climb_ladder(0_51_43_30_29, true);
+
+// The two doorways off the tomb's north corridor - the west one to the canopic jars, the east one to
+// the ceremony chamber - had no handler either.
+[oploc1,loc_6643]
+~walk_through_door;
 
 // =========================================================================== Klenter
 

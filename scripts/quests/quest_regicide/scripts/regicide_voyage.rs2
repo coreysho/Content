@@ -1,0 +1,62 @@
+// Regicide - getting into Tirannwn at all.
+//
+// Nothing did. King Lathas sends the player "through the Well of Voyage into Tirannwn", but the
+// Well of Voyage (bloodwell_upass, Iban's temple, m37_151) only ever showed its inscription, and the
+// cache's own way in - the Well of Voyage temple under Isafdar, m36_150, with its well, its cave
+// exit and the cave entrance above it at m36_50 (9,15) - had no handlers either. Idris, Essyllt and
+// Morvran, the first people the quest needs you to meet, are placed in no map. So the quest stopped
+// at stage 1 for everyone.
+//
+// The well now takes you down into that temple, the temple's exit puts you out in Isafdar, and the
+// entrance and the temple's own well take you back the way you came. Idris and the two elves who
+// kill him step out of the trees by the cave mouth the first time you come out at stage 1.
+
+[label,regicide_well_of_voyage]
+switch_int (~p_choice2("Climb into the well.", 1, "Search the stone structure.", 2)) {
+    case 1 :
+        anim(human_reachforladder, 0);
+        mes("You climb into the Well of Voyage...");
+        p_delay(1);
+        p_teleport(0_36_150_36_22);
+        mes("...and climb out again into an old temple, a very long way west.");
+    case 2 :
+        mes("You search the stone structure...");
+        mes("On the side you find an old inscription,");
+        mes("It reads...");
+        @upass_well_inscription;
+}
+
+[oploc1,regicide_voyage_temple_well2]
+anim(human_reachforladder, 0);
+mes("You climb down into the well...");
+p_delay(1);
+p_teleport(0_37_151_4_54);
+mes("...and back out of the Well of Voyage in Iban's temple.");
+
+[oploc1,regicide_voyage_temple_exit]
+p_arrivedelay;
+mes("You squeeze out into the forest.");
+p_teleport(0_36_50_9_14);
+~regicide_place_idris;
+
+[oploc1,regicide_voyage_temple_entrance]
+p_arrivedelay;
+mes("You squeeze through into the cave.");
+p_teleport(0_36_150_10_24);
+
+// The opening scene. [opnpc1,regicide_good_elf1] in regicide_idris_elves.rs2 plays it out; it only
+// needs the three of them standing near each other, just west of the cave mouth.
+[proc,regicide_place_idris]
+if (%regicide_quest ! ^regicide_started) {
+    return;
+}
+if (npc_find(coord, regicide_good_elf1, 12, 0) = false) {
+    npc_add(0_36_50_1_12, regicide_good_elf1, 500);
+}
+if (npc_find(coord, regicide_evil_elf1, 12, 0) = false) {
+    npc_add(0_35_50_63_11, regicide_evil_elf1, 500);
+}
+if (npc_find(coord, regicide_evil_elf2, 12, 0) = false) {
+    npc_add(0_35_50_63_13, regicide_evil_elf2, 500);
+}
+mes("An elf steps out of the trees ahead of you, and looks as though he wants to talk.");

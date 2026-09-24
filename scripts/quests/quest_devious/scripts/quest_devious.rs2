@@ -7,13 +7,23 @@
 
 // The whetstone is at Doric's house north of Falador (m46_53 local 9,59). Grinding a steel
 // two-hander down on it is what makes the blade slender enough to hide.
-[oploc1,devious_whetstone]
-if (%devious_main ! ^devious_hired) {
-    mes("Doric's whetstone. Doric is not using it at the moment.");
+//
+// The whetstone carries no ops at all in the cache, so [oploc1] could never fire - the sword is
+// used on it instead, which is how OSRS does it too.
+[oplocu,devious_whetstone]
+// p_arrivedelay corrupts last_useitem, so it is read before the walk.
+def_obj $used = last_useitem;
+p_arrivedelay;
+if ($used ! steel_2h_sword) {
+    if (oc_category($used) = weapon_2h_sword) {
+        ~mesbox("A grinding wheel, well used. It wants a steel two-hander - nothing finer, and nothing cheaper.");
+        return;
+    }
+    ~displaymessage(^dm_default);
     return;
 }
-if (inv_total(inv, steel_2h_sword) = 0) {
-    ~mesbox("A grinding wheel, well used. You would need a two-handed sword to do anything with it - a steel one, and you would be ruining it.");
+if (%devious_main ! ^devious_hired) {
+    mes("Doric's whetstone. Doric is not using it at the moment.");
     return;
 }
 inv_del(inv, steel_2h_sword, 1);
@@ -82,11 +92,13 @@ inv_del(inv, devious_bowsword, 1);
 if (%devious_main = ^devious_blade_hidden & inv_total(inv, devious_glowingpouch) > 0) {
     @devious_leave_pouch;
 }
+// This is Entrana's church altar for everybody else, so it still recharges prayer like any other
+// (the map places this shell, not the category=prayer_altar child, so [oploc1,_prayer_altar] never
+// fires here on its own).
 if (%devious_altar = ^devious_altar_burnt) {
-    ~mesbox("The altar is scorched black down one side. Whatever happened here happened fast and hot.");
-    return;
+    mes("The altar is scorched black down one side. Whatever happened here happened fast and hot.");
 }
-~mesbox("You pray at the altar, and feel a little better about yourself than you probably deserve to.");
+@pray_at_altar(stat_base(prayer));
 
 [label,devious_leave_pouch]
 inv_del(inv, devious_glowingpouch, 1);
@@ -102,14 +114,29 @@ inv_del(inv, devious_glowingpouch, 1);
 [oploc1,devious_altar_scorched] @devious_altar_child;
 
 [label,devious_altar_child]
-~mesbox("You pray at the altar.");
+@pray_at_altar(stat_base(prayer));
 
 // =========================================================================== the body
 
 // Search is op1 on devious_monk_dead_visable, and the trigger goes on the shell the map places.
 [opnpc1,devious_monk_dead]
-if (inv_total(inv, devious_relic_fragment_saradomin) > 0 | %devious_main >= ^devious_found_body) {
+if (inv_total(inv, devious_relic_fragment_saradomin) > 0 | %devious_main > ^devious_found_body) {
     ~mesbox("There is nothing else on him.");
+    return;
+}
+// The High Priest will not hear it without the relic, so a relic lost after the search is found
+// again here rather than leaving the quest stuck.
+if (%devious_main = ^devious_found_body) {
+    if (~obj_gettotal(devious_relic_fragment_saradomin) > 0) {
+        ~mesbox("There is nothing else on him.");
+        return;
+    }
+    if (inv_freespace(inv) = 0) {
+        ~mesbox("There is something clutched in his hand, and you have no room for it.");
+        return;
+    }
+    inv_add(inv, devious_relic_fragment_saradomin, 1);
+    ~mesbox("You search him again and find another piece of the relic caught in his robes.");
     return;
 }
 if (inv_freespace(inv) < 2) {
