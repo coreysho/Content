@@ -1,16 +1,55 @@
-// The Lost Tribe - the world side: the hole through the cellar wall, Sigmund's chest, the library
-// bookcase, and the completion queue. The talking is in the three npc files beside this one.
+// The Lost Tribe - the world side: the cellar rubble and the hole through it, the brooch, the
+// library book, Sigmund's chest, the H.A.M. hideout, and the completion queue. The talking is in the
+// npc files beside this one (lost_tribe_sigmund / _duke / _lumbridge / _mistag).
+
+// =========================================================================== quest requirements
+
+[proc,lost_tribe_requirements_met]()(boolean)
+if (%goblinquest < ^gobdip_complete | %runemysteries < ^runemysteries_complete) {
+    return(false);
+}
+return(true);
 
 // =========================================================================== the cellar wall
 
 // The triggers go on the two multi SHELLS, lost_tribe_cellar_wall and lost_tribe_cellar_wall_back,
-// not on the lost_tribe_cavewall_hole_walldecor child they both resolve to at stages 4-6.
-// OpLocHandler resolves the multi far enough to check the option exists and then hands the engine
-// the original loc, so a handler declared on the child would never fire. Same lesson as
-// Recruitment Drive's stone door.
+// not on the children they resolve to. OpLocHandler resolves the multi far enough to check the
+// option exists and then hands the engine the original loc, so a handler declared on a child would
+// never fire. Same lesson as Recruitment Drive's stone door.
 //
-// Each shell knows which side it is on, so no coordinate test is needed - the cellar shell always
-// puts the player in the cave and the cave shell always puts them back in the cellar.
+// Stages 1-3 draw the cellar side as "Rubble" with no option at all: OSRS digs through it by using a
+// pickaxe on it.
+[oplocu,lost_tribe_cellar_wall]
+if (oc_category(last_useitem) ! weapon_pickaxe) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%lost_tribe_quest >= ^lost_tribe_dug_through) {
+    mes("You have already dug through the rubble.");
+    return;
+}
+if (%lost_tribe_quest < ^lost_tribe_told_duke) {
+    mes("You'd better find out what happened here before you start digging holes in the Duke's cellar.");
+    return;
+}
+if (stat(mining) < ^lost_tribe_mining_level) {
+    ~mesbox("You need a Mining level of <tostring(^lost_tribe_mining_level)> to dig through the rubble.");
+    return;
+}
+def_obj $pickaxe = ~pickaxe_checker;
+if ($pickaxe = null) {
+    ~mesbox("You need a pickaxe that you have the Mining level to use.");
+    return;
+}
+mes("You dig through the rubble...");
+anim(oc_param($pickaxe, mining_animation), 0);
+sound_synth(mine_quick, 1, 0);
+p_delay(2);
+anim(null, 0);
+%lost_tribe_quest = ^lost_tribe_dug_through;
+~send_quest_progress(questlist:lost_tribe, %lost_tribe_quest, ^lost_tribe_complete);
+mes("...and find a hole in the wall behind it, just big enough to squeeze through.");
+
 [oploc1,lost_tribe_cellar_wall]
 p_arrivedelay;
 @lost_tribe_squeeze(^lost_tribe_hole_cave_side);
@@ -20,66 +59,164 @@ p_arrivedelay;
 @lost_tribe_squeeze(^lost_tribe_hole_cellar_side);
 
 [label,lost_tribe_squeeze](coord $to)
-// Squeeze-through is only offered at stages 4-6, so reaching here below that means the player got
+// Squeeze-through is only offered from stage 4, so reaching here below that means the player got
 // the option some other way. Refuse rather than teleporting them into solid rock.
-if (%lost_tribe_quest < ^lost_tribe_way_open) {
-    mes("The shelves are in the way.");
+if (%lost_tribe_quest < ^lost_tribe_dug_through) {
+    mes("There's no way through here.");
     return;
 }
-mes("You squeeze through the gap in the wall.");
+if (stat(agility) < ^lost_tribe_agility_level) {
+    ~mesbox("You need an Agility level of <tostring(^lost_tribe_agility_level)> to squeeze through the hole.");
+    return;
+}
+mes("You squeeze through the hole in the wall.");
 p_teleport($to);
+if ($to = ^lost_tribe_hole_cave_side) {
+    ~lost_tribe_place_brooch;
+}
+
+// The brooch lies on the cave floor for anyone who still needs it - from digging through until
+// Mistag has it back - as a ground item only they can see. obj_find only sees objs this player can,
+// so two visits never stack a second one.
+[proc,lost_tribe_place_brooch]
+if (%lost_tribe_quest < ^lost_tribe_dug_through | %lost_tribe_quest > ^lost_tribe_bowed) {
+    return;
+}
+if (~obj_gettotal(lost_tribe_brooch) > 0) {
+    return;
+}
+if (obj_find(^lost_tribe_brooch_spot, lost_tribe_brooch) = true) {
+    return;
+}
+obj_add(^lost_tribe_brooch_spot, lost_tribe_brooch, 1, 500);
+
+// Moved here from general_use/scripts/item_ops_generated.rs2 along with the book below.
+[opheld1,lost_tribe_brooch]
+mes("It's a stone brooch with a symbol carved into it - two eyes above a curved line.");
+
+// =========================================================================== the library
+
+// Varrock palace library, maps/m50_54.jm2 - Reldo's "northernmost bookcase on the west wall".
+[oploc1,lost_tribe_bookcase]
+if (%lost_tribe_quest < ^lost_tribe_showed_brooch) {
+    mes("You search the bookcase but find nothing of interest.");
+    return;
+}
+if (~obj_gettotal(lost_tribe_book) > 0) {
+    mes("You search the bookcase but find nothing else of interest.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You find a book on goblins, but you have no room to take it.");
+    return;
+}
+mes("You search the bookcase and find a book on goblins.");
+inv_add(inv, lost_tribe_book, 1);
+
+// Moved here from general_use/scripts/readables_generated.rs2: the book is where the brooch's symbol
+// gets its name, which is the quest step.
+[opheld1,lost_tribe_book]
+~mesbox("A History of the Goblin Race|The goblins were bred for war by a god of war, and in the elder days they fought in many tribes, each with its own symbol.");
+~mesbox("When their god fell silent at the end of the wars, the tribes that were left scattered. One of them, the Dorgeshuun, fled underground rather than fight on, and was never seen again.");
+~mesbox("Beside the name is a drawing of the Dorgeshuun symbol: two eyes above a curved line.");
+if (%lost_tribe_quest = ^lost_tribe_showed_brooch) {
+    %lost_tribe_quest = ^lost_tribe_read_book;
+    ~send_quest_progress(questlist:lost_tribe, %lost_tribe_quest, ^lost_tribe_complete);
+    ~mesbox("It's the symbol on the brooch! The creature in the cellar must have been one of the Dorgeshuun. Perhaps the goblins of the Goblin Village know more about this lost tribe.");
+}
 
 // =========================================================================== Sigmund's chest
 
-// Lumbridge, maps/m50_50.jm2. The key is palmed off Sigmund during the confrontation - see
-// lost_tribe_sigmund.rs2 - which is what the key's own description in the cache says happened:
-// "The key you stole from Sigmund."
+// Lumbridge castle, first floor, maps/m50_50.jm2 - beside Sigmund. The key comes out of his pocket
+// (lost_tribe_sigmund.rs2); the chest holds the H.A.M. robes that point at the hideout.
 [oploc1,lost_tribe_chest]
-if (inv_total(inv, lost_tribe_silverware) > 0 | %lost_tribe_quest >= ^lost_tribe_proved_sigmund) {
-    mes("The chest is empty now.");
+if (%lost_tribe_ham >= ^lost_tribe_ham_found_robes | %lost_tribe_quest >= ^lost_tribe_treaty_signed) {
+    mes("The chest is empty.");
     return;
 }
 if (inv_total(inv, lost_tribe_chest_key) = 0) {
     mes("The chest is locked.");
     return;
 }
-if (inv_freespace(inv) = 0) {
-    mes("The chest is full of Lumbridge silverware - but you have no room to take any of it.");
+if (inv_freespace(inv) < 1) {
+    mes("You'll need a free inventory space to take anything out of the chest.");
     return;
 }
-~mesbox("The key turns. The chest is full of silverware, every piece of it stamped with the arms of Lumbridge.");
-inv_add(inv, lost_tribe_silverware, 1);
-%lost_tribe_quest = ^lost_tribe_proved_sigmund;
-~send_quest_progress(questlist:lost_tribe, %lost_tribe_quest, ^lost_tribe_complete);
-mes("You take a piece as proof.");
+inv_del(inv, lost_tribe_chest_key, 1);
+~mesbox("You unlock the chest with Sigmund's key. Inside, folded neatly, are the robes of a H.A.M. member - the Humans Against Monsters. Sigmund is one of them!");
+inv_add(inv, ham_shirt, 1);
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, ham_robe, 1);
+}
+%lost_tribe_ham = ^lost_tribe_ham_found_robes;
+mes("Perhaps the H.A.M. hideout, north-west of the castle, is where the silverware went.");
 
-// =========================================================================== the library bookcase
+// =========================================================================== the H.A.M. hideout
 
-// Varrock library, maps/m50_54.jm2. The brooch is a symbol and nobody in Lumbridge can read it;
-// the book is what turns it into a name.
-[oploc1,lost_tribe_bookcase]
-if (%lost_tribe_quest < ^lost_tribe_met_mistag) {
-    mes("You find nothing of interest.");
+// ham_multi_trapdoor is a multiloc on %ham_thief: 0 -> osf_trapdoor_closed (Open, Pick-Lock),
+// 1 -> osf_trapdoor_open (Climb-down, Close). Nothing had a handler, so the hideout could not be
+// entered at all. It is not quest-gated - the hideout is open to any thief who can pick the lock.
+[oploc1,ham_multi_trapdoor]
+if (%ham_thief = 1) {
+    p_arrivedelay;
+    mes("You climb down through the trapdoor.");
+    p_telejump(^ham_hideout_arrival);
     return;
 }
-if (~obj_gettotal(lost_tribe_book) > 0) {
-    mes("You have already taken the book you need.");
+mes("This trapdoor is locked.");
+
+[oploc2,ham_multi_trapdoor]
+if (%ham_thief = 1) {
+    %ham_thief = 0;
+    mes("You close the trapdoor.");
+}
+
+[oploc5,ham_multi_trapdoor]
+if (%ham_thief = 1) {
+    mes("The trapdoor is already open.");
     return;
 }
-if (inv_freespace(inv) = 0) {
-    mes("You find a book on the goblin tribes, but you have no room to take it.");
+mes("You attempt to pick the lock on the trapdoor.");
+anim(human_pickupfloor, 0);
+p_delay(2);
+def_int $low = 128;
+if (inv_total(inv, lockpick) > 0) {
+    $low = 192;
+}
+if (stat_random(thieving, $low, 256) = false) {
+    mes("You fail to pick the lock - your fingers get numb from fumbling with it.");
     return;
 }
-~mesbox("Tucked in at the end of a shelf is a thin book: 'On the Ancient Goblin Tribes'.");
-inv_add(inv, lost_tribe_book, 1);
-mes("You take the book.");
+%ham_thief = 1;
+mes("You pick the lock on the trapdoor.");
+
+[oploc1,osf_ham_ladder]
+p_arrivedelay;
+mes("You climb up the ladder.");
+p_telejump(^ham_trapdoor_outside);
+
+[oploc1,lost_tribe_crate]
+if (%lost_tribe_quest = ^lost_tribe_spoke_mistag & %lost_tribe_ham >= ^lost_tribe_ham_found_robes & ~obj_gettotal(lost_tribe_silverware) = 0) {
+    if (inv_freespace(inv) = 0) {
+        mes("There's something heavy at the bottom of the crate, but you have no room to take it.");
+        return;
+    }
+    ~mesbox("Under a pile of old sacks at the bottom of the crate is a bundle of silverware, every piece stamped with the arms of Lumbridge.");
+    inv_add(inv, lost_tribe_silverware, 1);
+    return;
+}
+mes("You search the crate but find nothing of interest.");
 
 // =========================================================================== completion
 
 [queue,lost_tribe_quest_complete]
 %lost_tribe_quest = ^lost_tribe_complete;
 session_log(^log_adventure, "Quest complete: The Lost Tribe");
-// No experience: the reward is the treaty itself - passage through the mine, and the two
-// cave-goblin emotes that interface_controls/scripts/player_controls.rs2 already unlocks at this
-// exact stage.
-~send_quest_complete(questlist:lost_tribe, lost_tribe_treaty, 250, ^lost_tribe_questpoints, "You have completed\\nThe Lost Tribe!", "1 Quest Point|Peace between Lumbridge and the|Dorgeshuun|Two goblin emotes");
+stat_advance(mining, 30000);
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, ring_of_life, 1);
+} else {
+    obj_add(coord, ring_of_life, 1, ^lootdrop_duration);
+    mes("You have no room for the ring of life, so it has been placed at your feet.");
+}
+~send_quest_complete(questlist:lost_tribe, lost_tribe_treaty, 250, ^lost_tribe_questpoints, "You have completed\\nThe Lost Tribe!", "1 Quest Point|3,000 Mining XP|A ring of life|Two goblin emotes|Access to the Dorgeshuun mine");

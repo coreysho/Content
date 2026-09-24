@@ -1,41 +1,57 @@
 // The Lost Tribe.
 //
+// REWRITTEN (2026-09-24) to follow the OSRS quest (oldschool.runescape.wiki/w/The_Lost_Tribe). The old
+// version started with the Duke, sent the player to Sigmund and straight back, and then had the Duke
+// open the wall himself - a different quest with the brooch, the library, the goblin generals, the
+// bow to Mistag and the H.A.M. hideout all missing or out of order, and players reported being unable
+// to get anywhere after the Duke. It now runs:
+//
+//   Sigmund -> ask Lumbridge (the Cook, Hans, Father Aereck, Bob - one saw a goblin) -> the Duke ->
+//   pickaxe on the cellar rubble -> the brooch in the cave -> the Duke -> Reldo and the library book ->
+//   the goblin generals teach the goblin bow -> bow to Mistag -> Mistag -> the Duke will not listen ->
+//   pickpocket Sigmund -> his chest -> the H.A.M. hideout crate -> the Duke signs a treaty -> Mistag.
+//
 // The stage numbers are NOT free. %lost_tribe_quest is the cache's own varbit (bits 0-10 of
-// lost_tribe), and three separate pieces of cache data already switch on it. Between them they
-// pin nearly every value below:
+// lost_tribe), and cache data already switches on it:
 //
 //   [lost_tribe_cellar_wall] / [lost_tribe_cellar_wall_back] (all.loc)
 //       0      -> "Shelves" / "Wall"
-//       1,2,3  -> "Rubble", no op
-//       4..11  -> "Hole", op1=Squeeze-through
-//     so the wall opens at 4, and stays open for good afterwards.
-//
-//   controls.if com_79/com_80 (unpacked client interface, script1=lt,7)
-//     greys the two Goblin emotes while lost_tribe_quest < 7, and
-//     interface_controls/scripts/player_controls.rs2:111 enforces the same server-side.
-//     So 7 is where the goblins teach the player their greeting - which is meeting Mistag,
-//     not finishing the quest.
-//
+//       1,2,3  -> "Rubble" (the cellar side)       - the quest has started and the wall has fallen
+//       4..11  -> "Hole", op1=Squeeze-through       - dug through
+//   emotes.rs2 / controls.if com_79/com_80
+//       the two goblin emotes unlock at 7           - the goblin generals teach them
 //   [lost_tribe_guide] (all.npc) - Kazgar
-//       multinpc=9,10,11 -> lost_tribe_guide_1op
-//     and nothing below 9. He is simply not there before that, so he cannot be the way in: the
-//     first trip has to be on foot. It is - the tunnel from the hole at local(21,18) runs east
-//     along z=18 to x=25, north to z=15, and on through x=27..32 at z=9..14 to where Kazgar
-//     stands at local(31,10), and carries on east into m51_150 towards Mistag. Checked against
-//     the shape-10 centrepieces in both mapsquares before relying on it.
+//       multinpc=9,10,11 -> lost_tribe_guide_1op    - on duty once Mistag has had you shown out
+//   [lost_tribe_sigmund] (all.npc)
+//       multinpc 0..9 -> Sigmund (Talk-to, Pickpocket); gone from 10 - the Duke dismisses him
 //
-// Hence: 4 opens the wall, 7 is Mistag, 9 puts Kazgar on the road for the trips back and forth,
-// and 11 - the top of every range above - is completion.
-//
-// 3, 5, 6, 8 and 10 are skipped on purpose. The cache draws each of them identically to the stage
-// below it, and there was no beat worth inventing to fill them. A declared-but-never-assigned
-// stage is exactly the dead constant this codebase keeps tripping over, so they are not declared.
+// which pins every value below.
 ^lost_tribe_not_started = 0
-^lost_tribe_investigate = 1
-^lost_tribe_told_sigmund = 2
-^lost_tribe_way_open = 4
-^lost_tribe_met_mistag = 7
-^lost_tribe_proved_sigmund = 9
+^lost_tribe_started = 1
+^lost_tribe_goblin_seen = 2
+^lost_tribe_told_duke = 3
+^lost_tribe_dug_through = 4
+^lost_tribe_showed_brooch = 5
+^lost_tribe_read_book = 6
+^lost_tribe_learnt_emotes = 7
+^lost_tribe_bowed = 8
+^lost_tribe_spoke_mistag = 9
+^lost_tribe_treaty_signed = 10
+
+// %lost_tribe_contact (2 bits, cache): which Lumbridge resident saw the goblin. Picked at random when
+// Sigmund starts the quest, as in OSRS - so it is not always the same person.
+^lost_tribe_contact_cook = 0
+^lost_tribe_contact_hans = 1
+^lost_tribe_contact_aereck = 2
+^lost_tribe_contact_bob = 3
+// %lost_tribe_ham (2 bits, cache): 1 once Sigmund's chest has given up its H.A.M. robes - which is
+// what sends the player to the H.A.M. hideout, and what makes the silverware turn up in its crate.
+^lost_tribe_ham_found_robes = 1
+
+// Skill requirements (OSRS; all boostable).
+^lost_tribe_mining_level = 17
+^lost_tribe_agility_level = 13
+^lost_tribe_thieving_level = 13
 
 // The hole through the Lumbridge cellar wall. Three tiles, two walls:
 //
@@ -48,8 +64,18 @@
 // through has to step the player across, the same way Recruitment Drive's stone door does.
 ^lost_tribe_hole_cellar_side = 0_50_150_19_18
 ^lost_tribe_hole_cave_side = 0_50_150_21_18
+// OSRS: "the brooch which sits on the floor about 10 steps into cave".
+^lost_tribe_brooch_spot = 0_50_150_28_14
 
-// Kazgar walks the player the length of the mine. He stands at 0_50_150_31_10; Mistag is at
-// 0_51_150_55_15, with 54_15 the open tile beside him.
+// Kazgar stands at 0_50_150_31_10, at the Lumbridge end of the mine; Mistag is at 0_51_150_55_15, with
+// 54_15 the open tile beside him. The tunnel between them is walkable (checked by flood fill in
+// Engine-TS/tools/sim/horrortribe.ts), so the first trip is on foot, as in OSRS; Kazgar is there for
+// every trip after.
 ^lost_tribe_mine_entrance = 0_50_150_30_10
 ^lost_tribe_mistag_side = 0_51_150_54_15
+
+// The H.A.M. hideout, north-west of Lumbridge. The trapdoor (ham_multi_trapdoor, 3166,3252) is a
+// multiloc on the cache's %ham_thief (0 locked, 1 open); the ladder back up (osf_ham_ladder) is at
+// 0_49_150_13_53 and the crate with the silverware (lost_tribe_crate) at 0_49_150_16_45.
+^ham_hideout_arrival = 0_49_150_13_52
+^ham_trapdoor_outside = 0_49_50_30_51

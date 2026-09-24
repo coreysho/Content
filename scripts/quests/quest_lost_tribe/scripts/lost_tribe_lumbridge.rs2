@@ -1,0 +1,84 @@
+// The Lost Tribe - the people the player questions along the way: the Lumbridge witnesses, Reldo,
+// and the goblin generals. Their own triggers live in their own files and may only be declared once,
+// so each of them calls in here first and carries on with its usual dialogue if this did not talk.
+
+// =========================================================================== the witnesses
+
+// OSRS: "Talk to the following Lumbridge residents until one of them mentions that they saw a goblin
+// with huge eyes in the castle basement" - the Cook, Hans, Father Aereck and Bob. Which of them it
+// was is the cache's %lost_tribe_contact, picked at random when Sigmund starts the quest. Offered
+// only at stage 1, and always with a way out to the npc's normal conversation.
+[proc,lost_tribe_witness](int $who)(boolean)
+if (%lost_tribe_quest ! ^lost_tribe_started) {
+    return(false);
+}
+if (~p_choice2("Do you know what happened in the castle cellar?", 1, "Something else...", 2) = 2) {
+    return(false);
+}
+~chatplayer("<p,quiz>Do you know what happened in the castle cellar?");
+if (%lost_tribe_contact ! $who) {
+    switch_int ($who) {
+        case ^lost_tribe_contact_cook : ~chatnpc("<p,confused>The cellar? I haven't been down there for days. I've enough to do up here in the kitchen.");
+        case ^lost_tribe_contact_hans : ~chatnpc("<p,neutral>I only sweep the courtyard. You'd have to ask someone who goes down there.");
+        case ^lost_tribe_contact_aereck : ~chatnpc("<p,neutral>I'm afraid not. I don't often have cause to visit the castle cellar.");
+        case ^lost_tribe_contact_bob : ~chatnpc("<p,neutral>Not a clue, mate. I've been busy with axes all week.");
+    }
+    return(true);
+}
+switch_int ($who) {
+    case ^lost_tribe_contact_cook :
+        ~chatnpc("<p,scared>I do! I went down for a sack of flour the other night, and there was something down there.");
+        ~chatnpc("<p,scared>A little grey creature with great big bulging eyes. It looked like a goblin. When it saw me it ran off into the hole where the wall had fallen in.");
+    case ^lost_tribe_contact_hans :
+        ~chatnpc("<p,scared>I saw something! I was down in the cellar putting away my broom, and there was a creature in the rubble.");
+        ~chatnpc("<p,scared>It was small and grey, with enormous eyes - a bit like a goblin. It ran off through the hole in the wall.");
+    case ^lost_tribe_contact_aereck :
+        ~chatnpc("<p,scared>I did see something, though I hardly liked to mention it. I was in the cellar fetching candles for the church.");
+        ~chatnpc("<p,scared>A small grey creature with the biggest eyes you ever saw - like a goblin. It fled into the dark where the wall had fallen.");
+    case ^lost_tribe_contact_bob :
+        ~chatnpc("<p,scared>Funny you should ask. I was down there delivering an axe for the kitchen, and I saw a creature by the fallen wall.");
+        ~chatnpc("<p,scared>Grey, with huge eyes - looked like a goblin to me. Ran off into the dark as soon as it saw me.");
+}
+~chatplayer("<p,neutral>A goblin? I should tell the Duke about this.");
+%lost_tribe_quest = ^lost_tribe_goblin_seen;
+~send_quest_progress(questlist:lost_tribe, %lost_tribe_quest, ^lost_tribe_complete);
+return(true);
+
+// =========================================================================== Reldo
+
+// Jumps in ahead of Reldo's greeting (reldo.rs2), the same way A Tail of Two Cats does, while the
+// player has the brooch and has not yet found the book.
+[proc,lost_tribe_reldo_wants]()(boolean)
+if (%lost_tribe_quest = ^lost_tribe_showed_brooch & inv_total(inv, lost_tribe_brooch) > 0 & ~obj_gettotal(lost_tribe_book) = 0) {
+    return(true);
+}
+return(false);
+
+[label,lost_tribe_reldo]
+~chatnpc("<p,neutral>Hello stranger.");
+~chatplayer("<p,quiz>Do you know anything about this symbol? The Duke of Lumbridge thought you might.");
+mes("You show Reldo the brooch.");
+~chatnpc("<p,confused>Hmm... it isn't the crest of any noble house that I know of. It looks rather like a goblin tribe's symbol.");
+~chatnpc("<p,neutral>There's a book on the goblin race somewhere in this library. Try the northernmost bookcase on the west wall.");
+
+// =========================================================================== the goblin generals
+
+// Called from both generals' [opnpc1] after Recipe for Disaster's hook. Stage 6 only: the player has
+// read about the Dorgeshuun and comes to ask the goblins of the Goblin Village about them.
+[proc,lost_tribe_generals]()(boolean)
+if (%lost_tribe_quest ! ^lost_tribe_read_book) {
+    return(false);
+}
+~chatplayer("<p,quiz>Have you ever heard of the Dorgeshuun?");
+~chatnpc_specific("General Bentnoze", general_bentnoze, "<p,goblinchat>Dorgeshuun? Dorgeshuun tribe run away from big war. Cowards!");
+~chatnpc_specific("General Wartface", general_wartface, "<p,goblinchat>Not run away! Dorgeshuun refuse to fight. That different.");
+~chatnpc_specific("General Bentnoze", general_bentnoze, "<p,goblinchat>Same thing! Anyway, they gone. All gone underground, long long ago.");
+~chatplayer("<p,neutral>I think I've found them. I found one of their brooches under Lumbridge castle.");
+~chatnpc_specific("General Wartface", general_wartface, "<p,goblinchat>Under the ground? If human go looking for them, human better greet them proper, or they not talk.");
+~chatplayer("<p,quiz>How do I greet them properly?");
+~chatnpc_specific("General Bentnoze", general_bentnoze, "<p,goblinchat>Old tribes greet like this. Bow is for saying hello...");
+~chatnpc_specific("General Wartface", general_wartface, "<p,goblinchat>...and salute is for saying goodbye. Human watch and copy!");
+%lost_tribe_quest = ^lost_tribe_learnt_emotes;
+~send_quest_progress(questlist:lost_tribe, %lost_tribe_quest, ^lost_tribe_complete);
+~mesbox("You have learned the Goblin Bow and the Goblin Salute emotes.");
+return(true);

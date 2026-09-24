@@ -1,58 +1,96 @@
-// Sigmund, in Lumbridge castle (npc 2079, maps/m50_50.jm2).
+// Sigmund, the Duke's advisor, in Lumbridge castle (npc 2079, maps/m50_50.jm2, first floor).
 //
-// He is the Duke's advisor and, as it turns out, the thief. The cache keeps four more Sigmunds -
-// lost_tribe_sigmund_leaving, _ham, _there, _ham_there - for the later Dorgesh-Kaan quests and the
-// H.A.M. hideout. None of those is placed in any map, so only this one is scripted.
+// In OSRS he is the one who hands out the quest - and, as it turns out, the thief: a member of H.A.M.
+// who wants the goblins under the castle blamed. The placed npc is the multi shell
+// lost_tribe_sigmund; the cache resolves it to lost_tribe_sigmund_there (Talk-to, Pickpocket) at
+// stages 0-9 and to nothing from 10, when the Duke dismisses him. The triggers go on the shell.
+// The other Sigmunds (_leaving, _ham, _ham_there) belong to the later Dorgeshuun quests.
 
 [opnpc1,lost_tribe_sigmund]
 switch_int (%lost_tribe_quest) {
-    case ^lost_tribe_investigate : @sigmund_dismiss;
-    case ^lost_tribe_met_mistag : @sigmund_confront;
-    // Everything else, including before the quest and after the key is taken, gets the brush-off.
-    // Never fall off the end of the switch and leave him silent.
+    case ^lost_tribe_not_started : @sigmund_start;
+    case ^lost_tribe_started, ^lost_tribe_goblin_seen : @sigmund_ask_around;
+    case ^lost_tribe_told_duke : @sigmund_rubble;
+    case ^lost_tribe_spoke_mistag : @sigmund_goblins_lie;
     case default : @sigmund_busy;
 }
 
-[label,sigmund_busy]
-~chatnpc("<p,neutral>I am advisor to the Duke of Lumbridge. I am not here to make conversation.");
-
-[label,sigmund_dismiss]
-~chatplayer("<p,neutral>There's a hole in the castle cellar wall, and rubble all over the floor.");
-~chatnpc("<p,angry>There is nothing of the sort.");
-~chatplayer("<p,quiz>I've just come from down there.");
-~chatnpc("<p,neutral>Then you have seen a damp wall and some fallen stone, and you have made a story out of it.");
-~chatnpc("<p,shifty>The cellar is old. Old cellars crumble. There is nothing under Lumbridge but rock.");
-~chatplayer("<p,quiz>Something took the Duke's silverware.");
-~chatnpc("<p,angry>Rats took it, or a servant did. I will not have the Duke troubled with goblin stories.");
-~chatnpc("<p,neutral>Go away.");
-%lost_tribe_quest = ^lost_tribe_told_sigmund;
+[label,sigmund_start]
+~chatnpc("<p,neutral>Greetings, adventurer. I am Sigmund, advisor to the Duke of Lumbridge.");
+switch_int (~p_choice2("Do you have any quests for me?", 1, "Goodbye.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>Goodbye.");
+        return;
+    case 1 :
+        ~chatplayer("<p,quiz>Do you have any quests for me?");
+}
+if (~lost_tribe_requirements_met = false) {
+    ~chatnpc("<p,neutral>There is something, but I would want someone with a little more experience of the world. Come back when you have helped the goblins of the Goblin Village settle their quarrel, and taken the Duke's talisman to the Wizards' Tower.");
+    return;
+}
+~chatnpc("<p,sad>There is, as it happens. Part of the cellar wall has fallen in, and there is rubble all over the floor.");
+~chatnpc("<p,angry>And the Duke's silverware has gone - every piece of it. Someone, or something, must have come in through the wall.");
+~chatnpc("<p,neutral>Would you find out what happened? Ask around the castle and the town. Somebody must have seen something.");
+switch_int (~p_choice2("Yes, I'll find out what happened.", 1, "No, I'm busy.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>No, I'm busy.");
+        return;
+    case 1 :
+        ~chatplayer("<p,happy>Yes, I'll find out what happened.");
+}
+%lost_tribe_quest = ^lost_tribe_started;
+%lost_tribe_contact = random(4);
 ~send_quest_progress(questlist:lost_tribe, %lost_tribe_quest, ^lost_tribe_complete);
+~chatnpc("<p,happy>Excellent. Try the castle staff first - the cook, Hans - and the people of the town. Report anything you learn to the Duke.");
 
-[label,sigmund_confront]
-// He only turns his back the once. Without this the confrontation could be replayed for another
-// key every time, which is harmless in itself but is how a chest ends up looted twice.
-if (~obj_gettotal(lost_tribe_chest_key) > 0) {
-    ~chatnpc("<p,angry>I have said all I intend to say to you.");
+[label,sigmund_ask_around]
+~chatnpc("<p,quiz>Well? Have you found out what happened in the cellar?");
+if (%lost_tribe_quest = ^lost_tribe_goblin_seen) {
+    ~chatplayer("<p,neutral>Someone saw a creature down there. I'm going to tell the Duke.");
+    ~chatnpc("<p,shifty>A creature. I see. Yes, you had better tell the Duke.");
     return;
 }
-if (inv_total(inv, lost_tribe_brooch) = 0 | ~obj_gettotal(lost_tribe_book) = 0) {
-    ~chatnpc("<p,angry>You again. Have you anything to say that is not about goblins?");
-    ~chatplayer("<p,neutral>Not yet.");
+~chatplayer("<p,neutral>Not yet.");
+~chatnpc("<p,neutral>Ask around the castle and the town. The cook, Hans, the priest, the smith - somebody must have seen something.");
+
+[label,sigmund_rubble]
+~chatnpc("<p,angry>The Duke has you digging in the cellar now? A waste of time, if you ask me.");
+
+[label,sigmund_goblins_lie]
+~chatnpc("<p,angry>Goblins are vermin and thieves, whatever tale they have told you. The Duke will never make peace with them - I shall see to that.");
+
+[label,sigmund_busy]
+~chatnpc("<p,neutral>I am busy with the Duke's affairs. Good day.");
+
+// OSRS: "Pickpocket Sigmund to obtain his key" (13 Thieving). Only while there is a key worth
+// stealing - after the Duke has refused to listen and before the chest has been opened.
+[opnpc3,lost_tribe_sigmund]
+if (stat(thieving) < ^lost_tribe_thieving_level) {
+    ~mesbox("You need a Thieving level of <tostring(^lost_tribe_thieving_level)> to pick Sigmund's pocket.");
     return;
 }
-~chatplayer("<p,neutral>The tribe under the castle is the Dorgeshuun. They've been down there since before Lumbridge was built.");
-~chatnpc("<p,shock>...");
-~chatplayer("<p,neutral>They didn't take the silverware. They didn't even know it was missing.");
-~chatnpc("<p,angry>And you believe a goblin over your own kind.");
-~chatplayer("<p,neutral>I believe the book.");
-~chatnpc("<p,shifty>This conversation is finished. I have business elsewhere.");
-if_close;
-mes("Sigmund turns away so sharply that his cloak swings.");
-if (inv_freespace(inv) = 0) {
-    // He only turns his back once. Say what was missed rather than silently dropping it.
-    ~mesbox("Something small and iron swings loose on his belt as he goes - and you have no free hand to take it with. Make some room and speak to him again.");
+if (add(%lastcombat, 8) > map_clock) {
+    mes("You can't pickpocket during combat.");
     return;
 }
-p_delay(1);
-~mesbox("Something small and iron swings loose on his belt as he goes. You take it.");
-inv_add(inv, lost_tribe_chest_key, 1);
+mes("You attempt to pick Sigmund's pocket.");
+p_delay(0);
+if (stat_random(thieving, 150, 240) = false) {
+    npc_say("What do you think you're doing?");
+    mes("You fail to pick Sigmund's pocket.");
+    npc_setmode(playerface);
+    p_delay(1);
+    return;
+}
+anim(human_pickpocket, 0);
+sound_synth(pick, 1, 0);
+if (%lost_tribe_quest = ^lost_tribe_spoke_mistag & %lost_tribe_ham < ^lost_tribe_ham_found_robes & ~obj_gettotal(lost_tribe_chest_key) = 0) {
+    if (inv_freespace(inv) = 0) {
+        mes("You feel a key in Sigmund's pocket, but you have no room to take it.");
+        return;
+    }
+    inv_add(inv, lost_tribe_chest_key, 1);
+    mes("You pick Sigmund's pocket and find a small key with an 'S' on it.");
+    return;
+}
+mes("You pick Sigmund's pocket but find nothing of interest.");

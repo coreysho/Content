@@ -2,84 +2,144 @@
 //
 // The Duke's own script is areas/area_lumbridge/scripts/duke_horacio.rs2 and it is shared with
 // Rune Mysteries and Dragon Slayer, so the quest lives here and that file only gains one option
-// on his menu. ~duke_lost_tribe_offer decides whether the option is worth showing at all.
+// on his menu. ~duke_lost_tribe_offer decides whether it is shown, ~duke_lost_tribe_option what it
+// says - the option changes with the stage, as it does in OSRS.
+//
+// In OSRS the quest is started by Sigmund, not the Duke, so there is no option before stage 1.
 
 [proc,duke_lost_tribe_offer]()(boolean)
-if (%lost_tribe_quest = ^lost_tribe_not_started) {
-    return (true);
-}
-if (%lost_tribe_quest < ^lost_tribe_complete) {
+if (%lost_tribe_quest > ^lost_tribe_not_started & %lost_tribe_quest < ^lost_tribe_complete) {
     return (true);
 }
 return (false);
 
+[proc,duke_lost_tribe_option]()(string)
+switch_int (%lost_tribe_quest) {
+    case ^lost_tribe_started : return("What happened in the cellar?");
+    case ^lost_tribe_goblin_seen : return(append(~lost_tribe_contact_name, " says he saw something in the cellar."));
+    case ^lost_tribe_dug_through :
+        if (inv_total(inv, lost_tribe_brooch) > 0) {
+            return("I dug through the rubble...");
+        }
+    case ^lost_tribe_spoke_mistag :
+        if (inv_total(inv, lost_tribe_silverware) > 0) {
+            return("I found the missing silverware in the H.A.M. cave!");
+        }
+        return("I've made contact with the cave goblins...");
+    case ^lost_tribe_treaty_signed : return("About the peace treaty...");
+}
+return("About the cellar...");
+
+[proc,lost_tribe_contact_name]()(string)
+switch_int (%lost_tribe_contact) {
+    case ^lost_tribe_contact_hans : return("Hans");
+    case ^lost_tribe_contact_aereck : return("Father Aereck");
+    case ^lost_tribe_contact_bob : return("Bob");
+}
+return("The cook");
+
 [label,duke_lost_tribe]
 switch_int (%lost_tribe_quest) {
-    case ^lost_tribe_not_started : @duke_lost_tribe_start;
-    case ^lost_tribe_investigate : @duke_lost_tribe_looking;
-    case ^lost_tribe_told_sigmund : @duke_lost_tribe_open_wall;
-    case ^lost_tribe_proved_sigmund : @duke_lost_tribe_treaty;
-    case default : @duke_lost_tribe_waiting;
+    case ^lost_tribe_started : @duke_lost_tribe_what_happened;
+    case ^lost_tribe_goblin_seen : @duke_lost_tribe_goblin_seen;
+    case ^lost_tribe_told_duke : @duke_lost_tribe_rubble;
+    case ^lost_tribe_dug_through : @duke_lost_tribe_brooch;
+    case ^lost_tribe_showed_brooch, ^lost_tribe_read_book : @duke_lost_tribe_library;
+    case ^lost_tribe_learnt_emotes, ^lost_tribe_bowed : @duke_lost_tribe_find_them;
+    case ^lost_tribe_spoke_mistag : @duke_lost_tribe_contact;
+    case ^lost_tribe_treaty_signed : @duke_lost_tribe_take_treaty;
 }
 
-[label,duke_lost_tribe_start]
-~chatplayer("<p,quiz>You look troubled.");
-~chatnpc("<p,sad>My silverware is gone. Every piece of it, out of a locked cellar, with the door still locked this morning.");
-~chatnpc("<p,neutral>And there is a quantity of broken stone down there that was not there last week.");
-switch_int (~p_choice2("I'll take a look.", 1, "Sounds like a job for your guards.", 2)) {
-    case 2 :
-        ~chatplayer("<p,neutral>Sounds like a job for your guards.");
-        ~chatnpc("<p,sad>My guards will not go into a cellar to look at a wall. Believe me, I have asked.");
-        return;
-    case 1 :
-        ~chatplayer("<p,happy>I'll take a look.");
-}
-~chatnpc("<p,happy>Would you? The trapdoor is in the courtyard. Mind the shelves - they are older than I am.");
-%lost_tribe_quest = ^lost_tribe_investigate;
+[label,duke_lost_tribe_what_happened]
+~chatplayer("<p,quiz>What happened in the cellar?");
+~chatnpc("<p,sad>I wish I knew. A section of the cellar wall has collapsed, and my silverware has vanished from the cellar with it.");
+~chatnpc("<p,neutral>Nobody has owned up to seeing anything. Ask around the castle, and in the town - somebody must know something.");
+
+[label,duke_lost_tribe_goblin_seen]
+def_string $who = ~lost_tribe_contact_name;
+~chatplayer("<p,neutral><$who> says he saw something in the cellar.");
+~chatnpc("<p,shock>A creature? What sort of creature?");
+~chatplayer("<p,neutral>Something small, with huge eyes. It ran off into the dark where the wall had fallen. It sounds like a goblin.");
+~chatnpc("<p,confused>A goblin? Under my castle? How very strange.");
+~chatnpc("<p,neutral>There must be more behind that rubble than rock. Would you dig through it and see what is there? You will need a pickaxe.");
+%lost_tribe_quest = ^lost_tribe_told_duke;
 ~send_quest_progress(questlist:lost_tribe, %lost_tribe_quest, ^lost_tribe_complete);
 
-[label,duke_lost_tribe_looking]
-~chatnpc("<p,quiz>Have you been down to the cellar yet?");
-~chatplayer("<p,neutral>I have. There's rubble behind the shelves, and the wall is broken through.");
-~chatnpc("<p,shock>Broken through from which side?");
-~chatplayer("<p,neutral>Not from mine.");
-~chatnpc("<p,sad>Then speak to Sigmund. He is my advisor; he will know what to do about it.");
+[label,duke_lost_tribe_rubble]
+~chatplayer("<p,neutral>About the cellar...");
+~chatnpc("<p,neutral>Have you dug through the rubble in the cellar yet? The trapdoor is in the kitchen. You will need a pickaxe.");
 
-[label,duke_lost_tribe_open_wall]
-~chatplayer("<p,angry>Sigmund says there's nothing down there and I imagined it.");
-~chatnpc("<p,confused>Did he. That is not like him at all.");
-~chatnpc("<p,neutral>Well. The shelves come down and the rubble comes out, and then we shall all know.");
-if_close;
-mes("The Duke sends two servants down with crowbars.");
-p_delay(3);
-~chatnpc("<p,neutral>There. You may go through - and do be careful. If there is something under my castle I would rather know its name than meet it in the dark.");
-%lost_tribe_quest = ^lost_tribe_way_open;
-~send_quest_progress(questlist:lost_tribe, %lost_tribe_quest, ^lost_tribe_complete);
-
-[label,duke_lost_tribe_waiting]
-~chatnpc("<p,quiz>What have you found under my castle?");
-~chatplayer("<p,neutral>I'm still finding it.");
-~chatnpc("<p,neutral>Then keep at it.");
-
-[label,duke_lost_tribe_treaty]
-if (inv_total(inv, lost_tribe_silverware) = 0 | inv_total(inv, lost_tribe_brooch) = 0 | ~obj_gettotal(lost_tribe_book) = 0) {
-    ~chatnpc("<p,quiz>You have that look. Out with it.");
-    ~chatplayer("<p,neutral>Not until I can show you all of it at once.");
+[label,duke_lost_tribe_brooch]
+if (inv_total(inv, lost_tribe_brooch) = 0) {
+    ~chatplayer("<p,neutral>About the cellar...");
+    ~chatnpc("<p,quiz>Did you find anything behind the rubble?");
+    ~chatplayer("<p,neutral>There's a cave behind it. I haven't had a proper look around yet.");
+    ~chatnpc("<p,neutral>Then look. Something came through there.");
     return;
 }
-~chatplayer("<p,neutral>Your silverware was in Sigmund's chest.");
-mes("You show the Duke a piece of his own silver.");
-~chatnpc("<p,shock>...Sigmund's chest.");
-~chatplayer("<p,neutral>And the tribe under your cellar is the Dorgeshuun. It's in the book. They've been down there longer than Lumbridge has.");
-mes("You show him the brooch and the book together.");
-~chatnpc("<p,sad>Longer than Lumbridge. And I very nearly sent men down there with torches.");
-~chatnpc("<p,neutral>Where is Sigmund?");
-~chatplayer("<p,neutral>Gone, I should think.");
-~chatnpc("<p,angry>Yes. I should think so too.");
-~chatnpc("<p,neutral>Then I shall write to them instead. Take this down to whoever speaks for them, and tell him Lumbridge is sorry to have been so slow about it.");
-// The silverware goes back on his table before the treaty comes off it, so the swap is always a
-// slot for a slot and a full inventory cannot block it. No freespace check needed, and an
-// inv_freespace guard here would have turned a player away who had room all along.
+~chatplayer("<p,neutral>There's a cave behind the rubble. I found this brooch on the floor, a little way in.");
+mes("You show the Duke the brooch.");
+~chatnpc("<p,confused>I have never seen that symbol before. It is certainly no crest of any family of Lumbridge.");
+~chatnpc("<p,neutral>Reldo, the librarian at Varrock palace, knows more about symbols than anyone I know. Take it to him.");
+%lost_tribe_quest = ^lost_tribe_showed_brooch;
+~send_quest_progress(questlist:lost_tribe, %lost_tribe_quest, ^lost_tribe_complete);
+
+[label,duke_lost_tribe_library]
+~chatplayer("<p,neutral>About the cellar...");
+if (%lost_tribe_quest = ^lost_tribe_read_book) {
+    ~chatplayer("<p,neutral>The symbol belongs to a tribe of goblins called the Dorgeshuun. They went underground at the end of the god wars.");
+    ~chatnpc("<p,shock>A whole tribe of goblins, under my castle? Find out what you can about them. The goblins of the Goblin Village, near Falador, may have heard of them.");
+    return;
+}
+~chatnpc("<p,neutral>Have you shown the brooch to Reldo, in the library of Varrock palace?");
+
+[label,duke_lost_tribe_find_them]
+~chatplayer("<p,neutral>About the cellar...");
+~chatnpc("<p,quiz>Have you found these goblins?");
+if (%lost_tribe_quest = ^lost_tribe_bowed) {
+    ~chatplayer("<p,neutral>I have. Their leader, Mistag, is willing to talk.");
+    ~chatnpc("<p,neutral>Then talk to him, and bring me whatever he has to say.");
+    return;
+}
+~chatplayer("<p,neutral>The goblin generals taught me how to greet them. I'm going to look for them in the caves behind the cellar.");
+~chatnpc("<p,neutral>Be careful down there.");
+
+[label,duke_lost_tribe_contact]
+if (inv_total(inv, lost_tribe_silverware) > 0) {
+    @duke_lost_tribe_silverware;
+}
+~chatplayer("<p,neutral>I've made contact with the cave goblins.");
+~chatplayer("<p,neutral>The goblins are called the Dorgeshuun. They're peaceful - they have been hiding from the world since the god wars. Their mining brought down your wall by accident.");
+~chatnpc("<p,angry>And my silverware? Sigmund tells me goblins are thieves and vermin, one and all, and that I should send soldiers down there before they steal anything else.");
+~chatplayer("<p,neutral>They didn't take it.");
+~chatnpc("<p,neutral>Then bring me proof of who did, and I will listen. Until then I am inclined to take the word of my own advisor.");
+%lost_tribe_sigmund_accused = 1;
+
+[label,duke_lost_tribe_silverware]
+~chatplayer("<p,happy>I found the missing silverware in the H.A.M. cave! Sigmund had their robes locked in his chest - he's one of them.");
+mes("You show the Duke the silverware.");
+~chatnpc("<p,shock>My silverware! And Sigmund, of all people... He wanted the goblins blamed, so that I would make war on them for him.");
+~chatnpc("<p,angry>He is dismissed. Guards!");
+~chatnpc("<p,neutral>As for the goblins, I owe them an apology. Take them this peace treaty, signed and sealed, and tell them the people of Lumbridge will not trouble them.");
+// The silverware goes back to the Duke before the treaty is handed over, so the swap is always a
+// slot for a slot and a full inventory cannot block it.
 inv_del(inv, lost_tribe_silverware, 1);
 inv_add(inv, lost_tribe_treaty, 1);
-mes("The Duke seals a peace treaty and hands it to you.");
+%lost_tribe_quest = ^lost_tribe_treaty_signed;
+~send_quest_progress(questlist:lost_tribe, %lost_tribe_quest, ^lost_tribe_complete);
+mes("The Duke hands you a peace treaty.");
+
+[label,duke_lost_tribe_take_treaty]
+~chatplayer("<p,neutral>About the peace treaty...");
+if (~obj_gettotal(lost_tribe_treaty) = 0) {
+    ~chatplayer("<p,sad>I've lost the peace treaty.");
+    if (inv_freespace(inv) = 0) {
+        ~chatnpc("<p,neutral>I will write out another - when you have a hand free to carry it.");
+        return;
+    }
+    ~chatnpc("<p,neutral>Then here is another. Try to keep hold of this one.");
+    inv_add(inv, lost_tribe_treaty, 1);
+    mes("The Duke hands you another peace treaty.");
+    return;
+}
+~chatnpc("<p,neutral>Take the treaty to the leader of the cave goblins. The sooner there is peace between us, the better.");
