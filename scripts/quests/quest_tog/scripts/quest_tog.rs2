@@ -14,9 +14,18 @@ p_teleport(^tog_entrance_above);
 // tog_climbing_rocks_down is placed three times on plane 2 and tog_climbing_rocks_up twice, both
 // on plane 2 - the cache never laid the plane 1 counterpart, the way it does for every other
 // ladder pair in the game, so the return climb has been added to the map beneath the "up" rocks.
-// Both handlers move the PLAYER a plane, so one pair covers every placement.
 // This is also how Juna is spoken to - see tog_juna.rs2. Her npc has no ops in the cache and the
 // npc config is CRC-pinned, so the climb down onto her ledge is the conversation.
+//
+// FIXED: both pairs of rocks stand in a wall between two separate floors of plane 2, and both used
+// to move the player straight up or down from wherever they stood. The entrance tunnel lands on
+// the west side of the "up" rocks with nothing else to click, and the up rocks said "You are
+// already at the top" - so the cave ended ten steps in and Juna could never be reached. The blue
+// stone rocks are on the far (west) side of the "down" rocks, which nothing led to at all.
+// Now each climb goes to the far side: the up rocks take you down from the entrance onto Juna's
+// level (x+1) and back up to the entrance side (x-1); the down rocks take you from either side
+// down onto her level east of them, which is the way out of the blue-stone chamber - the real
+// cave's "climb down the rocks to the east".
 [oploc1,tog_climbing_rocks_down]
 p_arrivedelay;
 if (coordy(coord) = 0) {
@@ -24,17 +33,48 @@ if (coordy(coord) = 0) {
     return;
 }
 mes("You pick your way down the rock face.");
-p_teleport(movecoord(coord, 0, calc(0 - 1), 0));
+p_teleport(movecoord(loc_coord, 1, calc(0 - 1), 0));
 @tog_juna_talk;
 
 [oploc1,tog_climbing_rocks_up]
 p_arrivedelay;
 if (coordy(coord) >= 2) {
-    mes("You are already at the top of these.");
-    return;
+    mes("You pick your way down the rock face.");
+    p_teleport(movecoord(loc_coord, 1, calc(0 - 1), 0));
+    @tog_juna_talk;
 }
 mes("You climb.");
-p_teleport(movecoord(coord, 0, 1, 0));
+p_teleport(movecoord(loc_coord, calc(0 - 1), 1, 0));
+
+// The light creatures hang over the chasm between the entrance and the blue-stone rocks, and a
+// light held up to one is what makes it carry you across. The cache ships the sapphire lantern
+// the real quest uses, but nothing in this build makes one (no lantern in the game can be filled
+// or lit yet), so any lit light source will do - the same category the dark caves ask for.
+// Their npc has no ops, so this is item-on-npc, and it is the approach trigger because they are
+// out over the chasm where nobody can stand next to them.
+[apnpcu,tog_light_creature]
+if (~tog_is_light(last_useitem) = false) {
+    mes("The creature shows no interest in that.");
+    return;
+}
+if (%tog_hacky_fix = ^tog_off) {
+    mes("The creature drifts closer to the light, and away again. You have no reason to follow it.");
+    return;
+}
+if (coordz(coord) < coordz(npc_coord)) {
+    mes("The creature drifts closer to the light, and away again.");
+    return;
+}
+mes("You hold up the light. The creature drifts towards it, wraps itself around you, and lifts.");
+p_delay(2);
+p_teleport(^tog_chasm_south);
+mes("It sets you down on the far side of the chasm, among rocks veined with blue.");
+
+[proc,tog_is_light](obj $item)(boolean)
+if ($item = tog_sapphire_lantern_lit | oc_category($item) = light_source_lit) {
+    return(true);
+}
+return(false);
 
 // =========================================================================== the bowl
 // tog_blue_stone_rocks1 carries op1=Mine, op2=Prospect and op3=hidden. The magic stone is the only
@@ -177,16 +217,18 @@ if (%tog_juna_stories < 15) {
     %tog_juna_stories = add(%tog_juna_stories, 1);
 }
 p_teleport(^tog_rocks_top);
+// An empty bowl still ends the first run with the quest done. It used to return here, before the
+// finish below: the story count was already 1, so the quest list went green and the point was
+// counted, but the reward and the completion scroll never came and never could.
+def_stat $stat = ~tog_lowest_stat;
 if ($tears = 0) {
     ~mesbox("The walls stop. Your bowl is empty, which Juna does not comment on and somehow that is worse.");
-    ~send_quest_progress(questlist:tog, ~tog_progress, ^tog_complete);
-    return;
+} else {
+    // Tears are worth more to a skill you have neglected, which is the point of pouring them into
+    // the lowest one: the multiplier is the level you already have.
+    stat_advance($stat, multiply($tears, multiply(stat_base($stat), ^tog_xp_per_tear_per_level)));
+    ~mesbox("You caught <tostring($tears)> tears. They go into your <~stat_name($stat)>, which is where you needed them most whether you like it or not.");
 }
-def_stat $stat = ~tog_lowest_stat;
-// Tears are worth more to a skill you have neglected, which is the point of pouring them into the
-// lowest one: the multiplier is the level you already have.
-stat_advance($stat, multiply($tears, multiply(stat_base($stat), ^tog_xp_per_tear_per_level)));
-~mesbox("You caught <tostring($tears)> tears. They go into your <~stat_name($stat)>, which is where you needed them most whether you like it or not.");
 if (~tog_progress >= ^tog_complete & %tog_juna_stories = 1) {
     @tog_finish;
 }

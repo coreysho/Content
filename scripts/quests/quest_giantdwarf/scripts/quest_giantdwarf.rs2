@@ -54,6 +54,53 @@ switch_int (~p_choice2("What's down it?", 1, "Sorry.", 2)) {
 %giantdwarf_quest = ^gd_arrived;
 ~send_quest_progress(questlist:giantdwarf, %giantdwarf_quest, ^gd_complete);
 
+// =========================================================================== the way out
+// Hammerspike's cart only ever went one way, and the city has no exit loc either, so a player
+// without a teleport was in Keldagrim for good. The city boatman is placed on the quay, has
+// Talk-to and had nothing behind it; he takes you back to the tunnel the cart came down.
+[opnpc1,dwarf_city_boatman_city]
+~chatnpc("<p,neutral>Boat goes up the river to the tunnels by the mine. That's where you came in, isn't it? Everyone who looks like you came in that way.");
+if (~p_choice2("Take me back to the tunnels.", 1, "Not yet.", 2) = 2) {
+    ~chatplayer("<p,neutral>Not yet.");
+    return;
+}
+~chatplayer("<p,neutral>Take me back to the tunnels.");
+if_close;
+mes("The boat goes up the river for a long time in the dark.");
+p_delay(3);
+p_teleport(^gd_tunnel_return);
+
+// =========================================================================== the seven directors
+// The referee sends you to "any of the seven" and the seven had Talk-to and nothing behind it.
+// Which of them takes you on changes nothing, so they share one answer.
+// They stand behind their company desks, so they answer across them too.
+[opnpc1,dwarf_city_director_blue_opal] @gd_director;
+[opnpc1,dwarf_city_director_brown_engine] @gd_director;
+[opnpc1,dwarf_city_director_green_gemstone] @gd_director;
+[opnpc1,dwarf_city_director_purple_pewter] @gd_director;
+[opnpc1,dwarf_city_director_silver_cog] @gd_director;
+[opnpc1,dwarf_city_director_white_chisel] @gd_director;
+[opnpc1,dwarf_city_director_yellow_fortune] @gd_director;
+[apnpc1,dwarf_city_director_blue_opal] @gd_director;
+[apnpc1,dwarf_city_director_brown_engine] @gd_director;
+[apnpc1,dwarf_city_director_green_gemstone] @gd_director;
+[apnpc1,dwarf_city_director_purple_pewter] @gd_director;
+[apnpc1,dwarf_city_director_silver_cog] @gd_director;
+[apnpc1,dwarf_city_director_white_chisel] @gd_director;
+[apnpc1,dwarf_city_director_yellow_fortune] @gd_director;
+
+[label,gd_director]
+switch_int (%giantdwarf_quest) {
+    case ^gd_sponsored, ^gd_commission, ^gd_model_done :
+        ~chatnpc("<p,neutral>You are our temporary director, which means the statue commission is yours to lose and not mine. Blasidar the sculptor is on the ground floor. Go.");
+    case default :
+        if (%giantdwarf_quest >= ^gd_statue_done) {
+            ~chatnpc("<p,happy>The statue went up with our head on it. The Red Axe are still pretending not to have noticed.");
+            return;
+        }
+        ~chatnpc("<p,neutral>The Consortium is in session. If you have business with a company, take it to the trade referee.");
+}
+
 // =========================================================================== the trade referee
 [opnpc1,dwarf_city_trader_referee]
 switch_int (%giantdwarf_quest) {

@@ -181,6 +181,11 @@ inv_del(inv, scrying_orb_full, ^max_32bit_int);
 ~chatnpc_specific("Mage of Zamorak", rcu_zammy_mage1_edgeb, "<p,happy>Excellent.|Give it here, and I shall examine the findings.|Speak to me in a small while.");
 
 [label,rcu_zmmy_mage1_edge_finish_up]
+// Two items come out of this; with no room for them the reward used to be lost for good.
+if (inv_freespace(inv) < 2) {
+    ~chatnpc_specific("Mage of Zamorak", rcu_zammy_mage1_edgeb, "<p,neutral>I have something for you, and you have nowhere to put it. Come back when you have room.");
+    return;
+}
 ~chatplayer("<p,quiz>So... that's my end of the deal upheld.|What do I get in return?");
 ~chatnpc_specific("Mage of Zamorak", rcu_zammy_mage1_edgeb, "<p,neutral>Indeed, a deal is always a deal.");
 ~chatnpc_specific("Mage of Zamorak", rcu_zammy_mage1_edgeb, "<p,neutral>I offer you three things as a reward for your effords on behalf of my Lord Zamorak;");
@@ -190,6 +195,8 @@ inv_del(inv, scrying_orb_full, ^max_32bit_int);
 %abyssal_miniquest = ^miniquest_abyssal_complete;
 inv_add(inv, rcu_instruction_book, 1);
 inv_add(inv, rcu_pouch_small, 1);
+// The 1000 Runecrafting experience he has just promised was never given.
+stat_advance(runecraft, 10000);
 ~chatplayer("<p,confused>Huh?|Abyss?|What are you talking about?|You told me that you would help me with");
 ~chatplayer("<p,confused>RuneCrafting!");
 ~chatnpc_specific("Mage of Zamorak", rcu_zammy_mage1_edgeb, "<p,neutral>And so I have done.|Read my research notes, they may enlighten you somewhat.");

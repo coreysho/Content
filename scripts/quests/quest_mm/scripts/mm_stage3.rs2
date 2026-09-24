@@ -252,6 +252,28 @@ if ($form = null) {
 ~mm_become_monkey($form);
 
 // ===================================================================================================
+// The gate into Marim
+// ===================================================================================================
+// mm_bamboo_largedoor and its mirrored half are the only way from the beach Lumdo lands you on to
+// Garkor, the monkey child and the rest of the island, and both carried Open with nothing behind
+// it: the quest stopped the moment you stepped ashore. The real gate is where a human gets jailed;
+// the jail is not built (see the constant file), so the gate simply lets you through and the elder
+// guards at the palace remain the thing that stops a human.
+[oploc1,mm_bamboo_largedoor] @mm_marim_gate(0_42_43_32_13, 0_42_43_32_15);
+[oploc1,mm_bamboo_largedoor_left] @mm_marim_gate(0_42_43_33_13, 0_42_43_33_15);
+
+[label,mm_marim_gate](coord $south, coord $north)
+p_arrivedelay;
+def_coord $to = $north;
+if (coordz(coord) > coordz(loc_coord)) {
+    $to = $south;
+}
+mes("You push the huge gate open just far enough to slip through.");
+sound_synth(door_open, 1, 0);
+p_delay(1);
+p_teleport($to);
+
+// ===================================================================================================
 // Marim: the elder guards and Kruk
 // ===================================================================================================
 // The elder guards are the gate. As a human you are stopped; as a monkey with the amulet they let
@@ -280,7 +302,13 @@ if (%mm_main < ^mm_met_awowogei) {
 }
 ~chatnpc("<p,neutral>The king's guest. Go through.");
 
-[opnpc1,mm_kruk]
+// Kruk stands in the walled yard between the two halves of the gate, and no tile beside him can
+// be walked to from either side - so [opnpc1] alone always ended in "I can't reach that" and stage
+// three stopped here. The approach trigger lets you talk to him across the palisade.
+[opnpc1,mm_kruk] @mm_kruk_talk;
+[apnpc1,mm_kruk] @mm_kruk_talk;
+
+[label,mm_kruk_talk]
 if (~mm_is_monkey = false) {
     ~chatnpc("<p,angry>Kkkkhh!");
     ~mesbox("Kruk draws both scimitars before you have finished opening your mouth. You back away.");
@@ -408,7 +436,13 @@ if (~mm_is_monkey = false) {
 ~chatnpc("<p,happy>...well, in you go then. Try not to bite anyone.");
 ~mesbox("The minder lifts the gate for you.");
 
-[opnpc1,mm_zoo_monkey]
+// The zoo monkeys are behind the bars of their cage and nothing opens it - the minder "lifts the
+// gate" in words only - so [opnpc1] could never reach one and the quest stopped at the zoo. The
+// approach trigger lets you talk to them through the bars.
+[opnpc1,mm_zoo_monkey] @mm_zoo_monkey_talk;
+[apnpc1,mm_zoo_monkey] @mm_zoo_monkey_talk;
+
+[label,mm_zoo_monkey_talk]
 if (~mm_is_monkey = false) {
     ~chatnpc("<p,sad>Eeek.");
     ~chatplayer("<p,neutral>It just looks at you.");
