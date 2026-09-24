@@ -286,14 +286,21 @@ if (inv_freespace(inv) > 0) {
 // enakh_quest_expositbits) holds 0-7. These two were generated stubs in
 // general_use/scripts/item_ops_generated.rs2 that printed hardcoded numbers - "Your camulet has 4
 // charges left." whatever it actually had - and have moved here to read the varbit.
-[opheld3,camulet]
+[opheld3,camulet] @camulet_check;
+[opheld4,camulet] @camulet_rub;
+// The charges are the varbit's, not the item's, so worn it is the same two options from the Worn
+// Equipment tab (player/scripts/wearop.rs2) with nothing to write back to a slot.
+[label,wearop1_camulet] @camulet_check;
+[label,wearop2_camulet] @camulet_rub;
+
+[label,camulet_check]
 if (%enakh_camulet_charge = 0) {
     mes("Your camulet has no charges left.");
     return;
 }
 mes("Your camulet has <tostring(%enakh_camulet_charge)> charges left.");
 
-[opheld4,camulet]
+[label,camulet_rub]
 if (%enakh_camulet_charge = 0) {
     ~mesbox("You rub the amulet. It brays at you, flatly, and nothing else happens.");
     return;

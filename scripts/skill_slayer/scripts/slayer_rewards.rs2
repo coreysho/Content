@@ -107,6 +107,12 @@ inv_del(inv, $item, 1);
 [opheld1,_slayer_ring] @slayer_ring_rub;
 [opheld3,_slayer_ring] @slayer_ring_check;
 
+// WORN: Check and Teleport in the Worn Equipment tab, as OSRS's ring has them
+// (oldschool.runescape.wiki/w/Slayer_ring). Teleport is the Rub menu; its charge comes off the ring
+// on the finger (player/scripts/wearop.rs2).
+[label,wearop1__slayer_ring] @slayer_ring_check;
+[label,wearop2__slayer_ring] @slayer_ring_teleport(last_item, last_slot, true);
+
 [label,slayer_ring_check]
 if (%slayer_count <= 0) {
     mes("You need something new to hunt.");
@@ -115,9 +121,10 @@ if (%slayer_count <= 0) {
 }
 mes("You have <tostring(%slayer_points)> Slayer points and a streak of <tostring(%slayer_streak)> tasks.");
 
-[label,slayer_ring_rub]
-def_obj $ring = last_item;
-def_int $slot = last_slot;
+[label,slayer_ring_rub] @slayer_ring_teleport(last_item, last_slot, false);
+
+// $worn: $slot is in worn, not inv
+[label,slayer_ring_teleport](obj $ring, int $slot, boolean $worn)
 mes("You rub the ring...");
 def_int $choice = ~p_choice3_header("Slayer Tower.", 1, "Fremennik Slayer Dungeon.", 2, "Nowhere.", 3, "Where would you like to teleport to?");
 if ($choice ! 1 & $choice ! 2) {
@@ -132,15 +139,24 @@ if (~wilderness_level(coord) > 30) {
 if (~pre_tele_checks(coord) = false) {
     return;
 }
-if (inv_getobj(inv, $slot) ! $ring) {
-    return;
-}
 def_namedobj $next = oc_param($ring, slayer_ring_next);
-if ($next = null) {
-    inv_delslot(inv, $slot);
-    mes("Your Slayer ring crumbles to dust.");
+if ($worn = true) {
+    if (inv_getobj(worn, $slot) ! $ring) {
+        return;
+    }
+    ~worn_replace($slot, $ring, $next);
 } else {
-    inv_setslot(inv, $slot, $next, 1);
+    if (inv_getobj(inv, $slot) ! $ring) {
+        return;
+    }
+    if ($next = null) {
+        inv_delslot(inv, $slot);
+    } else {
+        inv_setslot(inv, $slot, $next, 1);
+    }
+}
+if ($next = null) {
+    mes("Your Slayer ring crumbles to dust.");
 }
 if ($choice = 1) {
     ~player_teleport_normal(0_53_55_36_4);

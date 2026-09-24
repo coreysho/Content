@@ -9,6 +9,16 @@ if($choice = 3) {
     mes("You remain where you were.");
     return;
 }
+@necklace_of_minigames_teleport($item, $slot, $choice, false);
+
+// WORN: the two destinations are the Worn Equipment tab's own options, as OSRS's games necklace has
+// its (oldschool.runescape.wiki/w/Games_necklace), with no rub and no menu. The charge comes off the
+// necklace round the neck (player/scripts/wearop.rs2).
+[label,wearop1__necklace_of_minigames] @necklace_of_minigames_teleport(last_item, last_slot, 1, true);
+[label,wearop2__necklace_of_minigames] @necklace_of_minigames_teleport(last_item, last_slot, 2, true);
+
+// $choice: 1 Burthorpe, 2 the Barbarian Outpost. $worn: $slot is in worn, not inv.
+[label,necklace_of_minigames_teleport](obj $item, int $slot, int $choice, boolean $worn)
 if (~wilderness_level(coord) > 20) {
     // yes it actually says this in osrs
     mes("A mysterious force blocks your teleport spell!");
@@ -27,10 +37,15 @@ if ($choice = 1) {
 }
 ~player_teleport_normal($destination);
 def_namedobj $new_necklace = oc_param($item, next_obj_stage);
-if ($new_necklace = null) {
+if ($worn = true) {
+    ~worn_replace($slot, $item, $new_necklace);
+} else if ($new_necklace = null) {
     inv_delslot(inv, $slot);
-    mes("Your Games Necklace crumbles to dust.");
 } else {
     inv_setslot(inv, $slot, $new_necklace, 1);
+}
+if ($new_necklace = null) {
+    mes("Your Games Necklace crumbles to dust.");
+} else {
     mes("Your Games Necklace has <~pluralise(oc_param($new_necklace, charges), "use")> left.");
 }

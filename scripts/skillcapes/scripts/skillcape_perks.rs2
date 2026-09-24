@@ -1,8 +1,8 @@
 // Skill cape perks, following the OSRS ones (oldschool.runescape.wiki/w/Cape_of_Accomplishment)
 // wherever this 2006 build has the thing the perk works on. Trimmed and untrimmed capes are equal.
 //
-// Inventory options (the 377 equipment tab can only offer one option list for every slot, so a
-// per-cape "Teleport" there would show on every worn item - these live on the inventory item):
+// Options, on the cape in the backpack and - as OSRS's worn options - on the cape worn, in the
+// Worn Equipment tab under Remove (wearop1 in skillcapes.obj; player/scripts/wearop.rs2):
 //   Strength  Teleport - Warriors' Guild          Crafting  Teleport - Crafting Guild
 //   Fishing   Teleport - Fishing Guild            Quest point Teleport - Legends' Guild gate
 //   Defence   Toggle   - its ring of life effect  Agility   Boost - full run energy, once a day
@@ -77,6 +77,14 @@ return(false);
 [opheld3,fishing_cape_t] @skillcape_teleport(0_40_53_50_3);
 [opheld3,quest_point_cape] @skillcape_teleport(0_42_52_40_20);
 
+[label,wearop1_strength_cape] @skillcape_teleport(0_44_55_54_25);
+[label,wearop1_strength_cape_t] @skillcape_teleport(0_44_55_54_25);
+[label,wearop1_crafting_cape] @skillcape_teleport(0_45_51_53_20);
+[label,wearop1_crafting_cape_t] @skillcape_teleport(0_45_51_53_20);
+[label,wearop1_fishing_cape] @skillcape_teleport(0_40_53_50_3);
+[label,wearop1_fishing_cape_t] @skillcape_teleport(0_40_53_50_3);
+[label,wearop1_quest_point_cape] @skillcape_teleport(0_42_52_40_20);
+
 // Unlimited, like the OSRS capes; blocked above level 20 Wilderness like every non-jewellery
 // teleport, and by the usual ~pre_tele_checks (duels, Castle Wars, random events...).
 [label,skillcape_teleport](coord $dest)
@@ -98,6 +106,8 @@ if (~pre_tele_checks(coord) = false) {
 // the ordinary teleport animation in front of it.
 [opheld3,construction_cape] @skillcape_teleport_house;
 [opheld3,construction_cape_t] @skillcape_teleport_house;
+[label,wearop1_construction_cape] @skillcape_teleport_house;
+[label,wearop1_construction_cape_t] @skillcape_teleport_house;
 
 [label,skillcape_teleport_house]
 if (~wilderness_level(coord) > 20) {
@@ -121,6 +131,8 @@ anim(null, 0);
 
 [opheld3,defence_cape] @skillcape_toggle_rol;
 [opheld3,defence_cape_t] @skillcape_toggle_rol;
+[label,wearop1_defence_cape] @skillcape_toggle_rol;
+[label,wearop1_defence_cape_t] @skillcape_toggle_rol;
 
 [label,skillcape_toggle_rol]
 if (%skillcape_rol_off = 0) {
@@ -142,6 +154,8 @@ return(false);
 
 [opheld3,agility_cape] @skillcape_agility_boost;
 [opheld3,agility_cape_t] @skillcape_agility_boost;
+[label,wearop1_agility_cape] @skillcape_agility_boost;
+[label,wearop1_agility_cape_t] @skillcape_agility_boost;
 
 [label,skillcape_agility_boost]
 def_int $today = divide(world_minute, 1440);
@@ -157,6 +171,8 @@ mes("You feel refreshed and ready to run.");
 
 [opheld3,magic_cape] @skillcape_spellbook;
 [opheld3,magic_cape_t] @skillcape_spellbook;
+[label,wearop1_magic_cape] @skillcape_spellbook;
+[label,wearop1_magic_cape_t] @skillcape_spellbook;
 
 [label,skillcape_spellbook]
 // The books you could switch to: never the one you are on, Ancients once Desert Treasure is done,
@@ -233,13 +249,26 @@ switch_int ($where) {
     case default : mes("You remain where you were.");
 }
 
-[opheld4,max_cape]
+[opheld4,max_cape] @max_cape_features;
+
+[label,max_cape_features]
 def_int $what = ~p_choice4_header("Ring of Life.", 1, "Stamina Boost.", 2, "Spellbook.", 3, "Nothing.", 4, "Which of your cape's features?");
 switch_int ($what) {
     case 1 : @skillcape_toggle_rol;
     case 2 : @skillcape_agility_boost;
     case 3 : @skillcape_spellbook;
 }
+
+// WORN, the cape has room for more than two: OSRS's Max cape lists its teleports one by one in the
+// Worn Equipment tab (oldschool.runescape.wiki/w/Max_cape - Warriors' Guild, Fishing Teleports,
+// Crafting Guild, Tele to POH, ..., Spellbook, Features), so it does here too, each one the same
+// label as above and as the single cape's.
+[label,wearop1_max_cape] @skillcape_teleport(0_44_55_54_25);
+[label,wearop2_max_cape] @skillcape_teleport(0_40_53_50_3);
+[label,wearop3_max_cape] @skillcape_teleport(0_45_51_53_20);
+[label,wearop4_max_cape] @skillcape_teleport_house;
+[label,wearop5_max_cape] @skillcape_spellbook;
+[label,wearop6_max_cape] @max_cape_features;
 
 // ---- small helpers the skill scripts call ----
 

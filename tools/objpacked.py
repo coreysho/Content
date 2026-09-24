@@ -126,6 +126,7 @@ def decode_one(buf):
         elif code in (110, 111, 112):  buf.g2()
         elif code in (113, 114):  buf.g1b()
         elif code == 115:  buf.g1()
+        elif 120 <= code < 128:  o.setdefault('wearop', {})[code - 120] = buf.gjstr()  # worn options
         elif code == 201:  buf.g2()
         elif code == 249:
             for _ in range(buf.g1()):

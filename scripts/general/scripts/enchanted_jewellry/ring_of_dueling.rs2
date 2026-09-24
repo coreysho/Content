@@ -9,6 +9,16 @@ if($choice = 3) {
     mes("You remain where you were.");
     return;
 }
+@ring_of_dueling_teleport($item, $slot, $choice, false);
+
+// WORN: the two destinations are the Worn Equipment tab's own options, as in OSRS
+// (oldschool.runescape.wiki/w/Ring_of_dueling), with no rub and no menu. The charge comes off the ring
+// on the finger (player/scripts/wearop.rs2).
+[label,wearop1__category_136] @ring_of_dueling_teleport(last_item, last_slot, 1, true);
+[label,wearop2__category_136] @ring_of_dueling_teleport(last_item, last_slot, 2, true);
+
+// $choice: 1 the Duel Arena, 2 Castle Wars. $worn: $slot is in worn, not inv.
+[label,ring_of_dueling_teleport](obj $item, int $slot, int $choice, boolean $worn)
 if (~wilderness_level(coord) > 20) {
     // yes it actually says this in osrs
     mes("A mysterious force blocks your teleport spell!");
@@ -26,12 +36,17 @@ if ($choice = 1) {
 }
 ~player_teleport_normal($destination);
 def_namedobj $new_ring = oc_param($item, next_obj_stage);
+if ($worn = true) {
+    ~worn_replace($slot, $item, $new_ring);
+} else if ($new_ring = null) {
+    inv_delslot(inv, $slot);
+} else {
+    inv_setslot(inv, $slot, $new_ring, 1);
+}
 // osrs uses lowercase in the name.
 // 2006: https://www.youtube.com/watch?v=dTLr_7HhgXw
 if ($new_ring = null) {
-    inv_delslot(inv, $slot);
     mes("Your Ring of Dueling crumbles to dust.");
 } else {
-    inv_setslot(inv, $slot, $new_ring, 1);
     mes("Your Ring of Dueling has <~pluralise(oc_param($new_ring, charges), "use")> left.");
 }
