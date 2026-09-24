@@ -1,0 +1,292 @@
+// Charter ships: Trader Stan's crew sail you from port to port for a fare.
+// https://oldschool.runescape.wiki/w/Charter_ship - and the words are Transcript:Trader_Crewmember and
+// Transcript:Trader_Stan. The piers, the moored ships, the crew and the charter map are 474's, written
+// by LostCityServer tools/models/gencharter474.py (charter.npc, charter_docks.loc/.constant,
+// charter.if and the map squares); this file is what they do.
+//
+// The ports are the ones 474 had and this build has the land for - charter.constant says which are
+// missing and why. One crew config serves every pier, so which port you are at is worked out from
+// where you stand (~charter_port_here), the way the wiki's crew are one npc at many docks.
+
+[opnpc1,_charter_trader]
+~chatnpc("<p,happy>Can I help you?");
+switch_int (~p_choice3("Yes, who are you?", 1, "Yes, I would like to charter a ship.", 2, "No thanks.", 3)) {
+    case 1 : @charter_who;
+    case 2 :
+        ~chatplayer("<p,neutral>Yes, I would like to charter a ship.");
+        @charter_ask;
+    case 3 : ~chatplayer("<p,neutral>No thanks.");
+}
+
+[opnpc3,_charter_trader] ~charter_shop;
+
+// the right-click Charter goes straight to the map, with no "Certainly"
+[opnpc4,_charter_trader] @charter_checks;
+
+[label,charter_who]
+~chatplayer("<p,quiz>Yes, who are you?");
+if (npc_type = trader_stan) {
+    ~chatnpc("<p,happy>Why, I'm Trader Stan, owner and operator of the largest fleet of trading ships and chartered vessels to ever sail the seas!");
+    ~chatnpc("<p,neutral>If you want to get to a port in a hurry, then you can charter one of my ships to take you there, if the price is right...");
+} else {
+    ~chatnpc("<p,happy>I'm one of Trader Stan's crew. We are all part of one of the largest fleet of trading and sailing vessels to ever sail the seas.");
+    ~chatnpc("<p,neutral>If you want to get to a port in a hurry, then you can charter one of our ships to take you there, if the price is right...");
+}
+~chatplayer("<p,quiz>So, where exactly can I go with your ships?");
+~chatnpc("<p,happy>We run ships all over the place. Port Sarim, Catherby, Brimhaven, Musa Point and Port Khazard are just a few of our many destinations!");
+~chatplayer("<p,quiz>If you visit a lot of ports, I take it you have some exotic stuff to trade?");
+if (npc_type = trader_stan) {
+    ~chatnpc("<p,happy>We certainly do! My crew and I have access to items bought and sold from around the world. Would you like to take a look? Or would you like to charter a ship?");
+} else {
+    ~chatnpc("<p,happy>We certainly do! We have access to items bought and sold from around the world. Would you like to take a look? Or would you like to charter a ship?");
+}
+@charter_offer;
+
+// Trader Stan has no complaint about the uniform - he chose it
+[label,charter_offer]
+def_int $op;
+if (npc_type = trader_stan) {
+    $op = ~p_choice3("Yes, let's see what you're trading.", 1, "Yes, I would like to charter a ship.", 2, "No thanks.", 4);
+} else {
+    $op = ~p_choice4("Yes, let's see what you're trading.", 1, "Yes, I would like to charter a ship.", 2, "Isn't it tricky to sail about in those clothes?", 3, "No thanks.", 4);
+}
+switch_int ($op) {
+    case 1 :
+        ~chatplayer("<p,happy>Yes, let's see what you're trading.");
+        ~charter_shop;
+    case 2 :
+        ~chatplayer("<p,neutral>Yes, I would like to charter a ship.");
+        @charter_ask;
+    case 3 : @charter_clothes;
+    case 4 : ~chatplayer("<p,neutral>No thanks.");
+}
+
+[label,charter_clothes]
+~chatplayer("<p,quiz>Isn't it tricky to sail about in those clothes?");
+~chatnpc("<p,shock>Tricky? Tricky!");
+~chatnpc("<p,angry>With all due credit, Trader Stan is a great employer, but he insists we wear the latest in high fashion even when sailing.");
+~chatnpc("<p,angry>Do you have even the slightest idea how tricky it is to sail in this stuff?");
+~chatnpc("<p,sad>Some of us tried tearing it and arguing that it was too fragile to wear when on a boat, but he just had it enchanted to re-stitch itself.");
+~chatnpc("<p,sad>It's hard to hate him when we know how much he shells out on this gear, but if I fall overboard because of this getup one more time, I'm going to quit.");
+~chatplayer("<p,neutral>Wow, that's kind of harsh.");
+~chatnpc("<p,neutral>Yes... Anyway, would you like to take a look at our exotic wares from around the world? Or would you like to charter a ship?");
+@charter_offer;
+
+[label,charter_ask]
+if (gender = ^gender_female) {
+    ~chatnpc("<p,happy>Certainly, madam. Where would you like to go?");
+} else {
+    ~chatnpc("<p,happy>Certainly, sir. Where would you like to go?");
+}
+@charter_checks;
+
+// What no charter ship will carry, then the map. The rum is Karamja's customs rule; the bedsheets are
+// Ghosts Ahoy's, which had you smuggle one aboard a ship to Dragontooth Island.
+[label,charter_checks]
+if (map_members = ^false) {
+    mes(^mes_members_feature);
+    return;
+}
+if (inv_total(inv, karamja_rum) > 0) {
+    if (npc_type = trader_stan) {
+        ~chatnpc("<p,neutral>Sorry, we can't take you anywhere if you are trying to smuggle that rum.");
+    } else {
+        ~chatnpc("<p,neutral>I'm afraid we can't take you anywhere if you're trying to smuggle that rum.");
+    }
+    return;
+}
+if (inv_total(inv, ahoy_bedsheet) > 0 | inv_total(worn, ahoy_bedsheet) > 0) {
+    ~chatnpc("<p,neutral>Sorry, but we aren't a laundry ship. You'll need to leave those dirty bedsheets behind.");
+    ~chatplayer("<p,quiz>Would you let me bring it if I told you it was a security blanket?");
+    ~chatnpc("<p,laugh>No, then we would just mock you.");
+    ~chatplayer("<p,sad>Ah, I see.");
+    return;
+}
+if (inv_total(inv, ahoy_bedsheetgreen) > 0 | inv_total(worn, ahoy_bedsheetgreen) > 0) {
+    ~chatnpc("<p,quiz>Is that your bedsheet covered in filthy slime?");
+    ~chatplayer("<p,neutral>I can say in all honesty that it is not.");
+    ~chatnpc("<p,angry>Well, whoever it belongs to, it's not coming on this ship!");
+    return;
+}
+%charter_origin = ~charter_port_here;
+%charter_npc = npc_type;
+~charter_map;
+
+[proc,charter_shop]
+~openshop(trader_stan_shop, 2500, 150, 20, "Trader Stan's Trading Post.");
+
+// The map: every port you can sail to from here, and this port itself - the crew have a line for
+// choosing the port you are standing in. A port with no route from here (Port Sarim and Musa Point
+// have none either way) or whose quest you have not done is hidden. Crandor is always there.
+[proc,charter_map]
+def_int $port = 0;
+while ($port < ^charter_port_count) {
+    def_component $layer = enum(int, component, charter_port_layer, $port);
+    if ($layer ! null) {
+        if ($port = %charter_origin | (~charter_fare(%charter_origin, $port) ! -1 & ~charter_can_sail($port) = true)) {
+            if_sethide($layer, ^false);
+        } else {
+            if_sethide($layer, ^true);
+        }
+        if_sethide(enum(int, component, charter_port_button, $port), ^false);
+    }
+    $port = calc($port + 1);
+}
+if_sethide(charter:crandor_port, ^false);
+if_sethide(charter:crandor, ^false);
+if_sethide(charter:close_frame, ^false);
+if_openmain(charter);
+
+[if_button,charter:sarim] ~charter_choose(^charter_sarim);
+[if_button,charter:brimhaven] ~charter_choose(^charter_brimhaven);
+[if_button,charter:catherby] ~charter_choose(^charter_catherby);
+[if_button,charter:musa] ~charter_choose(^charter_musa);
+[if_button,charter:khazard] ~charter_choose(^charter_khazard);
+[if_button,charter:phasmatys] ~charter_choose(^charter_phasmatys);
+[if_button,charter:shipyard] ~charter_choose(^charter_shipyard);
+[if_button,charter:tyras] ~charter_choose(^charter_tyras);
+
+[if_button,charter:crandor]
+if_close;
+// only ever open after a crewmember opened it; a stray click after a relog has no one to answer
+if (%charter_npc = null) {
+    return;
+}
+~chatnpc_specific(nc_name(%charter_npc), %charter_npc, "<p,shock>Crandor? Are you crazy? No charter ship would take you to that island. You'd need to use your own ship, but even then, you'd need a miracle to find a safe route there!");
+
+[proc,charter_choose](int $to)
+if_close;
+def_npc $npc = %charter_npc;
+if ($npc = null) {
+    return;
+}
+if ($to = %charter_origin) {
+    ~chatnpc_specific(nc_name($npc), $npc, "<p,quiz>Why do you want to travel to a port you are already at? Do you want to travel somewhere else?");
+    if (~p_choice2("Yes, choose a new destination.", 1, "No, stay at this port.", 2) = 1) {
+        ~charter_map;
+    }
+    return;
+}
+def_int $fare = ~charter_fare(%charter_origin, $to);
+// the map only offers routes that exist, so this is a button pressed on a map opened elsewhere
+if ($fare = -1) {
+    return;
+}
+def_string $name = enum(int, string, charter_port_name, $to);
+switch_int (~p_choice3_header("Okay", 1, "Choose again", 2, "Cancel", 3, "Sailing to <$name> costs <tostring($fare)> coins.")) {
+    case 1 :
+        if (inv_total(inv, coins) < $fare) {
+            ~chatnpc_specific(nc_name($npc), $npc, "<p,sad>I'm afraid you don't have enough coins for that voyage.");
+            return;
+        }
+        inv_del(inv, coins, $fare);
+        ~charter_sail(%charter_origin, $to, $fare);
+    case 2 : ~charter_map;
+}
+
+// A fare after the discounts: completing Cabin Fever halves it, and so does wearing the ring of
+// Charos (a) - both together, a quarter (the wiki). -1 is no route.
+[proc,charter_fare](int $from, int $to)(int)
+def_int $fare = enum(int, int, charter_fares, calc($from * 10 + $to));
+if ($fare = -1) {
+    return (-1);
+}
+if (%fever_quest >= ^fever_complete) {
+    $fare = calc($fare / 2);
+}
+if (inv_total(worn, ring_of_charos_unlocked) > 0) {
+    $fare = calc($fare / 2);
+}
+return ($fare);
+
+// Who may sail where (the wiki's Destinations list). Port Phasmatys asks for Morytania, which is
+// Priest in Peril; Port Tyras for Regicide. The Shipyard asks for the Shipyard part of Monkey
+// Madness - this build's Monkey Madness goes from King Narnode straight to Daero and has no Shipyard
+// part, so having started it stands in.
+[proc,charter_can_sail](int $port)(boolean)
+if ($port = ^charter_phasmatys & %priestperil < ^priestperil_complete) {
+    return (false);
+}
+if ($port = ^charter_shipyard & %mm_main < ^mm_started) {
+    return (false);
+}
+if ($port = ^charter_tyras & %regicide_quest < ^regicide_complete) {
+    return (false);
+}
+return (true);
+
+[proc,charter_arrive](int $port)(coord)
+switch_int ($port) {
+    case ^charter_sarim : return (^charter_sarim_arrive);
+    case ^charter_brimhaven : return (^charter_brimhaven_arrive);
+    case ^charter_catherby : return (^charter_catherby_arrive);
+    case ^charter_musa : return (^charter_musa_arrive);
+    case ^charter_khazard : return (^charter_khazard_arrive);
+    case ^charter_phasmatys : return (^charter_phasmatys_arrive);
+    case ^charter_shipyard : return (^charter_shipyard_arrive);
+    case ^charter_tyras : return (^charter_tyras_arrive);
+}
+return (null);
+
+// The port whose ship is nearest: the crew all share one config, and their piers are miles apart.
+[proc,charter_port_here]()(int)
+def_int $best = ^charter_sarim;
+def_int $best_dist = ^max_32bit_int;
+def_int $port = 0;
+while ($port < ^charter_port_count) {
+    def_coord $arrive = ~charter_arrive($port);
+    if ($arrive ! null) {
+        def_int $dist = distance(coord, $arrive);
+        if ($dist < $best_dist) {
+            $best = $port;
+            $best_dist = $dist;
+        }
+    }
+    $port = calc($port + 1);
+}
+return ($best);
+
+// The voyage, as interface_boat's set_sail does it - the tabs put away, the sailing jingle, a pause,
+// and the ship arriving - but on the charter map rather than ship_journey, whose map is Asgarnia and
+// Karamja only and whose ship animations are the routes 377 already had. The wiki's charter shows
+// "a map of Gielinor ... with the destinations labelled": here, the two ports of this voyage.
+[proc,charter_sail](int $from, int $to, int $fare)
+def_string $name = enum(int, string, charter_port_name, $to);
+def_int $port = 0;
+while ($port < ^charter_port_count) {
+    def_component $layer = enum(int, component, charter_port_layer, $port);
+    if ($layer ! null) {
+        if ($port = $from | $port = $to) {
+            if_sethide($layer, ^false);
+        } else {
+            if_sethide($layer, ^true);
+        }
+        if_sethide(enum(int, component, charter_port_button, $port), ^true);
+    }
+    $port = calc($port + 1);
+}
+if_sethide(charter:crandor_port, ^true);
+if_sethide(charter:close_frame, ^true);
+if_openmain(charter);
+midi_jingle("sailing journey");
+
+// hide all tabs except friends list and ignore list
+if_settab(null, 0);
+if_settab(null, 1);
+if_settab(null, 2);
+if_settab(null, 3);
+if_settab(null, 4);
+if_settab(null, 5);
+if_settab(null, 6);
+if_settab(null, 10);
+if_settab(null, 11);
+if_settab(null, 12);
+if_settab(null, 13);
+
+mes("You pay the fare of <tostring($fare)> coins and board the ship.");
+p_delay(^charter_voyage_ticks);
+
+~initalltabs;
+if_close;
+p_telejump(~charter_arrive($to));
+~mesbox("The ship arrives at <$name>.");
