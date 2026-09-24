@@ -147,6 +147,8 @@ inv_del(inv, swan_army, 1);
 ~mesbox("Nothing happens for about a minute. | Then the ground along forty yards of palisade starts moving, all of it at once, and seventy-one people go indoors.");
 
 // =========================================================================== Franklin and the wall
+// OSRS mends the west wall with five iron sheets off a metal press. Here it is planks, two a section,
+// and they are `woodplank` - the Plank the sawmill cuts - not the `plank` obj nobody can get.
 [opnpc1,swan_franklin]
 if (%swansong < ^swan_walls) {
     ~chatnpc("<p,neutral>Timber. I have plenty of timber. I have two hands and five holes.");
@@ -160,14 +162,14 @@ if (inv_total(inv, hammer) = 0 | inv_total(inv, nails) = 0) {
     ~chatnpc("<p,neutral>A hammer and nails. I have the timber and nothing to put it up with.");
     return;
 }
-if (inv_total(inv, plank) < 2) {
+if (inv_total(inv, woodplank) < 2) {
     ~chatnpc("<p,neutral>Two planks a section, and I am out.");
     return;
 }
 if_close;
 mes("You and Franklin put up a section of palisade.");
 p_delay(5);
-inv_del(inv, plank, 2);
+inv_del(inv, woodplank, 2);
 inv_del(inv, nails, 1);
 stat_advance(crafting, 3000);
 ~swan_wall_up;
