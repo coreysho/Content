@@ -100,6 +100,8 @@ if ($potential <= 0) {
 anim(human_openchest, 0);
 p_delay(1);
 %barrows_chest_paid = ^true;
+// Old School's "Barrows Chests" count on the collection log page - nothing counted chests before.
+~collection_log_counter_add(^collection_log_counter_barrows_chests, 1);
 // Anything still sitting in the store belongs to a previous chest - a player who disconnected
 // with the window open. It goes to the bank before this chest rolls, so the window only ever
 // shows one chest's loot and there is always room for it.
@@ -181,6 +183,9 @@ if_openmain(barrows_chest);
 
 [proc,barrows_reward_add](namedobj $obj, int $count)
 inv_add(barrows_reward_store, $obj, $count);
+// Logged when the chest PAYS, not when the store is emptied: the store has three ways out (take,
+// take all, bank) and a flush to the bank besides, and the chest paying is the "received".
+~collection_log_add($obj, $count);
 
 // One slot, as much of it as will fit. A stack that will not fit at all says so and stays put
 // rather than half-vanishing.

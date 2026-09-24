@@ -275,7 +275,9 @@ def patch_questlist(spec, check):
       '',
     ])
     # WHERE IT GOES: under the last row in the layer, found by reading the y= of every child of
-    # that layer rather than by counting quests.
+    # that layer rather than by counting quests. The collection log's row is skipped as well as our
+    # own: tools/gencollectionlog.py hangs it UNDER this one, so counting it would push this row
+    # below it on every run and the two generators would leapfrog.
     ys = []
     cur = None
     inlayer = False
@@ -287,7 +289,7 @@ def patch_questlist(spec, check):
             continue
         if t == 'layer=%s' % QL_LAYER:
             inlayer = True
-        elif inlayer and t.startswith('y=') and cur != QL_ROW:
+        elif inlayer and t.startswith('y=') and cur not in (QL_ROW, 'collection_log'):
             ys.append(int(t[2:]))
     if not ys:
         raise SystemExit('genbosskills: found no children of %s in questlist.if' % QL_LAYER)

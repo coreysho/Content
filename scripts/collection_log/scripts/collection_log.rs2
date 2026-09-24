@@ -1,0 +1,328 @@
+// THE COLLECTION LOG - https://oldschool.runescape.wiki/w/Collection_log
+//
+// Which items it lists, on which pages, is data: tools/collectionlogspec.json, written into
+// collection_log.dbrow by tools/gencollectionlog.py. Nothing in this file names an item.
+//
+// WHERE IT IS KEPT. The perm inv collection_log, one stackall slot per distinct item obtained with
+// the count in the slot (collection_log.inv says why an inv rather than packed varps). An item is
+// obtained on every page that lists it the moment it is obtained once - the log is keyed by item,
+// as Old School's is - so the dragon pickaxe from a Dagannoth King fills it in on the Rare Drop
+// Table page too, and a page added later is already filled in for everyone who has its items.
+//
+// HOW AN ITEM GETS IN: ~collection_log_add, called where the thing is DROPPED or HANDED OUT, never
+// where it is picked up - a traded or found item does not count, as in Old School. It ignores any
+// item the log does not list, so a call site can pass whatever it just gave without checking. The
+// call sites, so a new page knows whether its items are already covered:
+//
+//   ~broadcast_drop  general/scripts/broadcast.rs2   every broadcast rare: GWD uniques, the Kraken,
+//                                                    the black mask, the Dagannoth Kings' pickaxe and
+//                                                    rings, the mega-rare table
+//   ~broadcast_pet   general/scripts/broadcast.rs2   every pet, boss or skilling
+//   ~outfit_give     skilling_outfits/.../outfit_drop.rs2   every skilling outfit piece
+//   ~barrows_reward_add   area_barrows/.../barrows_chest.rs2   everything the chest pays
+//   ~collection_log_casket   the three ~trail_clue_<tier>_reward procs, after ~trail_complete
+//   and one line beside the obj_add / inv_add of each unique that is not broadcast: the Dagannoth
+//   Kings' axe, rings, Seercull and mud staff, the Kalphite Queen's head and chainbody, the Giant
+//   Mole's claws and skins, the Chaos Elemental's 2h, the fire and infernal capes, the Slayer
+//   drops, the elder chaos robes, the defenders, the Mage Arena capes, the Castle Wars and Agility
+//   Arena ticket rewards.
+//
+// FROM A MONSTER'S DEATH SCRIPT. Most of those run in npc context after npc_findhero, which makes
+// the hero the active player without PROTECTED access. That is enough for everything here: the
+// invs and varps are protect=no, and mes() needs only an active player (~bosspet_roll has always
+// said "You have a funny feeling..." from the same place).
+
+// ---------------------------------------------------------------------------------------------
+// Recording
+// ---------------------------------------------------------------------------------------------
+
+// Log $count of $obj as obtained. A noted drop logs the item. The first one ever says so, with
+// Old School's own line; after that only the count moves.
+[proc,collection_log_add](obj $obj, int $count)
+if ($obj = null | $count < 1) {
+    return;
+}
+def_int $index = enum(obj, int, collection_log_item_index, oc_uncert($obj));
+if ($index = -1) {
+    return;
+}
+// The namedobj inv_add insists on, by way of the log's own list - a plain obj will not do.
+def_namedobj $item = enum(int, namedobj, collection_log_items, $index);
+def_boolean $new = false;
+if (inv_total(collection_log, $item) = 0) {
+    // inv_add on a full inv drops the overflow at the player's feet (InvOps.ts INV_ADD), which
+    // would be a free item. The generator keeps the capacity above the number of items listed, so
+    // this cannot happen unless an item left the log after it was obtained - and then it is
+    // better unrecorded than duplicated.
+    if (inv_freespace(collection_log) = 0) {
+        return;
+    }
+    $new = true;
+}
+inv_add(collection_log, $item, $count);
+if ($new = true) {
+    // Old School's message, word for word. Its item name is red; @dre@ is the red that reads on
+    // this chatbox's parchment (general/scripts/broadcast.rs2 explains the colours).
+    mes("New item added to your collection log: @dre@<oc_name($item)>");
+    ~collection_log_rewards;
+}
+
+// A CASKET. trail_rewardinv can still hold a previous casket's loot that would not fit in a full
+// inventory, and this casket rolled in on top of it - so ~trail_prepare_rewardinv snapshots what
+// was left over before the roll, and only what the roll added is logged here.
+[proc,collection_log_casket_before]
+inv_clear(collection_log_casket);
+inv_copy(trail_rewardinv, collection_log_casket);
+
+// Called by each tier's ~trail_clue_<tier>_reward after ~trail_complete, with the tier's counter.
+// Old School counts caskets per tier and says so when one is opened.
+[proc,collection_log_casket](int $counter, string $tier)
+~collection_log_counter_add($counter, 1);
+mes("You have completed <tostring(~collection_log_counter_get($counter))> <$tier> Treasure Trails.");
+def_int $slot = 0;
+while ($slot < inv_size(trail_rewardinv)) {
+    def_obj $obj = inv_getobj(trail_rewardinv, $slot);
+    if ($obj ! null) {
+        ~collection_log_add($obj, sub(inv_getnum(trail_rewardinv, $slot), inv_total(collection_log_casket, $obj)));
+    }
+    $slot = add($slot, 1);
+}
+inv_clear(collection_log_casket);
+
+// ---------------------------------------------------------------------------------------------
+// Counting
+// ---------------------------------------------------------------------------------------------
+
+// How many of a page's items have been obtained.
+[proc,collection_log_entry_obtained](dbrow $entry)(int)
+def_int $total = db_getfieldcount($entry, collection_log_entry:items);
+def_int $got = 0;
+def_int $i = 0;
+while ($i < $total) {
+    if (inv_total(collection_log, db_getfield($entry, collection_log_entry:items, $i)) > 0) {
+        $got = add($got, 1);
+    }
+    $i = add($i, 1);
+}
+return($got);
+
+// How many distinct items of the whole log have been obtained - the X of "Collection Log - X/Y".
+// Counted from the list rather than as used slots, so an item dropped from the log later stops
+// counting instead of leaving the total above the Y.
+[proc,collection_log_obtained_total]()(int)
+def_int $total = enum_getoutputcount(collection_log_items);
+def_int $got = 0;
+def_int $i = 0;
+while ($i < $total) {
+    if (inv_total(collection_log, enum(int, namedobj, collection_log_items, $i)) > 0) {
+        $got = add($got, 1);
+    }
+    $i = add($i, 1);
+}
+return($got);
+
+// ---------------------------------------------------------------------------------------------
+// Rewards
+// ---------------------------------------------------------------------------------------------
+//
+// THE HOOK FOR A FUTURE REWARD SYSTEM. Each collection_log_reward row is a threshold - N items of
+// one page, or of the whole log, -1 for all of them - and what it pays. This runs whenever an item
+// is logged for the first time and whenever the log is opened, and pays every row that is due and
+// not yet paid. Opening counts so a reward added in an update reaches the players who were already
+// past it.
+//
+// TO ADD ONE: a new entry under "rewards" in tools/collectionlogspec.json with an unused bit, then
+// python3 tools/gencollectionlog.py. Nothing here changes. A reward that cannot be paid (no room
+// for the item) is not marked, so it is paid the next time this runs instead.
+[proc,collection_log_rewards]
+def_int $rows = db_listall_with_count(collection_log_reward);
+def_int $i = 0;
+while ($i < $rows) {
+    def_dbrow $row = db_findbyindex($i);
+    def_int $bit = db_getfield($row, collection_log_reward:bit, 0);
+    if (testbit(%collection_log_rewards, $bit) = ^false) {
+        if (~collection_log_reward_due($row) = true) {
+            if (~collection_log_reward_pay($row) = true) {
+                %collection_log_rewards = setbit(%collection_log_rewards, $bit);
+            }
+        }
+    }
+    $i = add($i, 1);
+}
+
+// Is this row's threshold met? No db_find in here: the loop above is walking a db_listall, and a
+// find would replace the list it is walking.
+[proc,collection_log_reward_due](dbrow $row)(boolean)
+def_dbrow $entry = db_getfield($row, collection_log_reward:entry, 0);
+def_int $threshold = db_getfield($row, collection_log_reward:threshold, 0);
+def_int $got = 0;
+def_int $of = 0;
+if ($entry = null) {
+    $got = ~collection_log_obtained_total;
+    $of = enum_getoutputcount(collection_log_items);
+} else {
+    $got = ~collection_log_entry_obtained($entry);
+    $of = db_getfieldcount($entry, collection_log_entry:items);
+}
+if ($threshold < 0) {
+    $threshold = $of;
+}
+if ($got >= $threshold) {
+    return(true);
+}
+return(false);
+
+// Pay one row: its item if it has one, then its message. False if the item will not fit, so the
+// row stays unpaid and is tried again.
+[proc,collection_log_reward_pay](dbrow $row)(boolean)
+def_namedobj $obj = null;
+def_int $count = 0;
+$obj, $count = db_getfield($row, collection_log_reward:reward, 0);
+if ($obj ! null) {
+    if ($count < 1) {
+        $count = 1;
+    }
+    if (inv_itemspace(inv, $obj, $count, inv_size(inv)) = false) {
+        mes("You have a collection log reward waiting. Make room in your inventory, then open the log.");
+        return(false);
+    }
+    inv_add(inv, $obj, $count);
+}
+def_string $message = db_getfield($row, collection_log_reward:message, 0);
+if (string_length($message) > 0) {
+    mes($message);
+}
+return(true);
+
+// ---------------------------------------------------------------------------------------------
+// The window
+// ---------------------------------------------------------------------------------------------
+
+[proc,collection_log_open]
+~collection_log_rewards;
+if_openmain(collection_log);
+~collection_log_draw;
+inv_transmit(collection_log_view, collection_log:items);
+
+[if_close,collection_log]
+inv_stoptransmit(collection_log:items);
+
+[proc,collection_log_select_tab](int $tab)
+if ($tab ! %collection_log_tab) {
+    %collection_log_tab = $tab;
+    %collection_log_entry = 0;
+}
+~collection_log_draw;
+
+[proc,collection_log_select_entry](int $entry)
+%collection_log_entry = $entry;
+~collection_log_draw;
+
+// "Check" on an icon - the only way 377 puts an item's name on screen - says how many.
+[inv_button1,collection_log:items]
+def_obj $obj = inv_getobj(collection_log_view, last_slot);
+if ($obj = null) {
+    return;
+}
+def_int $count = inv_total(collection_log, $obj);
+if ($count = 0) {
+    mes("<oc_name($obj)>: not yet obtained.");
+} else if ($count = 1) {
+    mes("<oc_name($obj)>: obtained once.");
+} else {
+    mes("<oc_name($obj)>: obtained <tostring($count)> times.");
+}
+
+// THE WHOLE WINDOW, repainted: title, tabs, the open tab's entries, and the open entry's page.
+// Cheap enough to do on every click - a dozen rows, one page of at most forty items, and the
+// ~250-item overall count.
+[proc,collection_log_draw]
+if (%collection_log_tab < 0 | %collection_log_tab >= ^collection_log_tabs) {
+    %collection_log_tab = 0;
+}
+db_find(collection_log_tab:tab, %collection_log_tab);
+def_dbrow $tabrow = db_findnext;
+if ($tabrow = null) {
+    return;
+}
+def_int $entries = db_getfieldcount($tabrow, collection_log_tab:entries);
+if (%collection_log_entry < 0 | %collection_log_entry >= $entries) {
+    %collection_log_entry = 0;
+}
+if_settext(collection_log:title, "Collection Log - <tostring(~collection_log_obtained_total)>/<tostring(enum_getoutputcount(collection_log_items))>");
+
+def_int $i = 0;
+while ($i < ^collection_log_tabs) {
+    db_find(collection_log_tab:tab, $i);
+    def_dbrow $each = db_findnext;
+    if ($each ! null) {
+        if ($i = %collection_log_tab) {
+            ~collection_log_tab_paint($i, ^collection_log_tab_on, "@whi@<db_getfield($each, collection_log_tab:name, 0)>");
+        } else {
+            ~collection_log_tab_paint($i, ^collection_log_tab_off, db_getfield($each, collection_log_tab:name, 0));
+        }
+    }
+    $i = add($i, 1);
+}
+
+// The list. A page with everything on it is green, as in Old School.
+$i = 0;
+while ($i < ^collection_log_rows) {
+    if ($i < $entries) {
+        def_dbrow $row = db_getfield($tabrow, collection_log_tab:entries, $i);
+        def_string $name = db_getfield($row, collection_log_entry:name, 0);
+        if (~collection_log_entry_obtained($row) >= db_getfieldcount($row, collection_log_entry:items)) {
+            $name = "@gre@<$name>";
+        }
+        if ($i = %collection_log_entry) {
+            ~collection_log_row($i, false, $name, ^collection_log_row_on);
+        } else {
+            ~collection_log_row($i, false, $name, ^collection_log_row_off);
+        }
+    } else {
+        ~collection_log_row($i, true, "", ^collection_log_row_off);
+    }
+    $i = add($i, 1);
+}
+~collection_log_page(db_getfield($tabrow, collection_log_tab:entries, %collection_log_entry));
+
+// The open page: its name, Obtained X/Y coloured as Old School colours it (red for none, yellow
+// for some, green for all), its counters, and its grid. An item not yet obtained goes in as a
+// placeholder, which the client draws faded - the greyed-out icon.
+[proc,collection_log_page](dbrow $entry)
+if_settext(collection_log:name, db_getfield($entry, collection_log_entry:name, 0));
+inv_clear(collection_log_view);
+def_int $total = db_getfieldcount($entry, collection_log_entry:items);
+def_int $got = 0;
+def_int $i = 0;
+while ($i < $total & $i < ^collection_log_view_size) {
+    def_namedobj $item = db_getfield($entry, collection_log_entry:items, $i);
+    def_int $count = inv_total(collection_log, $item);
+    if ($count > 0) {
+        inv_setslot(collection_log_view, $i, $item, $count);
+        $got = add($got, 1);
+    } else {
+        inv_placeholder(collection_log_view, $i, $item);
+    }
+    $i = add($i, 1);
+}
+def_string $colour = "@yel@";
+if ($got = 0) {
+    $colour = "@red@";
+} else if ($got >= $total) {
+    $colour = "@gre@";
+}
+if_settext(collection_log:obtained, "Obtained: <$colour><tostring($got)>/<tostring($total)>");
+def_int $counters = db_getfieldcount($entry, collection_log_entry:counters);
+$i = 0;
+while ($i < ^collection_log_counters) {
+    if ($i < $counters) {
+        def_string $label = "";
+        def_int $id = 0;
+        $label, $id = db_getfield($entry, collection_log_entry:counters, $i);
+        ~collection_log_counter_text($i, "<$label>: @whi@<tostring(~collection_log_counter_get($id))>");
+    } else {
+        ~collection_log_counter_text($i, "");
+    }
+    $i = add($i, 1);
+}

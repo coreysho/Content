@@ -60,10 +60,15 @@ broadcast_mes("@sh1@@or1@<$label>@sh0@@bla@ <~broadcast_name> <$what>");
 // A rare drop. The item is in dark red so it reads as the point of the line.
 [proc,broadcast_drop](obj $drop)
 ~broadcast_news("Rare drop!", "received @dre@<oc_name($drop)>@bla@.");
+// Every broadcast rare is one the collection log wants, and this is the one place they all pass -
+// see collection_log/scripts/collection_log.rs2. Anything the log does not list is ignored there.
+~collection_log_add($drop, 1);
 
 // A pet. Every pet announces itself the same way whether it came from a boss, a skill or a cave.
 [proc,broadcast_pet](obj $pet)
 ~broadcast_news("Pet!", "has a funny feeling like they're being followed: @dre@<oc_name($pet)>@bla@.");
+// And every pet, boss or skilling, for the log's All Pets page.
+~collection_log_add($pet, 1);
 
 // ::yell. The engine has already checked the mute and the length and taken every '@' out of the
 // text, so nothing typed into a yell can forge a crown or a colour; the label is cyan to tell it

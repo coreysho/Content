@@ -247,8 +247,9 @@ _scroll = int(blocks(QLRAW)['com_0']['scroll'][0])
 check(_scroll >= _rowy + 14,
       'and the layer scrolls far enough to reach it: scroll=%d against a row at y=%d'
       % (_scroll, _rowy))
+# The collection log's row is not a quest: tools/gencollectionlog.py hangs it under this one on purpose.
 _ys = [int(f['y'][0]) for n, f in QL.items()
-       if f.get('layer') == ['com_0'] and f.get('y') and n != 'boss_kills']
+       if f.get('layer') == ['com_0'] and f.get('y') and n not in ('boss_kills', 'collection_log')]
 check(_rowy > max(_ys),
       '...and it sits below every quest already there, so nothing moved: y=%d against a last '
       'quest at y=%d' % (_rowy, max(_ys)))

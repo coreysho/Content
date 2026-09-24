@@ -148,9 +148,11 @@ def_int $target = sub(%wguild_target, 1);
 if ($basement = true) {
     if ($target = 7 & ~wguild_in_basement(coord) = true & random(^wguild_dragon_defender_rate) = 0) {
         obj_add(npc_coord, dragon_defender, 1, ^lootdrop_duration);
+        ~collection_log_add(dragon_defender, 1); // the collection log's Cyclopes page
     }
     return;
 }
 if ($target < 7 & ~wguild_in_top_room(coord) = true & random(^wguild_defender_rate) = 0) {
     obj_add(npc_coord, enum(int, namedobj, wguild_defenders, $target), 1, ^lootdrop_duration);
+    ~collection_log_add(enum(int, namedobj, wguild_defenders, $target), 1);
 }
