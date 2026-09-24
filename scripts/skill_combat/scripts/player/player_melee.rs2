@@ -50,6 +50,9 @@ if (~player_npc_hit_roll_boosted(%damagetype, $mask_num, $mask_div) = true
     $maxhit = scale($mask_num, $mask_div, $maxhit);
     // Dharok's set: more damage the lower the player's own hitpoints, scaled by their maximum.
     $maxhit = ~barrows_dharok_maxhit($maxhit);
+    // A Soul's Bane - an angry monster in the Anger room takes ten times the damage from the one
+    // anger weapon that is its match and none from anything else (quest_soulbane.rs2).
+    $maxhit = ~soulbane_anger_maxhit($maxhit);
     if((npc_param(slayer_category) = ^slayer_kurask | npc_param(slayer_category) = ^slayer_turoth) & inv_total(worn, slayer_leafbladed_spear) = 0) {
         $maxhit = 0;
     }

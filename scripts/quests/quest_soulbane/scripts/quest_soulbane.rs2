@@ -1,86 +1,259 @@
-// A Soul's Bane - the rift and its four chambers.
+// A Soul's Bane - the rift and its rooms.
 //
-// Not one of the rift's monsters is placed in the map data - the only soulbane npc spawns anywhere
-// in the game are Launa and the Tolna shell on the surface - so every room stocks itself with
-// npc_add when the player arrives, and re-stocks when the room is re-entered with work left to do.
+// Not one of the rift's monsters is placed in the map data, so every room stocks itself with
+// npc_add when the player arrives. The rooms are separate islands of m47_81 (and Tolna's room is
+// plane 1 of m46_81): nothing joins them on foot, and every exit is a loc op that teleports.
+//
+// A monster's death credits whoever npc_findhero names. That runs on the NPC, and soulbane and
+// soulbane2 are protected varps it cannot write (nor can it p_teleport or open a chatbox), so a
+// death queues a player script that does the bookkeeping. Only the protect=no counters in
+// soulbane_unprotected/2 are written straight from a monster's trigger.
 
 // =========================================================================== the rift
-// [soulbane_falloff2_rope_multi] is 0 a bare rift and 1 a rift with a rope, and the op1=Enter sits
-// on the shell so it works in both states. The rope appears once Launa has explained what is down
-// there; before that the hole is just a hole.
-[oploc1,soulbane_falloff2_rope_multi]
-p_arrivedelay;
+// [soulbane_falloff2_rope_multi] is 0 a bare rift and 1 a rift with a rope. Every other rift loc is
+// the same hole drawn from a different angle, all with op1=Enter, so they all come here.
+[oploc1,soulbane_falloff2_rope_multi] @soulbane_rift_enter;
+[oploc1,soulbane_falloff1] @soulbane_rift_enter;
+[oploc1,soulbane_falloff2] @soulbane_rift_enter;
+[oploc1,soulbane_falloff3] @soulbane_rift_enter;
+[oploc1,soulbane_falloff4] @soulbane_rift_enter;
+[oploc1,soulbane_falloff5] @soulbane_rift_enter;
+[oploc1,soulbane_falloff6] @soulbane_rift_enter;
+[oploc1,soulbane_falloff7] @soulbane_rift_enter;
+[oploc1,soulbane_falloff8] @soulbane_rift_enter;
+[oploc1,soulbane_falloff9] @soulbane_rift_enter;
+[oploc1,soulbane_falloff_10] @soulbane_rift_enter;
+[oploc1,soulbane_falloff_11] @soulbane_rift_enter;
+[oploc1,soulbane_falloff_12] @soulbane_rift_enter;
+
+// "Use the rope on the rift" - the rope is the one item the quest asks for.
+[oplocu,soulbane_falloff2_rope_multi] @soulbane_rift_rope;
+[oplocu,soulbane_falloff1] @soulbane_rift_rope;
+[oplocu,soulbane_falloff2] @soulbane_rift_rope;
+[oplocu,soulbane_falloff3] @soulbane_rift_rope;
+[oplocu,soulbane_falloff4] @soulbane_rift_rope;
+[oplocu,soulbane_falloff5] @soulbane_rift_rope;
+[oplocu,soulbane_falloff6] @soulbane_rift_rope;
+[oplocu,soulbane_falloff7] @soulbane_rift_rope;
+[oplocu,soulbane_falloff8] @soulbane_rift_rope;
+[oplocu,soulbane_falloff9] @soulbane_rift_rope;
+[oplocu,soulbane_falloff_10] @soulbane_rift_rope;
+[oplocu,soulbane_falloff_11] @soulbane_rift_rope;
+[oplocu,soulbane_falloff_12] @soulbane_rift_rope;
+
+[label,soulbane_rift_rope]
+if (last_useitem ! rope) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%soulbane_riftrope_pres = ^soulbane_on) {
+    mes("There's already a rope tied to the edge of the rift.");
+    return;
+}
 if (%soulbane_prog < ^soulbane_asked) {
-    ~mesbox("A tear in the world, about the width of a man. You are not climbing into that on the strength of curiosity.");
+    mes("You have no reason to go down there.");
+    return;
+}
+inv_delslot(inv, last_useslot);
+%soulbane_riftrope_pres = ^soulbane_on;
+mes("You tie the rope firmly to the edge of the rift.");
+
+[label,soulbane_rift_enter]
+p_arrivedelay;
+if (%soulbane_riftrope_pres = ^soulbane_off) {
+    if (%soulbane_prog < ^soulbane_asked) {
+        ~mesbox("It's a long way down, and you can't see the bottom.");
+        return;
+    }
+    ~mesbox("It's a long way down. You'll need to tie a rope to the edge before you climb in.");
     return;
 }
 if_close;
-mes("You take hold of the rope and lower yourself in.");
-p_delay(2);
+mes("You climb down the rope into the rift.");
+p_delay(1);
+if (%soulbane_prog >= ^soulbane_complete) {
+    p_teleport(^soulbane_dungeon_land);
+    return;
+}
 @soulbane_enter_room(%soulbane_prog);
 
-// Every other rift loc in the map is the same hole drawn from a different angle and they all carry
-// op1=Enter, so one handler covers the lot.
-[oploc1,soulbane_falloff1] @soulbane_rift_edge;
-[oploc1,soulbane_falloff2] @soulbane_rift_edge;
-[oploc1,soulbane_falloff3] @soulbane_rift_edge;
-[oploc1,soulbane_falloff4] @soulbane_rift_edge;
-[oploc1,soulbane_falloff5] @soulbane_rift_edge;
-[oploc1,soulbane_falloff6] @soulbane_rift_edge;
-[oploc1,soulbane_falloff7] @soulbane_rift_edge;
-[oploc1,soulbane_falloff8] @soulbane_rift_edge;
-[oploc1,soulbane_falloff9] @soulbane_rift_edge;
-[oploc1,soulbane_falloff_10] @soulbane_rift_edge;
-[oploc1,soulbane_falloff_11] @soulbane_rift_edge;
-[oploc1,soulbane_falloff_12] @soulbane_rift_edge;
+// The rift's Exits all lead straight back up. soulbane_rope_up is the one in Tolna's rift proper.
+[oploc1,soul_bane_awall_void_small] @soulbane_to_surface;
+[oploc1,soul_bane_fwall_void_small] @soulbane_to_surface;
+[oploc1,soul_bane_cwall_void_small] @soulbane_to_surface;
+[oploc1,soul_bane_hwall_void_small] @soulbane_to_surface;
+[oploc1,soul_bane_tolna_void_small] @soulbane_to_surface;
+[oploc1,soulbane_rope_up] @soulbane_to_surface;
 
-[label,soulbane_rift_edge]
-p_arrivedelay;
-~mesbox("The edge crumbles when you lean on it. The way down is the one Launa has the rope on.");
-
-// soulbane_rope_up is "This will take me back to the surface."
-[oploc1,soulbane_rope_up]
+[label,soulbane_to_surface]
 p_arrivedelay;
 if_close;
-mes("You climb back up the rope.");
-p_delay(2);
+~soulbane_drop_anger_weapons;
+mes("You climb back up to the surface.");
+p_delay(1);
 p_teleport(^soulbane_surface_land);
 
 [label,soulbane_enter_room](int $stage)
-if ($stage >= ^soulbane_complete) {
-    ~mesbox("There is nothing down there any more. That was rather the point.");
-    return;
-}
 switch_int ($stage) {
     case ^soulbane_asked :
         %soulbane_prog = ^soulbane_anger;
         ~send_quest_progress(questlist:soulbane, %soulbane_prog, ^soulbane_complete);
-        p_teleport(^soulbane_anger_room);
-        ~soulbane_stock_anger;
-        ~mesbox("You land in a red room. There is a weapon rack against the far wall and a wall of fire where the door should be, and something in here is already awake.");
-    case ^soulbane_anger : p_teleport(^soulbane_anger_room); ~soulbane_stock_anger;
-    case ^soulbane_fear : p_teleport(^soulbane_fear_room); ~soulbane_stock_fear;
-    case ^soulbane_confusion : p_teleport(^soulbane_confu_room); ~soulbane_stock_confusion;
-    case ^soulbane_hopelessness : p_teleport(^soulbane_hope_room); ~soulbane_stock_hope;
-    case default :
-        p_teleport(^soulbane_tolna_room);
-        ~soulbane_stock_tolna;
+        ~soulbane_enter_anger;
+        ~mesbox("You land in a red cave. A rack of weapons stands against the wall, a wall of fire blocks the way on, and the creatures in here look furious.");
+    case ^soulbane_anger : ~soulbane_enter_anger;
+    case ^soulbane_fear : ~soulbane_enter_fear;
+    case ^soulbane_confusion : ~soulbane_enter_confusion;
+    case ^soulbane_hopelessness : ~soulbane_enter_hope;
+    case default : ~soulbane_enter_tolna;
 }
 
 // =========================================================================== Anger
-// [soulbane_rack_multi] is 0 all four, then 1-4 as each is gone, and op1=Take-from is on the shell.
-// You get one weapon, and which one you take is what the rest of the room is fought with.
+// The rage bar is soulbane_anger_damagedealt, and it only fills with damage an angry monster takes
+// from its own weapon - which is also the only damage it takes at all (~soulbane_anger_maxhit in
+// player_melee.rs2, and the [ai_queue2] below for everything that does not go through melee).
+[proc,soulbane_enter_anger]
+~soulbane_drop_anger_weapons;
+%soulbane_anger_damagedealt = 0;
+%soulbane_anger_donespecial = ^soulbane_off;
+p_teleport(^soulbane_anger_room);
+~soulbane_stock_anger;
+
+[proc,soulbane_stock_anger]
+if (%soulbane_prog ! ^soulbane_anger | %soulbane_anger_flamepres = ^soulbane_on) {
+    return;
+}
+~soulbane_spawn_once(^soulbane_anger_bear_spot, soulbane_anger_bear, 30);
+~soulbane_spawn_once(^soulbane_anger_unicorn_spot, soulbane_anger_unicorn, 30);
+~soulbane_spawn_once(^soulbane_anger_rat_spot, soulbane_anger_rat, 30);
+~soulbane_spawn_once(^soulbane_anger_goblin_spot, soulbane_anger_goblin, 30);
+
+// One of a kind per room: a second player coming in, or the same one coming back, does not stack
+// another copy on top of one that is still there.
+[proc,soulbane_spawn_once](coord $at, npc $type, int $range)
+if (npc_find($at, $type, $range, ^vis_off) = true) {
+    return;
+}
+npc_add($at, $type, ^soulbane_npc_duration);
+
+// Which rack weapon hurts which monster (OSRS: sword - unicorn, spear - bear, mace - giant rat,
+// battleaxe - goblin). null for anything that is not one of the four.
+[proc,soulbane_anger_weakness](npc $type)(namedobj)
+switch_npc ($type) {
+    case soulbane_anger_bear : return(soulbane_anger_spearq);
+    case soulbane_anger_unicorn : return(soulbane_anger_swordq);
+    case soulbane_anger_rat : return(soulbane_anger_maceq);
+    case soulbane_anger_goblin : return(soulbane_anger_axeq);
+}
+return(null);
+
+// Called from player_melee.rs2 with the swing's max hit: ten times it with the matching weapon
+// ("normal damage multiplied by 10"), nothing without it, and untouched for every other npc.
+[proc,soulbane_anger_maxhit](int $maxhit)(int)
+def_namedobj $weapon = ~soulbane_anger_weakness(npc_type);
+if ($weapon = null) {
+    return($maxhit);
+}
+if (inv_total(worn, $weapon) = 0) {
+    return(0);
+}
+return(multiply($maxhit, 10));
+
+[ai_queue2,soulbane_anger_bear] ~soulbane_anger_damage(last_int, soulbane_anger_spearq);
+[ai_queue2,soulbane_anger_unicorn] ~soulbane_anger_damage(last_int, soulbane_anger_swordq);
+[ai_queue2,soulbane_anger_rat] ~soulbane_anger_damage(last_int, soulbane_anger_maceq);
+[ai_queue2,soulbane_anger_goblin] ~soulbane_anger_damage(last_int, soulbane_anger_axeq);
+
+// Every hit on an angry monster ends here - melee, ranged, magic and specials alike - so this is
+// where "only its own weapon hurts it" is enforced, and where the rage bar fills.
+[proc,soulbane_anger_damage](int $damage, namedobj $weapon)
+if (finduid(%npc_aggressive_player) = false) {
+    ~npc_default_damage(0);
+    return;
+}
+if (inv_total(worn, $weapon) = 0) {
+    ~npc_default_damage(0);
+    return;
+}
+if ($damage > 0 & %soulbane_prog = ^soulbane_anger & %soulbane_anger_donespecial = ^soulbane_off) {
+    def_int $before = %soulbane_anger_damagedealt;
+    def_int $after = min(add($before, min($damage, npc_stat(hitpoints))), ^soulbane_anger_needed);
+    %soulbane_anger_damagedealt = $after;
+    if ($after >= ^soulbane_anger_needed) {
+        %soulbane_anger_donespecial = ^soulbane_on;
+        queue(soulbane_anger_unleash, 1, 0);
+    } else if (divide(multiply($after, 4), ^soulbane_anger_needed) > divide(multiply($before, 4), ^soulbane_anger_needed)) {
+        mes("You feel your rage building...");
+    }
+}
+~npc_default_damage($damage);
+
+// The rack's four and whoever falls: the next of its kind comes at you while the rage bar is
+// still filling. Queued on the hero so the respawn is a moment later rather than the same tick.
+[ai_queue3,soulbane_anger_bear] @soulbane_anger_death(1);
+[ai_queue3,soulbane_anger_unicorn] @soulbane_anger_death(2);
+[ai_queue3,soulbane_anger_rat] @soulbane_anger_death(3);
+[ai_queue3,soulbane_anger_goblin] @soulbane_anger_death(4);
+
+[label,soulbane_anger_death](int $which)
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+if (%soulbane_prog ! ^soulbane_anger | %soulbane_anger_donespecial = ^soulbane_on) {
+    return;
+}
+queue(soulbane_anger_respawn, 4, $which);
+
+[queue,soulbane_anger_respawn](int $which)
+if (%soulbane_prog ! ^soulbane_anger | %soulbane_anger_flamepres = ^soulbane_on) {
+    return;
+}
+switch_int ($which) {
+    case 1 : ~soulbane_spawn_once(^soulbane_anger_bear_spot, soulbane_anger_bear, 30);
+    case 2 : ~soulbane_spawn_once(^soulbane_anger_unicorn_spot, soulbane_anger_unicorn, 30);
+    case 3 : ~soulbane_spawn_once(^soulbane_anger_rat_spot, soulbane_anger_rat, 30);
+    case 4 : ~soulbane_spawn_once(^soulbane_anger_goblin_spot, soulbane_anger_goblin, 30);
+}
+
+// The bar is full: you spin, everything angry in the room drops, 40 Attack experience, and the
+// fire in the doorway goes out.
+[queue,soulbane_anger_unleash](int $unused)
+if (%soulbane_prog ! ^soulbane_anger) {
+    return;
+}
+anim(human_dhsword_spin, 0);
+~soulbane_clear_type(coord, soulbane_anger_bear, 30);
+~soulbane_clear_type(coord, soulbane_anger_unicorn, 30);
+~soulbane_clear_type(coord, soulbane_anger_rat, 30);
+~soulbane_clear_type(coord, soulbane_anger_goblin, 30);
+stat_advance(attack, 400);
+%soulbane_anger_flamepres = ^soulbane_on;
+%soulbane_prog = ^soulbane_fear;
+~send_quest_progress(questlist:soulbane, %soulbane_prog, ^soulbane_complete);
+~mesbox("Your rage boils over! You spin around, and every creature in the cave falls. The fire blocking the way on dies down.");
+
+// Every one of a type near a coord: gone, with its death animation.
+[proc,soulbane_clear_type](coord $at, npc $type, int $range)
+npc_findall($at, $type, $range, ^vis_off);
+while (npc_findnext = true) {
+    npc_setmode(none);
+    npc_anim(npc_param(death_anim), 0);
+    npc_del;
+}
+
+// [soulbane_rack_multi] is 0 all four, then 1-4 while that one is out; op1=Take-from is on the
+// shell. One weapon at a time: put it back (use it on the rack) to swap.
 [oploc1,soulbane_rack_multi]
 p_arrivedelay;
-if (%soulbane_anger_weaponmulti ! ^soulbane_rack_full) {
-    mes("You have had your pick.");
+if (~soulbane_anger_weapon_held = true) {
+    mes("You can only carry one weapon from the rack at a time.");
     return;
 }
 if (inv_freespace(inv) = 0) {
-    mes("You have no room for it.");
+    mes("You don't have enough inventory space.");
     return;
 }
-def_int $pick = ~p_choice4("The sword.", 1, "The spear.", 2, "The mace.", 3, "The axe.", 4);
+def_int $pick = ~p_choice4("The sword.", 1, "The spear.", 2, "The mace.", 3, "The battleaxe.", 4);
 switch_int ($pick) {
     case 1 : @soulbane_take_weapon(soulbane_anger_swordq, ^soulbane_rack_sword);
     case 2 : @soulbane_take_weapon(soulbane_anger_spearq, ^soulbane_rack_spear);
@@ -91,341 +264,537 @@ switch_int ($pick) {
 [label,soulbane_take_weapon](namedobj $weapon, int $state)
 inv_add(inv, $weapon, 1);
 %soulbane_anger_weaponmulti = $state;
-mes("You lift the <oc_name($weapon)> off the rack.");
-~mesbox("The rack does not offer a second. Whatever you are about to do in here, you are doing it with that.");
+mes("You take the <lowercase(oc_name($weapon))> from the rack.");
 
-[proc,soulbane_stock_anger]
-if (%soulbane_anger_damagedealt >= ^soulbane_anger_needed) {
-    return;
+[oplocu,soulbane_rack_multi]
+switch_obj (last_useitem) {
+    case soulbane_anger_swordq, soulbane_anger_spearq, soulbane_anger_maceq, soulbane_anger_axeq :
+        inv_delslot(inv, last_useslot);
+        %soulbane_anger_weaponmulti = ^soulbane_rack_full;
+        mes("You put the weapon back on the rack.");
+    case default : ~displaymessage(^dm_default);
 }
-npc_add(^soulbane_anger_room, soulbane_anger_bear, 500);
-npc_add(movecoord(^soulbane_anger_room, 2, 0, 0), soulbane_anger_unicorn, 500);
-npc_add(movecoord(^soulbane_anger_room, 0, 0, 2), soulbane_anger_rat, 500);
-npc_add(movecoord(^soulbane_anger_room, 2, 0, 2), soulbane_anger_goblin, 500);
 
-// soulbane_anger_damagedealt is twelve bits - a damage counter, not a kill counter, and sized for
-// it - so the room is scored on how much anger you actually work off rather than on four corpses.
-// The four are worth what their combat levels say they are worth - bear 40, the other three 45 -
-// scaled down so that putting all four down clears ^soulbane_anger_needed exactly.
-[ai_queue3,soulbane_anger_bear] @soulbane_anger_death(9);
-[ai_queue3,soulbane_anger_unicorn] @soulbane_anger_death(11);
-[ai_queue3,soulbane_anger_rat] @soulbane_anger_death(10);
-[ai_queue3,soulbane_anger_goblin] @soulbane_anger_death(10);
+[proc,soulbane_anger_weapon_held]()(boolean)
+if (inv_total(inv, soulbane_anger_swordq) > 0 | inv_total(worn, soulbane_anger_swordq) > 0) { return(true); }
+if (inv_total(inv, soulbane_anger_spearq) > 0 | inv_total(worn, soulbane_anger_spearq) > 0) { return(true); }
+if (inv_total(inv, soulbane_anger_maceq) > 0 | inv_total(worn, soulbane_anger_maceq) > 0) { return(true); }
+if (inv_total(inv, soulbane_anger_axeq) > 0 | inv_total(worn, soulbane_anger_axeq) > 0) { return(true); }
+return(false);
 
-// An [ai_queue] runs on the NPC, not on a player, so the killer has to be found before anything
-// touches a varp. Same shape as [ai_queue3,blooddiamond_vampirewarrior] in Desert Treasure.
-[label,soulbane_anger_death](int $worth)
-gosub(npc_death);
-if (npc_findhero = ^false) {
-    return;
+// The rack's weapons do not leave the Anger room.
+[proc,soulbane_drop_anger_weapons]
+def_obj $wielded = inv_getobj(worn, ^wearpos_rhand);
+inv_del(inv, soulbane_anger_swordq, 28);
+inv_del(inv, soulbane_anger_spearq, 28);
+inv_del(inv, soulbane_anger_maceq, 28);
+inv_del(inv, soulbane_anger_axeq, 28);
+inv_del(worn, soulbane_anger_swordq, 1);
+inv_del(worn, soulbane_anger_spearq, 1);
+inv_del(worn, soulbane_anger_maceq, 1);
+inv_del(worn, soulbane_anger_axeq, 1);
+if ($wielded ! null & inv_getobj(worn, ^wearpos_rhand) ! $wielded) {
+    ~update_all($wielded); // bonuses, attack styles and appearance follow the empty hand
 }
-if (p_finduid(uid) = false) {
-    return;
-}
-@soulbane_anger_kill($worth);
+%soulbane_anger_weaponmulti = ^soulbane_rack_full;
 
-[label,soulbane_anger_kill](int $worth)
-if (%soulbane_prog ! ^soulbane_anger) {
+// The way on is soul_bane_awall_void_exit behind the fire ("To the next area!"); the fire itself
+// has no op and, being a multiloc, never blocked anything on the server.
+[oploc1,soul_bane_awall_void_exit]
+p_arrivedelay;
+if (%soulbane_prog < ^soulbane_fear) {
+    mes("The fire is far too hot to get past.");
     return;
 }
-%soulbane_anger_damagedealt = add(%soulbane_anger_damagedealt, $worth);
-if (%soulbane_anger_damagedealt < ^soulbane_anger_needed) {
-    // No re-stock here: the four are worth 9 + 11 + 10 + 10, which is ^soulbane_anger_needed
-    // exactly, so putting all four down always clears the room. Re-entering re-stocks.
-    mes("Some of it goes out of you. Not all of it.");
-    return;
-}
-// The firewall's shell declares multiloc=0 only, so setting the varbit is what takes it away.
-%soulbane_anger_flamepres = ^soulbane_on;
-%soulbane_prog = ^soulbane_fear;
-~send_quest_progress(questlist:soulbane, %soulbane_prog, ^soulbane_complete);
-~mesbox("The fire in the doorway goes out all at once, the way a temper does when there is nothing left to be angry at.");
+if_close;
+~soulbane_drop_anger_weapons;
+mes("You step through into the next cave.");
+p_delay(1);
+~soulbane_enter_fear;
 
 // =========================================================================== Fear
-// Deliberately NOT gated on soulbane_fear_monspres. npc_add'd monsters do not survive a restart
-// and the flag does, so gating on it would leave a player who logged out in here facing an empty
-// room with a tally it will not let them finish. A stray extra reaper is the cheaper failure.
-[proc,soulbane_stock_fear]
-if (%soulbane_fear_killedtally >= ^soulbane_fear_needed) {
+// Six dark holes line the walls. One of them - soulbane_fear_enemydoor, 1-6 - has a fear reaper in
+// it, and which one moves after every kill. Five reapers and the black hole to the west lights up.
+[proc,soulbane_enter_fear]
+p_teleport(^soulbane_fear_room);
+%soulbane_fear_monspres = ^soulbane_off;
+if (%soulbane_fear_enemydoor < 1 | %soulbane_fear_enemydoor > ^soulbane_fear_holes) {
+    %soulbane_fear_enemydoor = calc(random(^soulbane_fear_holes) + 1);
+}
+
+[oploc1,soul_bane_fwall_void] @soulbane_fear_hole(1);
+[oploc1,soul_bane_fwall_void2] @soulbane_fear_hole(2);
+[oploc1,soul_bane_fwall_void3] @soulbane_fear_hole(3);
+[oploc1,soul_bane_fwall_void4] @soulbane_fear_hole(4);
+[oploc1,soul_bane_fwall_void5] @soulbane_fear_hole(5);
+[oploc1,soul_bane_fwall_void6] @soulbane_fear_hole(6);
+
+[label,soulbane_fear_hole](int $hole)
+p_arrivedelay;
+if (%soulbane_prog ! ^soulbane_fear) {
+    mes("You peer into the hole. There's nothing in there.");
     return;
 }
+if (%soulbane_fear_monspres = ^soulbane_on & npc_find(coord, soulbane_fear_reaper, 30, ^vis_off) = true) {
+    mes("You'd better deal with the one that's already out first.");
+    return;
+}
+if (%soulbane_fear_enemydoor < 1 | %soulbane_fear_enemydoor > ^soulbane_fear_holes) {
+    %soulbane_fear_enemydoor = calc(random(^soulbane_fear_holes) + 1);
+}
+if ($hole ! %soulbane_fear_enemydoor) {
+    mes("You peer into the hole. There's nothing in there.");
+    return;
+}
+npc_add(~soulbane_fear_hole_spot($hole), soulbane_fear_reaper, ^soulbane_npc_duration);
+npc_setmode(opplayer2);
 %soulbane_fear_monspres = ^soulbane_on;
-npc_add(^soulbane_fear_room, soulbane_fear_reaper, 500);
+mes("Something leaps out of the darkness at you!");
+
+[proc,soulbane_fear_hole_spot](int $hole)(coord)
+switch_int ($hole) {
+    case 1 : return(^soulbane_fear_hole1);
+    case 2 : return(^soulbane_fear_hole2);
+    case 3 : return(^soulbane_fear_hole3);
+    case 4 : return(^soulbane_fear_hole4);
+    case 5 : return(^soulbane_fear_hole5);
+}
+return(^soulbane_fear_hole6);
 
 [ai_queue3,soulbane_fear_reaper]
 gosub(npc_death);
 if (npc_findhero = ^false) {
     return;
 }
-if (p_finduid(uid) = false) {
-    return;
-}
 if (%soulbane_prog ! ^soulbane_fear) {
     return;
 }
 %soulbane_fear_monspres = ^soulbane_off;
-%soulbane_fear_killedtally = add(%soulbane_fear_killedtally, 1);
-if (%soulbane_fear_killedtally < ^soulbane_fear_needed) {
-    mes("Another one. There is always another one - that is rather the point of fear.");
-    npc_add(^soulbane_fear_room, soulbane_fear_reaper, 500);
-    %soulbane_fear_monspres = ^soulbane_on;
+queue(soulbane_fear_kill, 0, 0);
+
+// soulbane is a protected varp, so the tally is kept here on the player rather than in the
+// reaper's death trigger.
+[queue,soulbane_fear_kill](int $unused)
+if (%soulbane_prog ! ^soulbane_fear) {
+    return;
+}
+%soulbane_fear_killedtally = min(add(%soulbane_fear_killedtally, 1), ^soulbane_fear_needed);
+def_int $tally = %soulbane_fear_killedtally;
+// the next one hides somewhere else: any hole but this one
+def_int $next = calc(random(sub(^soulbane_fear_holes, 1)) + 1);
+if ($next >= %soulbane_fear_enemydoor) {
+    $next = add($next, 1);
+}
+%soulbane_fear_enemydoor = $next;
+switch_int ($tally) {
+    case 1 : mes("I really don't like looking in these holes... but I have to.");
+    case 2 : mes("I'm not feeling quite so frightened now.");
+    case 3 : mes("These holes aren't that scary after all.");
+    case 4 : mes("This really isn't so bad!");
+}
+if ($tally < ^soulbane_fear_needed) {
     return;
 }
 // [soulbane_fwall_exit_multi] is the ordinary way round: 0 closed, 1 open.
 %soulbane_fear_exitlit = ^soulbane_on;
 %soulbane_prog = ^soulbane_confusion;
 ~send_quest_progress(questlist:soulbane, %soulbane_prog, ^soulbane_complete);
-~mesbox("The last one does not come back, and there is a lit doorway where there was a wall.");
+~mesbox("Phew, I'm not scared any more. None of this feels real - it's more like something out of someone's nightmare. A black hole in the west wall is lit up now.");
 
 [oploc1,soulbane_fwall_exit_multi]
 p_arrivedelay;
 if (%soulbane_fear_exitlit = ^soulbane_off) {
-    ~mesbox("The doorway is dark and it stays dark while there is anything left in here to be afraid of.");
+    mes("There's no way you're going in there!");
     return;
 }
 if_close;
-mes("You step through.");
-p_delay(2);
+mes("You step into the black hole.");
+p_delay(1);
+~soulbane_enter_confusion;
+
+// =========================================================================== Confusion
+// Five confusion beasts, one of them real (soulbane_confu_creeper) and four illusions (fake1-4).
+// An illusion takes no damage and does none; eight hits and it fades (confu_hitcountN). The real
+// one's death makes one of the five confusing doors vanish, and a fresh five appear. When all five
+// have gone, the sixth door - the one left standing - is the way on.
+[proc,soulbane_enter_confusion]
 p_teleport(^soulbane_confu_room);
 ~soulbane_stock_confusion;
 
-// =========================================================================== Confusion
-// Five doors, five varbits, and every one of those shells declares multiloc=0 only - so the door
-// is drawn while its varbit is 0 and is gone once it is set. Opening one means setting it.
-[oploc1,soulbane_door_multi1] @soulbane_confu_door(1);
-[oploc1,soulbane_door_multi2] @soulbane_confu_door(2);
-[oploc1,soulbane_door_multi3] @soulbane_confu_door(3);
-[oploc1,soulbane_door_multi4] @soulbane_confu_door(4);
-[oploc1,soulbane_door_multi5] @soulbane_confu_door(5);
-
-[label,soulbane_confu_door](int $which)
-p_arrivedelay;
-if (~soulbane_door_open($which) = true) {
-    mes("That one is already open.");
+[proc,soulbane_stock_confusion]
+if (%soulbane_prog ! ^soulbane_confusion | %soulbane_confu_door6open = ^soulbane_on) {
     return;
 }
-if (~soulbane_confu_hits($which) < 4) {
-    ~mesbox("The door does not move. There are five of these things wearing the same face in here and only one of them is behind this door.");
+if (npc_find(^soulbane_confu_room, soulbane_confu_creeper, 30, ^vis_off) = true) {
     return;
 }
-@soulbane_open_door($which);
+~soulbane_confu_round;
 
-[proc,soulbane_door_open](int $which)(boolean)
+[proc,soulbane_confu_round]
+~soulbane_clear_type(^soulbane_confu_room, soulbane_confu_creeper_fake1, 30);
+~soulbane_clear_type(^soulbane_confu_room, soulbane_confu_creeper_fake2, 30);
+~soulbane_clear_type(^soulbane_confu_room, soulbane_confu_creeper_fake3, 30);
+~soulbane_clear_type(^soulbane_confu_room, soulbane_confu_creeper_fake4, 30);
+%soulbane_confu_hitcount1 = 0;
+%soulbane_confu_hitcount2 = 0;
+%soulbane_confu_hitcount3 = 0;
+%soulbane_confu_hitcount4 = 0;
+// the real one takes a different spot each round, and the illusions the rest
+def_int $real = random(5);
+npc_add(~soulbane_confu_spot($real), soulbane_confu_creeper, ^soulbane_npc_duration);
+npc_add(~soulbane_confu_spot(modulo(add($real, 1), 5)), soulbane_confu_creeper_fake1, ^soulbane_npc_duration);
+npc_add(~soulbane_confu_spot(modulo(add($real, 2), 5)), soulbane_confu_creeper_fake2, ^soulbane_npc_duration);
+npc_add(~soulbane_confu_spot(modulo(add($real, 3), 5)), soulbane_confu_creeper_fake3, ^soulbane_npc_duration);
+npc_add(~soulbane_confu_spot(modulo(add($real, 4), 5)), soulbane_confu_creeper_fake4, ^soulbane_npc_duration);
+
+[proc,soulbane_confu_spot](int $i)(coord)
+switch_int ($i) {
+    case 0 : return(^soulbane_confu_spot1);
+    case 1 : return(^soulbane_confu_spot2);
+    case 2 : return(^soulbane_confu_spot3);
+    case 3 : return(^soulbane_confu_spot4);
+}
+return(^soulbane_confu_spot5);
+
+[ai_queue2,soulbane_confu_creeper_fake1] ~soulbane_confu_illusion_hit(1);
+[ai_queue2,soulbane_confu_creeper_fake2] ~soulbane_confu_illusion_hit(2);
+[ai_queue2,soulbane_confu_creeper_fake3] ~soulbane_confu_illusion_hit(3);
+[ai_queue2,soulbane_confu_creeper_fake4] ~soulbane_confu_illusion_hit(4);
+
+[proc,soulbane_confu_illusion_hit](int $which)
+~npc_default_damage(0);
+if (finduid(%npc_aggressive_player) = false) {
+    return;
+}
+def_int $hits = add(~soulbane_confu_hits($which), 1);
 switch_int ($which) {
-    case 1 : if (%soulbane_confu_door1pres = ^soulbane_on) { return(true); }
-    case 2 : if (%soulbane_confu_door2pres = ^soulbane_on) { return(true); }
-    case 3 : if (%soulbane_confu_door3pres = ^soulbane_on) { return(true); }
-    case 4 : if (%soulbane_confu_door4pres = ^soulbane_on) { return(true); }
-    case 5 : if (%soulbane_confu_door5pres = ^soulbane_on) { return(true); }
+    case 1 : %soulbane_confu_hitcount1 = min($hits, 15);
+    case 2 : %soulbane_confu_hitcount2 = min($hits, 15);
+    case 3 : %soulbane_confu_hitcount3 = min($hits, 15);
+    case 4 : %soulbane_confu_hitcount4 = min($hits, 15);
 }
-return(false);
+if ($hits >= ^soulbane_confu_illusion_hits) {
+    mes("The beast fades away - it was only an illusion!");
+    npc_setmode(none);
+    npc_del;
+}
 
-// Four hit counters for five doors, because the fifth is the one the cache never gave a counter -
-// it is opened by the other four being done, which is also the only reading that uses all of them.
 [proc,soulbane_confu_hits](int $which)(int)
 switch_int ($which) {
     case 1 : return(%soulbane_confu_hitcount1);
     case 2 : return(%soulbane_confu_hitcount2);
     case 3 : return(%soulbane_confu_hitcount3);
-    case 4 : return(%soulbane_confu_hitcount4);
-    case 5 : return(~soulbane_confu_done_count);
 }
-return(0);
+return(%soulbane_confu_hitcount4);
 
-[proc,soulbane_confu_done_count]()(int)
+// An illusion swings, but nothing it does lands.
+[ai_opplayer2,soulbane_confu_creeper_fake1] ~soulbane_confu_illusion_attack;
+[ai_opplayer2,soulbane_confu_creeper_fake2] ~soulbane_confu_illusion_attack;
+[ai_opplayer2,soulbane_confu_creeper_fake3] ~soulbane_confu_illusion_attack;
+[ai_opplayer2,soulbane_confu_creeper_fake4] ~soulbane_confu_illusion_attack;
+
+[proc,soulbane_confu_illusion_attack]
+if (%death = ^true) {
+    npc_setmode(null);
+    return;
+}
+if (%npc_action_delay > map_clock) return;
+if (~npc_check_notcombat = false) {
+    npc_setmode(null);
+    return;
+}
+if (~npc_check_notcombat_self = false) {
+    return;
+}
+anim(%com_defendanim, 0);
+npc_anim(npc_param(attack_anim), 0);
+~playerhit_n_melee(0, npc_param(attackrate));
+
+[ai_queue3,soulbane_confu_creeper_fake1] gosub(npc_death);
+[ai_queue3,soulbane_confu_creeper_fake2] gosub(npc_death);
+[ai_queue3,soulbane_confu_creeper_fake3] gosub(npc_death);
+[ai_queue3,soulbane_confu_creeper_fake4] gosub(npc_death);
+
+[ai_queue3,soulbane_confu_creeper]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+if (%soulbane_prog ! ^soulbane_confusion) {
+    return;
+}
+queue(soulbane_confu_kill, 2, 0);
+
+// the next door in line vanishes (the shells draw a door only while their varbit is 0)
+[queue,soulbane_confu_kill](int $unused)
+if (%soulbane_prog ! ^soulbane_confusion) {
+    return;
+}
+if (%soulbane_confu_door1pres = ^soulbane_off) {
+    %soulbane_confu_door1pres = ^soulbane_on;
+} else if (%soulbane_confu_door2pres = ^soulbane_off) {
+    %soulbane_confu_door2pres = ^soulbane_on;
+} else if (%soulbane_confu_door3pres = ^soulbane_off) {
+    %soulbane_confu_door3pres = ^soulbane_on;
+} else if (%soulbane_confu_door4pres = ^soulbane_off) {
+    %soulbane_confu_door4pres = ^soulbane_on;
+} else {
+    %soulbane_confu_door5pres = ^soulbane_on;
+}
+~soulbane_confu_progress(~soulbane_confu_doors_gone);
+
+[proc,soulbane_confu_doors_gone]()(int)
 def_int $n = 0;
 if (%soulbane_confu_door1pres = ^soulbane_on) { $n = calc($n + 1); }
 if (%soulbane_confu_door2pres = ^soulbane_on) { $n = calc($n + 1); }
 if (%soulbane_confu_door3pres = ^soulbane_on) { $n = calc($n + 1); }
 if (%soulbane_confu_door4pres = ^soulbane_on) { $n = calc($n + 1); }
+if (%soulbane_confu_door5pres = ^soulbane_on) { $n = calc($n + 1); }
 return($n);
 
-[label,soulbane_open_door](int $which)
-switch_int ($which) {
-    case 1 : %soulbane_confu_door1pres = ^soulbane_on;
-    case 2 : %soulbane_confu_door2pres = ^soulbane_on;
-    case 3 : %soulbane_confu_door3pres = ^soulbane_on;
-    case 4 : %soulbane_confu_door4pres = ^soulbane_on;
-    case 5 : %soulbane_confu_door5pres = ^soulbane_on;
-}
-mes("The door goes, and so does the thing that was pretending to be a door.");
-if (~soulbane_confu_done_count < 4) {
+[proc,soulbane_confu_progress](int $gone)
+if ($gone < ^soulbane_confu_doors) {
+    mes("One of the doors vanishes, and the beasts appear again.");
+    ~soulbane_confu_round;
     return;
 }
-if (%soulbane_confu_door5pres ! ^soulbane_on) {
-    return;
-}
+~soulbane_clear_type(^soulbane_confu_room, soulbane_confu_creeper_fake1, 30);
+~soulbane_clear_type(^soulbane_confu_room, soulbane_confu_creeper_fake2, 30);
+~soulbane_clear_type(^soulbane_confu_room, soulbane_confu_creeper_fake3, 30);
+~soulbane_clear_type(^soulbane_confu_room, soulbane_confu_creeper_fake4, 30);
 %soulbane_confu_door6open = ^soulbane_on;
 %soulbane_prog = ^soulbane_hopelessness;
 ~send_quest_progress(questlist:soulbane, %soulbane_prog, ^soulbane_complete);
-~mesbox("The sixth door - the real one, the one that has been in the same place the whole time - opens.");
+~mesbox("The last of the false doors vanishes. Only one door is left - that must be the way on.");
 
-[proc,soulbane_stock_confusion]
-if (%soulbane_prog ! ^soulbane_confusion) {
-    return;
-}
-npc_add(^soulbane_confu_room, soulbane_confu_creeper, 500);
-npc_add(movecoord(^soulbane_confu_room, 3, 0, 0), soulbane_confu_creeper_fake1, 500);
-npc_add(movecoord(^soulbane_confu_room, 0, 0, 3), soulbane_confu_creeper_fake2, 500);
-npc_add(movecoord(^soulbane_confu_room, calc(0 - 3), 0, 0), soulbane_confu_creeper_fake3, 500);
-npc_add(movecoord(^soulbane_confu_room, 0, 0, calc(0 - 3)), soulbane_confu_creeper_fake4, 500);
+[oploc1,soulbane_door_multi1] @soulbane_confu_false_door;
+[oploc1,soulbane_door_multi2] @soulbane_confu_false_door;
+[oploc1,soulbane_door_multi3] @soulbane_confu_false_door;
+[oploc1,soulbane_door_multi4] @soulbane_confu_false_door;
+[oploc1,soulbane_door_multi5] @soulbane_confu_false_door;
 
-// Putting one down credits the door it was guarding. The fakes are worth exactly as much as the
-// real one, which is the joke the room is built on.
-[ai_queue3,soulbane_confu_creeper] @soulbane_confu_death(1);
-[ai_queue3,soulbane_confu_creeper_fake1] @soulbane_confu_death(1);
-[ai_queue3,soulbane_confu_creeper_fake2] @soulbane_confu_death(2);
-[ai_queue3,soulbane_confu_creeper_fake3] @soulbane_confu_death(3);
-[ai_queue3,soulbane_confu_creeper_fake4] @soulbane_confu_death(4);
-
-[label,soulbane_confu_death](int $which)
-gosub(npc_death);
-if (npc_findhero = ^false) {
-    return;
-}
-if (p_finduid(uid) = false) {
-    return;
-}
-@soulbane_confu_kill($which);
-
-[label,soulbane_confu_kill](int $which)
-if (%soulbane_prog ! ^soulbane_confusion) {
-    return;
-}
-switch_int ($which) {
-    case 1 : %soulbane_confu_hitcount1 = 4;
-    case 2 : %soulbane_confu_hitcount2 = 4;
-    case 3 : %soulbane_confu_hitcount3 = 4;
-    case 4 : %soulbane_confu_hitcount4 = 4;
-}
-mes("It stops pretending and goes.");
+[label,soulbane_confu_false_door]
+p_arrivedelay;
+mes("The door won't open. You're not even sure it's really there.");
 
 [oploc1,soulbane_door_multi6]
 p_arrivedelay;
 if (%soulbane_confu_door6open = ^soulbane_off) {
-    ~mesbox("This one does not open until the other five have stopped arguing about which of them is real.");
+    mes("The door won't open. You're not even sure it's really there.");
     return;
 }
 if_close;
-mes("You step through.");
-p_delay(2);
+mes("You step through the door.");
+p_delay(1);
+~soulbane_enter_hope;
+
+// =========================================================================== Hopelessness
+// Five hopeless creatures, each of which has to be put down three times: form 1
+// (soulbane_hope_monst3, full size, fights from range), then smaller and smaller (monst2, monst1).
+// hope_killedtally counts form kills, 15 in all. Then the Bridge of Hope, and the way on beyond it.
+[proc,soulbane_enter_hope]
 p_teleport(^soulbane_hope_room);
 ~soulbane_stock_hope;
 
-// =========================================================================== Hopelessness
 [proc,soulbane_stock_hope]
-if (%soulbane_hope_killedtally >= ^soulbane_hope_needed) {
+if (%soulbane_prog ! ^soulbane_hopelessness) {
     return;
 }
-npc_add(^soulbane_hope_room, soulbane_hope_monst1, 500);
-npc_add(movecoord(^soulbane_hope_room, 2, 0, 0), soulbane_hope_monst2, 500);
-npc_add(movecoord(^soulbane_hope_room, 0, 0, 2), soulbane_hope_monst3, 500);
+if (npc_find(^soulbane_hope_room, soulbane_hope_monst3, 30, ^vis_off) = true
+    | npc_find(^soulbane_hope_room, soulbane_hope_monst2, 30, ^vis_off) = true
+    | npc_find(^soulbane_hope_room, soulbane_hope_monst1, 30, ^vis_off) = true) {
+    return;
+}
+npc_add(^soulbane_hope_spot1, soulbane_hope_monst3, ^soulbane_npc_duration);
+npc_add(^soulbane_hope_spot2, soulbane_hope_monst3, ^soulbane_npc_duration);
+npc_add(^soulbane_hope_spot3, soulbane_hope_monst3, ^soulbane_npc_duration);
+npc_add(^soulbane_hope_spot4, soulbane_hope_monst3, ^soulbane_npc_duration);
+npc_add(^soulbane_hope_spot5, soulbane_hope_monst3, ^soulbane_npc_duration);
 
-[ai_queue3,soulbane_hope_monst1] @soulbane_hope_death;
-[ai_queue3,soulbane_hope_monst2] @soulbane_hope_death;
-[ai_queue3,soulbane_hope_monst3] @soulbane_hope_death;
+// form 1 fights from range
+[ai_opplayer2,soulbane_hope_monst3] npc_setmode(applayer2);
+[ai_applayer2,soulbane_hope_monst3] ~npc_rangeattack;
 
-[label,soulbane_hope_death]
+[ai_queue3,soulbane_hope_monst3] @soulbane_hope_death(soulbane_hope_monst2);
+[ai_queue3,soulbane_hope_monst2] @soulbane_hope_death(soulbane_hope_monst1);
+[ai_queue3,soulbane_hope_monst1] @soulbane_hope_death(null);
+
+[label,soulbane_hope_death](npc $next)
+def_coord $at = npc_coord;
 gosub(npc_death);
 if (npc_findhero = ^false) {
     return;
 }
-if (p_finduid(uid) = false) {
-    return;
-}
-@soulbane_hope_kill;
-
-[label,soulbane_hope_kill]
 if (%soulbane_prog ! ^soulbane_hopelessness) {
     return;
 }
-%soulbane_hope_killedtally = add(%soulbane_hope_killedtally, 1);
-// soulbane_hope_monmes is four bits and the creatures are the only thing in the room that says
-// anything, so it is which of them has spoken to you - once each, in order, as they go down.
-if (%soulbane_hope_monmes < 3) {
-    %soulbane_hope_monmes = add(%soulbane_hope_monmes, 1);
-    switch_int (%soulbane_hope_monmes) {
-        case 1 : ~mesbox("It says: there is no point to this. It says it while dying, which rather undermines it.");
-        case 2 : ~mesbox("It says: he has been in here eleven years and nobody came.");
-        case 3 : ~mesbox("It says: you will not reach him either. Then it stops saying anything.");
-    }
+if ($next ! null & add(%soulbane_hope_killedtally, 1) < ^soulbane_hope_needed) {
+    // it shrinks and comes again
+    npc_add($at, $next, ^soulbane_npc_duration);
+    npc_setmode(opplayer2);
 }
-if (%soulbane_hope_killedtally < ^soulbane_hope_needed) {
-    npc_add(^soulbane_hope_room, soulbane_hope_monst1, 500);
+queue(soulbane_hope_kill, 0, 0);
+
+// soulbane is a protected varp: the tally is kept on the player, not in the death trigger
+[queue,soulbane_hope_kill](int $unused)
+if (%soulbane_prog ! ^soulbane_hopelessness) {
     return;
 }
+%soulbane_hope_killedtally = min(add(%soulbane_hope_killedtally, 1), ^soulbane_hope_needed);
+def_int $tally = %soulbane_hope_killedtally;
+if ($tally < ^soulbane_hope_needed) {
+    // soulbane_hope_monmes is which of the creatures' taunts you have heard, once each
+    if (%soulbane_hope_monmes < 3 & $tally >= multiply(add(%soulbane_hope_monmes, 1), 4)) {
+        %soulbane_hope_monmes = add(%soulbane_hope_monmes, 1);
+        switch_int (%soulbane_hope_monmes) {
+            case 1 : mes("A voice in your head whispers: there's no point. You'll never find him.");
+            case 2 : mes("A voice in your head whispers: give up. Everyone else did.");
+            case 3 : mes("A voice in your head whispers: even if you find him, it's too late.");
+        }
+    }
+    return;
+}
+~soulbane_clear_type(^soulbane_hope_room, soulbane_hope_monst3, 30);
+~soulbane_clear_type(^soulbane_hope_room, soulbane_hope_monst2, 30);
+~soulbane_clear_type(^soulbane_hope_room, soulbane_hope_monst1, 30);
 %soulbane_hope_bridgepres = ^soulbane_on;
 %soulbane_prog = ^soulbane_tolna;
 ~send_quest_progress(questlist:soulbane, %soulbane_prog, ^soulbane_complete);
-~mesbox("The bridge across the gap is suddenly a thing you can see, and you get the strong impression it has been there the whole time.");
-// The bridge is fourteen pieces of scenery and not one of them carries an op, so the crossing is
-// made rather than offered - there is nothing on it to click and nothing to walk into if the far
-// side is not where the map says it is.
+~mesbox("The last of the creatures is gone, and a bridge has appeared across the chasm. A bridge of hope, perhaps.");
+
+// soul_bane_hwall_void_exit, on the far side of the bridge: "I think it's the forward."
+[oploc1,soul_bane_hwall_void_exit]
+p_arrivedelay;
+if (%soulbane_prog < ^soulbane_tolna) {
+    mes("What's the point? You'll never get anywhere in here.");
+    return;
+}
+if_close;
+mes("You squeeze through into the passage.");
+p_delay(1);
+~soulbane_enter_tolna;
+
+// =========================================================================== Tolna
+// Three heads at once in a multicombat room (maps/multiway.csv), then Tolna himself, and Brana.
+[proc,soulbane_enter_tolna]
 p_teleport(^soulbane_tolna_room);
 ~soulbane_stock_tolna;
 
-// =========================================================================== Tolna
 [proc,soulbane_stock_tolna]
 if (%soulbane_prog ! ^soulbane_tolna) {
     return;
 }
-if (%soulbane_final_tol1dead = ^soulbane_off) {
-    npc_add(^soulbane_tolna_room, soulbane_final_tolna1, 500);
+~soulbane_spawn_once(^soulbane_brana_spot, soulbane_brana, 20);
+if (~soulbane_heads_dead = true) {
+    ~soulbane_spawn_once(^soulbane_tolna_spot, soulbane_tolna_top, 20);
     return;
+}
+if (%soulbane_final_tol1dead = ^soulbane_off) {
+    ~soulbane_spawn_once(^soulbane_tolna_head1_spot, soulbane_final_tolna1, 20);
 }
 if (%soulbane_final_tol2dead = ^soulbane_off) {
-    npc_add(^soulbane_tolna_room, soulbane_final_tolna2, 500);
-    return;
+    ~soulbane_spawn_once(^soulbane_tolna_head2_spot, soulbane_final_tolna2, 20);
 }
 if (%soulbane_final_tol3dead = ^soulbane_off) {
-    npc_add(^soulbane_tolna_room, soulbane_final_tolna3, 500);
+    ~soulbane_spawn_once(^soulbane_tolna_head3_spot, soulbane_final_tolna3, 20);
 }
 
-[ai_queue3,soulbane_final_tolna1]
+[proc,soulbane_heads_dead]()(boolean)
+if (%soulbane_final_tol1dead = ^soulbane_on & %soulbane_final_tol2dead = ^soulbane_on & %soulbane_final_tol3dead = ^soulbane_on) {
+    return(true);
+}
+return(false);
+
+// The heads never move: they shoot from where they are, and the northern one bites anyone who
+// comes close. Attack speeds are OSRS's: southern 7 ranged / 8 melee, eastern 5 ranged only,
+// northern 20 ranged / 3 melee.
+[ai_opplayer2,soulbane_final_tolna1] npc_setmode(applayer2);
+[ai_opplayer2,soulbane_final_tolna2] npc_setmode(applayer2);
+[ai_opplayer2,soulbane_final_tolna3] npc_setmode(applayer2);
+[ai_applayer2,soulbane_final_tolna1] ~soulbane_head_attack(8, 7);
+[ai_applayer2,soulbane_final_tolna2] ~soulbane_head_attack(0, 5);
+[ai_applayer2,soulbane_final_tolna3] ~soulbane_head_attack(3, 20);
+
+[proc,soulbane_head_attack](int $melee_rate, int $range_rate)
+if (%death = ^true) {
+    npc_setmode(null);
+    return;
+}
+if (%npc_action_delay > map_clock) {
+    return;
+}
+if ($melee_rate > 0 & npc_range(coord) <= 1) {
+    if (~npc_check_notcombat = false) {
+        npc_setmode(null);
+        return;
+    }
+    if (~npc_check_notcombat_self = false) {
+        return;
+    }
+    anim(%com_defendanim, 0);
+    npc_anim(neckattack, 0);
+    ~npc_meleeattack;
+    %npc_action_delay = add(map_clock, $melee_rate);
+    return;
+}
+def_int $before = %npc_action_delay;
+~npc_rangeattack;
+if (%npc_action_delay ! $before) {
+    %npc_action_delay = add(map_clock, $range_rate);
+}
+
+[ai_queue3,soulbane_final_tolna1] @soulbane_head_death(1);
+[ai_queue3,soulbane_final_tolna2] @soulbane_head_death(2);
+[ai_queue3,soulbane_final_tolna3] @soulbane_head_death(3);
+
+[label,soulbane_head_death](int $head)
 gosub(npc_death);
 if (npc_findhero = ^false) {
     return;
 }
-if (p_finduid(uid) = false) {
+if (%soulbane_prog ! ^soulbane_tolna) {
     return;
 }
-if (%soulbane_prog ! ^soulbane_tolna) { return; }
-%soulbane_final_tol1dead = ^soulbane_on;
-~mesbox("It comes apart and stands up again as something else. That was the anger.");
-npc_add(^soulbane_tolna_room, soulbane_final_tolna2, 500);
+queue(soulbane_head_kill, 0, $head);
 
-[ai_queue3,soulbane_final_tolna2]
-gosub(npc_death);
-if (npc_findhero = ^false) {
+[queue,soulbane_head_kill](int $head)
+if (%soulbane_prog ! ^soulbane_tolna) {
     return;
 }
-if (p_finduid(uid) = false) {
+switch_int ($head) {
+    case 1 : %soulbane_final_tol1dead = ^soulbane_on;
+    case 2 : %soulbane_final_tol2dead = ^soulbane_on;
+    case 3 : %soulbane_final_tol3dead = ^soulbane_on;
+}
+if (~soulbane_heads_dead = false) {
+    mes("One of the heads falls limp.");
     return;
 }
-if (%soulbane_prog ! ^soulbane_tolna) { return; }
-%soulbane_final_tol2dead = ^soulbane_on;
-~mesbox("And again. That was the fear.");
-npc_add(^soulbane_tolna_room, soulbane_final_tolna3, 500);
+p_delay(1);
+~soulbane_spawn_once(^soulbane_tolna_spot, soulbane_tolna_top, 20);
+~mesbox("The last head falls, and the creature shrinks away to nothing. In its place stands a man.");
 
-[ai_queue3,soulbane_final_tolna3]
-gosub(npc_death);
-if (npc_findhero = ^false) {
+// Tolna in the rift, himself again. Talking to him takes the three of you back up; the quest is
+// finished beside the rift, where [soulbane_tolna_multi] now shows him (soulbane_tolna_pres).
+[opnpc1,soulbane_tolna_top]
+if (%soulbane_prog ! ^soulbane_tolna | ~soulbane_heads_dead = false) {
+    ~chatnpc("<p,neutral>Let's get out of this place.");
     return;
 }
-if (p_finduid(uid) = false) {
-    return;
-}
-if (%soulbane_prog ! ^soulbane_tolna) { return; }
-%soulbane_final_tol3dead = ^soulbane_on;
-// [soulbane_tolna_multi] renders soulbane_tolna_top at 1 and at no other value, so this is the
-// write that puts a boy on the grass beside the rift.
-//
-// soulbane_launa_pres is left at 0 throughout and is the one varbit in the quest nothing uses.
-// Its shell is multinpc=0 only, so setting it would DELETE Launa - and the only moment that could
-// mean anything is this one, where taking the sister away the second the brother arrives is
-// exactly the wrong ending.
+~chatnpc("<p,sad>Father... I'm sorry. I don't know what came over me. Something down here got inside my head.");
+~chatnpc_specific("Brana", soulbane_brana, "<p,neutral>It doesn't matter now, son. You're you again. Let's go home to your mother.");
+~chatplayer("<p,happy>Launa is waiting for you both at the top.");
+~chatnpc("<p,neutral>Then let's not keep her waiting any longer.");
+if_close;
+%soulbane_final_seencut = ^soulbane_on;
 %soulbane_tolna_pres = ^soulbane_on;
-%soulbane_riftrope_pres = ^soulbane_on;
-~mesbox("The third one does not stand up. The room stops being a room, and you are holding a rope you do not remember taking hold of.");
+mes("You all climb back up to the surface together.");
+p_delay(2);
 p_teleport(^soulbane_surface_land);
-~mesbox("Launa is not where you left her, because she is halfway across the grass to a boy who is sitting up.");
+
+[opnpc1,soulbane_brana]
+if (%soulbane_prog = ^soulbane_tolna & ~soulbane_heads_dead = false) {
+    ~chatnpc("<p,shock>That thing... it's my son. Please, you have to stop him - but don't hurt him!");
+    return;
+}
+~chatnpc("<p,happy>Thank you. I never thought I'd see my boy again.");

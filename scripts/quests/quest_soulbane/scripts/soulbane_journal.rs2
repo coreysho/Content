@@ -4,49 +4,57 @@ def_string $text;
 switch_int (%soulbane_prog) {
     case ^soulbane_not_started :
         $text = "@dbl@I can start this quest by speaking to @dre@Launa@dbl@ beside|";
-        $text = append($text, "@dbl@the @dre@rift@dbl@ east of @dre@Varrock");
+        $text = append($text, "@dbl@the @dre@rift@dbl@ east of @dre@Varrock@dbl@.||");
+        $text = append($text, "@dbl@I will need a @dre@rope@dbl@ and to be able to defeat level 46 monsters");
 
     case ^soulbane_asked :
-        $text = "@str@The rift opened eleven years ago with Launa's brother|";
-        $text = append($text, "@str@Tolna standing where it opened. It is not a place he is|");
-        $text = append($text, "@str@in - it is what is left of him.|");
-        $text = append($text, "@dbl@Launa has fixed a @dre@rope@dbl@ to the edge");
+        $text = "@str@Launa's son Tolna vanished twenty-five years ago, and her|";
+        $text = append($text, "@str@husband Brana climbed into the rift after him days ago.|");
+        if (%soulbane_riftrope_pres = ^soulbane_off) {
+            $text = append($text, "@dbl@I should tie a @dre@rope@dbl@ to the edge of the @dre@rift@dbl@ and climb down");
+        } else {
+            $text = append($text, "@dbl@My rope is tied to the @dre@rift@dbl@. Time to climb down");
+        }
 
     case ^soulbane_anger :
-        $text = "@str@A red room with a weapon rack and a wall of fire where the|";
-        $text = append($text, "@str@door should be.|");
-        $text = append($text, "@dbl@Take @dre@one weapon@dbl@ from the rack - only one - and put down|");
-        $text = append($text, "@dbl@what is in here until there is nothing left to be angry at");
+        $text = "@str@Launa's son and husband are somewhere down the rift.|";
+        $text = append($text, "@str@I climbed down into a cave full of furious creatures.|");
+        $text = append($text, "@dbl@Each weapon on the @dre@rack@dbl@ only harms one kind of creature.|");
+        $text = append($text, "@dbl@I must vent my @dre@rage@dbl@ on them until it boils over");
 
     case ^soulbane_fear :
-        $text = "@str@The fire went out. The next room has something in it that|";
-        $text = append($text, "@str@keeps coming back.|");
-        $text = append($text, "@dbl@Put down @dre@<tostring(^soulbane_fear_needed)> reapers@dbl@ and the doorway lights");
+        $text = "@str@I let out my rage and the fire in the doorway went out.|";
+        $text = append($text, "@dbl@The next cave is lined with @dre@dark holes@dbl@, and something|");
+        $text = append($text, "@dbl@lurks in one of them. I must face @dre@<tostring(^soulbane_fear_needed)> fear reapers@dbl@ to|");
+        $text = append($text, "@dbl@conquer my fear");
 
     case ^soulbane_confusion :
-        $text = "@str@Six doors, five of them wearing the same face, and five|";
-        $text = append($text, "@str@creatures doing the same.|");
-        $text = append($text, "@dbl@Each door opens when the thing guarding it is down. The|");
-        $text = append($text, "@dbl@@dre@sixth@dbl@ opens when the other five agree on which is real");
+        $text = "@str@I conquered my fear and passed through the black hole.|";
+        $text = append($text, "@dbl@Only one of the @dre@confusion beasts@dbl@ here is real at a time.|");
+        $text = append($text, "@dbl@Each time I kill the real one a @dre@door@dbl@ vanishes. The last|");
+        $text = append($text, "@dbl@door standing will be the way on");
 
     case ^soulbane_hopelessness :
-        $text = "@str@A gap with no bridge, and things in here that would rather|";
-        $text = append($text, "@str@talk than fight.|");
-        $text = append($text, "@dbl@Put down @dre@<tostring(^soulbane_hope_needed)> of them@dbl@ and the bridge turns out to have|");
-        $text = append($text, "@dbl@been there the whole time");
+        $text = "@str@I found the one real door out of the confusing room.|";
+        $text = append($text, "@dbl@The @dre@hopeless creatures@dbl@ here have to be killed three|");
+        $text = append($text, "@dbl@times each before there is any hope of crossing the chasm");
 
     case ^soulbane_tolna :
-        $text = "@str@Across the bridge is the last of him, and there are three|";
-        $text = append($text, "@str@of it.|");
-        $text = append($text, "@dbl@Launa said to @dre@say his name@dbl@ at the end. He was eight.");
+        $text = "@str@A bridge appeared across the chasm and I crossed it.|";
+        if (%soulbane_tolna_pres = ^soulbane_on) {
+            $text = append($text, "@str@I freed Tolna and we climbed out of the rift with Brana.|");
+            $text = append($text, "@dbl@I should talk to @dre@Tolna@dbl@ beside the rift");
+        } else {
+            $text = append($text, "@dbl@A three-headed beast guards the last room. I must defeat|");
+            $text = append($text, "@dbl@all three @dre@heads@dbl@, then talk to @dre@Tolna");
+        }
 
     case ^soulbane_complete :
-        $text = "@str@The rift east of Varrock was an eight-year-old boy with|";
-        $text = append($text, "@str@everything good taken out, left to get bigger for eleven|");
-        $text = append($text, "@str@years while his sister sat on the grass beside it.|");
-        $text = append($text, "@str@I went through his anger, his fear, his confusion and his|");
-        $text = append($text, "@str@hopelessness, and at the bottom of all four there was still|");
-        $text = append($text, "@str@a Tolna to say the name to.||");
+        $text = "@str@Launa's son Tolna had been trapped in the rift for|";
+        $text = append($text, "@str@twenty-five years, twisted by something ancient into his|");
+        $text = append($text, "@str@own rage, fear, confusion and hopelessness. I fought my|");
+        $text = append($text, "@str@way through all four and brought him and his father Brana|");
+        $text = append($text, "@str@home to Launa.||");
         $text = append($text, "@red@QUEST COMPLETE!");
 
     case default :

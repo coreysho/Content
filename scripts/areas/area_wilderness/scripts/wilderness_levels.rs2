@@ -4,6 +4,10 @@
 [proc,wilderness_level](coord $coord)(int)
 def_coord $coord1;
 def_coord $coord2;
+// Underground pockets inside the rectangles that are not Wilderness at all (wilderness_zones.dbrow).
+if (~inzone_coord_pair_table(wilderness_excluded_zones, $coord) = true) {
+    return(0);
+}
 def_int $i = 0;
 while($i < db_getfieldcount(wilderness_zones, coord_pair_table:coord_pair)) {
     $coord1, $coord2 = db_getfield(wilderness_zones, coord_pair_table:coord_pair, $i);
