@@ -172,6 +172,11 @@ def_int $fare = ~charter_fare(%charter_origin, $to);
 if ($fare = -1) {
     return;
 }
+// and only ports your quests have opened - the map hides the others, and this refuses them too, so
+// a quest port is never reached on a hidden button alone
+if (~charter_can_sail($to) = false) {
+    return;
+}
 def_string $name = enum(int, string, charter_port_name, $to);
 switch_int (~p_choice3_header("Okay", 1, "Choose again", 2, "Cancel", 3, "Sailing to <$name> costs <tostring($fare)> coins.")) {
     case 1 :
