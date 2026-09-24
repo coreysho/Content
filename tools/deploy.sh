@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy the Lost City server. Put this at /opt/lostcity/deploy.sh and use it instead of
+# Deploy the Death Plateau server. Link it as /opt/deathplateau/deploy.sh and use it instead of
 # the by-hand chain - every step below exists because leaving it out broke something.
 #
 #   ./deploy.sh            normal deploy
@@ -11,17 +11,21 @@ set -euo pipefail
 # bash reads a script lazily, so a file that changes mid-run has undefined behaviour -
 # re-exec from a private copy first.
 if [ "${DEPLOY_REEXEC:-}" != "1" ]; then
-    SELF_COPY=$(mktemp /tmp/lostcity-deploy.XXXXXX.sh)
+    SELF_COPY=$(mktemp /tmp/deathplateau-deploy.XXXXXX.sh)
     cp "$0" "$SELF_COPY"
     trap 'rm -f "$SELF_COPY"' EXIT
     DEPLOY_REEXEC=1 exec bash "$SELF_COPY" "$@"
 fi
 
-ROOT=/opt/lostcity
+# /opt/deathplateau and deathplateau.service since the server was named (2026-09-23); a server not
+# yet moved over still has /opt/lostcity and lostcity.service, and deploys the same.
+ROOT=/opt/deathplateau
+[ -d "$ROOT" ] || ROOT=/opt/lostcity
 CONTENT=$ROOT/content
 ENGINE=$ROOT/engine
 BRANCH=377-wip
-SERVICE=lostcity.service
+SERVICE=deathplateau.service
+systemctl cat "$SERVICE" >/dev/null 2>&1 || SERVICE=lostcity.service
 KEEP_BACKUPS=10
 
 say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
