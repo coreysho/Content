@@ -229,30 +229,20 @@ _open = nocomment(RS2).split('[proc,boss_kills_open]', 1)[1].split('\n[', 1)[0] 
     if '[proc,boss_kills_open]' in nocomment(RS2) else ''
 check('if_openmain(boss_kills);' in _open,
       'the opener opens the window')
-_sets = re.findall(r'if_settext\(boss_kills:count(\d+), tostring\(~boss_kill_get\((\d+)\)\)\);',
+_sets = re.findall(r'~boss_kills_count\(boss_kills:count(\d+), ~boss_kill_get\((\d+)\)\)',
                    _open)
 check([(str(i), str(i)) for i in range(len(B))] == _sets,
-      '...and pushes all twelve counts into their own rows, in (component, text) order - the '
-      'other way round is a build error, which is how the generator found out: %d of %d'
+      '...and pushes every count into its own box, the right count to the right box: %d of %d'
       % (len(_sets), len(B)))
-check(nocomment(RS2).count('[if_button,questlist:boss_kills]') == 1,
-      'and the quest list row has exactly one trigger behind it')
-check('boss_kills' in QL and QL['boss_kills'].get('layer') == ['com_0'],
-      "the row is a child of the quest list's scrolling layer, like every quest row")
-check(QLRAW.count('\n[boss_kills]\n') == 1,
-      'and there is exactly ONE of it - the generator appended a second on its first re-run and '
-      'the packer caught it: %d' % QLRAW.count('\n[boss_kills]\n'))
-_rowy = int(QL['boss_kills']['y'][0])
-_scroll = int(blocks(QLRAW)['com_0']['scroll'][0])
-check(_scroll >= _rowy + 14,
-      'and the layer scrolls far enough to reach it: scroll=%d against a row at y=%d'
-      % (_scroll, _rowy))
-# The collection log's row is not a quest: tools/gencollectionlog.py hangs it under this one on purpose.
-_ys = [int(f['y'][0]) for n, f in QL.items()
-       if f.get('layer') == ['com_0'] and f.get('y') and n not in ('boss_kills', 'collection_log')]
-check(_rowy > max(_ys),
-      '...and it sits below every quest already there, so nothing moved: y=%d against a last '
-      'quest at y=%d' % (_rowy, max(_ys)))
+check('if_settext(boss_kills:subtitle,' in _open and '$total' in _open,
+      '...and the total of them into the subtitle')
+# The window opens from the quest tab's Server Statistics page now; the quest list is quests only.
+check('[if_button,questlist:boss_kills]' not in nocomment(RS2) and 'boss_kills' not in QL
+      and '\n[boss_kills]\n' not in QLRAW,
+      'the quest list has no "Boss kill counts" row and no trigger for one')
+_qt = read(os.path.join(C, 'scripts/questtab/scripts/questtab.rs2'))
+check(re.search(r'\[if_button,questtab_sstats:act_bosses\]\s*~boss_kills_open;', _qt) is not None,
+      "Server Statistics' Quick actions open the window")
 
 print('7. the generator reproduces what is checked in')
 r = subprocess.run([sys.executable, os.path.join(C, 'tools/genbosskills.py'), '--check'],

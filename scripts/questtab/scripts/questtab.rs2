@@ -26,7 +26,10 @@ switch_int (%questtab_page) {
     case ^questtab_collection : ~questtab_collection_draw;
     case ^questtab_pstats : ~questtab_pstats_draw;
     case ^questtab_sstats : ~questtab_sstats_draw;
-    // the quest list draws itself: its rows are coloured as quests move, its title is %qp
+    // The quest list is recoloured every time it is shown, like the other pages are refilled: the
+    // client throws away a tab's interface when another replaces it (IF_SETTAB unloads the old one,
+    // javaclient Component.unloadCom), so coming back to it reloads every row red from the cache.
+    case ^questtab_quests : ~questlist_recolour(true);
 }
 ~questtab_settab(%questtab_page);
 
@@ -129,6 +132,7 @@ while ($i < ^boss_kills_count) {
 }
 ~questtab_value(questtab_pstats:bosses, ~tp_gp($kills));
 ~questtab_value(questtab_pstats:slayer, ~tp_gp(%slayer_tasks_done));
+~questtab_value(questtab_pstats:slpoints, ~tp_gp(%slayer_points));
 ~questtab_value(questtab_pstats:bank, "@yel@<~questtab_short(~questtab_bank_value)>");
 
 [proc,questtab_value](component $com, string $text)
@@ -161,9 +165,8 @@ if_settext(questtab_sstats:time, "Server time: @gre@<~questtab_clock(world_minut
 // map_clock counts ticks since the world started, 100 to the minute
 if_settext(questtab_sstats:uptime, "Uptime: @gre@<~questtab_uptime(divide(map_clock, 100))>");
 
-// The drop table viewer is the examine: there is no list of monsters to open it from.
-[if_button,questtab_sstats:act_drops]
-mes("Examine any monster you can attack to see what it drops, and how often.");
+// Every monster with a drop table, A to Z (drop_tables/scripts/npc_browser.rs2).
+[if_button,questtab_sstats:act_drops] ~npc_browser_open;
 
 [if_button,questtab_sstats:act_bosses] ~boss_kills_open;
 
@@ -281,21 +284,17 @@ if ($mins < 1440) {
 }
 return("<~questtab_plural(divide($mins, 1440), "day")> ago");
 
-// A world_minute (minutes since 1 January 2025, UTC) as "8:42 AM, 24 Sep".
+// A world_minute (minutes since 1 January 2025, UTC) as US Eastern time, "8:42 AM EDT" - the
+// server's own time zone. The date is left off: with the zone it no longer fits its box.
 [proc,questtab_clock](int $minute)(string)
-def_int $days = divide($minute, 1440);
-def_int $hour = divide(modulo($minute, 1440), 60);
-def_int $mins = modulo($minute, 60);
-def_int $year = 2025;
-while ($days >= ~questtab_year_days($year)) {
-    $days = sub($days, ~questtab_year_days($year));
-    $year = add($year, 1);
+def_string $zone = "EST";
+def_int $local = sub($minute, 300);
+if (~questtab_eastern_dst($minute) = true) {
+    $zone = "EDT";
+    $local = sub($minute, 240);
 }
-def_int $month = 1;
-while ($days >= ~questtab_month_days($month, $year)) {
-    $days = sub($days, ~questtab_month_days($month, $year));
-    $month = add($month, 1);
-}
+def_int $hour = divide(modulo($local, 1440), 60);
+def_int $mins = modulo($local, 60);
 def_string $ampm = "AM";
 if ($hour >= 12) {
     $ampm = "PM";
@@ -308,7 +307,33 @@ def_string $pad = "";
 if ($mins < 10) {
     $pad = "0";
 }
-return("<tostring($h12)>:<$pad><tostring($mins)> <$ampm>, <tostring(add($days, 1))> <~questtab_month_name($month)>");
+return("<tostring($h12)>:<$pad><tostring($mins)> <$ampm> <$zone>");
+
+// Whether a world_minute falls in US daylight saving time: from 2 AM EST on the second Sunday of
+// March (07:00 UTC) to 2 AM EDT on the first Sunday of November (06:00 UTC). Days are counted from
+// world_minute's day 0, 1 January 2025, a Wednesday - so day $d is a Sunday when ($d + 3) % 7 = 0.
+[proc,questtab_eastern_dst](int $minute)(boolean)
+def_int $day = divide($minute, 1440);
+def_int $start = 0;
+def_int $year = 2025;
+while ($day >= add($start, ~questtab_year_days($year))) {
+    $start = add($start, ~questtab_year_days($year));
+    $year = add($year, 1);
+}
+def_int $leap = 0;
+if (~questtab_leap($year) = true) {
+    $leap = 1;
+}
+// 1 March, then on to its first Sunday, then a week more
+def_int $march = add(add($start, 59), $leap);
+$march = add(add($march, modulo(sub(7, modulo(add($march, 3), 7)), 7)), 7);
+// 1 November, then on to its first Sunday
+def_int $november = add(add($start, 304), $leap);
+$november = add($november, modulo(sub(7, modulo(add($november, 3), 7)), 7));
+if ($minute >= add(multiply($march, 1440), 420) & $minute < add(multiply($november, 1440), 360)) {
+    return(true);
+}
+return(false);
 
 [proc,questtab_year_days](int $year)(int)
 if (~questtab_leap($year) = true) {
@@ -327,30 +352,3 @@ if (modulo($year, 4) = 0) {
     return(true);
 }
 return(false);
-
-[proc,questtab_month_days](int $month, int $year)(int)
-switch_int ($month) {
-    case 2 :
-        if (~questtab_leap($year) = true) {
-            return(29);
-        }
-        return(28);
-    case 4, 6, 9, 11 : return(30);
-}
-return(31);
-
-[proc,questtab_month_name](int $month)(string)
-switch_int ($month) {
-    case 1 : return("Jan");
-    case 2 : return("Feb");
-    case 3 : return("Mar");
-    case 4 : return("Apr");
-    case 5 : return("May");
-    case 6 : return("Jun");
-    case 7 : return("Jul");
-    case 8 : return("Aug");
-    case 9 : return("Sep");
-    case 10 : return("Oct");
-    case 11 : return("Nov");
-}
-return("Dec");

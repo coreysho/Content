@@ -27,19 +27,19 @@ VARPPACK = os.path.join(C, 'pack/varp.pack')
 IFPACK = os.path.join(C, 'pack/interface.pack')
 IFORDER = os.path.join(C, 'pack/interface.order')
 
-# The window. Same framing every other panel in this repo uses: tradebacking tiles at 88x60 across
-# a 488-wide area starting at 12,20, and a buttontype=close text at the bottom.
-PANEL_X, PANEL_Y, PANEL_W = 12, 20, 488
-TILE_W, TILE_H = 88, 60
-ROW_H = 16
-NAME_X, COUNT_X = 40, 300
-FIRST_ROW_Y = 64
-COL_TITLE = '0xFF981F'
-COL_NAME = '0xFFFFFF'
+# The window: 377's smithing frame (genmenus.window, as the collection log and the Construction
+# windows have it), and the bosses as a grid of boxes set into it - two columns, filled down the
+# left first - each with the boss's name on the left and its count right-aligned on the right. The
+# boxes are the quest tab's (genquesttab.Page.box): a translucent black face, dark along the top and
+# left, brown along the bottom and right.
+GRID_X, GRID_Y, COLS, COL_GAP = 24, 68, 2, 8
+BOX_W, BOX_H, PITCH_Y = 228, 30, 34
+PAD = 10
+COL_NAME = '0xFF981F'
 COL_COUNT = '0xFFFF00'
-# The row appended to the quest list, and where it goes in that layer.
+EDGE, RIM = '0x2E2B23', '0x726451'
+# The row this used to append to the quest list, which patch_questlist now takes back out.
 QL_ROW = 'boss_kills'
-QL_LAYER = 'com_0'
 
 
 def read(p):
@@ -117,6 +117,8 @@ def build_enum(spec):
 
 
 def build_if(spec):
+    sys.path.insert(0, os.path.join(C, 'tools'))
+    import genmenus as G
     B = spec['bosses']
     out, names = [], []
 
@@ -130,40 +132,32 @@ def build_if(spec):
     out += ['// THE BOSS KILL WINDOW. GENERATED - do not hand-edit.',
             '//   python3 tools/genbosskills.py',
             '//',
-            '// Opened from the quest list, which gains one row for it. The counts are pushed in',
+            '// Opened from the quest tab (Server Statistics, Quick actions). The counts are pushed in',
             '// with if_settext when it opens rather than transmitted, so the varps stay',
             '// server-side and there is nothing to keep in sync.',
             '']
-    # background, the same tiling every panel here uses
-    rows = len(B)
-    height = FIRST_ROW_Y + rows * ROW_H + 40
-    x = PANEL_X
-    n = 0
-    while x < PANEL_X + PANEL_W:
-        w = min(TILE_W, PANEL_X + PANEL_W - x)
-        y = PANEL_Y
-        while y < PANEL_Y + height:
-            com('frame%d' % n, type='graphic', x=x, y=y, width=w,
-                height=min(TILE_H, PANEL_Y + height - y), graphic='tradebacking,0')
-            n += 1
-            y += TILE_H
-        x += TILE_W
-    com('title', type='text', x=PANEL_X, y=PANEL_Y + 8, width=PANEL_W, height=14,
-        font='b12_full', shadowed='yes', center='yes', colour=COL_TITLE, text='Boss kill counts')
-    com('subtitle', type='text', x=PANEL_X, y=PANEL_Y + 26, width=PANEL_W, height=14,
-        font='p12_full', shadowed='yes', center='yes', colour=COL_NAME,
-        text='Every boss you have felled.')
+    for nm, kv in G.window('Boss Kill Counts'):
+        if nm == 'subtitle':
+            # the total, written by ~boss_kills_open
+            kv = dict(kv, colour=COL_NAME)
+        com(nm, **kv)
+    rows = (len(B) + COLS - 1) // COLS
     for i, b in enumerate(B):
-        y = PANEL_Y + FIRST_ROW_Y + i * ROW_H
-        com('name%d' % i, type='text', x=NAME_X, y=y, width=240, height=14,
+        col, row = divmod(i, rows)
+        x = GRID_X + col * (BOX_W + COL_GAP)
+        y = GRID_Y + row * PITCH_Y
+        com('box%d' % i, type='rect', x=x + 1, y=y + 1, width=BOX_W - 2, height=BOX_H - 2, fill='yes',
+            colour='0x000000', trans=146)
+        com('box%d_rim' % i, type='rect', x=x, y=y, width=BOX_W, height=BOX_H, colour=RIM)
+        com('box%d_top' % i, type='rect', x=x, y=y, width=BOX_W - 1, height=1, fill='yes', colour=EDGE)
+        com('box%d_left' % i, type='rect', x=x, y=y, width=1, height=BOX_H - 1, fill='yes', colour=EDGE)
+        com('name%d' % i, type='text', x=x + PAD, y=y + 8, width=BOX_W - 2 * PAD, height=15,
             font='p12_full', shadowed='yes', colour=COL_NAME, text=b['name'])
-        # The count text starts at 0 rather than blank: an empty row reads as a broken window, and
-        # a player with no kills should see twelve zeroes rather than twelve gaps.
-        com('count%d' % i, type='text', x=COUNT_X, y=y, width=120, height=14,
-            font='p12_full', shadowed='yes', colour=COL_COUNT, text='0')
-    com('close', type='text', x=PANEL_X, y=PANEL_Y + height - 24, width=PANEL_W, height=14,
-        font='p12_full', shadowed='yes', center='yes', buttontype='close',
-        colour=COL_NAME, overcolour=COL_COUNT, text='Close Window', option='Close')
+        # Left-aligned across the box, and moved right by the width its number leaves empty when the
+        # window opens (377 text is left-aligned or centred). It starts at 0 rather than blank: an
+        # empty row reads as a broken window.
+        com('count%d' % i, type='text', x=x + PAD, y=y + 8, width=BOX_W - 2 * PAD, height=15,
+            font='b12_full', shadowed='yes', colour=COL_COUNT, text='0')
     return '\n'.join(out), names
 
 
@@ -232,90 +226,44 @@ def build_rs2(spec):
     L += ['    case default : return(0);',
           '}',
           '',
-          '// THE WINDOW. Opened from the row this generator appends to questlist.if, which is the',
-          '// same idiom every quest row already uses to open its journal.',
-          '[if_button,questlist:%s] ~boss_kills_open;' % QL_ROW,
-          '',
+          '// THE WINDOW. Opened from the quest tab: Server Statistics, Quick actions',
+          '// (questtab/scripts/questtab.rs2).',
           '[proc,boss_kills_open]',
-          'if_openmain(%s);' % IFACE]
+          'if_openmain(%s);' % IFACE,
+          'def_int $total = 0;']
     for i in range(len(B)):
-        # if_settext is (component, string) - the other way round is a build error, which is
-        # how the first version of this generator found out.
-        L.append('if_settext(%s:count%d, tostring(~boss_kill_get(%d)));' % (IFACE, i, i))
-    L.append('')
+        L.append('$total = add($total, ~boss_kills_count(%s:count%d, ~boss_kill_get(%d)));' % (IFACE, i, i))
+    L += ['if_settext(%s:subtitle, "Total boss kills: @yel@<~tp_gp($total)>");' % IFACE,
+          '',
+          "// One box's count: right-aligned in its box, yellow once there is a kill and grey before.",
+          '[proc,boss_kills_count](component $com, int $kills)(int)',
+          'def_string $text = ~tp_gp($kills);',
+          'if_settext($com, $text);',
+          'if_setposition($com, max(0, sub(%d, stringwidth($text, b12_full))), 0);' % (BOX_W - 2 * PAD),
+          'if ($kills > 0) {',
+          '    if_setcolour($com, ^yellow_rgb);',
+          '} else {',
+          '    if_setcolour($com, 0x8F8F8F);',
+          '}',
+          'return($kills);',
+          '']
     return '\n'.join(L)
 
 
 def patch_questlist(spec, check):
-    """Append one row to the quest list's scrolling layer, and grow its scroll to fit.
+    """Take this generator's old "Boss kill counts" row back OUT of the quest list.
 
-    IT DOES NOT OWN THE FILE. Only its own block and the layer's scroll= line are touched, the
-    same way tools/genxplock.py inserts into stats.if - so the 129 quest rows already there are
-    left exactly as they are.
+    The row was appended here until the quest tab got pages of its own (tools/genquesttab.py): the
+    window opens from Server Statistics' Quick actions now, and the quest list is quests only. The
+    removal stays so that a checkout still carrying the row loses it on the next run. The block runs
+    from its marker comment to the next block header at column 0, or to the end of the file.
     """
     txt = read(QUESTLIST)
-    block = '\n'.join([
-      '',
-      '// APPENDED by tools/genbosskills.py - do not hand-edit. Opens the boss kill window; the',
-      '// trigger is [if_button,questlist:%s] in bosses/scripts/boss_kills.rs2.' % QL_ROW,
-      '[%s]' % QL_ROW,
-      'layer=%s' % QL_LAYER,
-      'type=text',
-      'x=10',
-      'y=%d',            # filled in below
-      'buttontype=normal',
-      'width=131',
-      'height=14',
-      'font=p12_full',
-      'shadowed=yes',
-      'text=Boss kill counts',
-      'colour=0xFF981F',
-      'overcolour=0xFFFFFF',
-      'option=View boss kill counts',
-      '',
-    ])
-    # WHERE IT GOES: under the last row in the layer, found by reading the y= of every child of
-    # that layer rather than by counting quests. The collection log's row is skipped as well as our
-    # own: tools/gencollectionlog.py hangs it UNDER this one, so counting it would push this row
-    # below it on every run and the two generators would leapfrog.
-    ys = []
-    cur = None
-    inlayer = False
-    for line in txt.split('\n'):
-        t = line.split('//')[0].strip()
-        m = re.match(r'^\[(\w+)\]$', t)
-        if m:
-            cur, inlayer = m.group(1), False
-            continue
-        if t == 'layer=%s' % QL_LAYER:
-            inlayer = True
-        elif inlayer and t.startswith('y=') and cur not in (QL_ROW, 'collection_log'):
-            ys.append(int(t[2:]))
-    if not ys:
-        raise SystemExit('genbosskills: found no children of %s in questlist.if' % QL_LAYER)
-    row_y = max(ys) + 22
-    block = block.replace('y=%d', 'y=%d' % row_y)
-
-    # IDEMPOTENCE, and it took two runs to get right. The first version of this removal wanted a
-    # blank line after the block - and the block is the LAST thing in the file, so there is none.
-    # The second run appended a duplicate and the packer said so: "Layer questlist:com_0 already
-    # has boss_kills as a child". genxplock.py hit the same fault on stats.if. So: from the
-    # marker comment to the next block header at column 0, or to the end of the file.
     old = re.search(r'(?ms)\n*// APPENDED by tools/genbosskills\.py.*?\n\[%s\]\n'
                     r'(?:(?!\n\[).)*(?=\n\[|\Z)' % re.escape(QL_ROW), txt)
     if old:
-        txt = txt[:old.start()] + txt[old.end():]
-    txt = txt.rstrip('\n') + '\n' + block
-    # and the layer has to be tall enough to scroll to it
-    want_scroll = row_y + 30
-    def fix(m):
-        return 'scroll=%d' % max(int(m.group(1)), want_scroll)
-    head, sep, rest = txt.partition('\n\n')
-    head = re.sub(r'scroll=(\d+)', fix, head, count=1)
-    txt = head + sep + rest
-    if not check:
-        open(QUESTLIST, 'w', newline='').write(txt)
-    return txt, row_y
+        txt = (txt[:old.start()] + txt[old.end():]).rstrip('\n') + '\n'
+    return txt
 
 
 def take(path, names, check, crlf=False):
@@ -354,7 +302,7 @@ def main():
     iftext, ifnames = build_if(spec)
     want = {OUT_VARP: build_varp(spec), OUT_CONST: build_const(spec),
             OUT_ENUM: build_enum(spec), OUT_IF: iftext, OUT_RS2: build_rs2(spec)}
-    qtext, row_y = patch_questlist(spec, check)
+    qtext = patch_questlist(spec, check)
     want[QUESTLIST] = qtext
 
     varps = ['boss_kc_%s' % b['key'] for b in spec['bosses']]
@@ -367,7 +315,7 @@ def main():
             if have != body:
                 bad.append(os.path.relpath(path, C))
         _, a1 = take(VARPPACK, varps, True)
-        _, a2 = take(IFPACK, ifall + ['questlist:%s' % QL_ROW], True)
+        _, a2 = take(IFPACK, ifall, True)
         if a1:
             bad.append('varp.pack is missing %s' % ', '.join(a1))
         if a2:
@@ -384,10 +332,14 @@ def main():
         open(path, 'w', newline='').write(body)
         print('wrote %s' % os.path.relpath(path, C))
     _, a1 = take(VARPPACK, varps, False)
-    ids, a2 = take(IFPACK, ifall + ['questlist:%s' % QL_ROW], False)
-    take_order(IFORDER, [ids[n] for n in ifall + ['questlist:%s' % QL_ROW]], False)
-    print('%d bosses, %d components, quest row at y=%d, %d varp ids, %d interface ids'
-          % (len(spec['bosses']), len(ifnames), row_y, len(a1), len(a2)))
+    # ifids rather than take(): a relayout drops components too, and the packer builds an empty
+    # component for every name the pack still has
+    sys.path.insert(0, os.path.join(C, 'tools'))
+    import ifids
+    for line in ifids.sync([IFACE, 'questlist']):
+        print(line)
+    print('%d bosses, %d components, %d varp ids'
+          % (len(spec['bosses']), len(ifnames), len(a1)))
     return 0
 
 

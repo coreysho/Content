@@ -1,0 +1,24 @@
+// THE MONSTER DROP TABLE BROWSER (2026-09-24): every monster with a drop table, A to Z, opened from
+// the quest tab's Server Statistics page. tools/gennpcbrowser.py writes the window and
+// npc_browser_ui.rs2, whose buttons call the procs here; a monster's table is the same window
+// examining it opens (npc_drops.rs2).
+
+[proc,npc_browser_open]
+if_openmain(npc_browser);
+
+// A letter: scroll the list to its heading.
+[proc,npc_browser_jump](int $y)
+if_setscrollpos(npc_browser:list, $y);
+
+// A monster: its drop table, with Back to list showing. $y is where its row is in the list, kept so
+// Back can bring the list back to about where it was - the client forgets the scroll when another
+// window replaces this one.
+[proc,npc_browser_view](npc $npc, int $y)
+%npc_browser_pos = $y;
+~npc_drops_open($npc);
+if_sethide(npc_drops:back, false);
+
+[if_button,npc_drops:back_button]
+~npc_browser_open;
+// the row a third of the way down the list, as a scroll to it would leave it
+if_setscrollpos(npc_browser:list, max(0, sub(%npc_browser_pos, 76)));

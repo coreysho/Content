@@ -145,9 +145,9 @@ proc(p, 'trail_clue_hard_reward');
 check(varp(p, 'collection_log_count_clue_hard') === 1, 'a real hard casket counts itself');
 await waitTicks(2);
 
-// ---- 6. The window. Opened from the quest list row, Bosses tab, then the Giant Mole page.
-button(p, 'questlist:collection_log');
-check(p.modalMain === Component.getId('collection_log'), `the quest list row opens the window (modalMain ${p.modalMain})`);
+// ---- 6. The window. Opened from the quest tab's Character Summary, Bosses tab, then the Giant Mole page.
+button(p, 'questtab_summary:collog');
+check(p.modalMain === Component.getId('collection_log'), `the Character Summary's button opens the window (modalMain ${p.modalMain})`);
 const got = new Set<string>();
 const inv = p.getInventory(InvType.getId('collection_log'))!;
 for (let s = 0; s < inv.capacity; s++) { const o = inv.get(s); if (o && DISTINCT.has(ObjType.get(o.id).debugname!)) got.add(ObjType.get(o.id).debugname!); }

@@ -1332,7 +1332,9 @@ def build_if():
                   'width=%d' % QTY_W, 'height=14', 'center=yes', 'font=p12_full', '']
             L += ['[rate%d_%d]' % (t, r), 'layer=list%d' % t, 'type=text', 'x=%d' % RATE_X, 'y=%d' % y,
                   'width=%d' % RATE_W, 'height=14', 'center=yes', 'font=p12_full', '']
-    # the stone frame and its Close Window, as skill_guide.if has them
+    # the stone frame and its Close Window, as skill_guide.if has them, and under Close Window the
+    # monster browser's way back (drop_tables/scripts/npc_browser.rs2): a layer, hidden unless the
+    # table was opened from the browser, because only a layer can be hidden
     L += FRAME
     return '\n'.join(L).rstrip('\n') + '\n'
 
@@ -1455,6 +1457,29 @@ shadowed=yes
 text=Close Window
 colour=0xC00000
 overcolour=0xFFFFFF
+
+[back]
+type=layer
+x=434
+y=44
+width=68
+height=11
+hide=yes
+
+[back_button]
+layer=back
+type=text
+x=0
+y=0
+buttontype=normal
+width=68
+height=11
+font=p11_full
+shadowed=yes
+text=Back to list
+colour=0xFF981F
+overcolour=0xFFFFFF
+option=Back to the monster list
 """.split('\n')
 
 
@@ -1619,6 +1644,9 @@ def main():
     ensure_inv(check, changed)
     if not check and any(c.endswith('.if') for c in changed):
         subprocess.check_call([sys.executable, os.path.join(C, 'tools', 'ifids.py'), IFNAME], cwd=C)
+    # the monster browser lists what this wrote, so it follows every change to the tables
+    if not check:
+        subprocess.check_call([sys.executable, os.path.join(C, 'tools', 'gennpcbrowser.py')], cwd=C)
 
     # the report
     print('gennpcdrops: %d attackable npcs, %d with a table, %d distinct tables, longest %d rows'

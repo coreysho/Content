@@ -82,22 +82,34 @@ switch_int ($slot) {
     case default : return(0);
 }
 
-// THE WINDOW. Opened from the row this generator appends to questlist.if, which is the
-// same idiom every quest row already uses to open its journal.
-[if_button,questlist:boss_kills] ~boss_kills_open;
-
+// THE WINDOW. Opened from the quest tab: Server Statistics, Quick actions
+// (questtab/scripts/questtab.rs2).
 [proc,boss_kills_open]
 if_openmain(boss_kills);
-if_settext(boss_kills:count0, tostring(~boss_kill_get(0)));
-if_settext(boss_kills:count1, tostring(~boss_kill_get(1)));
-if_settext(boss_kills:count2, tostring(~boss_kill_get(2)));
-if_settext(boss_kills:count3, tostring(~boss_kill_get(3)));
-if_settext(boss_kills:count4, tostring(~boss_kill_get(4)));
-if_settext(boss_kills:count5, tostring(~boss_kill_get(5)));
-if_settext(boss_kills:count6, tostring(~boss_kill_get(6)));
-if_settext(boss_kills:count7, tostring(~boss_kill_get(7)));
-if_settext(boss_kills:count8, tostring(~boss_kill_get(8)));
-if_settext(boss_kills:count9, tostring(~boss_kill_get(9)));
-if_settext(boss_kills:count10, tostring(~boss_kill_get(10)));
-if_settext(boss_kills:count11, tostring(~boss_kill_get(11)));
-if_settext(boss_kills:count12, tostring(~boss_kill_get(12)));
+def_int $total = 0;
+$total = add($total, ~boss_kills_count(boss_kills:count0, ~boss_kill_get(0)));
+$total = add($total, ~boss_kills_count(boss_kills:count1, ~boss_kill_get(1)));
+$total = add($total, ~boss_kills_count(boss_kills:count2, ~boss_kill_get(2)));
+$total = add($total, ~boss_kills_count(boss_kills:count3, ~boss_kill_get(3)));
+$total = add($total, ~boss_kills_count(boss_kills:count4, ~boss_kill_get(4)));
+$total = add($total, ~boss_kills_count(boss_kills:count5, ~boss_kill_get(5)));
+$total = add($total, ~boss_kills_count(boss_kills:count6, ~boss_kill_get(6)));
+$total = add($total, ~boss_kills_count(boss_kills:count7, ~boss_kill_get(7)));
+$total = add($total, ~boss_kills_count(boss_kills:count8, ~boss_kill_get(8)));
+$total = add($total, ~boss_kills_count(boss_kills:count9, ~boss_kill_get(9)));
+$total = add($total, ~boss_kills_count(boss_kills:count10, ~boss_kill_get(10)));
+$total = add($total, ~boss_kills_count(boss_kills:count11, ~boss_kill_get(11)));
+$total = add($total, ~boss_kills_count(boss_kills:count12, ~boss_kill_get(12)));
+if_settext(boss_kills:subtitle, "Total boss kills: @yel@<~tp_gp($total)>");
+
+// One box's count: right-aligned in its box, yellow once there is a kill and grey before.
+[proc,boss_kills_count](component $com, int $kills)(int)
+def_string $text = ~tp_gp($kills);
+if_settext($com, $text);
+if_setposition($com, max(0, sub(208, stringwidth($text, b12_full))), 0);
+if ($kills > 0) {
+    if_setcolour($com, ^yellow_rgb);
+} else {
+    if_setcolour($com, 0x8F8F8F);
+}
+return($kills);

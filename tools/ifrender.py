@@ -252,10 +252,19 @@ def _draw_layer(img, coms, kids, names, ox, oy, scroll, clip, modelbleed):
             img.alpha_composite(_clipped(tile, x, y, clip), (max(x, clip[0]), max(y, clip[1])))
         elif t == 'rect':
             col = rgb(c.get('colour'))
+            # trans is the old format's transparency, 0 opaque to 255 invisible; drawn on its own
+            # canvas and clipped, so a translucent box and a rect inside a scroll layer come out as
+            # the client draws them
+            a = 255 - int(c.get('trans', 0))
+            if a <= 0 or w <= 0 or h <= 0:
+                continue
+            piece = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+            pd = ImageDraw.Draw(piece)
             if c.get('fill') == 'yes':
-                d.rectangle([x, y, x + w - 1, y + h - 1], fill=col)
+                pd.rectangle([0, 0, w - 1, h - 1], fill=col[:3] + (a,))
             else:
-                d.rectangle([x, y, x + w - 1, y + h - 1], outline=col)
+                pd.rectangle([0, 0, w - 1, h - 1], outline=col[:3] + (a,))
+            img.alpha_composite(_clipped(piece, x, y, clip), (max(x, clip[0]), max(y, clip[1])))
         elif t == 'text':
             f = font(c.get('font', 'p12_full'))
             col = rgb(c.get('colour'))

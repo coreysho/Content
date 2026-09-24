@@ -19,7 +19,6 @@ here from the same spec:
   * collection_log_ui.rs2         the switches: this engine cannot address a component or a varp
                                   by number at runtime, so "row 7" and "counter 101" are generated
                                   switch_int cases, the way boss_kills.rs2's are
-  * questlist.if                  one row under "Boss kill counts" that opens the window
   * pack/varp.pack, inv.pack, interface.pack, interface.order - ids for all of the above
 
 HOW TO CHANGE IT - edit tools/collectionlogspec.json, then run this, then build:
@@ -406,24 +405,21 @@ def build_rs2(spec, entries):
         o.append('[if_button,collection_log:tab%d] ~collection_log_select_tab(%d);' % (i, i))
     for i in range(rows):
         o.append('[if_button,collection_log:r%dbox] ~collection_log_select_entry(%d);' % (i, i))
-    o.append('')
-    o.append('// Opened from the row this generator puts under "Boss kill counts" in the quest list.')
-    o.append('[if_button,questlist:collection_log] ~collection_log_open;')
     return '\n'.join(o) + '\n'
 
 
 # ---------------------------------------------------------------- quest list row
-QL_ROW, QL_LAYER, BOSS_ROW = 'collection_log', 'com_0', 'boss_kills'
+QL_ROW = 'collection_log'
 MARK = '// APPENDED by tools/gencollectionlog.py'
 
 
 def patch_questlist(text):
-    """One row under genbosskills' "Boss kill counts", 15px down like the quest rows above.
+    """Take this generator's old "Collection log" row back OUT of the quest list.
 
-    TWO GENERATORS SHARE THE END OF THIS FILE, so both have to be idempotent with the other run in
-    either order. genbosskills removes its block and appends it at the end, placing it under every
-    row but its own and this one; this removes its own block and puts it back IMMEDIATELY BEFORE the
-    boss block, at the boss row's y + 15. Whichever runs, the file comes out the same.
+    The row sat under "Boss kill counts" until the quest tab got pages of its own
+    (tools/genquesttab.py): the log opens from the Collection Log and Character Summary pages now, and
+    the quest list is quests only. The removal stays so that a checkout still carrying the row loses
+    it on the next run.
     """
     nl = '\r\n' if '\r\n' in text else '\n'
     t = text.replace('\r\n', '\n')
@@ -431,25 +427,8 @@ def patch_questlist(text):
     if i >= 0:
         # From the marker to the blank line that ends the block (a block has none inside it).
         k = t.find('\n\n', t.find('\n[%s]\n' % QL_ROW, i) + 1)
-        t = t[:i].rstrip('\n') + '\n\n' + (t[k:].lstrip('\n') if k >= 0 else '')
-    m = re.search(r'^\[%s\]\n(?:[^\[].*\n)*?y=(\d+)' % BOSS_ROW, t, re.M)
-    if not m:
-        raise SystemExit('gencollectionlog: no [%s] row in questlist.if - run tools/genbosskills.py first' % BOSS_ROW)
-    y = int(m.group(1)) + 15
-    block = '\n'.join([
-        MARK + ' - do not hand-edit. Opens the collection log;',
-        '// the trigger is [if_button,questlist:%s] in collection_log/scripts/collection_log_ui.rs2.' % QL_ROW,
-        '[%s]' % QL_ROW, 'layer=%s' % QL_LAYER, 'type=text', 'x=10', 'y=%d' % y, 'buttontype=normal',
-        'width=131', 'height=14', 'font=p12_full', 'shadowed=yes', 'text=Collection log',
-        'colour=0xFF981F', 'overcolour=0xFFFFFF', 'option=View collection log', '', ''])
-    at = t.find('// APPENDED by tools/genbosskills.py')
-    if at < 0:
-        raise SystemExit('gencollectionlog: genbosskills block not found in questlist.if')
-    t = t[:at].rstrip('\n') + '\n\n' + block + t[at:]
-    want = y + 30
-    head, sep, rest = t.partition('\n\n')
-    head = re.sub(r'scroll=(\d+)', lambda mm: 'scroll=%d' % max(int(mm.group(1)), want), head, count=1)
-    return (head + sep + rest).replace('\n', nl), y
+        t = t[:i].rstrip('\n') + ('\n\n' + t[k:].lstrip('\n') if k >= 0 else '\n')
+    return t.replace('\n', nl)
 
 
 # ---------------------------------------------------------------- pack ids
@@ -491,7 +470,7 @@ def main():
             (OUT_IF, G.emit(components(spec, entries)), QUESTLIST),
             (OUT_RS2, build_rs2(spec, entries), os.path.join(C, 'scripts/bosses/scripts/boss_kills.rs2'))]:
         want[path] = to_nl(body, nl_of(path, like))
-    qtext, row_y = patch_questlist(read(QUESTLIST))
+    qtext = patch_questlist(read(QUESTLIST))
     want[QUESTLIST] = qtext
 
     varps = config_names(HANDVARP) + ['collection_log_count_%s' % c['key'] for c in spec['own_counters']]
@@ -508,8 +487,7 @@ def main():
     a2 = take(INVPACK, invs, check)
     if check:
         packed = set(re.findall(r'^\d+=(\S+?)\r?$', read(ifids.PACK), re.M))
-        ids_ok = all('%s:%s' % (IFACE, n) in packed for n, _ in components(spec, entries)) \
-            and 'questlist:%s' % QL_ROW in packed and IFACE in packed
+        ids_ok = all('%s:%s' % (IFACE, n) in packed for n, _ in components(spec, entries)) and IFACE in packed
         if bad or a1 or a2 or not ids_ok:
             print('gencollectionlog --check: would change %s' % ', '.join(
                 bad + (['varp.pack'] if a1 else []) + (['inv.pack'] if a2 else []) +
@@ -519,9 +497,9 @@ def main():
         return 0
     for line in ifids.sync([IFACE, 'questlist']):
         print(line)
-    print('%d tabs, %d entries, %d distinct items (capacity %d), grid %dx%d, quest row at y=%d; wrote %d files, '
+    print('%d tabs, %d entries, %d distinct items (capacity %d), grid %dx%d; wrote %d files, '
           '%d varp ids, %d inv ids' % (len(spec['tabs']), len(entries), len(distinct), spec['capacity'], COLS,
-                                       grid_rows(entries), row_y, len(bad), len(a1), len(a2)))
+                                       grid_rows(entries), len(bad), len(a1), len(a2)))
     return 0
 
 

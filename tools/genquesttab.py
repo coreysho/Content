@@ -318,8 +318,10 @@ def collection(tabs):
 # The Player Statistics rows: (key, label). The values are filled by ~questtab_pstats_draw.
 PSTATS = [('mode', 'Game mode'), ('rate', 'XP rate'), ('playtime', 'Time played'), ('age', 'Account age'),
           ('locked', 'XP locked'), ('deaths', 'Deaths'), ('pvp', 'Players killed'), ('npcs', 'Monsters killed'),
-          ('clues', 'Clues opened'), ('bosses', 'Boss kills'), ('slayer', 'Slayer tasks'), ('bank', 'Bank value')]
-PS_Y, PS_PITCH = 50, 17
+          ('clues', 'Clues opened'), ('bosses', 'Boss kills'), ('slayer', 'Slayer tasks'),
+          ('slpoints', 'Slayer points'), ('bank', 'Bank value')]
+# thirteen rows at 16px fill the box from its top edge to its bottom one
+PS_Y, PS_PITCH = 49, 16
 PS_VALUE_X, PS_VALUE_W = 96, 84
 
 
