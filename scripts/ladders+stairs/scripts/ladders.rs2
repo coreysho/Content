@@ -57,10 +57,19 @@ switch_coord (loc_coord) {
 
 [oploc1,laddermiddle]
 p_arrivedelay;
+// One Small Favour: the Seers' first-floor ladder goes on up to the weathervane platform, which
+// is on level 3 (there is only roof on level 2)
+if (loc_coord = ^osf_seer_ladder) {
+    @ladder_options(^osf_seer_roof, movecoord(coord(), 0, -1, 0));
+}
 @ladder_options(movecoord(coord(), 0, 1, 0), movecoord(coord(), 0, -1, 0));
 
 [oploc2,laddermiddle]
 p_arrivedelay;
+if (loc_coord = ^osf_seer_ladder) {
+    ~climb_ladder(^osf_seer_roof, true);
+    return;
+}
 ~climb_ladder(movecoord(coord(), 0, 1, 0), true);
 
 [oploc3,laddermiddle]

@@ -127,18 +127,31 @@ if($option = 1) {
 }
 
 [proc,gertrude_give_cat]
-if (inv_totalcat(inv, kitten) = 0 | inv_totalcat(bank, kitten) = 0 | inv_totalcat(inv, cat) = 0 | inv_totalcat(bank, cat) = 0 | npc_finduid(%follower_uid) = false | %follower_obj ! null & oc_category(%follower_obj) ! kitten | %follower_obj ! null & oc_category(%follower_obj) ! cat) {
-    def_npc $cat;
-    switch_int (random(6)) {
-        case 0 : $cat = kittenpet1;
-        case 1 : $cat = kittenpet_light;
-        case 2 : $cat = kittenpet_brown;
-        case 3 : $cat = kittenpet_black;
-        case 4 : $cat = kittenpet_browngrey;
-        case 5 : $cat = kittenpet_bluegrey;
-    }
-    %cat_growth = 0;
-    ~cat_spawn($cat);
-    p_delay(1);
-    npc_say("Meeow!");
+def_npc $cat;
+switch_int (random(6)) {
+    case 0 : $cat = kittenpet1;
+    case 1 : $cat = kittenpet_light;
+    case 2 : $cat = kittenpet_brown;
+    case 3 : $cat = kittenpet_black;
+    case 4 : $cat = kittenpet_browngrey;
+    case 5 : $cat = kittenpet_bluegrey;
 }
+// AUDIT 2026-09-24: the kitten used to be spawned as the follower whatever was already following,
+// which took over %follower_uid and %follower_obj - the pet that was out lost its slot and was not
+// saved on logout. With a follower out, the kitten goes in the pack (or to Probita's) instead, the
+// way ~pet_receive hands over a pet.
+if (%follower_obj ! null | npc_finduid(%follower_uid) = true) {
+    %cat_growth = 0;
+    if (inv_freespace(inv) > 0) {
+        inv_add(inv, nc_param($cat, pet_item_id), 1);
+        mes("You already have a follower, so you put the kitten in your backpack.");
+    } else {
+        inv_add(lostpet_store, nc_param($cat, pet_item_id), 1);
+        mes("You already have a follower and no room for the kitten. It is waiting for you at Probita's in East Ardougne.");
+    }
+    return;
+}
+%cat_growth = 0;
+~cat_spawn($cat);
+p_delay(1);
+npc_say("Meeow!");
