@@ -46,9 +46,24 @@ p_arrivedelay;
 // (quest_100/scripts/hundred_amik.rs2) and [opheldu,tarrominvial] is Herblore's brewing, and a
 // trigger cannot be declared twice - so this hangs off the diary, which nothing else uses.
 // OpHeldUHandler falls back to [opheldu,a] and swaps last_useitem, so either order lands here.
+//
+// FIXED: the OSRS way - ashes and the tarromin potion on each other, no diary involved - never
+// reached this at all, in either order: [opheldu,b] is looked up before [opheldu,a], so ashes on the
+// potion went to Herblore's [opheldu,tarrominvial] and the potion on the ashes to Recipe for
+// Disaster's [opheldu,ashes], and both said "Nothing interesting happens". Each of those two now
+// jumps to @mortton_make_serum when the other item is the one in hand
+// (skill_herblore/scripts/brewing/brew_potion.rs2, quest_100/scripts/hundred_amik.rs2).
 [opheldu,serum_book]
 def_obj $item = last_useitem;
 if ($item ! tarrominvial & $item ! ashes) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@mortton_make_serum;
+
+[label,mortton_make_serum]
+// Herbi Flax's recipe, so only for somebody who has read it
+if (%morttonquest < ^mortton_read_diary) {
     ~displaymessage(^dm_default);
     return;
 }
@@ -79,22 +94,31 @@ if (%morttonquest = ^mortton_read_diary) {
 // =========================================================================== the shades
 // shadeshadow_level1 is a Loar Shadow and shade_level1 is a Loar Shade - two npcs, both op2=Attack.
 // The remains come off the shade.
-[ai_queue3,shade_level1] @mortton_shade_death(shade_bones1);
-[ai_queue3,shade_level2] @mortton_shade_death(shade_bones2);
-[ai_queue3,shade_level3] @mortton_shade_death(shade_bones3);
-[ai_queue3,shade_level4] @mortton_shade_death(shade_bones4);
-[ai_queue3,shade_level5] @mortton_shade_death(shade_bones5);
+//
+// FIXED: only the shadows are placed, and nothing ever turned one into its shade - so every Loar
+// killed was a shadow, died through the default death script, and never reached the tally below.
+// The shadows now rise into their shades (mortton_shades.rs2), and this is what they die as.
+// Only the Loar count: OSRS asks for five level-40 Loar Shades, and the deeper shades are the
+// catacombs' (the tally used to count any of the five kinds).
+[ai_queue3,shade_level1] @mortton_shade_death(shade_bones1, true);
+[ai_queue3,shade_level2] @mortton_shade_death(shade_bones2, false);
+[ai_queue3,shade_level3] @mortton_shade_death(shade_bones3, false);
+[ai_queue3,shade_level4] @mortton_shade_death(shade_bones4, false);
+[ai_queue3,shade_level5] @mortton_shade_death(shade_bones5, false);
 
-// An [ai_queue] runs on the npc, so the killer has to be found before anything touches a varp.
-[label,mortton_shade_death](namedobj $remains)
+// An [ai_queue] runs on the npc, so the kill is handed to the killer as a queued script: the tally
+// shows a dialogue on the fifth, and a dialogue cannot be opened from the npc's script.
+[label,mortton_shade_death](namedobj $remains, boolean $counts)
 gosub(npc_death);
 if (npc_findhero = ^false) {
     return;
 }
 obj_add(npc_coord, $remains, 1, ^lootdrop_duration);
-if (p_finduid(uid) = false) {
-    return;
+if ($counts = true) {
+    queue(mortton_shade_killed, 0, 0);
 }
+
+[queue,mortton_shade_killed]
 if (%morttonquest < ^mortton_kill_shades | %morttonquest >= ^mortton_killed_5_shades) {
     return;
 }
@@ -139,11 +163,15 @@ if (%morttonquest < ^mortton_ulsquire_temple) {
     return;
 }
 if (%morttonquest > ^mortton_rebuild_temple & %temple_repaired_p >= ^mortton_wall_levels) {
+    ~mortton_restore_altar;
     mes("The temple is as whole as it is going to get.");
     return;
 }
-if (inv_total(inv, flamtaer_hammer) = 0) {
-    mes("You need a flamtaer hammer. Razmire sells them.");
+// FIXED: only a flamtaer hammer would do, and nothing was used up - so the builders' store, which
+// is the whole reason Razmire has one, had nothing to sell for this. OSRS takes any hammer (the
+// flamtaer one is the quick one) and a plank, a limestone brick and five swamp paste a repair.
+if (inv_total(inv, flamtaer_hammer) = 0 & inv_total(inv, hammer) = 0) {
+    mes("You need a hammer to repair the temple. Razmire sells them.");
     return;
 }
 if (stat(crafting) < ^mortton_req_crafting) {
@@ -154,10 +182,23 @@ if (%temple_repaired_p >= ^mortton_wall_levels) {
     mes("The temple is as whole as it is going to get.");
     return;
 }
+if (inv_total(inv, woodplank) = 0 | inv_total(inv, limestonebrick) = 0 | inv_total(inv, swamppaste) < ^mortton_swamppaste_per_repair) {
+    mes("You need a plank, a limestone brick and <tostring(^mortton_swamppaste_per_repair)> swamp paste for each repair.");
+    mes("Razmire's builders' store sells all three.");
+    return;
+}
 mes("You set another course of stone.");
 sound_synth(anvil, 1, 0);
-p_delay(3);
-%temple_repaired_p = add(%temple_repaired_p, 1);
+// the flamtaer hammer is the quick one
+if (inv_total(inv, flamtaer_hammer) > 0) {
+    p_delay(1);
+} else {
+    p_delay(3);
+}
+inv_del(inv, woodplank, 1);
+inv_del(inv, limestonebrick, 1);
+inv_del(inv, swamppaste, ^mortton_swamppaste_per_repair);
+%temple_repaired_p = min(add(%temple_repaired_p, ^mortton_courses_per_repair), ^mortton_wall_levels);
 stat_advance(crafting, 400);
 // ^mortton_rebuild_temple is in the original stage list, between being told about the temple and
 // being able to light it, so the first course of stone is what it marks.
@@ -215,6 +256,28 @@ if (%temple_repaired_p < ^mortton_wall_levels) {
 loc_add(^mortton_temple_altar_coord, templefire_altar_nofire, 0, centrepiece_straight, ^mortton_repair_ticks);
 ~mesbox("The last course goes on and the roof stops letting the rain in. At the far end the altar is suddenly an altar rather than a heap.");
 
+// The working altar only ever exists as that loc_add, over the broken one the map places - so a
+// restart, or ^mortton_repair_ticks running out, put the broken altar (no ops at all) back under a
+// player whose stage says "light it", with nothing they could click to get it back. Clicking a wall
+// of the finished temple, or using anything on the broken altar, puts it back for them.
+[proc,mortton_restore_altar]
+if (%morttonquest < ^mortton_can_light_altar) {
+    return;
+}
+if (loc_find(^mortton_temple_altar_coord, templefire_altar_nofire_broken) = false) {
+    return;
+}
+loc_add(^mortton_temple_altar_coord, templefire_altar_nofire, 0, centrepiece_straight, ^mortton_repair_ticks);
+mes("You set the altar back to rights.");
+
+[oplocu,templefire_altar_nofire_broken]
+p_arrivedelay;
+if (%morttonquest < ^mortton_can_light_altar) {
+    mes("It is a heap. The temple around it needs putting back first.");
+    return;
+}
+~mortton_restore_altar;
+
 // =========================================================================== the altar
 [oploc1,templefire_altar_nofire]
 p_arrivedelay;
@@ -266,22 +329,41 @@ if (%morttonquest = ^mortton_can_light_altar) {
 }
 
 // =========================================================================== pyre logs
-[opheldu,sacred_oil4] @mortton_oil_logs(sacred_oil4, sacred_oil3);
-[opheldu,sacred_oil3] @mortton_oil_logs(sacred_oil3, sacred_oil2);
-[opheldu,sacred_oil2] @mortton_oil_logs(sacred_oil2, sacred_oil1);
-[opheldu,sacred_oil1] @mortton_oil_logs(sacred_oil1, vial_empty);
+// Doses and Firemaking levels are OSRS's: logs 5/2, oak 20/2, willow 35/3, maple 50/3, yew 65/4,
+// magic 80/4 - out of the one vial, which is what the sacred oil is used from.
+// The logs are never the [opheldu,b] of this (no log type carries an [opheldu] of its own), so oil on
+// logs and logs on oil both land here, with the logs in last_useitem.
+[opheldu,sacred_oil4] @mortton_oil_logs(sacred_oil4, 4);
+[opheldu,sacred_oil3] @mortton_oil_logs(sacred_oil3, 3);
+[opheldu,sacred_oil2] @mortton_oil_logs(sacred_oil2, 2);
+[opheldu,sacred_oil1] @mortton_oil_logs(sacred_oil1, 1);
 
-[label,mortton_oil_logs](namedobj $oil, namedobj $left)
+[label,mortton_oil_logs](namedobj $oil, int $doses)
 def_obj $item = last_useitem;
 def_namedobj $pyre;
+def_int $level;
+def_int $needed;
 switch_obj ($item) {
-    case logs : $pyre = logs_pyre;
-    case oak_logs : $pyre = oak_logs_pyre;
-    case willow_logs : $pyre = willow_logs_pyre;
-    case maple_logs : $pyre = maple_logs_pyre;
-    case yew_logs : $pyre = yew_logs_pyre;
-    case magic_logs : $pyre = magic_logs_pyre;
+    case logs : $pyre = logs_pyre; $level = 5; $needed = 2;
+    case oak_logs : $pyre = oak_logs_pyre; $level = 20; $needed = 2;
+    case willow_logs : $pyre = willow_logs_pyre; $level = 35; $needed = 3;
+    case maple_logs : $pyre = maple_logs_pyre; $level = 50; $needed = 3;
+    case yew_logs : $pyre = yew_logs_pyre; $level = 65; $needed = 4;
+    case magic_logs : $pyre = magic_logs_pyre; $level = 80; $needed = 4;
     case default : ~displaymessage(^dm_default); return;
+}
+if (stat(firemaking) < $level) {
+    mes("You need a Firemaking level of <tostring($level)> to make pyre logs out of those.");
+    return;
+}
+if ($doses < $needed) {
+    mes("You need <tostring($needed)> doses of sacred oil in the one vial to prepare those logs.");
+    return;
+}
+def_namedobj $left = vial_empty;
+switch_int (sub($doses, $needed)) {
+    case 1 : $left = sacred_oil1;
+    case 2 : $left = sacred_oil2;
 }
 inv_del(inv, $item, 1);
 inv_del(inv, $oil, 1);
@@ -374,6 +456,6 @@ if (%morttonquest = ^mortton_logs_on_pyre) {
 %morttonquest = ^mortton_lit_pyre;
 stat_advance(herblore, 20000);
 stat_advance(crafting, 20000);
-stat_advance(firemaking, 20000);
+// OSRS's rewards are 3 quest points, 2,000 Herblore and 2,000 Crafting - no Firemaking
 session_log(^log_adventure, "Quest complete: Shades of Mort'ton");
-~send_quest_complete(questlist:mortton, mort_serum4, 200, ^mortton_questpoints, "You have completed\\nShades of Mort'ton!", "3 Quest Points|2,000 Herblore XP|2,000 Crafting XP|2,000 Firemaking XP|The temple is lit");
+~send_quest_complete(questlist:mortton, mort_serum4, 200, ^mortton_questpoints, "You have completed\\nShades of Mort'ton!", "3 Quest Points|2,000 Herblore XP|2,000 Crafting XP|The temple is lit");

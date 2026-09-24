@@ -1,0 +1,93 @@
+// Shades of Mort'ton - the shadows, and the shades that rise out of them.
+//
+// Every shade in the game is placed as its SHADOW (shadeshadow_level1..5: the flat green thing
+// sliding over the ground) and the shade itself (shade_level1..5) is never placed at all. In OSRS
+// the shadow "rises from the depths to attack": the moment it goes for someone, or someone goes for
+// it, it stands up as the shade, and that is what fights and what dies. Nothing did that here, so
+// the Loar Shadows in Mort'ton stayed shadows through the whole fight and died as shadows - and
+// because the quest's kill tally hangs off [ai_queue3,shade_level1], not one of them counted.
+//
+// So, as the kraken's whirlpools do (area_kraken_cove/scripts/kraken_combat.rs2), the shadow is
+// changed into its shade with npc_changetype - each shadow names its shade in next_npc_type, and
+// each shade names its shadow back - on whichever of these comes first:
+//   * a player clicks Attack on it                 [opnpc2]/[apnpc2]  (the player is re-pointed
+//     at the risen shade with p_opnpc, because a changetype ends any interaction with the old type)
+//   * it is hit some other way (a spell off the book) [ai_queue1]/[ai_queue2]
+//   * it hunts somebody down (the shadows are aggressive, as in OSRS)   [ai_opplayer2]
+// The shades carry the shadows' own stats, so a rise never heals or hurts anything.
+//
+// When the fight is over the shade sinks back into a shadow where it stands - the timer below,
+// a changetype back to the npc's base type, which the engine keeps with no revert. The shades carry
+// timer=10 in their config as well as the npc_settimer on the rise: a changetype does not touch the
+// timer, but the end of every interaction (resetDefaults) puts it back to the type's own.
+// A shade that is killed respawns as its shadow like any other npc. ^shade_risen_duration is only
+// the backstop.
+
+// ---------------------------------------------------------------------------------------------
+// the player's side
+// ---------------------------------------------------------------------------------------------
+[opnpc2,_shade_shadow] @shade_shadow_attacked;
+
+[apnpc2,_shade_shadow]
+def_int $attackrange = ~player_attackrange(inv_getobj(worn, ^wearpos_rhand));
+if (($attackrange <= 1 & ~player_in_combat_check = false) | npc_range(coord) > $attackrange) {
+    p_aprange($attackrange);
+    return;
+}
+@shade_shadow_attacked;
+
+[label,shade_shadow_attacked]
+// the same single-way and Slayer checks the attack itself would make, so a refused attack does not
+// wake the shadow up for nothing
+if (~player_in_combat_check = false) {
+    return;
+}
+~shade_rise;
+p_opnpc(2);
+
+// ---------------------------------------------------------------------------------------------
+// the npc's side
+// ---------------------------------------------------------------------------------------------
+[ai_queue1,_shade_shadow]
+~shade_rise;
+gosub(npc_default_retaliate);
+
+[ai_queue2,_shade_shadow]
+~shade_rise;
+~npc_default_damage(last_int);
+
+[ai_opplayer2,_shade_shadow]
+~shade_rise;
+gosub(npc_default_attack);
+
+[proc,shade_rise]
+if (npc_category ! shade_shadow) {
+    return;
+}
+def_npc $shade = npc_param(next_npc_type);
+if ($shade = null) {
+    return;
+}
+npc_changetype($shade, ^shade_risen_duration);
+npc_anim(shade_rise, 0);
+// the rise itself, before the first swing
+%npc_action_delay = add(map_clock, 2);
+npc_settimer(^shade_sink_interval);
+
+// Back down once nobody is fighting it.
+[ai_timer,_shade_risen]
+if (npc_getmode = opplayer2 | npc_getmode = applayer2 | npc_getmode = playerescape) {
+    return;
+}
+if (add(%npc_lastcombat, ^shade_sink_interval) > map_clock) {
+    return;
+}
+def_npc $shadow = npc_param(next_npc_type);
+if ($shadow = null) {
+    return;
+}
+npc_settimer(0);
+npc_anim(shade_sink, 0);
+npc_delay(2);
+// back to the npc's base type: the engine then keeps it for good, where it stands
+npc_changetype($shadow, ^shade_risen_duration);

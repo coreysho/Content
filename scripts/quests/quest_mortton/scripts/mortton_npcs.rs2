@@ -26,20 +26,41 @@ if (%morttonquest = ^mortton_not_started) {
 }
 ~mesbox("He is not going to tell you anything in this state. Serum 207 might give him back enough of himself to speak.");
 
+// FIXED: this was a switch on exact stages that only knew ^mortton_kill_shades - so with one to four
+// shades down (stages 20-35) he fell through to the temple line, as though the shades were done.
 [label,mortton_razmire_lucid]
 if (%morttonquest >= ^mortton_complete) {
     ~chatnpc("<p,happy>The temple is lit. Nobody has said that in my lifetime.");
     @mortton_razmire_shops;
-    return;
 }
-switch_int (%morttonquest) {
-    case ^mortton_kill_shades :
-        ~chatnpc("<p,neutral>Five of them. Put down five and I will believe you can put down the rest.");
-    case ^mortton_killed_5_shades : @mortton_razmire_after_shades;
-    case ^mortton_shades_to_razmire :
-        ~chatnpc("<p,neutral>Ulsquire. He was the one who kept the temple records. Go and give him a dose of that stuff too.");
-    case default :
-        ~chatnpc("<p,neutral>The temple, then. And you will need a flamtaer hammer, which by great good fortune I sell.");
+// Lucid with the job not yet given (the stage moves on the dose, but only from ^mortton_made_serum):
+// he gives it now rather than never.
+if (%morttonquest = ^mortton_made_serum) {
+    %morttonquest = ^mortton_kill_shades;
+    ~send_quest_progress(questlist:mortton, %morttonquest, ^mortton_complete);
+}
+if (%morttonquest >= ^mortton_kill_shades & %morttonquest < ^mortton_killed_5_shades) {
+    @mortton_razmire_shades_job;
+}
+if (%morttonquest = ^mortton_killed_5_shades) {
+    @mortton_razmire_after_shades;
+}
+if (%morttonquest >= ^mortton_shades_to_razmire & %morttonquest < ^mortton_ulsquire_temple) {
+    ~chatnpc("<p,neutral>Ulsquire. He was the one who kept the temple records. He lives just east of here - go and give him a dose of that stuff too.");
+} else if (%morttonquest >= ^mortton_ulsquire_temple) {
+    ~chatnpc("<p,neutral>The temple, then. You will want planks, limestone bricks and swamp paste, and a hammer - a flamtaer one if you can run to it - all of which, by great good fortune, I sell.");
+}
+@mortton_razmire_shops;
+
+[label,mortton_razmire_shades_job]
+def_int $killed = calc((%morttonquest - ^mortton_kill_shades) / 5);
+if ($killed = 0) {
+    ~chatplayer("<p,quiz>What are all these shadowy creatures?");
+    ~chatnpc("<p,sad>Shades. The Loar Shades, the ones that come up out of the ground as you pass. They are what is wrong with this town - not a sickness, them.");
+    ~chatnpc("<p,neutral>Put down five of them and I will believe you can put down the rest. Their remains are worth keeping, too.");
+    ~chatplayer("<p,neutral>I'll dispatch those dark and evil creatures.");
+} else {
+    ~chatnpc("<p,neutral><tostring($killed)> of five. Keep at it - it is only the Loar Shades that count.");
 }
 @mortton_razmire_shops;
 
@@ -52,11 +73,17 @@ switch_int (%morttonquest) {
 %morttonquest = ^mortton_shades_to_razmire;
 ~send_quest_progress(questlist:mortton, %morttonquest, ^mortton_complete);
 
+// FIXED: both options called ~openshop_activenpc, which reads owned_shop and the price params off
+// the npc - and razmire_keelgan_afflicted carries none of them (only the never-placed
+// razmire_keelgan has the Trade ops), so %shop was -1 and inv_transmit threw "An input for a Inv
+// type was not valid to use. Input was -1." The two invs are his own: razmiregeneralstore and
+// razmirebuildingstore. General-store rates as Lumbridge's, specialist rates as the other
+// specialist shops.
 [label,mortton_razmire_shops]
-def_int $option = ~p_choice3("Let's see the general store.", 1, "Let's see the builder's store.", 2, "Nothing, thanks.", 3);
+def_int $option = ~p_choice3("Let's see the general store.", 1, "Let's see the builders' store.", 2, "Nothing, thanks.", 3);
 switch_int ($option) {
-    case 1 : ~openshop_activenpc;
-    case 2 : ~openshop_activenpc;
+    case 1 : ~openshop(razmiregeneralstore, 400, 1300, 30, "Razmire General Store");
+    case 2 : ~openshop(razmirebuildingstore, 600, 1000, 20, "Razmire Builders Merchants");
     case 3 : ~chatplayer("<p,neutral>Nothing, thanks.");
 }
 
@@ -75,10 +102,16 @@ if (%morttonquest >= ^mortton_ulsquire_temple) {
     ~chatnpc("<p,neutral>Walls first, then the altar. Then oil, then wood, then a body, then a light. In that order or not at all.");
     return;
 }
+// FIXED: nothing checked the stage here, so a dose on Ulsquire before the shades were done (the dose
+// itself works on him at any stage) let this talk skip straight to ^mortton_ulsquire_temple.
+if (%morttonquest < ^mortton_shades_to_razmire) {
+    ~chatnpc("<p,neutral>The records say the shades came when the flame went out. Razmire will tell you the rest, when you have seen them for yourself.");
+    return;
+}
 ~chatplayer("<p,quiz>Razmire says you kept the temple records.");
 ~chatnpc("<p,neutral>I did. I keep them still, which is a joke I have stopped finding funny.");
 ~chatnpc("<p,neutral>The flame is not for warmth. It is for burning them - properly, with oil that has been through the flame itself, on wood that has been through the same.");
-~chatnpc("<p,neutral>Put the walls back, light the altar, bless the oil on it, oil the wood, lay the remains on a pyre, and light that.");
+~chatnpc("<p,neutral>Put the walls back - planks, limestone bricks and swamp paste, and a hammer, all from Razmire - then light the altar, bless olive oil on it, oil the wood, lay the remains on a pyre, and light that.");
 ~chatplayer("<p,quiz>And then?");
 ~chatnpc("<p,sad>And then one of them is finished instead of just stopped. That is the whole of it.");
 %morttonquest = ^mortton_ulsquire_temple;
