@@ -94,48 +94,59 @@ queue(crest_complete, 0, 0);
 
 [label,crest_dimintheis_gauntlets]
 ~chatnpc("<p,happy>You have my eternal gratitude adventurer, for all you have done in saving my family's honour. Perhaps some day my sons will overcome their differences.");
-if (testbit(%crest_spells_levers_gauntlets, ^crest_cooking_gauntlets_chosen) = ^true) {
-    if (~obj_gettotal(gauntlets_of_cooking) = 0) {
-        @crest_dimintheis_offer_gauntlets(gauntlets_of_cooking);
-    }
+// A player may own every kind of gauntlet (see ^crest_gauntlets_fee), so each kind a son has imbued
+// is returned here if the player has lost it - "the magic of these gauntlets will always return them
+// to the head of the Fitzharmon house". https://oldschool.runescape.wiki/w/Family_gauntlets
+if (~crest_dimintheis_return_gauntlets(gauntlets_of_cooking, ^crest_cooking_gauntlets_chosen) = false) {
+    return;
 }
-else if (testbit(%crest_spells_levers_gauntlets, ^crest_goldsmithing_gauntlets_chosen) = ^true) {
-    if (~obj_gettotal(gauntlets_of_goldsmithing) = 0) {
-        @crest_dimintheis_offer_gauntlets(gauntlets_of_goldsmithing);
-    }
+if (~crest_dimintheis_return_gauntlets(gauntlets_of_goldsmithing, ^crest_goldsmithing_gauntlets_chosen) = false) {
+    return;
 }
-else if (testbit(%crest_spells_levers_gauntlets, ^crest_chaos_gauntlets_chosen) = ^true) {
-    if (~obj_gettotal(gauntlets_of_chaos) = 0) {
-        @crest_dimintheis_offer_gauntlets(gauntlets_of_chaos);
-    }
+if (~crest_dimintheis_return_gauntlets(gauntlets_of_chaos, ^crest_chaos_gauntlets_chosen) = false) {
+    return;
 }
-else if (~obj_gettotal(steel_gauntlets) = 0) {
-    @crest_dimintheis_offer_gauntlets(steel_gauntlets);
+// Plain steel gauntlets for as long as a kind is left to imbue: the lost reward before the first
+// imbue, a fresh pair for a son to work on after it. OSRS's Dimintheis likewise hands out as many
+// steel gauntlets as the player wants once Family Pest is done. Nothing to imbue, nothing offered.
+if (~obj_gettotal(steel_gauntlets) = 0 & getbit_range(%crest_spells_levers_gauntlets, ^crest_cooking_gauntlets_chosen, ^crest_chaos_gauntlets_chosen) ! 7) {
+    if (~crest_gauntlets_imbued_any = false) {
+        ~crest_dimintheis_offer_gauntlets(steel_gauntlets, "Your steel gauntlets returned to me through their magic power recently.", " back");
+    }
+    else {
+        ~crest_dimintheis_offer_gauntlets(steel_gauntlets, "My family has more than one pair of these gauntlets, and you have earned them all. I have a plain pair here for one of my sons to improve.", "");
+    }
 }
 
-[label,crest_dimintheis_offer_gauntlets](namedobj $gauntlets)
-def_string $gauntlets_name = "steel gauntlets";
+// Offers back a kind the player has had imbued and no longer owns. Returns false when the talk
+// should stop there (no room, or the player said no), true to carry on to the next kind.
+[proc,crest_dimintheis_return_gauntlets](namedobj $gauntlets, int $bit)(boolean)
+if (testbit(%crest_spells_levers_gauntlets, $bit) = ^false | ~obj_gettotal($gauntlets) > 0) {
+    return(true);
+}
+def_string $gauntlets_name = "cooking gauntlets";
 switch_obj($gauntlets) {
-    case gauntlets_of_cooking :
-        $gauntlets_name = "cooking gauntlets";
     case gauntlets_of_goldsmithing :
         $gauntlets_name = "goldsmithing gauntlets";
     case gauntlets_of_chaos :
         $gauntlets_name = "chaos gauntlets";
 }
-if(inv_freespace(inv) = 0) {
-    ~chatnpc("<p,happy>Your <$gauntlets_name> returned to me through their magic power recently. Clear some space and you can have them back."); 
+return(~crest_dimintheis_offer_gauntlets($gauntlets, "Your <$gauntlets_name> returned to me through their magic power recently.", " back"));
+
+// $back is " back" for a pair the player lost, and empty for a fresh one.
+[proc,crest_dimintheis_offer_gauntlets](namedobj $gauntlets, string $line, string $back)(boolean)
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,happy><$line> Clear some space and you can have them<$back>.");
+    return(false);
 }
-else {
-    ~chatnpc("<p,happy>Your <$gauntlets_name> returned to me through their magic power recently. Would you like them back?");
-    def_int $op = ~p_choice2("Yes please.", 1, "Not right now.", 2);
-    if ($op = 1) {
-        ~chatplayer("<p,happy>Yes please.");
-        ~chatnpc("<p,neutral>Here you go.");
-        inv_add(inv, $gauntlets, 1);
-    }
-    else {
-        ~chatplayer("<p,neutral>Not right now.");
-        ~chatnpc("<p,neutral>Well, come back if you change your mind any time. I owe you for your trouble.");
-    }
+~chatnpc("<p,happy><$line> Would you like them<$back>?");
+def_int $op = ~p_choice2("Yes please.", 1, "Not right now.", 2);
+if ($op = 1) {
+    ~chatplayer("<p,happy>Yes please.");
+    ~chatnpc("<p,neutral>Here you go.");
+    inv_add(inv, $gauntlets, 1);
+    return(true);
 }
+~chatplayer("<p,neutral>Not right now.");
+~chatnpc("<p,neutral>Well, come back if you change your mind any time. I owe you for your trouble.");
+return(false);

@@ -125,6 +125,29 @@ if (inv_total(inv, avan_crest) > 0 & inv_total(inv, caleb_crest) > 0 & inv_total
     mes("You still need one more piece of the crest.");
 }
 
+// Whether any brother has imbued a pair for this player yet. Only the first imbue is free; see
+// ^crest_gauntlets_fee.
+[proc,crest_gauntlets_imbued_any]()(boolean)
+if (getbit_range(%crest_spells_levers_gauntlets, ^crest_cooking_gauntlets_chosen, ^crest_chaos_gauntlets_chosen) > 0) {
+    return(true);
+}
+return(false);
+
+// A brother imbues the steel gauntlets the player is carrying into $gauntlets and marks the kind as
+// owned. The fee is taken in the same step as the swap, before any dialogue pauses, so the coins
+// counted are the coins spent. Returns false, having taken nothing, when the player can't pay.
+[proc,crest_gauntlets_imbue](namedobj $gauntlets, int $bit)(boolean)
+if (~crest_gauntlets_imbued_any = true) {
+    if (inv_total(inv, coins) < ^crest_gauntlets_fee) {
+        return(false);
+    }
+    inv_del(inv, coins, ^crest_gauntlets_fee);
+}
+%crest_spells_levers_gauntlets = setbit(%crest_spells_levers_gauntlets, $bit);
+inv_del(inv, steel_gauntlets, 1);
+inv_add(inv, $gauntlets, 1);
+return(true);
+
 [opheld5,steel_gauntlets] @drop_gauntlets;
 [opheld5,gauntlets_of_cooking] @drop_gauntlets;
 [opheld5,gauntlets_of_goldsmithing] @drop_gauntlets;
