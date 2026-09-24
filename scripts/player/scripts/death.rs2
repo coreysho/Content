@@ -3,6 +3,8 @@ strongqueue(player_death_default, 0, 0);
 
 [proc,player_death]
 %death = ^true;
+// every death script comes through here, the minigames' included - the Player Statistics count
+%player_deaths = add(%player_deaths, 1);
 p_delay(1);
 p_stopaction;
 if_close;
@@ -43,6 +45,8 @@ if (.finduid(%duel2accept) = true) {
 
 def_obj $prev_wep = inv_getobj(worn, ^wearpos_rhand);
 if (findhero = true) {
+    // the killer's Player Statistics count. The same player the items drop for.
+    .%player_pvp_kills = add(.%player_pvp_kills, 1);
     ~pvp_death_lose_items;
     session_log(^log_moderator, "Player died to <.displayname>");
 } else {

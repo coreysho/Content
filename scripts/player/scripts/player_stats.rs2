@@ -1,0 +1,35 @@
+// THE PLAYER STATISTICS the quest tab's Player Statistics page shows (questtab/scripts/questtab.rs2
+// draws them). The varps, and why each is scoped and protected the way it is, are in
+// player/configs/player_stats.varp. Each counter is bumped where the thing it counts already
+// happens, in the one place every case of it passes through:
+//
+//   time played       [softtimer,playtime_minute], started by ~player_stats_login
+//   account age       %player_first_seen, set by ~player_stats_login
+//   deaths            ~player_death (player/scripts/death.rs2), which every death script calls
+//   players killed    [queue,player_death_default]'s findhero branch - the one that drops the
+//                     victim's items for their killer
+//   monsters killed   ~player_stats_npc_kill, from [proc,npc_death]
+//   slayer tasks      ~complete_task (skill_slayer/scripts/slayer_task.rs2), %slayer_tasks_done
+//
+// and the rest are other systems' own numbers: clues opened are the collection log's casket
+// counters, boss kills the boss kill counts, game mode, XP rate and XP locks the gamemodes/ procs.
+
+// Called from [login,_].
+[proc,player_stats_login]
+if (%player_first_seen = 0) {
+    %player_first_seen = world_minute;
+}
+// a SOFTtimer, so a minute online counts while the player is busy too - a [timer] waits them out
+softtimer(playtime_minute, 100);
+
+[softtimer,playtime_minute]
+%player_playtime = add(%player_playtime, 1);
+
+// Called from [proc,npc_death]. The kill is the player's the drop goes to - npc_findhero, the test
+// every drop table and ~boss_kill_record open with - so a monster that dies to another monster, or
+// that nobody did enough damage to, is nobody's kill.
+[proc,player_stats_npc_kill]
+if (npc_findhero = ^false) {
+    return;
+}
+%player_npc_kills = add(%player_npc_kills, 1);
