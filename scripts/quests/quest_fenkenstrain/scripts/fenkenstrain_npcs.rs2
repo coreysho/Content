@@ -79,6 +79,14 @@ mes("Dr Fenkenstrain hands you a jar with a brain in it.");
 
 [label,fenk_doctor_sew]
 ~chatnpc("<p,neutral>Brain in the head, head on the body, and sew the whole thing up. The slab is through there.");
+// The brain is handed over once, at the step before; one that has gone missing since would leave
+// the head empty for good.
+if (~obj_gettotal(fenk_brain) = 0 & ~obj_gettotal(fenk_head_full) = 0 & inv_freespace(inv) > 0) {
+    ~chatplayer("<p,sad>I've lost the brain.");
+    ~chatnpc("<p,angry>Then it is fortunate I keep spares. Try to hold on to this one.");
+    inv_add(inv, fenk_brain, 1);
+    mes("Dr Fenkenstrain hands you a jar with a brain in it.");
+}
 
 [label,fenk_doctor_conductor]
 ~chatnpc("<p,happy>It is a fine body. Now it wants waking, and for that I want lightning.");
@@ -180,9 +188,9 @@ if (%fenk_spoken_to_gardener = 0) {
     ~chatnpc("<p,angry>Fenkenstrain. He is not the master here, whatever he tells you. The master was a decent man and one day he simply was not here any more.");
     %fenk_spoken_to_gardener = 1;
 }
-if (~obj_gettotal(fenk_obsidian_amulet) > 0 | ~obj_gettotal(fenk_star_amulet) > 0) {
+if (~obj_gettotal(fenk_obsidian_amulet) > 0 | ~obj_gettotal(fenk_star_amulet) > 0 | %fenk_coffin = 1) {
     ~chatnpc("<p,neutral>Mind what you do with that amulet. It was the master's.");
-    return;
+    @fenk_gardener_shed_key;
 }
 ~chatnpc("<p,neutral>The master wore an amulet in two halves - obsidian and marble. He kept the marble half in the garden shed, of all the daft places.");
 if (inv_freespace(inv) = 0) {
@@ -192,6 +200,22 @@ if (inv_freespace(inv) = 0) {
 ~chatnpc("<p,neutral>I have carried the obsidian half about with me since the day he went. You had better have it.");
 inv_add(inv, fenk_obsidian_amulet, 1);
 mes("The ghost gives you the obsidian amulet.");
+@fenk_gardener_shed_key;
+
+// The shed key. The shed is where the marble half is, and the broom cupboard is inside it - see
+// [oploc1,fenk_shed_door] - so the key has to come from somewhere outside the shed, and the man
+// who kept the garden is where it came from in the original.
+[label,fenk_gardener_shed_key]
+if (%fenk_unlocked_shed = 1 | inv_total(inv, fenk_shed_key) > 0) {
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>I would give you my key to the shed, if you had a hand free for it.");
+    return;
+}
+~chatnpc("<p,neutral>And you will want this. It is my key to the shed. Nobody has been in there since I died.");
+inv_add(inv, fenk_shed_key, 1);
+mes("The ghost gives you the shed key.");
 
 // The two halves make the six-pointed star that the memorial in the mausoleum is cut to take.
 [opheldu,fenk_obsidian_amulet]
