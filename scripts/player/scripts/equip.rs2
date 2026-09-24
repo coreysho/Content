@@ -460,12 +460,16 @@ if (~unequip_conflicts_space($equip_obj) = false) { // check if enough space
 def_obj $previous_equip = inv_getobj(worn, $worn_slot);
 inv_movetoslot(inv, worn, $inv_slot, $worn_slot); // equip item! this performs a swap
 
-if (inv_getobj(inv, $inv_slot) ! null) {
-    // presumably, they added this as an easy way for stackable objs to stack in the inv (instead of directly swapping)
-    // seems like in late 2006 they removed this line of code and it produced this bug: https://youtu.be/EYXp7GMFWEw, https://youtu.be/DwzDt3yw6k4
-    inv_movefromslot(inv, inv, $inv_slot); // moves item to the first available slot in the inv...
+// WHERE THE REPLACED ITEM GOES - Old School's rule, which switching in PvP is built on: it takes the
+// slot of the item that replaced it, so a switch leaves every item where it was and the next click
+// lands on what the player expects. 377 (like 2004) then moved it on to the first free slot, which
+// scattered a switch round the pack. Only a stackable that the pack already holds more of moves,
+// onto that stack, since two stacks of the same arrows or runes is not a thing.
+def_obj $replaced = inv_getobj(inv, $inv_slot);
+if ($replaced ! null & oc_stackable($replaced) = true & inv_total(inv, $replaced) > inv_getnum(inv, $inv_slot)) {
+    inv_movefromslot(inv, inv, $inv_slot);
 }
-~unequip_conflicts($equip_obj);
+~unequip_conflicts($equip_obj, $inv_slot);
 ~on_unequip($previous_equip);
 
 return(true);
@@ -497,8 +501,11 @@ if ($conflicts > add(inv_freespace(inv), 1)) { // add 1 to freespace to account 
 }
 return(true);
 
-// proc to unequip conflicting items with $equip_obj
-[proc,unequip_conflicts](obj $equip_obj)
+// proc to unequip conflicting items with $equip_obj. $inv_slot is the pack slot the equipped item
+// came from: when nothing in its own worn slot came back into it (a shield put on while holding a
+// two-hander), the first item it knocks off takes that slot, as Old School does; anything else, like
+// the shield a two-hander knocks off, goes to the first free slot.
+[proc,unequip_conflicts](obj $equip_obj, int $inv_slot)
 def_int $i = 0;
 while ($i < inv_size(worn)) {
     def_obj $worn_obj = inv_getobj(worn, $i);
@@ -508,7 +515,11 @@ while ($i < inv_size(worn)) {
             %sa_attack = ^false;
         }
         if ($worn_obj ! $equip_obj) { // skip the obj we just equipped
-            inv_moveitem(worn, inv, $worn_obj, $worn_num);
+            if ($inv_slot ! -1 & inv_getobj(inv, $inv_slot) = null & (oc_stackable($worn_obj) = false | inv_total(inv, $worn_obj) = 0)) {
+                inv_movetoslot(worn, inv, $i, $inv_slot);
+            } else {
+                inv_moveitem(worn, inv, $worn_obj, $worn_num);
+            }
         }
     }
     $i = add($i, 1);

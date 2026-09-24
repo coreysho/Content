@@ -20,15 +20,14 @@ mes("You cant eat it whole; maybe you should cut it up.");
 [opheld1,curry] @player_consume_item(consume_effect_stat2, 2, 3);
 [opheld1,stew] @player_consume_item(consume_effect_stat2, 2, 3);
 
-// gnome foods
-// these are combo eatable in osrs
-[opheld1,_gnome_crunchies] @player_consume_item(consume_effect_stat, null, null);
-[opheld1,_gnome_unf_odd_crunchies] @player_consume_item(consume_effect_stat, null, null);
-[opheld1,_gnome_batta] @player_consume_item(consume_effect_stat, null, null);
-[opheld1,_gnome_unf_odd_batta] @player_consume_item(consume_effect_stat, null, null);
-[opheld1,_gnome_bowl] @player_consume_item(consume_effect_stat, null, null);
-[opheld1,_gnome_unf_odd_bowl] @player_consume_item(consume_effect_stat, null, null);
-[opheld1,_gnome_premade_and_toadlegs_kingworm] @player_consume_item(consume_effect_stat, null, null);
+// gnome foods: combo food in Old School, like the karambwan (@player_eat_combo_food)
+[opheld1,_gnome_crunchies] @player_eat_combo_food(consume_effect_stat);
+[opheld1,_gnome_unf_odd_crunchies] @player_eat_combo_food(consume_effect_stat);
+[opheld1,_gnome_batta] @player_eat_combo_food(consume_effect_stat);
+[opheld1,_gnome_unf_odd_batta] @player_eat_combo_food(consume_effect_stat);
+[opheld1,_gnome_bowl] @player_eat_combo_food(consume_effect_stat);
+[opheld1,_gnome_unf_odd_bowl] @player_eat_combo_food(consume_effect_stat);
+[opheld1,_gnome_premade_and_toadlegs_kingworm] @player_eat_combo_food(consume_effect_stat);
 
 // cocktails
 // these work like normal food in osrs
@@ -79,13 +78,13 @@ if (oc_param(last_item, next_obj_stage) = null) {
 switch_obj(last_item) {
     // anti dragon
     case 1dose1antidragon, 2dose1antidragon, 3dose1antidragon, 4dose1antidragon :
-        @player_consume_item(consume_effect_antidragon, null, null);
+        @player_drink_potion(consume_effect_antidragon);
     // anti posions
     case 1doseantipoison, 2doseantipoison, 3doseantipoison, 4doseantipoison :
-        @player_consume_item(consume_effect_antipoison, null, null);
+        @player_drink_potion(consume_effect_antipoison);
     case 1dose2antipoison, 2dose2antipoison, 3dose2antipoison, 4dose2antipoison :
-        @player_consume_item(consume_effect_super_antipoison, null, null);
-    case default : @player_consume_item(consume_effect_stat, null, null);
+        @player_drink_potion(consume_effect_super_antipoison);
+    case default : @player_drink_potion(consume_effect_stat);
 }
 [opheld1,macro_triffidfruit]@player_consume_item(consume_effect_strange_fruit, 2, 3);
 // ************************* TRIGGERS **************************
@@ -105,16 +104,47 @@ if ($eat_delay ! null) {
     %eat_delay = calc(map_clock + $eat_delay);
 }
 
-// The attack delay eating costs you is measured FROM NOW, and it never shortens a delay you are
-// already serving. The old line added $skill_delay to %action_delay, which is wrong twice over:
-// out of combat %action_delay is already in the past, so eating cost nothing at all; in combat
-// every bite pushed the same running total further out, so combo-eating stacked delay on delay
-// until the player stopped attacking altogether.
+// Eating ADDS its delay to whatever is left of your attack timer, as Old School does: "When a
+// player eats a piece of food while they are waiting to attack again, an additional delay of 3
+// ticks is added" (https://oldschool.runescape.wiki/w/Food/Fast_foods), so a shark then a karambwan
+// costs 3 + 2 = 5. Counted from now when the timer has already run out, so eating out of combat
+// still costs the next attack its 3 ticks rather than nothing.
 if ($skill_delay ! null) {
-    %action_delay = max(%action_delay, calc(map_clock + $skill_delay));
+    %action_delay = calc(max(%action_delay, map_clock) + $skill_delay);
 }
 
 // consume effect
+jump($consume_effect);
+
+// POTIONS. Old School's potion timer: a sip every 3 ticks, on a timer of its own, so a potion can
+// follow food in the same tick (shark, brew, karambwan is the classic combo) but never another
+// potion - which it used to, any number per tick, having no delay at all. Drinking costs no attack
+// delay. https://oldschool.runescape.wiki/w/Potions, https://oldschool.runescape.wiki/w/Combo_eating
+[label,player_drink_potion](label $consume_effect)
+if (~duel_arena_consume_check(inv_getobj(inv, last_slot)) = false) {
+    return;
+}
+if (%potion_delay >= map_clock) {
+    return;
+}
+%potion_delay = calc(map_clock + 2);
+jump($consume_effect);
+
+// COMBO FOOD - the cooked karambwan and gnome food. It skips the food timer, which is what lets it
+// be eaten straight after a shark in the same tick, but it sets it, so nothing is eaten after it
+// ("this does not work if the karambwan is eaten first"); its own timer stops two in a row. Two
+// ticks of attack delay where other food costs three, added to the timer like any food.
+// https://oldschool.runescape.wiki/w/Cooked_karambwan
+[label,player_eat_combo_food](label $consume_effect)
+if (~duel_arena_consume_check(inv_getobj(inv, last_slot)) = false) {
+    return;
+}
+if (%combo_food_delay >= map_clock) {
+    return;
+}
+%combo_food_delay = calc(map_clock + 2);
+%eat_delay = max(%eat_delay, calc(map_clock + 2));
+%action_delay = calc(max(%action_delay, map_clock) + 2);
 jump($consume_effect);
 
 // vials dont even use this yet. Pies and odd cocktails have an empty option with their own scuffed messages
