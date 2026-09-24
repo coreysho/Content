@@ -1,0 +1,36 @@
+// THE LOG ITSELF. One slot per distinct item ever obtained, the slot's count being how many - so
+// "obtained" is inv_total > 0 and Old School's quantity under the icon is the count, and nothing has
+// to be bit-packed. It is keyed by OBJ rather than by page position, which is what lets a page be
+// added, reordered or dropped without touching anybody's save: a slot records "this item, this
+// many", not "page 3, slot 5".
+//
+// scope=perm, because the whole point is that it is still there next login; the save format
+// already stores every perm inv slot by slot (PlayerLoading reads the size it was saved with).
+// stackall, so a second whip is a count rather than a second slot. protect=no, because most of
+// what fills it happens in a monster's death script, which has the hero as active player but not
+// protected access - boss_kills.varp tells that story for varps, and it is the same rule here.
+//
+// The size is ^collection_log_capacity, generated from the spec, and the generator fails if the
+// log ever lists more distinct items than that. RAISE IT FREELY, NEVER LOWER IT: a saved slot past
+// a shrunken end would not load.
+[collection_log]
+scope=perm
+size=^collection_log_capacity
+stackall=yes
+protect=no
+
+// WHAT THE WINDOW SHOWS for the open page, rebuilt on every click and transmitted to the grid. An
+// obtained item is its obj and count; one not yet obtained is a PLACEHOLDER (inv_placeholder, the
+// bank's), which the client draws faded with no number - Old School's greyed-out icon, for free.
+[collection_log_view]
+size=^collection_log_view_size
+stackall=yes
+protect=no
+
+// A casket's leftovers from the one before. trail_rewardinv keeps whatever did not fit in a full
+// inventory, and the next casket rolls in on top of it - so the log snapshots it before the roll
+// and counts only what the roll added. Same size as trail_rewardinv.
+[collection_log_casket]
+size=9
+stackall=yes
+protect=no

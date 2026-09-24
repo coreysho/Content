@@ -1,0 +1,276 @@
+{
+ "_what": "Every page of the collection log: the tabs, the entries on each, the items on each entry and the counters it shows. tools/gencollectionlog.py writes the dbrows, the interface and the code that fills it from this file, and refuses an obj name that no .obj config defines. The model is Old School's collection log (https://oldschool.runescape.wiki/w/Collection_log), cut down to what this build can actually drop or hand out.",
+ "_items_are_global": "The log is keyed by ITEM, not by page, the way Old School's is: an item that sits on two pages (dragon pickaxe on the Dagannoth Kings and the Rare Drop Table, dragon chainbody on the Kalphite Queen and Slayer) is obtained on both the moment it is obtained once. So adding an item to a page never needs a new hook if something already logs it, and removing one never loses a player's record of it.",
+ "_what_logs_an_item": "An item is logged only where it is DROPPED or HANDED OUT - a drop table, a casket, a chest, a shop that pays in tickets - by a call to ~collection_log_add. Picking something up does not log it, so a traded or found item does not count, as in Old School. See scripts/collection_log/scripts/collection_log.rs2 for the list of call sites; a new item whose source is not one of them needs a ~collection_log_add line beside the obj_add / inv_add that gives it.",
+ "_counters": "boss:<key> is a kill count from tools/bosskillspec.json (read with ~boss_kill_get). Any other name is one of the log's own perm counters, declared under own_counters below; the generator gives each a varp and an id.",
+ "capacity": 400,
+ "_capacity": "Slots in the perm inv that holds the log: one per DISTINCT item ever obtained, so this is the ceiling on the number of different items the whole log can list. The generator fails if the log lists more. It can be raised freely; it must never be lowered below a size that has shipped, because the save keeps a slot index per item and a slot past the new end would not load.",
+ "own_counters": [
+  {"key": "clue_easy", "_why": "Easy caskets opened. Nothing counted clues before this; the only trail varp is %trail_status, which is step progress."},
+  {"key": "clue_medium"},
+  {"key": "clue_hard"},
+  {"key": "barrows_chests", "_why": "Barrows chests looted. %barrows_killed_count counts tunnel monsters, not chests."}
+ ],
+ "tabs": [
+  {
+   "name": "Bosses",
+   "entries": [
+    {
+     "key": "barrows",
+     "name": "Barrows Chests",
+     "counters": [["Barrows Chests", "barrows_chests"]],
+     "items": ["barrows_ahrim_head", "barrows_ahrim_weapon", "barrows_ahrim_body", "barrows_ahrim_legs",
+               "barrows_dharok_head", "barrows_dharok_weapon", "barrows_dharok_body", "barrows_dharok_legs",
+               "barrows_guthan_head", "barrows_guthan_weapon", "barrows_guthan_body", "barrows_guthan_legs",
+               "barrows_karil_head", "barrows_karil_weapon", "barrows_karil_body", "barrows_karil_legs",
+               "barrows_torag_head", "barrows_torag_weapon", "barrows_torag_body", "barrows_torag_legs",
+               "barrows_verac_head", "barrows_verac_weapon", "barrows_verac_body", "barrows_verac_legs",
+               "barrows_karil_ammo"]
+    },
+    {
+     "key": "chaos_elemental",
+     "name": "Chaos Elemental",
+     "counters": [["Chaos Elemental kills", "boss:chaos_elemental"]],
+     "_items": "No pet and no dragon pickaxe here - this build's table has neither.",
+     "items": ["dragon_2h_sword"]
+    },
+    {
+     "key": "zilyana",
+     "name": "Commander Zilyana",
+     "counters": [["Commander Zilyana kills", "boss:zilyana"]],
+     "items": ["bosspet_zilyana_item", "saradomin_sword", "saradomin_hilt",
+               "godsword_shard_1", "godsword_shard_2", "godsword_shard_3"]
+    },
+    {
+     "key": "dagannoth_kings",
+     "name": "Dagannoth Kings",
+     "counters": [["Rex kills", "boss:dag_rex"], ["Prime kills", "boss:dag_prime"], ["Supreme kills", "boss:dag_supreme"]],
+     "items": ["bosspet_dagannoth_prime_item", "bosspet_dagannoth_supreme_item", "bosspet_dagannoth_rex_item",
+               "berzerker_ring", "ranger_ring", "seer_ring", "warrior_ring",
+               "dragon_axe", "daganoth_cave_magic_shortbow", "mud_battlestaff", "dragon_pickaxe"]
+    },
+    {
+     "key": "fight_caves",
+     "name": "The Fight Caves",
+     "counters": [["TzTok-Jad kills", "boss:jad"]],
+     "_items": "The infernal cape is here rather than on an Inferno page because this build has no Inferno: TzHaar-Mej-Jal's fire cape gamble is the only way to get one.",
+     "items": ["tzhaar_cape_fire", "bosspet_tzrek_jad_item", "tzhaar_cape_infernal"]
+    },
+    {
+     "key": "graardor",
+     "name": "General Graardor",
+     "counters": [["General Graardor kills", "boss:graardor"]],
+     "items": ["bosspet_graardor_item", "bandos_chestplate", "bandos_tassets", "bandos_boots", "bandos_hilt",
+               "godsword_shard_1", "godsword_shard_2", "godsword_shard_3"]
+    },
+    {
+     "key": "mole",
+     "name": "Giant Mole",
+     "counters": [["Giant Mole kills", "boss:mole"]],
+     "items": ["bosspet_giant_mole_item", "mole_skin", "mole_claw"]
+    },
+    {
+     "key": "kq",
+     "name": "Kalphite Queen",
+     "counters": [["Kalphite Queen kills", "boss:kq"]],
+     "items": ["bosspet_kalphite_queen_item", "kq_head", "dragon_chainbody"]
+    },
+    {
+     "key": "kbd",
+     "name": "King Black Dragon",
+     "counters": [["King Black Dragon kills", "boss:kbd"]],
+     "_items": "Only the pet: this build has no KBD heads and no draconic visage.",
+     "items": ["bosspet_kbd_item"]
+    },
+    {
+     "key": "kraken",
+     "name": "Kraken",
+     "counters": [["Kraken kills", "boss:kraken"]],
+     "items": ["bosspet_kraken_item", "kraken_tentacle_item", "trident_of_the_seas_full", "jar_of_dirt"]
+    },
+    {
+     "key": "kreearra",
+     "name": "Kree'arra",
+     "counters": [["Kree'arra kills", "boss:kreearra"]],
+     "items": ["bosspet_kree_item", "armadyl_helmet", "armadyl_chestplate", "armadyl_chainskirt", "armadyl_hilt",
+               "godsword_shard_1", "godsword_shard_2", "godsword_shard_3", "armadyl_crossbow"]
+    },
+    {
+     "key": "kril",
+     "name": "K'ril Tsutsaroth",
+     "counters": [["K'ril Tsutsaroth kills", "boss:kril"]],
+     "items": ["bosspet_kril_item", "zamorakian_spear", "zamorak_hilt",
+               "godsword_shard_1", "godsword_shard_2", "godsword_shard_3"]
+    }
+   ]
+  },
+  {
+   "name": "Clues",
+   "entries": [
+    {
+     "key": "clue_easy",
+     "name": "Easy Treasure Trails",
+     "counters": [["Easy clues completed", "clue_easy"]],
+     "items": ["black_full_helm_trim", "black_platebody_trim", "black_platelegs_trim", "black_kiteshield_trim",
+               "black_full_helm_gold", "black_platebody_gold", "black_platelegs_gold", "black_kiteshield_gold",
+               "black_heraldic_kiteshield1", "black_heraldic_kiteshield2", "black_heraldic_kiteshield3",
+               "black_heraldic_kiteshield4", "black_heraldic_kiteshield5",
+               "bluewizhat_trim", "wizards_robe_trim", "bluewizhat_trim_gold", "wizards_robe_trim_gold",
+               "highwaymanmask", "berret_blue", "berret_black", "berret_white", "boots_wizard"]
+    },
+    {
+     "key": "clue_medium",
+     "name": "Medium Treasure Trails",
+     "counters": [["Medium clues completed", "clue_medium"]],
+     "items": ["adamant_full_helm_trim", "adamant_platebody_trim", "adamant_platelegs_trim", "adamant_kiteshield_trim",
+               "adamant_full_helm_gold", "adamant_platebody_gold", "adamant_platelegs_gold", "adamant_kiteshield_gold",
+               "adamant_heraldic_kiteshield1", "adamant_heraldic_kiteshield2", "adamant_heraldic_kiteshield3",
+               "adamant_heraldic_kiteshield4", "adamant_heraldic_kiteshield5",
+               "boots_ranger", "boots_wizard", "headband_red", "headband_black", "headband_brown"]
+    },
+    {
+     "key": "clue_hard",
+     "name": "Hard Treasure Trails",
+     "counters": [["Hard clues completed", "clue_hard"]],
+     "items": ["rune_full_helm_trim", "rune_platebody_trim", "rune_platelegs_trim", "rune_kiteshield_trim",
+               "rune_full_helm_gold", "rune_platebody_gold", "rune_platelegs_gold", "rune_kiteshield_gold",
+               "rune_full_helm_zamorak", "rune_platebody_zamorak", "rune_platelegs_zamorak", "rune_kiteshield_zamorak",
+               "rune_full_helm_guthix", "rune_platebody_guthix", "rune_platelegs_guthix", "rune_kiteshield_guthix",
+               "rune_full_helm_saradomin", "rune_platebody_saradomin", "rune_platelegs_saradomin", "rune_kiteshield_saradomin",
+               "rune_heraldic_kiteshield1", "rune_heraldic_kiteshield2", "rune_heraldic_kiteshield3",
+               "rune_heraldic_kiteshield4", "rune_heraldic_kiteshield5",
+               "robinhoodhat", "piratehat", "cavalier_brown", "cavalier_dark", "cavalier_black",
+               "enchanted_hat", "enchanted_robetop", "enchanted_robelegs", "thread_of_elidinis"]
+    },
+    {
+     "key": "clue_shared",
+     "name": "Shared Treasure Trail Rewards",
+     "_items": "The clue hunter outfit rolls in every tier, so it gets Old School's shared page rather than a place on one tier.",
+     "counters": [],
+     "items": ["helm_of_raedwald", "clue_hunter_garb", "clue_hunter_gloves", "clue_hunter_trousers",
+               "clue_hunter_boots", "clue_hunter_cloak"]
+    }
+   ]
+  },
+  {
+   "name": "Minigames",
+   "_entries": "Only the two minigames that pay out a collectible here. Pest Control's void exchange is a stub, the Ranging Guild ticket shop is commented out, Champions' Challenge has no arena, and the Duel Arena, Party Room, Gnomeball and Fishing Trawler pay nothing worth a page.",
+   "entries": [
+    {
+     "key": "agility_arena",
+     "name": "Brimhaven Agility Arena",
+     "counters": [],
+     "items": ["piratehook"]
+    },
+    {
+     "key": "castle_wars",
+     "name": "Castle Wars",
+     "counters": [],
+     "items": ["castlewars_med_helm", "castlewars_armour_body", "castlewars_armour_legs", "castlewars_sword", "castlewars_shield",
+               "castlewars_med_helm_2", "castlewars_armour_body_2", "castlewars_armour_legs_2", "castlewars_sword_2", "castlewars_shield_2",
+               "castlewars_med_helm_3", "castlewars_armour_body_3", "castlewars_armour_legs_3", "castlewars_sword_3", "castlewars_shield_3",
+               "castlewars_hood_saradomin_prize", "castlewars_cloak_saradomin_prize",
+               "castlewars_hood_zamorak_prize", "castlewars_cloak_zamorak_prize"]
+    }
+   ]
+  },
+  {
+   "name": "Other",
+   "entries": [
+    {
+     "key": "pets",
+     "name": "All Pets",
+     "counters": [],
+     "_items": "Every pet that is rolled for. Jal-rek-Jad is left off: it is TzRek-Jad metamorphosed, not something that is ever received.",
+     "items": ["bosspet_tzrek_jad_item", "bosspet_kril_item", "bosspet_graardor_item", "bosspet_zilyana_item",
+               "bosspet_kree_item", "bosspet_kalphite_queen_item", "bosspet_dagannoth_rex_item",
+               "bosspet_dagannoth_supreme_item", "bosspet_dagannoth_prime_item", "bosspet_kraken_item",
+               "bosspet_kbd_item", "bosspet_giant_mole_item",
+               "skillpet_beaver_item", "skillpet_heron_item", "skillpet_rock_golem_item", "skillpet_rocky_item",
+               "skillpet_squirrel_item", "skillpet_tangleroot_item", "skillpet_rift_guardian_item",
+               "skillpet_chinchompa_item"]
+    },
+    {
+     "key": "outfits_artisan",
+     "name": "Artisan Outfits",
+     "counters": [],
+     "items": ["pyromancer_hood", "pyromancer_garb", "pyromancer_robe", "pyromancer_boots",
+               "eye_hat", "eye_top", "eye_bottoms", "eye_boots",
+               "smiths_tunic", "smiths_trousers", "smiths_boots", "smiths_gloves",
+               "carpenters_helm", "carpenters_shirt", "carpenters_trousers", "carpenters_boots",
+               "zealots_helm", "zealots_top", "zealots_bottom", "zealots_boots"]
+    },
+    {
+     "key": "chaos_druids",
+     "name": "Chaos Druids",
+     "counters": [],
+     "items": ["elder_chaos_hood", "elder_chaos_top", "elder_chaos_robe"]
+    },
+    {
+     "key": "cyclopes",
+     "name": "Cyclopes",
+     "counters": [],
+     "items": ["bronze_defender", "iron_defender", "steel_defender", "black_defender", "mithril_defender",
+               "adamant_defender", "rune_defender", "dragon_defender"]
+    },
+    {
+     "key": "outfits_gathering",
+     "name": "Gathering Outfits",
+     "counters": [],
+     "items": ["prospector_helm", "prospector_jacket", "prospector_legs", "prospector_boots",
+               "angler_hat", "angler_top", "angler_waders", "angler_boots",
+               "lumberjack_hat", "lumberjack_top", "lumberjack_legs", "lumberjack_boots",
+               "hunter_headwear", "hunter_top", "hunter_legs", "hunter_boots",
+               "rogue_mask", "rogue_top", "rogue_trousers", "rogue_boots", "rogue_gloves"]
+    },
+    {
+     "key": "graceful",
+     "name": "Graceful",
+     "counters": [],
+     "items": ["graceful_hood", "graceful_top", "graceful_legs", "graceful_gloves", "graceful_boots", "graceful_cape"]
+    },
+    {
+     "key": "mage_arena",
+     "name": "Mage Arena",
+     "counters": [],
+     "items": ["saradomin_cape", "guthix_cape", "zamorak_cape",
+               "imbued_saradomin_cape", "imbued_guthix_cape", "imbued_zamorak_cape"]
+    },
+    {
+     "key": "rare_drop_table",
+     "name": "Rare Drop Table",
+     "counters": [],
+     "_items": "The mega-rare end of the shared table (~megararetable), which every monster that reaches the rare table can roll once Legends' Quest is done.",
+     "items": ["rune_spear", "dragonshield_a", "dragon_spear"]
+    },
+    {
+     "key": "slayer",
+     "name": "Slayer",
+     "counters": [],
+     "items": ["imbued_heart", "abyssal_head", "abyssal_whip", "granite_maul", "granite_legs", "black_mask",
+               "dragon_chainbody", "kraken_tentacle_item", "trident_of_the_seas_uncharged"]
+    }
+   ]
+  }
+ ],
+ "rewards": [
+  {
+   "key": "first_item",
+   "bit": 0,
+   "entry": null,
+   "threshold": 1,
+   "reward": null,
+   "message": "Your collection log is open for business - read it from the quest list.",
+   "_why": "A PLACEHOLDER that proves the mechanism and tells a new player where the log is. No item."
+  },
+  {
+   "key": "complete",
+   "bit": 1,
+   "entry": null,
+   "threshold": -1,
+   "reward": null,
+   "message": "You have completed the entire collection log!",
+   "_why": "A PLACEHOLDER: threshold -1 means every item on the pages it covers."
+  }
+ ]
+}
