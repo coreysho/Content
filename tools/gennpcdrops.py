@@ -562,6 +562,8 @@ class Ctx:
 # shared rare table for the killer's mode, gamemodes/scripts/droprate.rs2). That last one is the
 # PLAYER'S, not the npc's, so the viewer states it per viewer instead (~npc_drops_open).
 SKIP_PROCS = {'npc_death'}
+# The boss pet roll (npc/scripts/boss_pets.rs2), counted where it is called: see call().
+PET_PROCS = {'bosspet_roll'}
 
 # THE SHARED RARE TABLE. What a drop owes to these is counted apart (Ctx.excl), because the game-mode
 # drop-rate boost (gamemodes/scripts/droprate.rs2) raises a monster's OWN table and not this one: the
@@ -939,6 +941,18 @@ def call(ctx, name, args, st, pinned):
                 raise Unsupported('clue rate %r' % (rate,))
             if rate > 0:
                 emit(ctx, (ENUM_FIRST.get(enum), '1', label), s.prob / rate)
+            out.append((s, ()))
+        return out
+    if name in PET_PROCS:
+        # ~bosspet_roll(pet, rate) hands the pet to the killer by a queue (~pet_receive_later) rather
+        # than an obj_add, so it is counted here: once in rate kills
+        out = []
+        for s, vals in ev_list(ctx, args, st, pinned):
+            pet, rate = vals[0], vals[1]
+            if not isinstance(pet, str) or not isinstance(rate, int):
+                raise Unsupported('pet roll %r' % (vals,))
+            if rate > 0:
+                emit(ctx, (pet, '1', None), s.prob / rate)
             out.append((s, ()))
         return out
     if name in SKIP_PROCS:
