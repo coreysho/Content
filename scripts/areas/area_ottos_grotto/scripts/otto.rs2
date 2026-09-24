@@ -1,0 +1,99 @@
+// Otto's Grotto (Barbarian Training, 3 July 2007): Otto Godblessed's house on the south-west shore of
+// the lake above Baxtorian Falls. The house came in from 474 (configs/ottos_house.loc,
+// tools/models/import474rect.py); the leaping-fish spots in the lake are skill_fishing's
+// (scripts/fishing_spots/barbarian.rs2).
+//
+// Only the rod-fishing part of Otto's training is here. His lines are the OSRS wiki's transcript
+// (Transcript:Barbarian Training), cut down to the fishing lesson: meeting him, "What can I learn about
+// the use of a fishing rod?", and "I've fished with a barbarian rod!" once a leaping fish is caught.
+// %barbarian_fishing (configs/ottos_grotto.varp) remembers which of those the player has reached.
+
+[opnpc1,otto_godblessed]
+if (%barbarian_fishing = ^barbfish_not_started) {
+    ~chatnpc("<p,neutral>Good day! You seem a hearty warrior. Maybe even some barbarian blood in that body of yours?");
+    def_int $choice = ~p_choice3("You think so?", 1, "Who are you and why do you live all the way out here?", 2, "Sorry, I'm too busy to talk about genealogy today.", 3);
+    if ($choice = 1) {
+        ~chatplayer("<p,quiz>You think so?");
+        ~chatnpc("<p,neutral>Who can tell? My forefathers weren't averse to travelling, so it is possible. They tended to cause too much trouble in your so-called civilised lands, however, so most returned to their ancestral homes.");
+        ~chatnpc("<p,neutral>In any case, given you seem the type, I think you are ready to learn our more secret tribal feats for yourself.");
+        @otto_topics;
+    }
+    if ($choice = 2) {
+        ~chatplayer("<p,quiz>Who are you and why do you live all the way out here?");
+        ~chatnpc("<p,neutral>Me? I am Otto, known as the Godblessed. I follow the ways of our barbarian ancestors, communing with the spirits of the dead and teaching their ways to worthy disciples.");
+        ~chatnpc("<p,neutral>Perhaps you could be one of them. You look a likely sort to learn of these ways. As I say, you might even have a bit of barbarian blood hidden away in you.");
+        @otto_topics;
+    }
+    ~chatplayer("<p,neutral>Sorry, I'm too busy to talk about genealogy today.");
+    ~chatnpc("<p,neutral>Well then, we will talk when you learn to be less impetuous.");
+    return;
+}
+~chatnpc("<p,happy>Good day to you, hearty warrior! May the spirits guide you.");
+@otto_topics;
+
+[label,otto_topics]
+def_int $choice;
+if (%barbarian_fishing = ^barbfish_caught) {
+    $choice = ~p_choice3("What can I learn about the use of a fishing rod?", 1, "I've fished with a barbarian rod!", 2, "I'd better get going.", 3);
+} else {
+    $choice = ~p_choice2("What can I learn about the use of a fishing rod?", 1, "I'd better get going.", 3);
+}
+if ($choice = 1) {
+    @otto_fishing_rod;
+}
+if ($choice = 2) {
+    @otto_fished;
+}
+~chatplayer("<p,neutral>I'd better get going.");
+
+[label,otto_fishing_rod]
+~chatplayer("<p,quiz>What can I learn about the use of a fishing rod?");
+~chatnpc("<p,neutral>While you civilised folk use small, weak fishing rods, we barbarians are skilled with heavier tackle. We fish in the lake nearby.");
+~chatplayer("<p,quiz>So can you teach me of your methods?");
+~chatnpc("<p,neutral>Certainly. Take the rod from under my bed and fish in the lake. When you have caught a few fish, I am sure you will be ready to talk more with me.");
+~chatnpc("<p,neutral>You will know when you are ready, since inspiration will fill your mind.");
+~chatplayer("<p,quiz>So I can obtain new foods from these fishing spots?");
+~chatnpc("<p,neutral>We do not use these fish quite as you might expect. When you return we can speak more of this matter.");
+if (%barbarian_fishing = ^barbfish_not_started) {
+    %barbarian_fishing = ^barbfish_rod_allowed;
+}
+@otto_more;
+
+// The fish are for their eggs: the lesson that leads to Barbarian Herblore in OSRS, and here to the
+// knife (skill_fishing/scripts/barbarian_gutting.rs2). The last line is Otto's from the herblore
+// lesson, where OSRS first tells you to cut them.
+[label,otto_fished]
+~chatplayer("<p,happy>I've fished with a barbarian rod!");
+~chatnpc("<p,happy>Your mind is as clear as the waters you have fished. This is good.");
+~chatplayer("<p,confused>So what do I do with these fish? They are all bloated and so nasty looking that even a starving vulture wouldn't eat one.");
+~chatnpc("<p,neutral>Patience young one. These are fish which are fat with eggs rather than fat of flesh. It is these eggs that are the thing to make use of.");
+~chatnpc("<p,neutral>If you use your knife upon them, several new fishy items will be produced. Fish parts can be used as bait, but the roe and caviar is more useful for us.");
+@otto_more;
+
+[label,otto_more]
+def_int $choice = ~p_choice2("I seek more knowledge.", 1, "I have no more questions at this time.", 2);
+if ($choice = 1) {
+    ~chatplayer("<p,neutral>I seek more knowledge.");
+    @otto_topics;
+}
+~chatplayer("<p,neutral>I have no more questions at this time.");
+~chatnpc("<p,neutral>In that case, farewell.");
+
+// "Otto Godblessed will let you take this fishing rod from underneath the bed in his cabin; if you
+// lose or drop it, get another from the bed." (wiki, Barbarian rod)
+[oploc1,loc474_25268]
+anim(human_pickuptable, 0);
+if (%barbarian_fishing = ^barbfish_not_started) {
+    mes("You search the bed but find nothing of interest.");
+    return;
+}
+if (inv_total(inv, barbarian_rod) > 0) {
+    mes("You search the bed but find nothing else of use.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    ~displaymessage(^dm_invspace);
+    return;
+}
+inv_add(inv, barbarian_rod, 1);
+~objbox(barbarian_rod, "You find a heavy fishing rod under the bed.", 250, 0, divide(^objbox_height, 2));

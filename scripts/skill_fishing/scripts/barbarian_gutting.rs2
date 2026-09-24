@@ -1,0 +1,64 @@
+// Gutting leaping fish with a knife. They "cannot be cooked, only gutted" (wiki, Leaping trout), and
+// Otto's point is the eggs: "These are fish which are fat with eggs rather than fat of flesh."
+//
+// Mod Ash's figures (18 April 2018, cited on the wiki's Roe, Caviar and Fish offcuts pages):
+//   trout     roe     1/150 at level 1 Cooking, 99/150 at 99, linear;   then 1/2 for offcuts too
+//   salmon    roe     1/80 at level 1, 100% at 80;                       then 3/4 for offcuts
+//   sturgeon  caviar  1/80 at level 1, 100% at 80;                       then 5/6 for offcuts
+// So the chance is simply level/150 or level/80. A failed roll gives nothing and the fish is gone.
+// Roe pays 10 Cooking experience, caviar 15.
+//
+// The knife keeps cutting, a fish every 3 ticks, until that kind runs out - OSRS since 16 November
+// 2022 (Leaping trout: Changes) - on a weak queue, so walking away or doing anything else stops it.
+//
+// The use-knife-on-fish trigger is skill_cooking's [opheldu,knife] (gnome_cooking/cutting_fruit.rs2):
+// that trigger may only be declared once, and it catches both directions of the use.
+
+[label,barbfish_gut_start](obj $fish)
+~barbfish_gut($fish);
+
+[queue,barbfish_gut_next](obj $fish)
+~barbfish_gut($fish);
+
+[proc,barbfish_gut](obj $fish)
+if (inv_total(inv, knife) < 1 | inv_total(inv, $fish) < 1) {
+    return;
+}
+def_namedobj $eggs = roe;
+def_int $in = 80;             // the eggs come out level/$in of the time
+def_int $exp = 100;
+def_int $offcuts_n = 3;       // then offcuts too, $offcuts_n in $offcuts_d
+def_int $offcuts_d = 4;
+switch_obj ($fish) {
+    case leaping_trout :
+        $in = 150;
+        $offcuts_n = 1;
+        $offcuts_d = 2;
+    case leaping_sturgeon :
+        $eggs = caviar;
+        $exp = 150;
+        $offcuts_n = 5;
+        $offcuts_d = 6;
+}
+anim(human_fletching, 0);
+inv_del(inv, $fish, 1);
+if (random($in) >= stat(cooking)) {
+    mes("You cut open the fish but find no <lowercase(oc_name($eggs))> inside it.");
+} else {
+    inv_add(inv, $eggs, 1);
+    stat_advance(cooking, $exp);
+    // the fish's own slot went to the eggs; offcuts stack, so they need a slot only if none are held
+    if (random($offcuts_d) < $offcuts_n & (inv_total(inv, fish_offcuts) > 0 | inv_freespace(inv) > 0)) {
+        inv_add(inv, fish_offcuts, 1);
+        mes("You cut open the fish and extract some <lowercase(oc_name($eggs))> and some fish offcuts.");
+    } else {
+        mes("You cut open the fish and extract some <lowercase(oc_name($eggs))>.");
+    }
+}
+if (inv_total(inv, $fish) > 0) {
+    weakqueue*(barbfish_gut_next, 3)($fish);
+}
+
+// Roe heals 3 and caviar 5 (wiki); the amounts are barbarian_fishing.dbrow's.
+[opheld1,roe] @player_consume_item(consume_effect_stat, 2, 3);
+[opheld1,caviar] @player_consume_item(consume_effect_stat, 2, 3);
