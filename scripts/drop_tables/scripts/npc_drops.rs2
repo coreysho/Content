@@ -1,0 +1,99 @@
+// DROP TABLE VIEWER (2026-09-23). Examining an attackable npc opens what it drops - every item, the
+// amount, and how often: "Always" or "1/N", where N is how many kills it takes on average - in the
+// way the OSRS wiki's drop tables read (oldschool.runescape.wiki/w/Drop_rate). [proc,npc_examine]
+// (skill_combat/scripts/player/elemental_weakness.rs2) calls this after the description.
+//
+// THE NUMBERS ARE THE SCRIPTS' OWN. tools/gennpcdrops.py runs every [ai_queue3] death script with its
+// random() rolls kept symbolic, so a nested table multiplies out exactly as the server rolls it - a
+// rune spear through the rare drop table is the rare-table slot times the megararetable slot - and
+// writes the result to configs/npc_drops.dbrow. Nothing here computes a rate; re-run the generator
+// when a drop table changes. What it assumes of the killer (a members world, nothing carried, no
+// quest state) is in its docstring, and its report names every table where that matters.
+//
+// THE LIST COMES IN TIERS (7, 15, 30, 60, 120 rows): a 377 scroll layer cannot change length at
+// runtime, so the window holds one list layer per length and shows the smallest that fits, rather
+// than making a chicken's four rows scroll through a hundred empty ones.
+
+// An npc with no table (it drops nothing, or the generator could not read its script) opens nothing,
+// and the examine text stands on its own.
+[proc,npc_drops_open](npc $npc)
+db_find(npc_drops:npc, $npc);
+def_dbrow $row = db_findnext;
+if ($row = null) {
+    return;
+}
+def_int $count = db_getfieldcount($row, npc_drops:drop);
+
+// the smallest tier that holds the table; the last one if none does (the generator stops a table
+// from outgrowing it, so that only ever cuts the rarest rows)
+def_int $tiers = enum_getoutputcount(npc_drops_tier_size);
+def_int $tier = 0;
+def_int $t = 1;
+while ($t <= $tiers) {
+    if ($tier = 0 & ($count <= enum(int, int, npc_drops_tier_size, $t) | $t = $tiers)) {
+        $tier = $t;
+        if_sethide(enum(int, component, npc_drops_tier_list, $t), false);
+    } else {
+        if_sethide(enum(int, component, npc_drops_tier_list, $t), true);
+    }
+    $t = add($t, 1);
+}
+def_int $size = enum(int, int, npc_drops_tier_size, $tier);
+
+if_settext(npc_drops:title, nc_name($npc));
+if_settext(npc_drops:subtitle, ~npc_drops_subtitle($npc));
+
+// Every row of the tier is written, the unused ones blank: the components keep whatever text the
+// last table left in them.
+inv_clear(npcdrops);
+def_namedobj $obj;
+def_string $name;
+def_string $qty;
+def_string $rate;
+def_int $key;
+def_int $i = 0;
+while ($i < $size) {
+    if ($i < $count) {
+        $obj, $name, $qty, $rate = db_getfield($row, npc_drops:drop, $i);
+        // a count of 1 so the icon carries no number: the amount is its own column, and is often a
+        // range the icon could not show anyway
+        inv_setslot(npcdrops, $i, $obj, 1);
+    } else {
+        $name = "";
+        $qty = "";
+        $rate = "";
+    }
+    $key = calc($tier * 1000 + $i);
+    if_settext(enum(int, component, npc_drops_name, $key), $name);
+    if_settext(enum(int, component, npc_drops_qty, $key), $qty);
+    if_settext(enum(int, component, npc_drops_rate, $key), $rate);
+    $i = add($i, 1);
+}
+inv_transmit(npcdrops, enum(int, component, npc_drops_tier_icons, $tier));
+if_setscrollpos(enum(int, component, npc_drops_tier_list, $tier), 0);
+if_openmain(npc_drops);
+
+// The combat level, and - for a monster whose table reaches the shared rare drop table - the extra
+// draws on it this player's game mode gives (gamemodes/scripts/droprate.rs2). Those are the killer's,
+// not the monster's, so the rates in the list leave them out and this line says what they add.
+[proc,npc_drops_subtitle](npc $npc)(string)
+def_string $line = "Combat level <tostring(nc_vislevel($npc))>";
+if (enum(npc, int, droprate_shared_rare, $npc) = 1) {
+    def_int $rolls = ~droprate_bonus_rolls;
+    if ($rolls > 0) {
+        $line = append($line, ". Your game mode: +<tostring($rolls)> rare drop table roll");
+        if ($rolls > 1) {
+            $line = append($line, "s");
+        }
+    }
+}
+return($line);
+
+[if_close,npc_drops]
+// whichever tier was on show; stopping the others is harmless
+def_int $t = 1;
+while ($t <= enum_getoutputcount(npc_drops_tier_icons)) {
+    inv_stoptransmit(enum(int, component, npc_drops_tier_icons, $t));
+    $t = add($t, 1);
+}
+inv_clear(npcdrops);
