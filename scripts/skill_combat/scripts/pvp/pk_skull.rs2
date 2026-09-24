@@ -25,6 +25,11 @@ if (~deserves_pk_skull = true) {
 .%lastcombat_pvp = map_clock;
 .%aggressive_npc = null; // prevents npc's from attacking your opponent after you attack them.
 
+// Barrows degradation counts PvP too, for both players (degrade/scripts/degrade.rs2). Queued, as
+// npc_set_attack_vars does, because the worn-inventory swap needs each player's protected access.
+queue(barrows_degrade_entry, 0, 0);
+.queue(barrows_degrade_entry, 0, 0);
+
 // requires active_player
 [proc,pk_skull](int $duration)
 ~headicon_add(^headicon_skull);

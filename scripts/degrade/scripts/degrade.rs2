@@ -64,7 +64,10 @@ return(0);
 
 [proc,barrows_combat_entry]
 %barrows_lastcombat = map_clock;
-if (%barrows_degrading = 1) {
+// Asks the engine whether the timer is running (gettimer is -1 when it is not) instead of trusting
+// %barrows_degrading: that varp is perm but timers are not saved, so logging out mid-fight used to
+// leave it stuck at 1 with no timer behind it - and that account's barrows never degraded again.
+if (gettimer(barrows_degrade) ! -1) {
     return; // already in combat, the timer is doing the work
 }
 %barrows_degrading = 1;
