@@ -327,9 +327,11 @@ def components(spec, entries):
     gscroll = grows * PITCH_Y if grows * PITCH_Y - MARGIN_Y > GRID_H else 0
     coms.append(('grid', dict(type='layer', x=GRID_X, y=GRID_Y, width=GRID_W, height=GRID_H, scroll=gscroll)))
     # "Check" is what puts the item's name on the menu - 377 has no hover tooltip for an inv slot -
-    # and its handler says how many have been obtained.
+    # and its handler says how many have been obtained. NOT interactable: that flag is what makes the
+    # client add an item's own backpack options (Wield, Eat, Drop...) to its menu, so a logged dragon
+    # axe offered "Wield". The menu is the grid's own Check, then Examine and Cancel, as Old School's.
     coms.append(('items', dict(layer='grid', type='inv', x=0, y=0, width=COLS, height=grows,
-                               interactable='yes', margin='%d,%d' % (MARGIN_X, MARGIN_Y), option1='Check')))
+                               interactable='no', margin='%d,%d' % (MARGIN_X, MARGIN_Y), option1='Check')))
     return coms
 
 

@@ -91,9 +91,10 @@ def main():
         overcolour='0xFFFFFF')
     # THE STORE ITSELF, not a row of model components: an inv component is transmitted and the
     # client draws the icons, the stack counts and the hover text for nothing, and its options come
-    # back as [inv_button1..4] with last_slot already filled in.
+    # back as [inv_button1..4] with last_slot already filled in. Not interactable: that flag adds each
+    # item's own backpack options (Wield, Drop...) to the menu, which mean nothing in a chest.
     com('loot', type='inv', x=grid_x, y=GRID_Y, width=COLS, height=rows,
-        interactable='yes', margin='%d,%d' % (GAP, GAP),
+        interactable='no', margin='%d,%d' % (GAP, GAP),
         option1='Take', option2='Take-all', option3='Bank')
     com('takeall', type='text', x=12, y=GRID_Y + rows * STEP + 10, width=488, height=14,
         buttontype='normal', center='yes', font='p12_full', shadowed='yes', text='Take everything',
