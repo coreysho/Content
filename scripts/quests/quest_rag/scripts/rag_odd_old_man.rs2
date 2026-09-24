@@ -40,7 +40,7 @@ switch_int (~p_choice2("I could collect them for you.", 1, "That sounds like som
         ~chatplayer("<p,happy>I could collect them for you.");
 }
 ~chatnpc("<p,happy>Could you? Splendid! Five, to begin with.");
-@rag_oom_list;
+~rag_oom_list;
 ~chatnpc("<p,neutral>They come off the beast whole, mind, and they come off filthy. You'll want to boil them clean.");
 ~chatplayer("<p,quiz>Boil them in what?");
 ~chatnpc("<p,neutral>Vinegar, in a pot. Fortunato sells vinegar at his stall in Draynor - tell him it's for me and he'll dig some out.");
@@ -48,7 +48,10 @@ switch_int (~p_choice2("I could collect them for you.", 1, "That sounds like som
 %rag_quest = ^rag_started;
 ~send_quest_progress(questlist:rag, %rag_quest, ^rag_complete);
 
-[label,rag_oom_list]
+// A proc, not a label: a jump to a label never comes back, so the list used to be the last thing
+// either conversation ever said - the start never reached the lines that set %rag_quest, and the
+// progress check never reached the "still wanting" line.
+[proc,rag_oom_list]
 ~chatnpc("<p,neutral>A goblin skull.|Some bear ribs.|A ram's skull.|A unicorn bone.|And a giant rat's skull.");
 
 [label,rag_oom_progress]
@@ -56,7 +59,7 @@ switch_int (~p_choice2("I could collect them for you.", 1, "That sounds like som
 if (~rag_bones_held < ^rag_bones_wanted) {
     ~chatplayer("<p,sad>Not all of them yet.");
     ~chatnpc("<p,neutral>Then let me say it again, and do try to keep up.");
-    @rag_oom_list;
+    ~rag_oom_list;
     @rag_oom_outstanding;
     return;
 }
