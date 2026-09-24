@@ -54,6 +54,9 @@ return(false);
 ~chatnpc("<p,sad>...no.");
 ~chatnpc("<p,angry>And I am not going to, because I am the Black Guard's supreme leader and I cannot be seen investigating a man who cannot stand up.");
 ~chatnpc("<p,neutral>Buy me a drink and I will tell you where to start.");
+// Without this the next conversation was this one again, forever: the only other place that set it
+// was the beer check, and the beer check is only reached once it is set.
+%forget_veldaban_exposition = ^forget_on;
 
 [proc,forget_beer_check]()(boolean)
 if (%forget_beer_given = ^forget_on) {
@@ -183,24 +186,44 @@ inv_del(inv, forget_gardener_letter, 1);
 ~mesbox("\"Nine letters,\" he says. \"Nine, from a man who has got herbicide resistance out of a cabbage in a cave, and the conference laughed at MY talk.\" | He gives you four packets of seed and will not take anything for them, and asks you to tell Rind that the next conference can be in Keldagrim if Rind can get anybody to come.");
 return(true);
 
+// =========================================================================== the boarding
+// The boarding was meant to come off at the cart - but the cart is in m29_77 and nothing in
+// Keldagrim led there, so the stage could never move past ^forget_seeds. The boards are in
+// Keldagrim, east of Rind, and the hammer goes on them. They are a wall decoration on a tile that is
+// solid rock, which no route can "reach" - so this is an approach trigger, from the tile in front.
+[aplocu,keldagrim_boardedupdoor_multi]
+if (distance(loc_coord, coord) > 1) {
+    p_aprange(1);
+    return;
+}
+if (last_useitem ! hammer) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%forget_quest < ^forget_seeds) {
+    ~mesbox("Eleven years of boarding across the mouth of a tunnel. You have no reason to go prising it off.");
+    return;
+}
+if (%forget_quest >= ^forget_complete) {
+    ~mesbox("There is nothing down there any more that anybody will do anything about.");
+    return;
+}
+anim(human_pickupfloor, 0);
+p_delay(5);
+if (%forget_quest = ^forget_seeds) {
+    %forget_quest = ^forget_tunnel;
+    ~send_quest_progress(questlist:forget, %forget_quest, ^forget_complete);
+    ~mesbox("The boards come loose. There are rails behind them, and they are not rusted, which after eleven years they very much should be.");
+} else {
+    mes("You prise the boards loose again and squeeze through.");
+}
+p_teleport(^forget_train_landing);
+
 // =========================================================================== the train cart
 [oploc1,forget_train_cart]
 p_arrivedelay;
-if (%forget_quest < ^forget_seeds) {
+if (%forget_quest < ^forget_tunnel) {
     ~mesbox("A cart on rails, behind eleven years of boarding that somebody put up in a hurry.");
-    return;
-}
-if (%forget_boarding_removed = ^forget_off) {
-    if (inv_total(inv, hammer) = 0) {
-        ~mesbox("Eleven years of boarding across the mouth of it. A hammer would take it off, and whoever nailed it up was in a hurry.");
-        return;
-    }
-    anim(human_pickupfloor, 0);
-    p_delay(5);
-    %forget_boarding_removed = ^forget_on;
-    %forget_quest = ^forget_tunnel;
-    ~send_quest_progress(questlist:forget, %forget_quest, ^forget_complete);
-    ~mesbox("The boards come off. The rails behind them are not rusted, which after eleven years they very much should be.");
     return;
 }
 mes("You get into the cart and it starts moving before you have sat down.");
@@ -282,10 +305,16 @@ p_teleport(^forget_chamber_a);
 [oploc1,forget_story_exit_next]
 def_coord $door = loc_coord;
 p_arrivedelay;
+if ($door = ^forget_base_next & %forget_quest < ^forget_papers) {
+    ~mesbox("A cave mouth off the tunnel, and nothing in the papers yet that makes it worth walking into.");
+    return;
+}
 mes("You go through.");
 p_delay(2);
 if ($door = ^forget_next_a) {
     p_teleport(^forget_chamber_b);
+} else if ($door = ^forget_base_next) {
+    p_teleport(^forget_chamber_a);
 } else {
     p_teleport(^forget_chamber_c);
 }
@@ -297,6 +326,12 @@ p_arrivedelay;
 mes("You go back.");
 p_delay(2);
 if ($door = ^forget_prev_b) {
+    // The two chambers only lead to each other, so once the last panel is read this is the way
+    // out - before, a player who had read all twelve was walled in with them.
+    if (%forget_quest >= ^forget_story) {
+        p_teleport(^forget_train_landing);
+        return;
+    }
     p_teleport(^forget_after_a);
     ~forget_mural;
     return;
@@ -350,6 +385,7 @@ p_delay(5);
 ~mesbox("\"I have been drinking in the same room as that man for two years,\" he says, \"and I have never once let him finish.\"");
 p_delay(3);
 %forget_quest = ^forget_complete;
+%forget_boarding_removed = ^forget_on;
 %forget_brothers_toldsuccess = ^forget_on;
 %forget_region_status = 1;
 stat_advance(mining, 50000);

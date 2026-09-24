@@ -34,6 +34,10 @@ if (%elidquest = ^elid_spoke_ghaslor) {
 ~mesbox("You take the robes of Elidinis. They are old, and lighter than they look.");
 
 [oploc1,elid_cupboard_closed] loc_change(elid_cupboard_open, 200);
+
+// The crates in Nardah's warehouse and in the genie's cave had Search and nothing behind it.
+[oploc1,elid_crate] mes("You search the crate and find nothing of interest.");
+[oploc1,elid_crates] mes("You search the crates and find nothing of interest.");
 [oploc3,elid_cupboard_open] loc_change(elid_cupboard_closed, 200);
 [oploc2,elid_cupboard_open] mes("You find nothing of interest.");
 
@@ -55,6 +59,15 @@ if (%elidquest = ^elid_has_robes) {
     %elidquest = ^elid_entered_shrine;
     ~send_quest_progress(questlist:elid, %elidquest, ^elid_complete);
 }
+// The genie's cave is under the same crevice, and it is where the statuette is. Nothing else led
+// into it, so once the spirits have sent you to him the crevice asks which way.
+if (%elidquest >= ^elid_channels_done) {
+    if (~p_choice2("Climb down to the water source.", 1, "Climb down to the genie's cave.", 2) = 2) {
+        mes("You climb down into the dark.");
+        p_teleport(^elid_genie_below);
+        return;
+    }
+}
 mes("You climb down into the dark.");
 p_teleport(^elid_shrine_below);
 
@@ -62,6 +75,49 @@ p_teleport(^elid_shrine_below);
 p_arrivedelay;
 mes("You climb back up into the sunlight.");
 p_teleport(^elid_shrine_above);
+
+[oploc1,elid_climbing_rope]
+p_arrivedelay;
+mes("You climb back up into the sunlight.");
+p_teleport(^elid_shrine_above);
+
+// =========================================================================== doors below
+// None of the doors under the rock had a trigger that moved you: the robe and lake doors had none
+// at all, and the golem doors only spawned their golem on the far side of a door that stayed shut.
+// Each of these walks you through - to the tile beyond the door, never onto the door's own tile,
+// which on the robe and lake doors is a pocket walled off on both sides.
+[oploc1,elid_underground_robe_door] @elid_robe_door;
+[oploc1,elid_underground_robe_door_mirror] @elid_robe_door;
+
+[label,elid_robe_door]
+p_arrivedelay;
+if (inv_total(worn, elid_robetop) = 0 | inv_total(worn, elid_robebottoms) = 0) {
+    ~mesbox("The door will not open for you. Whatever is beyond it expects you to be dressed for the shrine.");
+    return;
+}
+@elid_through_door;
+
+[oploc1,elid_underground_lake_door] @elid_through_door;
+[oploc1,elid_underground_lake_door_mirror] @elid_through_door;
+[oploc1,elid_genie_door] @elid_through_door;
+
+// Every door down here is a straight wall on the west (angle 0) or north (angle 1) edge of its tile.
+[label,elid_through_door]
+p_arrivedelay;
+sound_synth(door_open, 1, 0);
+if (loc_angle = 0) {
+    if (coordx(coord) < coordx(loc_coord)) {
+        p_teleport(movecoord(loc_coord, 1, 0, 0));
+    } else {
+        p_teleport(movecoord(loc_coord, -1, 0, 0));
+    }
+    return;
+}
+if (coordz(coord) > coordz(loc_coord)) {
+    p_teleport(movecoord(loc_coord, 0, 0, -1));
+} else {
+    p_teleport(movecoord(loc_coord, 0, 0, 1));
+}
 
 // =========================================================================== the golem doors
 
@@ -78,19 +134,21 @@ if (inv_total(inv, elid_key) = 0) {
     mes("The door is sealed, and the keyhole is a very old shape.");
     return;
 }
+// The door now lets you through as well; the guardian only wakes the first time.
 if (npc_find($where, $golem, 10, 0) = true) {
-    mes("The door is open. Its guardian is not.");
-    return;
+    @elid_through_door;
 }
 sound_synth(unlock, 1, 0);
 mes("The ancestral key turns, and the door grinds open.");
 npc_add($where, $golem, ^elid_golem_despawn);
-~mesbox("Something the colour of wet stone unfolds itself in the doorway.");
+@elid_through_door;
 
 // =========================================================================== the three channels
 
+// The obstacles are the children of multiloc shells (elid_waterchannel_*_multiloc), and a click on a
+// multiloc arrives as the shell - so the triggers are on the shells. On the children they never fired.
 // Mining: the stretch is blocked with fallen rock.
-[oploc1,elid_water_channel_blocked_rocks]
+[oploc1,elid_waterchannel_mining_multiloc]
 p_arrivedelay;
 if (%elid_miningchannel = 1) {
     mes("This stretch is running clear.");
@@ -112,7 +170,7 @@ stat_advance(mining, 10000);
 ~elid_check_channels;
 
 // Thieving: the stretch is trapped.
-[oploc1,elid_water_channel_spiketrap]
+[oploc1,elid_waterchannel_thieving_multiloc]
 p_arrivedelay;
 if (%elid_thievingchannel = 1) {
     mes("This stretch is running clear.");
@@ -129,8 +187,14 @@ stat_advance(thieving, 10000);
 ~elid_check_channels;
 
 // Ranging: a target across the water. elid_ranging_target_multinpc has no ops at all, so the only
-// way to interact with it is opnpcu - which is the right verb anyway.
-[opnpcu,elid_ranging_target_multinpc]
+// way to interact with it is using something on it - which is the right verb anyway. The channel
+// runs between the target and the black golem's room, so nobody can stand next to it: this is an
+// approach trigger, and the shot is taken from across the water.
+[apnpcu,elid_ranging_target_multinpc]
+if (npc_range(coord) > 7) {
+    p_aprange(7);
+    return;
+}
 if (%elid_rangingchannel = 1) {
     mes("The target is already down.");
     return;

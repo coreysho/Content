@@ -135,7 +135,7 @@ if (%elidquest = ^elid_channels_done) {
     ~chatnpc("<p,happy>Listen to it. That is the Elid.");
     ~chatplayer("<p,quiz>Is that all of it?");
     ~chatnpc("<p,neutral>No. The statuette is still gone, and until it is back we have nothing to answer to. A genie has it - he found it, and he has kept it, the way they do.");
-    ~chatnpc("<p,neutral>His cave is further down. He will want to be asked properly.");
+    ~chatnpc("<p,neutral>His cave is under the crevice you came down by - it forks, the other way. He will want to be asked properly.");
     return;
 }
 ~chatnpc("<p,happy>The water is running and she is back on her plinth. Thank you.");
@@ -147,8 +147,19 @@ if (%elidquest < ^elid_channels_done) {
     ~chatnpc("<p,happy>A visitor! Nobody visits. Do go away.");
     return;
 }
-if (%elidquest > ^elid_channels_done | ~obj_gettotal(elid_statuette) > 0) {
+if (%elidquest >= ^elid_complete | ~obj_gettotal(elid_statuette) > 0) {
     ~chatnpc("<p,neutral>I gave it to you. I am regretting it already.");
+    return;
+}
+// Lost between here and the plinth: there was no way to get it back.
+if (%elidquest > ^elid_channels_done) {
+    if (inv_freespace(inv) = 0) {
+        ~chatnpc("<p,neutral>You have lost her already? When you have a hand free.");
+        return;
+    }
+    ~chatnpc("<p,shifty>She came back down the crevice on her own, which I choose not to think about. Try to keep hold of her this time.");
+    inv_add(inv, elid_statuette, 1);
+    mes("The genie gives you the statuette of Elidinis.");
     return;
 }
 ~chatnpc("<p,happy>You are the one opening all the channels. Noisy work.");

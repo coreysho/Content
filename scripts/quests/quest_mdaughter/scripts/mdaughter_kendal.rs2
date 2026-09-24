@@ -1,9 +1,10 @@
 // The Kendal, in the cave south of the camp (npc 1811 at m43_157 local 34_33).
 //
 // mdaughter_multi_bear is a multi shell keyed on mdaughter_bear_multi_state, and multinpc=0 is its
-// only entry - mdaughter_bearman, the one that talks. At any other value the shell itself is what
-// stands there, and the shell carries op2=Attack, size=2 and vislevel=1. So the shell IS the
-// fighting form and mdaughter_bearman_fighter, which nothing references, stays unused.
+// only entry - mdaughter_bearman, which carries both Talk-to and Attack. At any other value the
+// client finds no child and draws nothing at all (there is no default entry in a 377 multinpc
+// table), so the varbit is never moved off 0: the fight happens with the Kendal the player can see.
+// The combat stats are on the shell in all.npc, because that is the type the server fights with.
 //
 // The triggers go on the shell for the same reason the Recruitment Drive door's do: the handler is
 // looked up against the placed type, not against whatever the multi currently resolves to.
@@ -31,16 +32,26 @@ switch_int (~p_choice2("You're a man in a bear skin.", 1, "Sorry to disturb you.
 ~chatplayer("<p,angry>One of them did. Her name was Asleif.");
 ~chatnpc("<p,angry>Then she should have gone home when I told her to.");
 if_close;
-%mdaughter_bear_multi_state = ^mdaughter_kendal_fighting;
 mes("The Kendal drops onto all fours and charges.");
 ~npc_retaliate(0);
 %aggressive_npc = npc_uid;
 
+// This used to flip the multi to "fighting" and hand the npc a retaliate, and never swung at it: an
+// [opnpc2] of its own replaces the player's attack, so a melee player just stood there. It now
+// falls through to the ordinary attack, and the multi stays on the Kendal you can see.
 [opnpc2,mdaughter_multi_bear]
-if (%mdaughter_bear_multi_state = ^mdaughter_kendal_talking) {
-    %mdaughter_bear_multi_state = ^mdaughter_kendal_fighting;
+if (%mdaughter_quest_var < ^mdaughter_buried) {
+    ~chatnpc("<p,neutral>LEAVE FOOD AND GO.");
+    return;
 }
-~npc_retaliate(0);
+@player_combat_start;
+
+[apnpc2,mdaughter_multi_bear]
+if (%mdaughter_quest_var < ^mdaughter_buried) {
+    p_aprange(1);
+    return;
+}
+@player_combat_start_ap;
 
 [ai_queue3,mdaughter_multi_bear]
 gosub(npc_death);
@@ -49,11 +60,19 @@ if (npc_findhero = ^false) {
 }
 obj_add(npc_coord, mdaughter_bear_helmet, 1, ^lootdrop_duration);
 // Protected varbit, so the stage write needs p_active_player and only P_FINDUID grants it - the
-// same shape [ai_queue3,fd_icewarrior] uses in Desert Treasure.
+// same shape [ai_queue3,fd_icewarrior] uses in Desert Treasure. A killer who is busy that tick
+// (in a dialogue, delayed) is not granted it, so the stage is queued on them instead of lost.
 if (p_finduid(uid) = false) {
+    queue(mdaughter_kendal_killed, 0, 0);
     return;
 }
+@mdaughter_kendal_killed;
+
+[queue,mdaughter_kendal_killed] @mdaughter_kendal_killed;
+
+[label,mdaughter_kendal_killed]
 if (%mdaughter_quest_var = ^mdaughter_buried) {
     %mdaughter_quest_var = ^mdaughter_kendal_dead;
+    ~send_quest_progress(questlist:mdaughter, %mdaughter_quest_var, ^mdaughter_complete);
     mes("Whatever that was, it was not a spirit.");
 }
