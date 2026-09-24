@@ -51,22 +51,13 @@ npc_del;
 // rather than a constant read in here, so a family that drops at a different rate has to say so at
 // the call site and cannot silently inherit another family's number.
 //
-// A player who already owns the pet cannot roll a second one, which is what stops them being farmed
-// for a trade that tradeable=no already forbids anyway. ~pet_owned in npc/scripts/follower.rs2 is
-// the one answer to "owns" for every pet in the game - pack, bank, worn, following, and waiting at
-// Probita's after a death.
+// The pet is never dropped on the floor: it follows the killer, or goes in their pack, or to
+// Probita's - ~pet_receive in npc/scripts/follower.rs2, Old School's rules, which also turn away a
+// pet the player owns already (~pet_owned: pack, bank, worn, following, or at Probita's). This runs
+// inside the boss's [ai_queue3] death script, as the npc, so it is queued on the killer - the player
+// npc_findhero made active - rather than called.
 [proc,bosspet_roll](namedobj $pet, int $rate)
 if (random($rate) ! 0) {
     return;
 }
-if (~pet_owned($pet) = true) {
-    return;
-}
-obj_add(npc_coord, $pet, 1, ^lootdrop_duration);
-// mes, not ~mesbox. This runs inside the boss's [ai_queue3] death script; ~mesbox pauses on
-// p_pausebutton and would stall the npc's queue waiting for a click. The other drop tables use
-// the same non-blocking style (broadcast_mes), and in Old School this line is a plain game
-// message rather than a dialogue box anyway.
-mes("You have a funny feeling like you're being followed.");
-// and everyone else hears about it, as they do a rare drop - see general/scripts/broadcast.rs2
-~broadcast_pet($pet);
+~pet_receive_later($pet, 0);

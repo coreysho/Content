@@ -17,12 +17,8 @@ if (npc_findhero = ^false) {
 }
 // under the PLAYER, as the cave krakens do: it died in the water
 def_coord $at = ~kraken_loot_coord;
-// ~bosspet_roll's rule and rate, at $at: that proc drops at npc_coord, which here is the water
-if (random(^bosspet_droprate) = 0 & ~pet_owned(bosspet_kraken_item) = false) {
-    obj_add($at, bosspet_kraken_item, 1, ^lootdrop_duration);
-    mes("You have a funny feeling like you're being followed.");
-    ~broadcast_pet(bosspet_kraken_item);
-}
+// the pet never touches the water: it follows you, or goes in your pack (~pet_receive)
+~bosspet_roll(bosspet_kraken_item, ^bosspet_droprate);
 obj_add($at, coins, ~random_range(10000, 19999), ^lootdrop_duration);
 if (random(400) = 0) {
     ~kraken_rare_at($at, kraken_tentacle_item, 1);

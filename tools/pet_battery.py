@@ -92,11 +92,12 @@ check('$chance < 1' in body, 'the chance is floored at 1, so a base added carele
 # following, and waiting at Probita's after a death. .find rather than .index: this check used to
 # say body.index('~obj_gettotal'), and when that call moved behind ~pet_owned the battery raised
 # ValueError instead of failing. A crash is not a catch.
-check('~pet_owned($pet) = true' in body, 'owning one anywhere blocks a second, via ~pet_owned')
-check(body.find('~pet_owned') > body.find('random($chance)') > -1,
-      'and it runs only after the roll succeeds, which is one inv sweep per pet rather than per action')
-check('inv_freespace(inv) > 0' in body and 'obj_add(coord' in body,
-      'a full pack puts it on the floor rather than losing it')
+# A pet is received the way every pet is: ~pet_receive (npc/scripts/follower.rs2) - it follows you,
+# or goes in the pack, or to Probita's, and a pet owned anywhere (~pet_owned) is not given twice.
+check('~pet_receive($pet)' in body, 'a successful roll hands the pet to ~pet_receive, as every pet is given')
+check(body.find('~pet_receive') > body.find('random($chance)') > -1,
+      'and only after the roll succeeds, so ~pet_owned is one inv sweep per pet rather than per action')
+check('obj_add(' not in code(body), 'and a skilling pet never lands on the floor')
 
 # ============================================================================ 2
 print('2. the boss pets roll at their own rate, named at the call site')

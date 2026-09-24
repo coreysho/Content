@@ -209,11 +209,20 @@ for frag, what in (('~obj_gettotal($pet) > 0', 'the pack, the bank and what you 
                    ('inv_total(%s, $pet) > 0' % LOST['inv'], "what Probita is holding")):
     check(frag in own, '~pet_owned counts %s' % what)
 
-for src, name in ((BOSSRS2, 'the boss pet roll'), (SKILLRS2, 'the skilling pet roll'),
-                  (EXCH, 'the Fight Cave exchange')):
+# Every way a pet is handed out goes through ~pet_receive, which asks ~pet_owned and nothing else.
+rec = trigger(FOLLOWER, 'proc,pet_receive')
+check(rec.find('~pet_owned($pet)') > -1 and rec.find('~pet_owned($pet)') < rec.find('~follower_spawn'),
+      '~pet_receive turns away a pet owned anywhere before it gives one')
+check('%follower_obj = null & npc_finduid(%follower_uid) = false' in rec and '~follower_spawn(~pet_form($pet))' in rec,
+      'with nothing following, the pet comes out and follows you')
+check('inv_add(inv, $pet, 1)' in rec and 'inv_add(%s, $pet, 1)' % LOST['inv'] in rec,
+      "with a follower out it goes in the pack, and with the pack full to Probita's")
+for src, name, frag in ((BOSSRS2, 'the boss pet roll', '~pet_receive_later($pet, 0)'),
+                        (SKILLRS2, 'the skilling pet roll', '~pet_receive($pet)'),
+                        (EXCH, 'the Fight Cave exchange', '~pet_receive(bosspet_tzrek_jad_item)')):
     c = code(src)
-    check('~pet_owned(' in c and '%follower_obj = $pet' not in c,
-          '%s asks ~pet_owned and nothing else' % name)
+    check(frag in c and '%follower_obj = $pet' not in c and 'obj_add(npc_coord, $pet' not in c,
+          '%s gives its pet through ~pet_receive' % name)
 
 print('\n-- 5. Probita ----------------------------------------------------------------')
 

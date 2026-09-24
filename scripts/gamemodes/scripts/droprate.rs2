@@ -56,14 +56,9 @@ while ($i < $count) {
 // One bonus drop, the way the monster's table would have made it.
 [proc,droprate_give](namedobj $obj, int $least, int $most, int $kind, coord $at)
 switch_int ($kind) {
-    case ^droprate_kind_pet :
-        // ~bosspet_roll's rules: not if one is owned already
-        if (~pet_owned($obj) = true) {
-            return;
-        }
-        obj_add($at, $obj, 1, ^lootdrop_duration);
-        mes("You have a funny feeling like you're being followed.");
-        ~broadcast_pet($obj);
+    // a pet is received the way every pet is (~pet_receive, npc/scripts/follower.rs2), queued on the
+    // killer because this runs as the npc
+    case ^droprate_kind_pet : ~pet_receive_later($obj, 0);
     // a clue goes through its tier's own drop proc at a chance of 1, which picks the clue and keeps
     // the one-clue-at-a-time rule
     case ^droprate_kind_clue_easy : ~trail_easycluedrop(1, $at);

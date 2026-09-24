@@ -155,3 +155,49 @@ if (inv_total(lostpet_store, $pet) > 0) {
     return(true);
 }
 return(false);
+
+// ---------------------------------------------------------------------------------------------
+// Getting a pet
+// ---------------------------------------------------------------------------------------------
+// Every pet the game hands out comes through here - boss drops, skilling, the Fight Cave, the
+// drop-rate boost - so they all behave as Old School's do (oldschool.runescape.wiki/w/Pet):
+//
+//   you own it already      nothing, and "...would have been followed..." - pack, bank, worn,
+//                           following, or waiting at Probita's all count (~pet_owned)
+//   nothing following you   it comes out and follows you
+//   something following     it goes in the pack
+//   ...and the pack is full it goes to Probita's in East Ardougne, as a pet lost on a death does
+//
+// Player context only: ~follower_spawn adds an npc and writes the follower varps. A death table
+// runs as the npc, so it queues [queue,pet_receive] on the killer instead of calling this.
+[proc,pet_receive](namedobj $pet)
+if (~pet_owned($pet) = true) {
+    mes("You have a funny feeling like you would have been followed...");
+    return;
+}
+if (%follower_obj = null & npc_finduid(%follower_uid) = false) {
+    ~follower_spawn(~pet_form($pet));
+    mes("You have a funny feeling like you're being followed.");
+} else if (inv_freespace(inv) > 0) {
+    inv_add(inv, $pet, 1);
+    mes("You feel something weird sneaking into your backpack.");
+} else {
+    inv_add(lostpet_store, $pet, 1);
+    mes("You have a funny feeling like you're being followed, but you have no room for it.");
+    mes("Your pet is waiting for you at Probita's in East Ardougne.");
+}
+// and everyone else hears about it, as they do a rare drop - general/scripts/broadcast.rs2
+~broadcast_pet($pet);
+
+// For a death table, which runs as the npc: the pet is handed over in %pet_pending, because a queue
+// only takes ints, and received on the killer's own queue $delay ticks later.
+[proc,pet_receive_later](namedobj $pet, int $delay)
+%pet_pending = $pet;
+queue(pet_receive, $delay, 0);
+
+[queue,pet_receive]
+def_namedobj $pet = %pet_pending;
+%pet_pending = null;
+if ($pet ! null) {
+    ~pet_receive($pet);
+}
