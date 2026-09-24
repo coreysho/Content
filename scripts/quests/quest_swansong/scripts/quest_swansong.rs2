@@ -42,13 +42,13 @@ switch_int (~p_choice2("What's happening here?", 1, "I'm here to fish.", 2)) {
 ~chatnpc("<p,sad>Sea trolls. They came up out of the fishing grounds eleven days ago and they have not gone back down, and there are seventy-one people behind that palisade and the palisade has five holes in it.");
 ~chatplayer("<p,quiz>Why not leave?");
 ~chatnpc("<p,angry>One boat. Seventy-one people. You do the arithmetic and then tell me who gets on it.");
-~chatnpc("<p,neutral>Franklin keeps the timber. Start with the wall.");
+~chatnpc("<p,neutral>Franklin is our engineer. Start with the wall.");
 %swansong = ^swan_walls;
 ~send_quest_progress(questlist:swansong, %swansong, ^swan_complete);
 
 [label,swan_walls_check]
 if (~swan_walls_done < ^swan_walls_needed) {
-    ~chatnpc("<p,neutral>The wall. Franklin has the timber and no hands.");
+    ~chatnpc("<p,neutral>The wall. Franklin has the press and no hands.");
     return;
 }
 ~chatnpc("<p,neutral>Five sections. That is the first thing anybody has finished here in eleven days.");
@@ -147,45 +147,169 @@ inv_del(inv, swan_army, 1);
 ~mesbox("Nothing happens for about a minute. | Then the ground along forty yards of palisade starts moving, all of it at once, and seventy-one people go indoors.");
 
 // =========================================================================== Franklin and the wall
-// OSRS mends the west wall with five iron sheets off a metal press. Here it is planks, two a section,
-// and they are `woodplank` - the Plank the sawmill cuts - not the `plank` obj nobody can get.
+// As in 2006: Franklin wants five iron sheets for the five holes in the west palisade, and makes
+// them on the metal press in his workshop. Logs in the firebox at its east end, a tinderbox to light
+// them, then iron bars through the press one at a time, and each sheet goes on a broken wall with a
+// hammer in the pack. He hands over a tinderbox and a hammer if you have none.
+//
+// The cache has all of it. swansong_franklin drives both halves of the press: the firebox
+// (loc_14955) is empty at 0 and 1, has logs in it at 2 and is lit from 3, and the press (loc_14954)
+// shows working from 3. Each broken wall (loc_14933-14937, on the west palisade) is a multiloc on
+// its own swansong_wall_N, Broken wall at 0 and Patched wall at 1. None of them has an op, so all
+// of this is use-item-on-loc.
 [opnpc1,swan_franklin]
 if (%swansong < ^swan_walls) {
-    ~chatnpc("<p,neutral>Timber. I have plenty of timber. I have two hands and five holes.");
+    ~chatnpc("<p,neutral>Iron. I have a press and no iron, and five holes in the wall.");
     return;
 }
 if (~swan_walls_done >= ^swan_walls_needed) {
     ~chatnpc("<p,happy>Five sections. It is the first wall I have finished in my life.");
     return;
 }
-if (inv_total(inv, hammer) = 0 | inv_total(inv, nails) = 0) {
-    ~chatnpc("<p,neutral>A hammer and nails. I have the timber and nothing to put it up with.");
-    return;
+if (%swansong_franklin = ^swan_press_cold) {
+    ~chatnpc("<p,neutral>Herman sent you? Good. The west wall has five holes in it, and timber will not stop a sea troll.");
+    ~chatnpc("<p,neutral>Iron will. The press in the workshop makes sheets out of bars. Logs in the firebox at its east end, light them, and put iron bars through it.");
+    ~chatnpc("<p,neutral>Five sheets, one to a hole. Bring your own bars - I have none left.");
+    %swansong_franklin = ^swan_press_asked;
 }
-if (inv_total(inv, woodplank) < 2) {
-    ~chatnpc("<p,neutral>Two planks a section, and I am out.");
-    return;
+if (inv_total(inv, tinderbox) = 0 & %swansong_franklin < ^swan_press_hot) {
+    ~swan_franklin_gives(tinderbox, "You'll want a tinderbox for the firebox. Here.");
 }
-if_close;
-mes("You and Franklin put up a section of palisade.");
-p_delay(5);
-inv_del(inv, woodplank, 2);
-inv_del(inv, nails, 1);
-stat_advance(crafting, 3000);
-~swan_wall_up;
+if (inv_total(inv, hammer) = 0) {
+    ~swan_franklin_gives(hammer, "And a hammer, for the wall. Hitting it with the sheets will not do.");
+}
+~chatnpc("<p,neutral><tostring(~swan_walls_done)> of <tostring(^swan_walls_needed)> patched. Iron bars through the press, and the sheets on the west wall.");
 
-[proc,swan_wall_up]()()
-if (%swansong_wall_1 = ^swan_off) { %swansong_wall_1 = ^swan_on; }
-else if (%swansong_wall_2 = ^swan_off) { %swansong_wall_2 = ^swan_on; }
-else if (%swansong_wall_3 = ^swan_off) { %swansong_wall_3 = ^swan_on; }
-else if (%swansong_wall_4 = ^swan_off) { %swansong_wall_4 = ^swan_on; }
-else { %swansong_wall_5 = ^swan_on; }
-def_int $n = ~swan_walls_done;
-if ($n < ^swan_walls_needed) {
-    ~mesbox("<tostring($n)> of <tostring(^swan_walls_needed)> sections.");
+[proc,swan_franklin_gives](namedobj $obj, string $line)
+~chatnpc("<p,neutral><$line>");
+if (inv_freespace(inv) = 0) {
+    ~mesbox("You have no room to take it.");
     return;
 }
-~mesbox("Five sections. Herman should see this.");
+inv_add(inv, $obj, 1);
+~objbox($obj, "Franklin gives you <~add_article(lowercase(oc_name($obj)))>.", 250, 0, ^objbox_height);
+
+// the firebox: logs in, then the tinderbox
+[oplocu,loc_14955]
+def_obj $item = last_useitem;
+p_arrivedelay;
+if ($item = tinderbox) {
+    @swan_firebox_light;
+}
+if (oc_category($item) ! category_22) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%swansong_franklin = ^swan_press_cold) {
+    mes("It is somebody's press. You should ask before you light it.");
+    return;
+}
+if (%swansong_franklin >= ^swan_press_logs) {
+    mes("There are logs in the firebox already.");
+    return;
+}
+anim(human_pickupfloor, 0);
+p_delay(1);
+inv_del(inv, $item, 1);
+%swansong_franklin = ^swan_press_logs;
+mes("You put the logs in the firebox.");
+
+[label,swan_firebox_light]
+if (%swansong_franklin >= ^swan_press_hot) {
+    mes("The firebox is already lit.");
+    return;
+}
+if (%swansong_franklin < ^swan_press_logs) {
+    mes("There is nothing in the firebox to light.");
+    return;
+}
+anim(human_createfire, 0);
+p_delay(2);
+%swansong_franklin = ^swan_press_hot;
+mes("The logs catch, and the press starts to heat up.");
+
+// the press: one iron bar in, one iron sheet out, and no more sheets than the wall still wants
+[oplocu,loc_14954]
+def_obj $item = last_useitem;
+p_arrivedelay;
+if ($item ! iron_bar) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%swansong_franklin < ^swan_press_hot) {
+    mes("The press is cold. The firebox at its east end needs lighting first.");
+    return;
+}
+if (add(~swan_walls_done, inv_total(inv, iron_sheet)) >= ^swan_walls_needed) {
+    mes("You have enough sheets for the wall.");
+    return;
+}
+anim(human_pickupfloor, 0);
+p_delay(2);
+inv_del(inv, iron_bar, 1);
+inv_add(inv, iron_sheet, 1);
+mes("You feed the iron bar through the press, and it comes out as a sheet.");
+
+// the five broken walls, west palisade, north to south
+[oplocu,loc_14933] @swan_patch_wall(1);
+[oplocu,loc_14934] @swan_patch_wall(2);
+[oplocu,loc_14935] @swan_patch_wall(3);
+[oplocu,loc_14936] @swan_patch_wall(4);
+[oplocu,loc_14937] @swan_patch_wall(5);
+
+[label,swan_patch_wall](int $n)
+def_obj $item = last_useitem;
+p_arrivedelay;
+if (~swan_wall_is_up($n) = true) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if ($item = hammer) {
+    anim(human_smithing, 0);
+    p_delay(2);
+    say("Aaargh!");
+    mes("You feel a lot calmer. It didn't achieve anything, though - it wants an iron sheet over it.");
+    return;
+}
+if ($item ! iron_sheet) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (inv_total(inv, hammer) = 0) {
+    mes("You need a hammer to fix the sheet in place.");
+    return;
+}
+anim(human_smithing, 0);
+p_delay(3);
+inv_del(inv, iron_sheet, 1);
+stat_advance(crafting, 3000);
+~swan_wall_patch($n);
+
+[proc,swan_wall_is_up](int $n)(boolean)
+switch_int ($n) {
+    case 1 : if (%swansong_wall_1 = ^swan_on) { return(true); }
+    case 2 : if (%swansong_wall_2 = ^swan_on) { return(true); }
+    case 3 : if (%swansong_wall_3 = ^swan_on) { return(true); }
+    case 4 : if (%swansong_wall_4 = ^swan_on) { return(true); }
+    case 5 : if (%swansong_wall_5 = ^swan_on) { return(true); }
+}
+return(false);
+
+[proc,swan_wall_patch](int $n)()
+switch_int ($n) {
+    case 1 : %swansong_wall_1 = ^swan_on;
+    case 2 : %swansong_wall_2 = ^swan_on;
+    case 3 : %swansong_wall_3 = ^swan_on;
+    case 4 : %swansong_wall_4 = ^swan_on;
+    case 5 : %swansong_wall_5 = ^swan_on;
+}
+def_int $done = ~swan_walls_done;
+if ($done < ^swan_walls_needed) {
+    ~mesbox("You nail the iron sheet over the hole. <tostring($done)> of <tostring(^swan_walls_needed)> sections.");
+    return;
+}
+%swansong_franklin = ^swan_press_done;
+~mesbox("You nail the iron sheet over the last hole. Five sections, and Herman should see this.");
 
 [proc,swan_walls_done]()(int)
 def_int $n = 0;
