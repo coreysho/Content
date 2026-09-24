@@ -1,0 +1,356 @@
+// THE QUEST TAB: five pages in the quest journal slot, switched by the row of stone buttons at the
+// top of each (tools/genquesttab.py draws them, and writes questtab_tabs.rs2 - the buttons'
+// triggers and ~questtab_settab).
+//
+//   Character Summary    the default: %questtab_page is temp, so every login opens here
+//   Quests               the quest list, questlist.if, as it always was
+//   Collection Log       the log's progress per tab, its latest item, and a button to open it
+//   Player Statistics    player/scripts/player_stats.rs2's counters and the other systems' own
+//   Server Statistics    players online, the time, uptime, and a few quick actions
+//
+// NOTHING HERE TICKS. A page's texts are written when it is shown - by a button, at login, and by
+// ~send_quest_progress, which re-shows the page the player is on - so what it says is true as of
+// then. Players online and the clock are a click on the page's own button away from current.
+
+[proc,questtab_select](int $page)
+%questtab_page = $page;
+~questtab_show;
+
+// Fill the current page's texts and show it.
+[proc,questtab_show]
+if (%questtab_page < 0 | %questtab_page >= ^questtab_pages) {
+    %questtab_page = ^questtab_summary;
+}
+switch_int (%questtab_page) {
+    case ^questtab_summary : ~questtab_summary_draw;
+    case ^questtab_collection : ~questtab_collection_draw;
+    case ^questtab_pstats : ~questtab_pstats_draw;
+    case ^questtab_sstats : ~questtab_sstats_draw;
+    // the quest list draws itself: its rows are coloured as quests move, its title is %qp
+}
+~questtab_settab(%questtab_page);
+
+// ---------------------------------------------------------------------------------------------
+// Character Summary
+// ---------------------------------------------------------------------------------------------
+
+[proc,questtab_summary_draw]
+if_settext(questtab_summary:name, displayname);
+if_settext(questtab_summary:combat, tostring(~player_combat_level));
+if_settext(questtab_summary:total, ~tp_gp(stat_total));
+if_settext(questtab_summary:xp, "Total XP: @whi@<~questtab_total_xp>");
+if_settext(questtab_summary:quests, "<tostring(%questlist_done)> / <tostring(%questlist_total)>");
+if_settext(questtab_summary:qp, tostring(%qp));
+if_settext(questtab_summary:collections, "Collections logged: @whi@<tostring(~collection_log_obtained_total)> / <tostring(enum_getoutputcount(collection_log_items))>");
+// @lre@ is the client's nearest tag to the label orange - there is no tag back to a component's own colour
+if_settext(questtab_summary:mode, "Game mode: @whi@<~xprate_name(~xprate_current)>@lre@   XP: @whi@x<tostring(~xprate_current)>");
+if_settext(questtab_summary:online, "Players online: @gre@<tostring(playercount)>");
+
+[if_button,questtab_summary:collog] ~collection_log_open;
+
+// ---------------------------------------------------------------------------------------------
+// Collection Log
+// ---------------------------------------------------------------------------------------------
+
+// One row per collection log tab, from the tab's own row in collection_log.dbrow: its name and its
+// distinct items (the items column, which tools/gencollectionlog.py writes for this page). Coloured
+// as the log colours a page: red for none, yellow for some, green for all.
+[proc,questtab_collection_draw]
+if_settext(questtab_collection:obtained, "Obtained: @gre@<tostring(~collection_log_obtained_total)>@lre@ / <tostring(enum_getoutputcount(collection_log_items))>");
+def_int $i = 0;
+while ($i < ^collection_log_tabs) {
+    db_find(collection_log_tab:tab, $i);
+    def_dbrow $tab = db_findnext;
+    if ($tab ! null) {
+        def_int $of = db_getfieldcount($tab, collection_log_tab:items);
+        def_int $got = 0;
+        def_int $k = 0;
+        while ($k < $of) {
+            if (inv_total(collection_log, db_getfield($tab, collection_log_tab:items, $k)) > 0) {
+                $got = add($got, 1);
+            }
+            $k = add($k, 1);
+        }
+        def_string $tag = "@yel@";
+        def_int $colour = ^yellow_rgb;
+        if ($got = 0) {
+            $tag = "@red@";
+            $colour = ^red_rgb;
+        } else if ($got >= $of) {
+            $tag = "@gre@";
+            $colour = ^green_rgb;
+        }
+        if_settext(enum(int, component, questtab_collection_name, $i), db_getfield($tab, collection_log_tab:name, 0));
+        ~questtab_right(enum(int, component, questtab_collection_count, $i), "<$tag><tostring($got)> / <tostring($of)>", ^questtab_collection_count_width);
+        // the fill slides left by the share not yet obtained, and its layer clips it
+        def_component $fill = enum(int, component, questtab_collection_fill, $i);
+        if_setcolour($fill, $colour);
+        if_setposition($fill, sub(scale($got, max($of, 1), ^questtab_bar_width), ^questtab_bar_width), 0);
+    }
+    $i = add($i, 1);
+}
+if (%collection_log_latest = null) {
+    if_settext(questtab_collection:latest, "Nothing yet");
+} else {
+    if_settext(questtab_collection:latest, "<oc_name(%collection_log_latest)> @lre@(<~questtab_ago(%collection_log_latest_minute)>)");
+}
+
+[if_button,questtab_collection:open] ~collection_log_open;
+
+// ---------------------------------------------------------------------------------------------
+// Player Statistics
+// ---------------------------------------------------------------------------------------------
+
+[proc,questtab_pstats_draw]
+def_int $rate = ~xprate_current;
+~questtab_value(questtab_pstats:mode, ~xprate_name($rate));
+~questtab_value(questtab_pstats:rate, "x<tostring($rate)>");
+~questtab_value(questtab_pstats:playtime, ~questtab_duration(%player_playtime));
+def_int $days = divide(sub(world_minute, %player_first_seen), 1440);
+if (%player_first_seen = 0) {
+    $days = 0;
+}
+~questtab_value(questtab_pstats:age, ~questtab_plural($days, "day"));
+def_int $locked = ~xplock_count;
+if ($locked = 0) {
+    ~questtab_value(questtab_pstats:locked, "@gre@No");
+} else {
+    ~questtab_value(questtab_pstats:locked, "@red@<~questtab_plural($locked, "skill")>");
+}
+~questtab_value(questtab_pstats:deaths, ~tp_gp(%player_deaths));
+~questtab_value(questtab_pstats:pvp, ~tp_gp(%player_pvp_kills));
+~questtab_value(questtab_pstats:npcs, ~tp_gp(%player_npc_kills));
+~questtab_value(questtab_pstats:clues, ~tp_gp(add(add(~collection_log_counter_get(^collection_log_counter_clue_easy), ~collection_log_counter_get(^collection_log_counter_clue_medium)), ~collection_log_counter_get(^collection_log_counter_clue_hard))));
+def_int $kills = 0;
+def_int $i = 0;
+while ($i < ^boss_kills_count) {
+    $kills = add($kills, ~boss_kill_get($i));
+    $i = add($i, 1);
+}
+~questtab_value(questtab_pstats:bosses, ~tp_gp($kills));
+~questtab_value(questtab_pstats:slayer, ~tp_gp(%slayer_tasks_done));
+~questtab_value(questtab_pstats:bank, "@yel@<~questtab_short(~questtab_bank_value)>");
+
+[proc,questtab_value](component $com, string $text)
+~questtab_right($com, $text, ^questtab_pstats_value_width);
+
+// THE BANK'S WORTH, in thousands. The value is each item's obj cost - what the death screen and the
+// shops go by; the trading post has no price of its own - and it is summed in thousands because
+// a bank can be worth more than an int holds: scale() multiplies in the engine's doubles, so a
+// slot of 2,147m coins is 2,147,483 here, and the total has room for two thousand billion.
+[proc,questtab_bank_value]()(int)
+def_int $total = 0;
+def_int $slot = 0;
+def_int $size = inv_size(bank);
+while ($slot < $size) {
+    def_obj $obj = inv_getobj(bank, $slot);
+    if ($obj ! null) {
+        $total = add($total, scale(inv_getnum(bank, $slot), 1000, oc_cost($obj)));
+    }
+    $slot = add($slot, 1);
+}
+return($total);
+
+// ---------------------------------------------------------------------------------------------
+// Server Statistics
+// ---------------------------------------------------------------------------------------------
+
+[proc,questtab_sstats_draw]
+if_settext(questtab_sstats:online, "Players online: @gre@<tostring(playercount)>");
+if_settext(questtab_sstats:time, "Server time: @gre@<~questtab_clock(world_minute)>");
+// map_clock counts ticks since the world started, 100 to the minute
+if_settext(questtab_sstats:uptime, "Uptime: @gre@<~questtab_uptime(divide(map_clock, 100))>");
+
+// The drop table viewer is the examine: there is no list of monsters to open it from.
+[if_button,questtab_sstats:act_drops]
+mes("Examine any monster you can attack to see what it drops, and how often.");
+
+[if_button,questtab_sstats:act_bosses] ~boss_kills_open;
+
+[if_button,questtab_sstats:act_collog] ~collection_log_open;
+
+// A message box pauses for its click-to-continue, and an [if_button] is not handed p_active_player -
+// the XP lock buttons (gamemodes/scripts/xplock.rs2) take it the same way.
+[if_button,questtab_sstats:act_mode]
+if (p_finduid(uid) = true) {
+    ~gamemode_explain;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Text
+// ---------------------------------------------------------------------------------------------
+
+// Right-align $text in a left-aligned component $width wide: 377 text is left-aligned or centred,
+// so it is moved right by the width the text leaves empty.
+[proc,questtab_right](component $com, string $text, int $width)
+if_settext($com, $text);
+if_setposition($com, max(0, sub($width, stringwidth($text, p12_full))), 0);
+
+[proc,questtab_plural](int $n, string $what)(string)
+if ($n = 1) {
+    return("1 <$what>");
+}
+return("<~tp_gp($n)> <$what>s");
+
+// 1,234,567,890 experience in all: the sum can pass what an int holds (23 skills at 200m is 4.6
+// billion), so it is kept as millions and a remainder, and written out with its commas by hand.
+[proc,questtab_total_xp]()(string)
+def_int $millions = 0;
+def_int $rest = 0;
+def_int $i = 1;
+def_int $count = enum_getoutputcount(stats);
+while ($i <= $count) {
+    def_int $xp = stat_xp(enum(int, stat, stats, $i));
+    $millions = add($millions, divide($xp, 1000000));
+    $rest = add($rest, modulo($xp, 1000000));
+    $i = add($i, 1);
+}
+$millions = add($millions, divide($rest, 1000000));
+$rest = modulo($rest, 1000000);
+if ($millions = 0) {
+    return(~tp_gp($rest));
+}
+return("<~tp_gp($millions)>,<~questtab_pad3(divide($rest, 1000))>,<~questtab_pad3(modulo($rest, 1000))>");
+
+[proc,questtab_pad3](int $n)(string)
+if ($n < 10) {
+    return("00<tostring($n)>");
+}
+if ($n < 100) {
+    return("0<tostring($n)>");
+}
+return(tostring($n));
+
+// A value given in thousands, the way Old School writes a big price: 950K, 12.5M, 184.2M, 1.25B.
+[proc,questtab_short](int $k)(string)
+if ($k < 1) {
+    return("0");
+}
+if ($k < 1000) {
+    return("<tostring($k)>K");
+}
+if ($k < 1000000) {
+    return("<~questtab_decimal($k, 1000)>M");
+}
+return("<~questtab_decimal(divide($k, 1000), 1000)>B");
+
+// $n / $unit to one decimal place, or none from 1,000 up - "184.2", "1,024".
+[proc,questtab_decimal](int $n, int $unit)(string)
+def_int $whole = divide($n, $unit);
+if ($whole >= 1000) {
+    return(~tp_gp($whole));
+}
+return("<tostring($whole)>.<tostring(divide(modulo($n, $unit), divide($unit, 10)))>");
+
+// Minutes as "33d 6h 37m", dropping the leading units that are zero.
+[proc,questtab_duration](int $minutes)(string)
+def_int $days = divide($minutes, 1440);
+def_int $hours = divide(modulo($minutes, 1440), 60);
+def_int $mins = modulo($minutes, 60);
+if ($days > 0) {
+    return("<~tp_gp($days)>d <tostring($hours)>h <tostring($mins)>m");
+}
+if ($hours > 0) {
+    return("<tostring($hours)>h <tostring($mins)>m");
+}
+return("<tostring($mins)>m");
+
+// Minutes as "3 days 4 hrs", "4 hrs 12 mins" or "12 mins".
+[proc,questtab_uptime](int $minutes)(string)
+def_int $days = divide($minutes, 1440);
+def_int $hours = divide(modulo($minutes, 1440), 60);
+if ($days > 0) {
+    return("<~questtab_plural($days, "day")> <tostring($hours)> hrs");
+}
+if ($hours > 0) {
+    return("<tostring($hours)> hrs <tostring(modulo($minutes, 60))> mins");
+}
+return("<tostring($minutes)> mins");
+
+// How long ago a world_minute was: "just now", "5 mins ago", "3 hrs ago", "2 days ago".
+[proc,questtab_ago](int $then)(string)
+def_int $mins = sub(world_minute, $then);
+if ($mins < 1) {
+    return("just now");
+}
+if ($mins < 60) {
+    return("<~questtab_plural($mins, "min")> ago");
+}
+if ($mins < 1440) {
+    return("<~questtab_plural(divide($mins, 60), "hr")> ago");
+}
+return("<~questtab_plural(divide($mins, 1440), "day")> ago");
+
+// A world_minute (minutes since 1 January 2025, UTC) as "8:42 AM, 24 Sep".
+[proc,questtab_clock](int $minute)(string)
+def_int $days = divide($minute, 1440);
+def_int $hour = divide(modulo($minute, 1440), 60);
+def_int $mins = modulo($minute, 60);
+def_int $year = 2025;
+while ($days >= ~questtab_year_days($year)) {
+    $days = sub($days, ~questtab_year_days($year));
+    $year = add($year, 1);
+}
+def_int $month = 1;
+while ($days >= ~questtab_month_days($month, $year)) {
+    $days = sub($days, ~questtab_month_days($month, $year));
+    $month = add($month, 1);
+}
+def_string $ampm = "AM";
+if ($hour >= 12) {
+    $ampm = "PM";
+}
+def_int $h12 = modulo($hour, 12);
+if ($h12 = 0) {
+    $h12 = 12;
+}
+def_string $pad = "";
+if ($mins < 10) {
+    $pad = "0";
+}
+return("<tostring($h12)>:<$pad><tostring($mins)> <$ampm>, <tostring(add($days, 1))> <~questtab_month_name($month)>");
+
+[proc,questtab_year_days](int $year)(int)
+if (~questtab_leap($year) = true) {
+    return(366);
+}
+return(365);
+
+[proc,questtab_leap](int $year)(boolean)
+if (modulo($year, 400) = 0) {
+    return(true);
+}
+if (modulo($year, 100) = 0) {
+    return(false);
+}
+if (modulo($year, 4) = 0) {
+    return(true);
+}
+return(false);
+
+[proc,questtab_month_days](int $month, int $year)(int)
+switch_int ($month) {
+    case 2 :
+        if (~questtab_leap($year) = true) {
+            return(29);
+        }
+        return(28);
+    case 4, 6, 9, 11 : return(30);
+}
+return(31);
+
+[proc,questtab_month_name](int $month)(string)
+switch_int ($month) {
+    case 1 : return("Jan");
+    case 2 : return("Feb");
+    case 3 : return("Mar");
+    case 4 : return("Apr");
+    case 5 : return("May");
+    case 6 : return("Jun");
+    case 7 : return("Jul");
+    case 8 : return("Aug");
+    case 9 : return("Sep");
+    case 10 : return("Oct");
+    case 11 : return("Nov");
+}
+return("Dec");

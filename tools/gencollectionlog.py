@@ -199,6 +199,13 @@ def build_dbrow(spec, entries):
         L.append('data=name,%s' % tab['name'])
         for e in tab['entries']:
             L.append('data=entries,collection_log_%s' % e['key'])
+        # The tab's DISTINCT items, for the quest tab's per-tab progress bars: an item on two of the
+        # tab's pages counts once there, as it does in the overall total.
+        seen = []
+        for e in tab['entries']:
+            seen += [o for o in e['items'] if o not in seen]
+        for o in seen:
+            L.append('data=items,%s' % o)
         L.append('')
     for e in entries:
         L.append('// %s: %d items' % (e['name'], len(e['items'])))

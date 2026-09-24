@@ -38,6 +38,9 @@ settimer(stat_boost_restore, 100);
 settimer(health_regen, 100);
 // random event timer
 settimer(general_macro_events, 500);
+// the Player Statistics' clock: first seen, and a minute of time played every minute from now. Up
+// here, before Tutorial Island's jump away from the rest of this script.
+~player_stats_login;
 // chest macro gas 
 ~check_chest_macro_gas;
 
@@ -129,7 +132,8 @@ if (map_live = true) {
 [proc,initalltabs]
 ~update_weapon_category(inv_getobj(worn, ^wearpos_rhand));
 if_settab(stats, ^tab_skills);
-if_settab(questlist, ^tab_quest_journal);
+// the quest tab: ~update_questlist colours the quest list and shows whichever of the tab's pages the
+// player is on - the Character Summary after a login, %questtab_page being temp
 ~update_questlist;
 
 inv_transmit(inv, inventory:inv);

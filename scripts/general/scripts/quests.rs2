@@ -1,6 +1,8 @@
 [proc,send_quest_progress](component $component, int $progress, int $complete_progress)
 ~send_quest_progress_colour($component, $progress, $complete_progress);
-if_settab(questlist, ^tab_quest_journal);
+// the quest tab as it was - whichever of its pages the player is on, with its numbers brought up
+// to date - rather than the quest list, which is one of five pages now
+~questtab_show;
 
 [proc,send_quest_progress_colour](component $component, int $progress, int $complete_progress)
 // if_setcolor uses 5 bits per color
@@ -66,7 +68,10 @@ switch_component ($component) {
 }
 // Update Quest Tab color
 if_setcolour($component, ^green_rgb);
-if_settab(questlist, ^tab_quest_journal);
+// and the Character Summary's Quests Done, by counting again - without re-sending the colours,
+// because not every quest sets its varp to complete before it gets here
+~questlist_recolour(false);
+~questtab_show;
 switch_component ($component) {
     case questlist:troll_love : 
         mes("Congratulations! You've helped a lonely troll find love. Quest complete!");
@@ -519,120 +524,8 @@ return ($total);
 
 [proc,update_questlist]
 ~update_questpoints;
-~send_quest_progress_colour(questlist:runemysteries, %runemysteries, ^runemysteries_complete);
-~send_quest_progress_colour(questlist:doric, %doricquest, ^doric_complete);
-~send_quest_progress_colour(questlist:cook, %cookquest, ^cook_complete);
-~send_quest_progress_colour(questlist:romeojuliet, %rjquest, ^romeojuliet_complete);
-~send_quest_progress_colour(questlist:hetty, %hetty, ^hetty_complete);
-~send_quest_progress_colour(questlist:chompybird, %chompybird, ^chompybird_complete);
-~send_quest_progress_colour(questlist:priest, %prieststart, ^priest_complete);
-~send_quest_progress_colour(questlist:squire, %squire, ^squire_complete);
-~send_quest_progress_colour(questlist:imp, %imp, ^imp_complete);
-~send_quest_progress_colour(questlist:druid, %druidquest, ^druid_complete);
-~send_quest_progress_colour(questlist:druidspirit, %druidspirit, ^druidspirit_complete);
-~send_quest_progress_colour(questlist:gobdip, %goblinquest, ^gobdip_complete);
-~send_quest_progress_colour(questlist:sheep, %sheep, ^sheep_complete);
-~send_quest_progress_colour(questlist:fluffs, %fluffs, ^fluffs_complete);
-~send_quest_progress_colour(questlist:demon, %demonstart, ^demon_complete);
-~send_quest_progress_colour(questlist:prince, %princequest, ^prince_complete);
-~send_quest_progress_colour(questlist:fortress, %spy, ^blackknight_complete);
-~send_quest_progress_colour(questlist:haunted, %haunted, ^haunted_complete);
-~send_quest_progress_colour(questlist:hunt, %hunt, ^hunt_complete);
-~send_quest_progress_colour(questlist:drunkmonk, %drunkmonkquest, ^drunkmonk_complete);
-~send_quest_progress_colour(questlist:vampire, %vampire, ^vampire_complete);
-~send_quest_progress_colour(questlist:totem, %totemquest, ^totem_complete);
-~send_quest_progress_colour(questlist:fishingcompo, %fishingcompo, ^fishingcompo_complete);
-~send_quest_progress_colour(questlist:scorpcatcher, %scorpcatcher, ^scorpcatcher_complete);
-~send_quest_progress_colour(questlist:zanaris, %zanaris, ^zanaris_complete);
-~send_quest_progress_colour(questlist:dragon, %dragonquest, ^dragon_complete);
-if (%phoenixgang > ^phoenixgang_not_started & %blackarmgang ! ^blackarmgang_complete) { // shield of arrav
-    ~send_quest_progress_colour(questlist:blackarmgang, %phoenixgang, ^phoenixgang_complete);
-} else {
-    ~send_quest_progress_colour(questlist:blackarmgang, %blackarmgang, ^blackarmgang_complete);
-}
-~send_quest_progress_colour(questlist:elena, %elenaquest, ^elena_complete);
-~send_quest_progress_colour(questlist:seaslug, %seaslugquest, ^seaslug_complete);
-~send_quest_progress_colour(questlist:arthur, %arthur, ^arthur_complete);
-~send_quest_progress_colour(questlist:tree, %treequest, ^tree_complete);
-~send_quest_progress_colour(questlist:waterfall, %waterfall_quest, ^waterfall_complete);
-~send_quest_progress_colour(questlist:grail, %grail, ^grail_complete);
-~send_quest_progress_colour(questlist:ball, %ballquest, ^ball_complete);
-~send_quest_progress_colour(questlist:murder, %murderquest, ^murder_complete);
-~send_quest_progress_colour(questlist:itexam, ~itexam_progress, ^itexam_complete);
-~send_quest_progress_colour(questlist:deserttreasure, %deserttreasure, ^deserttreasure_complete);
-~send_quest_progress_colour(questlist:hazeelcult, %hazeelcultquest, ^hazeelcult_complete);
-~send_quest_progress_colour(questlist:hero, %heroquest, ^hero_complete);
-~send_quest_progress_colour(questlist:itgronigen, %itgronigen, ^itgronigen_complete);
-~send_quest_progress_colour(questlist:arena, %arenaquest, ^arena_complete);
-~send_quest_progress_colour(questlist:junglepotion, %junglepotion, ^junglepotion_complete);
-~send_quest_progress_colour(questlist:ikov, %ikov, ^ikov_completed_armadyl);
-~send_quest_progress_colour(questlist:biohazard, %biohazard, ^biohazard_complete);
-~send_quest_progress_colour(questlist:sheepherder, %sheepherderquest, ^sheepherder_complete);
-~send_quest_progress_colour(questlist:mcannon, %mcannon, ^mcannon_complete);
-~send_quest_progress_colour(questlist:cog, ~get_cog_progress, ^quest_cog_complete);
-~send_quest_progress_colour(questlist:grandtree, %grandtree, ^grandtree_complete);
-if (testbit(%ibanmulti, ^upass_started_bit) = ^true & %upass ! ^upass_complete) { // underground pass sets a bit for the 1st stage instead of using the progress varp
-    ~send_quest_progress_colour(questlist:upass, 1, ^upass_complete);
-} else {
-    ~send_quest_progress_colour(questlist:upass, %upass, ^upass_complete);
-}
-~send_quest_progress_colour(questlist:zombiequeen, %zombiequeen, ^zombiequeen_complete);
-~send_quest_progress_colour(questlist:crest, %crestquest, ^crest_complete);
-~send_quest_progress_colour(questlist:desertrescue, %desertrescue, ^desertrescue_complete);
-~send_quest_progress_colour(questlist:itwatchtower, %itwatchtower, ^itwatchtower_complete);
-~send_quest_progress_colour(questlist:legends, %legendsquest, ^legends_complete);
-~send_quest_progress_colour(questlist:elemental_workshop, %elemental_workshop_bits, sub(pow(2, ^elemental_workshop_complete), 1));
-~send_quest_progress_colour(questlist:priestperil, %priestperil, ^priestperil_complete);
-~send_quest_progress_colour(questlist:druidspirit, %druidspirit, ^druidspirit_complete);
-~send_quest_progress_colour(questlist:death, %death_equiproom, ^death_complete);
-~send_quest_progress_colour(questlist:troll, %troll_quest, ^troll_complete);
-~send_quest_progress_colour(questlist:troll_love, %troll_love, ^troll_love_complete);
-~send_quest_progress_colour(questlist:golem, %golem_a, ^golem_complete);
-~send_quest_progress_colour(questlist:horror, %horror, ^horror_complete);
-~send_quest_progress_colour(questlist:regicide, %regicide_quest, ^regicide_complete);
-~send_quest_progress_colour(questlist:viking, %viking, ^viking_complete);
-~send_quest_progress_colour(questlist:rd, %rd_main, ^recruitmentdrive_complete);
-~send_quest_progress_colour(questlist:roving_elves, %roving_elves_quest, ^roving_elves_complete);
-~send_quest_progress_colour(questlist:mourning, %mourning_quest, ^mourning_complete);
-~send_quest_progress_colour(questlist:mm, %mm_main, ^mm_complete);
-~send_quest_progress_colour(questlist:hundred_main, %hundred_main_quest_var, ^hundred_complete);
-~send_quest_progress_colour(questlist:rag, %rag_quest, ^rag_complete);
-~send_quest_progress_colour(questlist:lost_tribe, %lost_tribe_quest, ^lost_tribe_complete);
-~send_quest_progress_colour(questlist:mdaughter, %mdaughter_quest_var, ^mdaughter_complete);
-~send_quest_progress_colour(questlist:creatureoffenkenstrain, %fenk_quest, ^fenk_complete);
-~send_quest_progress_colour(questlist:devious, %devious_main, ^devious_complete);
-~send_quest_progress_colour(questlist:eadgar, %eadgar_quest, ^eadgar_complete);
-~send_quest_progress_colour(questlist:elid, %elidquest, ^elid_complete);
-~send_quest_progress_colour(questlist:zogre, %zogre, ^zogre_complete);
-~send_quest_progress_colour(questlist:ics_little, %ics_little_var, ^icslittle_complete);
-~send_quest_progress_colour(questlist:twocats, %twocats_quest, ^twocats_complete);
-~send_quest_progress_colour(questlist:enakh, %enakh_quest, ^enakh_complete);
-~send_quest_progress_colour(questlist:tog, ~tog_progress, ^tog_complete);
-~send_quest_progress_colour(questlist:handsand, %handsand_quest, ^handsand_complete);
-~send_quest_progress_colour(questlist:soulbane, %soulbane_prog, ^soulbane_complete);
-~send_quest_progress_colour(questlist:mortton, %morttonquest, ^mortton_complete);
-~send_quest_progress_colour(questlist:garden, %garden_quest, ^garden_complete);
-~send_quest_progress_colour(questlist:wanted, %wanted_main, ^wanted_complete);
-~send_quest_progress_colour(questlist:tbwt, %tbwt_main, ^tbwt_complete);
-~send_quest_progress_colour(questlist:feud, %feud_var, ^feud_complete);
-~send_quest_progress_colour(questlist:ratcatch, %ratcatch_var, ^ratcatch_complete);
-~send_quest_progress_colour(questlist:onesmallfavour, %onesmallfavour, ^osf_complete);
-~send_quest_progress_colour(questlist:giantdwarf, %giantdwarf_quest, ^gd_complete);
-~send_quest_progress_colour(questlist:dwarfrock, %dwarfrock_quest, ^dwarfrock_complete);
-~send_quest_progress_colour(questlist:ahoy, %ahoy_questvar, ^ahoy_complete);
-~send_quest_progress_colour(questlist:makinghistory, %makinghistory_prog, ^mh_complete);
-~send_quest_progress_colour(questlist:routequest, %routequest, ^route_complete);
-~send_quest_progress_colour(questlist:myreque_2, %myreque_2_quest, ^m2_complete);
-~send_quest_progress_colour(questlist:hauntedmine, %hauntedmine, ^hm_complete);
-~send_quest_progress_colour(questlist:agrith, %agrith_quest, ^agrith_complete);
-~send_quest_progress_colour(questlist:deal, %deal_quest, ^deal_complete);
-~send_quest_progress_colour(questlist:fever, %fever_quest, ^fever_complete);
-~send_quest_progress_colour(questlist:misc, %misc_quest, ^misc_complete);
-~send_quest_progress_colour(questlist:forget, %forget_quest, ^forget_complete);
-~send_quest_progress_colour(questlist:swansong, %swansong, ^swan_complete);
-~send_quest_progress_colour(questlist:fairy_farmers, %fairy_farmers_quest, ^fairy_complete);
-~send_quest_progress_colour(questlist:mourning2, %mourning_quest_main, ^mt_complete);
-if_settab(questlist, ^tab_quest_journal);
+~questlist_recolour(true);
+~questtab_show;
 
 if (%drunkmonkquest >= ^drunkmonk_spoken_to_omad) {
     settimer(blanket_ladder, 1);
@@ -643,3 +536,132 @@ if (%drunkmonkquest >= ^drunkmonk_spoken_to_omad) {
 // and no timer to turn it off, and could then stand at the walls indefinitely. ~update_questlist
 // runs from login.rs2, so this is where the stranded flag gets cleared.
 ~tog_clear_stranded_run;
+
+// Every quest row coloured red, yellow or green - or, with $send false, only counted: the count is
+// what the Character Summary's "Quests Done" reads (%questlist_done of %questlist_total), and
+// ~send_quest_complete recounts without re-sending the colours.
+[proc,questlist_recolour](boolean $send)
+%questlist_total = 0;
+%questlist_done = 0;
+~questlist_row(questlist:runemysteries, %runemysteries, ^runemysteries_complete, $send);
+~questlist_row(questlist:doric, %doricquest, ^doric_complete, $send);
+~questlist_row(questlist:cook, %cookquest, ^cook_complete, $send);
+~questlist_row(questlist:romeojuliet, %rjquest, ^romeojuliet_complete, $send);
+~questlist_row(questlist:hetty, %hetty, ^hetty_complete, $send);
+~questlist_row(questlist:chompybird, %chompybird, ^chompybird_complete, $send);
+~questlist_row(questlist:priest, %prieststart, ^priest_complete, $send);
+~questlist_row(questlist:squire, %squire, ^squire_complete, $send);
+~questlist_row(questlist:imp, %imp, ^imp_complete, $send);
+~questlist_row(questlist:druid, %druidquest, ^druid_complete, $send);
+~questlist_row(questlist:druidspirit, %druidspirit, ^druidspirit_complete, $send);
+~questlist_row(questlist:gobdip, %goblinquest, ^gobdip_complete, $send);
+~questlist_row(questlist:sheep, %sheep, ^sheep_complete, $send);
+~questlist_row(questlist:fluffs, %fluffs, ^fluffs_complete, $send);
+~questlist_row(questlist:demon, %demonstart, ^demon_complete, $send);
+~questlist_row(questlist:prince, %princequest, ^prince_complete, $send);
+~questlist_row(questlist:fortress, %spy, ^blackknight_complete, $send);
+~questlist_row(questlist:haunted, %haunted, ^haunted_complete, $send);
+~questlist_row(questlist:hunt, %hunt, ^hunt_complete, $send);
+~questlist_row(questlist:drunkmonk, %drunkmonkquest, ^drunkmonk_complete, $send);
+~questlist_row(questlist:vampire, %vampire, ^vampire_complete, $send);
+~questlist_row(questlist:totem, %totemquest, ^totem_complete, $send);
+~questlist_row(questlist:fishingcompo, %fishingcompo, ^fishingcompo_complete, $send);
+~questlist_row(questlist:scorpcatcher, %scorpcatcher, ^scorpcatcher_complete, $send);
+~questlist_row(questlist:zanaris, %zanaris, ^zanaris_complete, $send);
+~questlist_row(questlist:dragon, %dragonquest, ^dragon_complete, $send);
+if (%phoenixgang > ^phoenixgang_not_started & %blackarmgang ! ^blackarmgang_complete) { // shield of arrav
+    ~questlist_row(questlist:blackarmgang, %phoenixgang, ^phoenixgang_complete, $send);
+} else {
+    ~questlist_row(questlist:blackarmgang, %blackarmgang, ^blackarmgang_complete, $send);
+}
+~questlist_row(questlist:elena, %elenaquest, ^elena_complete, $send);
+~questlist_row(questlist:seaslug, %seaslugquest, ^seaslug_complete, $send);
+~questlist_row(questlist:arthur, %arthur, ^arthur_complete, $send);
+~questlist_row(questlist:tree, %treequest, ^tree_complete, $send);
+~questlist_row(questlist:waterfall, %waterfall_quest, ^waterfall_complete, $send);
+~questlist_row(questlist:grail, %grail, ^grail_complete, $send);
+~questlist_row(questlist:ball, %ballquest, ^ball_complete, $send);
+~questlist_row(questlist:murder, %murderquest, ^murder_complete, $send);
+~questlist_row(questlist:itexam, ~itexam_progress, ^itexam_complete, $send);
+~questlist_row(questlist:deserttreasure, %deserttreasure, ^deserttreasure_complete, $send);
+~questlist_row(questlist:hazeelcult, %hazeelcultquest, ^hazeelcult_complete, $send);
+~questlist_row(questlist:hero, %heroquest, ^hero_complete, $send);
+~questlist_row(questlist:itgronigen, %itgronigen, ^itgronigen_complete, $send);
+~questlist_row(questlist:arena, %arenaquest, ^arena_complete, $send);
+~questlist_row(questlist:junglepotion, %junglepotion, ^junglepotion_complete, $send);
+~questlist_row(questlist:ikov, %ikov, ^ikov_completed_armadyl, $send);
+~questlist_row(questlist:biohazard, %biohazard, ^biohazard_complete, $send);
+~questlist_row(questlist:sheepherder, %sheepherderquest, ^sheepherder_complete, $send);
+~questlist_row(questlist:mcannon, %mcannon, ^mcannon_complete, $send);
+~questlist_row(questlist:cog, ~get_cog_progress, ^quest_cog_complete, $send);
+~questlist_row(questlist:grandtree, %grandtree, ^grandtree_complete, $send);
+if (testbit(%ibanmulti, ^upass_started_bit) = ^true & %upass ! ^upass_complete) { // underground pass sets a bit for the 1st stage instead of using the progress varp
+    ~questlist_row(questlist:upass, 1, ^upass_complete, $send);
+} else {
+    ~questlist_row(questlist:upass, %upass, ^upass_complete, $send);
+}
+~questlist_row(questlist:zombiequeen, %zombiequeen, ^zombiequeen_complete, $send);
+~questlist_row(questlist:crest, %crestquest, ^crest_complete, $send);
+~questlist_row(questlist:desertrescue, %desertrescue, ^desertrescue_complete, $send);
+~questlist_row(questlist:itwatchtower, %itwatchtower, ^itwatchtower_complete, $send);
+~questlist_row(questlist:legends, %legendsquest, ^legends_complete, $send);
+~questlist_row(questlist:elemental_workshop, %elemental_workshop_bits, sub(pow(2, ^elemental_workshop_complete), 1), $send);
+~questlist_row(questlist:priestperil, %priestperil, ^priestperil_complete, $send);
+~questlist_row(questlist:death, %death_equiproom, ^death_complete, $send);
+~questlist_row(questlist:troll, %troll_quest, ^troll_complete, $send);
+~questlist_row(questlist:troll_love, %troll_love, ^troll_love_complete, $send);
+~questlist_row(questlist:golem, %golem_a, ^golem_complete, $send);
+~questlist_row(questlist:horror, %horror, ^horror_complete, $send);
+~questlist_row(questlist:regicide, %regicide_quest, ^regicide_complete, $send);
+~questlist_row(questlist:viking, %viking, ^viking_complete, $send);
+~questlist_row(questlist:rd, %rd_main, ^recruitmentdrive_complete, $send);
+~questlist_row(questlist:roving_elves, %roving_elves_quest, ^roving_elves_complete, $send);
+~questlist_row(questlist:mourning, %mourning_quest, ^mourning_complete, $send);
+~questlist_row(questlist:mm, %mm_main, ^mm_complete, $send);
+~questlist_row(questlist:hundred_main, %hundred_main_quest_var, ^hundred_complete, $send);
+~questlist_row(questlist:rag, %rag_quest, ^rag_complete, $send);
+~questlist_row(questlist:lost_tribe, %lost_tribe_quest, ^lost_tribe_complete, $send);
+~questlist_row(questlist:mdaughter, %mdaughter_quest_var, ^mdaughter_complete, $send);
+~questlist_row(questlist:creatureoffenkenstrain, %fenk_quest, ^fenk_complete, $send);
+~questlist_row(questlist:devious, %devious_main, ^devious_complete, $send);
+~questlist_row(questlist:eadgar, %eadgar_quest, ^eadgar_complete, $send);
+~questlist_row(questlist:elid, %elidquest, ^elid_complete, $send);
+~questlist_row(questlist:zogre, %zogre, ^zogre_complete, $send);
+~questlist_row(questlist:ics_little, %ics_little_var, ^icslittle_complete, $send);
+~questlist_row(questlist:twocats, %twocats_quest, ^twocats_complete, $send);
+~questlist_row(questlist:enakh, %enakh_quest, ^enakh_complete, $send);
+~questlist_row(questlist:tog, ~tog_progress, ^tog_complete, $send);
+~questlist_row(questlist:handsand, %handsand_quest, ^handsand_complete, $send);
+~questlist_row(questlist:soulbane, %soulbane_prog, ^soulbane_complete, $send);
+~questlist_row(questlist:mortton, %morttonquest, ^mortton_complete, $send);
+~questlist_row(questlist:garden, %garden_quest, ^garden_complete, $send);
+~questlist_row(questlist:wanted, %wanted_main, ^wanted_complete, $send);
+~questlist_row(questlist:tbwt, %tbwt_main, ^tbwt_complete, $send);
+~questlist_row(questlist:feud, %feud_var, ^feud_complete, $send);
+~questlist_row(questlist:ratcatch, %ratcatch_var, ^ratcatch_complete, $send);
+~questlist_row(questlist:onesmallfavour, %onesmallfavour, ^osf_complete, $send);
+~questlist_row(questlist:giantdwarf, %giantdwarf_quest, ^gd_complete, $send);
+~questlist_row(questlist:dwarfrock, %dwarfrock_quest, ^dwarfrock_complete, $send);
+~questlist_row(questlist:ahoy, %ahoy_questvar, ^ahoy_complete, $send);
+~questlist_row(questlist:makinghistory, %makinghistory_prog, ^mh_complete, $send);
+~questlist_row(questlist:routequest, %routequest, ^route_complete, $send);
+~questlist_row(questlist:myreque_2, %myreque_2_quest, ^m2_complete, $send);
+~questlist_row(questlist:hauntedmine, %hauntedmine, ^hm_complete, $send);
+~questlist_row(questlist:agrith, %agrith_quest, ^agrith_complete, $send);
+~questlist_row(questlist:deal, %deal_quest, ^deal_complete, $send);
+~questlist_row(questlist:fever, %fever_quest, ^fever_complete, $send);
+~questlist_row(questlist:misc, %misc_quest, ^misc_complete, $send);
+~questlist_row(questlist:forget, %forget_quest, ^forget_complete, $send);
+~questlist_row(questlist:swansong, %swansong, ^swan_complete, $send);
+~questlist_row(questlist:fairy_farmers, %fairy_farmers_quest, ^fairy_complete, $send);
+~questlist_row(questlist:mourning2, %mourning_quest_main, ^mt_complete, $send);
+
+[proc,questlist_row](component $component, int $progress, int $complete_progress, boolean $send)
+%questlist_total = add(%questlist_total, 1);
+if ($progress >= $complete_progress) {
+    %questlist_done = add(%questlist_done, 1);
+}
+if ($send = true) {
+    ~send_quest_progress_colour($component, $progress, $complete_progress);
+}
+

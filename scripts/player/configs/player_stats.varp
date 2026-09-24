@@ -1,0 +1,35 @@
+// THE PLAYER STATISTICS the quest tab's Player Statistics page shows (player/scripts/player_stats.rs2
+// keeps them). Nothing counted these before 2026-09-24, so on an account older than that they count
+// from the first login after it - the page shows what there is rather than pretending to know more.
+//
+// All perm, all full ints (a count has no ceiling a bit range could hold), none transmitted: the page
+// is filled by if_settext when it opens, so the client never needs the numbers.
+
+// Minutes online. A [softtimer] started at login adds one every 100 ticks, so a crash or a kicked
+// connection loses at most the minute in progress - which accumulating at logout would not promise.
+// protect=no because a softtimer runs without protected access; that is what lets it tick while
+// the player is busy, where a [timer] would wait.
+[player_playtime]
+scope=perm
+protect=no
+
+// world_minute the account was first seen: set at the first login where it is still 0, so an
+// account made before this existed starts its age from that login.
+[player_first_seen]
+scope=perm
+
+// Every death, minigames included: ~player_death is the one proc every death script goes through.
+[player_deaths]
+scope=perm
+
+// Players killed: the killer is credited from the victim's death queue, through findhero - the
+// secondary pointer, which never has protected access, hence protect=no.
+[player_pvp_kills]
+scope=perm
+protect=no
+
+// Monsters killed, credited to the player npc_findhero names - the one every drop table pays -
+// from [proc,npc_death], an npc-context script, hence protect=no (boss_kills.varp has the story).
+[player_npc_kills]
+scope=perm
+protect=no
