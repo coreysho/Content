@@ -107,9 +107,11 @@ function viewer(name: string, subtitle?: string) {
 }
 
 console.log('DROP TABLE VIEWER');
-viewer('goblin', 'Combat level 2');
+// the killer's drop-rate boost (gamemodes/scripts/droprate.rs2) is the same for every monster: a fresh
+// character reads as realism, +25%
+viewer('goblin', 'Combat level 2. Your game mode: drop rates +25%');
 viewer('chicken');
-viewer('king_dragon', 'Combat level 276. Your game mode: +2 rare drop table rolls');
+viewer('king_dragon', 'Combat level 276. Your game mode: drop rates +25%');
 viewer('graardor');
 viewer('superior_night_beast');
 

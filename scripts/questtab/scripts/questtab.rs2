@@ -110,7 +110,12 @@ while ($i < ^collection_log_tabs) {
 if (%collection_log_latest = null) {
     if_settext(questtab_collection:latest, "Nothing yet");
 } else {
-    if_settext(questtab_collection:latest, "<oc_name(%collection_log_latest)> @lre@(<~questtab_ago(%collection_log_latest_minute)>)");
+    // the item and how long ago - or just the item when the two will not fit inside the box's rim
+    def_string $latest = "<oc_name(%collection_log_latest)> @lre@(<~questtab_ago(%collection_log_latest_minute)>)";
+    if (stringwidth($latest, p12_full) > ^questtab_text_width) {
+        $latest = oc_name(%collection_log_latest);
+    }
+    if_settext(questtab_collection:latest, $latest);
 }
 
 [if_button,questtab_collection:open] ~collection_log_open;
@@ -260,11 +265,15 @@ if ($whole >= 1000) {
 }
 return("<tostring($whole)>.<tostring(divide(modulo($n, $unit), divide($unit, 10)))>");
 
-// Minutes as "33d 6h 37m", dropping the leading units that are zero.
+// Minutes as "33d 6h 37m", dropping the leading units that are zero - and the minutes from 1,000
+// days, where "1,234d 5h 59m" would not fit Player Statistics' value column.
 [proc,questtab_duration](int $minutes)(string)
 def_int $days = divide($minutes, 1440);
 def_int $hours = divide(modulo($minutes, 1440), 60);
 def_int $mins = modulo($minutes, 60);
+if ($days >= 1000) {
+    return("<~tp_gp($days)>d <tostring($hours)>h");
+}
 if ($days > 0) {
     return("<~tp_gp($days)>d <tostring($hours)>h <tostring($mins)>m");
 }

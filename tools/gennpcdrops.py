@@ -1353,7 +1353,9 @@ def display(rows):
 TIERS = (7, 15, 30, 60, 120)
 ROW_H = 32
 LIST_X, LIST_Y, LIST_W, LIST_H = 48, 70, 342, 228
-NAME_X, QTY_X, QTY_W, RATE_X, RATE_W = 38, 196, 76, 272, 70
+# The amount column is the one that fills up ("20005-29995" is 84px in p12), so it takes the few
+# pixels the name and rarity columns do not need: their longest are 152 and 65.
+NAME_X, QTY_X, QTY_W, RATE_X, RATE_W = 38, 192, 84, 276, 66
 TITLE_Y, SUB_Y, HDR_Y = 26, 42, 56
 COL_HDR = '0x5F3F1F'
 

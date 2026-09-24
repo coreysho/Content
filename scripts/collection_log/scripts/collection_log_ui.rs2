@@ -77,12 +77,17 @@ switch_int ($i) {
         if_settext(collection_log:tab3, $text);
 }
 
-// One counter line of the open entry. Blank text is how an unused one disappears.
+// One counter line of the open entry. Blank text is how an unused one disappears. Counters
+// 0 and 2 are right-aligned across the page: moved right by the width their text leaves.
 [proc,collection_log_counter_text](int $i, string $text)
 switch_int ($i) {
-    case 0 : if_settext(collection_log:counter0, $text);
+    case 0 :
+        if_settext(collection_log:counter0, $text);
+        if_setposition(collection_log:counter0, max(0, sub(294, stringwidth($text, p12_full))), 0);
     case 1 : if_settext(collection_log:counter1, $text);
-    case 2 : if_settext(collection_log:counter2, $text);
+    case 2 :
+        if_settext(collection_log:counter2, $text);
+        if_setposition(collection_log:counter2, max(0, sub(294, stringwidth($text, p12_full))), 0);
 }
 
 // READ A COUNTER BY ID. Below ^collection_log_own_base it is a boss kill count, which

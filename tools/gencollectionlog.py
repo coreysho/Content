@@ -82,7 +82,12 @@ TAB_Y, TAB_H, TAB_X, TAB_SPAN, TAB_GAP = 50, 16, 20, 472, 4
 LIST_X, LIST_Y, LIST_W, LIST_H, ROW_H = 20, 72, 150, 226, 15
 PANEL_X = 192
 NAME_Y, LINE1_Y, LINE2_Y = 74, 90, 104
-COL2_X = 340
+# The counters share their lines with "Obtained": counter 0 on its line and counter 2 on the next are
+# RIGHT-aligned across the whole page (the script moves them by the width their text leaves), and
+# counter 1 sits on the left of the second line. Split into two fixed columns, a boss's name and
+# kill count ("Commander Zilyana kills: 1,234") ran past the window's edge.
+PAGE_W = 294
+RIGHT_ALIGNED = (0, 2)
 RULE_Y = 119
 GRID_X, GRID_Y, GRID_W, GRID_H = 194, 124, 292, 172
 COLS, MARGIN_X, MARGIN_Y = 8, 4, 2
@@ -320,12 +325,12 @@ def components(spec, entries):
                                          colour=ORANGE)))
     coms.append(('name', dict(type='text', x=PANEL_X, y=NAME_Y, width=GRID_W, height=14,
                               font='b12_full', shadowed='yes', text='', colour=ORANGE)))
-    coms.append(('obtained', dict(type='text', x=PANEL_X, y=LINE1_Y, width=COL2_X - PANEL_X - 4,
+    coms.append(('obtained', dict(type='text', x=PANEL_X, y=LINE1_Y, width=PAGE_W // 2,
                                   height=13, font='p12_full', shadowed='yes', text='', colour=ORANGE)))
-    spots = [(COL2_X, LINE1_Y), (PANEL_X, LINE2_Y), (COL2_X, LINE2_Y)]
+    lines = [LINE1_Y, LINE2_Y, LINE2_Y]
     for i in range(COUNTERS):
-        x, y = spots[i]
-        coms.append(('counter%d' % i, dict(type='text', x=x, y=y, width=GRID_X + GRID_W - x, height=13,
+        x, y = PANEL_X, lines[i]
+        coms.append(('counter%d' % i, dict(type='text', x=x, y=y, width=PAGE_W, height=13,
                                            font='p12_full', shadowed='yes', text='', colour=ORANGE)))
     coms.append(('rule', dict(type='rect', x=PANEL_X - 2, y=RULE_Y, width=GRID_X + GRID_W - PANEL_X + 4,
                               height=1, fill='yes', colour=LINE)))
@@ -372,11 +377,19 @@ def build_rs2(spec, entries):
         o.append('        if_settext(collection_log:tab%d, $text);' % i)
     o.append('}')
     o.append('')
-    o.append('// One counter line of the open entry. Blank text is how an unused one disappears.')
+    o.append('// One counter line of the open entry. Blank text is how an unused one disappears. Counters')
+    o.append('// %s are right-aligned across the page: moved right by the width their text leaves.'
+             % ' and '.join(str(i) for i in RIGHT_ALIGNED))
     o.append('[proc,collection_log_counter_text](int $i, string $text)')
     o.append('switch_int ($i) {')
     for i in range(COUNTERS):
-        o.append('    case %d : if_settext(collection_log:counter%d, $text);' % (i, i))
+        if i in RIGHT_ALIGNED:
+            o.append('    case %d :' % i)
+            o.append('        if_settext(collection_log:counter%d, $text);' % i)
+            o.append('        if_setposition(collection_log:counter%d, max(0, sub(%d, stringwidth($text, p12_full))), 0);'
+                     % (i, PAGE_W))
+        else:
+            o.append('    case %d : if_settext(collection_log:counter%d, $text);' % (i, i))
     o.append('}')
     o.append('')
     o.append('// READ A COUNTER BY ID. Below ^collection_log_own_base it is a boss kill count, which')
