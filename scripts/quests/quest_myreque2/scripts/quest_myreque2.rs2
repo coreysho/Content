@@ -180,7 +180,19 @@ p_delay(5);
 stat_advance(strength, 5000);
 ~mesbox("The shop has stock. By the time you are back out on the street somebody has bought a tinderbox, and by the time you reach the end of it there are fires lit along the whole length of the village.");
 
-[oploc1,burgh_general_store_roof_multiloc]
+// The repairs take what the wiki says they take: 3 planks and 12 steel nails for the roof and for
+// each wall, 2 planks, 8 nails and a swamp paste for the bank booth, and a hammer for all of it -
+// 11 planks and 44 nails. The cache gives these locs Search and nothing else, so Search does the
+// repair once you are carrying everything, and so does using any of the materials on them.
+[oploc1,burgh_general_store_roof_multiloc] @m2_fix_roof;
+[oplocu,burgh_general_store_roof_multiloc]
+if (~m2_repair_item(last_useitem) = false) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@m2_fix_roof;
+
+[label,m2_fix_roof]
 if (%burgh_store_roof = ^m2_on) {
     ~mesbox("A repaired roof, from above, which is the only angle it looks convincing from.");
     return;
@@ -190,20 +202,49 @@ if (%myreque_2_quest < ^m2_arrived) {
     ~mesbox("There is more sky in this roof than roof.");
     return;
 }
-if (inv_total(inv, plank) < 3 | inv_total(inv, hammer) = 0 | inv_total(inv, nails) = 0) {
-    ~mesbox("Three planks, a hammer and nails.");
+if (~m2_has_repair(^m2_wall_planks, ^m2_wall_nails, false) = false) {
+    ~mesbox("Three planks, twelve steel nails and a hammer.");
     return;
 }
 anim(human_pickupfloor, 0);
 p_delay(5);
-inv_del(inv, plank, 3);
-inv_del(inv, nails, 1);
+inv_del(inv, woodplank, ^m2_wall_planks);
+inv_del(inv, nails, ^m2_wall_nails);
 %burgh_store_roof = ^m2_on;
 stat_advance(crafting, 3000);
 mes("It is not a good roof. It is a roof.");
 
+// Planks, nails, the hammer, and the swamp paste the booth wants - anything else used on a repair
+// does nothing.
+[proc,m2_repair_item](obj $item)(boolean)
+if ($item = woodplank | $item = nails | $item = hammer | $item = swamppaste) {
+    return(true);
+}
+return(false);
+
+[proc,m2_has_repair](int $planks, int $nails, boolean $paste)(boolean)
+if (inv_total(inv, woodplank) < $planks | inv_total(inv, nails) < $nails | inv_total(inv, hammer) = 0) {
+    return(false);
+}
+if ($paste = true & inv_total(inv, swamppaste) = 0) {
+    return(false);
+}
+return(true);
+
 [oploc1,burgh_general_store_wall_multiloc] @m2_board_wall(^m2_store_wall);
 [oploc1,burgh_bank_wall_multiloc] @m2_board_wall(^m2_bank_wall);
+[oplocu,burgh_general_store_wall_multiloc]
+if (~m2_repair_item(last_useitem) = false) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@m2_board_wall(^m2_store_wall);
+[oplocu,burgh_bank_wall_multiloc]
+if (~m2_repair_item(last_useitem) = false) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@m2_board_wall(^m2_bank_wall);
 
 [label,m2_board_wall](coord $wall)
 p_arrivedelay;
@@ -219,14 +260,14 @@ if (%myreque_2_quest < ^m2_arrived) {
     ~mesbox("The wall has fallen out and somebody has leaned boards against the hole.");
     return;
 }
-if (inv_total(inv, plank) < 2 | inv_total(inv, hammer) = 0 | inv_total(inv, nails) = 0) {
-    ~mesbox("Two planks, a hammer and nails.");
+if (~m2_has_repair(^m2_wall_planks, ^m2_wall_nails, false) = false) {
+    ~mesbox("Three planks, twelve steel nails and a hammer.");
     return;
 }
 anim(human_pickupfloor, 0);
 p_delay(4);
-inv_del(inv, plank, 2);
-inv_del(inv, nails, 1);
+inv_del(inv, woodplank, ^m2_wall_planks);
+inv_del(inv, nails, ^m2_wall_nails);
 if ($wall = ^m2_store_wall) {
     %burgh_store_wall = ^m2_on;
     mes("The shop wall is a wall again.");
@@ -254,19 +295,30 @@ p_teleport(^m2_store_ladder_up);
 if (%burgh_bank_booth_open = ^m2_on) {
     @openbank;
 }
+@m2_fix_booth;
+
+[oplocu,burgh_bank_booth_multiloc]
+if (%burgh_bank_booth_open = ^m2_on | ~m2_repair_item(last_useitem) = false) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@m2_fix_booth;
+
+[label,m2_fix_booth]
 p_arrivedelay;
 if (%myreque_2_quest < ^m2_arrived) {
     ~mesbox("A bank booth with one leg and no bank behind it.");
     return;
 }
-if (inv_total(inv, plank) < 2 | inv_total(inv, hammer) = 0 | inv_total(inv, nails) = 0) {
-    ~mesbox("Two planks, a hammer and nails.");
+if (~m2_has_repair(^m2_booth_planks, ^m2_booth_nails, true) = false) {
+    ~mesbox("Two planks, eight steel nails, some swamp paste and a hammer.");
     return;
 }
 anim(human_pickupfloor, 0);
 p_delay(4);
-inv_del(inv, plank, 2);
-inv_del(inv, nails, 1);
+inv_del(inv, woodplank, ^m2_booth_planks);
+inv_del(inv, nails, ^m2_booth_nails);
+inv_del(inv, swamppaste, 1);
 %burgh_bank_booth_open = ^m2_on;
 stat_advance(crafting, 2000);
 mes("The booth stands up on its own.");
