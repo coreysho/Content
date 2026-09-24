@@ -1,0 +1,62 @@
+// The Lumbridge Swamp Caves: the way in from the swamp, the two sets of stepping stones, and the
+// hole through from the Lost Tribe's cave. None of these had a handler, and the only way down to
+// the Tears of Guthix cave runs across both sets of stones, so Juna could not be reached at all.
+//
+// The real cave wants a rope tied to the dark hole first, and a light, and a spiny helmet against
+// the wall beasts; this build has no tied-rope state for the hole, so the climb is simply allowed.
+
+[oploc1,goblin_cave_entrance]
+p_arrivedelay;
+anim(human_reachforladder, 0);
+p_delay(1);
+mes("You climb down into the darkness.");
+p_teleport(0_49_149_32_36);
+
+[oploc1,swamp_cave_climbing_rope]
+p_arrivedelay;
+anim(human_reachforladder, 0);
+p_delay(1);
+mes("You climb up the rope.");
+p_teleport(0_49_49_32_36);
+
+// The stones sit out in the water with no walkable tile beside them, so [oploc1] could never fire -
+// the engine answers "I can't reach that" first. The approach trigger fires from the bank instead,
+// as the lighthouse causeway does (quest_horror/scripts/horror_basalt.rs2).
+[aploc1,swamp_cave_steppingstone_a] @swamp_cave_stones(0_50_149_4_36, 0_50_149_8_36);
+[aploc1,swamp_cave_steppingstone_b] @swamp_cave_stones(0_50_149_21_20, 0_50_149_22_17);
+
+// Two landings, one either side of the water. Whichever one you are nearer, you jump to the other.
+[label,swamp_cave_stones](coord $a, coord $b)
+if (distance(coord, loc_coord) > 3) {
+    p_aprange(3);
+    return;
+}
+def_coord $to = $b;
+if (distance(coord, $b) < distance(coord, $a)) {
+    $to = $a;
+}
+mes("You jump across the stepping stones.");
+sound_synth(jump_no_land, 1, 20);
+~agility_exactmove(human_steppingstonejump, 20, 2, coord, loc_coord, 48, 60, ~swamp_cave_dir(coord, loc_coord), false);
+~agility_exactmove(human_steppingstonejump, 20, 2, loc_coord, $to, 48, 60, ~swamp_cave_dir(loc_coord, $to), false);
+p_teleport($to);
+
+[proc,swamp_cave_dir](coord $from, coord $to)(int)
+def_int $dx = calc(coordx($to) - coordx($from));
+def_int $dz = calc(coordz($to) - coordz($from));
+if (abs($dx) > abs($dz)) {
+    if ($dx > 0) return(^exact_east);
+    return(^exact_west);
+}
+if ($dz > 0) return(^exact_north);
+return(^exact_south);
+
+// The narrow hole between the Lost Tribe's cave and the swamp caves.
+[oploc1,lost_tribe_hole_2]
+p_arrivedelay;
+mes("You squeeze through the hole.");
+if (coordz(coord) > coordz(loc_coord)) {
+    p_teleport(0_50_150_24_0);
+} else {
+    p_teleport(0_50_150_24_4);
+}

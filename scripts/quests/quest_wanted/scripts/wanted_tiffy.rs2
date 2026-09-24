@@ -51,9 +51,17 @@ inv_add(inv, wanted_crystal_ball, 1);
 ~chatnpc("<p,neutral>Contact Savant on the orb. She will tell you what I cannot be bothered to.");
 
 [label,wanted_tiffy_finish]
+// The hat is the only one there will ever be - Solus is gone - so a hat that was dropped or lost
+// on death would have left the quest one conversation from the end for good. Banked, he waits for
+// it; gone, Savant's log is proof enough.
 if (inv_total(inv, wanted_solus_trophy) = 0) {
-    ~chatnpc("<p,neutral>You have done it and you have not brought me the hat. Bring me the hat.");
-    return;
+    if (inv_total(bank, wanted_solus_trophy) > 0) {
+        ~chatnpc("<p,neutral>You have done it and you have not brought me the hat. Bring me the hat.");
+        return;
+    }
+    ~chatplayer("<p,sad>It's done. I've lost the hat, though.");
+    ~chatnpc("<p,sad>Savant logged it the moment it happened, so I suppose I shall have to take her word for it. A pity. I did want the hat.");
+    @wanted_finish;
 }
 ~chatplayer("<p,neutral>It's done.");
 if_close;

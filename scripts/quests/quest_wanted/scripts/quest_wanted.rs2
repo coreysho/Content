@@ -28,7 +28,7 @@ if ($place = 0) {
     ~mesbox("The orb finds nothing. He has run out of places to be, which means he is standing still somewhere and waiting for you.");
     return;
 }
-@wanted_set_location($place, ^wanted_on);
+~wanted_set_location($place, ^wanted_on);
 if (%wanted_main = ^wanted_briefed) {
     %wanted_main = ^wanted_hunting;
     ~send_quest_progress(questlist:wanted, %wanted_main, ^wanted_complete);
@@ -70,7 +70,26 @@ if (%wanted_contacted_savant = ^wanted_off) {
 // =========================================================================== Solus
 // wanted_solus carries op1=Talk-to and no attack option at all, so every confrontation is a
 // conversation. He jumps rather than answer, which is the quest.
-[opnpc1,wanted_solus]
+//
+// What the map places is the SHELL - wanted_solus1..12 - and an npc's op trigger is looked up on
+// the placed type, not on what its multinpc renders as (Player.getOpTrigger reads target.type).
+// [opnpc1,wanted_solus] alone was a dead click on every one of the twelve: the client showed
+// Talk-to, OpNpcHandler accepted it off the resolved type, and nothing answered.
+[opnpc1,wanted_solus] @wanted_solus_talk;
+[opnpc1,wanted_solus1] @wanted_solus_talk;
+[opnpc1,wanted_solus2] @wanted_solus_talk;
+[opnpc1,wanted_solus3] @wanted_solus_talk;
+[opnpc1,wanted_solus4] @wanted_solus_talk;
+[opnpc1,wanted_solus5] @wanted_solus_talk;
+[opnpc1,wanted_solus6] @wanted_solus_talk;
+[opnpc1,wanted_solus7] @wanted_solus_talk;
+[opnpc1,wanted_solus8] @wanted_solus_talk;
+[opnpc1,wanted_solus9] @wanted_solus_talk;
+[opnpc1,wanted_solus10] @wanted_solus_talk;
+[opnpc1,wanted_solus11] @wanted_solus_talk;
+[opnpc1,wanted_solus12] @wanted_solus_talk;
+
+[label,wanted_solus_talk]
 if (%wanted_main >= ^wanted_cornered) {
     ~chatnpc("<p,angry>...");
     return;
@@ -94,8 +113,8 @@ switch_int (random(3)) {
 if_close;
 mes("He is gone before you have finished drawing breath.");
 p_delay(2);
-@wanted_set_location($place, ^wanted_off);
-@wanted_mark_done($place);
+~wanted_set_location($place, ^wanted_off);
+~wanted_mark_done($place);
 stat_advance(magic, 500);
 ~mesbox("That is one more jump he has had to pay for. <tostring(~wanted_sightings)> of <tostring(^wanted_sightings_needed)>.");
 
@@ -108,8 +127,8 @@ mes("He reaches for the teleport and it does not come. He tries again and it sti
 p_delay(4);
 mes("What happens next takes rather less time than he expects.");
 p_delay(3);
-@wanted_set_location($place, ^wanted_off);
-@wanted_mark_done($place);
+~wanted_set_location($place, ^wanted_off);
+~wanted_mark_done($place);
 %wanted_main = ^wanted_cornered;
 ~send_quest_progress(questlist:wanted, %wanted_main, ^wanted_complete);
 stat_advance(magic, 5000);
@@ -128,6 +147,10 @@ if (inv_freespace(inv) > 0) {
 ~chatnpc("<p,neutral>There was one over there a moment ago who looked like he was about to be sick. Or leave. One of the two.");
 
 // =========================================================================== bookkeeping
+// wanted_set_location and wanted_mark_done are PROCS. They were labels reached with @, and a jump
+// never comes back: a Scan set the bit and stopped before the stage moved on to hunting, and every
+// sighting took Solus away and stopped before marking the place done - so the sightings never
+// counted, the same places came round again, and he could never be cornered.
 [proc,wanted_current_location]()(int)
 def_int $i = ^wanted_first_location;
 while ($i <= ^wanted_last_location) {
@@ -209,7 +232,7 @@ switch_int ($i) {
 }
 return(false);
 
-[label,wanted_set_location](int $i, int $value)
+[proc,wanted_set_location](int $i, int $value)
 switch_int ($i) {
     case 1 : %wanted_mission1 = $value;
     case 2 : %wanted_mission2 = $value;
@@ -225,7 +248,7 @@ switch_int ($i) {
     case 12 : %wanted_mission12 = $value;
 }
 
-[label,wanted_mark_done](int $i)
+[proc,wanted_mark_done](int $i)
 switch_int ($i) {
     case 1 : %wanted_mission1complete = ^wanted_on;
     case 2 : %wanted_mission2complete = ^wanted_on;
