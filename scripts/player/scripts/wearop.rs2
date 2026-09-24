@@ -1,0 +1,41 @@
+// WORN OPTIONS (2026-09-24): an item's own options in the Worn Equipment tab, after Remove - OSRS's
+// "worn options" (oldschool.runescape.wiki/w/Worn_Equipment): a glory's four teleports, a slayer
+// helmet's Check, a skill cape's perk. Remove stays the tab's own option ([inv_button1,wornitems:worn]
+// in equip.rs2); the rest are the item's, like its backpack ops.
+//
+// DECLARING ONE: wearop1..wearop8 in the item's .obj config, in the order the menu lists them:
+//
+//   [amulet_of_glory_4]
+//   ...
+//   wearop1=Edgeville
+//   wearop2=Karamja
+//
+// HANDLING ONE: a label named wearop<n>_ followed by the subject exactly as an opheld trigger would
+// write it - the obj, or _<category> for a whole family (so two underscores):
+//
+//   [label,wearop1_slayer_helm] @slayer_helm_check;
+//   [label,wearop1__category_557] @amulet_of_glory_worn(1);
+//
+// It is a label found by name, not a [wearop1,obj] trigger, only because the script compiler's
+// trigger list is fixed inside its npm package; the engine looks the label up the way it looks up
+// [mapzone,...] (Engine-TS network/game/client/handler/WearOpHandler.ts). The obj's own label wins
+// over its category's. last_item is the item and last_slot its WORN slot, so an option that uses the
+// item up writes to worn, not inv - ~worn_replace below. An item with a wearop and no label does
+// nothing (a dev world says so); tools/sim/wearop.ts in the engine checks every one has a handler.
+
+// Swaps the item the player just operated in the Worn Equipment tab for $next where it is worn - the
+// next charge down - or takes it off them altogether when $next is null (a ring crumbling to dust).
+// Nothing happens if $item is no longer in that slot. The same refresh an unequip does: the stats
+// panel, weight and appearance follow the change (a necklace that crumbles leaves the neck bare).
+[proc,worn_replace](int $slot, obj $item, namedobj $next)
+if (inv_getobj(worn, $slot) ! $item) {
+    return;
+}
+if ($next = null) {
+    inv_delslot(worn, $slot);
+    ~update_all($item);
+    ~on_unequip($item);
+    return;
+}
+inv_setslot(worn, $slot, $next, 1);
+~update_all($item);

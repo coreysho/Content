@@ -21,6 +21,11 @@ if ($choice = 5) {
     mes("You remain where you were.");
     return(false);
 }
+return(~glory_teleport_to($choice, $message));
+
+// One of the four destinations, 1-4 in the menu's order, with no menu: the dialogue above ends here,
+// and so does a worn amulet's own option (below), which names its destination outright.
+[proc,glory_teleport_to](int $choice, string $message)(boolean)
 if (~wilderness_level(coord) > 30) {
     // osrs
     mes("A mysterious force blocks your teleport.");
@@ -46,3 +51,30 @@ if (~glory_teleport($message) = false) {
     return;
 }
 inv_setslot(inv, $slot, oc_param($item, next_obj_stage), 1);
+
+// WORN: the Worn Equipment tab offers the four destinations straight off, OSRS's own worn options
+// (oldschool.runescape.wiki/w/Amulet_of_glory: "Edgeville, Karamja, Draynor Village, Al Kharid"),
+// no rub and no menu. The charge comes off the amulet where it hangs, so it stays worn as the next
+// charge down, and the last one leaves the uncharged amulet on the neck, as OSRS does.
+// category_557 is the four charged amulets; the uncharged one has no worn options.
+[label,wearop1__category_557] @amulet_of_glory_worn(1);
+[label,wearop2__category_557] @amulet_of_glory_worn(2);
+[label,wearop3__category_557] @amulet_of_glory_worn(3);
+[label,wearop4__category_557] @amulet_of_glory_worn(4);
+
+[label,amulet_of_glory_worn](int $choice)
+def_obj $item = last_item;
+def_int $slot = last_slot;
+if (~glory_teleport_to($choice, ~glory_charges_message($item)) = false) {
+    return;
+}
+~worn_replace($slot, $item, oc_param($item, next_obj_stage));
+
+// what the backpack's opheld4 lines above say, for the same amulet
+[proc,glory_charges_message](obj $item)(string)
+switch_obj ($item) {
+    case amulet_of_glory_4 : return("Your amulet has three charges left.");
+    case amulet_of_glory_3 : return("Your amulet has two charges left.");
+    case amulet_of_glory_2 : return("Your amulet has one charge left.");
+}
+return("You use your amulet's last charge.");
