@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Restart the Lost City server WITH WARNING. Put this at /opt/lostcity/restart.sh.
+# Restart the Death Plateau server WITH WARNING. Link it as /opt/deathplateau/restart.sh.
 #
 #   ./restart.sh          warn everyone, restart in 60 seconds
 #   ./restart.sh 300      ...in 5 minutes
@@ -13,7 +13,9 @@
 set -euo pipefail
 
 SECONDS_LEFT=${1:-60}
-SERVICE=lostcity.service
+# deathplateau.service since the server was named; lostcity.service on a server not yet moved over
+SERVICE=deathplateau.service
+systemctl cat "$SERVICE" >/dev/null 2>&1 || SERVICE=lostcity.service
 PORT=${WEB_MANAGEMENT_PORT:-8898}
 
 say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
