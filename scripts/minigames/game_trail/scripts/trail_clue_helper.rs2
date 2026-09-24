@@ -322,10 +322,15 @@ while ($slot < inv_size(trail_rewardinv)) {
 }
 return($stuck);
 
-// The real handover. Closing the window is not queued, so this runs immediately and the loot is in
-// the inventory by the time the player can click anything else.
+// The real handover, the moment the window closes. Queued, not done here: an [if_close] has no
+// protected access, and moving out of trail_rewardinv needs it ("inv_movefromslot $inv requires
+// protected access") - so the flush ran nowhere and the loot waited for the next casket. A queue
+// has it, and runs before the player's next click is handled.
 [if_close,trail_reward]
 inv_stoptransmit(trail_reward:inv);
+queue(trail_reward_closed, 0, 0);
+
+[queue,trail_reward_closed]
 if (~trail_flush_rewards > 0) {
     mes("Make some space in your inventory - the rest of your reward is still waiting for you.");
 }

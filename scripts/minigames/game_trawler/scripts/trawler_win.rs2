@@ -81,7 +81,14 @@ while ($i < %trawler_catch) {
 %trawler_catch = 0;
 
 
+// What is left in the net drops at your feet when the window closes (as in OSRS). Queued: an
+// [if_close] has no protected access, which inv_dropslot on trawler_rewardinv needs - done here it
+// threw a script error and the catch stayed in the net.
 [if_close,trawler_catch]
+inv_stoptransmit(trawler_catch:inv);
+queue(trawler_catch_closed, 0, 0);
+
+[queue,trawler_catch_closed]
 def_int $i = 0;
 while ($i < inv_size(trawler_rewardinv)) {
     if (inv_getobj(trawler_rewardinv, $i) ! null) {
@@ -89,7 +96,6 @@ while ($i < inv_size(trawler_rewardinv)) {
     }
     $i = add($i, 1);
 }
-inv_stoptransmit(trawler_catch:inv);
 
 // osrs drops on ground on full inv
 [inv_button1,trawler_catch:inv] 
