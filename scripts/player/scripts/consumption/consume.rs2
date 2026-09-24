@@ -128,6 +128,11 @@ if (%potion_delay >= map_clock) {
     return;
 }
 %potion_delay = calc(map_clock + 2);
+// POT BLOCKING: a potion drunk first blocks food for the rest of the tick, so the order is food,
+// then potion - never potion, then food. It is only this tick (the food timer's test is
+// %eat_delay >= map_clock): the shark goes on the next one, and sipping brews every 3 ticks never
+// locks eating out. Combo food ignores the food timer, so food, brew, karambwan still all go.
+%eat_delay = max(%eat_delay, map_clock);
 jump($consume_effect);
 
 // COMBO FOOD - the cooked karambwan and gnome food. It skips the food timer, which is what lets it
