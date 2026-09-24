@@ -101,29 +101,61 @@ else {
 inv_add(inv, caleb_crest, 1);
 
 [label,avan_gauntlets]
+// Every kind of gauntlet can be had: the first imbue is free, each other kind is imbued on a fresh
+// pair from Dimintheis for ^crest_gauntlets_fee (the 25,000 coins OSRS charges to change kinds).
+// https://oldschool.runescape.wiki/w/Family_gauntlets
 ~chatnpc("<p,happy>I have received word from my father of your assistance to our family in this matter. You have my thanks for restoring our honour.");
-if(getbit_range(%crest_spells_levers_gauntlets, ^crest_cooking_gauntlets_chosen, ^crest_chaos_gauntlets_chosen) > 0) {
+if (testbit(%crest_spells_levers_gauntlets, ^crest_goldsmithing_gauntlets_chosen) = ^true) {
+    if (inv_total(inv, steel_gauntlets) >= 1) {
+        ~chatplayer("<p,quiz>Could you improve these gauntlets for me as well?");
+        ~chatnpc("<p,neutral>I have already made you a finer pair of goldsmith gauntlets than you will find anywhere. If you must have something else, my brothers may oblige you.");
+    }
+    else if (~obj_gettotal(gauntlets_of_goldsmithing) = 0) {
+        // Lost pairs go back to Dimintheis, who hands them out again (crest_dimintheis_gauntlets).
+        ~chatplayer("<p,sad>I've lost the goldsmith gauntlets you made me...");
+        ~chatnpc("<p,neutral>Then speak to my father. Those gauntlets always return to the head of the family.");
+    }
     return;
 }
 if (inv_total(inv, steel_gauntlets) >= 1) {
     ~chatplayer("<p,quiz>Your father mentioned that you could improve these gauntlets in some way for me...");
     ~chatnpc("<p,neutral>Indeed I can. In my long time searching for the 'perfect' gold I learned a lot about gold items. I can improve these gauntlets so that they provide more than normal.");
-    ~chatnpc("<p,neutral>experience when smithing gold. I can easily modify these for you.");
-    def_int $op = ~p_choice2("That sounds good, improve them for me.", 1, "I think I'll check my other options with your brothers.", 2);
+    def_boolean $paid = ~crest_gauntlets_imbued_any;
+    def_int $op;
+    if ($paid = false) {
+        ~chatnpc("<p,neutral>experience when smithing gold. I can easily modify these for you.");
+        $op = ~p_choice2("That sounds good, improve them for me.", 1, "I think I'll check my other options with your brothers.", 2);
+    }
+    else {
+        ~chatnpc("<p,neutral>experience when smithing gold. My skills do not come cheap, however. I will require 25,000 coins for my trouble.");
+        $op = ~p_choice2("Very well, here are 25,000 coins.", 1, "That's too expensive for me.", 2);
+    }
     if ($op = 1) {
-        ~chatplayer("<p,neutral>That sounds good, improve them for me.");
+        if ($paid = true) {
+            ~chatplayer("<p,neutral>Very well, here are 25,000 coins.");
+        } else {
+            ~chatplayer("<p,neutral>That sounds good, improve them for me.");
+        }
+        if (~crest_gauntlets_imbue(gauntlets_of_goldsmithing, ^crest_goldsmithing_gauntlets_chosen) = false) {
+            ~chatplayer("<p,sad>Oh, I don't seem to have enough coins with me.");
+            ~chatnpc("<p,angry>Then do not waste my time. Come back when you can pay.");
+            return;
+        }
         ~mesbox("Avan takes your gauntlets, takes out a small hammer, and pounds them into a slightly new shape, then hands them back to you.");
-        %crest_spells_levers_gauntlets = setbit(%crest_spells_levers_gauntlets, ^crest_goldsmithing_gauntlets_chosen);
-        inv_del(inv, steel_gauntlets, 1);
-        inv_add(inv, gauntlets_of_goldsmithing, 1);
+    }
+    else if ($paid = true) {
+        ~chatplayer("<p,neutral>That's too expensive for me.");
+        ~chatnpc("<p,neutral>Quality has its price, adventurer. You know where to find me.");
     }
     else {
         ~chatplayer("<p,confused>I think I'll check my other options with your brothers before committing myself.");
         ~chatnpc("<p,neutral>If you feel you really must consort with the likes of them. I await your decision.");
     }
+} else if (~crest_gauntlets_imbued_any = true) {
+    ~chatplayer("<p,quiz>Could you improve another pair of gauntlets for me?");
+    ~chatnpc("<p,neutral>Bring me a plain pair of the family's gauntlets and 25,000 coins, and I will. My father will have a pair for you.");
 } else {
     // https://chisel.weirdgloop.org/dialogue/content/39108
     ~chatplayer("<p,neutral>Your father mentioned that you could improve some gauntlets for me.");
     ~chatnpc("<p,happy>Bring them to me, and I'll see what I can do.");
 }
-

@@ -134,28 +134,59 @@ inv_add(inv, avan_crest, 1);
 ~chatnpc("<p,neutral>I would, but I am very busy. I am trying to increase my reknown as one of the worlds' leading chefs by preparing a special and unique fish salad.");
 
 [label,caleb_fitzharmon_gauntlets]
-// Ability to change gauntlets for 25k was added 30/08/05, so this decision is permanent
-// https://oldschool.runescape.wiki/w/Update:Garden_Of_Tranquillity
+// Every kind of gauntlet can be had: the first imbue is free, each other kind is imbued on a fresh
+// pair from Dimintheis for ^crest_gauntlets_fee (the 25,000 coins OSRS charges to change kinds).
+// https://oldschool.runescape.wiki/w/Family_gauntlets
 ~chatnpc("<p,happy>I hear you brought the completed crest to my father. I must say, that was awfully impressive work.");
-if(getbit_range(%crest_spells_levers_gauntlets, ^crest_cooking_gauntlets_chosen, ^crest_chaos_gauntlets_chosen) > 0) {
+if (testbit(%crest_spells_levers_gauntlets, ^crest_cooking_gauntlets_chosen) = ^true) {
+    if (inv_total(inv, steel_gauntlets) >= 1) {
+        ~chatplayer("<p,quiz>Could you improve these gauntlets for me as well?");
+        ~chatnpc("<p,neutral>I've already made you a pair of cooking gauntlets. If you want something different from these, try my brothers.");
+    }
+    else if (~obj_gettotal(gauntlets_of_cooking) = 0) {
+        // Lost pairs go back to Dimintheis, who hands them out again (crest_dimintheis_gauntlets).
+        ~chatplayer("<p,sad>I've lost the cooking gauntlets you made me...");
+        ~chatnpc("<p,neutral>Then go and see my father. Those gauntlets always find their way back to the head of the family.");
+    }
     return;
 }
 if (inv_total(inv, steel_gauntlets) >= 1) {
     ~chatplayer("<p,neutral>I believe your father mentioned you would be able to improve these gauntlets for me...");
     ~chatnpc("<p,neutral>Yes, that is correct. I can slightly alter these gauntlets to allow you some of my skill at preparing seafood by making them cooking gauntlets.");
-    ~chatnpc("<p,neutral>When you wear them you will burn lobsters, sharks and swordfish a lot less. It will be a permanent modification however, so make sure this is what you want.");
-    def_int $op = ~p_choice2("Yes, please do that for me.", 1, "I'll see what your brothers have to offer first.", 2);
-    if ($op = 1) {
-        ~chatplayer("<p,neutral>Yes, please do that for me.");
-        ~mesbox("Caleb takes the gauntlets from you, pours some herbs and seasonings on them, bakes them on his range for a short time, then hands them back to you.");
-        %crest_spells_levers_gauntlets = setbit(%crest_spells_levers_gauntlets, ^crest_cooking_gauntlets_chosen);
-        inv_del(inv, steel_gauntlets, 1);
-        inv_add(inv, gauntlets_of_cooking, 1);
+    def_boolean $paid = ~crest_gauntlets_imbued_any;
+    def_int $op;
+    if ($paid = false) {
+        ~chatnpc("<p,neutral>When you wear them you will burn lobsters, sharks and swordfish a lot less. It will be a permanent modification however, so make sure this is what you want.");
+        $op = ~p_choice2("Yes, please do that for me.", 1, "I'll see what your brothers have to offer first.", 2);
     }
     else {
-        ~chatplayer("<p,neutral>I'll see what your brothers have to offer first.");
+        ~chatnpc("<p,neutral>When you wear them you will burn lobsters, sharks and swordfish a lot less. The herbs and seasonings I use don't come cheap though, so it will cost you 25,000 coins.");
+        $op = ~p_choice2("Yes, here are 25,000 coins.", 1, "That's too expensive for me.", 2);
+    }
+    if ($op = 1) {
+        if ($paid = true) {
+            ~chatplayer("<p,neutral>Yes, here are 25,000 coins.");
+        } else {
+            ~chatplayer("<p,neutral>Yes, please do that for me.");
+        }
+        if (~crest_gauntlets_imbue(gauntlets_of_cooking, ^crest_cooking_gauntlets_chosen) = false) {
+            ~chatplayer("<p,sad>Oh, I don't seem to have enough coins with me.");
+            ~chatnpc("<p,neutral>Then come back when you do. My range isn't going anywhere.");
+            return;
+        }
+        ~mesbox("Caleb takes the gauntlets from you, pours some herbs and seasonings on them, bakes them on his range for a short time, then hands them back to you.");
+    }
+    else {
+        if ($paid = true) {
+            ~chatplayer("<p,neutral>That's too expensive for me.");
+        } else {
+            ~chatplayer("<p,neutral>I'll see what your brothers have to offer first.");
+        }
         ~chatnpc("<p,neutral>As you wish. Let me know if you change your mind.");
     }
+} else if (~crest_gauntlets_imbued_any = true) {
+    ~chatplayer("<p,quiz>Could you improve another pair of gauntlets for me?");
+    ~chatnpc("<p,neutral>Bring me a plain pair of the family's gauntlets and 25,000 coins, and I'll see what I can do. My father will have a pair for you.");
 } else {
     ~chatplayer("<p,neutral>I believe your father mentioned you would be able to improve some gauntlets for me...");
     ~chatnpc("<p,happy>Bring them to me, and I'll see what I can do.");
