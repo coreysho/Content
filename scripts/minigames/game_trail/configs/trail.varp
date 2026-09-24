@@ -1,0 +1,14 @@
+// A TRAIL'S PROGRESS, ONE COUNTER PER TIER. OSRS lets a player hold an easy, a medium and a hard
+// clue at once, so each tier needs its own step count; %trail_status had a single one, which is
+// why only one clue of any tier could be held before scroll boxes.
+//
+//   bits 0-3    easy steps done        bits 12  easy guardian beaten
+//   bits 4-7    medium steps done      bits 13  medium guardian beaten
+//   bits 8-11   hard steps done        bits 14  hard guardian beaten
+//
+// Only hard has a guardian today (the Zamorak wizard), but the bit is per tier so a guardian on
+// another tier is a config change, not a new varp. Four bits a tier holds 0-15; the longest trail
+// is 6 steps. %trail_status keeps bits 5-8 for the sextant miniquest; its old bits 0-4 are moved
+// here once, at login, by ~trail_login.
+[trail_progress]
+scope=perm

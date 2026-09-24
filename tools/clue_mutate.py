@@ -94,7 +94,7 @@ MUTS = [
  # ---- the hooks
  (HLP, 'if (~clue_hunter_skips = true) {', 'if (false = true) {',
   '6 the skip is in ~trail_clue_progress'),
- (HLP, '    %trail_status = setbit_range_toint(%trail_status, calc(~get_trail_progress + 1), 0, 3);\n    mes(',
+ (HLP, '    %trail_progress = setbit_range_toint(%trail_progress, calc(~get_trail_progress($tier) + 1), $lo, $hi);\n    mes(',
         '    mes(',
   '6 ...and it advances the counter a SECOND time rather than replacing the first'),
  (EZ, '$rolls = calc($rolls * 2);', '$rolls = calc(8);',

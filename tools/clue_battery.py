@@ -7,6 +7,10 @@ them cannot pass a check still asserting the old value. The numbers on the right
 OSRS item table's, through tools/cluehunterspec.json, except the three Corey chose, which the spec
 marks as departures.
 
+Section 10 is treasure trails themselves: clues and caskets named by tier, the scroll boxes, and one
+trail per tier. What those do at run time - a second clue arriving as a box, the stack limit, opening
+a box once the trail is done - is exercised against the real engine by tools/clue_live_battery.py.
+
     python3 tools/clue_battery.py
 """
 import json, os, re, subprocess, sys
@@ -268,6 +272,42 @@ r = subprocess.run([sys.executable, os.path.join(C, 'tools/gencluehunter.py'), '
 check(r.returncode == 0,
       'tools/gencluehunter.py --check: both generated files are already what it writes, so '
       'nothing here was hand-edited%s' % ('' if r.returncode == 0 else ': ' + r.stdout.strip()[:200]))
+
+print('10. tier names, scroll boxes, and one trail per tier')
+ALLOBJ = blocks(read('scripts/_unpack/377/all.obj'))
+_nbad = []
+for n, f in ALLOBJ.items():
+    m = re.match(r'trail_(clue|casket)_(easy|medium|hard)$', (f.get('category') or [''])[0])
+    if m:
+        want = '%s (%s)' % ('Clue scroll' if m.group(1) == 'clue' else 'Casket', m.group(2))
+        if f.get('name') != [want]:
+            _nbad.append('%s=%s' % (n, f.get('name')))
+check(not _nbad, 'every clue scroll and casket says its tier in its name, e.g. "Casket (easy)": %s'
+      % (_nbad[:3] or 'all of them'))
+BOX = blocks(read('scripts/minigames/game_trail/configs/scroll_box.obj'))
+_bbad = [t for t in ('easy', 'medium', 'hard')
+         if BOX.get('trail_scrollbox_' + t, {}).get('name') != ['Scroll box (%s)' % t]
+         or BOX['trail_scrollbox_' + t].get('stackable') != ['yes']
+         or BOX['trail_scrollbox_' + t].get('category') != ['trail_scrollbox']
+         or 'trail_tier,^trail_tier_%s' % t not in BOX['trail_scrollbox_' + t].get('param', [])]
+check(not _bbad, 'three scroll boxes, stackable, each carrying its own tier: %s' % (_bbad or 'all three'))
+check(all(n in OBJP for n in BOX), 'and each has an id in pack/obj.pack')
+for t in ('easy', 'medium', 'hard'):
+    check(re.search(r'^\^trail_%s_stackcap = 2$' % t, CONST, re.M) is not None,
+          '^trail_%s_stackcap is 2, the wiki\'s base limit, shared by the clue and the boxes' % t)
+_calls = {t: nocomment(txt).count('~trail_complete(^trail_tier_%s);' % t) for t, txt in TIERS.items()}
+check(all(v == 1 for v in _calls.values()),
+      'each reward proc ends its trail through ~trail_complete with its own tier, once: %s' % _calls)
+_status = []
+for _root, _dirs, _files in os.walk(os.path.join(C, 'scripts')):
+    for _fn in _files:
+        if _fn.endswith('.rs2'):
+            rel = os.path.relpath(os.path.join(_root, _fn), C)
+            for l in nocomment(read(rel)).split('\n'):
+                if re.search(r'%trail_status = ', l) and not re.search(r', 5, 8\);', l):
+                    _status.append('%s: %s' % (_fn, l.strip()))
+check(_status == ['trail_clue_helper.rs2: %trail_status = clearbit_range(%trail_status, 0, 4);'],
+      "nothing writes %%trail_status's old step bits but the one-time move in ~trail_login: %s" % _status)
 
 print()
 print('ALL PASS' if fails == 0 else '%d FAILED' % fails)

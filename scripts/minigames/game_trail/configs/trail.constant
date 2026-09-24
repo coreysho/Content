@@ -33,3 +33,22 @@
 // The clue scroll window (scripts/trail_clue_read.rs2) holds eight lines - trail_cluelong:com_2
 // through com_9.
 ^trail_clue_lines = 8
+
+// THE TIERS, as numbers, so one proc can serve all three: the helper procs in
+// trail_clue_helper.rs2 take one of these, and so does the trail_tier param on the scroll boxes.
+^trail_tier_easy = 0
+^trail_tier_medium = 1
+^trail_tier_hard = 2
+
+// SCROLL BOX STACK LIMITS. https://oldschool.runescape.wiki/w/Scroll_box - the base limit is 2 for
+// every tier, and it is "shared across boxes and scrolls": the clue you are working on counts as
+// one of the two. OSRS raises it to 5 with scroll cases, which this build does not have, so these
+// are the base values. One per tier so a tier can be raised without touching the others.
+^trail_easy_stackcap = 2
+^trail_medium_stackcap = 2
+^trail_hard_stackcap = 2
+
+// %trail_progress (configs/trail.varp): four bits of step count per tier from bit 0, and each
+// tier's guardian-beaten flag at ^trail_guardian_bit + tier.
+^trail_progress_bits = 4
+^trail_guardian_bit = 12
