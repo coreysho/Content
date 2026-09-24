@@ -18,9 +18,23 @@
 // adjacent planes, so one handler each does the lot: move the PLAYER up or down a plane, not the
 // loc, and they arrive on whichever tile they were standing on.
 [oploc1,enakh_temple_ladderup] @enakh_climb(1);
-[oploc1,enakh_temple_pillar_ladder] @enakh_climb(1);
+[oploc1,enakh_temple_pillar_ladder] @enakh_pillar_climb(1);
 [oploc1,enakh_temple_ladderdown] @enakh_climb(calc(0 - 1));
-[oploc1,enakh_temple_pillar_ladder_top] @enakh_climb(calc(0 - 1));
+[oploc1,enakh_temple_pillar_ladder_top] @enakh_pillar_climb(calc(0 - 1));
+
+// FIXED: the pillar ladders are not "same tile, next plane" - the tile in front of a pillar on one
+// plane is solid on the other, so climbing either way left the player stuck inside a wall. The
+// pillars are climbed through: you come out on the opposite side of the pillar from where you
+// went in, which is where the corridor is on plane 2 and where the room is on plane 1.
+[label,enakh_pillar_climb](int $planes)
+def_coord $pillar = loc_coord;
+p_arrivedelay;
+mes("You climb the ladder.");
+if (coordz(coord) < coordz($pillar)) {
+    p_teleport(movecoord($pillar, 0, $planes, 1));
+} else {
+    p_teleport(movecoord($pillar, 0, $planes, -1));
+}
 
 [label,enakh_climb](int $planes)
 p_arrivedelay;
@@ -94,9 +108,10 @@ mes("The <$which> comes away clean. It is the shape of a key and nothing else.")
 
 [label,enakh_limb_door](namedobj $key, string $shape)
 def_coord $door = loc_coord;
+def_int $angle = loc_angle;
 p_arrivedelay;
 if (~enakh_door_unlocked($key) = true) {
-    @enakh_walk_through($door);
+    @enakh_door_through($door, $angle);
 }
 if (inv_total(inv, $key) = 0) {
     ~mesbox("The door has a recess in it in the shape of <$shape>. Something goes in there.");
@@ -110,7 +125,23 @@ switch_obj ($key) {
     case enakh_leg_right : %enakh_right_leglock = ^enakh_on;
 }
 p_delay(1);
-@enakh_walk_through($door);
+@enakh_door_through($door, $angle);
+
+// FIXED: the nine doors are wall-shaped (shape 0), so the tiles a player can open one from are the
+// door's own tile and the one across the wall. The old two-tile step worked from across the wall
+// and did nothing at all from the door's own tile, so every door in the ring was one-way. The
+// wall side comes from the angle: 0 west, 1 north, 2 east, 3 south.
+[label,enakh_door_through](coord $door, int $angle)
+if (coord ! $door) {
+    p_teleport($door);
+    return;
+}
+switch_int ($angle) {
+    case 0 : p_teleport(movecoord($door, -1, 0, 0));
+    case 1 : p_teleport(movecoord($door, 0, 0, 1));
+    case 2 : p_teleport(movecoord($door, 1, 0, 0));
+    case 3 : p_teleport(movecoord($door, 0, 0, -1));
+}
 
 [proc,enakh_door_unlocked](namedobj $key)(boolean)
 switch_obj ($key) {
@@ -177,9 +208,10 @@ mes("You lift the <oc_name($sigil)> off its pedestal. Its door is on the other s
 
 [label,enakh_sigil_door](namedobj $sigil, string $shape)
 def_coord $door = loc_coord;
+def_int $angle = loc_angle;
 p_arrivedelay;
 if (~enakh_door_unlocked($sigil) = true) {
-    @enakh_walk_through($door);
+    @enakh_door_through($door, $angle);
 }
 if (inv_total(inv, $sigil) = 0) {
     ~mesbox("The door has a recess in it in the shape of <$shape>. Z, M, R, K - four doors, and somebody had a sense of humour about the order.");
@@ -193,7 +225,7 @@ switch_obj ($sigil) {
     case enakh_sigil_k : %enakh_k_door = ^enakh_on;
 }
 p_delay(1);
-@enakh_walk_through($door);
+@enakh_door_through($door, $angle);
 
 // =========================================================================== element 1: ice
 // enakh_dummy_fountain is a size 2 invisible npc sitting on the fountain with op2=Melt, and the

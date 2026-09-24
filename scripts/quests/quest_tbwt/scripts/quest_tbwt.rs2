@@ -194,10 +194,12 @@ if (inv_total(inv, tbwt_karambwan_vessel) = 0 & inv_total(inv, tbwt_crafting_man
     ~chatnpc("<p,sad>A vessel, or the manual for one. Either.");
     return;
 }
-if (inv_total(inv, tbwt_karambwan_vessel) > 0) {
-    inv_del(inv, tbwt_karambwan_vessel, 1);
-} else {
+// the manual first: the vessel is also the only way to the karambwan Tamayu's poison comes from,
+// so taking it off a player who has both cost them another twenty karambwanji at Lubufu's
+if (inv_total(inv, tbwt_crafting_manual) > 0) {
     inv_del(inv, tbwt_crafting_manual, 1);
+} else {
+    inv_del(inv, tbwt_karambwan_vessel, 1);
 }
 ~chatnpc("<p,shock>You got one.");
 if_close;
@@ -286,9 +288,15 @@ if (npc_findhero = ^false) {
     return;
 }
 obj_add(npc_coord, tbwt_beast_bones, 1, ^lootdrop_duration);
-if (p_finduid(uid) = false) {
-    return;
+// FIXED: a killer who was busy (mid-attack delay, an open dialogue) failed p_finduid and the kill
+// was simply never recorded. Queue it instead, the way the Priest in Peril guard dog does.
+if (p_finduid(uid) = true) {
+    @tbwt_beast_slain;
 }
+queue(tbwt_beast_slain, 0, 0);
+
+[queue,tbwt_beast_slain] @tbwt_beast_slain;
+[label,tbwt_beast_slain]
 %tbwt_flags = ^tbwt_on;
 ~mesbox("The Shaikahan stops. Tamayu is going to want to hear about this and is not going to enjoy it.");
 
@@ -331,6 +339,25 @@ switch_obj ($item) {
 inv_del(inv, $item, 1);
 inv_add(inv, $clean, 1);
 mes("You wipe the spearhead clean.");
+
+// =========================================================================== the sons' houses
+// Three bamboo doors, op1=Open and no trigger, on the houses the sons go home to - so once the
+// quest was done nobody could get in to see them. There is no open variant in the cache, so it is
+// a step through the doorway.
+[oploc1,tbwt_bamboo_door]
+def_coord $door = loc_coord;
+def_int $angle = loc_angle;
+p_arrivedelay;
+if (coord ! $door) {
+    p_teleport($door);
+    return;
+}
+switch_int ($angle) {
+    case 0 : p_teleport(movecoord($door, -1, 0, 0));
+    case 1 : p_teleport(movecoord($door, 0, 0, 1));
+    case 2 : p_teleport(movecoord($door, 1, 0, 0));
+    case 3 : p_teleport(movecoord($door, 0, 0, -1));
+}
 
 // =========================================================================== the village statue
 // op1=Pray-at, and the seaweed sandwich is described as "perfect for statue repair", which is a
