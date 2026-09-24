@@ -23,13 +23,27 @@
 [oploc1,four_diamonds_door_1] @dt_pyramid_door;
 [oploc1,four_diamonds_door_mirror] @dt_pyramid_door;
 
+// The door's tile is blocked in the map itself, not only by the door, so swapping it for the open
+// model (blockwalk=no) still left it solid: the pyramid could not be entered and nothing inside it
+// - the ladder, the maze, the temple - could be reached. So the door opens AND walks you through,
+// both ways; the chamber behind it holds nothing but the ladder down, and it is also where the
+// ladder back up leaves you, so it needs a way out too.
 [label,dt_pyramid_door]
+def_coord $door = loc_coord;
+p_arrivedelay;
+if (coordz(coord) < coordz($door)) {
+    mes("You step back out into the sun.");
+    p_teleport(movecoord($door, 0, 0, 1));
+    return;
+}
 if (%deserttreasure < ^dt_diamonds_placed) {
     ~mesbox("The door is sealed. Four obelisks stand at the corners of this pyramid, and all four are dark.");
     return;
 }
 mes("The door grinds open.");
-loc_change(four_diamonds_dooropen_1, 100);
+loc_change(four_diamonds_dooropen_1, 3);
+p_delay(0);
+p_teleport(movecoord($door, 0, 0, -1));
 
 [oploc1,desert_laddertop]
 if (%deserttreasure < ^dt_diamonds_placed) {
@@ -66,6 +80,21 @@ if (%deserttreasure < ^deserttreasure_complete) {
 mes("You duck into the tunnel.");
 p_delay(1);
 p_telejump(map_findsquare(^dt_temple_altar, 0, 3, ^map_findsquare_lineofwalk));
+
+// The Ancient Temple's doorway, in the north wall of the altar room. The ladder from the maze
+// lands you outside it, and the room behind it - Zaros altar, Azzanadra, the exit portal - has no
+// other way in. op1=Open had no script, so nobody could ever reach the altar: the quest stopped
+// dead at ^dt_diamonds_placed. Step through the way the other walk-through doorways here do.
+[oploc1,dt_ancient_temple_door_open] @dt_temple_doorway;
+[oploc1,dt_ancient_temple_door_open_mirror] @dt_temple_doorway;
+
+[label,dt_temple_doorway]
+p_arrivedelay;
+if (coordz(coord) > coordz(loc_coord)) {
+    p_teleport(movecoord(coord, 0, 0, -2));
+} else {
+    p_teleport(movecoord(coord, 0, 0, 2));
+}
 
 // ================================================================================ the sarcophagi
 //

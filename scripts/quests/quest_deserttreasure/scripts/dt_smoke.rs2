@@ -202,6 +202,13 @@ inv_add(inv, fd_firekey, 1);
 [oploc1,fd_fw_metalgateclosed_r] @dt_fareed_gate;
 
 [label,dt_fareed_gate]
+// The gate is the west wall of x=41, so anyone standing on x>=41 is already in the arena. Every
+// branch below only ever sent you INTO it - including from inside, so the gate was no way out.
+if (coordx(coord) >= coordx(loc_coord)) {
+    mes("You step back out through the gate.");
+    p_telejump(^dt_fareed_gate_out);
+    return;
+}
 if (%fd_firewargate = 1) {
     mes("The gate stands open.");
     p_telejump(^dt_fareed_arena);

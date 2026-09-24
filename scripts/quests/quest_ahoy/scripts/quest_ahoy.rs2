@@ -18,10 +18,16 @@ if (inv_total(inv, ectotoken) >= ^ahoy_barrier_toll) {
 ~mesbox("The barrier will not let you through. The ghosts take ecto-tokens, or an amulet of ghostspeak if you have one - a great many of them would rather you simply went away.");
 
 [label,ahoy_step_through](coord $wall)
+// The barrier is two tiles long, so it is crossed along one axis only: north-south when it is
+// turned (angle 1 or 3), east-west when it is not. Comparing both axes used to step anyone who
+// clicked the barrier's second tile two tiles diagonally as well as through.
 def_int $dx = 0;
 def_int $dz = 0;
-if (coordx($wall) > coordx(coord)) { $dx = 2; } else if (coordx($wall) < coordx(coord)) { $dx = calc(0 - 2); }
-if (coordz($wall) > coordz(coord)) { $dz = 2; } else if (coordz($wall) < coordz(coord)) { $dz = calc(0 - 2); }
+if (loc_angle = 1 | loc_angle = 3) {
+    if (coordz($wall) > coordz(coord)) { $dz = 2; } else { $dz = calc(0 - 2); }
+} else {
+    if (coordx($wall) > coordx(coord)) { $dx = 2; } else { $dx = calc(0 - 2); }
+}
 p_teleport(movecoord(coord, $dx, 0, $dz));
 
 // =========================================================================== Velorina
@@ -184,6 +190,20 @@ if (%ahoy_subquest_toyboat = ^ahoy_sub_asked) {
 ~chatnpc("<p,sad>My model ship. It is on the ghost ship, in the chest, in pieces. Mend it.");
 %ahoy_subquest_toyboat = ^ahoy_sub_asked;
 
+// iop1=Repair. item_ops_generated.rs2 says the repair moved here, and it never arrived - so the
+// ship came out of the chest broken and stayed broken, and Robin's signature was unobtainable.
+// The old stub's own words were "rig a new silk flag", and the repaired obj's description is "a
+// small wooden ship with a silk flag", so the flag costs a piece of silk.
+[opheld1,ahoy_toy_boat]
+if (inv_total(inv, silk) = 0) {
+    ~mesbox("The hull will go back together, but the mast has nothing to fly. A piece of silk would make a flag.");
+    return;
+}
+inv_del(inv, silk, 1);
+inv_del(inv, ahoy_toy_boat, 1);
+inv_add(inv, ahoy_toy_boat_repaired, 1);
+~objbox(ahoy_toy_boat_repaired, "You fit the little ship back together and rig a new silk flag.", 250, 0, divide(^objbox_height, 2));
+
 [opnpc1,ahoy_oldman]
 if (~ahoy_can_hear = false) {
     ~mesbox("He is saying something and you cannot hear it.");
@@ -334,15 +354,20 @@ mes("The three scraps make one map, and the cross on it is out past the harbour.
 // The wreck is reached on foot from the shore and climbed like any other ship - none of which was
 // gated on anything before, because none of it existed. The ladders, the gangplank and eight of the
 // nine chests are plain navigation; only the top-deck chest holds anything.
-[oploc1,ahoy_ghostship_ladder]
-p_arrivedelay;
-mes("You climb up.");
-p_teleport(movecoord(loc_coord, 0, 1, 0));
+// The wreck's ladders are climbed from one side (forceapproach=south) and stepped off the other
+// (the top's forceapproach=north), so you land mirrored through the loc. Both used to land on
+// loc_coord - the other end of the ladder, which is solid - so every climb put you inside it.
+[oploc1,ahoy_ghostship_ladder] @ahoy_ship_climb(1);
+[oploc1,ahoy_ghostship_laddertop] @ahoy_ship_climb(-1);
 
-[oploc1,ahoy_ghostship_laddertop]
+[label,ahoy_ship_climb](int $dy)
 p_arrivedelay;
-mes("You climb down.");
-p_teleport(movecoord(loc_coord, 0, -1, 0));
+if ($dy > 0) {
+    mes("You climb up.");
+} else {
+    mes("You climb down.");
+}
+p_teleport(movecoord(loc_coord, sub(coordx(loc_coord), coordx(coord)), $dy, sub(coordz(loc_coord), coordz(coord))));
 
 [oploc1,ahoy_gangplank_shipwreck_on]
 p_arrivedelay;

@@ -140,11 +140,22 @@ if (%rd_room3_complete = 1) {
     ~chatnpc("<p,happy>He is still getting up. Go on through.");
     return;
 }
+~rd_spawn_leye;
 ~chatplayer("<p,quiz>What's the test?");
 ~chatnpc("<p,neutral>Sir Leye, over there. Put him on the floor.");
 ~chatplayer("<p,worried>You want me to kill a White Knight?");
 ~chatnpc("<p,happy>I want you to put him on the floor. He has been blessed by Saradomin and no blade will finish him - so if you insist on using one you will be at it all day.");
 ~chatnpc("<p,neutral>A blunt weapon. Or your hands. Either will do.");
+
+// No map places Sir Leye at all, so room 3 used to be a room with nobody in it to put on the floor
+// and could never be passed. He is brought in when you arrive, and again whenever Sir Kuam is asked
+// about the test and he is not standing there - a blade kill takes him away, and he has to be back
+// for another try.
+[proc,rd_spawn_leye]
+if (npc_find(^rd_leye_spawn, rd_combat_npc_room_3, 8, 0) = true) {
+    return;
+}
+npc_add(^rd_leye_spawn, rd_combat_npc_room_3, 1000);
 
 [opnpc1,rd_combat_npc_room_3]
 ~chatnpc("<p,happy>Don't hold back on my account. And do leave the sword where it is.");

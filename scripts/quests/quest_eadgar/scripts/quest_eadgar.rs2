@@ -27,6 +27,16 @@ inv_del(inv, eadgar_troll_thistle, 1);
 inv_add(inv, eadgar_dried_troll_thistle, 1);
 mes("You hang the thistle on the rack. It dries out in the heat of the kitchen.");
 
+// op1=Search had no handler, so the rack answered "Nothing interesting happens" - and it is the one
+// thing in the stronghold Eadgar tells you to use.
+[oploc1,eadgar_rack]
+p_arrivedelay;
+if (%eadgar_quest >= ^eadgar_met_eadgar & %eadgar_quest < ^eadgar_potion_made) {
+    mes("A drying rack, hot from the kitchen fires. A troll thistle hung on it would dry out nicely.");
+    return;
+}
+mes("A drying rack. There is nothing on it.");
+
 // Only one side of each combine is declared here: [opheldu,pestle_and_mortar] belongs to Herblore
 // and [opheldu,vial_water] to brewing, and a trigger cannot be declared twice. OpHeldUHandler
 // falls back to [opheldu,a] when the target has no handler of its own and swaps last_useitem with
@@ -110,9 +120,16 @@ inv_del(inv, eadgar_drunk_parrot, 1);
 inv_add(inv, eadgar_fake_man, 1);
 ~mesbox("You stuff the robe out into something roughly person-shaped and put the parrot inside it. The parrot, who is very drunk, begins to mutter.");
 
-// Feeding the birds. eadgar_parrotts has no ops at all, so this has to be opnpcu - using an item
-// on an npc needs none.
-[opnpcu,eadgar_parrotts]
+// Feeding the birds. The two parrots sit in a walled aviary at the zoo that nobody can walk into,
+// so using the chunks on the birds themselves (which needs you standing next to them) only ever
+// said "I can't reach that!". The aviary has a feeding hatch in its west wall -
+// eadgar_aviary_wall_hatch, "Presumably the hatch the zookeeper feeds the parrots through" - and
+// that is where the chunks go, as in the real quest. The parrot trigger stays for anyone who does
+// manage to stand next to them.
+[oplocu,eadgar_aviary_wall_hatch] @eadgar_feed_parrots;
+[opnpcu,eadgar_parrotts] @eadgar_feed_parrots;
+
+[label,eadgar_feed_parrots]
 if (last_useitem ! eadgar_alco_chunks) {
     ~displaymessage(^dm_default);
     return;
@@ -135,18 +152,23 @@ inv_add(inv, eadgar_drunk_parrot, 1);
 // quest_troll.rs2 had [oploc1,eadgar_storeroomdoor] as a one-line placeholder - "You need to find
 // the right key to open this door." - which is exactly the key this quest produces. That
 // placeholder is removed and this replaces it.
+//
+// It used to loc_change the door into eadgar_storeroomdoor_open in place - but that loc has no name,
+// no op and the default blockwalk, so the "open" door blocked the corridor exactly as the shut one
+// did and the storeroom could never be entered. It now walks you through the way every locked
+// door does (a moment of inviswall, the open door swung aside), and only the way in needs the key.
 [oploc1,eadgar_storeroomdoor]
 p_arrivedelay;
-if (inv_total(inv, eadgar_troll_storeroom_key) = 0) {
+def_boolean $entering = ~check_axis(coord, loc_coord, loc_angle);
+if ($entering = true & inv_total(inv, eadgar_troll_storeroom_key) = 0) {
     mes("You need to find the right key to open this door.");
     return;
 }
-sound_synth(unlock, 1, 0);
-mes("You unlock the storeroom door.");
-loc_change(eadgar_storeroomdoor_open, 100);
-
-[oploc1,eadgar_storeroomdoor_open]
-mes("The storeroom door is open.");
+if ($entering = true) {
+    sound_synth(unlock, 1, 0);
+    mes("You unlock the storeroom door.");
+}
+~open_and_close_door(eadgar_storeroomdoor_open, $entering, false);
 
 // The guard has no ops, so he is not someone you talk your way past - he is a condition on the
 // crates. The fake man has to be on the floor where he can see it.

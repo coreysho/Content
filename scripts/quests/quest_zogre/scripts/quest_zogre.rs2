@@ -7,6 +7,9 @@
 // which mapsquare they are standing in rather than by a separate loc.
 [oploc1,ogre_coffin] @zogre_coffin_open;
 [oploc1,ogre_wall_coffin] @zogre_coffin_open;
+// The tomb's other two coffin types carry the same Open / Pick-lock ops and had no script at all.
+[oploc1,ogre_wall_coffinl] @zogre_coffin_open;
+[oploc1,ogre_dark_coffin] @zogre_coffin_open;
 
 [label,zogre_coffin_open]
 p_arrivedelay;
@@ -33,9 +36,16 @@ p_teleport(^zogre_tomb_landing);
 
 [oploc2,ogre_coffin] @zogre_coffin_pick;
 [oploc2,ogre_wall_coffin] @zogre_coffin_pick;
+[oploc2,ogre_wall_coffinl] @zogre_coffin_pick;
+[oploc2,ogre_dark_coffin] @zogre_coffin_pick;
 
 [label,zogre_coffin_pick]
 p_arrivedelay;
+if (coordz(coord) > 9000) {
+    // Inside the tomb these are ordinary ogre coffins, not the way in.
+    mes("You pick the catch. Bones, and the smell of bones.");
+    return;
+}
 if (stat(thieving) < 50) {
     mes("You need a Thieving level of 50 to pick a lock like that.");
     return;
@@ -46,6 +56,39 @@ if (%zogre = ^zogre_warned) {
     ~send_quest_progress(questlist:zogre, %zogre, ^zogre_complete);
 }
 p_teleport(^zogre_tomb_landing);
+
+// The barricade across the way into Jiggig. Grish collapses it (%thzfe_blocking_barricade), and the
+// collapsed children carry op1=Climb-over - which had no script, while the collision of the placed
+// shell never changes. So the middle of Jiggig, with its zogres (the coffin keys), the Jiggig
+// coffin and the stairs down into the tomb, could not be reached at all. The trigger goes on the
+// shell the map places, as with every multiloc; the child only supplies the op text.
+[oploc1,zogre_multi_blocking_barricade_l] @zogre_climb_barricade;
+[oploc1,zogre_multi_blocking_barricade_r] @zogre_climb_barricade;
+
+[label,zogre_climb_barricade]
+p_arrivedelay;
+if (%thzfe_blocking_barricade ! ^zogre_barricade_down) {
+    mes("The barricade is far too solid to climb.");
+    return;
+}
+def_int $dx = 2;
+if (coordx(coord) > coordx(loc_coord)) {
+    $dx = -2;
+}
+anim(human_climbing, 0);
+mes("You climb over the crushed barricade.");
+p_delay(1);
+p_teleport(movecoord(coord, $dx, 0, 0));
+
+// The stairs in the middle of Jiggig are the other way down, once you are over the barricade. They
+// were "Unhandled stairs" (ladders+stairs/scripts/stairs.rs2 routes the Jiggig pair here), and going
+// down them counts as getting into the tomb exactly as the coffin does.
+[label,zogre_jiggig_stairs_down]
+if (%zogre = ^zogre_warned) {
+    %zogre = ^zogre_in_tomb;
+    ~send_quest_progress(questlist:zogre, %zogre, ^zogre_complete);
+}
+p_telejump(^zogre_stairs_landing);
 
 [oploc1,ogre_cavedoorl] @zogre_leave_tomb;
 [oploc1,ogre_cavedoorr] @zogre_leave_tomb;
