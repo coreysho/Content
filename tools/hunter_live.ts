@@ -358,6 +358,355 @@ if (process.env.HTRAP === 'net') {
     process.exit(fails ? 1 : 0);
 }
 
+// HTRAP=imp: magic boxes among the imps north-east of Yanille (m40_48), where ::imps lands - the gate,
+// laying, bait, Deactivate, standing on the box, a real catch off the real loop, Retrieve, the imp's
+// respawn, the cap, the leash and [logout]; then the imp-in-a-box: Talk-to, an item used on it, its
+// Bank interface, its own box, the Wilderness, and the deposit box and bank being left alone. Below
+// Hunter 71 (HLEVEL=65) only the gate and the imp-in-a-box run.
+// HTRAP=emporium: Aleck's Hunter Emporium in Yanille - the refit, Aleck and Leon, both shops and a
+// purchase, the butterfly net, and the hunters' crossbow's level and ammunition.
+if (process.env.HTRAP === 'imp' || process.env.HTRAP === 'emporium') {
+    const { default: ScriptState } = await import('#/engine/script/ScriptState.js');
+    const { isMapBlocked } = await import('#/engine/GameMap.js');
+    const inv0 = player.getInventory(InvType.INV)!;
+    const bank = player.getInventory(InvType.getId('bank'))!;
+    const tot = (n: string) => inv0.getItemCount(ObjType.getId(n));
+    const inBank = (n: string) => bank.getItemCount(ObjType.getId(n));
+    const IMPCONST = fs.readFileSync(`${process.env.BUILD_SRC_DIR}/scripts/skill_hunter/configs/hunter_imps.constant`, 'utf8');
+    const cnum = (n: string) => parseInt(new RegExp(`\\^${n} = (-?\\d+)`).exec(IMPCONST)![1]);
+    const setStat = (s: number, l: number) => { player.stats[s] = getExpByLevel(l); player.baseLevels[s] = l; player.levels[s] = l; };
+    const setLevel = (l: number) => setStat(PlayerStat.HUNTER, l);
+    const v = (n: string) => player.getVar(VarPlayerType.getId(n)) as number;
+    const slots = () => [1, 2, 3, 4, 5].map(i => v(`hunter_trap${i}`)).filter(c => c !== -1);
+    // every if_settext the scripts send, so dialogue and titles can be read
+    const texts: string[] = [];
+    const w = player.write.bind(player);
+    player.write = (m: any) => { if (m?.constructor?.name === 'IfSetText') texts.push(m.text); return w(m); };
+    const run = (trigger: number, id: number, cat: number, target: any = null, args: any[] = []) => {
+        const script = ScriptProvider.getByTrigger(trigger, id, cat);
+        if (!script) { log('no script', trigger, id); return false; }
+        player.executeScript(ScriptRunner.init(script, player, target, args), true);
+        return true;
+    };
+    const opheld = (op: number, name: string) => {
+        const id = ObjType.getId(name), slot = inv0.getItemIndex(id);
+        if (slot === -1) { log('opheld: no', name); return false; }
+        player.lastItem = id; player.lastSlot = slot;
+        return run(ServerTriggerType.OPHELD1 + (op - 1), id, ObjType.get(id).category);
+    };
+    // [opheldu,<target>], as OpHeldUHandler finds it first
+    const opheldu = (target: string, used: string) => {
+        const t = ObjType.getId(target), u = ObjType.getId(used);
+        player.lastItem = t; player.lastSlot = inv0.getItemIndex(t); player.lastUseItem = u; player.lastUseSlot = inv0.getItemIndex(u);
+        const s = ScriptProvider.getByTriggerSpecific(ServerTriggerType.OPHELDU, t, -1);
+        if (s) player.executeScript(ScriptRunner.init(s, player), true);
+        return !!s;
+    };
+    const oploc = (op: number, loc: any) => { const t = LocType.get(loc.type); return run(ServerTriggerType.OPLOC1 + (op - 1), t.id, t.category, loc); };
+    const oplocu = (loc: any, used: string) => {
+        const u = ObjType.getId(used); player.lastUseItem = u; player.lastUseSlot = inv0.getItemIndex(u);
+        const t = LocType.get(loc.type); return run(ServerTriggerType.OPLOCU, t.id, t.category, loc);
+    };
+    const opnpc = (op: number, npc: any) => { const t = NpcType.get(npc.type); return run(ServerTriggerType.OPNPC1 + (op - 1), t.id, t.category, npc); };
+    const invButton = (op: number, com: string, slot: number) => {
+        player.lastSlot = slot; player.lastItem = inv0.get(slot)?.id ?? -1;
+        return run(ServerTriggerType.INV_BUTTON1 + (op - 1), Component.getId(com), -1);
+    };
+    // step a dialogue on: a Continue, or the given option of a multi
+    const paused = () => player.activeScript?.execution === ScriptState.PAUSEBUTTON;
+    const resume = async (com?: string) => {
+        if (!paused()) return false;
+        if (com) player.lastCom = Component.getId(com);
+        player.executeScript(player.activeScript, true, true); await waitTicks(1); return true;
+    };
+    const talkThrough = async () => { let n = 0; while (paused() && n++ < 20) await resume(); };
+    const proc = (name: string, args: any[]) => {
+        const st = ScriptRunner.init(ScriptProvider.getByName(`[proc,${name}]`)!, player, null, args);
+        ScriptRunner.execute(st); return st.popInt();
+    };
+
+    if (process.env.HTRAP === 'emporium') {
+        // ---- the building
+        const L = (n: string) => LocType.getId(n);
+        const locAtXZ = (x: number, z: number, n: string) => World.getLoc(x, z, 0, L(n));
+        check(locAtXZ(2567, 3081, 'hunter_emporium_counter') !== null, "the Emporium's counter at 2567,3081 (OSRS's)");
+        // the shelves have no name and no op, so the server keeps no loc for them - they are read off the map
+        const JM2 = fs.readFileSync(`${process.env.BUILD_SRC_DIR}/maps/m40_48.jm2`, 'utf8');
+        const onMap = (lx: number, lz: number, n: string) => new RegExp(`^0 ${lx} ${lz}: ${L(n)} 4\\b`, 'm').test(JM2);
+        check(onMap(4, 9, 'hunter_emporium_shelf') && onMap(4, 11, 'hunter_emporium_shelf') && onMap(7, 7, 'hunter_emporium_shelf_jars') && onMap(7, 13, 'hunter_emporium_shelf_snare'), '...and its shelves of Hunter gear on the walls (m40_48)');
+        check(locAtXZ(2568, 3085, 'grandfatherclock') === null && locAtXZ(2566, 3082, 'greenrugmiddle') === null && locAtXZ(2568, 3082, 'bigtable2') === null, "...and none of the house's old furniture");
+        const ALECK = NpcType.getId('aleck'), LEON = NpcType.getId('leon');
+        const find = (t: number) => { for (const n of World.npcs) if (n && n.type === t) return n; return null; };
+        const aleck = find(ALECK), leon = find(LEON);
+        check(aleck !== null && Math.max(Math.abs(aleck.x - 2567), Math.abs(aleck.z - 3083)) <= 1, `Aleck is in the shop, at 2567,3083 (${aleck?.x},${aleck?.z})`);
+        check(leon !== null && Math.max(Math.abs(leon.x - 2565), Math.abs(leon.z - 3084)) <= 1, `Leon is in the shop too (${leon?.x},${leon?.z})`);
+        const openNext = (n: any) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => !isMapBlocked(n.x + dx, n.z + dz, 0));
+        check(!!aleck && !!leon && openNext(aleck) && openNext(leon), '...each with open ground beside them');
+        player.teleport(2565, 3082, 0); await waitTicks(2);
+        player.invAdd(InvType.INV, ObjType.getId('coins'), 5000);
+        // ---- Aleck: Talk-to, the three answers, the shop
+        texts.length = 0;
+        opnpc(1, aleck); await waitTicks(1);
+        check(paused() && texts.some(t => t.includes('Hunter Emporium')), 'Aleck: Talk-to greets you to the Emporium');
+        await resume();
+        check(texts.includes("Who's that guy over there?"), '...and offers the three answers');
+        await resume('multi3:com_3'); await talkThrough();
+        check(texts.some(t => t.includes('Leon')), '..."Who\'s that guy?" is Leon');
+        texts.length = 0; opnpc(1, aleck); await waitTicks(1); await resume(); await resume('multi3:com_1'); await talkThrough();
+        const SHOP = InvType.getId('hunter_aleck_shop');
+        check(v('shop') === SHOP && player.modalMain === Component.getId('shop_template') && texts.includes("Aleck's Hunter Emporium"), '..."let\'s see what you\'ve got" opens Aleck\'s Hunter Emporium');
+        player.closeModal(); await waitTicks(1);
+        opnpc(5, aleck); await waitTicks(1);
+        check(v('shop') === SHOP && player.modalMain === Component.getId('shop_template'), 'Trade (op5) opens it straight away');
+        const shop = World.getInventory(SHOP)!;
+        const STOCK: [string, number][] = [['butterfly_net', 5], ['hunter_butterfly_jar', 100], ['magic_box', 30], ['noose_wand', 50], ['hunter_bird_snare', 50], ['hunter_box_trap', 25], ['teasing_stick', 5], ['torch_unlit', 20]];
+        const bad = STOCK.filter(([n, c]) => shop.getItemCount(ObjType.getId(n)) !== c);
+        check(bad.length === 0, `...stocked as OSRS's: ${STOCK.map(([n, c]) => `${c} ${n}`).join(', ')}${bad.length ? ' - wrong: ' + bad.join(' ') : ''}`);
+        // buy one magic box: 600 at 120% is 720 coins
+        {
+            const c0 = tot('coins'), b0 = tot('magic_box');
+            player.lastSlot = shop.getItemIndex(ObjType.getId('magic_box')); player.lastItem = ObjType.getId('magic_box');
+            run(ServerTriggerType.INV_BUTTON2, Component.getId('shop_template:inv'), -1); await waitTicks(2);
+            check(tot('magic_box') === b0 + 1 && c0 - tot('coins') === 720, `Buy 1 magic box: one in the pack for ${c0 - tot('coins')} coins (OSRS 720)`);
+        }
+        player.closeModal(); await waitTicks(1);
+        // ---- Leon
+        texts.length = 0;
+        opnpc(3, leon); await waitTicks(1);
+        const LSHOP = InvType.getId('hunter_leon_shop');
+        check(v('shop') === LSHOP && World.getInventory(LSHOP)!.getItemCount(ObjType.getId('hunters_crossbow')) === 2 && texts.includes("Leon's Prototype Crossbow"), "Leon's Trade opens Leon's Prototype Crossbow: two hunters' crossbows");
+        player.closeModal(); await waitTicks(1);
+        texts.length = 0; opnpc(4, leon); await waitTicks(1); await talkThrough();
+        check(texts.some(t => t.includes('kebbit')) && texts.some(t => t.includes('20 coins')) && texts.some(t => t.includes('40 coins')), 'Ammo: Leon names his price - a spike and 20 coins, a long spike and 40');
+        texts.length = 0; opnpc(1, leon); await waitTicks(1); await resume(); await resume('multi3:com_1'); await talkThrough();
+        check(v('shop') === LSHOP && player.modalMain === Component.getId('shop_template'), 'Talk-to, "What are you selling?", opens his shop');
+        player.closeModal(); await waitTicks(1);
+        // ---- the hunters' crossbow: Ranged 50, and kebbit bolts only
+        {
+            const worn = player.getInventory(InvType.WORN)!;
+            const xb = ObjType.getId('hunters_crossbow');
+            player.invAdd(InvType.INV, xb, 1);
+            setStat(4, 49); opheld(2, 'hunters_crossbow'); await waitTicks(2);
+            check(worn.getItemCount(xb) === 0 && tot('hunters_crossbow') === 1, "Ranged 49: the hunters' crossbow will not wield");
+            setStat(4, 50); opheld(2, 'hunters_crossbow'); await waitTicks(2);
+            check(worn.getItemCount(xb) === 1, '...Ranged 50: it does');
+            const ok = (wp: string, a: string) => proc('hunter_crossbow_ammo_ok', [ObjType.getId(wp), ObjType.getId(a)]) === 1;
+            check(ok('hunters_crossbow', 'kebbit_bolts') && ok('hunters_crossbow', 'long_kebbit_bolts'), '...it fires kebbit bolts and long kebbit bolts');
+            check(!ok('hunters_crossbow', 'bolt') && !ok('hunters_crossbow', 'mithril_bolts'), '...and no other bolts');
+            check(!ok('rune_crossbow', 'kebbit_bolts') && ok('rune_crossbow', 'mithril_bolts'), '...and kebbit bolts fire from nothing else');
+            // through the real check the combat code makes
+            for (const [a, want] of [['bolt', false], ['kebbit_bolts', true]] as [string, boolean][]) {
+                worn.set(13, { id: ObjType.getId(a), count: 50 });
+                const r = proc('player_ranged_check_ammo', [xb]);
+                check((r === ObjType.getId(a)) === want, `~player_ranged_check_ammo, hunters' crossbow with ${a} in the quiver: ${want ? 'fires' : 'refused'}`);
+            }
+            worn.removeAll();
+        }
+        // ---- the butterfly net: used on a butterfly, as the small fishing net is
+        {
+            const BF = ['butterfly', 'butterfly2'].map(n => NpcType.getId(n));
+            const pick = () => { for (const n of World.npcs) if (n && n.isActive && BF.includes(n.type)) return n; return null; };
+            let bf: any = pick();
+            check(bf !== null, 'a butterfly to net');
+            player.invAdd(InvType.INV, ObjType.getId('butterfly_net'), 1);
+            setLevel(99);
+            const xp0 = player.stats[PlayerStat.HUNTER];
+            let tries = 0;
+            while (player.stats[PlayerStat.HUNTER] === xp0 && tries++ < 12 && (bf = pick())) {
+                player.teleport(bf.x + 1, bf.z, bf.level); await waitTicks(1);
+                player.lastUseItem = ObjType.getId('butterfly_net'); player.lastUseSlot = inv0.getItemIndex(player.lastUseItem);
+                const t = NpcType.get(bf.type); run(ServerTriggerType.OPNPCU, t.id, t.category, bf); await waitTicks(4);
+            }
+            check(player.stats[PlayerStat.HUNTER] > xp0, `a butterfly net catches a butterfly (${tries} swing(s), +${(player.stats[PlayerStat.HUNTER] - xp0) / 10} xp)`);
+        }
+        console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
+        process.exit(fails ? 1 : 0);
+    }
+
+    // ================================================================ HTRAP=imp
+    const BOXLEVEL = cnum('hunter_magicbox_level'), IMPXP = cnum('hunter_imp_xp');
+    const ST: [string, number][] = ['laid', 'failed', 'catching', 'caught'].map(s => [s, LocType.getId(`hunter_magicbox_${s}`)]);
+    const boxAt = (x: number, z: number) => { for (const [s, id] of ST) { const l = World.getLoc(x, z, 0, id); if (l) return { s, l }; } return null; };
+    const IMP = NpcType.getId('imp');
+    const START = [2610, 3124];
+    const imps = (r = 40) => { const o: any[] = []; for (const n of World.npcs) if (n && n.isActive && n.type === IMP && Math.max(Math.abs(n.x - START[0]), Math.abs(n.z - START[1])) <= r) o.push(n); return o; };
+    // an imp within 2 tiles of (x,z): the nearest one is brought over if none has wandered there - the
+    // imps here roam 27 tiles and teleport themselves, so the loop is watched with one kept in reach
+    const keepImpNear = (x: number, z: number) => {
+        const all = imps(60);
+        if (all.some(n => Math.max(Math.abs(n.x - x), Math.abs(n.z - z)) <= 2)) return;
+        if (!all.length) return;
+        const spots = [[x + 2, z], [x - 2, z], [x, z + 2], [x, z - 2], [x + 1, z + 1]].filter(([a, b]) => !isMapBlocked(a, b, 0) && !(a === player.x && b === player.z));
+        if (spots.length) all[0].teleport(spots[0][0], spots[0][1], 0);
+    };
+    const kinds = () => v('hunter_trap_kinds');
+
+    check(!isMapBlocked(START[0], START[1], 0), `::imps lands on open ground (${START})`);
+    const n0 = imps().length;
+    check(n0 >= 6, `imps roam round it (${n0} within 40 tiles)`);
+    {
+        const s = ScriptProvider.getByName('[debugproc,imps]')!;
+        player.executeScript(ScriptRunner.init(s, player), true); await waitTicks(2);
+        check(tot('magic_box') === 5 && ['black_bead', 'red_bead', 'white_bead', 'yellow_bead'].every(b => tot(b) === 1) && player.x === START[0] && player.z === START[1],
+            '::imps: five magic boxes, a bead of each colour, and there');
+    }
+    check(!ObjType.get(ObjType.getId('magic_box')).stackable, 'a magic box does not stack (2006; OSRS made it stack in 2025)');
+
+    // laying steps you off the box afterwards (~push_player), so every lay starts from its own tile
+    const layAt = async (x: number, z: number) => { player.teleport(x, z, 0); await waitTicks(1); opheld(1, 'magic_box'); await waitTicks(5); };
+
+    // ---- the gate
+    const GATE = Math.min(LEVEL, BOXLEVEL - 1);
+    setLevel(GATE);
+    { texts.length = 0; opheld(1, 'magic_box'); await waitTicks(4);
+      check(slots().length === 0 && tot('magic_box') === 5 && texts.some(m => m.includes(`Hunter level of ${BOXLEVEL}`)), `Hunter ${GATE}: a magic box cannot be laid`);
+      await talkThrough(); }
+    setLevel(LEVEL);
+
+    if (LEVEL >= BOXLEVEL) {
+        // ---- one box: kind 7, Investigate, bait, Deactivate
+        await layAt(START[0], START[1]);
+        const b = boxAt(START[0], START[1]);
+        check(b?.s === 'laid' && slots().length === 1 && (kinds() & 7) === 7 && tot('magic_box') === 4, `Activate lays the box at your feet: trap kind ${kinds() & 7}, one slot, one box spent`);
+        { const n = msgs.length; oploc(2, b!.l); await waitTicks(1); check(msgs.slice(n).some(m => m.includes('Nothing has wandered')), 'Investigate: nothing in it yet'); }
+        oplocu(b!.l, 'red_bead'); await waitTicks(1);
+        check((v('hunter_imp_bait') & 1) === 1 && tot('red_bead') === 0, 'a red bead baits it (the bead is used)');
+        { const n = msgs.length; oplocu(b!.l, 'black_bead'); await waitTicks(1);
+          check(tot('black_bead') === 1 && msgs.slice(n).some(m => m.includes('already baited')), '...once'); }
+        { const n = msgs.length; oplocu(b!.l, 'magic_box'); await waitTicks(1); check(tot('magic_box') === 4 && msgs.slice(n).some(m => m.includes('Nothing interesting')), '...and only with a bead'); }
+        oploc(1, b!.l); await waitTicks(3);
+        check(boxAt(START[0], START[1]) === null && slots().length === 0 && tot('magic_box') === 5, 'Deactivate takes it up and gives the box back');
+        await layAt(START[0], START[1]);
+        check(v('hunter_imp_bait') === 0 && boxAt(START[0], START[1])?.s === 'laid', 'laying a box again leaves no bait over from the last one');
+
+        // ---- standing on the box: nothing goes in
+        {
+            let near = 0, sprang = false;
+            player.teleport(START[0], START[1], 0);
+            for (let i = 0; i < 150; i++) {
+                keepImpNear(START[0], START[1]); await waitTicks(1);
+                if (imps(60).some(n => Math.max(Math.abs(n.x - START[0]), Math.abs(n.z - START[1])) <= 3)) near++;
+                if (boxAt(START[0], START[1])?.s !== 'laid') sprang = true;
+            }
+            check(!sprang && near > 100, `standing on the box for 150 ticks, no imp goes in (one within 3 tiles for ${near} of them)`);
+        }
+
+        // ---- the real loop, one tile off: a catch
+        const OFF = [START[0] - 1, START[1]];
+        player.teleport(OFF[0], OFF[1], 0);
+        let caught = false, failed = 0; const seen: string[] = [];
+        const gone = () => { const o: any[] = []; for (const n of World.npcs) if (n && n.type === IMP && !n.isActive) o.push(n); return o; };
+        const gone0 = gone().length; let taken: any[] = [];
+        for (let i = 0; i < 1500 && !caught; i++) {
+            keepImpNear(START[0], START[1]);
+            await waitTicks(1);
+            const s = boxAt(START[0], START[1])?.s ?? '-';
+            if (seen[seen.length - 1] !== s) { seen.push(s); log('magic box ->', s); }
+            if (s === 'failed') {
+                failed++;
+                const m0 = tot('magic_box');
+                oploc(1, boxAt(START[0], START[1])!.l); await waitTicks(3);
+                check(tot('magic_box') === m0 + 1 && boxAt(START[0], START[1]) === null, 'an imp got away: Deactivate on the failed box gives it back');
+                await layAt(START[0], START[1]); player.teleport(OFF[0], OFF[1], 0);
+            }
+            if (s === 'catching' && !taken.length) taken = gone().filter(n => Math.max(Math.abs(n.x - START[0]), Math.abs(n.z - START[1])) <= 3);
+            if (s === 'caught') caught = true;
+        }
+        check(caught, `an imp went into the box within 1500 ticks (${failed} got away first; ${seen.join(' -> ')})`);
+        check(seen.includes('catching'), '...through the catching state, the loop then moving it on to caught');
+        if (caught) {
+            const x0 = player.stats[PlayerStat.HUNTER], m0 = tot('magic_box'), held = slots().length;
+            const n = msgs.length;
+            oploc(1, boxAt(START[0], START[1])!.l); await waitTicks(3);
+            check(tot('imp_box_2') === 1 && tot('magic_box') === m0 && boxAt(START[0], START[1]) === null && slots().length === held - 1,
+                'Retrieve: an Imp-in-a-box(2) - the box itself, not the box back as well - and the slot is free');
+            check(player.stats[PlayerStat.HUNTER] - x0 === IMPXP && msgs.slice(n).some(m => m.includes('caught an imp')), `...and ${IMPXP / 10} xp`);
+        }
+        // the caught imp was npc_del'd, not killed, and respawns: Imp Catcher's imps are all still there
+        {
+            check(taken.length === 1 && gone().length === gone0 + 1, `the imp that went in left the world as the box closed (${taken.length} beside the box, ${gone0} -> ${gone().length} gone)`);
+            let back = false, t = 0;
+            for (; t < 400 && !back; t++) { await waitTicks(1); if (taken.length && taken[0].isActive) back = true; }
+            check(back, `...and respawned where it lives, ${t} ticks later (${taken[0]?.x},${taken[0]?.z})`);
+        }
+
+        // ---- the cap, the leash, [logout]
+        const max = Math.min(5, 1 + Math.floor(LEVEL / 20));
+        const TILES = [[0, 0], [2, 0], [-2, 0], [0, 2], [0, -2], [2, 2], [-2, -2], [2, -2], [-2, 2]].map(([a, c]) => [START[0] + a, START[1] + c]).filter(([a, c]) => !isMapBlocked(a, c, 0));
+        if (tot('magic_box') < 5) player.invAdd(InvType.INV, ObjType.getId('magic_box'), 5 - tot('magic_box'));
+        const laid: number[][] = [];
+        for (const [x, z] of TILES) {
+            if (slots().length >= max) break;
+            if (boxAt(x, z)) { laid.push([x, z]); continue; }
+            await layAt(x, z);
+            if (boxAt(x, z)) laid.push([x, z]);
+        }
+        check(slots().length === max, `${max} boxes laid at level ${LEVEL}`);
+        { const extra = TILES.find(t => !laid.some(l => l[0] === t[0] && l[1] === t[1]))!;
+          const n = msgs.length; player.teleport(extra[0], extra[1], 0); await waitTicks(1); opheld(1, 'magic_box'); await waitTicks(5);
+          check(msgs.slice(n).some(m => m.includes('more than')) && boxAt(extra[0], extra[1]) === null, `...and a box over the cap of ${max} is refused`); }
+        player.teleport(START[0], START[1] + 30, 0); await waitTicks(6);
+        check(slots().length === 0 && laid.every(([x, z]) => boxAt(x, z) === null), 'walking 30 tiles off collapses every box');
+        const onGround = laid.filter(([x, z]) => World.getObj(x, z, 0, ObjType.getId('magic_box'), player.hash64) !== null).length;
+        check(onGround === laid.length, `...and leaves each magic box on the ground where it stood (${onGround}/${laid.length})`);
+        if (tot('magic_box') < 5) player.invAdd(InvType.INV, ObjType.getId('magic_box'), 5 - tot('magic_box'));
+        const two = TILES.slice(0, 2);
+        for (const [x, z] of two) await layAt(x, z);
+        { const m0 = tot('magic_box'), held = slots().length;
+          const lo = ScriptProvider.getByTrigger(ServerTriggerType.LOGOUT, -1, -1);
+          player.executeScript(ScriptRunner.init(lo!, player), true); await waitTicks(2);
+          check(held === 2 && slots().length === 0 && tot('magic_box') === m0 + 2 && two.every(([x, z]) => boxAt(x, z) === null), '[logout] takes both boxes up and gives them back'); }
+    }
+
+    // ---- the imp-in-a-box
+    player.teleport(START[0], START[1], 0); await waitTicks(1);
+    if (tot('imp_box_2') === 0) player.invAdd(InvType.INV, ObjType.getId('imp_box_2'), 1);
+    texts.length = 0;
+    opheld(1, 'imp_box_2'); await waitTicks(1);
+    check(paused() && texts.includes('Imp'), 'Talk-to: the imp speaks (a chathead named Imp)');
+    await resume(); await resume('multi2:com_1'); await talkThrough();
+    check(texts.some(t => t.includes('your bank')), '..."What can you do for me?" - it offers to bank for you');
+    // an item used on it
+    player.invAdd(InvType.INV, ObjType.getId('logs'), 1);
+    { const n = msgs.length; const had = inBank('logs');
+      check(opheldu('imp_box_2', 'logs'), '[opheldu,imp_box_2] exists'); await waitTicks(2);
+      check(tot('logs') === 0 && inBank('logs') === had + 1, 'logs used on an Imp-in-a-box(2) go to the bank');
+      check(tot('imp_box_2') === 0 && tot('imp_box_1') === 1 && msgs.slice(n).some(m => m.includes('teleports away')), '...and it is an Imp-in-a-box(1)'); }
+    // the Bank op: the deposit box, the imp's
+    texts.length = 0;
+    opheld(2, 'imp_box_1'); await waitTicks(1);
+    check(player.modalMain === Component.getId('inter_95') && v('hunter_imp_bank') === 1 && texts.some(t => t.startsWith('Imp-in-a-box')), 'Bank opens the deposit box interface, titled for the imp');
+    player.invAdd(InvType.INV, ObjType.getId('coins'), 777);
+    { const cb = inBank('coins'), m0 = tot('magic_box');
+      invButton(1, 'inter_95:com_62', inv0.getItemIndex(ObjType.getId('coins'))); await waitTicks(2);
+      check(tot('coins') === 0 && inBank('coins') === cb + 777, 'clicking a stack there banks the whole stack (777 coins)');
+      check(tot('imp_box_1') === 0 && tot('magic_box') === m0 + 1 && player.modalMain === -1 && msgs.some(m => m.includes('does not come back')), '...the second charge: the imp is gone, the box is a magic box again, and the interface shuts'); }
+    // its own box, and the Wilderness
+    player.invAdd(InvType.INV, ObjType.getId('imp_box_2'), 1);
+    opheld(2, 'imp_box_2'); await waitTicks(1);
+    { const n = msgs.length; invButton(1, 'inter_95:com_62', inv0.getItemIndex(ObjType.getId('imp_box_2'))); await waitTicks(2);
+      check(tot('imp_box_2') === 1 && msgs.slice(n).some(m => m.includes('its own box')), "the imp won't bank its own box"); }
+    player.closeModal(); await waitTicks(1);
+    player.teleport(3200, 3810, 0); await waitTicks(2);
+    { const n = msgs.length; opheld(2, 'imp_box_2'); await waitTicks(1);
+      player.invAdd(InvType.INV, ObjType.getId('logs'), 1); opheldu('imp_box_2', 'logs'); await waitTicks(2);
+      check(player.modalMain === -1 && tot('logs') === 1 && tot('imp_box_2') === 1 && msgs.slice(n).filter(m => m.includes('this deep in the Wilderness')).length === 2, 'deep in the Wilderness (level 37): no Bank, and nothing used on it is banked'); }
+    player.teleport(START[0], START[1], 0); await waitTicks(2);
+    // a real deposit box takes the interface back; the bank's own deposit side never looks at the flag
+    player.setVar(VarPlayerType.getId('hunter_imp_bank'), 1);
+    texts.length = 0;
+    run(ServerTriggerType.OPLOC1, LocType.getId('loc_9398'), -1); await waitTicks(1);
+    check(v('hunter_imp_bank') === 0 && texts.includes('The Bank of Gielinor - Deposit Box'), "a real deposit box clears the imp's flag and puts its own title back");
+    player.closeModal(); await waitTicks(1);
+    player.setVar(VarPlayerType.getId('hunter_imp_bank'), 1);
+    { const lb = inBank('logs'), ib = tot('imp_box_2');
+      player.lastSlot = inv0.getItemIndex(ObjType.getId('logs')); player.lastItem = ObjType.getId('logs');
+      run(ServerTriggerType.INV_BUTTON2, Component.getId('bank_side:inv'), -1); await waitTicks(2);
+      check(inBank('logs') === lb + 1 && tot('imp_box_2') === ib, "the bank's own deposit ignores it: the logs go in and no imp charge is spent"); }
+    console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
+    process.exit(fails ? 1 : 0);
+}
+
 // HTRAP=tracking: Feldip weasel trails from the burrow at 2525,2889, followed to the bush.
 if (process.env.HTRAP === 'tracking') {
     const inv0 = player.getInventory(InvType.INV)!;

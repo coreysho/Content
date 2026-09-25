@@ -1,0 +1,16 @@
+// IMP CATCHING (scripts/hunter_imps.rs2).
+
+// The imp-in-a-box's Bank op opens the deposit box interface (inter_95) for the imp: while this is set,
+// a click on an item there is the imp's to bank, not the deposit box's ([label,deposit_box_deposit] in
+// interface_bank asks it first). Set when the imp opens it and cleared when a real deposit box opens -
+// nothing else reads it, and [if_close] cannot write a varp. The bank's own deposit side never looks
+// at it. Temp: nothing is open across a logout.
+[hunter_imp_bank]
+type=boolean
+scope=temp
+
+// Which trap slots hold a BAITED magic box: bit slot-1, one per ^hunter_trap slot. A bead used on your
+// own laid box sets it; the box's next spring takes the bait, caught or not, and laying a box in the
+// slot clears it. Temp, like the slots themselves (configs/hunter_trap.varp).
+[hunter_imp_bait]
+scope=temp

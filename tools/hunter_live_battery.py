@@ -15,7 +15,11 @@ Feldip weasel tracking at 10: trails from a burrow, every hint checked against t
 And net traps in each of the four areas - swamp lizards at Canifis (40), orange salamanders at Uzer (50,
 and 40, below their 47: nothing comes, and the traps fall over), red at Ourania (60), black in the Bone
 Yard (70): every young tree set and dismantled, both geometries sprung and checked, a real catch, the
-cap, standing on the net, ownership, the leash, [logout] and Release."""
+cap, standing on the net, ownership, the leash, [logout] and Release.
+And imp catching with magic boxes north-east of Yanille at 75 (and at 65, below the 71 to lay one: the
+gate) - bait, a real catch, Retrieve, the imp's respawn, the cap, the leash, [logout] - and the
+imp-in-a-box's Talk-to, banking and limits. And Aleck's Hunter Emporium in Yanille: the refit, Aleck
+and Leon and their shops, a purchase, the butterfly net, the hunters' crossbow's level and ammunition."""
 import os, shutil, subprocess, sys
 
 C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -28,7 +32,8 @@ shutil.copy(os.path.join(C, 'tools', 'hunter_live.ts'), dst)
 failed = 0
 try:
     PASSES = (('box', '70'), ('box', '40'), ('snare', '25'), ('snare', '10'), ('deadfall', '40'), ('deadfall', '30'), ('pitfall', '40'), ('tracking', '10'), ('cape', '50'),
-              ('net', '40', 'canifis'), ('net', '50', 'uzer'), ('net', '40', 'uzer'), ('net', '60', 'ourania'), ('net', '70', 'boneyard'))
+              ('net', '40', 'canifis'), ('net', '50', 'uzer'), ('net', '40', 'uzer'), ('net', '60', 'ourania'), ('net', '70', 'boneyard'),
+              ('imp', '75'), ('imp', '65'), ('emporium', '60'))
     for trap, level, *area in PASSES:
         env = dict(os.environ, HTRAP=trap, HLEVEL=level, HAREA=(area or [''])[0], BUILD_SRC_DIR=C, NODE_PRODUCTION='true', NODE_MEMBERS='true')
         r = subprocess.run(['npx', 'tsx', 'tools/_hunter_live.ts'], cwd=E, env=env, capture_output=True, text=True, timeout=900, shell=os.name == 'nt')

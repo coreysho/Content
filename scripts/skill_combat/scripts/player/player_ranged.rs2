@@ -140,6 +140,11 @@ if ($weapon_cat = weapon_crossbow & $ammo_cat ! bolts) {
     mes("You can't use that ammo with your crossbow."); // todo confirm this for 2004.
     return(null);
 }
+// the hunters' crossbow and kebbit bolts only go with each other (skill_hunter/scripts/hunter_imps.rs2)
+if (~hunter_crossbow_ammo_ok($rhand, $ammo) = false) {
+    mes("You can't use that ammo with your crossbow.");
+    return(null);
+}
 if (oc_param($ammo, levelrequire) > oc_param($rhand, levelrequire)) { //todo confirm crossbows could use all bolts at lvl 1
     mes("Your bow isn't powerful enough for those arrows."); // todo confirm this for 2004.
     return(null);
