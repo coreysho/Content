@@ -1,0 +1,1127 @@
+// Throne of Miscellania - winning the trust of Prince Brand or Princess Astrid.
+//
+// The original's shape, which the 377 cache's varbits were made for: three rounds of three
+// questions (misc_s1_d1 .. misc_s3_d3, a bit each for a question answered the way they like),
+// a gift in the first two rounds (misc_s1_give flowers; misc_s2_give a cake for Brand or a bow
+// for Astrid), an emote in the first and last (misc_s1_emote - clapping for Brand's poem, dancing
+// for Astrid; misc_s3_emote - a blown kiss), and a ring at the end. misc_affection is the running
+// total; either all three questions of a round answered well or enough affection moves them on
+// to the next round (^misc_affection_second / _third in quest_misc.constant). misc_court_stage
+// says which round you are in.
+//
+// Dialogue is the OSRS wiki's transcript of the quest. The three answers are offered in a random
+// order with a fourth, silly option drawn from the same list the original used.
+
+// =========================================================================== small helpers
+[proc,misc_sir]()(string)
+if (gender() = 0) {
+    return("sir");
+}
+return("madam");
+
+[proc,misc_sir_cap]()(string)
+if (gender() = 0) {
+    return("Sir");
+}
+return("Madam");
+
+[proc,misc_name]()(string)
+return(~viking_fremennik_name);
+
+[proc,misc_courting_brand]()(boolean)
+if (%misc_finish_gender = ^misc_child_brand) {
+    return(true);
+}
+return(false);
+
+// what the prince or princess calls you: "sir" before they know your name, your name after,
+// "dear" once they are fond of you
+[proc,misc_court_title]()(string)
+if (%misc_court_stage >= ^misc_court_third) {
+    return("dear");
+}
+if (%misc_court_stage = ^misc_court_second) {
+    return(~misc_name);
+}
+return(~misc_sir);
+
+[proc,misc_court_bit](int $round, int $question)(int)
+switch_int ($round) {
+    case 1 :
+        switch_int ($question) {
+            case 1 : return(%misc_s1_d1);
+            case 2 : return(%misc_s1_d2);
+            case 3 : return(%misc_s1_d3);
+        }
+    case 2 :
+        switch_int ($question) {
+            case 1 : return(%misc_s2_d1);
+            case 2 : return(%misc_s2_d2);
+            case 3 : return(%misc_s2_d3);
+        }
+    case 3 :
+        switch_int ($question) {
+            case 1 : return(%misc_s3_d1);
+            case 2 : return(%misc_s3_d2);
+            case 3 : return(%misc_s3_d3);
+        }
+}
+return(0);
+
+[proc,misc_court_setbit](int $round, int $question)
+switch_int ($round) {
+    case 1 :
+        switch_int ($question) {
+            case 1 : %misc_s1_d1 = ^misc_on;
+            case 2 : %misc_s1_d2 = ^misc_on;
+            case 3 : %misc_s1_d3 = ^misc_on;
+        }
+    case 2 :
+        switch_int ($question) {
+            case 1 : %misc_s2_d1 = ^misc_on;
+            case 2 : %misc_s2_d2 = ^misc_on;
+            case 3 : %misc_s2_d3 = ^misc_on;
+        }
+    case 3 :
+        switch_int ($question) {
+            case 1 : %misc_s3_d1 = ^misc_on;
+            case 2 : %misc_s3_d2 = ^misc_on;
+            case 3 : %misc_s3_d3 = ^misc_on;
+        }
+}
+
+[proc,misc_court_round_done](int $round)(boolean)
+if (~misc_court_bit($round, 1) = 1 & ~misc_court_bit($round, 2) = 1 & ~misc_court_bit($round, 3) = 1) {
+    return(true);
+}
+return(false);
+
+// a random question of this round that has not been answered well yet, or 0
+[proc,misc_court_pick](int $round)(int)
+def_int $open = 0;
+def_int $q = 1;
+while ($q <= 3) {
+    if (~misc_court_bit($round, $q) = 0) {
+        $open = add($open, 1);
+    }
+    $q = add($q, 1);
+}
+if ($open = 0) {
+    return(0);
+}
+def_int $n = random($open);
+$q = 1;
+while ($q <= 3) {
+    if (~misc_court_bit($round, $q) = 0) {
+        if ($n = 0) {
+            return($q);
+        }
+        $n = sub($n, 1);
+    }
+    $q = add($q, 1);
+}
+return(0);
+
+// the floor a wrong answer cannot push this round's affection below
+[proc,misc_court_floor]()(int)
+if (%misc_court_stage >= ^misc_court_third) {
+    return(^misc_affection_third);
+}
+if (%misc_court_stage = ^misc_court_second) {
+    return(^misc_affection_second);
+}
+return(0);
+
+[proc,misc_affection_add](int $amount)
+%misc_affection = min(^misc_affection_max, add(%misc_affection, $amount));
+
+[proc,misc_court_answer](int $round, int $question, boolean $right)
+if ($right = true) {
+    ~misc_court_setbit($round, $question);
+    ~misc_affection_add(^misc_affection_right);
+    return;
+}
+%misc_affection = max(~misc_court_floor, sub(%misc_affection, ^misc_affection_wrong));
+
+// Clears the whole courtship - swapping to the other child starts again from nothing.
+[proc,misc_court_reset]
+%misc_court_stage = ^misc_court_none;
+%misc_affection = 0;
+%misc_acceptedtomarry = ^misc_off;
+%misc_s1_d1 = ^misc_off;
+%misc_s1_d2 = ^misc_off;
+%misc_s1_d3 = ^misc_off;
+%misc_s2_d1 = ^misc_off;
+%misc_s2_d2 = ^misc_off;
+%misc_s2_d3 = ^misc_off;
+%misc_s3_d1 = ^misc_off;
+%misc_s3_d2 = ^misc_off;
+%misc_s3_d3 = ^misc_off;
+%misc_s1_give = ^misc_off;
+%misc_s2_give = ^misc_off;
+%misc_s1_emote = ^misc_off;
+%misc_s3_emote = ^misc_off;
+
+// One of the fourteen things the player blurts out as the fourth option, in the original too.
+[proc,misc_silly_line]()(string)
+switch_int (random(14)) {
+    case 0 : return("Beards? Dangerous, flammable and make you look mad!");
+    case 1 : return("Care to sign my petition for pet frogs?");
+    case 2 : return("Cattle prod? Weapon of choice I reckon.");
+    case 3 : return("Don't threaten me with a dead fish!");
+    case 4 : return("He is clearly 1 cup short of a full service.");
+    case 5 : return("I'm a little teapot, short and stout...");
+    case 6 : return("I'm rubber you're glue.........!");
+    case 7 : return("Lies!!! It's all lies!!!");
+    case 8 : return("Look over there! A King Black Dragon!");
+    case 9 : return("Lumbridge? No, I wouldn't be seen dead there.");
+    case 10 : return("Nah, that Kalphite was weedier than your garden.");
+    case 11 : return("Selling ring of poverty 30 mil!");
+    case 12 : return("Sneaky sneaky stick da chompy.");
+}
+return("What level do you need to cook cats?");
+
+// The three answers in a random order, and the silly fourth. Returns 1-3 for the answer picked
+// (in the order they were passed in), or 4 after the silly line has been said and answered.
+[proc,misc_ask](string $a1, string $a2, string $a3)(int)
+def_string $silly = ~misc_silly_line;
+def_int $choice;
+switch_int (random(6)) {
+    case 0 : $choice = ~p_choice4($a1, 1, $a2, 2, $a3, 3, $silly, 4);
+    case 1 : $choice = ~p_choice4($a1, 1, $a3, 3, $a2, 2, $silly, 4);
+    case 2 : $choice = ~p_choice4($a2, 2, $a1, 1, $a3, 3, $silly, 4);
+    case 3 : $choice = ~p_choice4($a2, 2, $a3, 3, $a1, 1, $silly, 4);
+    case 4 : $choice = ~p_choice4($a3, 3, $a1, 1, $a2, 2, $silly, 4);
+    case default : $choice = ~p_choice4($a3, 3, $a2, 2, $a1, 1, $silly, 4);
+}
+if ($choice = 4) {
+    ~chatplayer("<p,shifty><$silly>");
+    ~chatnpc("<p,confused>...What?");
+}
+return($choice);
+
+// =========================================================================== Prince Brand
+[opnpc1,misc_prince_brand]
+if (%misc_quest >= ^misc_complete) {
+    @misc_heir_after(^misc_child_brand);
+}
+// the anthem comes first: Brand is the only bard on either island, whichever child you court
+if (%misc_quest = ^misc_new_anthem & inv_total(inv, misc_awful_anthem) = 0 & inv_total(inv, misc_good_anthem) = 0) {
+    @misc_brand_anthem;
+}
+if (%misc_quest < ^misc_started | ~misc_courting_brand = false) {
+    @misc_heir_stranger;
+}
+switch_int (%misc_court_stage) {
+    case ^misc_court_none : @misc_brand_approach;
+    case ^misc_court_first :
+        if (~misc_court_round_done(1) = true | %misc_affection >= ^misc_affection_second) {
+            @misc_brand_intro;
+        }
+        @misc_brand_round1(~misc_court_pick(1));
+    case ^misc_court_second :
+        if (~misc_court_round_done(2) = true | %misc_affection >= ^misc_affection_third) {
+            @misc_brand_fond;
+        }
+        @misc_brand_round2(~misc_court_pick(2));
+    case ^misc_court_third : @misc_brand_round3(~misc_court_pick(3));
+    case default : @misc_heir_trusted(^misc_child_brand);
+}
+
+// A prince or princess you are not courting, or before the quest.
+[label,misc_heir_stranger]
+~chatnpc("<p,neutral>Good day, <~misc_sir>.");
+~chatplayer("<p,neutral>Good day, Your Royal Highness.");
+
+[label,misc_brand_approach]
+~chatnpc("<p,neutral>Good day, <~misc_sir>.");
+~chatplayer("<p,neutral>Good day, Your Royal Highness.");
+~chatplayer("<p,neutral>As I'm sure you are aware, your father the King is seeking someone to rule the Kingdom in his stead. I have put myself forward, but in order for me to become ruler...");
+~chatnpc("<p,quiz>...you have to earn my approval?");
+~chatplayer("<p,neutral>Yes, Your Royal Highness.");
+~chatnpc("<p,laugh>Ahahahaha!");
+~chatnpc("<p,neutral>Come now, what interest would I have in a crass adventurer like yourself? What would you know of the poetry that flows through my veins like an avalanche through a peaceful mountain village?");
+~chatplayer("<p,neutral>I think you may find I know good poetry when I see it, Your Royal Highness...");
+%misc_court_stage = ^misc_court_first;
+~chatnpc("<p,neutral>This may be the case. I am willing to give you a chance; if you impress me enough, I will consider trusting you as our regent.");
+
+[label,misc_brand_round1](int $q)
+if ($q = 0) {
+    ~chatnpc("<p,neutral>Good day, <~misc_sir>.");
+    ~chatplayer("<p,neutral>Good day, Your Royal Highness.");
+    return;
+}
+def_int $a;
+if ($q = 1) {
+    ~chatnpc("<p,happy>I composed a poem, would you like to hear it?");
+    ~chatplayer("<p,happy>Of course, I'd love to.");
+    ~chatnpc("<p,happy>I got up This morning, And had an egg For breakfast");
+    $a = ~misc_ask("And then what happened?", "Be still, my heart.", "That doesn't even rhyme!");
+    switch_int ($a) {
+        case 1 :
+            ~chatplayer("<p,quiz>And then what happened?");
+            ~chatnpc("<p,neutral>No, that's the whole poem.");
+            ~chatplayer("<p,neutral>Oh. I see.");
+            ~misc_court_answer(1, 1, false);
+        case 2 :
+            ~chatplayer("<p,happy>Be still, my heart.");
+            ~misc_court_answer(1, 1, true);
+            ~chatnpc("<p,happy>I'm glad you liked it.");
+        case 3 :
+            ~chatplayer("<p,confused>That doesn't even rhyme!");
+            ~misc_court_answer(1, 1, false);
+            ~chatnpc("<p,angry>Quiet! What would you know about poetry?");
+    }
+    return;
+}
+if ($q = 2) {
+    ~chatplayer("<p,neutral>I am surprised you do not have hordes of admirers vying to be your significant other, Your Highness.");
+    ~chatnpc("<p,quiz>And why do you think that might be, <~misc_sir>?");
+    $a = ~misc_ask("No-one's ever heard of you.", "They don't understand your poetry as I do.", "They're all already married.");
+    switch_int ($a) {
+        case 1 :
+            ~chatplayer("<p,neutral>No-one's ever heard of you.");
+            ~misc_court_answer(1, 2, false);
+            ~chatnpc("<p,angry>I am insulted, <~misc_sir>!");
+        case 2 :
+            ~chatplayer("<p,happy>They don't understand your poetry as I do.");
+            ~misc_court_answer(1, 2, true);
+            ~chatnpc("<p,happy>Mmm, a very good answer, <~misc_sir>.");
+        case 3 :
+            ~chatplayer("<p,neutral>They're all already married.");
+            ~misc_court_answer(1, 2, false);
+            ~chatnpc("<p,confused>Hm, no, I don't think that's the right reason.");
+    }
+    return;
+}
+~chatplayer("<p,quiz>So, you practice the harp? I see you have one over there.");
+~chatnpc("<p,happy>Yes; I play the lyre and the harp, and compose songs, poems and sagas to move you, to delight you and entertain you! Sadly, my father does not think much of the art. What do you think?");
+$a = ~misc_ask("You should listen to your father.", "You will be the greatest bard!", "You're an awful bard.");
+switch_int ($a) {
+    case 1 :
+        ~chatplayer("<p,neutral>You should listen to your father.");
+        ~misc_court_answer(1, 3, false);
+        ~chatnpc("<p,sad>I'm sorry you feel that way.");
+    case 2 :
+        ~chatplayer("<p,happy>You will be the greatest bard!");
+        ~misc_court_answer(1, 3, true);
+        ~chatnpc("<p,happy>I'm so glad you agree!");
+    case 3 :
+        ~chatplayer("<p,neutral>You're an awful bard.");
+        ~misc_court_answer(1, 3, false);
+        ~chatnpc("<p,angry>I am insulted, <~misc_sir>!");
+}
+
+[label,misc_brand_intro]
+~chatnpc("<p,happy>You have perhaps more poetry in your soul than I first thought, <~misc_sir>...");
+~chatplayer("<p,happy>I'm flattered to hear you say so, Your Royal Highness.");
+~chatnpc("<p,neutral>Oh, but I realise you have not yet told me your name!");
+~chatplayer("<p,neutral>My name is <~misc_name>, Your Highness.");
+%misc_court_stage = ^misc_court_second;
+%misc_affection = max(%misc_affection, ^misc_affection_second);
+~chatnpc("<p,happy>Then shall I call you <~misc_name>, <~misc_sir>, and you shall call me Prince.");
+~chatplayer("<p,happy>Very well, Prince.");
+
+[label,misc_brand_round2](int $q)
+if ($q = 0) {
+    ~chatnpc("<p,neutral>Good day, <~misc_name>.");
+    ~chatplayer("<p,neutral>Good day, my Prince.");
+    return;
+}
+def_int $a;
+if ($q = 1) {
+    ~chatplayer("<p,quiz>So, why did you decide to become a bard?");
+    ~chatnpc("<p,happy>Poetry and music have always fascinated me. I am drawn to them like a moth to an overenthusiastic mage who has set himself on fire.");
+    $a = ~misc_ask("How poetic.", "That's a strange metaphor...", "Wait, are you the moth or the mage?");
+    switch_int ($a) {
+        case 1 :
+            ~chatplayer("<p,happy>How poetic.");
+            ~misc_court_answer(2, 1, true);
+            ~chatnpc("<p,happy>Why thank you. Sometimes I amaze even myself.");
+        case 2 :
+            ~chatplayer("<p,confused>That's a strange metaphor...");
+            ~misc_court_answer(2, 1, false);
+            ~chatnpc("<p,angry>It is a simile, but what do you know of poetry?");
+        case 3 :
+            ~chatplayer("<p,confused>Wait, are you the moth or the mage?");
+            ~misc_court_answer(2, 1, false);
+            ~chatnpc("<p,neutral>The moth!");
+    }
+    return;
+}
+if ($q = 2) {
+    ~chatnpc("<p,happy>I composed a saga, would you like to hear it?");
+    ~chatplayer("<p,neutral>I don't know if I have time for a whole saga...");
+    ~chatnpc("<p,happy>Don't worry, it's quite short. Here we go!");
+    ~chatnpc("<p,happy>Once upon a time there was a Prince, And Brand was his name, He always had a song in his heart, And a rhyme in his head,");
+    ~chatnpc("<p,happy>And he became the world's greatest bard, And delighted one and all, With his songs and sagas, And Brand was his name!");
+    $a = ~misc_ask("How inspiring!", "I think my ears are bleeding.", "That's not a saga!");
+    switch_int ($a) {
+        case 1 :
+            ~chatplayer("<p,happy>How inspiring!");
+            ~misc_court_answer(2, 2, true);
+            ~chatnpc("<p,happy>Thank you! I thought I would compose something for future generations, to tell them my story.");
+        case 2 :
+            ~chatplayer("<p,sad>I think my ears are bleeding.");
+            ~misc_court_answer(2, 2, false);
+            ~chatnpc("<p,angry>If you don't appreciate my singing, you are free to leave!");
+        case 3 :
+            ~chatplayer("<p,confused>That's not a saga!");
+            ~misc_court_answer(2, 2, false);
+            ~chatnpc("<p,sad>It's a short one, I'll admit...");
+    }
+    return;
+}
+~chatplayer("<p,quiz>What would you do if you became ruler of Miscellania?");
+~chatnpc("<p,neutral>Oh, I would never concern myself with such trivial matters as those involved in ruling a Kingdom. My interests lie solely in the arts.");
+$a = ~misc_ask("A much nobler pursuit, to be sure.", "If only you were any good at them...", "You're just afraid of responsibility.");
+switch_int ($a) {
+    case 1 :
+        ~chatplayer("<p,happy>A much nobler pursuit, to be sure.");
+        ~misc_court_answer(2, 3, true);
+        ~chatnpc("<p,happy>I am glad you agree.");
+    case 2 :
+        ~chatplayer("<p,neutral>If only you were any good at them...");
+        ~misc_court_answer(2, 3, false);
+        ~chatnpc("<p,angry>I am insulted, <~misc_name>!");
+    case 3 :
+        ~chatplayer("<p,neutral>You're just afraid of responsibility.");
+        ~misc_court_answer(2, 3, false);
+        ~chatnpc("<p,sad>Perhaps you are right...");
+}
+
+[label,misc_brand_fond]
+~chatnpc("<p,happy>I must admit I am growing quite fond of you, <~misc_name>.");
+~chatplayer("<p,quiz>Could it be, my Prince, that you would consider trusting a crass adventurer such as myself to run your kingdom?");
+%misc_court_stage = ^misc_court_third;
+%misc_affection = max(%misc_affection, ^misc_affection_third);
+~chatnpc("<p,neutral>Not quite yet, my good friend; let us just say, the future is a maze of inescapable decisions, and you are one possible answer.");
+
+[label,misc_brand_round3](int $q)
+if ($q = 0) {
+    ~chatnpc("<p,happy>Hello, dear");
+    ~chatplayer("<p,happy>Hello, my Prince.");
+    return;
+}
+def_int $a;
+if ($q = 1) {
+    ~chatnpc("<p,happy>I wrote a song about you. Would you like to hear it?");
+    ~chatplayer("<p,happy>I'd love to!");
+    ~chatnpc("<p,happy>Your hair is like a waterfall Or perhaps a bramble bush Your eyes are like an ocean on which I want to sail the ship of our connection!");
+    $a = ~misc_ask("Eyes...ship...sail...what?", "That was awful!", "That was lovely. I'm touched!");
+    switch_int ($a) {
+        case 1 :
+            ~chatplayer("<p,confused>Eyes...ship...sail...what?");
+            ~misc_court_answer(3, 1, false);
+            ~chatnpc("<p,sad>Was it really that hard to understand?");
+        case 2 :
+            ~chatplayer("<p,neutral>That was awful!");
+            ~misc_court_answer(3, 1, false);
+            ~chatnpc("<p,angry>Fine! See if I write you any more songs!");
+        case 3 :
+            ~chatplayer("<p,happy>That was lovely. I'm touched!");
+            ~misc_court_answer(3, 1, true);
+            ~chatnpc("<p,happy>I'm glad you liked it, my dear.");
+    }
+    return;
+}
+if ($q = 2) {
+    ~chatnpc("<p,quiz>Tell me, have you ever composed any poems yourself?");
+    $a = ~misc_ask("I wouldn't presume to have the skill...", "Not really, but it can't be that hard.", "There once was a man from Varrock...");
+    switch_int ($a) {
+        case 1 :
+            ~chatplayer("<p,neutral>I wouldn't presume to have the skill...");
+            ~misc_court_answer(3, 2, true);
+            ~chatnpc("<p,happy>You're right, it takes great skill and inspiration to be a great poet such as myself.");
+        case 2 :
+            ~chatplayer("<p,neutral>Not really, but it can't be that hard.");
+            ~misc_court_answer(3, 2, false);
+            ~chatnpc("<p,sad>You don't seem to understand poetry at all...");
+        case 3 :
+            ~chatplayer("<p,laugh>There once was a man from Varrock...");
+            ~misc_court_answer(3, 2, false);
+            ~chatnpc("<p,angry>Don't lower the art of poetry with such bawdy rhymes!");
+    }
+    return;
+}
+~chatplayer("<p,quiz>What do you think of your sister?");
+~chatnpc("<p,neutral>We don't always see eye-to-eye, but she understands my art better than our father.");
+$a = ~misc_ask("I'm glad to hear it.", "What art is that?", "You should listen to your father.");
+switch_int ($a) {
+    case 1 :
+        ~chatplayer("<p,happy>I'm glad to hear it.");
+        ~misc_court_answer(3, 3, true);
+        ~chatnpc("<p,happy>Of course, she couldn't understand as well as you do, my dear.");
+    case 2 :
+        ~chatplayer("<p,quiz>What art is that?");
+        ~misc_court_answer(3, 3, false);
+        ~chatnpc("<p,confused>Music and poetry. Surely you haven't forgotten already?");
+    case 3 :
+        ~chatplayer("<p,neutral>You should listen to your father.");
+        ~misc_court_answer(3, 3, false);
+        ~chatnpc("<p,sad>I'm sorry you think so.");
+}
+
+// The Etceterian anthem, which only Brand is bard enough to write.
+[label,misc_brand_anthem]
+if (%misc_anthem_written = ^misc_on) {
+    ~chatplayer("<p,neutral>I lost my copy of the *ahem* theme you composed...");
+    ~chatnpc("<p,happy>Fear not! I made many, many more!");
+} else {
+    ~chatplayer("<p,neutral>I need someone to compose a new anthem for Etceteria.");
+    ~chatnpc("<p,happy>You've come to the right bard! I'll write one for you immediately!");
+    ~chatplayer("<p,neutral>You can take your time, really...");
+    ~chatnpc("<p,happy>No problem, I'm already done! Here, listen!");
+    ~chatnpc("<p,happy>'Etceteria, Etceteria, Oh what a great country it is, Etceteria, Etceteria, So I wrote a song about it.'");
+    ~chatnpc("<p,happy>'It's somewhere in the sea, And it looks very nice, If it weren't for your ancestors, It wouldn't be there at all,'");
+    ~chatnpc("<p,happy>'And when things aren't going too well, We sing this lovely song, And then we'll all feel so much better, It won't take very long.'");
+}
+%misc_anthem_written = ^misc_on;
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, misc_awful_anthem, 1);
+} else {
+    obj_add(coord, misc_awful_anthem, 1, ^lootdrop_duration);
+}
+~chatnpc("<p,happy>Here's a copy, you can keep it!");
+~chatplayer("<p,neutral>...that's lovely, thanks.");
+if (%misc_court_stage >= ^misc_court_third & ~misc_courting_brand = true) {
+    ~chatnpc("<p,happy>Don't mention it, dear.");
+    return;
+}
+~chatnpc("<p,happy>Don't mention it, <~misc_sir>.");
+
+// =========================================================================== Princess Astrid
+[opnpc1,misc_princess_astrid]
+if (%misc_quest >= ^misc_complete) {
+    @misc_heir_after(^misc_child_astrid);
+}
+if (%misc_quest < ^misc_started | ~misc_courting_brand = true) {
+    @misc_heir_stranger;
+}
+switch_int (%misc_court_stage) {
+    case ^misc_court_none : @misc_astrid_approach;
+    case ^misc_court_first :
+        if (~misc_court_round_done(1) = true | %misc_affection >= ^misc_affection_second) {
+            @misc_astrid_intro;
+        }
+        @misc_astrid_round1(~misc_court_pick(1));
+    case ^misc_court_second :
+        if (~misc_court_round_done(2) = true | %misc_affection >= ^misc_affection_third) {
+            @misc_astrid_fond;
+        }
+        @misc_astrid_round2(~misc_court_pick(2));
+    case ^misc_court_third : @misc_astrid_round3(~misc_court_pick(3));
+    case default : @misc_heir_trusted(^misc_child_astrid);
+}
+
+[label,misc_astrid_approach]
+~chatnpc("<p,neutral>Good day, <~misc_sir>.");
+~chatplayer("<p,neutral>Good day, Your Royal Highness.");
+~chatplayer("<p,neutral>As I'm sure you are aware, your father the King is seeking someone to rule the Kingdom in his stead. I have put myself forward, but in order for me to become ruler...");
+~chatnpc("<p,quiz>...you have to earn my approval?");
+~chatplayer("<p,neutral>Yes, Your Royal Highness.");
+~chatnpc("<p,neutral>You realise, I hope, that many have tried to impress me.");
+~chatplayer("<p,quiz>I take it you are not especially inspired by any of them?");
+%misc_court_stage = ^misc_court_first;
+~chatnpc("<p,neutral>That is true. However, I am willing to give you a chance; if you impress me enough, I will consider trusting you as our regent.");
+
+[label,misc_astrid_round1](int $q)
+if ($q = 0) {
+    ~chatnpc("<p,neutral>Good day, <~misc_sir>.");
+    ~chatplayer("<p,neutral>Good day, Your Royal Highness.");
+    return;
+}
+def_int $a;
+if ($q = 1) {
+    ~chatplayer("<p,quiz>So, you practice archery? I see you have a bow mounted on your wall.");
+    ~chatnpc("<p,neutral>Yes; my father thinks it is a cowardly art, but I find there is just as much courage, and more skill, involved in going into combat with just a bow and quiver. What do you think?");
+    $a = ~misc_ask("Archers are all cowards!", "Archery is a noble art!", "You should listen to your father.");
+    switch_int ($a) {
+        case 1 :
+            ~chatplayer("<p,neutral>Archers are all cowards!");
+            ~misc_court_answer(1, 1, false);
+            ~chatnpc("<p,angry>I am insulted, <~misc_sir>!");
+        case 2 :
+            ~chatplayer("<p,happy>Archery is a noble art!");
+            ~misc_court_answer(1, 1, true);
+            ~chatnpc("<p,happy>I'm so glad you agree!");
+        case 3 :
+            ~chatplayer("<p,neutral>You should listen to your father.");
+            ~misc_court_answer(1, 1, false);
+            ~chatnpc("<p,sad>I'm sorry you feel that way.");
+    }
+    return;
+}
+if ($q = 2) {
+    ~chatplayer("<p,quiz>So, tell me about all these other admirers you have.");
+    ~chatnpc("<p,neutral>They never cease to bother me. They swarm around me like flies, all hoping to win my heart.");
+    ~chatnpc("<p,laugh>Perhaps I should use them for target practice!");
+    $a = ~misc_ask("I don't know why they bother...", "You monster!", "Hahahaha!");
+    switch_int ($a) {
+        case 1 :
+            ~chatplayer("<p,neutral>I don't know why they bother...");
+            ~misc_court_answer(1, 2, false);
+            ~chatnpc("<p,angry>I don't know why YOU bother.");
+        case 2 :
+            ~chatplayer("<p,shock>You monster!");
+            ~misc_court_answer(1, 2, false);
+            ~chatnpc("<p,neutral>I was only joking.");
+        case 3 :
+            ~chatplayer("<p,laugh>Hahahaha!");
+            ~chatplayer("<p,laugh>I can hold them still for you if you like.");
+            ~chatnpc("<p,quiz>How do you know I wouldn't hit you as well?");
+            ~misc_court_answer(1, 2, true);
+            ~chatplayer("<p,happy>I have confidence in your skills, Your Royal Highness.");
+    }
+    return;
+}
+~chatplayer("<p,quiz>What do you think of Advisor Ghrim?");
+~chatnpc("<p,happy>He's a bit scary sometimes, but he's always so nice to me! When I was young, I called him Uncle Ghrim.");
+$a = ~misc_ask("I think he's far too grumpy.", "He's been very helpful.", "No wonder you turned out like this...");
+switch_int ($a) {
+    case 1 :
+        ~chatplayer("<p,neutral>I think he's far too grumpy.");
+        ~misc_court_answer(1, 3, false);
+        ~chatnpc("<p,neutral>I'm sure he'd lighten up if you were nicer.");
+    case 2 :
+        ~chatplayer("<p,happy>He's been very helpful.");
+        ~misc_court_answer(1, 3, true);
+        ~chatnpc("<p,happy>Yes, my father made a wise decision when he chose him to be his advisor.");
+    case 3 :
+        ~chatplayer("<p,neutral>No wonder you turned out like this...");
+        ~misc_court_answer(1, 3, false);
+        ~chatnpc("<p,angry>I'm insulted, <~misc_sir>!");
+}
+
+[label,misc_astrid_intro]
+~chatnpc("<p,happy>You are perhaps a more interesting person than I first took you for, <~misc_sir>...");
+~chatnpc("<p,neutral>Oh, but I realise you have not yet told me your name!");
+~chatplayer("<p,neutral>My name is <~misc_name>, Your Highness.");
+%misc_court_stage = ^misc_court_second;
+%misc_affection = max(%misc_affection, ^misc_affection_second);
+~chatnpc("<p,quiz>Then may I call you <~misc_name>, <~misc_sir>?");
+~chatplayer("<p,happy>If I may call you Astrid, Your Royal Highness.");
+~chatnpc("<p,neutral>You may call me 'Princess'.");
+~chatplayer("<p,neutral>Very well, Princess.");
+
+[label,misc_astrid_round2](int $q)
+if ($q = 0) {
+    ~chatnpc("<p,neutral>Good day, <~misc_name>.");
+    ~chatplayer("<p,neutral>Good day, Princess.");
+    return;
+}
+def_int $a;
+if ($q = 1) {
+    ~chatplayer("<p,quiz>What would you do if you ruled this Kingdom?");
+    ~chatnpc("<p,neutral>Very little. It's not as if there's much to it... I might try to set up trade with other islands.");
+    $a = ~misc_ask("That's not very enterprising.", "That sounds like a good idea.", "What a silly idea!");
+    switch_int ($a) {
+        case 1 :
+            ~chatplayer("<p,neutral>That's not very enterprising.");
+            ~misc_court_answer(2, 1, false);
+            ~chatnpc("<p,angry>Fine. You try to do better!");
+        case 2 :
+            ~chatplayer("<p,happy>That sounds like a good idea.");
+            ~misc_court_answer(2, 1, true);
+            ~chatnpc("<p,happy>Thank you.");
+        case 3 :
+            ~chatplayer("<p,laugh>What a silly idea! As if anyone would be interested!");
+            ~misc_court_answer(2, 1, false);
+            ~chatnpc("<p,angry>Watch it, or you won't get the chance to do better.");
+    }
+    return;
+}
+if ($q = 2) {
+    ~chatplayer("<p,quiz>So what's the history of these islands?");
+    ~chatnpc("<p,neutral>Well, nothing very exciting ever happened until my father declared war on Etceteria...");
+    ~chatplayer("<p,quiz>Why did he do that?");
+    ~chatnpc("<p,neutral>Queen Sigrid of Etceteria insulted him.");
+    $a = ~misc_ask("Hahahaha!", "He probably deserved it.", "What happened next?");
+    switch_int ($a) {
+        case 1 :
+            ~chatplayer("<p,laugh>Hahahaha!");
+            ~misc_court_answer(2, 2, false);
+            ~chatnpc("<p,angry>It's not that funny.");
+            ~chatplayer("<p,neutral>Well excuse me, Princess!");
+        case 2 :
+            ~chatplayer("<p,neutral>He probably deserved it.");
+            ~misc_court_answer(2, 2, false);
+            ~chatnpc("<p,angry>I'm insulted, <~misc_name>!");
+        case 3 :
+            ~chatplayer("<p,quiz>What happened next?");
+            ~misc_court_answer(2, 2, true);
+            ~chatnpc("<p,neutral>He realised that neither of us have an army.");
+    }
+    return;
+}
+~chatplayer("<p,quiz>So why are you so interested in archery?");
+~chatnpc("<p,neutral>I'm not sure. Even when I was little, archery always fascinated me.");
+$a = ~misc_ask("I'm quite fond of it myself.", "You should stick to knitting.", "You should try swordfighting instead.");
+switch_int ($a) {
+    case 1 :
+        ~chatplayer("<p,happy>I'm quite fond of it myself.");
+        ~misc_court_answer(2, 3, true);
+        ~chatnpc("<p,happy>It's good to know someone who shares my interests.");
+    case 2 :
+        ~chatplayer("<p,neutral>You should stick to knitting.");
+        ~misc_court_answer(2, 3, false);
+        ~chatnpc("<p,angry>I'll knit you a lovely jumper, shall I? It'll keep you warm when I have you exiled to the icelands.");
+    case 3 :
+        ~chatplayer("<p,neutral>You should try swordfighting instead.");
+        ~misc_court_answer(2, 3, false);
+        ~chatnpc("<p,neutral>That's not really the kind of thing I'm interested in.");
+}
+
+[label,misc_astrid_fond]
+~chatnpc("<p,happy>I must admit I am growing quite fond of you, <~misc_name>.");
+~chatplayer("<p,quiz>My, could it be that I have succeeded where so many before me have failed, and finally earned the trust of the Princess?");
+%misc_court_stage = ^misc_court_third;
+%misc_affection = max(%misc_affection, ^misc_affection_third);
+~chatnpc("<p,happy>Not yet, my dear; let us just say you have made it onto the shortlist.");
+
+[label,misc_astrid_round3](int $q)
+if ($q = 0) {
+    ~chatnpc("<p,happy>Hello, dear.");
+    ~chatplayer("<p,happy>Hello, darling.");
+    return;
+}
+def_int $a;
+if ($q = 1) {
+    ~chatnpc("<p,quiz>So, my dear, what do you think of Miscellania?");
+    $a = ~misc_ask("It's a lovely little country.", "It's boring.", "Well, I've seen better...");
+    switch_int ($a) {
+        case 1 :
+            ~chatplayer("<p,happy>It's a lovely little country.");
+            ~misc_court_answer(3, 1, true);
+            ~chatnpc("<p,happy>I'm glad you like it.");
+        case 2 :
+            ~chatplayer("<p,neutral>It's boring.");
+            ~misc_court_answer(3, 1, false);
+            ~chatnpc("<p,angry>Then perhaps you shouldn't be thinking of becoming its ruler.");
+        case 3 :
+            ~chatplayer("<p,neutral>Well, I've seen better...");
+            ~misc_court_answer(3, 1, false);
+            ~chatnpc("<p,neutral>I'm quite fond of it myself...");
+    }
+    return;
+}
+if ($q = 2) {
+    ~chatplayer("<p,quiz>What do you think of your brother?");
+    ~chatnpc("<p,neutral>We don't always get along, but I'm sure he's a nice guy at heart.");
+    $a = ~misc_ask("And what a great bard he makes!", "I have heard better drains!", "I really don't like him.");
+    switch_int ($a) {
+        case 1 :
+            ~chatplayer("<p,laugh>And what a great bard he makes!");
+            ~misc_court_answer(3, 2, true);
+            ~chatnpc("<p,laugh>Haha! Oh yes, quite the bard, he is.");
+        case 2 :
+            ~chatplayer("<p,neutral>I have heard better drains!");
+            ~misc_court_answer(3, 2, false);
+            ~chatnpc("<p,angry>You don't sound like a nightingale yourself!");
+        case 3 :
+            ~chatplayer("<p,neutral>I really don't like him.");
+            ~misc_court_answer(3, 2, false);
+            ~chatnpc("<p,sad>That's not a nice thing to say.");
+    }
+    return;
+}
+~chatplayer("<p,quiz>Do you go out into battle often?");
+~chatnpc("<p,neutral>Not often, no. I sometimes go hunting...");
+$a = ~misc_ask("And you call yourself an archer?", "Hunting the mighty rabbits outside the castle?", "I suppose you don't have much opportunity to.");
+switch_int ($a) {
+    case 1 :
+        ~chatplayer("<p,neutral>And you call yourself an archer?");
+        ~misc_court_answer(3, 3, false);
+        ~chatnpc("<p,neutral>I take what chance for practice I can get.");
+    case 2 :
+        ~chatplayer("<p,laugh>Hunting the mighty rabbits outside the castle? Slaying the foul fowl that terrorises the town?");
+        ~misc_court_answer(3, 3, false);
+        ~chatnpc("<p,angry>That's not funny.");
+    case 3 :
+        ~chatplayer("<p,neutral>I suppose you don't have much opportunity to.");
+        ~misc_court_answer(3, 3, true);
+        ~chatnpc("<p,happy>Exactly! Perhaps you could take me with you sometime, dear.");
+}
+
+// =========================================================================== trusted, betrothed
+// During the quest, once the ring is theirs.
+[label,misc_heir_trusted](int $child)
+if (%misc_acceptedtomarry = ^misc_on) {
+    @misc_heir_betrothed($child);
+}
+~chatnpc("<p,happy>How fares the kingdom?");
+@misc_heir_proposal($child);
+
+[label,misc_heir_proposal](int $child)
+def_string $name = "Princess Astrid";
+def_string $fine = "All is well, Princess.";
+if ($child = ^misc_child_brand) {
+    $name = "Prince Brand";
+    $fine = "All is well, my Prince";
+}
+def_int $choice = ~p_choice2("All is well...", 1, "<$name>, will you marry me?", 2);
+if ($choice = 1) {
+    ~chatplayer("<p,happy><$fine>");
+    return;
+}
+~chatplayer("<p,happy><$name>, will you marry me?");
+~chatnpc("<p,happy>Oh, my dear, you've made me the happiest person alive.");
+~chatplayer("<p,quiz>Is that a yes?");
+%misc_acceptedtomarry = ^misc_on;
+~chatnpc("<p,happy>Yes! We'll have to put off the actual ceremony until we can find a priest, but you can tell my father I have agreed to marry you.");
+
+[label,misc_heir_betrothed](int $child)
+if ($child = ^misc_child_brand) {
+    ~chatnpc("<p,quiz>How are you doing, dear? Have you convinced my father yet?");
+    if (~p_choice2("Not yet, dear", 1, "I'm having second thoughts about the wedding.", 2) = 1) {
+        ~chatplayer("<p,neutral>Not yet, my dear.");
+        return;
+    }
+} else {
+    ~chatnpc("<p,quiz>How are you doing, darling? Have you convinced my father yet?");
+    if (~p_choice2("Not yet, darling", 1, "I'm having second thoughts about the wedding.", 2) = 1) {
+        ~chatplayer("<p,neutral>Not yet, my darling.");
+        return;
+    }
+}
+@misc_heir_second_thoughts($child);
+
+[label,misc_heir_second_thoughts](int $child)
+if ($child = ^misc_child_brand) {
+    ~chatplayer("<p,sad>I'm having second thoughts about the wedding. This marriage would change things, with an increase in responsibilities and duties you were keen to avoid.");
+    ~chatplayer("<p,sad>While I want to support the kingdom, I don't want that to end up impacting your life negatively. Maybe it's too soon to make this kind of decision.");
+    ~chatnpc("<p,neutral>You're right, I am not interested in more responsibilities. I would have less time for poetry! Is that your final decision?");
+} else {
+    ~chatplayer("<p,sad>I'm having second thoughts about the wedding. This marriage would change things, with an increase in responsibilities and duties that would overshadow the activities you like.");
+    ~chatplayer("<p,sad>While I want to support you and the kingdom, I don't want that to end up impacting your life negatively. Maybe it's too soon to make this kind of decision.");
+    ~chatnpc("<p,sad>My darling, that is very thoughtful of you and you make a convincing point. Are you... absolutely sure?");
+}
+if (~p_choice2("Yes, I think it's for the best.", 1, "Maybe not.", 2) = 1) {
+    ~chatplayer("<p,sad>Yes, I think it's for the best.");
+    %misc_acceptedtomarry = ^misc_off;
+    ~chatnpc("<p,neutral>I think you'll make a great Thane for our kingdom.");
+    return;
+}
+~chatplayer("<p,happy>Maybe not. It is hard, for I am so very fond of you. Let's leave it as it is for now and see what the future holds.");
+~chatnpc("<p,happy>Agreed.");
+
+// After the quest: the heir you recommended, and the other one.
+[label,misc_heir_after](int $child)
+if (%misc_finish_gender ! $child | %misc_court_stage < ^misc_court_trusted) {
+    ~chatnpc("<p,neutral>Good day, <~misc_name>.");
+    if ($child = ^misc_child_brand) {
+        ~chatplayer("<p,neutral>Good day, Prince Brand.");
+    } else {
+        ~chatplayer("<p,neutral>Good day, Princess Astrid.");
+    }
+    return;
+}
+if (%misc_acceptedtomarry = ^misc_off) {
+    ~chatnpc("<p,happy>How fares the kingdom?");
+    @misc_heir_proposal($child);
+}
+if (~p_choice2("Discuss relationship", 1, "Never mind.", 2) = 2) {
+    return;
+}
+if (~p_choice2("Have you found a priest for our marriage yet?", 1, "I'm having second thoughts about the wedding.", 2) = 2) {
+    @misc_heir_second_thoughts($child);
+}
+~chatplayer("<p,quiz>Have you found a priest for our marriage yet?");
+if ($child = ^misc_child_brand) {
+    ~chatnpc("<p,sad>I'm afraid not, dear. I don't think there is one to be had on these islands for love nor money...");
+} else {
+    ~chatnpc("<p,sad>I'm afraid not, darling. I don't think there is one to be had on these islands for love nor money...");
+}
+~chatnpc("<p,happy>Do not fear, though; I shall call for you as soon as one is found.");
+
+// =========================================================================== gifts
+[opnpcu,misc_prince_brand] @misc_heir_gift(^misc_child_brand);
+[opnpcu,misc_princess_astrid] @misc_heir_gift(^misc_child_astrid);
+
+[proc,misc_is_flowers](obj $obj)(boolean)
+switch_obj ($obj) {
+    case flowers_waterfall_quest, flowers_waterfall_quest_red, flowers_waterfall_quest_blue, flowers_waterfall_quest_yellow, flowers_waterfall_quest_purple, flowers_waterfall_quest_orange, flowers_waterfall_quest_mixed, flowers_waterfall_quest_white, flowers_waterfall_quest_black : return(true);
+}
+return(false);
+
+[proc,misc_is_cake](obj $obj)(boolean)
+switch_obj ($obj) {
+    case cake, partial_cake, chocolate_cake, partial_chocolate_cake : return(true);
+}
+return(false);
+
+[proc,misc_is_bow](obj $obj)(boolean)
+switch_obj ($obj) {
+    case shortbow, longbow, oak_shortbow, oak_longbow, willow_shortbow, willow_longbow, maple_shortbow, maple_longbow, yew_shortbow, yew_longbow, magic_shortbow, magic_longbow : return(true);
+}
+return(false);
+
+// any common ring you are willing to part with, as the walkthroughs put it
+[proc,misc_is_ring](obj $obj)(boolean)
+switch_obj ($obj) {
+    case gold_ring, sapphire_ring, emerald_ring, ruby_ring, diamond_ring, ring_of_recoil, ring_of_forging, ring_of_life : return(true);
+    case ring_of_dueling_1, ring_of_dueling_2, ring_of_dueling_3, ring_of_dueling_4, ring_of_dueling_5, ring_of_dueling_6, ring_of_dueling_7, ring_of_dueling_8 : return(true);
+}
+return(false);
+
+[label,misc_heir_gift](int $child)
+def_obj $item = last_useitem;
+def_boolean $courted = false;
+if (%misc_quest >= ^misc_started & %misc_finish_gender = $child & %misc_court_stage > ^misc_court_none) {
+    $courted = true;
+}
+if ($courted = false) {
+    if (%misc_quest >= ^misc_complete) {
+        ~chatnpc("<p,neutral>No thank you, <~misc_name>.");
+        return;
+    }
+    ~chatnpc("<p,neutral>No thank you, <~misc_sir>.");
+    return;
+}
+if (~misc_is_ring($item) = true) {
+    @misc_heir_ring($child, $item);
+}
+if (~misc_is_flowers($item) = true) {
+    if (%misc_s1_give = ^misc_on) {
+        ~chatnpc("<p,happy>You've already given me some, but thank you.");
+        return;
+    }
+    ~chatnpc("<p,happy>Are these for me? Really?");
+    if (~p_choice2("Yes", 1, "No", 2) = 2) {
+        ~chatplayer("<p,neutral>No, I was just showing you.");
+        ~chatnpc("<p,sad>Oh, all right.");
+        return;
+    }
+    ~chatplayer("<p,happy>Of course, Your Royal Highness.");
+    if (inv_total(inv, $item) = 0) {
+        return;
+    }
+    inv_del(inv, $item, 1);
+    %misc_s1_give = ^misc_on;
+    ~misc_affection_add(^misc_affection_gift);
+    ~chatnpc("<p,happy>Thank you! They're lovely!");
+    return;
+}
+def_boolean $gift = false;
+if ($child = ^misc_child_brand & ~misc_is_cake($item) = true) {
+    $gift = true;
+}
+if ($child = ^misc_child_astrid & ~misc_is_bow($item) = true) {
+    $gift = true;
+}
+if ($gift = true & %misc_court_stage >= ^misc_court_second) {
+    if (%misc_s2_give = ^misc_on) {
+        ~chatnpc("<p,happy>You've already given me one, but thank you.");
+        return;
+    }
+    ~chatnpc("<p,happy>Is this for me? Really?");
+    if (~p_choice2("Yes", 1, "No", 2) = 2) {
+        ~chatplayer("<p,neutral>No, I was just showing you.");
+        ~chatnpc("<p,sad>Oh, all right.");
+        return;
+    }
+    if ($child = ^misc_child_brand) {
+        ~chatplayer("<p,happy>Of course, Prince.");
+    } else {
+        ~chatplayer("<p,happy>Of course, Princess.");
+    }
+    if (inv_total(inv, $item) = 0) {
+        return;
+    }
+    inv_del(inv, $item, 1);
+    %misc_s2_give = ^misc_on;
+    ~misc_affection_add(^misc_affection_gift);
+    ~chatnpc("<p,happy>Thank you! It's lovely!");
+    return;
+}
+~chatnpc("<p,neutral>No thank you, <~misc_court_title>.");
+
+[label,misc_heir_ring](int $child, obj $ring)
+if (%misc_court_stage >= ^misc_court_trusted) {
+    ~chatnpc("<p,happy>You've already given me one, remember?");
+    return;
+}
+if (%misc_court_stage < ^misc_court_third | %misc_s3_emote = ^misc_off | (~misc_court_round_done(3) = false & %misc_affection < ^misc_affection_max)) {
+    ~chatnpc("<p,shock>I couldn't possibly accept this.");
+    return;
+}
+~chatnpc("<p,shock>Is this for me? Really?");
+if (~p_choice2_header("Yes", 1, "No", 2, "Select an Option") = 2) {
+    if ($child = ^misc_child_brand) {
+        ~chatplayer("<p,neutral>No, my dear, I was just showing you.");
+    } else {
+        ~chatplayer("<p,neutral>No, my darling, I was just showing you.");
+    }
+    ~chatnpc("<p,sad>Oh, all right.");
+    return;
+}
+def_string $name = "Princess Astrid";
+if ($child = ^misc_child_brand) {
+    $name = "Prince Brand";
+    ~chatplayer("<p,happy>Yes, a gift fit for my prince!");
+} else {
+    ~chatplayer("<p,happy>Yes, a gift fit for my Princess!");
+}
+if (inv_total(inv, $ring) = 0) {
+    return;
+}
+inv_del(inv, $ring, 1);
+%misc_court_stage = ^misc_court_trusted;
+%misc_affection = ^misc_affection_max;
+if (~p_choice2_header("Yes", 1, "No", 2, "Would you like to ask <$name> to marry you?") = 2) {
+    ~chatnpc("<p,happy>What a beautiful gift! I think you'd make a great Thane running our realm. Can you inform my father that you have earned my trust?");
+    mes("You give <$name> the ring.");
+    return;
+}
+~chatplayer("<p,happy><$name>, will you marry me?");
+%misc_acceptedtomarry = ^misc_on;
+if ($child = ^misc_child_brand) {
+    ~chatnpc("<p,happy>My heart is an open book to you, my dear, and all the pages say yes... ''Yes''!");
+} else {
+    ~chatnpc("<p,happy>Oh, my dear, I thought you'd never ask! Of course I'll marry you!");
+}
+~chatnpc("<p,happy>We'll have to put off the actual ceremony until we can find a priest, but you can tell my father I have agreed to marry you.");
+
+// =========================================================================== emotes
+// Called from [label,emote] (interface_controls/scripts/emotes.rs2) for every emote. It only
+// answers in the royal bedrooms on the castle's first floor, while the quest is under way.
+[proc,misc_emote_react](seq $anim)
+if (%misc_quest < ^misc_started | %misc_quest >= ^misc_complete) {
+    return;
+}
+def_int $kind = ~misc_emote_kind($anim);
+if ($kind = 0) {
+    return;
+}
+// in their rooms: Brand's is south of the throne room (2499-2504, 3849-3854), Astrid's north of it
+// (2499-2504, 3866-3871), both on the first floor
+if (inzone(1_39_60_3_9, 1_39_60_8_14, coord) = true) {
+    if (npc_find(coord, misc_prince_brand, 8, 0) = true) {
+        ~misc_emote_answer(^misc_child_brand, $kind);
+    }
+    return;
+}
+if (inzone(1_39_60_3_26, 1_39_60_8_31, coord) = true) {
+    if (npc_find(coord, misc_princess_astrid, 8, 0) = true) {
+        ~misc_emote_answer(^misc_child_astrid, $kind);
+    }
+}
+
+// 1 greeting, 2 distress, 3 cheer, 4 clap, 5 beckon, 6 laugh, 7 silly, 8 dance, 9 blow kiss
+[proc,misc_emote_kind](seq $anim)(int)
+switch_seq ($anim) {
+    case emote_bow, emote_wave, human_cave_goblin_bow : return(1);
+    case emote_angry, emote_cry, emote_panic, emote_fremmenik_salute : return(2);
+    case emote_cheer : return(3);
+    case emote_clap : return(4);
+    case emote_beckon : return(5);
+    case emote_laugh : return(6);
+    case emote_jump_with_joy, emote_ya_boo_sucks, emote_glass_box, emote_climbing_rope, emote_mime_lean, emote_glass_wall : return(7);
+    case emote_dance, emote_dance_scottish, emote_dance_spin, emote_dance_headbang, zombie_dance, human_cave_goblin_dance : return(8);
+    case emote_blow_kiss : return(9);
+}
+return(0);
+
+[proc,misc_emote_answer](int $child, int $kind)
+def_boolean $courted = false;
+if (%misc_finish_gender = $child & %misc_court_stage > ^misc_court_none) {
+    $courted = true;
+}
+def_string $t = ~misc_sir;
+if ($courted = true) {
+    $t = ~misc_court_title;
+}
+if ($kind = 1) {
+    ~chatnpc("<p,happy>Hello!");
+    return;
+}
+if ($kind = 2) {
+    ~chatnpc("<p,quiz>What's wrong, <$t>?");
+    return;
+}
+if ($kind = 5) {
+    ~chatnpc("<p,neutral>I'm staying right here.");
+    return;
+}
+if ($kind = 6) {
+    ~chatnpc("<p,quiz>What's so funny, <$t>?");
+    return;
+}
+if ($courted = false) {
+    switch_int ($kind) {
+        case 3, 4 :
+            if ($child = ^misc_child_brand) {
+                ~chatnpc("<p,happy>Thank you, <$t>.");
+            } else if ($kind = 3) {
+                ~chatnpc("<p,neutral>If you want to cheer someone on, <$t>, I suggest you find my brother.");
+            } else {
+                ~chatnpc("<p,neutral>If you want to applaud someone, <$t>, I suggest you find my brother.");
+            }
+        case 7 : ~chatnpc("<p,angry>Hmph!");
+        case 8 : ~chatnpc("<p,neutral>You dance well, <$t>.");
+        case 9 : ~chatnpc("<p,neutral>Sorry, <$t>, but I'm not interested.");
+    }
+    return;
+}
+if ($kind = 7) {
+    ~chatnpc("<p,laugh>You are silly!");
+    return;
+}
+if ($child = ^misc_child_brand) {
+    switch_int ($kind) {
+        case 3, 4 :
+            if ($kind = 4 & %misc_court_stage >= ^misc_court_second) {
+                ~chatnpc("<p,happy>Thank you, <$t>.");
+            } else {
+                ~chatnpc("<p,happy>Thank you. It's nice to be appreciated.");
+            }
+            // clapping or cheering his poetry is what the first round wants
+            if (%misc_court_stage = ^misc_court_first) {
+                %misc_s1_emote = ^misc_on;
+                if (%misc_affection < ^misc_affection_second) {
+                    %misc_affection = min(^misc_affection_second, add(%misc_affection, ^misc_affection_emote));
+                }
+            }
+        case 8 : ~chatnpc("<p,happy>You dance well, <$t>.");
+        case 9 :
+            if (%misc_court_stage < ^misc_court_third) {
+                ~chatnpc("<p,shock>Let's not get ahead of ourselves now, <$t>!");
+                return;
+            }
+            ~chatnpc("<p,happy>You flatter me, my dear.");
+            ~misc_court_kiss;
+    }
+    return;
+}
+switch_int ($kind) {
+    case 3 : ~chatnpc("<p,neutral>If you want to cheer someone on, <$t>, I suggest you find my brother.");
+    case 4 : ~chatnpc("<p,neutral>If you want to applaud someone, <$t>, I suggest you find my brother.");
+    case 8 :
+        ~chatnpc("<p,happy>Impressive. I like someone who knows how to dance.");
+        // Astrid's first round wants a dance - any of the jester row will do
+        if (%misc_court_stage = ^misc_court_first) {
+            %misc_s1_emote = ^misc_on;
+            if (%misc_affection < ^misc_affection_second) {
+                %misc_affection = min(^misc_affection_second, add(%misc_affection, ^misc_affection_emote));
+            }
+        }
+    case 9 :
+        if (%misc_court_stage < ^misc_court_third) {
+            ~chatnpc("<p,shock>Let's not get ahead of ourselves now, <$t>!");
+            return;
+        }
+        if (random(2) = 0) {
+            ~chatnpc("<p,laugh>*giggle* My, aren't you the charmer?");
+        } else {
+            ~chatnpc("<p,happy>That's very sweet, darling.");
+        }
+        ~misc_court_kiss;
+}
+
+// the blown kiss the ring is waiting on
+[proc,misc_court_kiss]
+if (%misc_court_stage ! ^misc_court_third) {
+    return;
+}
+%misc_s3_emote = ^misc_on;
+~misc_affection_add(^misc_affection_emote);

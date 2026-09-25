@@ -1,388 +1,617 @@
-// Throne of Miscellania - an island whose king cannot hold a pen and whose neighbour will not sign
-// anything until somebody does something about her anthem.
+// Throne of Miscellania, as it was: King Vargas, cursed into a yeti by the icelands, wants a
+// regent. The regent must make peace with Queen Sigrid of Etceteria, win the trust of Prince Brand
+// or Princess Astrid (misc_court.rs2), and have 75% of the island behind them (misc_work.rs2).
+// Dialogue is the OSRS wiki's transcript of the quest; the kingdom it hands you is misc_kingdom.rs2
+// and the islanders' Talk-to is misc_islanders.rs2.
+//
+// Until 2026-09-25 this was an invented quest - a king who could not hold a pen for arthritis, a
+// library that held the nib, three dummy trees and five percent a job. ~misc_login moves those
+// saves over.
 
 // =========================================================================== the crossing
-// FIXED: this was [oploc1,misc_ship_gangplank], and that loc is active=no with no ops - the
-// trigger could never fire and Miscellania was unreachable. misc_sailor stands beside the island
-// gangplank and viking_sailor beside the Rellekka one, so they row instead.
+// misc_ship_gangplank is active=no with no ops, so the sailors row: misc_sailor beside the island
+// gangplank, and viking_sailor (quest_viking) beside the Rellekka one, which calls ~misc_cross.
 [opnpc1,misc_sailor]
-~chatnpc("<p,neutral>Miscellania and back. Climb aboard whenever you like.");
-~misc_cross;
-
-// Called from [opnpc1,viking_sailor] in areas/area_relleka.
-[proc,misc_cross]()()
-if_close;
-if (coordz(coord) > 3800) {
-    mes("The ship works its way south.");
-    p_delay(5);
-    p_teleport(^misc_gangplank_rellekka);
+~chatplayer("<p,quiz>Hello. Can I get a ride on your ship?");
+if (gender() = 0) {
+    ~chatnpc("<p,happy>Hello again, brother <~misc_name>. If you're ready to jump aboard, we're all ready to set sail with the tide!");
+} else {
+    ~chatnpc("<p,happy>Hello again, sister <~misc_name>. If you're ready to jump aboard, we're all ready to set sail with the tide!");
+}
+if (~p_choice2("Let's go!", 1, "Actually, no.", 2) = 2) {
+    ~chatplayer("<p,neutral>Actually, no.");
+    ~chatnpc("<p,neutral>Okay. Suit yourself.");
     return;
 }
-mes("The ship works its way north.");
+~chatplayer("<p,happy>Let's go!");
+~misc_cross;
+
+[proc,misc_cross]()()
+if_close;
+mes("You board the longship...");
 p_delay(5);
-p_teleport(^misc_gangplank_island);
-if (%misc_visited = ^misc_off) {
-    %misc_visited = ^misc_on;
-    ~mesbox("Miscellania. Two kingdoms on one island, neither of them speaking to the other, and a great deal of heather.");
+if (coordz(coord) > 3800) {
+    p_teleport(^misc_gangplank_rellekka);
+    mes("The ship arrives at Rellekka.");
+    return;
 }
+p_teleport(^misc_gangplank_island);
+%misc_visited = ^misc_on;
+mes("The ship arrives at Miscellania.");
+
+// =========================================================================== the throne room
+// The two Throne Room Doors are single doors on the throne room's south wall (angle 3, 2506,3857)
+// and north wall (angle 1, 2506,3863). misc_ulby_throneroomdoor and its _inactive twin are the
+// same openbankdoorr model the Death Plateau castle door and the Black Knights' Fortress doors
+// use, and they open the same way - ~open_and_close_door2 swings the inactive door out for three
+// ticks while you step through (doors/scripts/open_and_close_doors.rs2). The old handler
+// teleported you across the wall and left the door shut.
+//
+// Going out is always allowed. Going in, the guard wants to know who you are the first time
+// (misc_grantedaudience), and lets in members of the Heroes' Guild.
+[oploc1,misc_ulby_throneroomdoor]
+def_boolean $inside = ~check_axis(coord, loc_coord, loc_angle);
+if ($inside = false & %misc_grantedaudience = ^misc_off) {
+    def_coord $door = loc_coord;
+    if (npc_find(coord, misc_ulby_doorguard, 5, 0) = false) {
+        return;
+    }
+    if (~misc_guard_halt = false) {
+        return;
+    }
+    // the guard's dialogue moved us off the loc's context; find the door again
+    if (loc_find($door, misc_ulby_throneroomdoor) = false) {
+        return;
+    }
+}
+~open_and_close_door2(misc_ulby_throneroomdoor_inactive, ~check_axis(coord, loc_coord, loc_angle), door_open);
+
+[opnpc1,misc_ulby_doorguard]
+if (%misc_grantedaudience = ^misc_on) {
+    ~chatnpc("<p,neutral>Welcome back, <~misc_sir_cap>.");
+    return;
+}
+def_boolean $ok = ~misc_guard_halt;
+
+// True when the guard lets you through.
+[proc,misc_guard_halt]()(boolean)
+~chatnpc("<p,angry>Halt! Who goes there?");
+~chatplayer("<p,neutral>My name is <~misc_name>, will you not let me through?");
+~chatnpc("<p,neutral>I'm afraid the King won't give an audience to anyone except a worthy hero.");
+if (%heroquest < ^hero_complete) {
+    ~chatnpc("<p,neutral>If you become a member of the Heroes' Guild, he will definitely grant you an audience.");
+    return(false);
+}
+~chatplayer("<p,neutral>I am a member of the Heroes' Guild; does that not show my worth?");
+%misc_grantedaudience = ^misc_on;
+~chatnpc("<p,neutral>Then you may pass.");
+if_close;
+return(true);
+
+// =========================================================================== King Vargas
+[opnpc1,misc_king_vargas]
+if (%misc_quest >= ^misc_complete) {
+    @misc_vargas_after;
+}
+if (%misc_quest = ^misc_not_started) {
+    @misc_vargas_start;
+}
+~chatplayer("<p,neutral>Your Majesty.");
+switch_int (%misc_quest) {
+    case ^misc_started :
+        ~chatnpc("<p,quiz>How are you getting on, <~misc_name>? Have you talked to Queen Sigrid of Etceteria?");
+        ~chatplayer("<p,neutral>Not yet, Your Majesty.");
+    case ^misc_sigrid_terms :
+        ~chatnpc("<p,quiz>How are you getting on, <~misc_name>? Have you talked to Queen Sigrid of Etceteria?");
+        ~chatplayer("<p,neutral>I have, Your Majesty. She says she will agree to peace as long as Miscellania recognises Etceteria as a sovereign nation.");
+        ~chatnpc("<p,angry>Hmph! You can tell her I'll officially recognise her country as soon as she changes the Etceterian national anthem.");
+        ~chatplayer("<p,quiz>Why is that, Your Majesty?");
+        ~chatnpc("<p,angry>It's insulting! The title alone, 'You're Stupid, We're the Best', should be enough to give you an idea!");
+        %misc_quest = ^misc_anthem_demand;
+        ~send_quest_progress(questlist:misc, %misc_quest, ^misc_complete);
+        ~chatplayer("<p,neutral>I'm sure I can convince her there are better anthems.");
+    case ^misc_anthem_demand, ^misc_new_anthem :
+        ~chatnpc("<p,quiz>How are you getting on, <~misc_name>? Have you convinced Sigrid yet?");
+        ~chatplayer("<p,neutral>Not yet, Your Majesty.");
+    case ^misc_treaty :
+        if (inv_total(inv, misc_treaty) = 0) {
+            ~chatnpc("<p,quiz>How are you getting on, <~misc_name>? Have you convinced Sigrid yet?");
+            ~chatplayer("<p,neutral>Not yet, Your Majesty.");
+        } else {
+            ~chatplayer("<p,neutral>I have here a treaty awaiting your signature.");
+            %misc_quest = ^misc_pen;
+            ~send_quest_progress(questlist:misc, %misc_quest, ^misc_complete);
+            ~chatnpc("<p,sad>I doubt I will be able to hold an ordinary pen well enough to sign the treaty. You will have to find a pen large enough for me to hold.");
+        }
+    case ^misc_pen :
+        ~chatnpc("<p,quiz>How are you getting on, <~misc_name>? Have you found me a pen yet?");
+        if (inv_total(inv, misc_giant_pen) = 0 | inv_total(inv, misc_treaty) = 0) {
+            ~chatplayer("<p,neutral>Not yet, Your Majesty.");
+        } else {
+            @misc_vargas_sign;
+        }
+    case ^misc_support :
+        if (%misc_approval >= ^misc_approval_regent & %misc_court_stage >= ^misc_court_trusted) {
+            @misc_vargas_ceremony;
+        }
+        if (%misc_approval >= ^misc_approval_regent) {
+            ~misc_vargas_child_question;
+        } else {
+            ~chatnpc("<p,neutral>Ghrim tells me that the population is not yet very supportive of the idea of having you as ruler. You should try to gain their support.");
+        }
+}
+@misc_vargas_heirs;
+
+[label,misc_vargas_start]
+~chatnpc("<p,quiz>Who are you? Who seeks audience with the King of this fair land of Miscellania?");
+~chatplayer("<p,neutral>I am known in these lands as <~misc_name>, Your Majesty. I come in search of a quest.");
+~chatnpc("<p,happy>Ah, it pleases me to see such enthusiasm!");
+~chatnpc("<p,happy>I was once an adventurer such as yourself; even while fulfilling my duties as King of Miscellania, I would roam the lands in search of adventure, and strike down mighty foes with a single blow!");
+~chatnpc("<p,sad>Unfortunately, I was a little too daring, and attempted to brave the icelands, where I finally met my match.");
+~chatnpc("<p,sad>I survived, barely, but I was cursed for the rest of my life to stay in this form. Which leaves me incapable of performing my duties as ruler.");
+~chatnpc("<p,neutral>This is why I am looking for an exceptional soul to be regent of this fair kingdom of Miscellania.");
+// Heroes' Quest is the guard at the door; The Fremennik Trials is the other requirement
+if (%viking < ^viking_complete) {
+    return;
+}
+if (~p_choice2_header("Yes.", 1, "No.", 2, "Start the Throne of Miscellania quest?") = 2) {
+    ~chatplayer("<p,neutral>I'm afraid I must decline, Your Majesty. The call of adventure is too strong for me to accept a sedentary life.");
+    ~chatnpc("<p,neutral>I can assure you that I managed to heed that same call, and ruling this land was no hindrance to me. However, I understand your decision. Fare thee well!");
+    return;
+}
+~chatplayer("<p,happy>If I may be so bold, Your Majesty, I think Miscellania would rest in capable hands with me.");
+~chatnpc("<p,laugh>Hahaha! You are bold, <~misc_name>, but then I have yet to see a good ruler who was not.");
+~chatnpc("<p,neutral>You will first have to demonstrate your worth. You are a good warrior, that I do not doubt; however ruling also requires a good grasp of diplomacy.");
+~chatnpc("<p,neutral>We have been at war with neighbouring Etceteria for hundreds of years; however, I think both of us have rather lost our appetite for hostilities.");
+~chatnpc("<p,neutral>Now may be an opportune time to make amends. If you manage to negotiate peace with them, then you will truly have shown your skill as a diplomat.");
+~chatplayer("<p,happy>Then do not stray far, Your Majesty, for I shall soon return.");
+~chatnpc("<p,shock>Wait! There is one more matter to discuss... a mere formality, of course.");
+~chatnpc("<p,neutral>By Miscellanious tradition, one may not become regent of the kingdom unless in the trust of the royal family.");
+~chatnpc("<p,neutral>This includes that of the future king or queen. It is yet too early for me to decide which of my children should inherit the throne.");
+~chatnpc("<p,neutral>Until then, gaining the trust of one of them should suffice. Who knows? Your choice might help me make a decision later.");
+~chatnpc("<p,quiz>So tell me! Which of my children will you attempt to gain the trust of?");
+def_int $child = ~p_choice2("I want to earn Prince Brand's approval.", ^misc_child_brand, "I want to earn Princess Astrid's approval.", ^misc_child_astrid);
+~misc_court_reset;
+%misc_finish_gender = $child;
+%misc_quest = ^misc_started;
+~send_quest_progress(questlist:misc, %misc_quest, ^misc_complete);
+if ($child = ^misc_child_brand) {
+    ~chatplayer("<p,neutral>I would like to choose Prince Brand.");
+    ~chatplayer("<p,quiz>And you say this is a mere formality, Your Majesty?");
+    ~chatnpc("<p,neutral>I am sure you can form a good working relationship with him. You can ask Ghrim for advice; that's what he's here for, after all.");
+    return;
+}
+~chatplayer("<p,neutral>I would like to choose Princess Astrid.");
+~chatplayer("<p,quiz>And you say this is a mere formality, Your Majesty?");
+~chatnpc("<p,neutral>I am sure you can form a good working relationship with her. You can ask Ghrim for advice; that's what he's here for, after all.");
+
+[label,misc_vargas_sign]
+~chatplayer("<p,happy>Here it is, Your Majesty.");
+inv_del(inv, misc_giant_pen, 1);
+inv_del(inv, misc_treaty, 1);
+~chatnpc("<p,happy>Excellent! And now, with a flourish, I sign the end of the rivalry between our two proud kingdoms!");
+%misc_quest = ^misc_support;
+%misc_approval = ^misc_approval_start;
+~send_quest_progress(questlist:misc, %misc_quest, ^misc_complete);
+~misc_vargas_child_question;
+~chatnpc("<p,neutral>Ghrim tells me that the population is not yet very supportive of the idea of having you as ruler. You should try to gain their support.");
+@misc_vargas_heirs;
+
+[proc,misc_vargas_child_question]
+if (~misc_courting_brand = true) {
+    ~chatnpc("<p,quiz>Now, how's it going with my son, will they accept you as regent?");
+} else {
+    ~chatnpc("<p,quiz>Now, how's it going with my daughter, will they accept you as regent?");
+}
+if (%misc_court_stage < ^misc_court_trusted) {
+    ~chatplayer("<p,neutral>Not yet, Your Majesty.");
+    return;
+}
+if (~misc_courting_brand = true) {
+    ~chatplayer("<p,happy>He will, your Majesty.");
+} else {
+    ~chatplayer("<p,happy>She will, your Majesty.");
+}
+~chatnpc("<p,happy>Excellent, excellent.");
+
+[label,misc_vargas_ceremony]
+~chatnpc("<p,happy>Ghrim tells me that the population would be glad to have you as a ruler.");
+~chatnpc("<p,happy>I see no reason to delay your regency any further. Ghrim, please proceed with the ceremony.");
+~chatnpc_specific("Advisor Ghrim", misc_advisor_ghrim, "<p,neutral>Yes, Your Majesty, I will proceed at once. Ahem...");
+~chatnpc_specific("Advisor Ghrim", misc_advisor_ghrim, "<p,neutral>We are gathered here today to witness the rise of a new hero to the regency of the Kingdom of Miscellania, to continue the work of our great King Vargas who is unfortunately now no longer able to rule.");
+~chatnpc_specific("Advisor Ghrim", misc_advisor_ghrim, "<p,neutral>By the powers invested in me by the Miscellaneous Constitution, I declare thee, <~misc_name>, to be the new Regent of this fair kingdom.");
+~chatnpc_specific("Advisor Ghrim", misc_advisor_ghrim, "<p,happy>May you bring success and prosperity to Miscellania and to all of its people.");
+~chatplayer("<p,confused>...is that all?");
+~chatnpc("<p,happy>That is all. I wish you luck as Regent. Speak to Ghrim if you require assistance.");
+if_close;
+%misc_quest = ^misc_complete;
+// 10,000 coins in the coffers to start the kingdom off, and the kingdom's day starts today
+%misc_coffers = add(%misc_coffers, 10000);
+%misc_last_update = date_runeday;
+%misc_restotal = 0;
+session_log(^log_adventure, "Quest complete: Throne of Miscellania");
+~send_quest_complete(questlist:misc, misc_treaty, 200, ^misc_questpoints, "You have completed\\nThrone of Miscellania!", "1 Quest Point|Management of Miscellania|10,000 coins in the coffers");
+
+// After the quest. OSRS's post-quest line for a regent who has not started Royal Trouble, which
+// this world does not have; the heirs choice is the same menu as during the quest.
+[label,misc_vargas_after]
+~chatplayer("<p,neutral>Your Majesty.");
+~chatnpc("<p,angry>That fool Sigrid! What does she think she's doing?");
+~chatplayer("<p,confused>Excuse me, your Majesty?");
+~chatnpc("<p,neutral>Ah, <~misc_name>. I apologise, but I'm rather busy at the moment.");
+~chatplayer("<p,quiz>What's going on, your Majesty?");
+~chatnpc("<p,neutral>I'm busy, <~misc_name>. You'd better talk to Ghrim.");
+@misc_vargas_heirs;
+
+// Changing which child you are courting, or - once one of them trusts you - which of them you
+// recommend as heir.
+[label,misc_vargas_heirs]
+if (%misc_quest < ^misc_started | (%misc_court_stage = ^misc_court_none & %misc_quest >= ^misc_complete)) {
+    return;
+}
+def_string $other = "Princess Astrid";
+def_string $mine = "Prince";
+def_string $theirs = "Princess";
+def_string $relation = "son";
+def_int $to = ^misc_child_astrid;
+if (~misc_courting_brand = false) {
+    $other = "Prince Brand";
+    $mine = "Princess";
+    $theirs = "Prince";
+    $relation = "daughter";
+    $to = ^misc_child_brand;
+}
+if (%misc_court_stage >= ^misc_court_trusted) {
+    if (~p_choice2("I think <$other> would make the best heir.", 1, "Never mind.", 2) = 2) {
+        ~chatplayer("<p,neutral>Never mind.");
+        return;
+    }
+    ~chatplayer("<p,neutral>I think <$other> would make the best heir.");
+    ~chatnpc("<p,quiz>Is that your honest opinion after having spent time with my <$relation>? The <$mine> might receive the news rather coldly. A broken trust is difficult to mend.");
+    if (~p_choice2_header("Yes, Your Majesty.", 1, "No, I changed my mind.", 2, "Recommend <$other> for heir?") = 2) {
+        ~chatplayer("<p,neutral>No, I changed my mind.");
+        ~chatnpc("<p,neutral>As you wish. I will keep this conversation between us.");
+        return;
+    }
+    ~chatplayer("<p,neutral>Yes, Your Majesty.");
+    // the recommendation carries the trust with it; an engagement does not
+    %misc_finish_gender = $to;
+    %misc_acceptedtomarry = ^misc_off;
+    ~chatnpc("<p,neutral>As you wish. I will pay heed to your recommendation.");
+    return;
+}
+if (~p_choice2("I want to earn <$other>'s approval instead.", 1, "Never mind.", 2) = 2) {
+    ~chatplayer("<p,neutral>Never mind.");
+    return;
+}
+~chatplayer("<p,neutral>I want to earn <$other>'s approval instead.");
+if (%misc_court_stage > ^misc_court_none) {
+    ~chatnpc("<p,neutral>Is that so? I can let them both know, but you may find that the <$theirs> has taken the news rather coldly. A broken trust is difficult to mend.");
+}
+if (~p_choice2_header("Yes, Your Majesty.", 1, "No, I changed my mind.", 2, "Earn <$other>'s approval instead?") = 2) {
+    ~chatplayer("<p,neutral>No, I changed my mind.");
+    ~chatnpc("<p,neutral>As you wish. I will keep this conversation between us.");
+    return;
+}
+~chatplayer("<p,neutral>Yes, Your Majesty.");
+~misc_court_reset;
+%misc_finish_gender = $to;
+~chatnpc("<p,happy>As you wish. Good luck!");
 
 // =========================================================================== Advisor Ghrim
 // a label so NPC Contact can reach him from anywhere (skill_magic/scripts/lunar/lunar_contact.rs2)
 [opnpc1,misc_advisor_ghrim] @misc_advisor_ghrim_talk;
 
 [label,misc_advisor_ghrim_talk]
+if (%misc_quest >= ^misc_complete) {
+    @misc_kingdom_ghrim;
+}
+~chatnpc("<p,neutral>Greetings, <~misc_sir_cap>.");
+if (%misc_quest = ^misc_not_started) {
+    ~chatnpc("<p,neutral>The King needs someone to take over the rule of the Kingdom. If I were you, I should consider the position.");
+    return;
+}
+if (%misc_quest = ^misc_support) {
+    @misc_ghrim_support;
+}
+// Prince Brand's anthem, which Ghrim makes something of
+if (%misc_quest = ^misc_new_anthem & inv_total(inv, misc_awful_anthem) > 0 & inv_total(inv, misc_good_anthem) = 0) {
+    ~chatplayer("<p,neutral>I got Prince Brand to compose a new Etceterian anthem for me, but it's awful!");
+    ~chatnpc("<p,sad>Oh dear. Well, that is only to be expected. May I see it, please?");
+    ~chatplayer("<p,neutral>Here you go.");
+    ~chatnpc("<p,neutral>Hmm, yes...allow me to make a few adjustments.");
+    inv_del(inv, misc_awful_anthem, 1);
+    inv_add(inv, misc_good_anthem, 1);
+    ~chatnpc("<p,happy>There you go, <~misc_sir>. Are there any other matters in which I may be of assistance?");
+}
+@misc_ghrim_quest_menu;
+
+[label,misc_ghrim_quest_menu]
+def_string $child = "the Princess";
+if (~misc_courting_brand = true) {
+    $child = "the Prince";
+}
+def_int $choice;
+if (%misc_court_stage < ^misc_court_trusted) {
+    $choice = ~p_choice4("What am I meant to be doing again?", 1, "How do I make peace with Etceteria?", 2, "How am I supposed to gain the trust of <$child>?", 3, "Is there anything else you can tell me?", 4);
+} else {
+    $choice = ~p_choice3("What am I meant to be doing again?", 1, "How do I make peace with Etceteria?", 2, "Is there anything else you can tell me?", 4);
+}
+switch_int ($choice) {
+    case 1 :
+        ~chatplayer("<p,quiz>What am I meant to be doing again?");
+        ~chatnpc("<p,neutral>Negotiating peace with Etceteria, <~misc_sir_cap>.");
+    case 2 :
+        ~chatplayer("<p,quiz>How do I make peace with Etceteria?");
+        ~chatnpc("<p,neutral><~misc_ghrim_peace_advice>");
+    case 3 :
+        ~chatplayer("<p,quiz>How am I supposed to gain the trust of <$child>?");
+        if (~misc_courting_brand = true) {
+            ~chatnpc("<p,neutral>I think you may find that talking to him would be a good way to start.");
+            ~chatnpc("<p,neutral>A ring may be an appropriate gift to formalise your friendship");
+        } else {
+            ~chatnpc("<p,neutral>I think you may find that talking to her would be a good way to start.");
+        }
+    case 4 : @misc_ghrim_lore;
+}
+
+[proc,misc_ghrim_peace_advice]()(string)
 switch_int (%misc_quest) {
-    case ^misc_not_started : @misc_start;
-    case ^misc_arrived : @misc_brief;
-    case ^misc_working : @misc_check;
-    case ^misc_approved :
-        ~chatnpc("<p,happy>A hundred percent. The guards will not stop you now, and I have never seen them not stop anybody.");
-    case default :
-        if (%misc_quest >= ^misc_complete) {
-            ~chatnpc("<p,neutral>Your kingdom, your coffers, your problem. I have written a book about it.");
-            ~misc_give_book;
+    case ^misc_new_anthem :
+        if (inv_total(inv, misc_good_anthem) > 0) {
+            return("You should show the anthem to Queen Sigrid.");
+        }
+        if (%misc_anthem_written = ^misc_on) {
+            return("You should get another copy of the anthem.");
+        }
+        return("You should find someone to compose a new anthem for Etceteria.");
+    case ^misc_treaty : return("You should show the treaty to the King.");
+    case ^misc_pen : return("You should find a way to make the nib and body for a very large pen.");
+}
+return("You should go talk to Queen Sigrid of Etceteria.");
+
+[label,misc_ghrim_lore]
+~chatplayer("<p,quiz>Is there anything else you can tell me?");
+~chatnpc("<p,quiz>What would you like to know, <~misc_sir_cap>?");
+def_int $choice = ~p_choice4("What can you tell me about the King?", 1, "What can you tell me about the Prince?", 2, "What can you tell me about the Princess?", 3, "What can you tell me about Queen Sigrid?", 4);
+switch_int ($choice) {
+    case 1 :
+        ~chatplayer("<p,quiz>What can you tell me about the King?");
+        ~chatnpc("<p,sad>King Vargas was once a brave and noble adventurer, well-loved by his subjects. Unfortunately, he was cursed while seeking a quest in the icelands to the north, and is now unable to reign.");
+    case 2 :
+        ~chatplayer("<p,quiz>What can you tell me about the Prince?");
+        ~chatnpc("<p,neutral>Prince Brand has always dreamed of becoming a famous bard; unfortunately, his musical and literary skills are somewhat lacking.");
+        ~chatnpc("<p,neutral>He has no interest in ruling the kingdom, and seems to spend his time daydreaming or composing quite awful poems, and sagas of totally mundane events.");
+        ~chatnpc("<p,neutral>He is rather vain, if you'll pardon my saying so; he will greatly appreciate any compliments on his poetry. He also has quite a sweet tooth.");
+    case 3 :
+        ~chatplayer("<p,quiz>What can you tell me about the Princess?");
+        ~chatnpc("<p,neutral>Princess Astrid thinks she'd be perfectly capable of ruling the kingdom, but her father doesn't trust her enough by herself.");
+        ~chatnpc("<p,neutral>Especially since she devotes herself to the - as the King sees it - cowardly skill of archery rather than the noble skill of melee combat...");
+        ~chatnpc("<p,neutral>She is fond of jewellery, and of course she collects bows. She is also quite the conversationalist.");
+        if (~misc_courting_brand = false & %misc_court_stage >= ^misc_court_trusted) {
+            ~chatnpc("<p,happy>Many have tried to capture her attention, but you are the first to succeed.");
+        } else {
+            ~chatnpc("<p,neutral>Many have tried to capture her attention, but she has yet to be impressed by any of them.");
+        }
+    case 4 :
+        ~chatplayer("<p,quiz>What can you tell me about Queen Sigrid?");
+        ~chatnpc("<p,neutral>Queen Sigrid is quite envious of King Vargas, since he has the larger kingdom.");
+        ~chatnpc("<p,neutral>The King and she have never seen eye-to-eye, but I think if you approach her you may find her quite reasonable.");
+}
+
+[label,misc_ghrim_support]
+if (%misc_killed = ^misc_on) {
+    %misc_killed = ^misc_off;
+    ~chatnpc("<p,angry>I should tell you right away that killing the people of this Kingdom will not make you popular with anyone.");
+}
+def_int $choice = ~p_choice3("What am I meant to be doing again?", 1, "How do I gain the support of the population?", 2, "Is there anything else you can tell me?", 3);
+if ($choice = 3) {
+    @misc_ghrim_lore;
+}
+if ($choice = 1) {
+    ~chatplayer("<p,quiz>What am I meant to be doing again?");
+    ~chatnpc("<p,neutral>Gaining the support of the population, <~misc_sir>.");
+} else {
+    ~chatplayer("<p,quiz>How do I gain the support of the population?");
+    ~chatnpc("<p,neutral>King Vargas would often go and help out his subjects in their daily tasks, when he was still able to do so, and they loved him dearly for it.");
+}
+~chatnpc("<p,neutral>Currently, <tostring(~misc_approval_percent)>% of the population supports you.");
+if (%misc_approval >= ^misc_approval_regent) {
+    ~chatnpc("<p,happy>This is enough for you to become Regent; I should talk to King Vargas if I were you.");
+    return;
+}
+~chatnpc("<p,neutral>You will need 75 % of the population in your support in order to become Regent.");
+
+[proc,misc_approval_percent]()(int)
+return(divide(multiply(%misc_approval, 100), ^misc_approval_max));
+
+// =========================================================================== Queen Sigrid
+[opnpc1,misc_queen_sigrid]
+if (%misc_quest >= ^misc_support) {
+    ~chatplayer("<p,neutral>Your Majesty...");
+    ~chatnpc("<p,angry>Vargas, you irritating fool. 'Warmongering harpy', indeed!");
+    ~chatplayer("<p,confused>Sorry?");
+    ~chatnpc("<p,neutral>Oh, I apologise. I was merely thinking out loud.");
+    ~chatplayer("<p,quiz>How is your kingdom faring?");
+    ~chatnpc("<p,neutral>It could be better. Now, if you don't mind, I'm rather busy.");
+    ~chatplayer("<p,neutral>Very well, your Majesty.");
+    return;
+}
+switch_int (%misc_quest) {
+    case ^misc_not_started, ^misc_started : @misc_sigrid_busy;
+    case ^misc_sigrid_terms :
+        ~chatnpc("<p,quiz>Hello. Have you talked to Vargas yet?");
+        ~chatplayer("<p,neutral>Not yet, Your Majesty.");
+    case ^misc_anthem_demand :
+        ~chatnpc("<p,quiz>Hello. Have you talked to Vargas yet?");
+        ~chatplayer("<p,neutral>I have, Your Majesty. He says he will recognise the country when you change your anthem.");
+        ~chatnpc("<p,shock>What? But it's a great anthem, I composed it myself! Listen!");
+        ~chatnpc("<p,happy>'You're stupid, we're the best, Etceteria beats the rest! and Queen Sigrid is very pretty, King Vargas is a fool, hey, nonny-nonny!'");
+        ~chatplayer("<p,neutral>I'm afraid he insisted, Your Majesty.");
+        ~chatnpc("<p,sad>Well, it can't be helped I suppose...");
+        %misc_quest = ^misc_new_anthem;
+        ~send_quest_progress(questlist:misc, %misc_quest, ^misc_complete);
+        ~chatnpc("<p,neutral>You'll have to find a bard to write a new one though. And there isn't a bard to be had for love nor money in Etceteria.");
+        ~chatplayer("<p,neutral>I'll see what I can do, Your Majesty.");
+    case ^misc_new_anthem :
+        ~chatnpc("<p,quiz>Hello. Have you found a new anthem yet?");
+        if (inv_total(inv, misc_good_anthem) > 0) {
+            @misc_sigrid_good_anthem;
+        }
+        if (inv_total(inv, misc_awful_anthem) > 0) {
+            ~chatplayer("<p,neutral>Yes, Your Majesty, but I'm afraid it isn't very good.");
+            ~chatnpc("<p,neutral>Let's see now...");
+            ~chatnpc("<p,neutral>'Etceteria, Etceteria, Oh what a great country it is, Etceteria, Etceteria, So I wrote a song about it.'");
+            ~chatnpc("<p,neutral>'It's somewhere in the sea, And it looks very nice, If it weren't for your ancestors, It wouldn't be there at all,'");
+            ~chatnpc("<p,neutral>'And when things aren't going too well, We sing this lovely song, And then we'll all feel so much better, It won't take very long.'");
+            ~chatnpc("<p,sad>Oh dear, no, this simply won't do. Find a better one.");
             return;
         }
-        ~chatnpc("<p,neutral>The King is through there.");
-}
-
-[label,misc_start]
-~chatnpc("<p,neutral>You are not from here, which on an island this size is the only thing worth saying about anybody.");
-~chatplayer("<p,quiz>Who are you?");
-~chatnpc("<p,neutral>Advisor Ghrim. I advise. Nobody has taken any of it for eleven years.");
-%misc_quest = ^misc_arrived;
-~send_quest_progress(questlist:misc, %misc_quest, ^misc_complete);
-@misc_brief;
-
-[label,misc_brief]
-~chatnpc("<p,sad>King Vargas is old and he is not getting less old, and he has two children who will not speak to each other and a treaty on his desk that would end a hundred years of this and he cannot sign it.");
-~chatplayer("<p,quiz>Won't sign it?");
-~chatnpc("<p,neutral>Cannot. His hands. He has not held anything smaller than an oar since the winter before last.");
-~chatnpc("<p,neutral>And you will not get within thirty feet of him, because the guards on that door let in people the island approves of, and the island does not know you exist.");
-~chatplayer("<p,quiz>How does an island get to approve of somebody?");
-~chatnpc("<p,neutral>Work. There is heather to weed, a maple to fell and coal to cut, and the three men who normally do it are all standing next to it doing none of it.");
-%misc_quest = ^misc_working;
-~send_quest_progress(questlist:misc, %misc_quest, ^misc_complete);
-~misc_give_book;
-
-[proc,misc_give_book]()()
-if (inv_total(inv, misc_ghrimbook) > 0) {
-    return;
-}
-if (inv_freespace(inv) = 0) {
-    return;
-}
-inv_add(inv, misc_ghrimbook, 1);
-~chatnpc("<p,neutral>Take the book. Nobody has ever read it.");
-
-[label,misc_check]
-if (%misc_approval < ^misc_approval_target) {
-    ~chatnpc("<p,neutral>Approval is at <tostring(%misc_approval)> percent. It wants a hundred and there is no shortcut, because the shortcut is called a coup.");
-    return;
-}
-%misc_quest = ^misc_approved;
-~send_quest_progress(questlist:misc, %misc_quest, ^misc_complete);
-~chatnpc("<p,happy>A hundred percent. Go and see the King.");
-
-// =========================================================================== the island's work
-// Thirty-six heather patches and three dummy resources, every one of them carrying an op and none
-// of them a handler.
-[oploc1,misc_heather_light] @misc_weed;
-[oploc1,misc_heather_normal] @misc_weed;
-[oploc1,misc_heather_dark] @misc_weed;
-[oploc1,misc_dummy_heather_normal] @misc_weed;
-
-[label,misc_weed]
-p_arrivedelay;
-if (~misc_working_check = false) { return; }
-anim(human_pickupfloor, 0);
-p_delay(3);
-stat_advance(farming, 1000);
-~misc_approve("You clear the weeds out of the heather.");
-
-[oploc1,misc_dummy_mapletree]
-p_arrivedelay;
-if (~misc_working_check = false) { return; }
-if (inv_total(inv, bronze_axe) = 0 & ~has_any_axe = false) {
-    ~mesbox("You would need an axe.");
-    return;
-}
-anim(human_axe_chop, 0);
-p_delay(4);
-stat_advance(woodcutting, 1000);
-~misc_approve("You put a maple down for the lumberjack, who watches the whole thing without moving.");
-
-[oploc1,misc_dummy_coalrock1]
-p_arrivedelay;
-if (~misc_working_check = false) { return; }
-if (~has_any_pickaxe = false) {
-    ~mesbox("You would need a pickaxe.");
-    return;
-}
-anim(human_mining_bronze_pickaxe, 0);
-p_delay(4);
-stat_advance(mining, 1000);
-~misc_approve("You cut coal out of the seam. The miner nods, once.");
-
-[oploc2,misc_dummy_coalrock1]
-~mesbox("Coal, and a great deal of it, and nobody cutting any.");
-
-[proc,misc_working_check]()(boolean)
-if (%misc_quest < ^misc_working) {
-    ~mesbox("Somebody else's island.");
-    return(false);
-}
-if (%misc_approval >= ^misc_approval_target) {
-    ~mesbox("The island approves of you as much as an island is able to.");
-    return(false);
-}
-return(true);
-
-[proc,misc_approve](string $line)()
-%misc_approval = add(%misc_approval, ^misc_approval_per_job);
-if (%misc_approval > ^misc_approval_target) {
-    %misc_approval = ^misc_approval_target;
-}
-%misc_restotal = add(%misc_restotal, 1);
-if (%misc_approval >= ^misc_approval_target) {
-    ~mesbox("<$line> | That is the last of it. Approval is at a hundred percent and two guards are about to be very confused about it.");
-    return;
-}
-mes("<$line> Approval: <tostring(%misc_approval)>%.");
-
-[proc,has_any_axe]()(boolean)
-if (inv_total(inv, bronze_axe) > 0 | inv_total(inv, iron_axe) > 0 | inv_total(inv, steel_axe) > 0) { return(true); }
-if (inv_total(inv, black_axe) > 0 | inv_total(inv, mithril_axe) > 0 | inv_total(inv, adamant_axe) > 0 | inv_total(inv, rune_axe) > 0) { return(true); }
-return(false);
-
-[proc,has_any_pickaxe]()(boolean)
-if (inv_total(inv, bronze_pickaxe) > 0 | inv_total(inv, iron_pickaxe) > 0 | inv_total(inv, steel_pickaxe) > 0) { return(true); }
-if (inv_total(inv, mithril_pickaxe) > 0 | inv_total(inv, adamant_pickaxe) > 0 | inv_total(inv, rune_pickaxe) > 0) { return(true); }
-return(false);
-
-// =========================================================================== the throne room
-[opnpc1,misc_ulby_doorguard]
-if (%misc_approval < ^misc_approval_target) {
-    ~chatnpc("<p,angry>The King sees people the island has a use for. Come back when it has.");
-    return;
-}
-~chatnpc("<p,neutral>...the whole island has been talking about you. Go in.");
-%misc_grantedaudience = ^misc_on;
-
-// FIXED: the two doors are on the throne room's south wall (angle 3, at 2506,3857) and north wall
-// (angle 1, at 2506,3863), not east-west, so the old coordx test sent you to one of two tiles that
-// are both inside the room - you could never leave. And Ghrim, who starts the quest, stands in
-// the throne room, so a door that wanted 100% approval before the quest had begun kept it from
-// ever starting. Out is always allowed; in is allowed to go and find Ghrim, and after that only
-// once the island approves of you.
-[oploc1,misc_ulby_throneroomdoor]
-def_coord $door = loc_coord;
-def_int $angle = loc_angle;
-p_arrivedelay;
-def_boolean $inside = false;
-if ($angle = 3 & coordz(coord) >= coordz($door)) {
-    $inside = true;
-} else if ($angle = 1 & coordz(coord) <= coordz($door)) {
-    $inside = true;
-}
-if ($inside = true) {
-    mes("You go out.");
-    if ($angle = 3) {
-        p_teleport(movecoord($door, 0, 0, -1));
-    } else {
-        p_teleport(movecoord($door, 0, 0, 1));
-    }
-    return;
-}
-if (%misc_quest >= ^misc_working & %misc_approval < ^misc_approval_target) {
-    ~mesbox("Two guards move in front of it without saying anything, which is worse than being told no.");
-    return;
-}
-if (%misc_approval >= ^misc_approval_target) {
-    %misc_grantedaudience = ^misc_on;
-}
-mes("You go in.");
-p_teleport($door);
-
-// =========================================================================== King Vargas
-[opnpc1,misc_king_vargas]
-switch_int (%misc_quest) {
-    case ^misc_approved : @misc_vargas_brief;
-    case ^misc_audience : @misc_vargas_pen;
-    case ^misc_pen : @misc_vargas_sigrid;
-    case ^misc_sigrid : @misc_vargas_sign;
-    case default :
-        if (%misc_quest >= ^misc_complete) {
-            ~chatnpc("<p,happy>Regent. It means you do the work and I get the chair, which is the best arrangement I have ever been offered.");
+        ~chatplayer("<p,neutral>Not yet, Your Majesty.");
+    case ^misc_treaty, ^misc_pen :
+        ~chatnpc("<p,quiz>Hello. Has Vargas signed the treaty yet?");
+        if (inv_total(inv, misc_treaty) > 0) {
+            ~chatplayer("<p,neutral>Not yet, Your Majesty.");
             return;
         }
-        ~chatnpc("<p,neutral>Ghrim sent you, did he.");
+        ~chatplayer("<p,sad>I'm afraid I lost it, Your Majesty.");
+        ~chatnpc("<p,neutral>How silly of you. I'll make you another.");
+        ~misc_give(misc_treaty);
 }
 
-[label,misc_vargas_brief]
-~chatnpc("<p,neutral>So you are the one weeding my heather.");
-~chatplayer("<p,quiz>Ghrim says there's a treaty.");
-~chatnpc("<p,sad>There is. It has been on that desk for four years and it ends a hundred years of two kingdoms on one island pretending the other one is a rumour.");
-~chatnpc("<p,angry>And I cannot hold a pen. Look at my hands and then tell me which pen you think I should hold.");
-%misc_quest = ^misc_audience;
-%misc_toldking = ^misc_on;
-~send_quest_progress(questlist:misc, %misc_quest, ^misc_complete);
-~chatnpc("<p,neutral>There is a nib somewhere in Etceteria that would do, if somebody put a shaft on it. Astrid says the library over there has everything in it, and Brand says Astrid is wrong, and neither of them has been.");
-
-[label,misc_vargas_pen]
-if (inv_total(inv, misc_giant_pen) = 0) {
-    ~chatnpc("<p,neutral>A nib and a shaft. It is not a difficult thing and it has beaten four years of people.");
+[label,misc_sigrid_busy]
+~chatnpc("<p,neutral>Hello.");
+~chatplayer("<p,neutral>Er...Hello, Your Majesty.");
+~chatnpc("<p,neutral>Have you come for a particular reason? I am a busy Queen, you know. I had to attend the opening of a new orphanage this morning.");
+~chatplayer("<p,neutral>Yes, I...");
+~chatnpc("<p,happy>And this afternoon I shall be receiving the Embassador of Karamja and accompanying him on his week-long tour of Etceteria.");
+~chatplayer("<p,neutral>Er, I...");
+~chatnpc("<p,happy>Then this evening we shall be putting on a grand ball! All of the kingdom's nobility will be present!");
+~chatplayer("<p,neutral>If I m...");
+~chatnpc("<p,sad>Oh, who am I kidding...nothing ever happens here. I always wanted to be a princess when I was a girl. If I'd been told it would be like this, I wouldn't have bothered.");
+~chatplayer("<p,shock>Your Majesty!");
+~chatnpc("<p,quiz>Yes? Did you want something?");
+if (%misc_quest = ^misc_not_started) {
+    ~chatplayer("<p,neutral>...actually, no.");
     return;
 }
-~chatplayer("<p,neutral>Try this.");
-if_close;
-mes("King Vargas holds the giant pen the way a man holds an oar, which is the only way he holds anything, and it works.");
-p_delay(4);
-%misc_quest = ^misc_pen;
+~chatplayer("<p,neutral>I have been sent by King Vargas to negotiate a treaty of peace between your two great nations.");
+~chatnpc("<p,laugh>Great nations? Don't make me laugh. Still, peace sounds like a nice idea. He will, of course, have to recognise Etceteria officially as a sovereign nation.");
+~chatplayer("<p,quiz>This isn't already the case?");
+~chatnpc("<p,neutral>I'm afraid not. Last time we met I called him a pompous old fool for thinking he was still worth anything as an adventurer.");
+~chatnpc("<p,neutral>He promptly declared war, claiming the land of Etceteria belonged to Miscellania.");
+~chatnpc("<p,laugh>When he realised neither of us had an army, he was ever so angry!");
+~chatplayer("<p,quiz>What happened then?");
+~chatnpc("<p,neutral>He set off for the icelands to prove me wrong and, well, I expect you saw what happened to him.");
+%misc_quest = ^misc_sigrid_terms;
 ~send_quest_progress(questlist:misc, %misc_quest, ^misc_complete);
-~mesbox("He signs his half of it in enormous letters. | \"Now the other half,\" he says. \"Sigrid will not sign anything. Sigrid has not signed anything since the anthem.\"");
+~chatplayer("<p,neutral>I shall go ask him to officially recognise Etceteria.");
 
-[label,misc_vargas_sigrid]
-~chatnpc("<p,neutral>Sigrid. Etceteria. The anthem.");
-~chatplayer("<p,quiz>What about the anthem?");
-~chatnpc("<p,laugh>My father wrote it for her grandmother as a gift and it is the worst thing anybody has ever written down. She has had to stand up to it every morning for thirty years.");
+[label,misc_sigrid_good_anthem]
+~chatplayer("<p,happy>Yes, Your Majesty.");
+~chatnpc("<p,neutral>Let's see now...");
+~chatnpc("<p,happy>'Etceteria, Etceteria, Of our country we are proud! Etceteria, Etceteria, Let all sing its name out loud!'");
+~chatnpc("<p,happy>'Rising high above the water, The jewel of the North! Our mothers and our fathers, To build this land came forth!'");
+~chatnpc("<p,happy>'And in the times of darkness, Sing praises of our land! And in our hearts we can be sure, Our victory is at hand!'");
+~chatnpc("<p,shock>Why, this is quite good! I'm surprised!");
+inv_del(inv, misc_good_anthem, 1);
+if (inv_total(inv, misc_awful_anthem) > 0) {
+    inv_del(inv, misc_awful_anthem, inv_total(inv, misc_awful_anthem));
+}
+%misc_quest = ^misc_treaty;
+~send_quest_progress(questlist:misc, %misc_quest, ^misc_complete);
+~misc_give(misc_treaty);
+~chatnpc("<p,happy>Here is a treaty declaring what we've mutually agreed to. I've already signed, so all it needs is King Vargas' signature and it'll be official.");
 
-[label,misc_vargas_sign]
-~chatplayer("<p,neutral>She signed.");
-~chatnpc("<p,shock>She did WHAT.");
-if_close;
-mes("King Vargas reads Queen Sigrid's signature about six times.");
-p_delay(4);
-~mesbox("\"A hundred years,\" he says, \"and it was the anthem.\"");
-p_delay(3);
-%misc_quest = ^misc_complete;
-%misc_coffers = 750000;
-%misc_points_wood = 4;
-%misc_points_herb = 4;
-%misc_points_fish = 4;
-%misc_points_mine = 3;
-stat_advance(woodcutting, 50000);
-stat_advance(mining, 50000);
-stat_advance(farming, 50000);
-stat_advance(fishing, 50000);
-session_log(^log_adventure, "Quest complete: Throne of Miscellania");
-~send_quest_complete(questlist:misc, misc_treaty, 200, ^misc_questpoints, "You have completed\\nThrone of Miscellania!", "1 Quest Point|5,000 Woodcutting XP|5,000 Mining XP|5,000 Farming XP|5,000 Fishing XP|Regent of Miscellania");
+// into the pack, or at your feet if it is full, as the original drops it
+[proc,misc_give](namedobj $obj)
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, $obj, 1);
+    return;
+}
+obj_add(coord, $obj, 1, ^lootdrop_duration);
 
 // =========================================================================== the pen
-[oploc1,misc_bookcase]
-p_arrivedelay;
-if (%misc_quest < ^misc_audience) {
-    ~mesbox("Somebody else's books.");
-    return;
+[opnpc1,misc_smithy]
+if (%misc_quest >= ^misc_complete) {
+    ~chatnpc("<p,happy>Good day, Your Highness. Can I help you with anything?");
+} else {
+    ~chatnpc("<p,happy>Good day, <~misc_sir_cap>. Can I help you with anything?");
 }
-if (inv_freespace(inv) < 2) {
-    mes("You have no room for what is in it.");
-    return;
+def_int $choice;
+if (%misc_quest = ^misc_pen & inv_total(inv, misc_giant_nib) = 0 & inv_total(inv, misc_giant_pen) = 0) {
+    $choice = ~p_choice3("Can I use your anvil?", 1, "I have a slightly strange request...", 3, "Nothing, thanks.", 2);
+} else {
+    $choice = ~p_choice2("Can I use your anvil?", 1, "Nothing, thanks.", 2);
 }
-def_boolean $took = false;
-if (inv_total(inv, misc_giant_nib) = 0 & inv_total(inv, misc_giant_pen) = 0 & %misc_quest < ^misc_pen) {
-    inv_add(inv, misc_giant_nib, 1);
-    $took = true;
+switch_int ($choice) {
+    case 1 :
+        ~chatplayer("<p,quiz>Can I use your anvil?");
+        if (%misc_quest >= ^misc_complete) {
+            ~chatnpc("<p,happy>Of course, Your Royal Highness.");
+        } else {
+            ~chatnpc("<p,neutral>You may.");
+        }
+    case 2 : ~chatplayer("<p,neutral>Nothing, thanks.");
+    case 3 :
+        ~chatplayer("<p,neutral>I have a slightly strange request...");
+        ~chatplayer("<p,neutral>The King needs to sign a treaty, but is unable to because he lacks a pen large enough for him to hold. Could you make me a nib of the right size?");
+        ~chatnpc("<p,quiz>Hm... I may be able to manage that. What sort of size?");
+        ~chatplayer("<p,neutral>About the size of a helm should do it.");
+        ~chatnpc("<p,neutral>All right, but I'll need an iron bar to make it from.");
+        if (inv_total(inv, iron_bar) = 0) {
+            ~chatplayer("<p,sad>I don't have one with me.");
+            ~chatnpc("<p,neutral>Well, come back when you have one.");
+            return;
+        }
+        ~chatplayer("<p,happy>I have one here.");
+        ~chatnpc("<p,neutral>Good. Just a minute...");
+        inv_del(inv, iron_bar, 1);
+        inv_add(inv, misc_giant_nib, 1);
+        ~chatnpc("<p,happy>Here you go! One giant pen nib!");
 }
-if (%misc_quest >= ^misc_pen & %misc_know_sigrid = ^misc_on & inv_total(inv, misc_good_anthem) = 0 & %misc_quest < ^misc_sigrid) {
-    inv_add(inv, misc_good_anthem, 1);
-    $took = true;
-}
-if ($took = false) {
-    ~mesbox("Etceteria's library, which does in fact have everything in it, most of it twice.");
-    return;
-}
-~mesbox("Etceteria's library has everything in it, and everything includes the things nobody has looked for in thirty years.");
 
+// either way round: OpHeldUHandler tries [opheldu,<target>] then [opheldu,<used>] (swapping
+// last_item and last_useitem), and logs have no [opheldu] of their own
 [opheldu,misc_giant_nib]
 if (last_useitem ! logs) {
     ~displaymessage(^dm_default);
     return;
 }
-if (inv_total(inv, knife) = 0) {
-    ~mesbox("A shaft wants cutting, and that wants a knife.");
-    return;
-}
 inv_del(inv, misc_giant_nib, 1);
 inv_del(inv, logs, 1);
 inv_add(inv, misc_giant_pen, 1);
-stat_advance(fletching, 2000);
-~mesbox("A shaft the thickness of an oar handle, with a nib on the end of it. The King should be able to use this.");
+mes("You place the nib on the end of the log to make a crude pen.");
 
-// =========================================================================== Queen Sigrid
-[opnpc1,misc_queen_sigrid]
-if (%misc_quest < ^misc_pen) {
-    ~chatnpc("<p,angry>Etceteria does not discuss Miscellania.");
-    return;
-}
-if (%misc_quest >= ^misc_sigrid) {
-    ~chatnpc("<p,happy>Thirty years. Every morning. You have no idea.");
-    return;
-}
-if (inv_total(inv, misc_good_anthem) > 0) {
-    ~chatplayer("<p,neutral>A new anthem.");
-    if_close;
-    mes("Queen Sigrid reads it, and then hums a bar of it, and then stops and reads it again.");
-    p_delay(5);
-    inv_del(inv, misc_good_anthem, 1);
-    if (inv_total(inv, misc_awful_anthem) > 0) { inv_del(inv, misc_awful_anthem, 1); }
-    %misc_quest = ^misc_sigrid;
-    ~send_quest_progress(questlist:misc, %misc_quest, ^misc_complete);
-    ~mesbox("She signs the treaty without reading it, which after a hundred years is either enormous trust or enormous relief.");
-    return;
-}
-if (%misc_know_sigrid = ^misc_on) {
-    ~chatnpc("<p,angry>Find me a better one and I will sign anything you put in front of me.");
-    return;
-}
-~chatplayer("<p,quiz>There's a treaty. Vargas has signed it.");
-~chatnpc("<p,angry>Vargas's father wrote our anthem. As a GIFT.");
-~chatplayer("<p,quiz>Is it bad?");
-~chatnpc("<p,angry>I have stood up to it every morning for thirty years and there is a line in the second verse about herring.");
-%misc_know_sigrid = ^misc_on;
-~chatnpc("<p,angry>Find me a better one and I will sign anything you put in front of me. Our own library has not been opened since my grandmother's day and I am not going in there.");
+// Etceteria castle's two bookcases are only bookcases.
+[oploc1,misc_bookcase]
+p_arrivedelay;
+@search_bookcase;
 
-[opheld1,misc_awful_anthem]
-~mesbox("The Royal Anthem of Etceteria, by the late King of Miscellania. | The second verse is about herring. The third verse is also about herring, and rhymes it with 'nothing'.");
-
-[opheld1,misc_good_anthem]
-~mesbox("A royal anthem, in a hand nobody in either kingdom recognises, filed in Etceteria's own library for thirty years. | It does not mention herring once.");
-
-[opheld1,misc_treaty]
-if (%misc_quest >= ^misc_complete) {
-    ~mesbox("The Treaty of Miscellania and Etceteria, signed by both, in enormous letters at one end and very small ones at the other.");
-    return;
+// =========================================================================== old saves
+// Called from [login,_]. The quest here until 2026-09-25 used %misc_quest 1-7 and a 0-100
+// approval; neither fits the original, so a save part-way through it starts again, and a save
+// that finished it keeps the regency on the original's scale.
+[proc,misc_login]
+if (%misc_quest > 0 & %misc_quest < ^misc_started) {
+    if (%misc_quest = 7) {
+        %misc_quest = ^misc_complete;
+        %misc_approval = divide(multiply(min(%misc_approval, 100), ^misc_approval_max), 100);
+        %misc_affection = ^misc_affection_max;
+        %misc_court_stage = ^misc_court_trusted;
+        %misc_coffers = min(%misc_coffers, ^misc_coffers_max);
+        // the old reward handed out fifteen workers; there are ten
+        %misc_points_wood = 0;
+        %misc_points_herb = 0;
+        %misc_points_fish = 0;
+        %misc_points_mine = 0;
+        %misc_restotal = 0;
+        %misc_last_update = date_runeday;
+    } else {
+        %misc_quest = ^misc_not_started;
+        %misc_approval = 0;
+        %misc_grantedaudience = ^misc_off;
+        ~misc_court_reset;
+    }
 }
-~mesbox("The treaty. Just needs the King's signature.");
-
-// =========================================================================== the heirs
-[opnpc1,misc_princess_astrid] @misc_heir("<p,neutral>My brother thinks the treaty is surrender. My brother thinks a great many things.");
-[opnpc1,misc_prince_brand] @misc_heir("<p,neutral>My sister thinks the treaty is progress. My sister has never been to Etceteria.");
-
-[label,misc_heir](string $line)
-if (%misc_quest < ^misc_audience) {
-    ~chatnpc("<p,neutral>You are in my father's hall.");
-    return;
-}
-if (%misc_affection >= ^misc_affection_target) {
-    ~chatnpc("<p,happy>Whatever you did about the anthem - do not tell my father it was your idea. Let him think it was his.");
-    return;
-}
-~chatnpc($line);
-// Neither of them will say a word about the other in front of a stranger, and both of them will
-// say a great deal about the other to somebody the island has decided it likes.
-%misc_affection = add(%misc_affection, ^misc_affection_per_gift);
-if (%misc_affection > ^misc_affection_target) { %misc_affection = ^misc_affection_target; }
-if (%misc_affection < ^misc_affection_target) {
-    ~chatplayer("<p,quiz>And what do you think?");
-    ~chatnpc("<p,neutral>I think you should come back when I have decided.");
-    return;
-}
-%misc_acceptedtomarry = ^misc_on;
-~chatplayer("<p,quiz>And what do you think?");
-~chatnpc("<p,sad>I think my father has four years left and a treaty on his desk, and I have spent two of them arguing with my sibling about the wording.");
-~chatnpc("<p,neutral>Get it signed. I will stand behind whichever of us has to live with it.");
-
-// =========================================================================== the market
-[opnpc1,misc_flowergirl]
-~chatnpc("<p,neutral>Flowers. Everybody on this island wants flowers and nobody will say who for.");
+~misc_kingdom_update;

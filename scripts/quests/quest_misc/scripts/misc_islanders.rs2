@@ -1,0 +1,233 @@
+// The people of Miscellania and Etceteria. Every one of them carried op1=Talk-to and nothing
+// answered it. Their words are the OSRS wiki's transcripts; the Etceterians' lines are their
+// dialogue from before Royal Trouble, which is the only dialogue a world without Royal Trouble
+// can give them.
+
+// =========================================================================== Miscellanians
+// "Good day." to a stranger, "Good day, Your Royal Highness." to the regent.
+[opnpc1,misc_man_1] @misc_citizen;
+[opnpc1,misc_man_2] @misc_citizen;
+[opnpc1,misc_man_3] @misc_citizen;
+[opnpc1,misc_man_4] @misc_citizen;
+[opnpc1,misc_man_5] @misc_citizen;
+[opnpc1,misc_man_6] @misc_citizen;
+[opnpc1,misc_man_7] @misc_citizen;
+[opnpc1,misc_woman_1] @misc_citizen;
+[opnpc1,misc_woman_2] @misc_citizen;
+[opnpc1,misc_woman_3] @misc_citizen;
+[opnpc1,misc_woman_4] @misc_citizen;
+[opnpc1,misc_woman_5] @misc_citizen;
+[opnpc1,misc_woman_6] @misc_citizen;
+
+[label,misc_citizen]
+~chatplayer("<p,neutral>Hello.");
+if (%misc_quest >= ^misc_complete) {
+    ~chatnpc("<p,happy>Good day, Your Royal Highness.");
+    return;
+}
+~chatnpc("<p,neutral>Good day.");
+
+// =========================================================================== Etceterians
+[opnpc1,misc_etc_man_1] @misc_etceterian;
+[opnpc1,misc_etc_man_2] @misc_etceterian;
+[opnpc1,misc_etc_man_3] @misc_etceterian;
+[opnpc1,misc_etc_woman_1] @misc_etceterian;
+[opnpc1,misc_etc_woman_2] @misc_etceterian;
+[opnpc1,misc_etc_woman_3] @misc_etceterian;
+
+[label,misc_etceterian]
+~chatplayer("<p,neutral>Excuse me...");
+~chatnpc("<p,quiz>Can I help you?");
+switch_int (random(5)) {
+    case 0 :
+        ~chatplayer("<p,quiz>Can you tell me anything about the castle?");
+        ~chatnpc("<p,neutral>There aren't many guards in it.");
+        ~chatnpc("<p,neutral>We don't have an army, you see.");
+    case 1 :
+        ~chatplayer("<p,quiz>How's the weather doing?");
+        ~chatnpc("<p,neutral>Could be better.");
+    case 2 :
+        ~chatplayer("<p,quiz>How's life in Etceteria?");
+        ~chatnpc("<p,sad>*sigh* Times are tough.");
+        ~chatnpc("<p,neutral>Though they're getting better.");
+    case 3 :
+        ~chatplayer("<p,quiz>What's it like being an Etceterian?");
+        ~chatnpc("<p,neutral>Fairly pleasant, though it gets cold in the winter.");
+    case default :
+        ~chatplayer("<p,happy>Nice town you have here.");
+        ~chatnpc("<p,happy>Thank you.");
+}
+
+// Etceteria's two Skraelings
+[opnpc1,etc_guard1] @misc_skraeling;
+[opnpc1,etc_guard2] @misc_skraeling;
+
+[label,misc_skraeling]
+~chatplayer("<p,neutral>Hello.");
+~chatnpc("<p,neutral>Good day.");
+
+// =========================================================================== the markets
+// Each greets you and opens its shop - the shops themselves are the shop_keeper category's.
+[opnpc1,misc_fish_monger]
+if (%misc_quest >= ^misc_complete) {
+    ~chatnpc("<p,happy>Greetings, Your Royal Highness. Get your fresh fish here!");
+} else {
+    ~chatnpc("<p,happy>Greetings. Get your fresh fish here!");
+}
+~chatnpc("<p,neutral>I've heard that the Etceterian fish is stored in a cow shed.");
+~openshop_activenpc;
+
+[opnpc1,misc_veg_monger]
+if (%misc_quest >= ^misc_complete) {
+    ~chatnpc("<p,happy>Welcome, Your Royal Highness. I sell only the finest and freshest vegetables!");
+} else {
+    ~chatnpc("<p,happy>Welcome, <~misc_sir_cap>. I sell only the finest and freshest vegetables!");
+}
+~openshop_activenpc;
+
+[opnpc1,etc_fish_monger]
+~chatnpc("<p,happy>Welcome <~misc_name>. My fish is fresher than any in Miscellania!");
+~openshop_activenpc;
+
+[opnpc1,etc_veg_monger]
+~chatnpc("<p,happy>Hello <~misc_name>. You've come to the right place for yer greens!");
+~openshop_activenpc;
+
+// =========================================================================== the flower girl
+// Flowers for the Prince or Princess, and - 50% of the time - a little more approval.
+[opnpc1,misc_flowergirl]
+if (%misc_quest >= ^misc_complete) {
+    ~chatnpc("<p,happy>Good day, Your Royal Highness.");
+} else {
+    ~chatnpc("<p,happy>Hello.");
+}
+~chatplayer("<p,quiz>Good day. What are you doing?");
+if (%misc_quest >= ^misc_complete) {
+    ~chatnpc("<p,happy>I'm selling flowers, 15gp for three. Would you like some, Your Highness?");
+} else {
+    ~chatnpc("<p,happy>I'm selling flowers, 15gp for three. Would you like some?");
+}
+if (inv_total(inv, coins) < 15) {
+    ~chatplayer("<p,sad>I don't have enough money.");
+    return;
+}
+if (~p_choice2("Yes, please.", 1, "No, thank you.", 2) = 2) {
+    ~chatplayer("<p,neutral>No, thank you.");
+    return;
+}
+~chatplayer("<p,happy>Yes, please.");
+if (inv_freespace(inv) = 0) {
+    mes("You don't have enough inventory space.");
+    return;
+}
+inv_del(inv, coins, 15);
+inv_add(inv, flowers_waterfall_quest_mixed, 1);
+~chatnpc("<p,happy>Thank you! Here you go.");
+if (random(2) = 0) {
+    ~misc_approval_gain(1, null);
+}
+
+// =========================================================================== the workers
+// The four who work beside the approval jobs (misc_work.rs2). Lumberjack Leif, Miner Magnus and
+// Fisherman Frodi say the same thing with a different trade in it.
+[opnpc1,misc_lumberjack] @misc_worker("I'm cutting down maple trees for their wood. It's a living.");
+[opnpc1,misc_miner] @misc_worker("I'm mining coal. It's pretty tough going.");
+[opnpc1,misc_fisherman] @misc_frodi;
+
+[label,misc_worker](string $line)
+if (~misc_storerooms_full = true) {
+    return;
+}
+if (%misc_quest >= ^misc_complete) {
+    ~chatnpc("<p,happy>Good day, Your Royal Highness.");
+} else {
+    ~chatnpc("<p,neutral>Hello.");
+}
+~chatplayer("<p,quiz>Good day. What are you doing?");
+~chatnpc("<p,neutral><$line>");
+~chatplayer("<p,happy>Good luck with that.");
+if (%misc_quest >= ^misc_complete) {
+    ~chatnpc("<p,happy>Thank you, Your Royal Highness.");
+    return;
+}
+~chatnpc("<p,happy>Thanks.");
+
+// Frodi's is the one transcript the wiki records, with no before and after
+[label,misc_frodi]
+if (~misc_storerooms_full = true) {
+    return;
+}
+~chatnpc("<p,happy>Good day, Your Royal Highness.");
+~chatplayer("<p,quiz>Good day. What are you doing?");
+~chatnpc("<p,neutral>You know very well what I'm doing, Your Royal Highness.");
+~chatplayer("<p,laugh>Just teasing!");
+
+// The store the subjects fill is full - no more is gathered until Ghrim hands it over.
+[proc,misc_storerooms_full]()(boolean)
+if (%misc_quest < ^misc_complete | %misc_restotal < ^misc_restotal_max) {
+    return(false);
+}
+~chatnpc("<p,neutral>The storerooms are full, your Highness. You should talk to Advisor Ghrim to collect what we've gathered for you.");
+return(true);
+
+// Gardener Gunnhild sells rakes and sickles, and a sale now and then wins a little approval.
+[opnpc1,misc_gardener]
+if (~misc_storerooms_full = true) {
+    return;
+}
+def_boolean $royal = false;
+if (%misc_quest >= ^misc_complete) {
+    $royal = true;
+    ~chatplayer("<p,neutral>Hello there.");
+    ~chatnpc("<p,happy>Good day, Your Royal Highness.");
+} else {
+    ~chatnpc("<p,neutral>Hello.");
+}
+~chatplayer("<p,quiz>Good day. What are you doing?");
+~chatnpc("<p,neutral>I'm weeding this herb garden. It's hard work! I also sell a few gardening supplies.");
+if (~p_choice2("Good luck with that.", 1, "What do you have for sale?", 2) = 1) {
+    ~chatplayer("<p,happy>Good luck with that.");
+    if ($royal = true) {
+        ~chatnpc("<p,happy>Thank you, Your Royal Highness.");
+    } else {
+        ~chatnpc("<p,happy>Thanks.");
+    }
+    return;
+}
+~chatplayer("<p,quiz>What do you have for sale?");
+if ($royal = true) {
+    ~chatnpc("<p,happy>At the moment I'm selling garden rakes and iron sickles. If you'd like one, Your Royal Highness,");
+} else {
+    ~chatnpc("<p,happy>At the moment I'm selling garden rakes and iron sickles. They're 15gp each, if you'd like one?");
+}
+def_int $choice = ~p_choice4("I'd like a rake, please.", 1, "I'd like an iron sickle, please.", 2, "No, thank you.", 3, "What are iron sickles for?", 4);
+switch_int ($choice) {
+    case 1 : ~misc_gardener_sell(rake, "I'd like a rake, please.");
+    case 2 : ~misc_gardener_sell(iron_sickle, "I'd like an iron sickle, please.");
+    case 3 : ~chatplayer("<p,neutral>No, thank you.");
+    case 4 :
+        ~chatplayer("<p,quiz>What are iron sickles for?");
+        if ($royal = true) {
+            ~chatnpc("<p,neutral>I can't think of anything just now. But you can buy one if you like, Your Highness!");
+        } else {
+            ~chatnpc("<p,neutral>I can't think of anything just now. But you can buy one if you like!");
+        }
+}
+
+[proc,misc_gardener_sell](namedobj $obj, string $ask)
+~chatplayer("<p,happy><$ask>");
+if (inv_total(inv, coins) < 15) {
+    ~chatplayer("<p,sad>I don't have enough money.");
+    return;
+}
+if (inv_freespace(inv) = 0) {
+    mes("You don't have enough inventory space.");
+    return;
+}
+inv_del(inv, coins, 15);
+inv_add(inv, $obj, 1);
+~chatnpc("<p,happy>Thank you! Here you go.");
+// about one sale in ten
+if (random(10) = 0) {
+    ~misc_approval_gain(1, null);
+}
