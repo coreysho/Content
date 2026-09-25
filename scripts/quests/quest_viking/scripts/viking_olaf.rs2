@@ -45,8 +45,8 @@
 // Fletching 25.
 
 [opnpc1,viking_olaf]
-// Olaf owes the sailor a ballad and wants boots for it - Sigmund's chain, not his own trial.
-if (~viking_merchant(3, 25) = true) {
+// Link 2 of Sigmund's chain: the ballad the sailor wants, for a pair of sturdy boots.
+if (~viking_merchant(2) = true) {
     return;
 }
 if (%viking < ^viking_started) {
@@ -436,16 +436,97 @@ if (inv_total(inv, viking_strung_lyre) > 0) {
 ~chatnpc("<p,neutral>The lake is cold and I am old. Bring me fish, little thing.");
 
 
-// --- The stage ---
+// --- The longhall's backstage door and its bouncer ---
+// The stage is the back of the longhall (m41_57 x31-38 z34-37) and the backstage room that joins
+// it runs east to the door at (43,35), a wall on the west edge of that tile. Olaf and the Longhall
+// Bouncer stand outside it. Wiki: "Head past the bouncers and onto the stage, and then begin to
+// play" - you go through the door, walk out onto the stage and play.
+//
+// FIXED (reported: "can't exit longhall door after playing lyre"). The door used to teleport you
+// onto the middle of the stage unless you were already standing ON the stage tiles, in which case
+// it put you outside. But you can only open a door from the tile beside it, and the tile beside it
+// on the inside (42,35) is backstage, not the stage - so from the inside the door always said "you
+// slip through the door and out onto the stage" and dropped you back at (36,36). Nobody who went in
+// could ever come out. It is an ordinary door now: from inside it always lets you out; from outside
+// the bouncer decides (the wiki's Longhall Bouncer transcript), and only a performer with an
+// enchanted lyre gets in, before the Bard's trial is done.
 [oploc1,viking_bard_backstage_door]
-if (~viking_on_stage = true) {
-    mes("You slip back off the stage.");
-    p_telejump(^viking_backstage_door_exit);
+if (coordx(coord) < coordx(loc_coord)) {
+    ~open_and_close_door(viking_door_inactive, false, false);
     return;
 }
-mes("You slip through the door and out onto the stage.");
-p_telejump(^viking_stage_arrive);
+// He has one placement, two tiles from the door. If he is somehow not there, the door applies his
+// rule without him.
+if (npc_find(loc_coord, viking_longhall_bouncer, 8, 0) = true) {
+    if (~viking_bouncer_lets_in = false) {
+        return;
+    }
+    ~chatnpc("<p,neutral>Yeah, you're good to go through. Olaf tells me you're some kind of outerlander bard here on tour. I doubt you're worse than Olaf is.");
+} else if (~viking_performer = false) {
+    mes("The door is guarded.");
+    return;
+}
+~open_and_close_door(viking_door_inactive, true, false);
 
+[opnpc1,viking_longhall_bouncer]
+if (~viking_bouncer_lets_in = false) {
+    return;
+}
+~chatnpc("<p,neutral>You have an instrument now, huh? Go on through the door.");
+
+// Who is let backstage: someone on the Bard's trial, before it is done, carrying an enchanted lyre.
+[proc,viking_performer]()(boolean)
+if (%viking < ^viking_started | %viking >= ^viking_complete) {
+    return(false);
+}
+if (testbit(%viking_bits, ^viking_vote_olaf) = 1) {
+    return(false);
+}
+if (inv_total(inv, viking_enchanted_strung_lyre) = 0) {
+    return(false);
+}
+return(true);
+
+// The bouncer's refusals, word for word (wiki: Transcript:Longhall Bouncer). True when he lets you
+// through.
+[proc,viking_bouncer_lets_in]()(boolean)
+if (%viking < ^viking_started) {
+    ~chatnpc("<p,angry>Hey, outerlander. You can't go through there. Talent only, backstage.");
+    return(false);
+}
+if (%viking >= ^viking_complete | testbit(%viking_bits, ^viking_vote_olaf) = 1) {
+    ~chatnpc("<p,neutral>You can't go through there. Talent only, backstage.");
+    ~chatplayer("<p,quiz>But I'm a Bard!");
+    ~chatnpc("<p,angry>No you're not. I saw your performance. I was paid well to keep you from ever setting foot on stage here again.");
+    return(false);
+}
+if (inv_total(inv, viking_enchanted_strung_lyre) = 0) {
+    ~chatnpc("<p,angry>Get lost, outerlander. Performers only past this point.");
+    ~chatplayer("<p,quiz>But I am a performer!");
+    ~chatnpc("<p,quiz>Oh, really? So where's your instrument?");
+    ~chatplayer("<p,neutral>Um... I'm an acapella bard?");
+    ~chatnpc("<p,neutral>Oh, really? You won't mind singing me a quick song then.");
+    switch_int (~p_choice4_header("Tie Me Chompy Bird Down", 1, "Murphy Row The Boat Ashore", 2, "My Old Man's A Miner", 3, "Elvarg The Magic Dragon", 4, "Select the song to sing")) {
+        case 1 : ~chatplayer("<p,happy>Tie me chompy bird down, Rantz|Tie me chompy bird down!|Me stickers don't get no quicker,|So tie me chompy bird down!");
+        case 2 : ~chatplayer("<p,happy>Murphy row the boat ashore...|We are siiiiinking...");
+        case 3 : ~chatplayer("<p,happy>My old man's a miner,|Spends all day mining ore,|He wears a dragon ammy,|And lives in Falador - Oi!");
+        case default : ~chatplayer("<p,happy>Elvarg the magic dragon...|Lives by the sea...|He spends all his days eating folk,|And dies occasionally...");
+    }
+    ~chatnpc("<p,angry>That was a pile of tosh. Get lost, outerlander. You're a bard like I'm a goblin. Do I look stupid to you?");
+    ~chatplayer("<p,neutral>Well, actually...");
+    ~chatnpc("<p,angry>I said, get lost.");
+    return(false);
+}
+return(true);
+
+// The audience. Talk-to had no handler on any of the four (dead clicks); the wiki's standard line.
+[opnpc1,viking_heckler] ~chatnpc("<p,angry>Shhh! I'm waiting for the show!");
+[opnpc1,viking_heckler_2] ~chatnpc("<p,angry>Shhh! I'm waiting for the show!");
+[opnpc1,viking_heckler_3] ~chatnpc("<p,angry>Shhh! I'm waiting for the show!");
+[opnpc1,viking_heckler_4] ~chatnpc("<p,angry>Shhh! I'm waiting for the show!");
+
+
+// --- The performance ---
 [opheld1,viking_strung_lyre]
 mes("You pluck at the strings. It makes a noise, but not a good one.");
 ~mesbox("A lyre this plain is not going to impress anybody. The Fossegrimen at the lake shrine could put a voice into it.");
@@ -471,17 +552,140 @@ if (coordz(coord) < coordz(^viking_stage_sw) | coordz(coord) > coordz(^viking_st
 }
 return(true);
 
+// Wiki transcript, "Performing with the Lyre": you sing four lines of an epic about the best thing
+// you have done - the Legends', Heroes' or Champions' Guild, a 99 - or, failing all of those, about
+// having nothing much to say. The hall heckles, Olaf is delighted, the vote is given, and the
+// Fossegrimen's blessing leaves the lyre.
 [label,viking_olaf_performance]
-mes("You raise the lyre. The longhall goes quiet.");
-p_delay(3);
+mes("You withdraw your lyre.");
 anim(viking_lyre_play_once, 0);
-mes("You play.");
-p_delay(4);
-mes("The hecklers stop heckling.");
-p_delay(3);
-// The vote is set before the closing dialogue: every ~chatnpc ends in p_pausebutton and is
-// abortable, so a player who clicks away mid-applause would otherwise have performed for nothing.
+p_delay(1);
+def_int $verse = ~viking_olaf_verse;
+def_int $line = 0;
+while ($line < 4) {
+    say(~viking_olaf_verse_line($verse, $line));
+    anim(viking_lyre_play_once, 0);
+    ~viking_heckle;
+    p_delay(2);
+    $line = add($line, 1);
+}
+mes("Your lyre is perfectly tuned.");
+// The vote, and the blessing leaving every enchanted lyre you carry (the wiki: drop any spares
+// first "or they will become unenchanted"), happen before Olaf's line: ~chatnpc ends in
+// p_pausebutton and is abortable, and a player who clicks away mid-applause must not have played
+// for nothing.
 %viking_bits = setbit(%viking_bits, ^viking_vote_olaf);
-mes("The longhall erupts.");
-p_delay(2);
-~mesbox("Olaf the Bard has given you his vote.");
+def_int $lyres = inv_total(inv, viking_enchanted_strung_lyre);
+inv_del(inv, viking_enchanted_strung_lyre, $lyres);
+inv_add(inv, viking_strung_lyre, $lyres);
+mes("Congratulations! You have completed the Bard's Trial!");
+mes("As you finished playing you felt Fossegrimen's power leave you...");
+if (npc_find(coord, viking_olaf, 16, 0) = true) {
+    ~chatnpc("<p,happy>Wow! That was awesome! You are one of the greatest bards I have ever had the pleasure of watching performing! You have certainly earned my vote! I hope we can duet together soon!");
+}
+mes("Olaf the Bard has given you his vote.");
+
+// 1 Legends' Guild, 2 Heroes' Guild, 3 Champions' Guild, 4 a 99, 0 nothing to boast of.
+[proc,viking_olaf_verse]()(int)
+if (%legendsquest >= ^legends_complete) {
+    return(1);
+}
+if (%heroquest >= ^hero_complete) {
+    return(2);
+}
+if (%qp >= 32) {
+    return(3);
+}
+if (~viking_first_99 ! null) {
+    return(4);
+}
+return(0);
+
+[proc,viking_first_99]()(stat)
+def_int $i = 1;
+while ($i <= enum_getoutputcount(stats)) {
+    def_stat $stat = enum(int, stat, stats, $i);
+    if ($stat ! null) {
+        if (stat_base($stat) >= 99) {
+            return($stat);
+        }
+    }
+    $i = add($i, 1);
+}
+return(null);
+
+[proc,viking_olaf_verse_line](int $verse, int $line)(string)
+switch_int ($verse) {
+    case 1 :
+        switch_int ($line) {
+            case 0 : return("I cannot even start to list");
+            case 1 : return("the amount of foes I've killed.");
+            case 2 : return("I will simply tell you this:");
+            case default : return("I've joined the Legends' Guild!");
+        }
+    case 2 :
+        switch_int ($line) {
+            case 0 : return("When it comes to fighting");
+            case 1 : return("I hit my share of zeroes");
+            case 2 : return("But I'm well respected at");
+            case default : return("the Guild reserved for Heroes.");
+        }
+    case 3 :
+        switch_int ($line) {
+            case 0 : return("The thought of lots of questing");
+            case 1 : return("leaves some people unfulfilled,");
+            case 2 : return("but I have done my simple best");
+            case default : return("in entering the Champions' Guild.");
+        }
+    case 4 :
+        switch_int ($line) {
+            case 0 : return("When people speak of training");
+            case 1 : return("some people think they're fine.");
+            case 2 : return("But they just all seem jealous that");
+            case default : return("my <lowercase(~stat_name(~viking_first_99))>'s ninety-nine!");
+        }
+}
+switch_int ($line) {
+    case 0 : return("<displayname> is my name,");
+    case 1 : return("I haven't much to say.");
+    case 2 : return("But since I have to sing this song,");
+}
+return("I'll just go ahead and play.");
+
+// One of the four hecklers in front of the stage shouts something (wiki: Ospak, Styrmir, Torbrund
+// and Fridgeir's overhead lines while you perform). Two of the wiki's lines are only recorded cut
+// off mid-sentence and are left out rather than guessed at.
+[proc,viking_heckle]
+def_npc $who = viking_heckler;
+switch_int (random(4)) {
+    case 1 : $who = viking_heckler_2;
+    case 2 : $who = viking_heckler_3;
+    case 3 : $who = viking_heckler_4;
+}
+if (npc_find(coord, $who, 12, 0) = false) {
+    return;
+}
+switch_int (random(22)) {
+    case 0 : npc_say("Hey, I've done that quest too!");
+    case 1 : npc_say("I have met cows more musical than you!");
+    case 2 : npc_say("I thought somebody was murdering a cat!");
+    case 3 : npc_say("Is your singing some kind of outerlander weapon?");
+    case 4 : npc_say("My grandmother could do better, and she is dead!");
+    case 5 : npc_say("Please, ye gods! Make it stop!");
+    case 6 : npc_say("Worst. Bard. EVER.");
+    case 7 : npc_say("You call THAT singing?");
+    case 8 : npc_say("Don't give up your day job outerlander!");
+    case 9 : npc_say("I do such feats before breakfast!");
+    case 10 : npc_say("Never before have mine ears been so offended!");
+    case 11 : npc_say("Your song makes no sense outerlander!");
+    case 12 : npc_say("You know, I actually quite liked that verse...");
+    case 13 : npc_say("That's kind of catchy. Irritating. But catchy.");
+    case 14 : npc_say("Please... Kill me now...");
+    case 15 : npc_say("When do you get to the good parts?");
+    case 16 : npc_say("Truly, this is the worst sound I have ever heard!");
+    case 17 : npc_say("What kind of bard are you anyway?");
+    case 18 : npc_say("Please tell me that was the last verse...");
+    case 19 : npc_say("The screams of my dying comrades sound better!");
+    case 20 : npc_say("I have produced better sounds in the outhouse!");
+    case default : npc_say("YOU ARE A TERRIBLE BARD!");
+}

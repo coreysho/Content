@@ -16,8 +16,8 @@
 // themselves the next time you use the talisman. The trial cannot dead-end.
 
 [opnpc1,viking_sigli]
-// Sigli owes Brundt a map of the hunting grounds, which is what stalls Sigmund's chain here.
-if (~viking_merchant(6, 22) = true) {
+// Link 5 of Sigmund's chain: the map of his hunting grounds, for a custom bowstring.
+if (~viking_merchant(5) = true) {
     return;
 }
 if (%viking < ^viking_started) {
@@ -72,11 +72,27 @@ inv_add(inv, viking_draugen_talisman_uncharged, 1);
 ~chatnpc("<p,neutral>And you have lost the talisman. Here - try not to lose this one.");
 
 [label,viking_sigli_reward]
-~chatplayer("<p,happy>It's done. The Draugen is bound.");
 if (inv_total(inv, viking_draugen_talisman) = 0) {
-    ~chatnpc("<p,confused>Then where is the talisman? Bring it to me and I will believe you.");
+    if (inv_total(bank, viking_draugen_talisman) > 0) {
+        ~chatplayer("<p,happy>It's done. The Draugen is bound.");
+        ~chatnpc("<p,confused>Then where is the talisman? Bring it to me and I will believe you.");
+        return;
+    }
+    // FIXED (walking the quest end to end): the charged talisman is the only proof, the kill can
+    // only charge it once, and nothing handed out another - so losing it after the fight left Sigli
+    // asking for it forever. Wiki (Transcript:The Fremennik Trials, "Returning Victorious"): he
+    // gives you a fresh talisman and you hunt the Draugen again.
+    ~chatplayer("<p,sad>I defeated the draugen, but I have lost the talisman to prove I did.");
+    if (inv_freespace(inv) < 1) {
+        ~chatnpc("<p,neutral>Make room, and I will give you another.");
+        return;
+    }
+    %viking_bits = clearbit(%viking_bits, ^viking_bit_draugen_slain);
+    inv_add(inv, viking_draugen_talisman_uncharged, 1);
+    ~chatnpc("<p,angry>An amateurish mistake, outerlander. Any hunt without the proof of it is naught but empty boasting. Take this and try once more.");
     return;
 }
+~chatplayer("<p,happy>It's done. The Draugen is bound.");
 inv_del(inv, viking_draugen_talisman, 1);
 %viking_bits = setbit(%viking_bits, ^viking_vote_sigli);
 ~chatnpc("<p,happy>So it is. I can feel it in the wood.");

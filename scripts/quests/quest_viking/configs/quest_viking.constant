@@ -88,13 +88,12 @@
 ^viking_bit_firecracker_planted = 13
 ^viking_low_keg_cost = 250
 
-// Olaf's trial. The stage is m41_57 x31-38, z34-37 on plane 0 (32 viking_theatre_floor tiles inside
-// a row of viking_stage_edge along z=34), and the backstage door is at (43,35), east of it. All of
-// those tiles were checked walkable at level 0.
+// Olaf's trial. The stage is m41_57 x31-38, z34-37 on plane 0 (32 viking_theatre_floor tiles), the
+// backstage room joins it on the east (x39-42), and the backstage door is the wall on the west edge
+// of (43,35): (42,35) inside, (43,35) outside. The door is a plain door (viking_olaf.rs2) - it used
+// to teleport you to (36,36) on the stage and back out to (44,35), and could never let anyone out.
 ^viking_stage_sw = 0_41_57_31_34
 ^viking_stage_ne = 0_41_57_38_37
-^viking_stage_arrive = 0_41_57_36_36
-^viking_backstage_door_exit = 0_41_57_44_35
 // The lake shrine (viking_lake_shrine_altar, m41_56 local(2,14)) - Fossegrimen has no placement
 // anywhere, so she is summoned by the offering and cleaned up after.
 ^viking_fossegrimen_spot = 0_41_56_3_14
@@ -171,11 +170,13 @@
 
 // Sigmund's merchant trial - a One Small Favour-shaped chain. Five bits hold the step, 0-27.
 //   0        not started
-//   1-13     the asking pass:  Sigmund, Sailor, Olaf, Yrsa, Brundt, Sigli, Skulgrimen, Fisherman,
-//            Swensen, Thora, Manni, Thorvald, Peer - each one names the next
+//   1-13     the asking pass: you are looking for what link N has - the Sailor, Olaf, Yrsa, Brundt,
+//            Sigli, Skulgrimen, the Fisherman, Swensen, Peer, Thorvald, Manni, Thora, Askeladden
 //   14       Askeladden paid 5,000gp, promissory note in hand
 //   15-27    the delivery pass: Thora, Manni, Thorvald, Peer, Swensen, Fisherman, Skulgrimen,
 //            Sigli, Brundt, Yrsa, Olaf, Sailor, Sigmund
+// (viking_sigmund.rs2 has the whole table; the asking order after Swensen used to be Thora, Manni,
+// Thorvald, Peer, which is why the chain went quiet at Peer.)
 ^viking_merchant_lo = 19
 ^viking_merchant_hi = 23
 ^viking_merchant_asked_all = 13
