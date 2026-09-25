@@ -7,17 +7,16 @@
 // Stats sourced from the OSRS wiki for "Dagannoth (Horror from the Deep)" and "Dagannoth Mother":
 // both share the exact same base stat block (level 100, 120 hp, 78 atk/str, 81 def, 1 magic, 50
 // ranged, stab melee, max hit 9, all attack/defence bonuses +0, attack speed 4 ticks) - Mother's is
-// just layered with the elemental/style weakness-cycling mechanic on top (see quest_horror_combat.rs2
+// just layered with the elemental/style weakness-cycling mechanic on top (see horror_dagannoth.rs2
 // and the matching edits in skill_combat/scripts/player/player_{melee,ranged,magic}.rs2). Explicitly
 // excludes the 25 Jun 2025 "35% earth spell weakness" update added to the generic Dagannoth - that
 // postdates this server's January 2006 target era.
 //
-// horror_dagannoth_jr1/jr2/jr3 (emergence animation stages, no op2/combat params - not fought
-// directly) precede jr4 in the cache; horror_dagganoth_aira/airb/airc are Dagannoth Mother's
-// equivalent emergence stages. Wiring the actual emergence sequence (and where either of these
-// spawns in the first place) is blocked on the same missing Waterbirth-area/dungeon coordinates
-// flagged in the project doc - only the fightable end-states (jr4, and Mother's six phases) get
-// combat capability here.
+// horror_dagannoth_jr1/jr2/jr3 and horror_dagganoth_aira/airb/airc are the emergence stages (still in
+// _unpack/377/all.npc). The PlagueCityRS 349 port (2026-09-25) spawns them out of the water in
+// Jossik's cave and changes them into jr4 / the Mother - see horror_lighthousekeeper.rs2 and
+// horror_dagannoth.rs2. Stats and bonuses below stay ours; the port added only its behavioural
+// fields (category, timer, attackrange, ranges and sounds).
 
 [horror_dagannoth_jr4]
 name=Dagannoth
@@ -59,6 +58,12 @@ param=attack_anim,horror_dagannoth_attack
 param=defend_anim,horror_dagannoth_defend
 param=death_anim,horror_dagannoth_death
 param=retreat,0
+// PlagueCityRS 349 port: roams the cave once it has surfaced (it is only ever spawned for one player).
+maxrange=20
+wanderrange=63
+param=attack_sound,dagganoth_attack
+param=defend_sound,dagganoth_hit
+param=death_sound,dagganoth_death
 
 [horror_dagganoth_air]
 name=Dagannoth mother
@@ -95,25 +100,30 @@ param=attackbonus,0
 param=strengthbonus,0
 param=damagetype,^stab_style
 param=attackrate,4
-// Ranged component (2026-09-08). attackrange= is the engine field NpcType.attackrange, which gates
-// every ap trigger (Npc.ts:951) and defaults to 0 - param=attackrange, which this block already had,
-// is read by nothing anywhere in the repo. Without the field her [ai_applayer2] handler could never
-// fire and the hybrid below would be dead code. 8 tiles, matching the other dagannoth bosses.
-// rangeattack/rangebonus stay 0 like attackbonus/strengthbonus above: the wiki's bonus table for her
-// is all zeroes. Her ranged max hit is NOT derived from rangebonus - it is hardcoded 12 in
-// ~dagmother_range_maxhit, the same shape as ~dagannoth_prime_maxhit, because the wiki gives her a
-// flat "12x2" rather than a bonus to work back from.
-attackrange=8
+// attackrange= is the engine field every ap trigger is gated on (Npc.ts); param=attackrange is read
+// by nothing. Her ranged attack (horror_dagannoth.rs2, ~dagannoth_rangeattack) is the 349 original:
+// two rolls up to 12 each, stopped by Protect from Missiles. The rangeattack_anim/proj_travel params
+// below are not read by it.
+attackrange=10
 param=rangeattack,0
 param=rangebonus,0
 param=rangeattack_anim,horror_dagannoth_rangeattack
 param=proj_travel,dagannoth_arrow_spotanim_travel
 param=proj_height,40
-param=attackrange,8
+param=attackrange,10
 param=attack_anim,horror_dagannoth_attack
 param=defend_anim,horror_dagannoth_defend
 param=death_anim,horror_dagannoth_death
 param=retreat,0
+// PlagueCityRS 349 port: category for her op/ap attack handlers and death hook; timer=30 is her
+// colour cycle ([ai_timer] in horror_dagannoth.rs2).
+category=dagannoth_mother
+timer=30
+maxrange=20
+wanderrange=63
+param=attack_sound,dagganoth_attack
+param=defend_sound,dagganoth_hit
+param=death_sound,dagganoth_death
 
 [horror_dagganoth_water]
 name=Dagannoth mother
@@ -150,25 +160,30 @@ param=attackbonus,0
 param=strengthbonus,0
 param=damagetype,^stab_style
 param=attackrate,4
-// Ranged component (2026-09-08). attackrange= is the engine field NpcType.attackrange, which gates
-// every ap trigger (Npc.ts:951) and defaults to 0 - param=attackrange, which this block already had,
-// is read by nothing anywhere in the repo. Without the field her [ai_applayer2] handler could never
-// fire and the hybrid below would be dead code. 8 tiles, matching the other dagannoth bosses.
-// rangeattack/rangebonus stay 0 like attackbonus/strengthbonus above: the wiki's bonus table for her
-// is all zeroes. Her ranged max hit is NOT derived from rangebonus - it is hardcoded 12 in
-// ~dagmother_range_maxhit, the same shape as ~dagannoth_prime_maxhit, because the wiki gives her a
-// flat "12x2" rather than a bonus to work back from.
-attackrange=8
+// attackrange= is the engine field every ap trigger is gated on (Npc.ts); param=attackrange is read
+// by nothing. Her ranged attack (horror_dagannoth.rs2, ~dagannoth_rangeattack) is the 349 original:
+// two rolls up to 12 each, stopped by Protect from Missiles. The rangeattack_anim/proj_travel params
+// below are not read by it.
+attackrange=10
 param=rangeattack,0
 param=rangebonus,0
 param=rangeattack_anim,horror_dagannoth_rangeattack
 param=proj_travel,dagannoth_arrow_spotanim_travel
 param=proj_height,40
-param=attackrange,8
+param=attackrange,10
 param=attack_anim,horror_dagannoth_attack
 param=defend_anim,horror_dagannoth_defend
 param=death_anim,horror_dagannoth_death
 param=retreat,0
+// PlagueCityRS 349 port: category for her op/ap attack handlers and death hook; timer=30 is her
+// colour cycle ([ai_timer] in horror_dagannoth.rs2).
+category=dagannoth_mother
+timer=30
+maxrange=20
+wanderrange=63
+param=attack_sound,dagganoth_attack
+param=defend_sound,dagganoth_hit
+param=death_sound,dagganoth_death
 
 [horror_dagganoth_fire]
 name=Dagannoth mother
@@ -205,25 +220,30 @@ param=attackbonus,0
 param=strengthbonus,0
 param=damagetype,^stab_style
 param=attackrate,4
-// Ranged component (2026-09-08). attackrange= is the engine field NpcType.attackrange, which gates
-// every ap trigger (Npc.ts:951) and defaults to 0 - param=attackrange, which this block already had,
-// is read by nothing anywhere in the repo. Without the field her [ai_applayer2] handler could never
-// fire and the hybrid below would be dead code. 8 tiles, matching the other dagannoth bosses.
-// rangeattack/rangebonus stay 0 like attackbonus/strengthbonus above: the wiki's bonus table for her
-// is all zeroes. Her ranged max hit is NOT derived from rangebonus - it is hardcoded 12 in
-// ~dagmother_range_maxhit, the same shape as ~dagannoth_prime_maxhit, because the wiki gives her a
-// flat "12x2" rather than a bonus to work back from.
-attackrange=8
+// attackrange= is the engine field every ap trigger is gated on (Npc.ts); param=attackrange is read
+// by nothing. Her ranged attack (horror_dagannoth.rs2, ~dagannoth_rangeattack) is the 349 original:
+// two rolls up to 12 each, stopped by Protect from Missiles. The rangeattack_anim/proj_travel params
+// below are not read by it.
+attackrange=10
 param=rangeattack,0
 param=rangebonus,0
 param=rangeattack_anim,horror_dagannoth_rangeattack
 param=proj_travel,dagannoth_arrow_spotanim_travel
 param=proj_height,40
-param=attackrange,8
+param=attackrange,10
 param=attack_anim,horror_dagannoth_attack
 param=defend_anim,horror_dagannoth_defend
 param=death_anim,horror_dagannoth_death
 param=retreat,0
+// PlagueCityRS 349 port: category for her op/ap attack handlers and death hook; timer=30 is her
+// colour cycle ([ai_timer] in horror_dagannoth.rs2).
+category=dagannoth_mother
+timer=30
+maxrange=20
+wanderrange=63
+param=attack_sound,dagganoth_attack
+param=defend_sound,dagganoth_hit
+param=death_sound,dagganoth_death
 
 [horror_dagganoth_earth]
 name=Dagannoth mother
@@ -260,25 +280,30 @@ param=attackbonus,0
 param=strengthbonus,0
 param=damagetype,^stab_style
 param=attackrate,4
-// Ranged component (2026-09-08). attackrange= is the engine field NpcType.attackrange, which gates
-// every ap trigger (Npc.ts:951) and defaults to 0 - param=attackrange, which this block already had,
-// is read by nothing anywhere in the repo. Without the field her [ai_applayer2] handler could never
-// fire and the hybrid below would be dead code. 8 tiles, matching the other dagannoth bosses.
-// rangeattack/rangebonus stay 0 like attackbonus/strengthbonus above: the wiki's bonus table for her
-// is all zeroes. Her ranged max hit is NOT derived from rangebonus - it is hardcoded 12 in
-// ~dagmother_range_maxhit, the same shape as ~dagannoth_prime_maxhit, because the wiki gives her a
-// flat "12x2" rather than a bonus to work back from.
-attackrange=8
+// attackrange= is the engine field every ap trigger is gated on (Npc.ts); param=attackrange is read
+// by nothing. Her ranged attack (horror_dagannoth.rs2, ~dagannoth_rangeattack) is the 349 original:
+// two rolls up to 12 each, stopped by Protect from Missiles. The rangeattack_anim/proj_travel params
+// below are not read by it.
+attackrange=10
 param=rangeattack,0
 param=rangebonus,0
 param=rangeattack_anim,horror_dagannoth_rangeattack
 param=proj_travel,dagannoth_arrow_spotanim_travel
 param=proj_height,40
-param=attackrange,8
+param=attackrange,10
 param=attack_anim,horror_dagannoth_attack
 param=defend_anim,horror_dagannoth_defend
 param=death_anim,horror_dagannoth_death
 param=retreat,0
+// PlagueCityRS 349 port: category for her op/ap attack handlers and death hook; timer=30 is her
+// colour cycle ([ai_timer] in horror_dagannoth.rs2).
+category=dagannoth_mother
+timer=30
+maxrange=20
+wanderrange=63
+param=attack_sound,dagganoth_attack
+param=defend_sound,dagganoth_hit
+param=death_sound,dagganoth_death
 
 [horror_dagganoth_ranged]
 name=Dagannoth mother
@@ -315,25 +340,30 @@ param=attackbonus,0
 param=strengthbonus,0
 param=damagetype,^stab_style
 param=attackrate,4
-// Ranged component (2026-09-08). attackrange= is the engine field NpcType.attackrange, which gates
-// every ap trigger (Npc.ts:951) and defaults to 0 - param=attackrange, which this block already had,
-// is read by nothing anywhere in the repo. Without the field her [ai_applayer2] handler could never
-// fire and the hybrid below would be dead code. 8 tiles, matching the other dagannoth bosses.
-// rangeattack/rangebonus stay 0 like attackbonus/strengthbonus above: the wiki's bonus table for her
-// is all zeroes. Her ranged max hit is NOT derived from rangebonus - it is hardcoded 12 in
-// ~dagmother_range_maxhit, the same shape as ~dagannoth_prime_maxhit, because the wiki gives her a
-// flat "12x2" rather than a bonus to work back from.
-attackrange=8
+// attackrange= is the engine field every ap trigger is gated on (Npc.ts); param=attackrange is read
+// by nothing. Her ranged attack (horror_dagannoth.rs2, ~dagannoth_rangeattack) is the 349 original:
+// two rolls up to 12 each, stopped by Protect from Missiles. The rangeattack_anim/proj_travel params
+// below are not read by it.
+attackrange=10
 param=rangeattack,0
 param=rangebonus,0
 param=rangeattack_anim,horror_dagannoth_rangeattack
 param=proj_travel,dagannoth_arrow_spotanim_travel
 param=proj_height,40
-param=attackrange,8
+param=attackrange,10
 param=attack_anim,horror_dagannoth_attack
 param=defend_anim,horror_dagannoth_defend
 param=death_anim,horror_dagannoth_death
 param=retreat,0
+// PlagueCityRS 349 port: category for her op/ap attack handlers and death hook; timer=30 is her
+// colour cycle ([ai_timer] in horror_dagannoth.rs2).
+category=dagannoth_mother
+timer=30
+maxrange=20
+wanderrange=63
+param=attack_sound,dagganoth_attack
+param=defend_sound,dagganoth_hit
+param=death_sound,dagganoth_death
 
 [horror_dagganoth_melee]
 name=Dagannoth mother
@@ -370,32 +400,38 @@ param=attackbonus,0
 param=strengthbonus,0
 param=damagetype,^stab_style
 param=attackrate,4
-// Ranged component (2026-09-08). attackrange= is the engine field NpcType.attackrange, which gates
-// every ap trigger (Npc.ts:951) and defaults to 0 - param=attackrange, which this block already had,
-// is read by nothing anywhere in the repo. Without the field her [ai_applayer2] handler could never
-// fire and the hybrid below would be dead code. 8 tiles, matching the other dagannoth bosses.
-// rangeattack/rangebonus stay 0 like attackbonus/strengthbonus above: the wiki's bonus table for her
-// is all zeroes. Her ranged max hit is NOT derived from rangebonus - it is hardcoded 12 in
-// ~dagmother_range_maxhit, the same shape as ~dagannoth_prime_maxhit, because the wiki gives her a
-// flat "12x2" rather than a bonus to work back from.
-attackrange=8
+// attackrange= is the engine field every ap trigger is gated on (Npc.ts); param=attackrange is read
+// by nothing. Her ranged attack (horror_dagannoth.rs2, ~dagannoth_rangeattack) is the 349 original:
+// two rolls up to 12 each, stopped by Protect from Missiles. The rangeattack_anim/proj_travel params
+// below are not read by it.
+attackrange=10
 param=rangeattack,0
 param=rangebonus,0
 param=rangeattack_anim,horror_dagannoth_rangeattack
 param=proj_travel,dagannoth_arrow_spotanim_travel
 param=proj_height,40
-param=attackrange,8
+param=attackrange,10
 param=attack_anim,horror_dagannoth_attack
 param=defend_anim,horror_dagannoth_defend
 param=death_anim,horror_dagannoth_death
 param=retreat,0
+// PlagueCityRS 349 port: category for her op/ap attack handlers and death hook; timer=30 is her
+// colour cycle ([ai_timer] in horror_dagannoth.rs2).
+category=dagannoth_mother
+timer=30
+maxrange=20
+wanderrange=63
+param=attack_sound,dagganoth_attack
+param=defend_sound,dagganoth_hit
+param=death_sound,dagganoth_death
 
 // --- The lighthouse's ranged dagannoths (horror_dagganoth_jr / _darker / _lighter, npcs 1338-1340) ---
 // Moved out of _unpack/377/all.npc (2026-09-08) so they can carry a real attackrange field.
 //
 // These are the level-74 Dagannoths on the basalt causeway outside the lighthouse. They are ranged
 // attackers (param=damagetype,^ranged_style, proj_travel=dagannoth_arrow_spotanim_travel) and
-// horror_basalt.rs2 wires them to ~npc_default_retaliate_ap + ~npc_rangeattack - but every one of
+// horror_dagannoth.rs2 wires them to ~npc_default_retaliate_ap + ~dagannoth_rangeattack (since the
+// PlagueCityRS 349 port; ~npc_rangeattack before it) - but every one of
 // their cache blocks set param=attackrange,7 and NOT the attackrange= config field, and those are
 // two completely different things:
 //
