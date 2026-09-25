@@ -1,0 +1,86 @@
+// ---------------------------------------------------------------------------------------------
+// THE PISCATORIS HUNTER AREA (2026-09-25): south of the Piscatoris Fishing Colony, west of the Tree
+// Gnome Stronghold - mapsquares 36_55 and 36_56 and the falconry enclosure in the west of 37_55/37_56.
+// Everything the OSRS wiki has there from 2006, at OSRS's levels and experience:
+//
+//   common kebbit        3    36     tracking   bones, common kebbit fur
+//   copper longtail      9    61.2   snare      bones, raw bird meat, orange feathers
+//   ruby harvest        15    24     net        (a butterfly - into a jar, or let go)
+//   wild kebbit         23   128     deadfall   (Feldip's own, twenty more on the southern boulders)
+//   prickly kebbit      37   204     deadfall   bones, kebbit spike
+//   spotted kebbit      43   104     falconry   bones, spotted kebbit fur
+//   razor-backed kebbit 49   348.5   tracking   bones, long kebbit spike
+//   chinchompa          53   198.25  box trap   (Feldip's own, twenty-two more here)
+//   dark kebbit         57   132     falconry   bones, dark kebbit fur
+//   dashing kebbit      69   156     falconry   bones, dashing kebbit fur
+//
+// The prickly kebbit's 204 is the 2006 figure; OSRS cut it to 147.2 in August 2026. The ferret and
+// the white rabbit the wiki also lists there are left out: it places no ferrets (no spawns), and
+// rabbit snaring is a 2024 addition.
+// See scripts/hunter_piscatoris.rs2 (tracking, the traps, the butterflies) and hunter_falconry.rs2.
+
+^hunter_common_kebbit_level = 3
+^hunter_common_kebbit_xp = 360
+^hunter_razorback_kebbit_level = 49
+^hunter_razorback_kebbit_xp = 3485
+// Tracking rolls are not OSRS's - it publishes none. The Feldip weasel's shape: an easy catch at the
+// unlock level for the common kebbit, a harder one for the razor-back.
+^hunter_common_kebbit_low = 150
+^hunter_common_kebbit_high = 250
+^hunter_razorback_kebbit_low = 90
+^hunter_razorback_kebbit_high = 240
+
+// Bird snare. The roll IS OSRS's: 33% at level 1 to 152% at 99 (Mod Ash), which stat_random's
+// low/high reproduce as (percent x 2.56) - 1.
+^hunter_longtail_level = 9
+^hunter_longtail_xp = 612
+^hunter_longtail_low = 84
+^hunter_longtail_high = 388
+
+// Deadfall. OSRS's rates for it were raised in 2026 and the old ones are not published; the
+// barb-tailed kebbit's shape, one step harder.
+^hunter_prickly_kebbit_level = 37
+^hunter_prickly_kebbit_xp = 2040
+^hunter_prickly_kebbit_low = 50
+^hunter_prickly_kebbit_high = 225
+
+// Butterfly net: the ruby harvest, OSRS's level-15 butterfly, and the viceroy's roll (same level).
+^hunter_ruby_level = 15
+^hunter_ruby_xp = 240
+^hunter_ruby_low = 70
+^hunter_ruby_high = 235
+
+// What the trap is holding (~hunter_catch_pay). Piscatoris's block is 50-59: the hunter areas were added
+// side by side, and each took its own block rather than the next small number.
+^hunter_catch_copper_longtail = 50
+^hunter_catch_prickly_kebbit = 51
+
+// ---------------------------------------------------------------------------------------------
+// FALCONRY (scripts/hunter_falconry.rs2). Matthias lends a gyr falcon and his glove for 500 coins, to
+// a hunter of 43 or more, for as long as you stay inside his fence. The three kebbits and their rolls
+// are OSRS's: spotted 10% at level 1 to 121% at 99, dark 0% to 99%, dashing 0% to 80% (Mod Ash) -
+// (percent x 2.56) - 1 again. Success depends on the level alone, not the distance.
+^falconry_level = 43
+^falconry_fee = 500
+^hunter_spotted_kebbit_level = 43
+^hunter_spotted_kebbit_xp = 1040
+^hunter_spotted_kebbit_low = 25
+^hunter_spotted_kebbit_high = 309
+^hunter_dark_kebbit_level = 57
+^hunter_dark_kebbit_xp = 1320
+^hunter_dark_kebbit_low = 0
+^hunter_dark_kebbit_high = 252
+^hunter_dashing_kebbit_level = 69
+^hunter_dashing_kebbit_xp = 1560
+^hunter_dashing_kebbit_low = 0
+^hunter_dashing_kebbit_high = 204
+
+// How far the falcon can be sent (tiles - OSRS's 7), and how long it waits on a catch before it
+// gives up on you and flies home to Matthias (ticks: a minute).
+^falconry_range = 7
+^falconry_wait = 100
+// How often the glove's timer looks at where you are (ticks).
+^falconry_interval = 2
+
+// The falconry enclosure is ~falconry_in_area (scripts/hunter_falconry.rs2): ten rectangles over the
+// fence's odd shape, Matthias's hut at the north end, and the stile in its north wall the only way in.

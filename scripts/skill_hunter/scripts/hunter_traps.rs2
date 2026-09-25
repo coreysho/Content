@@ -420,6 +420,17 @@ switch_int ($catch) {
         inv_add(inv, black_salamander, 1);
         mes("You've caught a black salamander.");
         ~hunter_xp(^hunter_black_salamander_xp);
+    case ^hunter_catch_copper_longtail :
+        inv_add(inv, bones, 1);
+        inv_add(inv, raw_bird_meat, 1);
+        inv_add(inv, orange_feather, ^hunter_bird_feathers);
+        mes("You've caught a copper longtail.");
+        ~hunter_xp(^hunter_longtail_xp);
+    case ^hunter_catch_prickly_kebbit :
+        inv_add(inv, bones, 1);
+        inv_add(inv, kebbit_spike, 1);
+        mes("You've caught a prickly kebbit.");
+        ~hunter_xp(^hunter_prickly_kebbit_xp);
 }
 
 // ------------------------------------------------------------------------------------ the loop
@@ -475,6 +486,7 @@ if (loc_find($at, $type) = true) {
         case hunter_snare_catching_swift : loc_change(hunter_snare_caught_swift, ^hunter_trap_duration);
         case hunter_snare_catching_wagtail : loc_change(hunter_snare_caught_wagtail, ^hunter_trap_duration);
         case hunter_deadfall_set : ~hunter_trap_lure_deadfall($at);
+        case hunter_snare_catching_longtail : loc_change(hunter_snare_caught_longtail, ^hunter_trap_duration);
     }
 }
 return(true);
@@ -504,6 +516,9 @@ if (random(^hunter_trap_lure_chance) ! 0) {
     return;
 }
 def_int $lvl = stat(hunter);
+if (~hunter_pisc_lure_snare($at) = true) { // the copper longtail (hunter_piscatoris.rs2)
+    return;
+}
 if ($lvl >= ^hunter_wagtail_level & npc_find($at, hunter_tropical_wagtail, ^hunter_trap_lure_radius, 0) = true) {
     ~hunter_trap_spring(hunter_snare_catching_wagtail, hunter_snare_springing, ^hunter_wagtail_low, ^hunter_wagtail_high);
     return;
@@ -520,6 +535,9 @@ if (random(^hunter_trap_lure_chance) ! 0) {
     return;
 }
 def_int $lvl = stat(hunter);
+if (~hunter_pisc_lure_deadfall($at) = true) { // the prickly kebbit (hunter_piscatoris.rs2)
+    return;
+}
 if ($lvl >= ^hunter_barbtailed_kebbit_level & npc_find($at, hunter_barbtailed_kebbit, ^hunter_trap_lure_radius, 0) = true) {
     ~hunter_trap_spring(hunter_deadfall_barbtailed, hunter_deadfall_collapsed, ^hunter_barbtailed_kebbit_low, ^hunter_barbtailed_kebbit_high);
     return;
@@ -707,6 +725,9 @@ if (loc_find($at, hunter_deadfall_barbtailed) = true) return(hunter_deadfall_bar
 if (loc_find($at, hunter_pit_spiked) = true) return(hunter_pit_spiked);
 if (loc_find($at, hunter_pit_collapsed) = true) return(hunter_pit_collapsed);
 if (loc_find($at, hunter_pit_larupia) = true) return(hunter_pit_larupia);
+if (loc_find($at, hunter_snare_catching_longtail) = true) return(hunter_snare_catching_longtail);
+if (loc_find($at, hunter_snare_caught_longtail) = true) return(hunter_snare_caught_longtail);
+if (loc_find($at, hunter_deadfall_prickly) = true) return(hunter_deadfall_prickly);
 return(null);
 
 // ------------------------------------------------------------------------------------ inventory
@@ -726,6 +747,8 @@ switch_int ($catch) {
     case ^hunter_catch_wild_kebbit : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(kebbit_claws));
     case ^hunter_catch_barbtailed_kebbit : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(barbtail_harpoon));
     case ^hunter_catch_larupia : $need = calc($need + ~hunter_slot_need(big_bones) + ~hunter_slot_need(larupia_fur));
+    case ^hunter_catch_copper_longtail : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(raw_bird_meat) + ~hunter_slot_need(orange_feather));
+    case ^hunter_catch_prickly_kebbit : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(kebbit_spike));
 }
 if (inv_freespace(inv) < $need) {
     return(false);
