@@ -1,34 +1,58 @@
-[opnpc2,trail_hard]
+// The Saradomin wizard, the guardian of some hard sextant clues (param trail_guardian,trail_hard2).
+// Ported from 349. It casts Saradomin Strike (349's npc-only variant is our ^saradomin_strike, the
+// one the Mage Arena's battle mages use) and otherwise stabs, poisoning. Beating it marks the hard
+// tier's guardian as defeated, the same flag as the Zamorak wizard (queue_defeat_trail_hard).
+
+[opnpc2,trail_hard2]
 if (%npc_aggressive_player ! uid) {
     mes("It's not after you...");
     return;
 }
+npc_setmode(opplayer2);
 @player_combat_start;
 
-[apnpc2,trail_hard] 
+[apnpc2,trail_hard2] 
 if (%npc_aggressive_player ! uid) {
     mes("It's not after you...");
     return;
 }
+npc_setmode(applayer2);
 @player_combat_start_ap;
 
-// 349: hit from somewhere he cannot walk to, he casts from where he stands instead (ap) and stays so
-[ai_queue1,trail_hard]
-if(finduid(%npc_aggressive_player) = true & (npc_getmode ! opplayer2 | lineofwalk(npc_coord, coord) = false)) {
-    npc_setmode(applayer2);
-}
+[ai_queue1,trail_hard2]
 if(npc_getmode = applayer2) ~npc_default_retaliate_ap;
 else ~npc_default_retaliate;
 
-[ai_applayer2,trail_hard]
-// once he's in ap he never switches back
-~npc_cast_spell(^flames_of_zamorak, 4);
+[ai_applayer2,trail_hard2]
+// once he's in ap he never switches back, and will only attack with mage
+~npc_cast_spell(^saradomin_strike, 4);
 
-[ai_opplayer2,trail_hard]
-~npc_cast_spell(^flames_of_zamorak, 4);
-npc_setmode(opplayer2);
+[ai_opplayer2,trail_hard2]
+if (~check_protect_prayer(^melee_style) = true) {
+    ~npc_cast_spell(^saradomin_strike, 4);
+    npc_setmode(opplayer2); // keep in op
+    return;
+} 
+if(~check_protect_prayer(^magic_style) = true) {
+    ~sarawiz_melee_attack;
+    return;
+}
 
-[ai_timer,trail_hard]
+if(random(3) = 0) { // about 1/3, 71/42 in 113 attacks
+    ~npc_cast_spell(^saradomin_strike, 4);
+    npc_setmode(opplayer2);
+} else {
+    ~sarawiz_melee_attack;
+}
+
+[proc,sarawiz_melee_attack]
+def_int $rand = random(20);
+if ($rand ! 0) {
+    queue(poison_player, 0, 30);
+}
+~npc_default_attack;
+
+[ai_timer,trail_hard2]
 if(finduid(%npc_aggressive_player) = false) {
     npc_del;
     return;
@@ -37,7 +61,7 @@ if(distance(coord, npc_coord) > 17) { // not 100% sure on this, think it's the s
     npc_del;
 }
 
-[ai_queue3,trail_hard]
+[ai_queue3,trail_hard2]
 if (npc_findhero = ^true) {
     queue(queue_defeat_trail_hard, 0, 0);
 }
@@ -50,11 +74,7 @@ obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
 
 def_int $random = random(128);
 
-if ($random < 4) {
-    obj_add(npc_coord, zamrobebottom, 1, ^lootdrop_duration);
-} else if ($random < 7) {
-    obj_add(npc_coord, zamrobetop, 1, ^lootdrop_duration);
-} else if ($random < 10) {
+if ($random >= 7 & $random < 10) {
     obj_add(npc_coord, water_battlestaff, 1, ^lootdrop_duration);
 } else if ($random < 13) {
     obj_add(npc_coord, earth_battlestaff, 1, ^lootdrop_duration);
@@ -97,6 +117,3 @@ if ($random < 4) {
 } else if ($random < 112) {
     obj_add(npc_coord, coins, 240, ^lootdrop_duration);
 }
-
-[queue,queue_defeat_trail_hard] 
-~trail_set_guardian_defeated(^trail_tier_hard);

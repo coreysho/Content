@@ -38,7 +38,7 @@ if ($rare > 0) {
 ~collection_log_casket(^collection_log_counter_clue_hard, "hard");
 
 [proc,trail_clue_hard_normal]
-def_int $random = random(20);
+def_int $random = random(21); // the last case is 349's god book page
 
 switch_int ($random) {
     case 0 : inv_add(trail_rewardinv, coins, calc(1000 + random(4001)));
@@ -61,13 +61,15 @@ switch_int ($random) {
     case 17 : inv_add(trail_rewardinv, black_dragonhide_chaps, 1);
     case 18 : inv_add(trail_rewardinv, magic_shortbow, 1);
     case 19 : inv_add(trail_rewardinv, magic_longbow, 1);
+    case 20 : inv_add(trail_rewardinv, ~trail_reward_godpage);
 }
 
 [proc,trail_clue_hard_rare]
-// 34 rares, not 33: the Thread of Elidinis is the last case. OSRS puts it in Tombs of Amascut, a
+// 40 rares: 33, the Thread of Elidinis (case 33), and 349's six after it (the trimmed and god rune
+// plateskirts, and its ultrarare roll: gilded rune or a stack of noted potions). The Thread of Elidinis: OSRS puts it in Tombs of Amascut, a
 // 2022 raid, and the top clue tier is where this build keeps one-off upgrades that have no
 // content of their own to come from - there is no elite tier here, hard IS the top.
-def_int $random = random(34);
+def_int $random = random(40); // the last six are 349's: the trimmed and god plateskirts, and its gilded-or-potions roll
 
 switch_int ($random) {
     case 0 : inv_add(trail_rewardinv, robinhoodhat, 1);
@@ -104,4 +106,35 @@ switch_int ($random) {
     case 31 : inv_add(trail_rewardinv, rune_heraldic_kiteshield4, 1);
     case 32 : inv_add(trail_rewardinv, rune_heraldic_kiteshield5, 1);
     case 33 : inv_add(trail_rewardinv, thread_of_elidinis, 1);
+    case 34 : inv_add(trail_rewardinv, rune_plateskirt_guthix, 1);
+    case 35 : inv_add(trail_rewardinv, rune_plateskirt_saradomin, 1);
+    case 36 : inv_add(trail_rewardinv, rune_plateskirt_zamorak, 1);
+    case 37 : inv_add(trail_rewardinv, rune_plateskirt_trim, 1);
+    case 38 : inv_add(trail_rewardinv, rune_plateskirt_gold, 1);
+    case 39 : ~trail_clue_hard_ultrarare;
+}
+
+// 349's ultrarare: half the time a stack of noted potions, half the time a piece of gilded rune.
+[proc,trail_clue_hard_ultrarare]
+def_int $rand = random(2);
+if($rand = 0) { // junk table
+    $rand = random(4);
+    switch_int ($rand) {
+        case 0 : inv_add(trail_rewardinv, cert_4dose2energy, 15);
+        case 1 : inv_add(trail_rewardinv, cert_4dose2restore, 15);
+        case 2 : inv_add(trail_rewardinv, cert_4dose1antidragon, 15);
+        case 3 :
+            inv_add(trail_rewardinv, cert_4dose2attack, 5);
+            inv_add(trail_rewardinv, cert_4dose2strength, 5);
+            inv_add(trail_rewardinv, cert_4dose2defense, 5);
+    }
+} else { // gilded table
+    $rand = random(5);
+    switch_int ($rand) {
+        case 0 : inv_add(trail_rewardinv, rune_platebody_goldplate, 1);
+        case 1 : inv_add(trail_rewardinv, rune_platelegs_goldplate, 1);
+        case 2 : inv_add(trail_rewardinv, rune_full_helm_goldplate, 1);
+        case 3 : inv_add(trail_rewardinv, rune_plateskirt_goldplate, 1);
+        case 4 : inv_add(trail_rewardinv, rune_kiteshield_goldplate, 1);
+    }
 }
