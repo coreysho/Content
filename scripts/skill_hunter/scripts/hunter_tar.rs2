@@ -1,0 +1,64 @@
+// Herb tar - a salamander's ammunition (hunter_salamander.rs2), made with Herblore (2026-09-25). OSRS's:
+// use 15 swamp tar and a clean herb together with a pestle and mortar in the pack, and the herb is ground
+// into the tar - 15 herb tar, for
+//
+//   guam tar          Herblore 19   30 xp
+//   marrentill tar             31   42.5
+//   tarromin tar               39   55
+//   harralander tar            44   72.5
+//
+// Druidic Ritual first, as every Herblore action here. Reached from [opheldu,swamp_tar]
+// (quest_seaslug.rs2 - a trigger may only be declared once), which fires whichever way round the two are
+// used, with the herb in last_useitem.
+
+// The tar a herb makes, or null for anything else.
+[proc,hunter_herb_tar](obj $herb)(namedobj)
+switch_obj ($herb) {
+    case guam_leaf : return(guam_tar);
+    case marentill : return(marrentill_tar);
+    case tarromin : return(tarromin_tar);
+    case harralander : return(harralander_tar);
+}
+return(null);
+
+[label,hunter_make_tar](obj $herb)
+def_namedobj $tar = ~hunter_herb_tar($herb);
+def_int $level = 0;
+def_int $xp = 0;
+switch_obj ($tar) {
+    case guam_tar : $level = ^guam_tar_level; $xp = ^guam_tar_xp;
+    case marrentill_tar : $level = ^marrentill_tar_level; $xp = ^marrentill_tar_xp;
+    case tarromin_tar : $level = ^tarromin_tar_level; $xp = ^tarromin_tar_xp;
+    case harralander_tar : $level = ^harralander_tar_level; $xp = ^harralander_tar_xp;
+    case default :
+        ~displaymessage(^dm_default);
+        return;
+}
+if (map_members = ^false) {
+    mes(^mes_members_herblore);
+    return;
+}
+if (~herblore_requires_druidic_ritual = false) {
+    return;
+}
+if (stat(herblore) < $level) {
+    ~mesbox("You need a Herblore level of at least <tostring($level)> to make <lowercase(oc_name($tar))>.");
+    return;
+}
+if (inv_total(inv, pestle_and_mortar) = 0) {
+    mes("You need a pestle and mortar to grind the herb into the tar.");
+    return;
+}
+if (inv_total(inv, swamp_tar) < ^tar_batch) {
+    mes("You need at least <tostring(^tar_batch)> swamp tar to make <lowercase(oc_name($tar))>.");
+    return;
+}
+// The herb's slot empties and the tar is stackable, so there is always room for it.
+inv_del(inv, $herb, 1);
+inv_del(inv, swamp_tar, ^tar_batch);
+inv_add(inv, $tar, ^tar_batch);
+anim(human_herbing_grind, 0);
+sound_synth(grind, 1, 0);
+mes("You grind the <lowercase(oc_name($herb))> into the swamp tar.");
+stat_advance(herblore, $xp);
+p_delay(2);

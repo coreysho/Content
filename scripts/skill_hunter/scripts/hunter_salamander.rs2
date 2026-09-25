@@ -1,0 +1,250 @@
+// Hunter - SALAMANDERS AS WEAPONS (2026-09-25). A net trap's catch (hunter_nettrap.rs2) is OSRS's
+// two-handed salamander: it breathes fire at whatever is next to it, and the fire is fed by herb tar in
+// the ammunition slot, one tar an attack whatever the style. OSRS's, from the wiki's salamander pages:
+//
+//                       wield (Att/Rng/Mag)   tar              slash  ranged  str  (magic dmg)
+//   swamp lizard        30                    guam tar         +10    +20    +22   56
+//   orange salamander   50                    marrentill tar   +19    +29    +31   59
+//   red salamander      60                    tarromin tar     +37    +47    +49   77
+//   black salamander    70                    harralander tar  +59    +69    +71   92
+//
+// Three styles, each its own attack type with its own accuracy bonus (configs/hunter_weapons.dbrow):
+//   Scorch - slash, max hit from the salamander's strength bonus, Strength experience, 5 ticks
+//   Flare  - ranged, max hit from the TAR's ranged strength (+16/+22/+31/+49), Ranged experience, 4 ticks
+//   Blaze  - magic, max hit floor(0.5 + Magic * (64 + magic damage) / 640), Magic experience at half a
+//            spell's rate (2 a damage), 5 ticks
+// All three reach one tile - diagonals too, so over a fence or a corner - and land as a melee swing
+// does, on the tick.
+//
+// Only a salamander's own tar feeds it, as the wiki's table has it. The tar is used up, never dropped.
+//
+// THE ART is OSRS's, imported by importosrsspot.py (configs/hunter_weapons.seq/.spotanim): the stance
+// (seq 5246), the walk (5245) and the lunge (5247) - posed on a human mesh with the salamander in its
+// hands before use - and the graphics 952-954. 952 is the jet of flame the wiki's own recording shows
+// leaving the salamander; 953 is the same jet under a recolour that matches none of its model's colours,
+// so it looks the same in OSRS too; 954 is a ball of fire drawn round the body at chest height, which is
+// the shape of an impact, so Blaze's lands on the target. The sounds are the cache's salamander ones, as
+// the wiki files them: the slash attack plays salamander_flame, the "standard" (ranged) one
+// salamander_blaze and the magic one salamander_scorch - the names do not line up with the styles, and
+// that is how the files are named, not a slip here.
+//
+// THE COMBAT TAB is the thrown weapons' - 474 has the salamander's own (interface 474: Scorch, Flare,
+// Blaze), laid out exactly as the thrown tab is, but a new interface is not for this round to add. So the
+// thrown tab is relabelled with 474's words while a salamander is wielded (~hunter_thrown_tab_labels,
+// hunter_chinchompa.rs2) - only the right-click names of its three buttons, which the server cannot
+// change, still read Accurate/Rapid/Longrange.
+
+[opheld2,swamp_lizard] @salamander_wield(^salamander_swamp_lizard_level, last_slot);
+[opheld2,orange_salamander] @salamander_wield(^salamander_orange_level, last_slot);
+[opheld2,red_salamander] @salamander_wield(^salamander_red_level, last_slot);
+[opheld2,black_salamander] @salamander_wield(^salamander_black_level, last_slot);
+
+// Attack, Ranged and Magic at the same level; each one short is named, as the single-stat labels in
+// levelrequire.rs2 word it.
+[label,salamander_wield](int $level, int $slot)
+if (stat_base(attack) < $level | stat_base(ranged) < $level | stat_base(magic) < $level) {
+    mes("You are not a high enough level to use this item.");
+    if (stat_base(attack) < $level) mes("You need to have an Attack level of <tostring($level)>.");
+    if (stat_base(ranged) < $level) mes("You need to have a Ranged level of <tostring($level)>.");
+    if (stat_base(magic) < $level) mes("You need to have a Magic level of <tostring($level)>.");
+    return;
+}
+~equip($slot);
+
+[proc,salamander_armed]()(boolean)
+def_obj $rhand = inv_getobj(worn, ^wearpos_rhand);
+if ($rhand = null | map_members = ^false) {
+    return(false);
+}
+if (oc_category($rhand) = weapon_salamander) {
+    return(true);
+}
+return(false);
+
+[proc,salamander_tar](obj $salamander)(obj)
+switch_obj ($salamander) {
+    case swamp_lizard : return(guam_tar);
+    case orange_salamander : return(marrentill_tar);
+    case red_salamander : return(tarromin_tar);
+    case black_salamander : return(harralander_tar);
+}
+return(null);
+
+[proc,salamander_magic_damage](obj $salamander)(int)
+switch_obj ($salamander) {
+    case swamp_lizard : return(^salamander_swamp_lizard_magic);
+    case orange_salamander : return(^salamander_orange_magic);
+    case red_salamander : return(^salamander_red_magic);
+    case black_salamander : return(^salamander_black_magic);
+}
+return(0);
+
+// The tar in the ammunition slot, if it is this salamander's; otherwise why not, and null.
+[proc,salamander_ammo](obj $salamander)(obj)
+def_obj $tar = inv_getobj(worn, ^wearpos_quiver);
+if ($tar = null) {
+    mes("There is no ammo left in your quiver.");
+    return(null);
+}
+if ($tar ! ~salamander_tar($salamander)) {
+    mes("You can't use that ammo with your salamander.");
+    return(null);
+}
+return($tar);
+
+[proc,salamander_rate]()(int)
+if (%damagetype = ^ranged_style) {
+    return(^salamander_flare_rate);
+}
+return(^salamander_rate);
+
+// Scorch and Flare hit up to the max hit ~player_combat_stat worked out for the style - the salamander's
+// strength, or the tar's ranged strength (equip.rs2 counts a salamander's tar, as it counts a bow's
+// arrows). Blaze has a formula of its own.
+[proc,salamander_maxhit](obj $salamander)(int)
+if (%damagetype = ^magic_style) {
+    return(calc((stat(magic) * (64 + ~salamander_magic_damage($salamander)) + 320) / 640));
+}
+return(%com_maxhit);
+
+// What the style looks and sounds like, on the attacker (and Blaze's burst on the target, below).
+[proc,salamander_breathe]
+anim(osrs_salamander_attack, 0);
+switch_int (%damagetype) {
+    case ^ranged_style :
+        sound_synth(salamander_blaze, 0, 0);
+        spotanim_pl(salamander_flare, 92, 0);
+    case ^magic_style :
+        sound_synth(salamander_scorch, 0, 0);
+    case default :
+        sound_synth(salamander_flame, 0, 0);
+        spotanim_pl(salamander_scorch, 92, 0);
+}
+
+// Monsters that only one kind of attack harms, as the melee and ranged paths have them: a kurask or a
+// turoth wants a leaf-bladed spear or broad arrows, and the Dagannoth Mother takes melee only in her melee
+// phase and ranged only in her ranged one. Blaze is no spell of any element, so she takes none of it.
+[proc,salamander_harmless]()(boolean)
+if (npc_param(slayer_category) = ^slayer_kurask | npc_param(slayer_category) = ^slayer_turoth) {
+    return(true);
+}
+if (npc_type = horror_dagganoth_air | npc_type = horror_dagganoth_water | npc_type = horror_dagganoth_earth | npc_type = horror_dagganoth_fire | npc_type = horror_dagganoth_melee | npc_type = horror_dagganoth_ranged) {
+    if (%damagetype = ^slash_style & npc_type = horror_dagganoth_melee) {
+        return(false);
+    }
+    if (%damagetype = ^ranged_style & npc_type = horror_dagganoth_ranged) {
+        return(false);
+    }
+    return(true);
+}
+return(false);
+
+// ---------------------------------------------------------------------------------------------
+// At a monster - reached from [label,player_combat_start] whenever a salamander is wielded
+// ---------------------------------------------------------------------------------------------
+[label,salamander_attack]
+if (~npc_is_attackable = false) {
+    return;
+}
+if (%action_delay > map_clock) {
+    p_opnpc(2);
+    return;
+}
+if (npc_stat(hitpoints) = 0) {
+    return;
+}
+def_obj $rhand = inv_getobj(worn, ^wearpos_rhand);
+def_obj $tar = ~salamander_ammo($rhand);
+if ($tar = null) {
+    p_stopaction;
+    return;
+}
+%action_delay = add(map_clock, ~salamander_rate);
+// the black mask's bonus as the melee path has it for Scorch, the imbued one's as ranged and magic do
+def_int $mask_num = 1;
+def_int $mask_div = 1;
+if (%damagetype = ^slash_style) {
+    if (~black_mask_on_task = true) {
+        $mask_num = 7;
+        $mask_div = 6;
+    }
+} else if (~black_mask_imbued_on_task = true) {
+    $mask_num = 23;
+    $mask_div = 20;
+}
+def_int $damage = 0;
+if (~player_npc_hit_roll_boosted(%damagetype, $mask_num, $mask_div) = true) {
+    def_int $maxhit = scale($mask_num, $mask_div, ~salamander_maxhit($rhand));
+    if (~salamander_harmless = true) {
+        $maxhit = 0;
+    }
+    $damage = randominc(min($maxhit, npc_param(max_dealt)));
+    def_int $damage_capped = min($damage, npc_stat(hitpoints));
+    ~barrows_set_hit_npc($damage_capped, %damagetype);
+    ~give_combat_experience(%damagestyle, $damage_capped, %npc_combat_xp_multiplier);
+    npc_heropoints($damage_capped);
+}
+inv_del(worn, $tar, 1);
+~salamander_breathe;
+if (%damagetype = ^magic_style) {
+    spotanim_npc(salamander_blaze, 0, 0);
+}
+~npc_retaliate(0);
+npc_queue(2, $damage, 0);
+npc_anim(npc_param(defend_anim), 20);
+if (npc_param(defend_sound) ! null) {
+    sound_synth(npc_param(defend_sound), 0, 20);
+}
+p_opnpc(2);
+
+// ---------------------------------------------------------------------------------------------
+// At another player - reached from [label,pvp_combat_start]
+// ---------------------------------------------------------------------------------------------
+// Each style answers to its own duel rule and its own protection prayer: Scorch is melee, Flare missiles,
+// Blaze magic.
+[label,pvp_salamander_attack]
+switch_int (%damagetype) {
+    case ^ranged_style : if (~duel_arena_ranged_check = false) return;
+    case ^magic_style : if (~duel_arena_magic_check = false) return;
+    case default : if (~duel_arena_melee_check = false) return;
+}
+if (.%death = ^true) {
+    p_stopaction;
+    return;
+}
+if (%action_delay > map_clock) {
+    p_opplayer(2);
+    return;
+}
+def_obj $rhand = inv_getobj(worn, ^wearpos_rhand);
+def_obj $tar = ~salamander_ammo($rhand);
+if ($tar = null) {
+    p_stopaction;
+    return;
+}
+p_opplayer(2);
+~set_pk_vars;
+%action_delay = add(map_clock, ~salamander_rate);
+def_int $damage = 0;
+if (~pvp_hit_roll(%damagetype) = true) {
+    def_int $maxhit = ~salamander_maxhit($rhand);
+    if (~.check_protect_prayer(%damagetype) = true) {
+        $maxhit = scale(6, 10, $maxhit); // reduction of 40%
+    }
+    $damage = min(randominc($maxhit), .stat(hitpoints));
+    ~give_combat_experience_pvp(%damagestyle, $damage, ~pvp_xp_multiplier(~.player_combat_level));
+    both_heropoints($damage);
+    ~barrows_set_hit_player($damage, %damagetype);
+}
+inv_del(worn, $tar, 1);
+~salamander_breathe;
+switch_int (%damagetype) {
+    case ^ranged_style : .sound_synth(salamander_blaze, 0, 0);
+    case ^magic_style :
+        .sound_synth(salamander_scorch, 0, 0);
+        .spotanim_pl(salamander_blaze, 0, 0);
+    case default : .sound_synth(salamander_flame, 0, 0);
+}
+.queue*(pvp_retaliate, 0)(uid);
+~.pvp_damage(0, $damage);
+.anim(.%com_defendanim, 20);
