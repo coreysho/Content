@@ -1,6 +1,87 @@
 // Old saves onto the ported quest - see scripts/general/scripts/port349.rs2.
+//
+// The version this replaces was a short re-creation with invented stage numbers. Every value it
+// could leave behind, and what it becomes:
+//
+//   %tbwt_main (old)                         -> %tbwt_main (original)
+//     0 not started                             0, untouched (and nothing else is touched either)
+//     1 Timfraku asked for his sons             3 ^tbwt_started
+//     2 one son / 3 two sons / 4 three sons     3 ^tbwt_started - the original's 4 and 5 would have
+//     5 Timfraku told, waiting on chairs          Timfraku pay out and finish the quest, and none of
+//                                                 the original's per-son conditions are met yet
+//     6 complete                                6 ^tbwt_complete
+//
+//   Each son's old varp was 0 unmet, 1 asked, 2 helped.
+//   %tbwt_tiadeche   1 asked     -> 2 ^tbwt_tiadeche_return_when_caught_karambwan (he has said he
+//                                     will come home once he catches one)
+//                    2 helped    -> 3 ^tbwt_tiadeche_caught_karambwan (he has caught one; he still
+//                                     wants the crafting manual). His "first catch" flag is set so
+//                                     he does not hand over a free karambwan for a catch already made.
+//   %tbwt_tinsay     1 asked     -> 2 ^tbwt_tinsay_fetch_bananarum (the old version asked for the
+//                                     same rum with sliced banana)
+//                    2 helped    -> 3 ^tbwt_tinsay_given_bananarum (the rum is drunk; the sandwich and
+//                                     the Jogre bones are still to come)
+//   %tbwt_tamayu     1 asked     -> 2 ^tbwt_tamayu_slay_shaikahan
+//                    2 helped    -> 3 ^tbwt_tamayu_watched_cutscene. The old version had the player
+//                                     kill the Shaikahan; in the original Tamayu must do it himself,
+//                                     so he still needs the agility potion and a poisoned spear.
+//   %tbwt_lubufu     1 asked     -> 5 ^tbwt_lubufu_fetch_karambwanji (the old version also asked for
+//                                     20 karambwanji; 5 is "none handed over yet")
+//                    2 paid      -> 25 ^tbwt_lubufu_given_karambwanji (the karambwanji are his; the
+//                                     apprenticeship is still to be offered)
+//   %tbwt_flags      the old version kept "the Shaikahan is dead" (1) here; the original packs
+//                    Timfraku's title, Tiadeche's first-catch flag, Tamayu's agility count and the
+//                    spears he has been given into it, so the old value is cleared.
+//
+// A finished quest stays finished. Every son is set to have handed over his reward, except Tamayu:
+//   - Tiadeche (fishing training) and Tinsay (cooking training) were paid by the old completion,
+//     which gave 5,000 Fishing and 5,000 Cooking XP - so they are marked claimed. That is also what
+//     the post-quest content reads: Tinsay's claimed reward is what unlocks cooking karambwan
+//     thoroughly and praying at the tribal statue; Tiadeche's opens his stall.
+//   - Tamayu's reward (combat training and the Karambwan poisoned rune spear) was never part of the
+//     old version, so he is left at ^tbwt_tamayu_complete and will hand it over once. Nothing the
+//     old completion paid is paid again.
+//   - Lubufu is set to ^tbwt_lubufu_complete, so karambwan fishing (the old version's advertised
+//     reward) keeps working.
+//   - Timfraku's 2,000 coins belong to stage 5, which a finished quest is past; not paid again.
+// Any other value (a stage the old version never wrote) is left alone.
 [proc,port349_migrate_tbwt]
 if (%port349_tbwt = ^true) {
     return;
+}
+if (%tbwt_main = 6) {
+    %tbwt_main = ^tbwt_complete;
+    %tbwt_tiadeche = ^tbwt_tiadeche_claimed_final_reward;
+    %tbwt_tinsay = ^tbwt_tinsay_claimed_final_reward;
+    %tbwt_tamayu = ^tbwt_tamayu_complete;
+    %tbwt_lubufu = ^tbwt_lubufu_complete;
+    // title "adventurer", Tiadeche's catch received, Tamayu fully agile and given a good poisoned spear
+    %tbwt_flags = 0;
+    %tbwt_flags = setbit(%tbwt_flags, ^tbwt_tiadeche_received_karambwan);
+    ~set_tbwt_tamayu_agility_count(4);
+    %tbwt_flags = setbit(%tbwt_flags, ^tbwt_tamayu_received_acceptable_spear);
+    %tbwt_flags = setbit(%tbwt_flags, ^tbwt_tamayu_received_poisoned_spear);
+    %tbwt_flags = setbit(%tbwt_flags, ^tbwt_tamayu_received_kp_spear);
+} else if (%tbwt_main >= 1 & %tbwt_main <= 5) {
+    %tbwt_main = ^tbwt_started;
+    %tbwt_flags = 0;
+    switch_int (%tbwt_tiadeche) {
+        case 1 : %tbwt_tiadeche = ^tbwt_tiadeche_return_when_caught_karambwan;
+        case 2 :
+            %tbwt_tiadeche = ^tbwt_tiadeche_caught_karambwan;
+            %tbwt_flags = setbit(%tbwt_flags, ^tbwt_tiadeche_received_karambwan);
+    }
+    switch_int (%tbwt_tinsay) {
+        case 1 : %tbwt_tinsay = ^tbwt_tinsay_fetch_bananarum;
+        case 2 : %tbwt_tinsay = ^tbwt_tinsay_given_bananarum;
+    }
+    switch_int (%tbwt_tamayu) {
+        case 1 : %tbwt_tamayu = ^tbwt_tamayu_slay_shaikahan;
+        case 2 : %tbwt_tamayu = ^tbwt_tamayu_watched_cutscene;
+    }
+    switch_int (%tbwt_lubufu) {
+        case 1 : %tbwt_lubufu = ^tbwt_lubufu_fetch_karambwanji;
+        case 2 : %tbwt_lubufu = ^tbwt_lubufu_given_karambwanji;
+    }
 }
 %port349_tbwt = ^true;
