@@ -255,6 +255,16 @@ inv_delslot(inv, $slot);
 // invisible spawn (npc_changetype's revert respawns it where it began) and rolls again. In Gielinor the
 // spawner was npc_add'ed for the thirty-minute cycle, and the impling lasts what is left of it.
 [ai_timer,_impling_spawner]
+// An invisible spawn roams over anything (blocked+normal moves only by what blocks a projectile), so it
+// can be standing in a row of wheat when it shows itself: it appears on the nearest open square instead,
+// or an impling would sit inside the wheat where no one can reach it.
+if (map_blocked(npc_coord) = true) {
+    def_coord $open = map_findsquare(npc_coord, 1, 5, ^map_findsquare_none);
+    if ($open = npc_coord) {
+        return; // nowhere open near: roam on and try again next time
+    }
+    npc_tele($open);
+}
 def_int $tier = npc_param(impling_tier);
 def_int $kind = ~impling_roll($tier);
 if (inzone(^puro_sw, ^puro_ne, npc_coord) = true) {
@@ -347,6 +357,7 @@ return(1);
 if (random(^impling_escape_chance) ! 0) {
     return;
 }
+// map_findsquare only offers open squares, so it never blinks into the wheat
 def_coord $to = map_findsquare(npc_coord, 2, 6, ^map_findsquare_none);
 if ($to = null | $to = npc_coord) {
     return;

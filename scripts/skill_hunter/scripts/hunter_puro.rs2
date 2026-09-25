@@ -9,7 +9,8 @@
 // NPCS (the OSRS wiki's maps): the invisible spawns its map pins - 2 high, 12 mid, 10 low (its text says 21
 // low; the other 11 have no pins, so they are not placed) - 51 fixed implings, 28 imp defenders, Elnock at
 // 2586,4314, Immenizz at the portal, the wandering impling in Zanaris. A pin that lands on a row of wheat
-// (34 of them - the map's pins are a square out here and there) stands on the nearest open square instead.
+// (34 of them - the map's pins are a square out here and there), or on a square of shifting wheat (4), stands
+// on the nearest open square instead.
 
 // ---------------------------------------------------------------------------------- crop circles
 
@@ -145,8 +146,17 @@ if (loc_find($a, puro_wheat_shifting) = true) {
     loc_add($b, puro_wheat_wilting, $angle, grounddecor, 3);
     return;
 }
-// grown: nobody standing in it, as a wall would not grow over a player
+// grown: nobody standing in it - no player, and no impling or imp, which would be stuck inside it (and a
+// Puro-Puro spawn point is never on a section, so nothing respawns into grown wheat either)
 if (map_blocked($a) = true | map_blocked($b) = true) {
+    return;
+}
+npc_findallany($a, 0, 0);
+if (npc_findnext = true) {
+    return;
+}
+npc_findallany($b, 0, 0);
+if (npc_findnext = true) {
     return;
 }
 huntall($a, 0, 0);
