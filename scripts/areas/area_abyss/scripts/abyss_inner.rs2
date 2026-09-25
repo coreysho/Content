@@ -22,6 +22,12 @@ p_telejump(0_40_75_27_36);
 p_telejump(0_39_75_31_34);
 
 [oploc1,abyss_exit_to_cosmic]
+// The Cosmic altar is in Zanaris: its rift wants Lost City done, as its ruins do by where they
+// stand (both wikis' Cosmic rift pages). The line is 2009Scape's; no 2006 source records one.
+if (%zanaris < ^zanaris_complete) {
+    mes("You need to have completed the Lost City quest in order to do that.");
+    return;
+}
 p_telejump(0_33_75_30_36);
 
 [oploc1,abyss_exit_to_chaos]
@@ -46,7 +52,17 @@ if (~has_entrana_restricted_items = true) {
 p_telejump(0_38_75_32_19);
 
 [oploc1,abyss_exit_to_death]
-p_telejump(0_50_50_0_0);
+// The Death altar is at the end of the Temple of Light: its rift wants Mourning's End Part II done
+// (both wikis' Death rift pages). Until a 9 November 2009 patch made "the Death Altar portal in the
+// Abyss ... a little more informative if you don't have the requirements" (RS wiki, Death rift), it
+// said no more than the rifts that lead nowhere yet, so it says what the Blood and Soul rifts say.
+if (%mourning_quest_main < ^mt_complete) {
+    mes("A strange power blocks your exit.");
+    return;
+}
+// FIXED 2026-09-25: this sent you to Lumbridge (0_50_50_0_0, a placeholder). It now lands where the
+// Death altar's ruins put you (runecraft.dbrow's runecraft_death enter_coord).
+p_telejump(0_34_75_32_29);
 
 [oploc1,abyss_exit_to_blood]
 mes("A strange power blocks your exit.");
