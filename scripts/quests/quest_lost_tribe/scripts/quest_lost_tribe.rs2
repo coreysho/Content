@@ -69,8 +69,15 @@ if (stat(agility) < ^lost_tribe_agility_level) {
     ~mesbox("You need an Agility level of <tostring(^lost_tribe_agility_level)> to squeeze through the hole.");
     return;
 }
+// On hands and knees through the gap: human_longcrawl, which came in with this quest (seq 2796,
+// between the dairy churn's and the H.A.M. protesters' in the 377 cache) - three crawl cycles,
+// 96 client cycles, for the two tiles from one side of the wall to the other.
+def_int $dir = ^exact_east;
+if (coordx($to) < coordx(coord)) {
+    $dir = ^exact_west;
+}
 mes("You squeeze through the hole in the wall.");
-p_teleport($to);
+~agility_exactmove(human_longcrawl, 0, 3, coord, $to, 0, 96, $dir, false);
 if ($to = ^lost_tribe_hole_cave_side) {
     ~lost_tribe_place_brooch;
 }
@@ -206,6 +213,97 @@ if (%lost_tribe_quest = ^lost_tribe_spoke_mistag & %lost_tribe_ham >= ^lost_trib
     return;
 }
 mes("You search the crate but find nothing of interest.");
+
+// =========================================================================== the goblin maze
+// The tunnels from the cellar to the Dorgeshuun mine are a maze, and the right way is the one the
+// carved symbols point along (the goblin symbol book gives the directions). The wrong ways end in
+// traps: ten dead ends where a "Nothing" (lost_tribe_trap_floor / _ceiling - "An eye-wrenching
+// nexus of utter negation!") hangs over an inviswall_serverside. The wall is only there to keep the
+// two ends of a wrong turn from joining up; what matters is stepping into one of the dead ends.
+//
+//   a floor trap drops you into the Lumbridge Swamp Caves: "The floor collapses beneath you!",
+//   "You are swept into an underground river.", and every light that can go out goes out -
+//   washing up in the pool near the caves' northern entrance (OSRS wiki: "Upon falling through a
+//   trapdoor in the Dorgesh-Kaan mine, the player will wash up in a pool near the northern
+//   entrance, extinguishing the light source").
+//
+//   a ceiling trap brings the roof down: "The ceiling suddenly collapses!" - the rocks land on you
+//   or just in front of you ("You manage to evade the falling rocks."), and either way the way is
+//   blocked and you are back on the tile behind.
+//
+// The one lost_tribe_trap_pass (3256,9616) marks the side of a ceiling trap that is safe to stand on.
+// The dark caves' softtimer calls the check every tick (areas/area_lumbridge/cave_darkness.rs2).
+
+[proc,lost_tribe_trap_check]
+// busy covers the trap already under way (it is out of the queue and into its p_delay by then)
+if (busy = true | getqueue(lost_tribe_trap) > 0) {
+    return;
+}
+if (loc_find(coord, lost_tribe_trap_floor) = true) {
+    strongqueue(lost_tribe_trap, 0, loc_angle);
+    return;
+}
+if (loc_find(coord, lost_tribe_trap_ceiling) = true) {
+    strongqueue(lost_tribe_trap, 0, add(4, loc_angle));
+}
+
+// $trap: 0-3 a floor trap, 4-7 a ceiling trap; the low two bits are the trap's angle, which is the
+// side of the tile its wall is on (0 west, 1 north, 2 east, 3 south).
+[queue,lost_tribe_trap](int $trap)
+if ($trap < 4) {
+    mes("The floor collapses beneath you!");
+    p_delay(1);
+    p_teleport(^lost_tribe_river_landing);
+    mes("You are swept into an underground river.");
+    ~lost_tribe_douse_lights;
+    return;
+}
+mes("The ceiling suddenly collapses!");
+def_coord $back = ~lost_tribe_trap_back(coord, modulo($trap, 4));
+if (random(2) = 0) {
+    mes("You manage to evade the falling rocks.");
+} else {
+    ~damage_self(calc(random(^lost_tribe_rockfall_maxhit) + 1));
+}
+if (stat(hitpoints) > 0) {
+    p_telejump($back);
+}
+
+// One tile away from the trap's wall - the way the dead end was entered.
+[proc,lost_tribe_trap_back](coord $at, int $angle)(coord)
+switch_int ($angle) {
+    case 0 : return(movecoord($at, 1, 0, 0));
+    case 1 : return(movecoord($at, 0, 0, -1));
+    case 2 : return(movecoord($at, -1, 0, 0));
+}
+return(movecoord($at, 0, 0, 1));
+
+// Everything with a naked flame goes out in the river (OSRS wiki, Light sources: "extinguishable
+// by effects" - all but the bullseye lantern), each with its own message.
+[proc,lost_tribe_douse_lights]
+~lost_tribe_douse(inv, lit_candle, unlit_candle);
+~lost_tribe_douse(inv, lit_black_candle, unlit_black_candle);
+~lost_tribe_douse(inv, torch_lit, torch_unlit);
+~lost_tribe_douse(inv, oil_lamp_lit, oil_lamp_unlit);
+~lost_tribe_douse(inv, candle_lantern_lit, candle_lantern_unlit);
+~lost_tribe_douse(inv, candle_lantern_black_lit, candle_lantern_black_unlit);
+~lost_tribe_douse(inv, oil_lantern_lit, oil_lantern_unlit);
+~lost_tribe_douse(inv, tog_sapphire_lantern_lit, tog_sapphire_lantern_unlit);
+~lost_tribe_douse(inv, cave_goblin_mining_helmet_lit, cave_goblin_mining_helmet_unlit);
+if (inv_getobj(worn, ^wearpos_hat) = cave_goblin_mining_helmet_lit) {
+    inv_setslot(worn, ^wearpos_hat, cave_goblin_mining_helmet_unlit, 1);
+    ~update_bas;
+    mes("Your <lowercase(oc_name(cave_goblin_mining_helmet_lit))> goes out!");
+}
+
+[proc,lost_tribe_douse](inv $inv, namedobj $lit, namedobj $unlit)
+def_int $count = inv_total($inv, $lit);
+if ($count = 0) {
+    return;
+}
+inv_del($inv, $lit, $count);
+inv_add($inv, $unlit, $count);
+mes("Your <lowercase(oc_name($lit))> goes out!");
 
 // =========================================================================== completion
 
