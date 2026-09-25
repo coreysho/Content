@@ -8,7 +8,10 @@
 //
 // The twinflame staff (oldschool.runescape.wiki/w/Twinflame_staff): +10% accuracy and damage with any
 // standard-spellbook spell, and a bolt, blast or wave cast with it hits twice - the second a tick
-// later, for 40% of the first, rounded down, with no experience for it.
+// later, for 40% of the first, rounded down, with no experience for it. AUTOCASTING with it, an
+// elemental spell turns into the same tier of the element the target is weak to - Wind Wave at a
+// moss giant goes off as Fire Wave - if you can cast that one (~twinflame_autocast_spell). It casts
+// every 6 ticks, not a staff's 5 (~magic_cast_delay).
 
 // 1 air, 2 water, 3 earth, 4 fire - the enum's numbering - or 0 for a spell with no element.
 [proc,spell_element](int $spell)(int)
@@ -40,6 +43,67 @@ if (inv_getobj(worn, ^wearpos_rhand) = twinflame_staff & $spell < 100) {
     $pct = add($pct, 10);
 }
 return($pct);
+
+// THE SPELL AN AUTOCAST ACTUALLY THROWS at the current npc. With the twinflame staff wielded, an
+// elemental strike, bolt, blast or wave becomes the same tier of the element the npc is weak to -
+// but only if the player could cast that spell (level, runes - the staff's own fire and water count),
+// checked quietly: a player who can't just casts what they chose. Anything else is unchanged.
+[proc,twinflame_autocast_spell](int $spell)(int)
+if (inv_getobj(worn, ^wearpos_rhand) ! twinflame_staff) {
+    return($spell);
+}
+def_int $element = ~spell_element($spell);
+if ($element = 0) {
+    return($spell);
+}
+def_int $weak = divide(enum(npc, int, elemental_weakness, npc_type), 1000);
+if ($weak < 1 | $weak > 4 | $weak = $element) {
+    return($spell);
+}
+def_int $swap = ~elemental_spell(~spell_tier($spell), $weak);
+if ($swap = null | ~spell_requirements_met(~get_spell_data($swap)) = false) {
+    return($spell);
+}
+return($swap);
+
+// 1 strike, 2 bolt, 3 blast, 4 wave - or 0.
+[proc,spell_tier](int $spell)(int)
+switch_int ($spell) {
+    case ^wind_strike, ^water_strike, ^earth_strike, ^fire_strike : return(1);
+    case ^wind_bolt, ^water_bolt, ^earth_bolt, ^fire_bolt : return(2);
+    case ^wind_blast, ^water_blast, ^earth_blast, ^fire_blast : return(3);
+    case ^wind_wave, ^water_wave, ^earth_wave, ^fire_wave : return(4);
+}
+return(0);
+
+// The spell of a tier (as ~spell_tier) and an element (as ~spell_element), or null.
+[proc,elemental_spell](int $tier, int $element)(int)
+switch_int (calc($tier * 10 + $element)) {
+    case 11 : return(^wind_strike);
+    case 12 : return(^water_strike);
+    case 13 : return(^earth_strike);
+    case 14 : return(^fire_strike);
+    case 21 : return(^wind_bolt);
+    case 22 : return(^water_bolt);
+    case 23 : return(^earth_bolt);
+    case 24 : return(^fire_bolt);
+    case 31 : return(^wind_blast);
+    case 32 : return(^water_blast);
+    case 33 : return(^earth_blast);
+    case 34 : return(^fire_blast);
+    case 41 : return(^wind_wave);
+    case 42 : return(^water_wave);
+    case 43 : return(^earth_wave);
+    case 44 : return(^fire_wave);
+}
+return(null);
+
+// Ticks until the next cast: 5, or the twinflame staff's 6.
+[proc,magic_cast_delay]()(int)
+if (inv_getobj(worn, ^wearpos_rhand) = twinflame_staff) {
+    return(6);
+}
+return(5);
 
 // Bolts, blasts and waves - strike and surge are left out, as in OSRS.
 [proc,twinflame_second_hit](int $spell)(boolean)

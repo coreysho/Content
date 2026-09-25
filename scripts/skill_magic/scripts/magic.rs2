@@ -63,6 +63,41 @@ if (db_getfieldcount($spell_data, magic_spell_table:wornrequired) > 0 & inv_tota
 }
 return (true);
 
+// ~check_spell_requirements without its messages: whether the player could cast this spell now. For a
+// spell the game picks on the player's behalf (the twinflame staff's weakness autocast), where a
+// failure means "cast the one they chose instead", not "tell them".
+[proc,spell_requirements_met](dbrow $spell_data)(boolean)
+if (db_getfield($spell_data, magic_spell_table:members, 0) = true & map_members = ^false) {
+    return(false);
+}
+if (stat(magic) < db_getfield($spell_data, magic_spell_table:levelrequired, 0)) {
+    return(false);
+}
+def_namedobj $rune1;
+def_int $rune_count1;
+def_namedobj $rune2;
+def_int $rune_count2;
+def_namedobj $rune3;
+def_int $rune_count3;
+def_namedobj $rune4;
+def_int $rune_count4;
+$rune1, $rune_count1, $rune2, $rune_count2, $rune3, $rune_count3, $rune4, $rune_count4 = ~spell_runes($spell_data);
+def_int $air;
+def_int $water;
+def_int $earth;
+def_int $fire;
+$air, $water, $earth, $fire = ~spell_element_needs($rune1, $rune_count1, $rune2, $rune_count2, $rune3, $rune_count3, $rune4, $rune_count4);
+if (~spell_rune_enough($rune1, $rune_count1, $air, $water, $earth, $fire) = false
+    | ~spell_rune_enough($rune2, $rune_count2, $air, $water, $earth, $fire) = false
+    | ~spell_rune_enough($rune3, $rune_count3, $air, $water, $earth, $fire) = false
+    | ~spell_rune_enough($rune4, $rune_count4, $air, $water, $earth, $fire) = false) {
+    return(false);
+}
+if (db_getfieldcount($spell_data, magic_spell_table:wornrequired) > 0 & inv_total(worn, db_getfield($spell_data, magic_spell_table:wornrequired, 0)) < 1) {
+    return(false);
+}
+return(true);
+
 // ---------------------------------------------------------------- runes, wherever they are
 // A spell spends runes from the inventory AND from the rune pouch, which is what the pouch is for.
 // Every rune read below goes through ~rune_total and every rune spent through ~rune_del, so there

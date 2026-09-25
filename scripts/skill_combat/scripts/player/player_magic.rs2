@@ -7,7 +7,8 @@
 if (~npc_is_attackable = false) { // test: wormbrain's special mes shows before if you dont have enough runes to autocast a specific spell
     return;
 }
-def_dbrow $spell_data = ~get_spell_data(%autocast_spell);
+// the twinflame staff turns the autocast into the target's elemental weakness (elemental_weakness.rs2)
+def_dbrow $spell_data = ~get_spell_data(~twinflame_autocast_spell(%autocast_spell));
 if (~check_spell_requirements($spell_data) = false) {
     if (%autocast_spell = db_getfield($spell_data, magic_spell_table:spell, 0)) { // matches osrs behavior
         ~player_autocast_reset;
@@ -299,7 +300,7 @@ if (db_getfieldcount($spell_data, magic_spell_table:spotanim_origin) > 0) {
     spotanim_pl(db_getfield($spell_data, magic_spell_table:spotanim_origin, 0), 92, 0);
 }
 // shoot spell projectile
-%action_delay = add(map_clock, 5);
+%action_delay = add(map_clock, ~magic_cast_delay);
 def_int $duration = 0;
 if (db_getfieldcount($spell_data, magic_spell_table:spotanim_proj) > 0) {
     $duration = ~npc_projectile(coord, npc_uid, db_getfield($spell_data, magic_spell_table:spotanim_proj, 0));
@@ -311,7 +312,7 @@ if (db_getfieldcount($spell_data, magic_spell_table:spotanim_proj) > 0) {
 // freezes, and stat reductions dont continue ever, even if you have autocast enabled.
 // crumble undead continues autocast for some reason
 if (~player_autocast_enabled = true & db_getfield($spell_data, magic_spell_table:continue_by_autocast, 0) = true) {
-    p_opnpct(db_getfield(~get_spell_data(%autocast_spell), magic_spell_table:spellcom, 0));
+    p_opnpct(db_getfield(~get_spell_data(~twinflame_autocast_spell(%autocast_spell)), magic_spell_table:spellcom, 0));
 }
 return($duration);
 
