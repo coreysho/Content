@@ -1,74 +1,80 @@
-// Throne of Miscellania.
+// Throne of Miscellania, and the kingdom it hands you.
 //
-// Five varps. misc_quest is the spine and the other four are a kingdom:
+// %misc_quest is the peace deal - King Vargas, Queen Sigrid, the anthem and the pen - and the
+// public support that follows it. The courtship of Prince Brand or Princess Astrid runs beside
+// it on its own varbits (misc_court_stage, misc_affection and the fifteen misc_sN_* bits the 377
+// cache already carries), because the original quest lets you do the two in either order.
 //
-//   misc_restotal    18 bits   the resource yield
-//   misc_approval     7 bits   0-100, which is exactly the range seven bits wants
-//   misc_affection    7 bits   the same, for the heir
-//   misc_coffers     27 bits   the treasury
-//   misc_points_wood / _herb / _fish / _mine   4 bits each - how the workers are split
-//   misc_visited, misc_grantedaudience, misc_toldking, misc_acceptedtomarry,
-//   misc_know_sigrid, misc_killed, and six misc_sN_dM dialogue bits
-//
-// Two seven-bit counters that top out at a hundred are a percentage each, and four four-bit
-// counters that have to add up are a labour allocation. The post-quest kingdom management is
-// declared in the varbits before a line of it is written.
-//
-// ---------------------------------------------------------------------------- the approval work
-// Three "dummy" resources are placed one tile from the three tradesmen who stand next to them:
-//
-//   misc_dummy_mapletree  op1=Chop down  at 2550,3867 - the lumberjack is at 2550,3869
-//   misc_dummy_coalrock1  op1=Mine       at 2526,3892 - the miner is at 2526,3893
-//   misc_dummy_heather_normal op1=Weed   at 2526,3851 - the gardener is at 2525,3850
-//
-// and then thirty-six real misc_heather_light/normal/dark patches across the island, every one of
-// them carrying op1=Weed and none of them a handler. That is the approval: you do the island's
-// work until the island approves of you.
-//
-// ---------------------------------------------------------------------------- the treaty
-//   Treaty     "Just needs the King's signature."
-//   Giant nib  "For making a giant pen."
-//   Giant pen  "The King should be able to use this."
-//
-// Three obj descriptions and a complete sub-plot: King Vargas cannot sign anything with a normal
-// pen, so somebody has to make him one he can hold.
-//
-// ---------------------------------------------------------------------------- the anthem
-//   Awful anthem  "It's not very good."
-//   Good anthem   "Much better."
-//
-// ---------------------------------------------------------------------------- the crossing
-// misc_ship_gangplank is placed twice: 1_41_57_4_45, which is Rellekka, and 1_40_60_21_6, which is
-// Miscellania, with misc_sailor standing on the next tile along.
+// The stage numbers are spaced out so that the old invented quest's 1-7 cannot be mistaken for
+// any of them: ~misc_login moves a save that finished it to ^misc_complete and restarts one that
+// was part-way through it (quest_misc.rs2).
 ^misc_not_started = 0
-^misc_arrived = 1        // Ghrim has explained
-^misc_working = 2        // out earning approval
-^misc_approved = 3       // 100%
-^misc_audience = 4       // through the throne room door
-^misc_pen = 5            // the King can hold a pen
-^misc_sigrid = 6         // Etceteria will sign
-^misc_complete = 7
+^misc_started = 10          // a child chosen; go and see Queen Sigrid
+^misc_sigrid_terms = 20     // Sigrid wants Etceteria recognised
+^misc_anthem_demand = 30    // Vargas wants the anthem changed first
+^misc_new_anthem = 40       // Sigrid will change it, if somebody writes a new one
+^misc_treaty = 50           // Sigrid has signed the treaty
+^misc_pen = 60              // Vargas cannot hold an ordinary pen
+^misc_support = 70          // signed by both; now win the people over
+^misc_complete = 100
 
 ^misc_off = 0
 ^misc_on = 1
 
-^misc_approval_target = 100
-^misc_approval_per_job = 5
-^misc_affection_target = 100
-^misc_affection_per_gift = 20
+// misc_finish_gender: which of the King's children you are winning over (and, after the quest,
+// which of them is the heir you recommended)
+^misc_child_brand = 0
+^misc_child_astrid = 1
+
+// misc_court_stage
+^misc_court_none = 0        // not spoken to about the regency yet
+^misc_court_first = 1       // first set of questions (and flowers, and the right emote)
+^misc_court_second = 2      // introduced by name; second set (and a cake or a bow)
+^misc_court_third = 3       // "growing quite fond"; third set (and a blown kiss)
+^misc_court_trusted = 4     // took the ring
+
+// misc_affection runs 0-127. A right answer, the gift and the emote all move it; the three
+// thresholds are where the prince or princess changes how they speak to you. The original's
+// exact amounts are not published anywhere, so these are chosen to match what the walkthroughs
+// describe: three right answers are enough on their own, and the gift and emotes speed it up.
+^misc_affection_right = 15
+^misc_affection_wrong = 5
+^misc_affection_gift = 15
+^misc_affection_emote = 5
+^misc_affection_second = 45
+^misc_affection_third = 90
+^misc_affection_max = 127
+
+// misc_approval runs 0-127, which the game shows as a percentage (x * 100 / 127). The OSRS wiki's
+// Managing Miscellania: public support starts at 25% (32) when the treaty is signed, the regency
+// wants 75% (96), and the rating never decays below 25%.
+^misc_approval_max = 127
+^misc_approval_start = 32
+^misc_approval_regent = 96
+^misc_approval_floor = 32
+^misc_approval_kill = 6
+^misc_approval_steal = 4
+
+// ---------------------------------------------------------------------------- the kingdom
+// Before Royal Trouble (22 May 2006, which this world does not have): ten subjects, a wage of a
+// tenth of the coffers up to 50,000 a day, coffers of up to 5,000,000. The daily sums are Mod
+// Kieren's "How does your kingdom work?" as the OSRS wiki's calculator carries them.
+^misc_workers = 10
+^misc_workers_per_job = 10
+^misc_coffers_max = 5000000
+^misc_wage_max = 50000
+^misc_restotal_max = 262143
+^misc_decay_base = 160       // a day, favour falls by ceil((160 - favour) / 15) while above 32
+// resources per worker per 2048 resource points
+^misc_rate_wood = 160        // maple logs
+^misc_rate_mine = 98         // coal
+^misc_rate_fish = 158        // tuna and swordfish, raw or cooked
+^misc_rate_herb = 11         // grimy herbs
 
 // ---------------------------------------------------------------------------- places
-// the jetties, on the ground: the gangplank locs sit on the ships' decks at level 1, and landing
-// there left you standing on the sea
 ^misc_gangplank_rellekka = 0_41_57_4_45    // 2628,3693
 ^misc_gangplank_island = 0_40_60_21_6      // 2581,3846
-^misc_sailor_coord = 0_40_60_21_7
-^misc_vargas = 1_39_60_5_19                // 2501,3859
-^misc_ghrim = 1_39_60_3_17
-^misc_brand = 1_39_60_6_12
-^misc_astrid = 1_39_60_6_28
-^misc_sigrid_coord = 1_40_60_52_37         // 2612,3877  Etceteria
-^misc_throne_door_n = 1_39_60_10_17
-^misc_throne_door_s = 1_39_60_10_23
-^misc_throne_inside = 1_39_60_8_20
-^misc_throne_outside = 1_39_60_12_20
+// Miscellania, for the work that earns approval and the kills and thefts that lose it: everything
+// up to the bridge to Etceteria (2577-2581,3880) and Fisherman Frodi's docks
+^misc_island_sw = 0_39_59_0_40             // 2496,3816
+^misc_island_ne = 3_40_60_22_63            // 2582,3903 - the bridge's west end and Frodi's docks

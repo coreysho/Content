@@ -1,0 +1,156 @@
+// Approval - how much of Miscellania would have you as its ruler (misc_approval, 0-127, shown as a
+// percentage). It is won by doing the island's work beside the four who do it, from the moment
+// the treaty is signed (^misc_support) - that is when it starts at 25% - and it is lost by killing
+// Miscellanians or robbing their market. The amounts are the OSRS wiki's (Managing Miscellania):
+//
+//   weeding the herbs outside the castle       +1 a weed               Gardener Gunnhild
+//   coal from the rocks north of the town      +1 a coal, +2 a gem     Miner Magnus
+//   maples in the grove east of the castle     +1 half the time        Lumberjack Leif
+//   tuna, lobster or swordfish off the docks   +1 half the time        Fisherman Frodi
+//   flowers from the Flower Girl               +1 half the time
+//   a rake or sickle from Gunnhild             +1 one time in ten
+//   killing a Miscellanian                     -6
+//   stealing from a Miscellanian stall         -4
+//
+// While approval is short of 100% the logs, coal, gems and fish go to the worker, not the pack,
+// and the worker says "Thanks!" when it counts. At 100% they have all the help they want and you
+// keep what you gather. Etceteria's people and stalls do not count - that came with Royal Trouble.
+
+// True in the part of the quest and the kingdom where approval moves at all.
+[proc,misc_approval_active]()(boolean)
+if (%misc_quest < ^misc_support) {
+    return(false);
+}
+return(true);
+
+[proc,misc_approval_gain](int $amount, npc $worker)
+if (~misc_approval_active = false | %misc_approval >= ^misc_approval_max) {
+    return;
+}
+%misc_approval = min(^misc_approval_max, add(%misc_approval, $amount));
+// the secondary npc pointer: this runs inside fishing, whose spot is the active npc
+if ($worker ! null) {
+    if (.npc_find(coord, $worker, 16, 0) = true) {
+        .npc_say("Thanks!");
+    }
+}
+
+[proc,misc_approval_lose](int $amount)
+%misc_approval = max(0, sub(%misc_approval, $amount));
+
+// Called by woodcutting, mining and fishing where they would put the product in the pack. True
+// when a Miscellanian took it instead.
+[proc,misc_handin](namedobj $product)(boolean)
+if (~misc_approval_active = false | %misc_approval >= ^misc_approval_max) {
+    return(false);
+}
+if (inzone(^misc_island_sw, ^misc_island_ne, coord) = false) {
+    return(false);
+}
+switch_obj ($product) {
+    case maple_logs :
+        if (random(2) = 0) {
+            ~misc_approval_gain(1, misc_lumberjack);
+        }
+        return(true);
+    case coal :
+        ~misc_approval_gain(1, misc_miner);
+        return(true);
+    case uncut_sapphire, uncut_emerald, uncut_ruby, uncut_diamond :
+        ~misc_approval_gain(2, misc_miner);
+        return(true);
+    case raw_tuna, raw_lobster, raw_swordfish :
+        if (random(2) = 0) {
+            ~misc_approval_gain(1, misc_fisherman);
+        }
+        return(true);
+}
+return(false);
+
+// =========================================================================== the herbs
+// Thirty-six herb patches south of the castle gate, op1=Weed. A weeded patch shows its _noweeds
+// twin for a minute and then grows back. The weeds are yours, as they are nowhere else here.
+[oploc1,misc_heather_light] @misc_weed(misc_heather_light_noweeds);
+[oploc1,misc_heather_normal] @misc_weed(misc_heather_normal_noweeds);
+[oploc1,misc_heather_dark] @misc_weed(misc_heather_dark_noweeds);
+
+[label,misc_weed](loc $weeded)
+p_arrivedelay;
+if (stat(farming) < 10) {
+    mes("You need a Farming level of 10 to weed here.");
+    return;
+}
+if (inv_total(inv, rake) = 0) {
+    mes("You need a rake to weed the herbs.");
+    return;
+}
+anim(farming_raking, 0);
+loc_change($weeded, 100);
+p_delay(2);
+if (inv_freespace(inv) > 0) {
+    inv_add(inv, weeds, 1);
+}
+mes("You rake the weeds out of the herbs.");
+~misc_approval_gain(1, misc_gardener);
+
+// The three dummies are the ones the workers are busy at. Leif's line is the original's; the
+// other two say the same thing of Magnus and Gunnhild.
+[oploc1,misc_dummy_mapletree] mes("Lumberjack Leif is already cutting that down.");
+[oploc1,misc_dummy_coalrock1] mes("Miner Magnus is already mining that rock.");
+[oploc1,misc_dummy_heather_normal] mes("Gardener Gunnhild is already weeding that patch.");
+
+[oploc2,misc_dummy_coalrock1]
+mes("You examine the rock for ores...");
+p_delay(0);
+sound_synth(prospect, 1, 0);
+p_delay(1);
+mes("This rock contains coal.");
+
+// =========================================================================== losing it
+[ai_queue3,misc_man_1] @misc_citizen_death;
+[ai_queue3,misc_man_2] @misc_citizen_death;
+[ai_queue3,misc_man_3] @misc_citizen_death;
+[ai_queue3,misc_man_4] @misc_citizen_death;
+[ai_queue3,misc_man_5] @misc_citizen_death;
+[ai_queue3,misc_man_6] @misc_citizen_death;
+[ai_queue3,misc_man_7] @misc_citizen_death;
+[ai_queue3,misc_woman_1] @misc_citizen_death;
+[ai_queue3,misc_woman_2] @misc_citizen_death;
+[ai_queue3,misc_woman_3] @misc_citizen_death;
+[ai_queue3,misc_woman_4] @misc_citizen_death;
+[ai_queue3,misc_woman_5] @misc_citizen_death;
+[ai_queue3,misc_woman_6] @misc_citizen_death;
+
+// The killer loses approval and Ghrim hears of it. A queue, because an npc-context death has no
+// protected access to the player's varps (bosses/scripts/boss_kills.rs2 explains).
+[label,misc_citizen_death]
+if (npc_findhero = ^true) {
+    queue(misc_citizen_killed, 0, 0);
+}
+~npc_default_death;
+
+[queue,misc_citizen_killed]
+%misc_killed = ^misc_on;
+~misc_approval_lose(^misc_approval_kill);
+
+// =========================================================================== the market stalls
+// Four stalls carried op2=Steal-from and nothing answered it. They are ordinary stalls now
+// (misc_stalls.dbrow), and Miscellania's cost approval.
+[oploc2,misc_fish_market]
+~misc_steal_approval(42);
+@attempt_steal_from_stall(loc_type, loc_coord, loc_angle, loc_shape);
+
+[oploc2,misc_veg_market]
+~misc_steal_approval(2);
+@attempt_steal_from_stall(loc_type, loc_coord, loc_angle, loc_shape);
+
+[oploc2,etc_fish_market] @attempt_steal_from_stall(loc_type, loc_coord, loc_angle, loc_shape);
+[oploc2,etc_veg_market] @attempt_steal_from_stall(loc_type, loc_coord, loc_angle, loc_shape);
+
+// the checks [label,attempt_steal_from_stall] makes before it tries - a theft that cannot happen
+// costs nothing
+[proc,misc_steal_approval](int $level)
+if (map_members = ^false | stat(thieving) < $level | inv_freespace(inv) = 0 | add(%lastcombat, 10) > map_clock) {
+    return;
+}
+~misc_approval_lose(^misc_approval_steal);

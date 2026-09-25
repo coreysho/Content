@@ -123,7 +123,10 @@ if ($neck ! null & oc_category($neck) = category_557 & map_members = ^true) {
 if (random($chance) = ^true) {
     def_namedobj $gem = ~mining_gem_table;
     if ($gem ! null) {
-        inv_add(inv, $gem, 1);
+        // on Miscellania, while the island is making up its mind, Miner Magnus takes the gems
+        if (~misc_handin($gem) = false) {
+            inv_add(inv, $gem, 1);
+        }
         db_find(gem_cutting_table:uncut_gem, $gem);
         $data = db_findnext;
         mes("You just found <~add_article(oc_name(db_getfield($data, gem_cutting_table:cut_gem, 0)))>!");
@@ -143,7 +146,10 @@ if (random($chance) = ^true) {
     if(inzone(^crest_perfect_mine_lower_bound, ^crest_perfect_mine_upper_bound, coord) = true) {
         $output = perfect_gold_ore;
     }
-    inv_add(inv, $output, 1);
+    // on Miscellania, while the island is making up its mind, Miner Magnus takes the coal
+    if (~misc_handin($output) = false) {
+        inv_add(inv, $output, 1);
+    }
     ~skillcape_mining_extra($output); // skill cape perk (skillcapes/scripts/skillcape_perks.rs2)
     ~mining_xp(db_getfield($data, mining_table:rock_exp, 0));
     ~skillpet_roll(skillpet_rock_golem_item, mining, db_getfield($data, mining_table:pet_base, 0));

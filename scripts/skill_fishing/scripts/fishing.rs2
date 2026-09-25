@@ -52,7 +52,10 @@ if ($fish2 ! null) { // if fish2 isnt null and roll for 2nd fish passes
             inv_del(inv, $bait, 1);
         }
         // give fish and display message
-        inv_add(inv, $fish2, 1);
+        // on Miscellania, while the island is making up its mind, Fisherman Frodi takes the fish
+        if (~misc_handin($fish2) = false) {
+            inv_add(inv, $fish2, 1);
+        }
         ~fishing_xp(struct_param($struct2, productexp));
         ~skillpet_roll(skillpet_heron_item, fishing, struct_param($struct2, fishing_pet_base));
         mes(struct_param($struct2, productmessage));
@@ -67,7 +70,9 @@ if ($fish1 ! null) { // else if fish1 isnt null and roll for 1st fish passes
             inv_del(inv, $bait, 1);
         }
         // give fish and display message
-        inv_add(inv, $fish1, 1);
+        if (~misc_handin($fish1) = false) {
+            inv_add(inv, $fish1, 1);
+        }
         ~fishing_xp(struct_param($struct1, productexp));
         ~skillpet_roll(skillpet_heron_item, fishing, struct_param($struct1, fishing_pet_base));
         mes(struct_param($struct1, productmessage));

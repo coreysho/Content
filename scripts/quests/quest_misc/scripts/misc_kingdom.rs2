@@ -1,0 +1,520 @@
+// Managing Miscellania - the kingdom Throne of Miscellania hands its regent, as it was before
+// Royal Trouble (May 2006): ten subjects split between four jobs, paid from coffers of up to
+// 5,000,000 coins, working harder the more they approve of you.
+//
+// THE DAY. Once a real day, a tenth of the coffers (at most 50,000) is paid out, the wage and the
+// approval rating are turned into resource points, and the rating slips back towards 25%. The
+// sums are Mod Kieren's "How does your kingdom work?", as the OSRS wiki's Miscellania calculator
+// carries them:
+//
+//   wage      = min(5 + coffers / 10, 50,000, coffers)
+//   points   += (wage * 100 / 8333) * approval / 100          (approval 0-127)
+//   approval -= ceil((160 - approval) / 15) while above 32
+//
+// and at collection each job turns workers * rate * points / 2048 into its goods (rates in
+// quest_misc.constant). A day is date_runeday - the calendar day - and %misc_last_update is the
+// last one paid for; ~misc_kingdom_update catches up every day missed, on login and whenever
+// Ghrim is asked, so a regent who is offline for a week comes back to a week's work.
+//
+// THE WINDOW is the 377 cache's own inter_210, "Kingdom of Miscellania": four columns of ten bars
+// (misc_points_mine / _herb / _wood / _fish, drawn client-side from misc_varbit_3), an idle
+// column fed by %if1, the raw/cooked toggle on misc_cooked, the coffers and a Help button whose
+// ten captions show while %if2 is 1.
+
+// =========================================================================== the day
+[proc,misc_kingdom_update]
+if (%misc_quest < ^misc_complete) {
+    return;
+}
+def_int $today = date_runeday;
+if (%misc_last_update = 0 | %misc_last_update > $today) {
+    %misc_last_update = $today;
+    return;
+}
+def_int $days = sub($today, %misc_last_update);
+if ($days <= 0) {
+    return;
+}
+%misc_last_update = $today;
+// the coffers are empty long before this, and the store full
+$days = min($days, 1000);
+def_int $coffers = %misc_coffers;
+def_int $favour = %misc_approval;
+def_int $points = %misc_restotal;
+def_int $wage = 0;
+def_int $effect = 0;
+while ($days > 0) {
+    $wage = min(min(add(5, divide($coffers, 10)), ^misc_wage_max), $coffers);
+    $coffers = sub($coffers, $wage);
+    $effect = divide(multiply($wage, 100), 8333);
+    $points = min(^misc_restotal_max, add($points, divide(multiply($effect, $favour), 100)));
+    if ($favour > ^misc_approval_floor) {
+        $favour = max(^misc_approval_floor, sub($favour, divide(add(sub(^misc_decay_base, $favour), 14), 15)));
+    }
+    $days = sub($days, 1);
+}
+%misc_coffers = $coffers;
+%misc_approval = $favour;
+%misc_restotal = $points;
+
+[proc,misc_workers_idle]()(int)
+return(max(0, sub(^misc_workers, calc(%misc_points_wood + %misc_points_herb + %misc_points_fish + %misc_points_mine))));
+
+// "1,234,567"
+[proc,misc_commas](int $n)(string)
+if ($n < 1000) {
+    return(tostring($n));
+}
+def_string $low = tostring(modulo($n, 1000));
+if ($n < 1000000) {
+    return("<tostring(divide($n, 1000))>,<~misc_pad3($low)>");
+}
+def_string $mid = tostring(modulo(divide($n, 1000), 1000));
+return("<tostring(divide($n, 1000000))>,<~misc_pad3($mid)>,<~misc_pad3($low)>");
+
+[proc,misc_pad3](string $s)(string)
+if (string_length($s) = 1) {
+    return("00<$s>");
+}
+if (string_length($s) = 2) {
+    return("0<$s>");
+}
+return($s);
+
+// =========================================================================== Advisor Ghrim
+// [label,misc_advisor_ghrim_talk] (quest_misc.rs2) comes here once the quest is done, by Talk-to
+// or by NPC Contact.
+[proc,misc_royal_title]()(string)
+if (%misc_acceptedtomarry = ^misc_on) {
+    return("Your Royal Highness");
+}
+return("Thane <~misc_name>");
+
+[label,misc_kingdom_ghrim]
+~misc_kingdom_update;
+~chatnpc("<p,neutral>Greetings, <~misc_royal_title>.");
+if (%misc_killed = ^misc_on) {
+    %misc_killed = ^misc_off;
+    ~chatnpc("<p,angry><~misc_royal_title>, I should tell you right away that killing the people of this Kingdom will not make you popular with anyone.");
+}
+def_int $choice = ~p_choice3("How is the Kingdom faring?", 1, "How do I manage the kingdom?", 2, "What am I meant to be doing again?", 3);
+if ($choice = 1) {
+    ~chatplayer("<p,quiz>How is the Kingdom faring?");
+    if (%misc_acceptedtomarry = ^misc_on) {
+        ~chatnpc("<p,happy>Your subjects are content, your Highness.");
+    } else {
+        ~chatnpc("<p,happy>Your subjects are content, Thane <~misc_name>.");
+    }
+    @misc_kingdom_collect;
+}
+if ($choice = 2) {
+    ~chatplayer("<p,quiz>How do I manage the kingdom?");
+    ~chatnpc("<p,neutral>Your loyal subjects work hard to collect resources for you. Every day they bring what they have collected to the castle. The resources which they collect are coal from the rocks to the north, maple logs from the trees");
+    ~chatnpc("<p,neutral>to the east, herbs from the garden just outside the castle, and tuna and swordfish fished at the port to the south. They are paid from the money in the coffers; each day, one-tenth of the money in the coffers is");
+    ~chatnpc("<p,neutral>distributed to them. A maximum of 50k is paid to your subjects and the coffers can store up to 5 million gp. Another thing which affects the amounts of resources collected is your approval rating. The more your");
+    ~chatnpc("<p,neutral>subjects love you, the more they will be motivated to work hard. King Vargas would often go and help out his subjects in their daily tasks, when he was still able to do so, and they loved him dearly for it. Finally, you");
+    ~chatnpc("<p,neutral>can choose how much of their efforts your subjects devote to each resource; of course, the harder they work at collecting one, the less time they have to spend collecting the others.");
+    if (inv_total(inv, misc_ghrimbook) > 0) {
+        return;
+    }
+    ~chatnpc("<p,quiz>Have you got a copy of my book? It explains everything in more detail.");
+    ~chatplayer("<p,neutral>No, I don't...");
+    ~chatnpc("<p,happy>Here, you can have this one, I have plenty spare.");
+    ~misc_give(misc_ghrimbook);
+    ~chatplayer("<p,happy>Thanks!");
+    return;
+}
+~chatplayer("<p,quiz>What am I meant to be doing again?");
+~chatnpc("<p,neutral>Ruling the Kingdom, <~misc_royal_title>.");
+
+[label,misc_kingdom_collect]
+if (~misc_collect_roll = 0) {
+    ~chatnpc("<p,neutral>Your current approval rating is <tostring(~misc_approval_percent)>%. I'm afraid your subjects have not yet collected anything.");
+    ~misc_kingdom_open;
+    return;
+}
+~chatnpc("<p,quiz>Your current approval rating is <tostring(~misc_approval_percent)>%. Would you like to collect the resources gathered by your subjects?");
+if (~p_choice2("Yes", 1, "No", 2) = 2) {
+    inv_clear(misc_collected);
+    ~chatplayer("<p,neutral>No, thank you.");
+    if (%misc_acceptedtomarry = ^misc_on) {
+        ~chatnpc("<p,neutral>Very well, Your Royal Highness.");
+    } else {
+        ~chatnpc("<p,neutral>Very well, Thane <~misc_name>.");
+    }
+    ~chatnpc("<p,neutral>This is how your subjects are distributing their effort.");
+    ~misc_kingdom_open;
+    return;
+}
+~chatplayer("<p,happy>Yes, please.");
+def_int $need = ~misc_collect_space_needed;
+if ($need > 0) {
+    inv_clear(misc_collected);
+    ~chatnpc("<p,neutral>Let me check if you have made enough space in your bank, Your Royal Highness.");
+    if ($need = 1) {
+        ~chatnpc("<p,sad>I'm afraid you will need 1 more free space in your bank to hold all the items your subjects have collected.");
+    } else {
+        ~chatnpc("<p,sad>I'm afraid you will need <tostring($need)> more free spaces in your bank to hold all the items your subjects have collected.");
+    }
+    return;
+}
+~chatnpc("<p,happy>Here is a list of what your subjects have collected.");
+def_string $list = ~misc_collect_deliver;
+%misc_restotal = 0;
+~mesbox($list);
+~chatnpc("<p,happy>I shall tell your subjects to deliver your resources to your storage right away, <~misc_royal_title>.");
+~chatnpc("<p,neutral>This is how your subjects are distributing their effort.");
+~misc_kingdom_open;
+
+// =========================================================================== the harvest
+// Rolls everything the stored resource points buy into misc_collected, and says how many
+// different things that is. Nothing leaves the store until ~misc_collect_deliver.
+[proc,misc_collect_roll]()(int)
+inv_clear(misc_collected);
+def_int $points = %misc_restotal;
+if ($points <= 0) {
+    return(0);
+}
+def_int $base = 0;
+def_int $i = 0;
+def_int $r = 0;
+// Wood: maple logs, and a bird nest for every hundred
+$base = divide(multiply(multiply(%misc_points_wood, ^misc_rate_wood), $points), 2048);
+if ($base > 0) {
+    inv_add(misc_collected, maple_logs, $base);
+    $i = min(999, divide($base, 100));
+    while ($i > 0) {
+        $r = random(100);
+        if ($r < 65) {
+            inv_add(misc_collected, bird_nest_seeds, 1);
+        } else if ($r < 97) {
+            inv_add(misc_collected, bird_nest_ring, 1);
+        } else if ($r < 98) {
+            inv_add(misc_collected, bird_nest_egg_red, 1);
+        } else if ($r < 99) {
+            inv_add(misc_collected, bird_nest_egg_green, 1);
+        } else {
+            inv_add(misc_collected, bird_nest_egg_blue, 1);
+        }
+        $i = sub($i, 1);
+    }
+}
+// Mining: coal, and an uncut gem for the first hundred and every two hundred after
+$base = divide(multiply(multiply(%misc_points_mine, ^misc_rate_mine), $points), 2048);
+if ($base > 0) {
+    inv_add(misc_collected, coal, $base);
+    $i = divide(add($base, 100), 200);
+    while ($i > 0) {
+        inv_add(misc_collected, ~misc_gem_roll(random(58)), 1);
+        $i = sub($i, 1);
+    }
+}
+// Fishing: tuna and swordfish, raw or cooked, and something from the nets every two hundred
+$base = divide(multiply(multiply(%misc_points_fish, ^misc_rate_fish), $points), 2048);
+if ($base > 0) {
+    if (%misc_cooked = ^misc_on) {
+        inv_add(misc_collected, tuna, divide($base, 2));
+        inv_add(misc_collected, swordfish, divide(multiply($base, 15), 100));
+    } else {
+        inv_add(misc_collected, raw_tuna, divide($base, 2));
+        inv_add(misc_collected, raw_swordfish, divide(multiply($base, 15), 100));
+    }
+    def_boolean $clue = false;
+    $i = divide($base, 200);
+    while ($i > 0) {
+        $r = random(104);
+        if ($r < 58) {
+            inv_add(misc_collected, ~misc_gem_roll($r), 1);
+        } else if ($r < 90) {
+            inv_add(misc_collected, casket, 1);
+        } else if ($r < 94) {
+            inv_add(misc_collected, vikingboots, 1);
+        } else if ($r < 98) {
+            inv_add(misc_collected, vikinggloves, 1);
+        } else if ($r < 99) {
+            inv_add(misc_collected, keyhalf2, 1);
+        } else if ($r < 100) {
+            inv_add(misc_collected, keyhalf1, 1);
+        } else if ($clue = false) {
+            // one clue scroll at a time, as ever
+            inv_add(misc_collected, ~trail_clue_easy_getrandom, 1);
+            $clue = true;
+        }
+        $i = sub($i, 1);
+    }
+}
+// Herbs: grimy herbs, and a herb seed for every hundred (no more than two ranarr)
+$base = divide(multiply(multiply(%misc_points_herb, ^misc_rate_herb), $points), 2048);
+if ($base > 0) {
+    $i = $base;
+    while ($i > 0) {
+        inv_add(misc_collected, ~misc_herb_roll(random(46)), 1);
+        $i = sub($i, 1);
+    }
+    def_int $ranarr = 0;
+    def_namedobj $seed = null;
+    $i = divide($base, 100);
+    while ($i > 0) {
+        $seed = ~misc_seed_roll(random(1000));
+        if ($seed = ranarr_seed) {
+            if ($ranarr < 2) {
+                inv_add(misc_collected, ranarr_seed, 1);
+            }
+            $ranarr = add($ranarr, 1);
+        } else {
+            inv_add(misc_collected, $seed, 1);
+        }
+        $i = sub($i, 1);
+    }
+}
+return(sub(inv_size(misc_collected), inv_freespace(misc_collected)));
+
+// 32 / 16 / 8 / 2 out of 58
+[proc,misc_gem_roll](int $r)(namedobj)
+if ($r < 32) {
+    return(uncut_sapphire);
+}
+if ($r < 48) {
+    return(uncut_emerald);
+}
+if ($r < 56) {
+    return(uncut_ruby);
+}
+return(uncut_diamond);
+
+// 10 / 9 / 6 / 6 / 3 / 3 / 3 / 3 / 3 out of 46 - no guam or marrentill since December 2004
+[proc,misc_herb_roll](int $r)(namedobj)
+if ($r < 10) {
+    return(unidentified_tarromin);
+}
+if ($r < 19) {
+    return(unidentified_harralander);
+}
+if ($r < 25) {
+    return(unidentified_irit);
+}
+if ($r < 31) {
+    return(unidentified_avantoe);
+}
+if ($r < 34) {
+    return(unidentified_ranarr);
+}
+if ($r < 37) {
+    return(unidentified_kwuarm);
+}
+if ($r < 40) {
+    return(unidentified_cadantine);
+}
+if ($r < 43) {
+    return(unidentified_dwarf_weed);
+}
+return(unidentified_lantadyme);
+
+// per thousand: the herb seed table
+[proc,misc_seed_roll](int $r)(namedobj)
+if ($r < 320) {
+    return(guam_seed);
+}
+if ($r < 538) {
+    return(marrentill_seed);
+}
+if ($r < 687) {
+    return(tarromin_seed);
+}
+if ($r < 788) {
+    return(harralander_seed);
+}
+if ($r < 857) {
+    return(ranarr_seed);
+}
+if ($r < 904) {
+    return(toadflax_seed);
+}
+if ($r < 936) {
+    return(irit_seed);
+}
+if ($r < 958) {
+    return(avantoe_seed);
+}
+if ($r < 973) {
+    return(kwuarm_seed);
+}
+if ($r < 983) {
+    return(snapdragon_seed);
+}
+if ($r < 990) {
+    return(cadantine_seed);
+}
+if ($r < 995) {
+    return(lantadyme_seed);
+}
+if ($r < 998) {
+    return(dwarf_weed_seed);
+}
+return(torstol_seed);
+
+// Bank slots the harvest needs that the bank does not have free: one for each thing it brings
+// that the bank is not already holding.
+[proc,misc_collect_space_needed]()(int)
+def_int $new = 0;
+def_int $slot = 0;
+def_obj $obj = null;
+while ($slot < inv_size(misc_collected)) {
+    $obj = inv_getobj(misc_collected, $slot);
+    if ($obj ! null) {
+        if (inv_total(bank, $obj) = 0) {
+            $new = add($new, 1);
+        }
+    }
+    $slot = add($slot, 1);
+}
+return(max(0, sub($new, inv_freespace(bank))));
+
+// Moves the harvest into the bank and returns the list of it for Ghrim's page. A new bank slot is
+// filed into the tab the player last looked at, as a deposit is (interface_bank/scripts/bank.rs2).
+[proc,misc_collect_deliver]()(string)
+def_string $list = "";
+def_int $slot = 0;
+def_obj $obj = null;
+def_int $count = 0;
+def_int $before = 0;
+def_int $after = 0;
+while ($slot < inv_size(misc_collected)) {
+    $obj = inv_getobj(misc_collected, $slot);
+    if ($obj ! null) {
+        $count = inv_getnum(misc_collected, $slot);
+        if (string_length($list) > 0) {
+            $list = append($list, "|");
+        }
+        $list = append($list, "<oc_name($obj)>: <~misc_commas($count)>");
+        $before = sub(inv_size(bank), inv_freespace(bank));
+        inv_moveitem(misc_collected, bank, $obj, $count);
+        $after = sub(inv_size(bank), inv_freespace(bank));
+        if ($after > $before & ~banktab_numbered_total(0) > 0) {
+            ~banktab_deposited(sub($after, 1));
+        }
+    }
+    $slot = add($slot, 1);
+}
+inv_clear(misc_collected);
+session_log(^log_adventure, "Miscellania collected: <$list>");
+return($list);
+
+// =========================================================================== the window
+[proc,misc_kingdom_open]
+if_close;
+%if1 = ~misc_workers_idle;
+%if2 = 0;
+if_settext(inter_210:com_87, ~misc_commas(%misc_coffers));
+// The Help captions. The cache leaves them blank for the server to fill; these say what Ghrim
+// says, in the space the window has for it.
+if_settext(inter_210:com_97, "Your subjects are paid");
+if_settext(inter_210:com_98, "a tenth of the coffers");
+if_settext(inter_210:com_99, "each day, up to 50,000.");
+if_settext(inter_210:com_100, "The coffers hold up to");
+if_settext(inter_210:com_101, "5,000,000 coins.");
+if_settext(inter_210:com_102, "Add or Remove sets how");
+if_settext(inter_210:com_103, "many of your ten subjects");
+if_settext(inter_210:com_104, "work at each job. Idle");
+if_settext(inter_210:com_105, "subjects are paid, but");
+if_settext(inter_210:com_106, "gather nothing.");
+if_openmain(inter_210);
+
+[proc,misc_points_change](int $job, int $delta)
+if ($delta > 0 & ~misc_workers_idle = 0) {
+    return;
+}
+switch_int ($job) {
+    case 1 : %misc_points_mine = max(0, min(^misc_workers_per_job, add(%misc_points_mine, $delta)));
+    case 2 : %misc_points_herb = max(0, min(^misc_workers_per_job, add(%misc_points_herb, $delta)));
+    case 3 : %misc_points_wood = max(0, min(^misc_workers_per_job, add(%misc_points_wood, $delta)));
+    case 4 : %misc_points_fish = max(0, min(^misc_workers_per_job, add(%misc_points_fish, $delta)));
+}
+%if1 = ~misc_workers_idle;
+
+[if_button,inter_210:com_11] ~misc_points_change(1, 1);
+[if_button,inter_210:com_12] ~misc_points_change(1, -1);
+[if_button,inter_210:com_27] ~misc_points_change(2, 1);
+[if_button,inter_210:com_28] ~misc_points_change(2, -1);
+[if_button,inter_210:com_46] ~misc_points_change(3, 1);
+[if_button,inter_210:com_47] ~misc_points_change(3, -1);
+[if_button,inter_210:com_62] ~misc_points_change(4, 1);
+[if_button,inter_210:com_63] ~misc_points_change(4, -1);
+
+[if_button,inter_210:com_107] ~misc_toggle_cooked;
+[if_button,inter_210:com_108] ~misc_toggle_cooked;
+
+[proc,misc_toggle_cooked]
+if (%misc_cooked = ^misc_on) {
+    %misc_cooked = ^misc_off;
+    return;
+}
+%misc_cooked = ^misc_on;
+
+[if_button,inter_210:com_95]
+if (%if2 = 1) {
+    %if2 = 0;
+    return;
+}
+%if2 = 1;
+
+// The coffers are in the castle: NPC Contact reaches Ghrim for the rest, but not for money.
+[proc,misc_at_coffers]()(boolean)
+if (inzone(1_39_60_0_0, 1_39_60_20_40, coord) = true) {
+    return(true);
+}
+~mesbox("You will need to be in the castle to use the coffers.");
+return(false);
+
+[if_button,inter_210:com_88]
+if (~misc_at_coffers = false) {
+    ~misc_kingdom_open;
+    return;
+}
+def_int $carried = inv_total(inv, coins);
+if ($carried = 0) {
+    ~mesbox("You aren't carrying any coins.");
+    ~misc_kingdom_open;
+    return;
+}
+def_int $room = sub(^misc_coffers_max, %misc_coffers);
+if ($room <= 0) {
+    ~mesbox("The coffers can store up to 5 million gp, and they are full.");
+    ~misc_kingdom_open;
+    return;
+}
+~mesbox("You are carrying <~misc_commas($carried)> coins. Enter an amount to deposit in the coffers.");
+p_countdialog;
+def_int $amount = min(min(last_int, inv_total(inv, coins)), $room);
+if ($amount > 0) {
+    inv_del(inv, coins, $amount);
+    %misc_coffers = add(%misc_coffers, $amount);
+    ~mesbox("Added <~misc_commas($amount)> coins to the coffers.");
+}
+~misc_kingdom_open;
+
+[if_button,inter_210:com_89]
+if (~misc_at_coffers = false) {
+    ~misc_kingdom_open;
+    return;
+}
+if (%misc_coffers <= 0) {
+    ~mesbox("There are no coins to withdraw.");
+    ~misc_kingdom_open;
+    return;
+}
+~mesbox("The coffers contain <~misc_commas(%misc_coffers)> coins. Enter an amount to withdraw from the coffers.");
+p_countdialog;
+def_int $amount = min(last_int, %misc_coffers);
+// a stack of coins holds what an int holds
+$amount = min($amount, sub(^max_32bit_int, inv_total(inv, coins)));
+if ($amount > 0 & inv_total(inv, coins) = 0 & inv_freespace(inv) = 0) {
+    mes("You don't have enough inventory space.");
+    $amount = 0;
+}
+if ($amount > 0) {
+    %misc_coffers = sub(%misc_coffers, $amount);
+    inv_add(inv, coins, $amount);
+    ~mesbox("Withdrew <~misc_commas($amount)> coins.");
+}
+~misc_kingdom_open;
