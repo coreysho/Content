@@ -5,13 +5,12 @@ def_string $x;
 if (%upass = ^upass_complete) {
     $x = append($x, "@str@I have informed King Lathas that I have destroyed Iban.|");
     $x = append($x, "@str@He told me that he would send magi to restore the well.|");
-    //TODO: After regicide
-    // if (%regicide = ^regicide_not_started) {
-    //     $x = append($x, "|@dbl@I'm told that when the well is working again he will require my|");
-    //     $x = append($x, "@dbl@services to stop Tyras.|");
-    // } else {
-    //     $x = append($x, "|@str@He has sent a messenger to summon me to stop Tyras.|");
-    // }
+    if (%regicide_quest = ^regicide_not_started) {
+        $x = append($x, "|@dbl@I'm told that when the well is working again he will require my|");
+        $x = append($x, "@dbl@services to stop Tyras.|");
+    } else {
+        $x = append($x, "|@str@He has sent a messenger to summon me to stop Tyras.|");
+    }
     $x = append($x, "|@dre@QUEST COMPLETE!");
     ~quest_journal($n, $x);
     return;
