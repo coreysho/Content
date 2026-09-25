@@ -1,0 +1,354 @@
+// Hunter - IMPLINGS (Impetuous Impulses, 11 June 2007). Post-2006, so ported as OSRS has it: the OSRS
+// wiki's levels, experience, catch rolls, spawn tables and loot. Puro-Puro, its wheat, Elnock and the
+// crop circles are hunter_puro.rs2; the jars' loot tables are hunter_implings_loot.rs2 (generated).
+//
+// CATCHING (OSRS, Impling and Impetuous Impulses#Catch mechanics). Catch is op1 on every impling.
+//  * A butterfly net or magic butterfly net in your hand: the impling's level. Anything else in your
+//    hand, or nothing, is bare hands: ten levels more (ninja implings: 74 with a net, 84 bare-handed).
+//  * The roll is stat_random on the wiki's Skilling success chart numbers - the plain net's, or the
+//    magic net's (which are bare hands' too: Mod Ash, "for barehanded or a magic net, add 8 percentage
+//    points"). A miss and you keep trying, as in OSRS.
+//  * In Puro-Puro you need an empty impling jar, net or no net, and the catch goes into it. In Gielinor
+//    a jar is optional: with one you keep the impling, without one you loot it on the spot.
+//  * Experience: the Puro-Puro implings pay the wiki's Puro-Puro column, the Gielinor ones its Gielinor
+//    column (configs/hunter_implings.npc).
+
+[opnpc1,_impling]
+def_int $level = npc_param(impling_level);
+def_int $tier = npc_param(impling_tier);
+def_obj $held = inv_getobj(worn, ^wearpos_rhand);
+def_int $need = add($level, 10);
+def_int $low = npc_param(impling_magic_low);
+def_int $high = npc_param(impling_magic_high);
+if ($held = butterfly_net | $held = magic_butterfly_net) {
+    $need = $level;
+    if ($held = butterfly_net) {
+        $low = npc_param(impling_low);
+        $high = npc_param(impling_high);
+    }
+}
+if (stat(hunter) < $need) {
+    if ($need = $level) {
+        mes("You need a Hunter level of <tostring($level)> to catch this impling.");
+    } else {
+        mes("You need a Hunter level of <tostring($need)> to catch this impling with your bare hands.");
+    }
+    return;
+}
+def_boolean $puro = false;
+if (npc_param(impling_puro) = 1) {
+    $puro = true;
+}
+if ($puro = true & inv_total(inv, impling_jar) = 0) {
+    mes("You need an empty impling jar to catch implings in Puro-Puro.");
+    return;
+}
+if ($need = $level) {
+    anim(impling_net_catch, 0);
+    sound_synth(hunting_butterflynet, 1, 0);
+} else {
+    anim(human_pickupfloor, 0);
+}
+// The roll and the removal together, with no delay between: implings are shared world npcs, and a
+// delay in the middle would let two players both catch the one impling (OSRS fixed exactly that in April
+// 2013: "Hunter implings can now only be caught by one person at a time").
+if (stat_random(hunter, $low, $high) = false) {
+    mes("You fail to catch the impling.");
+    p_delay(2);
+    // OSRS: "the character will continue trying to do so until it is caught"
+    p_opnpc(1);
+    return;
+}
+def_int $xp = npc_param(impling_xp);
+// npc_del respawns the npc's BASE type after its respawnrate: for a Puro-Puro spawn, the invisible npc it
+// grew from (configs/hunter_implings.npc), which roams again before it picks what to become; for one of
+// Puro-Puro's fixed implings, that impling again. A Gielinor impling was npc_add'ed for its thirty-minute
+// cycle, so it is gone until the next one.
+npc_del;
+~hunter_xp($xp);
+~impling_count($tier, $puro);
+if (inv_total(inv, impling_jar) > 0) {
+    // inv_del then inv_add: the jar is filled where it lies
+    inv_del(inv, impling_jar, 1);
+    inv_add(inv, enum(int, namedobj, impling_jar_by_tier, $tier), 1);
+    mes("You manage to catch the impling and squeeze it into a jar."); // OSRS
+} else {
+    ~impling_loot($tier);
+    mes("You manage to catch the impling and acquire some loot."); // OSRS
+}
+p_delay(2);
+
+// Where an impling's loot goes: into your pack, or at your feet when there is no room for it. A jar
+// opened with a full pack still pays; nothing is lost.
+[proc,impling_give](namedobj $obj, int $count)
+if ($count < 1) {
+    return;
+}
+if (inv_freespace(inv) > 0 | (oc_stackable($obj) = true & inv_total(inv, $obj) > 0)) {
+    inv_add(inv, $obj, $count);
+    return;
+}
+obj_add(coord, $obj, $count, ^lootdrop_duration);
+
+// A clue scroll tertiary: ~trail_cluedrop's rules (one clue of a tier; later ones as scroll boxes up to
+// the stack limit; the "sneaking suspicion" message past it), but into your pack like the rest of the
+// loot, as OSRS gives an impling's clue. Members only, as every clue drop is.
+[proc,impling_clue](int $tier, int $rarity)
+if (map_members = ^false) {
+    return;
+}
+if (random($rarity) ! 0) {
+    return;
+}
+def_int $held = ~trail_stack_count($tier);
+if ($held = 0) {
+    ~impling_give(~trail_clue_getrandom($tier), 1);
+    ~clear_trail_progress($tier);
+} else if ($held < ~trail_stack_cap($tier)) {
+    ~impling_give(~trail_scrollbox($tier), 1);
+} else {
+    mes("You have a sneaking suspicion that you would have received <~trail_tier_article($tier)> scroll box."); // OSRS
+}
+
+// The lucky impling's jar (OSRS, since April 2019): one roll on a Treasure Trail tier's reward table,
+// the tier picked evenly. OSRS picks among five - easy, medium, hard, elite and master; this build's
+// trails stop at hard, so the pick is among those three. Each roll is that tier's own casket roll -
+// its rare table at the casket's own chance (1/97, 1/77, 1/57) - into the reward inv the caskets use,
+// then out into your pack.
+[proc,impling_loot_lucky]
+~trail_prepare_rewardinv;
+switch_int (random(3)) {
+    case 0 :
+        if (random(97) = 0) {
+            gosub(trail_clue_easy_rare);
+        } else {
+            gosub(trail_clue_easy_normal);
+        }
+    case 1 :
+        if (random(77) = 0) {
+            gosub(trail_clue_medium_rare);
+        } else {
+            gosub(trail_clue_medium_normal);
+        }
+    case default :
+        if (random(57) = 0) {
+            gosub(trail_clue_hard_rare);
+        } else {
+            gosub(trail_clue_hard_normal);
+        }
+}
+if (~trail_flush_rewards > 0) {
+    mes("There's more in the jar than you can carry - make some inventory space and open a casket to collect it.");
+}
+
+// --- The jars
+
+// Loot (OSRS): the impling goes, what it carried is yours, and the jar comes back - but one time in ten
+// it breaks (Mod Ash, 4 November 2018: "10% flat rate, I think").
+[opheld3,_impling_jar_full]
+def_int $tier = oc_param(last_item, impling_jar_tier);
+inv_delslot(inv, last_slot);
+~impling_loot($tier);
+if (random(10) = 0) {
+    mes("You break the jar as you try and open it. You throw the shattered remains away."); // OSRS
+    return;
+}
+~impling_give(impling_jar, 1);
+
+// Destroy (OSRS's op5 on a full jar): the impling goes free and the jar with it.
+[opheld5,_impling_jar_full]
+def_int $slot = last_slot;
+def_obj $jar = last_item;
+if (~p_choice2_header("Yes.", 1, "No.", 2, "If you drop this it will disappear. Are you sure you want to do this?") ! 1) {
+    return;
+}
+if (inv_getobj(inv, $slot) ! $jar) {
+    return;
+}
+inv_delslot(inv, $slot);
+
+// --- Check totals (OSRS's impling tracker, 2015): how many of each you have caught, in Gielinor and in
+// Puro-Puro, on either net - worn or held.
+[opheld3,butterfly_net] @impling_totals;
+[opheld3,magic_butterfly_net] @impling_totals;
+
+[label,impling_totals]
+~mesbox("Implings caught (Gielinor / Puro-Puro)|Baby <tostring(%impling_caught_baby_world)> / <tostring(%impling_caught_baby_puro)>, Young <tostring(%impling_caught_young_world)> / <tostring(%impling_caught_young_puro)>, Gourmet <tostring(%impling_caught_gourmet_world)> / <tostring(%impling_caught_gourmet_puro)>, Earth <tostring(%impling_caught_earth_world)> / <tostring(%impling_caught_earth_puro)>|Essence <tostring(%impling_caught_essence_world)> / <tostring(%impling_caught_essence_puro)>, Eclectic <tostring(%impling_caught_eclectic_world)> / <tostring(%impling_caught_eclectic_puro)>, Nature <tostring(%impling_caught_nature_world)> / <tostring(%impling_caught_nature_puro)>|Magpie <tostring(%impling_caught_magpie_world)> / <tostring(%impling_caught_magpie_puro)>, Ninja <tostring(%impling_caught_ninja_world)> / <tostring(%impling_caught_ninja_puro)>, Dragon <tostring(%impling_caught_dragon_world)> / <tostring(%impling_caught_dragon_puro)>, Lucky <tostring(%impling_caught_lucky_world)> / <tostring(%impling_caught_lucky_puro)>");
+
+// The counters themselves: a varbit per kind and place (configs/hunter_implings.varbit).
+[proc,impling_count](int $tier, boolean $puro)
+switch_int ($tier) {
+    case 1 : if ($puro = true) { %impling_caught_baby_puro = min(65535, add(%impling_caught_baby_puro, 1)); } else { %impling_caught_baby_world = min(65535, add(%impling_caught_baby_world, 1)); }
+    case 2 : if ($puro = true) { %impling_caught_young_puro = min(65535, add(%impling_caught_young_puro, 1)); } else { %impling_caught_young_world = min(65535, add(%impling_caught_young_world, 1)); }
+    case 3 : if ($puro = true) { %impling_caught_gourmet_puro = min(65535, add(%impling_caught_gourmet_puro, 1)); } else { %impling_caught_gourmet_world = min(65535, add(%impling_caught_gourmet_world, 1)); }
+    case 4 : if ($puro = true) { %impling_caught_earth_puro = min(65535, add(%impling_caught_earth_puro, 1)); } else { %impling_caught_earth_world = min(65535, add(%impling_caught_earth_world, 1)); }
+    case 5 : if ($puro = true) { %impling_caught_essence_puro = min(65535, add(%impling_caught_essence_puro, 1)); } else { %impling_caught_essence_world = min(65535, add(%impling_caught_essence_world, 1)); }
+    case 6 : if ($puro = true) { %impling_caught_eclectic_puro = min(65535, add(%impling_caught_eclectic_puro, 1)); } else { %impling_caught_eclectic_world = min(65535, add(%impling_caught_eclectic_world, 1)); }
+    case 7 : if ($puro = true) { %impling_caught_nature_puro = min(65535, add(%impling_caught_nature_puro, 1)); } else { %impling_caught_nature_world = min(65535, add(%impling_caught_nature_world, 1)); }
+    case 8 : if ($puro = true) { %impling_caught_magpie_puro = min(65535, add(%impling_caught_magpie_puro, 1)); } else { %impling_caught_magpie_world = min(65535, add(%impling_caught_magpie_world, 1)); }
+    case 9 : if ($puro = true) { %impling_caught_ninja_puro = min(65535, add(%impling_caught_ninja_puro, 1)); } else { %impling_caught_ninja_world = min(65535, add(%impling_caught_ninja_world, 1)); }
+    case 10 : if ($puro = true) { %impling_caught_dragon_puro = min(65535, add(%impling_caught_dragon_puro, 1)); } else { %impling_caught_dragon_world = min(65535, add(%impling_caught_dragon_world, 1)); }
+    case 11 : if ($puro = true) { %impling_caught_lucky_puro = min(65535, add(%impling_caught_lucky_puro, 1)); } else { %impling_caught_lucky_world = min(65535, add(%impling_caught_lucky_world, 1)); }
+}
+
+// --- The magic butterfly net and the jar generator (Elnock's Exchange, hunter_puro.rs2)
+
+// The magic net catches butterflies too (Elnock: "It will help you catch both implings and butterflies")
+// - hunter_butterflies.rs2 takes it beside the two plain nets. Destroy, as OSRS.
+[opheld5,magic_butterfly_net]
+def_int $slot = last_slot;
+if (~p_choice2_header("Yes.", 1, "No.", 2, "You will have to trade Elnock to get a new magic butterfly net.") ! 1) {
+    return;
+}
+if (inv_getobj(inv, $slot) ! magic_butterfly_net) {
+    return;
+}
+inv_delslot(inv, $slot);
+
+// The jar generator (OSRS): 100% charge; an impling jar costs 3%, a butterfly jar 1%; it is gone when
+// the charge is. One a player, so the charge is a varp (%jar_generator_charge).
+[opheld1,jar_generator] @jar_generator_make(impling_jar, ^jar_generator_impling_cost, "an impling jar");
+[opheld3,jar_generator] @jar_generator_make(hunter_butterfly_jar, ^jar_generator_butterfly_cost, "a butterfly jar");
+
+[label,jar_generator_make](namedobj $jar, int $cost, string $what)
+if (%jar_generator_charge < $cost) {
+    mes("Your jar generator doesn't have enough charge left for that.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("You need some free inventory space to do that.");
+    return;
+}
+%jar_generator_charge = sub(%jar_generator_charge, $cost);
+inv_add(inv, $jar, 1);
+if (%jar_generator_charge < 1) {
+    inv_del(inv, jar_generator, 1);
+    mes("Your jar generator creates a jar, and crumbles to dust as its last charge is spent.");
+    return;
+}
+mes("Your jar generator creates <$what>.");
+
+[opheld4,jar_generator]
+mes("Your jar generator has <tostring(%jar_generator_charge)>% of its charge left.");
+
+[opheld5,jar_generator]
+def_int $slot = last_slot;
+if (~p_choice2_header("Yes.", 1, "No.", 2, "You will have to trade with Elnock to get a new jar generator.") ! 1) {
+    return;
+}
+if (inv_getobj(inv, $slot) ! jar_generator) {
+    return;
+}
+inv_delslot(inv, $slot);
+%jar_generator_charge = 0;
+
+// --- How implings appear (Impling#Spawn_mechanics)
+//
+// Every impling but Puro-Puro's fixed ones starts as an invisible npc (impling_spawner_*) that roams for
+// two minutes - its config timer - and then becomes the impling its tier's table rolls. The tables are
+// the wiki's, as weights out of their own totals:
+//   low          baby 20, young 20, gourmet 20, earth 20, essence 10, eclectic 10               (/100)
+//   mid          gourmet 10, earth 10, essence 20, eclectic 37, nature 20, magpie 2, ninja 1    (/100)
+//   high         nature 10, magpie 50, ninja 30, dragon 10, lucky 1                             (/101)
+//   high (Puro)  nature 150, magpie 114, ninja 27, dragon 9, lucky 1                            (/301)
+// In Puro-Puro the change lasts an hour, after which an impling nobody caught goes back to being the
+// invisible spawn (npc_changetype's revert respawns it where it began) and rolls again. In Gielinor the
+// spawner was npc_add'ed for the thirty-minute cycle, and the impling lasts what is left of it.
+[ai_timer,_impling_spawner]
+def_int $tier = npc_param(impling_tier);
+def_int $kind = ~impling_roll($tier);
+if (inzone(^puro_sw, ^puro_ne, npc_coord) = true) {
+    npc_changetype(enum(int, npc, impling_puro_by_tier, $kind), 6000);
+} else {
+    // what is left of this cycle; the controller added it at the start of one
+    npc_changetype(enum(int, npc, impling_world_by_tier, $kind), max(1, sub(^impling_cycle_ticks, modulo(map_clock, ^impling_cycle_ticks))));
+}
+npc_settimer(^impling_escape_ticks);
+
+[proc,impling_roll](int $tier)(int)
+def_int $r = 0;
+switch_int ($tier) {
+    case 1 :
+        $r = random(100);
+        if ($r < 20) {
+            return(1);
+        }
+        if ($r < 40) {
+            return(2);
+        }
+        if ($r < 60) {
+            return(3);
+        }
+        if ($r < 80) {
+            return(4);
+        }
+        if ($r < 90) {
+            return(5);
+        }
+        return(6);
+    case 2 :
+        $r = random(100);
+        if ($r < 10) {
+            return(3);
+        }
+        if ($r < 20) {
+            return(4);
+        }
+        if ($r < 40) {
+            return(5);
+        }
+        if ($r < 77) {
+            return(6);
+        }
+        if ($r < 97) {
+            return(7);
+        }
+        if ($r < 99) {
+            return(8);
+        }
+        return(9);
+    case 3 :
+        $r = random(101);
+        if ($r < 10) {
+            return(7);
+        }
+        if ($r < 60) {
+            return(8);
+        }
+        if ($r < 90) {
+            return(9);
+        }
+        if ($r < 100) {
+            return(10);
+        }
+        return(11);
+    case 4 :
+        $r = random(301);
+        if ($r < 150) {
+            return(7);
+        }
+        if ($r < 264) {
+            return(8);
+        }
+        if ($r < 291) {
+            return(9);
+        }
+        if ($r < 300) {
+            return(10);
+        }
+        return(11);
+}
+return(1);
+
+// "They can occasionally teleport to a nearby area" (OSRS wiki, Impling): now and then an impling blinks a
+// few squares away - over a wall or a row of wheat as easily as not, which is why they can end up where
+// nobody can reach them, as the wiki warns. The wandering itself is the npc's own (wanderrange).
+[ai_timer,_impling]
+if (random(^impling_escape_chance) ! 0) {
+    return;
+}
+def_coord $to = map_findsquare(npc_coord, 2, 6, ^map_findsquare_none);
+if ($to = null | $to = npc_coord) {
+    return;
+}
+npc_tele($to);

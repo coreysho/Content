@@ -1,0 +1,792 @@
+// IMPLINGS (Impetuous Impulses, June 2007) - scripts/hunter_implings.rs2.
+//
+// Every impling OSRS has but the crystal impling (Prifddinas, which this build does not have). Two of
+// each, as OSRS has two: the Gielinor one and the Puro-Puro one, which differ only in the experience a
+// catch pays (the wiki's Gielinor and Puro-Puro columns) and in how they move - Puro-Puro's stay in
+// the maze's corridors, the world's fly over water (moverestrict=blocked+normal: blocked only by what
+// blocks a projectile, so walls and fences but not rivers). Models: rev 474's (npcs 1028-1035,
+// 6053-6064, byte-identical to OSRS's), the lucky impling OSRS's (npc 7233, model 31741 - it came in
+// 2019). Level, xp and the catch rolls are the OSRS wiki's: its Skilling success chart numbers for
+// the net (impling_low/high) and for bare hands or the magic butterfly net (impling_magic_low/high),
+// which are stat_random's own low/high out of 256 - Mod Ash's 12% at 1 to 98% at 99, +8 points for
+// the magic net or bare hands. Combat stats per Mod Ash (hitpoints 10, the rest 0, magic defence
+// +10 to +50); no Attack op, as in OSRS.
+
+[impling_baby]
+name=Baby impling
+desc=An impling baby. Aaah...
+model1=npc_impling_baby
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=blocked+normal
+wanderrange=100
+respawnrate=7
+hitpoints=10
+param=magicdefence,10
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,17
+param=impling_xp,200
+param=impling_low,79
+param=impling_high,402
+param=impling_magic_low,99
+param=impling_magic_high,422
+param=impling_jar,baby_impling_jar
+param=impling_tier,1
+
+[impling_young]
+name=Young impling
+desc=A young impling. It's not fair!
+model1=npc_impling_young
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=blocked+normal
+wanderrange=100
+respawnrate=7
+hitpoints=10
+param=magicdefence,10
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,22
+param=impling_xp,220
+param=impling_low,69
+param=impling_high,351
+param=impling_magic_low,89
+param=impling_magic_high,371
+param=impling_jar,young_impling_jar
+param=impling_tier,2
+
+[impling_gourmet]
+name=Gourmet impling
+desc=An impling gourmet. Mmmm, tasty.
+model1=npc_impling_gourmet
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=blocked+normal
+wanderrange=100
+respawnrate=7
+hitpoints=10
+param=magicdefence,10
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,28
+param=impling_xp,240
+param=impling_low,61
+param=impling_high,325
+param=impling_magic_low,81
+param=impling_magic_high,345
+param=impling_jar,gourmet_impling_jar
+param=impling_tier,3
+
+[impling_earth]
+name=Earth impling
+desc=An earth impling. Rock on.
+model1=npc_impling_earth
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=blocked+normal
+wanderrange=100
+respawnrate=7
+hitpoints=10
+param=magicdefence,10
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,36
+param=impling_xp,270
+param=impling_low,51
+param=impling_high,302
+param=impling_magic_low,71
+param=impling_magic_high,322
+param=impling_jar,earth_impling_jar
+param=impling_tier,4
+
+[impling_essence]
+name=Essence impling
+desc=An impling who likes magic. Magic!
+model1=npc_impling_essence
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=blocked+normal
+wanderrange=100
+respawnrate=7
+hitpoints=10
+param=magicdefence,10
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,42
+param=impling_xp,290
+param=impling_low,40
+param=impling_high,275
+param=impling_magic_low,60
+param=impling_magic_high,295
+param=impling_jar,essence_impling_jar
+param=impling_tier,5
+
+[impling_eclectic]
+name=Eclectic impling
+desc=An impling with varied tastes.
+model1=npc_impling_eclectic
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=blocked+normal
+wanderrange=100
+respawnrate=7
+hitpoints=10
+param=magicdefence,10
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,50
+param=impling_xp,320
+param=impling_low,30
+param=impling_high,250
+param=impling_magic_low,50
+param=impling_magic_high,270
+param=impling_jar,eclectic_impling_jar
+param=impling_tier,6
+
+[impling_nature]
+name=Nature impling
+desc=A nature impling. Right on, maaan.
+model1=npc_impling_nature
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=blocked+normal
+wanderrange=100
+respawnrate=7
+hitpoints=10
+param=magicdefence,20
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,58
+param=impling_xp,360
+param=impling_low,20
+param=impling_high,200
+param=impling_magic_low,40
+param=impling_magic_high,220
+param=impling_jar,nature_impling_jar
+param=impling_tier,7
+
+[impling_magpie]
+name=Magpie impling
+desc=Ooh, shiny things!
+model1=npc_impling_magpie
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=blocked+normal
+wanderrange=100
+respawnrate=7
+hitpoints=10
+param=magicdefence,30
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,65
+param=impling_xp,2160
+param=impling_low,15
+param=impling_high,177
+param=impling_magic_low,35
+param=impling_magic_high,197
+param=impling_jar,magpie_impling_jar
+param=impling_tier,8
+
+[impling_ninja]
+name=Ninja impling
+desc=A very stealthy impling.
+model1=npc_impling_ninja
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=blocked+normal
+wanderrange=100
+respawnrate=7
+hitpoints=10
+param=magicdefence,40
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,74
+param=impling_xp,2400
+param=impling_low,10
+param=impling_high,151
+param=impling_magic_low,30
+param=impling_magic_high,171
+param=impling_jar,ninja_impling_jar
+param=impling_tier,9
+
+[impling_dragon]
+name=Dragon impling
+desc=An impling who likes the word 'dragon'.
+model1=npc_impling_dragon
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=blocked+normal
+wanderrange=100
+respawnrate=7
+hitpoints=10
+param=magicdefence,50
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,83
+param=impling_xp,3000
+param=impling_low,5
+param=impling_high,125
+param=impling_magic_low,25
+param=impling_magic_high,145
+param=impling_jar,dragon_impling_jar
+param=impling_tier,10
+
+[impling_lucky]
+name=Lucky impling
+desc=An impling who is incredibly lucky.
+model1=npc_impling_lucky
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=blocked+normal
+wanderrange=100
+respawnrate=7
+hitpoints=10
+param=magicdefence,50
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,89
+param=impling_xp,3800
+param=impling_low,3
+param=impling_high,100
+param=impling_magic_low,23
+param=impling_magic_high,120
+param=impling_jar,lucky_impling_jar
+param=impling_tier,11
+
+[impling_baby_puro]
+name=Baby impling
+desc=An impling baby. Aaah.
+model1=npc_impling_baby
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=normal
+wanderrange=32
+respawnrate=7
+hitpoints=10
+param=magicdefence,10
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,17
+param=impling_xp,180
+param=impling_low,79
+param=impling_high,402
+param=impling_magic_low,99
+param=impling_magic_high,422
+param=impling_jar,baby_impling_jar
+param=impling_tier,1
+param=impling_puro,1
+
+[impling_young_puro]
+name=Young impling
+desc=A young impling. It's not fair!
+model1=npc_impling_young
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=normal
+wanderrange=32
+respawnrate=7
+hitpoints=10
+param=magicdefence,10
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,22
+param=impling_xp,200
+param=impling_low,69
+param=impling_high,351
+param=impling_magic_low,89
+param=impling_magic_high,371
+param=impling_jar,young_impling_jar
+param=impling_tier,2
+param=impling_puro,1
+
+[impling_gourmet_puro]
+name=Gourmet impling
+desc=An impling gourmet. Mmmm, tasty.
+model1=npc_impling_gourmet
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=normal
+wanderrange=32
+respawnrate=7
+hitpoints=10
+param=magicdefence,10
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,28
+param=impling_xp,220
+param=impling_low,61
+param=impling_high,325
+param=impling_magic_low,81
+param=impling_magic_high,345
+param=impling_jar,gourmet_impling_jar
+param=impling_tier,3
+param=impling_puro,1
+
+[impling_earth_puro]
+name=Earth impling
+desc=An earth impling. Rock on.
+model1=npc_impling_earth
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=normal
+wanderrange=32
+respawnrate=50
+hitpoints=10
+param=magicdefence,10
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,36
+param=impling_xp,250
+param=impling_low,51
+param=impling_high,302
+param=impling_magic_low,71
+param=impling_magic_high,322
+param=impling_jar,earth_impling_jar
+param=impling_tier,4
+param=impling_puro,1
+
+[impling_essence_puro]
+name=Essence impling
+desc=An impling who likes magic. Magic!
+model1=npc_impling_essence
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=normal
+wanderrange=32
+respawnrate=50
+hitpoints=10
+param=magicdefence,10
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,42
+param=impling_xp,270
+param=impling_low,40
+param=impling_high,275
+param=impling_magic_low,60
+param=impling_magic_high,295
+param=impling_jar,essence_impling_jar
+param=impling_tier,5
+param=impling_puro,1
+
+[impling_eclectic_puro]
+name=Eclectic impling
+desc=An impling with varied tastes.
+model1=npc_impling_eclectic
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=normal
+wanderrange=32
+respawnrate=7
+hitpoints=10
+param=magicdefence,10
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,50
+param=impling_xp,300
+param=impling_low,30
+param=impling_high,250
+param=impling_magic_low,50
+param=impling_magic_high,270
+param=impling_jar,eclectic_impling_jar
+param=impling_tier,6
+param=impling_puro,1
+
+[impling_nature_puro]
+name=Nature impling
+desc=A nature impling. Right on, maaan.
+model1=npc_impling_nature
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=normal
+wanderrange=32
+respawnrate=7
+hitpoints=10
+param=magicdefence,20
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,58
+param=impling_xp,340
+param=impling_low,20
+param=impling_high,200
+param=impling_magic_low,40
+param=impling_magic_high,220
+param=impling_jar,nature_impling_jar
+param=impling_tier,7
+param=impling_puro,1
+
+[impling_magpie_puro]
+name=Magpie impling
+desc=Ooh, shiny things!
+model1=npc_impling_magpie
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=normal
+wanderrange=32
+respawnrate=7
+hitpoints=10
+param=magicdefence,30
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,65
+param=impling_xp,440
+param=impling_low,15
+param=impling_high,177
+param=impling_magic_low,35
+param=impling_magic_high,197
+param=impling_jar,magpie_impling_jar
+param=impling_tier,8
+param=impling_puro,1
+
+[impling_ninja_puro]
+name=Ninja impling
+desc=A very stealthy impling.
+model1=npc_impling_ninja
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=normal
+wanderrange=32
+respawnrate=7
+hitpoints=10
+param=magicdefence,40
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,74
+param=impling_xp,500
+param=impling_low,10
+param=impling_high,151
+param=impling_magic_low,30
+param=impling_magic_high,171
+param=impling_jar,ninja_impling_jar
+param=impling_tier,9
+param=impling_puro,1
+
+[impling_dragon_puro]
+name=Dragon impling
+desc=An impling who likes the word 'dragon'.
+model1=npc_impling_dragon
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=normal
+wanderrange=32
+respawnrate=7
+hitpoints=10
+param=magicdefence,50
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,83
+param=impling_xp,650
+param=impling_low,5
+param=impling_high,125
+param=impling_magic_low,25
+param=impling_magic_high,145
+param=impling_jar,dragon_impling_jar
+param=impling_tier,10
+param=impling_puro,1
+
+[impling_lucky_puro]
+name=Lucky impling
+desc=An impling who has done a lot of treasure trails.
+model1=npc_impling_lucky
+model2=npc_impling_wings
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Catch
+category=impling
+timer=10
+moverestrict=normal
+wanderrange=32
+respawnrate=7
+hitpoints=10
+param=magicdefence,50
+param=stabdefence,-10
+param=slashdefence,-10
+param=crushdefence,-10
+param=rangedefence,-10
+param=impling_level,89
+param=impling_xp,800
+param=impling_low,3
+param=impling_high,100
+param=impling_magic_low,23
+param=impling_magic_high,120
+param=impling_jar,lucky_impling_jar
+param=impling_tier,11
+param=impling_puro,1
+
+// THE INVISIBLE SPAWNS (Impling#Spawn_mechanics). An impling first exists as an invisible npc that roams
+// for two minutes, over anything (blocked+normal), then turns into the impling its tier rolls
+// (npc_changetype, [ai_timer,_impling_spawner]). Caught, it is npc_del'd - which respawns the BASE type,
+// the invisible one, at its own spawn point, after the impling's respawnrate (7 ticks: "immediately").
+// Puro-Puro's 35 are static map npcs; the Gielinor ones are npc_add'ed every thirty minutes by the
+// controller below, and a Gielinor catch does not come back until the next cycle. trollrescue_blankmodel_8
+// is the build's one invisible model; active=no leaves nothing to click.
+[impling_spawner_low]
+model1=trollrescue_blankmodel_8
+active=no
+minimap=no
+category=impling_spawner
+timer=200
+moverestrict=blocked+normal
+wanderrange=32
+respawnrate=7
+param=impling_tier,1
+
+[impling_spawner_mid]
+model1=trollrescue_blankmodel_8
+active=no
+minimap=no
+category=impling_spawner
+timer=200
+moverestrict=blocked+normal
+wanderrange=32
+respawnrate=7
+param=impling_tier,2
+
+[impling_spawner_high]
+model1=trollrescue_blankmodel_8
+active=no
+minimap=no
+category=impling_spawner
+timer=200
+moverestrict=blocked+normal
+wanderrange=32
+respawnrate=7
+param=impling_tier,4
+
+[impling_spawner_world_low]
+model1=trollrescue_blankmodel_8
+active=no
+minimap=no
+category=impling_spawner
+timer=200
+moverestrict=blocked+normal
+wanderrange=100
+respawnrate=7
+param=impling_tier,1
+
+[impling_spawner_world_mid]
+model1=trollrescue_blankmodel_8
+active=no
+minimap=no
+category=impling_spawner
+timer=200
+moverestrict=blocked+normal
+wanderrange=100
+respawnrate=7
+param=impling_tier,2
+
+[impling_spawner_world_high]
+model1=trollrescue_blankmodel_8
+active=no
+minimap=no
+category=impling_spawner
+timer=200
+moverestrict=blocked+normal
+wanderrange=100
+respawnrate=7
+param=impling_tier,3
+
+// The clock nothing sees: one npc, standing in Puro-Puro's unwalkable outer edge, whose timer runs the
+// thirty-minute Gielinor cycle, moves the roaming crop circle every fifteen minutes and makes the maze's
+// wheat grow and wilt (hunter_puro.rs2). An npc because npcs are processed every tick whether or not a
+// player is near, and a static one because a static npc comes back if anything ever removes it.
+[impling_controller]
+model1=trollrescue_blankmodel_8
+timer=1
+active=no
+minimap=no
+moverestrict=nomove
+wanderrange=0
+
+// ELNOCK INQUISITOR (hunter_puro.rs2). Rev 474 npc 6070 - OSRS's 5734 is a later redraw - with its
+// recolours as the RGB15 the packer turns back into 474's HSL16 (import474.hsl16_to_rgb15, all exact).
+// 474's ops are Talk-to and Trade; OSRS added Exchange and Quick-withdraw in 2021 with an equipment
+// store this build has no window for, so Trade is the exchange, as it was in 2007.
+[elnock_inquisitor]
+name=Elnock Inquisitor
+desc=Insurance investigator extraordinaire.
+model1=npc_elnock_1
+model2=npc_3053i2
+model3=npc_elnock_3
+head1=npc_elnock_head
+readyanim=midget_ready
+walkanim=midget_walk
+recol1s=12514
+recol1d=2215
+recol2s=6470
+recol2d=4329
+recol3s=4356
+recol3d=1158
+recol4s=2242
+recol4d=1158
+recol5s=18990
+recol5d=101
+recol6s=352
+recol6d=1158
+op1=Talk-to
+op3=Trade
+wanderrange=2
+
+// Imp defenders (rev 474 npc 6074, OSRS 5738): no ops; they walk the maze and free the implings in your
+// jars (hunter_puro.rs2). The chathead is OSRS's imp head, as the imp-in-a-box's.
+[imp_defender]
+name=Imp defender
+timer=5
+desc=An angry little imp. Grrr.
+model1=npc_imp_defender
+head1=npc_hunter_imp_head
+readyanim=imp_ready
+walkanim=imp_walk
+wanderrange=3
+respawnrate=100
+hitpoints=10
+
+// The wandering impling in Zanaris's wheat field (474 npc 6073) and Immenizz at Puro-Puro's portal (474
+// 6071): the same impling model, Talk-to. OSRS gave the wandering impling Check-gates in 2021; its
+// answer is the Talk-to's last line, so it is here too.
+[wandering_impling]
+name=Wandering impling
+desc=He looks a little lost.
+model1=npc_impling_wandering
+head1=npc_impling_head
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Talk-to
+op3=Check-gates
+wanderrange=4
+
+[immenizz]
+name=Immenizz
+desc=An impling.
+model1=npc_impling_wandering
+head1=npc_impling_head
+readyanim=impling_ready
+walkanim=impling_walk
+op1=Talk-to
+wanderrange=2
