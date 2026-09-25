@@ -1,57 +1,101 @@
 // Hunter skill guide, on the original RS2 skill guide interface (see
 // scripts/interfaces/skill_guide.rs2 for the generic driver).
 //
-// Grouped by method in the order they open - butterfly netting, bird snares, tracking, deadfalls - and
-// from the box trap (27) on in plain level order, since box traps, net traps (29) and the pitfall (31)
-// open within four levels of each other and their creatures interleave all the way to 67. Each method
-// opens with its trap. The netting rows show the jar each species goes into, the snare rows the bird's
-// feather, the deadfall rows what the kebbit leaves (claws, a harpoon), and the box-trap and net-trap
-// rows the animal you keep. The deadfall's own row shows logs: that is what setting one costs; the net
-// trap's shows the small fishing net (with a rope).
+// ONE PAGE PER METHOD, as the other big guides are paged: with Piscatoris, Rellekka, Karamja, the
+// desert and imps in, Hunter had 43 rows and the list holds 40. Each page is in level order and opens
+// with what the method is done with - the noose wand, the snare, the net, the logs for a deadfall,
+// the box, the net trap, the teasing stick, the falconer's glove. The creature rows show what you keep:
+// a jar, a feather, a fur, claws, a spike, the animal itself.
 [proc,open_hunter_guide]
+%skillguide_page = 1;
+~hunter_guide_render;
+
+[proc,hunter_guide_render]
 ~skillguide_begin(^guide_hunter, "Hunter");
+~skillguide_panels(8);
+~skillguide_button(1, "Tracking");
+~skillguide_button(2, "Bird snares");
+~skillguide_button(3, "Butterflies");
+~skillguide_button(4, "Deadfalls");
+~skillguide_button(5, "Box traps");
+~skillguide_button(6, "Net traps");
+~skillguide_button(7, "Pitfalls");
+~skillguide_button(8, "Falconry");
+switch_int (%skillguide_page) {
+    case 2 : ~hunter_guide_snares;
+    case 3 : ~hunter_guide_butterflies;
+    case 4 : ~hunter_guide_deadfalls;
+    case 5 : ~hunter_guide_boxtraps;
+    case 6 : ~hunter_guide_nettraps;
+    case 7 : ~hunter_guide_pitfalls;
+    case 8 : ~hunter_guide_falconry;
+    case default : ~hunter_guide_tracking;
+}
+~skillguide_show;
+
+[proc,hunter_guide_tracking]
+def_int $lvl = stat(hunter);
+~skillguide_row(1, $lvl, ^hunter_polar_kebbit_level, noose_wand, "Tracking");
+~skillguide_row(2, $lvl, ^hunter_polar_kebbit_level, polar_kebbit_fur, "Polar kebbit");
+~skillguide_row(3, $lvl, ^hunter_common_kebbit_level, common_kebbit_fur, "Common kebbit");
+~skillguide_row(4, $lvl, ^hunter_weasel_level, feldip_weasel_fur, "Feldip weasel");
+~skillguide_row(5, $lvl, ^hunter_devil_level, desert_devil_fur, "Desert devil");
+~skillguide_row(6, $lvl, ^hunter_razorback_kebbit_level, long_kebbit_spike, "Razor-backed kebbit");
+
+[proc,hunter_guide_snares]
+def_int $lvl = stat(hunter);
+~skillguide_row(1, $lvl, ^hunter_snare_level, hunter_bird_snare, "Bird snare");
+~skillguide_row(2, $lvl, ^hunter_swift_level, red_feather, "Crimson swift");
+~skillguide_row(3, $lvl, ^hunter_warbler_level, yellow_feather, "Golden warbler");
+~skillguide_row(4, $lvl, ^hunter_longtail_level, orange_feather, "Copper longtail");
+~skillguide_row(5, $lvl, ^hunter_twitch_level, blue_feather, "Cerulean twitch");
+~skillguide_row(6, $lvl, ^hunter_wagtail_level, stripy_feather, "Tropical wagtail");
+
+[proc,hunter_guide_butterflies]
 def_int $lvl = stat(hunter);
 ~skillguide_row(1, $lvl, ^hunter_butterfly_level, hunter_jar_butterfly, "Butterfly");
-~skillguide_row(2, $lvl, ^hunter_snare_level, hunter_bird_snare, "Bird snare");
-~skillguide_row(3, $lvl, ^hunter_swift_level, red_feather, "Crimson swift");
-~skillguide_row(4, $lvl, ^hunter_polar_kebbit_level, polar_kebbit_fur, "Polar kebbit");
-~skillguide_row(5, $lvl, ^hunter_common_kebbit_level, common_kebbit_fur, "Common kebbit");
-~skillguide_row(6, $lvl, ^hunter_warbler_level, yellow_feather, "Golden warbler");
-~skillguide_row(7, $lvl, ^hunter_weasel_level, noose_wand, "Tracking");
-~skillguide_row(8, $lvl, ^hunter_weasel_level, feldip_weasel_fur, "Feldip weasel");
-~skillguide_row(9, $lvl, ^hunter_longtail_level, orange_feather, "Copper longtail");
-~skillguide_row(10, $lvl, ^hunter_twitch_level, blue_feather, "Cerulean twitch");
-~skillguide_row(11, $lvl, ^hunter_devil_level, desert_devil_fur, "Desert devil");
-~skillguide_row(12, $lvl, ^hunter_viceroy_level, hunter_jar_viceroy, "Viceroy");
-~skillguide_row(13, $lvl, ^hunter_ruby_level, hunter_jar_ruby, "Ruby harvest");
-~skillguide_row(14, $lvl, ^hunter_wagtail_level, stripy_feather, "Tropical wagtail");
-~skillguide_row(15, $lvl, ^hunter_deadfall_level, logs, "Deadfall");
-~skillguide_row(16, $lvl, ^hunter_wild_kebbit_level, kebbit_claws, "Wild kebbit");
-~skillguide_row(17, $lvl, ^hunter_bluemorpo_level, hunter_jar_bluemorpo, "Blue Morpho");
-~skillguide_row(18, $lvl, ^hunter_glacialis_level, sapphire_glacialis, "Sapphire glacialis");
-~skillguide_row(19, $lvl, ^hunter_boxtrap_level, hunter_box_trap, "Box trap");
-~skillguide_row(20, $lvl, ^hunter_ferret_level, ferret, "Ferret");
-~skillguide_row(21, $lvl, ^hunter_nettrap_level, net, "Net trap");
-~skillguide_row(22, $lvl, ^hunter_swamp_lizard_level, swamp_lizard, "Swamp lizard");
-~skillguide_row(23, $lvl, ^hunter_pitfall_level, teasing_stick, "Pitfall");
-~skillguide_row(24, $lvl, ^hunter_larupia_level, larupia_fur, "Spined larupia");
-~skillguide_row(25, $lvl, ^hunter_barbtailed_kebbit_level, barbtail_harpoon, "Barb-tailed kebbit");
-~skillguide_row(26, $lvl, ^hunter_swallowtail_level, hunter_jar_swallowtail, "Tiger Swallowtail");
-~skillguide_row(27, $lvl, ^hunter_snowyknight_level, snowy_knight, "Snowy knight");
-~skillguide_row(28, $lvl, ^hunter_prickly_kebbit_level, kebbit_spike, "Prickly kebbit");
-~skillguide_row(29, $lvl, ^hunter_graahk_level, graahk_fur, "Horned graahk");
-~skillguide_row(30, $lvl, ^falconry_level, falconers_glove_falcon, "Falconry");
-~skillguide_row(31, $lvl, ^hunter_spotted_kebbit_level, spotted_kebbit_fur, "Spotted kebbit");
-~skillguide_row(32, $lvl, ^hunter_orange_salamander_level, orange_salamander, "Orange salamander");
-~skillguide_row(33, $lvl, ^hunter_razorback_kebbit_level, long_kebbit_spike, "Razor-backed kebbit");
-~skillguide_row(34, $lvl, ^hunter_sabretooth_kebbit_level, kebbit_teeth, "Sabre-toothed kebbit");
-~skillguide_row(35, $lvl, ^hunter_chinchompa_level, chinchompa, "Chinchompa");
-~skillguide_row(36, $lvl, ^hunter_kyatt_level, kyatt_fur, "Sabre-toothed kyatt");
-~skillguide_row(37, $lvl, ^hunter_dark_kebbit_level, dark_kebbit_fur, "Dark kebbit");
-~skillguide_row(38, $lvl, ^hunter_red_salamander_level, red_salamander, "Red salamander");
-~skillguide_row(39, $lvl, ^hunter_chinchompa_red_level, red_chinchompa, "Carnivorous chinchompa");
-~skillguide_row(40, $lvl, ^hunter_black_salamander_level, black_salamander, "Black salamander");
-~skillguide_row(41, $lvl, ^hunter_dashing_kebbit_level, dashing_kebbit_fur, "Dashing kebbit");
-~skillguide_row(42, $lvl, ^hunter_magicbox_level, magic_box, "Magic box");
-~skillguide_row(43, $lvl, ^hunter_imp_level, imp_box_2, "Imp");
-~skillguide_show;
+~skillguide_row(2, $lvl, ^hunter_viceroy_level, hunter_jar_viceroy, "Viceroy");
+~skillguide_row(3, $lvl, ^hunter_ruby_level, hunter_jar_ruby, "Ruby harvest");
+~skillguide_row(4, $lvl, ^hunter_bluemorpo_level, hunter_jar_bluemorpo, "Blue Morpho");
+~skillguide_row(5, $lvl, ^hunter_glacialis_level, sapphire_glacialis, "Sapphire glacialis");
+~skillguide_row(6, $lvl, ^hunter_swallowtail_level, hunter_jar_swallowtail, "Tiger Swallowtail");
+~skillguide_row(7, $lvl, ^hunter_snowyknight_level, snowy_knight, "Snowy knight");
+
+[proc,hunter_guide_deadfalls]
+def_int $lvl = stat(hunter);
+~skillguide_row(1, $lvl, ^hunter_deadfall_level, logs, "Deadfall");
+~skillguide_row(2, $lvl, ^hunter_wild_kebbit_level, kebbit_claws, "Wild kebbit");
+~skillguide_row(3, $lvl, ^hunter_barbtailed_kebbit_level, barbtail_harpoon, "Barb-tailed kebbit");
+~skillguide_row(4, $lvl, ^hunter_prickly_kebbit_level, kebbit_spike, "Prickly kebbit");
+~skillguide_row(5, $lvl, ^hunter_sabretooth_kebbit_level, kebbit_teeth, "Sabre-toothed kebbit");
+
+[proc,hunter_guide_boxtraps]
+def_int $lvl = stat(hunter);
+~skillguide_row(1, $lvl, ^hunter_boxtrap_level, hunter_box_trap, "Box trap");
+~skillguide_row(2, $lvl, ^hunter_ferret_level, ferret, "Ferret");
+~skillguide_row(3, $lvl, ^hunter_chinchompa_level, chinchompa, "Chinchompa");
+~skillguide_row(4, $lvl, ^hunter_chinchompa_red_level, red_chinchompa, "Carnivorous chinchompa");
+~skillguide_row(5, $lvl, ^hunter_magicbox_level, magic_box, "Magic box");
+~skillguide_row(6, $lvl, ^hunter_imp_level, imp_box_2, "Imp");
+
+[proc,hunter_guide_nettraps]
+def_int $lvl = stat(hunter);
+~skillguide_row(1, $lvl, ^hunter_nettrap_level, net, "Net trap");
+~skillguide_row(2, $lvl, ^hunter_swamp_lizard_level, swamp_lizard, "Swamp lizard");
+~skillguide_row(3, $lvl, ^hunter_orange_salamander_level, orange_salamander, "Orange salamander");
+~skillguide_row(4, $lvl, ^hunter_red_salamander_level, red_salamander, "Red salamander");
+~skillguide_row(5, $lvl, ^hunter_black_salamander_level, black_salamander, "Black salamander");
+
+[proc,hunter_guide_pitfalls]
+def_int $lvl = stat(hunter);
+~skillguide_row(1, $lvl, ^hunter_pitfall_level, teasing_stick, "Pitfall");
+~skillguide_row(2, $lvl, ^hunter_larupia_level, larupia_fur, "Spined larupia");
+~skillguide_row(3, $lvl, ^hunter_graahk_level, graahk_fur, "Horned graahk");
+~skillguide_row(4, $lvl, ^hunter_kyatt_level, kyatt_fur, "Sabre-toothed kyatt");
+
+[proc,hunter_guide_falconry]
+def_int $lvl = stat(hunter);
+~skillguide_row(1, $lvl, ^falconry_level, falconers_glove_falcon, "Falconry");
+~skillguide_row(2, $lvl, ^hunter_spotted_kebbit_level, spotted_kebbit_fur, "Spotted kebbit");
+~skillguide_row(3, $lvl, ^hunter_dark_kebbit_level, dark_kebbit_fur, "Dark kebbit");
+~skillguide_row(4, $lvl, ^hunter_dashing_kebbit_level, dashing_kebbit_fur, "Dashing kebbit");

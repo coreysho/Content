@@ -920,6 +920,12 @@ if (process.env.HTRAP === 'imp' || process.env.HTRAP === 'emporium') {
         player.closeModal(); await waitTicks(1);
         texts.length = 0; opnpc(4, leon); await waitTicks(1); await talkThrough();
         check(texts.some(t => t.includes('kebbit')) && texts.some(t => t.includes('20 coins')) && texts.some(t => t.includes('40 coins')), 'Ammo: Leon names his price - a spike and 20 coins, a long spike and 40');
+        // with spikes: every spike you can pay for, six bolts each (20 coins a kebbit spike)
+        player.invAdd(InvType.INV, ObjType.getId('kebbit_spike'), 3);
+        player.invDel(InvType.INV, ObjType.getId('coins'), tot('coins'));
+        player.invAdd(InvType.INV, ObjType.getId('coins'), 50);
+        texts.length = 0; opnpc(4, leon); await waitTicks(1); await resume(); await resume('multi2:com_1'); await talkThrough();
+        check(tot('kebbit_bolts') === 12 && tot('kebbit_spike') === 1 && tot('coins') === 10, `Ammo with 3 spikes and 50 coins: two spikes made into 12 kebbit bolts for 40 coins, the third waiting for the money (${tot('kebbit_bolts')} bolts, ${tot('kebbit_spike')} spike, ${tot('coins')} coins)`);
         texts.length = 0; opnpc(1, leon); await waitTicks(1); await resume(); await resume('multi3:com_1'); await talkThrough();
         check(v('shop') === LSHOP && player.modalMain === Component.getId('shop_template'), 'Talk-to, "What are you selling?", opens his shop');
         player.closeModal(); await waitTicks(1);

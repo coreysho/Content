@@ -257,9 +257,46 @@ switch_int (~p_choice3("What are you selling?", 1, "What do you make bolts from?
 [opnpc4,leon] @leon_ammo_offer;
 
 [label,leon_ammo_offer]
-~chatnpc("<p,neutral>Kebbit spikes. Bring me a spike from a prickly kebbit and 20 coins, and I'll turn it into six kebbit bolts.");
-~chatnpc("<p,neutral>The long spikes off a razor-backed kebbit make long kebbit bolts - six for a spike and 40 coins. Those kebbits are up Piscatoris way.");
-~chatnpc("<p,sad>You haven't any spikes on you, though. Come back when you have.");
+def_int $short = inv_total(inv, kebbit_spike);
+def_int $long = inv_total(inv, long_kebbit_spike);
+if ($short = 0 & $long = 0) {
+    ~chatnpc("<p,neutral>Kebbit spikes. Bring me a spike from a prickly kebbit and 20 coins, and I'll turn it into six kebbit bolts.");
+    ~chatnpc("<p,neutral>The long spikes off a razor-backed kebbit make long kebbit bolts - six for a spike and 40 coins. Those kebbits are up Piscatoris way.");
+    ~chatnpc("<p,sad>You haven't any spikes on you, though. Come back when you have.");
+    return;
+}
+// Every spike of the one kind you can pay for, six bolts each: kebbit spikes (prickly kebbits,
+// Piscatoris deadfalls) at 20 coins, long ones (razor-backed kebbits, Piscatoris tracking) at 40.
+if ($short > 0 & $long > 0) {
+    switch_int (~p_choice2("Kebbit bolts, from kebbit spikes.", 1, "Long kebbit bolts, from long spikes.", 2)) {
+        case 1 : @leon_make_bolts(kebbit_spike, kebbit_bolts, ^leon_bolt_fee, "kebbit bolts");
+        case 2 : @leon_make_bolts(long_kebbit_spike, long_kebbit_bolts, ^leon_long_bolt_fee, "long kebbit bolts");
+    }
+}
+if ($short > 0) {
+    @leon_make_bolts(kebbit_spike, kebbit_bolts, ^leon_bolt_fee, "kebbit bolts");
+}
+@leon_make_bolts(long_kebbit_spike, long_kebbit_bolts, ^leon_long_bolt_fee, "long kebbit bolts");
+
+[label,leon_make_bolts](namedobj $spike, namedobj $bolts, int $fee, string $name)
+def_int $n = min(inv_total(inv, $spike), divide(inv_total(inv, coins), $fee));
+if ($n < 1) {
+    ~chatnpc("<p,neutral>It's <tostring($fee)> coins a spike for those. Come back when you've the money.");
+    return;
+}
+if (inv_total(inv, $bolts) = 0 & inv_freespace(inv) < 1 & inv_total(inv, $spike) > $n) {
+    ~chatnpc("<p,neutral>You'll need room in your pack for the bolts.");
+    return;
+}
+~chatnpc("<p,neutral><tostring($n)> of those spikes will make you <tostring(multiply($n, 6))> <$name>, for <tostring(multiply($n, $fee))> coins. Shall I?");
+if (~p_choice2("Yes, please.", 1, "No, thanks.", 2) ! 1) {
+    ~chatplayer("<p,neutral>No, thanks.");
+    return;
+}
+inv_del(inv, $spike, $n);
+inv_del(inv, coins, multiply($n, $fee));
+inv_add(inv, $bolts, multiply($n, 6));
+~objbox($bolts, "Leon works the spikes into <tostring(multiply($n, 6))> <$name>.", 250, 0, divide(^objbox_height, 2));
 
 // Ranged 50 to wield, as in OSRS; the level check every crossbow has (levelrequire/scripts/crossbows.rs2).
 [opheld2,hunters_crossbow] @levelrequire_ranged(50, last_slot);
