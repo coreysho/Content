@@ -134,6 +134,15 @@ if (~p_choice2("But how can I help?", 1, "Sorry, just passing through.", 2) = 2)
 if (~p_choice2_header("Yes.", 1, "No.", 2, "Start the Horror from the Deep quest?") = 2) {
     @horror_larrissa_decline;
 }
+// The one start requirement: Alfred Grimhand's Barcrawl (OSRS wiki infobox, "Questreqstart" yes).
+// Its 35 Agility is NOT checked here - the same infobox marks it "Questreqstart" no; it is for the
+// pipe on the Barbarian Outpost course between you and Gunnjorn, which barbarian_course.rs2 already
+// enforces. No 2006 Larrissa line for the refusal is recorded anywhere (both transcripts give only the
+// start prompt), so it is the game's own notice the RS transcript records at this point.
+if (%barcrawl ! ^barcrawl_complete) {
+    ~mesbox("You do not meet the requirements to start: 'Horror from the Deep'.");
+    return;
+}
 ~chatplayer("<p,happy>Okay, I'll help!");
 %horror = ^horror_started;
 ~send_quest_progress(questlist:horror, 1, ^horror_complete);
@@ -560,41 +569,51 @@ if (getbit_range(%horror_lighting, 0, 2) = 7) {
 [oplocu,horror_far_left_door]
 @horror_wall_useitem;
 
+// Transcripts, "Using a ... on the strange wall": the player says it won't come back, the game asks
+// "Really place the rune/weapon/arrow into the door?", and Yes puts it in the slot ("You place an air
+// rune into the slot in the wall."); the last of the six sets something moving within the wall. An
+// item already in its slot: "There is no space to put ... into the wall."
 [label,horror_wall_useitem]
 if (%horror < ^horror_started) {
-    mes("You should investigate the lighthouse first.");
-    return;
-}
-if (getbit_range(%horror_wall, 0, 5) = 63) {
-    mes("The wall has already been opened.");
+    ~displaymessage(^dm_default);
     return;
 }
 def_int $bit = -1;
+def_string $what = "";
+def_string $kind = "";
 if (last_useitem = firerune) {
-    $bit = 0;
+    $bit = 0; $what = "a fire rune"; $kind = "rune";
 } else if (last_useitem = airrune) {
-    $bit = 1;
+    $bit = 1; $what = "an air rune"; $kind = "rune";
 } else if (last_useitem = waterrune) {
-    $bit = 2;
+    $bit = 2; $what = "a water rune"; $kind = "rune";
 } else if (last_useitem = earthrune) {
-    $bit = 3;
+    $bit = 3; $what = "an earth rune"; $kind = "rune";
 } else if (last_useitem = bronze_sword | last_useitem = iron_sword | last_useitem = steel_sword | last_useitem = black_sword | last_useitem = mithril_sword | last_useitem = adamant_sword | last_useitem = rune_sword) {
-    $bit = 4;
+    $bit = 4; $what = "a sword"; $kind = "weapon";
 } else if (last_useitem = bronze_arrow | last_useitem = iron_arrow | last_useitem = steel_arrow | last_useitem = mithril_arrow | last_useitem = adamant_arrow | last_useitem = rune_arrow) {
-    $bit = 5;
+    $bit = 5; $what = "an arrow"; $kind = "arrow";
 } else {
     ~displaymessage(^dm_default);
     return;
 }
-if (testbit(%horror_wall, $bit) = 1) {
-    mes("You've already pressed something like that into the wall.");
+if (getbit_range(%horror_wall, 0, 5) = 63 | testbit(%horror_wall, $bit) = 1) {
+    mes("There is no space to put <$what> into the wall.");
     return;
 }
-mes("You press the item into a hidden recess in the wall.");
+def_obj $item = last_useitem; // before the dialogue, which ends the last_useitem pointer
+~chatplayer("<p,neutral>I don't think I'll get that back if I put it in there.");
+if (~p_choice2_header("Yes", 1, "No", 2, "Really place the <$kind> into the door?") = 2) {
+    return;
+}
+if (inv_total(inv, $item) = 0) {
+    return;
+}
+inv_del(inv, $item, 1);
 %horror_wall = setbit(%horror_wall, $bit);
-inv_del(inv, last_useitem, 1);
+mes("You place <$what> into the slot in the wall.");
 if (getbit_range(%horror_wall, 0, 5) = 63) {
-    mes("With a grinding of stone, the two hinged panels swing back, opening the way south.");
+    mes("You hear the sound of something moving within the wall.");
     ~horror_wall_open_doors;
     if (%horror < ^horror_wall_opened) {
         %horror = ^horror_wall_opened;
@@ -608,12 +627,16 @@ gosub(horror_wall_study);
 [oploc1,horror_mid_right_door]
 gosub(horror_wall_study);
 
+// From the lighthouse side it is the metal door of the OSRS guide - a monstrous face in the middle and
+// six icons round it (the four runes, a sword and an arrow), in our words. From the cave side, the
+// transcript's line.
 [proc,horror_wall_study]
-if (getbit_range(%horror_wall, 0, 5) = 63) {
-    mes("The wall has already been opened.");
+// the panels sit on the south edge of their own tile, so the loc's own row is the cave side
+if (coordz(coord) >= coordz(loc_coord)) {
+    mes("You cannot see anything unusual about the wall from this side.");
     return;
 }
-mes("A strange wall, engraved with symbols representing fire, air, water, earth, a sword and an arrow. There seem to be hidden recesses matching each symbol.");
+mes("A monstrous face is carved into the middle of the wall, ringed by six icons: fire, air, water and earth, a sword and an arrow.");
 
 [oploc1,horror_far_right_door]
 gosub(horror_wall_open_attempt);
@@ -627,7 +650,7 @@ gosub(horror_wall_open_attempt);
 // opens: nobody should be walled in behind a puzzle they came through (or round, from the Waterbirth
 // maze - ^horror_maze_exit_dest lands in the cave beyond it).
 if (getbit_range(%horror_wall, 0, 5) ! 63 & coordz(coord) < coordz(loc_coord)) {
-    mes("The door won't budge - it looks like it's sealed shut somehow.");
+    mes("You cannot see any way to move this part of the wall....");
     return;
 }
 mes("You push the hinged panel aside.");
@@ -844,83 +867,123 @@ if (%horror >= ^horror_complete & testbit(%horror_bridges, ^horror_casket_owed_b
     @horror_jossik_casket;
 }
 if (%horror >= ^horror_complete) {
-    // Two separate post-quest services, which the old single ~openshop_activenpc call conflated:
-    // the wiki's 5,000gp replacement for a LOST damaged prayer book is a dialogue transaction, and
-    // is not in [lighthouseshop]'s stock at all - that inv is the general store ("Jossik's Wares":
-    // rope, hammer, chisel, tinderbox, containers, Fremennik drinks), which is what op3=Trade and
-    // the "supplies" option below open. See configs/quest_horror_jossik.npc for the shop binding
-    // that makes ~openshop_activenpc work at all - before it, npc_param(owned_shop) was unset here.
-    ~chatnpc("<p,happy>Hello again. The light's burning bright, thanks to you.");
-    def_int $service = ~p_choice3("Could I see what you have for sale?", 1, "I've lost my prayer book.", 2, "Just passing through.", 3);
+    // The shop (op3=Trade and the first option; configs/quest_horror_jossik.npc binds it) and the
+    // prayer books. The books follow the RS wiki's account of Jossik (Jossik page, "God Books"; the
+    // OSRS Damaged book pages agree): a LOST damaged book he gives back for nothing - it washed up
+    // and he knew it was yours - and once you have completed your book he will sell you a damaged
+    // book of another god for 5,000 coins. The old 5,000gp charge for your own lost book was
+    // invented. Only the three books of this era: Armadyl, Bandos and Ancient came later.
+    ~chatnpc("<p,happy>Hello again, adventurer. What brings you this way?");
+    def_int $service = ~p_choice3("Can I see your wares?", 1, "Have you found any new prayer books?", 2, "Nothing, really. Goodbye.", 3);
     if ($service = 3) {
-        ~chatplayer("<p,neutral>Just passing through.");
+        ~chatplayer("<p,neutral>Nothing, really. Goodbye.");
         return;
     }
     if ($service = 1) {
-        ~chatplayer("<p,neutral>Could I see what you have for sale?");
+        ~chatplayer("<p,neutral>Can I see your wares?");
+        ~chatnpc("<p,happy>Sure thing! I think you'll agree my prices are remarkable.");
         ~openshop_activenpc;
         return;
     }
-    ~chatplayer("<p,sad>I've lost my prayer book.");
-    if (~horror_carrying_prayer_book = true) {
-        ~chatnpc("<p,quiz>Have you now? You seem to have one on you already.");
-        return;
-    }
-    ~chatnpc("<p,neutral>Careless. I can salvage you another from the wreck, but it'll cost you 5,000 coins.");
-    if (~p_choice2("That's fine, here you go.", 1, "That's too much.", 2) = 2) {
-        ~chatplayer("<p,neutral>That's too much.");
-        return;
-    }
-    ~chatplayer("<p,neutral>That's fine, here you go.");
-    if (inv_total(inv, coins) < 5000) {
-        ~chatnpc("<p,neutral>You don't have that much on you.");
-        return;
-    }
-    if (inv_freespace(inv) < 1) {
-        ~chatnpc("<p,neutral>You'll need a free hand to carry it.");
-        return;
-    }
-    ~chatnpc("<p,quiz>Which order was yours again?");
-    @multi3("A book of Saradomin.", horror_rebuy_saradomin, "A book of Zamorak.", horror_rebuy_zamorak, "A book of Guthix.", horror_rebuy_guthix);
+    ~chatplayer("<p,quiz>Have you found any new prayer books?");
+    @horror_jossik_books;
 }
 
-// True if the player already has any of the three prayer books, damaged or finished, carried or
-// worn - keeps the 5,000gp replacement from handing out a second copy of a book they still have.
-[proc,horror_carrying_prayer_book]()(boolean)
-if (inv_total(inv, unfinished_saradominbook) > 0 | inv_total(inv, unfinished_zamorakbook) > 0 | inv_total(inv, unfinished_guthixbook) > 0) {
+// %horror_bridges bits 5-7: the damaged books of Saradomin, Zamorak and Guthix this player has had
+// from Jossik (the casket's, or bought). A save from before these bits has none set: whatever god
+// books it is holding (anywhere - pack, worn or bank) are taken as its own the first time it asks.
+[label,horror_jossik_books]
+def_int $god = 1;
+while ($god <= 3) {
+    if (~horror_has_god_book($god) = true) {
+        %horror_bridges = setbit(%horror_bridges, calc(^horror_book_owned_bit + $god - 1));
+    }
+    $god = add($god, 1);
+}
+// one that was yours and is nowhere to be found: back for nothing
+$god = 1;
+while ($god <= 3) {
+    if (testbit(%horror_bridges, calc(^horror_book_owned_bit + $god - 1)) = 1 & ~horror_has_god_book($god) = false) {
+        if (inv_freespace(inv) = 0) {
+            ~chatnpc("<p,neutral>I have something of yours, as it happens - but you'll need some room in your pack first.");
+            return;
+        }
+        inv_add(inv, ~horror_god_book($god), 1);
+        ~chatnpc("<p,happy>As a matter of fact I have! This book washed up on the beach not long ago, and I knew it for yours straight away. Here you go!");
+        return;
+    }
+    $god = add($god, 1);
+}
+// an old save that has lost the book it was given, with nothing on record: it chooses it back
+if (getbit_range(%horror_bridges, ^horror_book_owned_bit, calc(^horror_book_owned_bit + 2)) = 0) {
+    if (inv_freespace(inv) = 0) {
+        ~chatnpc("<p,neutral>I have something of yours, as it happens - but you'll need some room in your pack first.");
+        return;
+    }
+    ~chatnpc("<p,happy>As a matter of fact I have! A book washed up on the beach not long ago - one of yours, I'm sure. Which was it?");
+    $god = ~p_choice3("Saradomin.", 1, "Zamorak.", 2, "Guthix.", 3);
+    inv_add(inv, ~horror_god_book($god), 1);
+    %horror_bridges = setbit(%horror_bridges, calc(^horror_book_owned_bit + $god - 1));
+    return;
+}
+if (~horror_has_complete_god_book = false | getbit_range(%horror_bridges, ^horror_book_owned_bit, calc(^horror_book_owned_bit + 2)) = 7) {
+    ~chatnpc("<p,neutral>Nope. Sorry, adventurer - nothing new has washed up. I'll let you know if any more show up, though.");
+    return;
+}
+~chatnpc("<p,happy>Funnily enough, I have! Some more turned up in caskets the other day. I'll sell you one for 5,000 coins - what do you say?");
+if (~p_choice2("Buy a book.", 1, "No thanks.", 2) = 2) {
+    ~chatplayer("<p,neutral>No thanks.");
+    ~chatnpc("<p,neutral>Okay! Suit yourself.");
+    return;
+}
+$god = ~p_choice3_header("Saradomin.", 1, "Zamorak.", 2, "Guthix.", 3, "Which book would you like?");
+if (testbit(%horror_bridges, calc(^horror_book_owned_bit + $god - 1)) = 1) {
+    ~chatnpc("<p,confused>You've already got that one!");
+    return;
+}
+if (inv_total(inv, coins) < 5000) {
+    ~chatnpc("<p,neutral>You don't have enough coins for that.");
+    return;
+}
+if (inv_freespace(inv) = 0 & inv_total(inv, coins) > 5000) {
+    ~chatnpc("<p,neutral>You'll need some room in your pack for it.");
+    return;
+}
+inv_del(inv, coins, 5000);
+inv_add(inv, ~horror_god_book($god), 1);
+%horror_bridges = setbit(%horror_bridges, calc(^horror_book_owned_bit + $god - 1));
+~chatnpc("<p,happy>Here you go!");
+
+[proc,horror_has_god_book](int $god)(boolean)
+def_namedobj $damaged = ~horror_god_book($god);
+def_namedobj $done = ~horror_god_book_complete($god);
+if (inv_total(inv, $damaged) > 0 | inv_total(worn, $damaged) > 0 | inv_total(bank, $damaged) > 0) {
     return(true);
 }
-if (inv_total(inv, saradominbook_complete) > 0 | inv_total(inv, zamorakbook_complete) > 0 | inv_total(inv, guthixbook_complete) > 0) {
-    return(true);
-}
-if (inv_total(worn, saradominbook_complete) > 0 | inv_total(worn, zamorakbook_complete) > 0 | inv_total(worn, guthixbook_complete) > 0) {
+if (inv_total(inv, $done) > 0 | inv_total(worn, $done) > 0 | inv_total(bank, $done) > 0) {
     return(true);
 }
 return(false);
 
-// The coins come off inside each label rather than before the @multi3 above: ~multi3, like every
-// other dialogue primitive, ends in p_pausebutton and is abortable, so charging before the choice
-// would take 5,000gp from anyone who closed the window.
-[label,horror_rebuy_saradomin]
-~chatplayer("<p,neutral>A book of Saradomin.");
-@horror_rebuy_give(unfinished_saradominbook);
-
-[label,horror_rebuy_zamorak]
-~chatplayer("<p,neutral>A book of Zamorak.");
-@horror_rebuy_give(unfinished_zamorakbook);
-
-[label,horror_rebuy_guthix]
-~chatplayer("<p,neutral>A book of Guthix.");
-@horror_rebuy_give(unfinished_guthixbook);
-
-[label,horror_rebuy_give](namedobj $book)
-if (inv_total(inv, coins) < 5000) {
-    ~chatnpc("<p,neutral>You don't have that much on you.");
-    return;
+[proc,horror_has_complete_god_book]()(boolean)
+def_int $god = 1;
+while ($god <= 3) {
+    def_namedobj $done = ~horror_god_book_complete($god);
+    if (inv_total(inv, $done) > 0 | inv_total(worn, $done) > 0 | inv_total(bank, $done) > 0) {
+        return(true);
+    }
+    $god = add($god, 1);
 }
-inv_del(inv, coins, 5000);
-inv_add(inv, $book, 1);
-~mesbox("You hand over 5,000 coins and Jossik fetches you another damaged prayer book.");
+return(false);
+
+[proc,horror_god_book_complete](int $god)(namedobj)
+if ($god = 2) {
+    return(zamorakbook_complete);
+}
+if ($god = 3) {
+    return(guthixbook_complete);
+}
+return(saradominbook_complete);
 
 // --- The casket (after the quest) ---
 // Transcript, "Post-quest dialogue - Jossik": he reads the faint writing on the casket with you. You
@@ -964,6 +1027,7 @@ if (inv_total(inv, horror_casket) > 0) {
 }
 inv_add(inv, ~horror_god_book($god), 1);
 %horror_bridges = clearbit(%horror_bridges, ^horror_casket_owed_bit);
+%horror_bridges = setbit(%horror_bridges, calc(^horror_book_owned_bit + $god - 1));
 ~chatnpc("<p,shock>Well I never! It's a holy book of <~horror_god_name($god)>! I thought these had all been lost. Well, it's all yours - I hope you appreciate it.");
 
 [proc,horror_god_name](int $god)(string)
