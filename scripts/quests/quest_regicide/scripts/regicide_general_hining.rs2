@@ -1,20 +1,15 @@
-// Regicide - General Hining at Tyras Camp (checklist item #6). Denies the player access to
-// King Tyras. This is where this pass of the quest stops - the return trip to the Tracker and
-// then Iorwerth (dropping the pendant first) is out of scope here, future work.
-
 [opnpc1,regicide_general_hining]
-switch_int(%regicide_quest) {
-    case ^regicide_not_started, ^regicide_started, ^regicide_met_elves, ^regicide_met_iorwerth :
-        ~chatnpc("<p,angry>This camp is off-limits to outsiders. Move along.");
-        return;
-    case ^regicide_met_tracker :
-        ~chatplayer("<p,neutral>I need to speak with King Tyras. It's urgent.");
-        ~chatnpc("<p,angry>Out of the question. Nobody sees the King without my say-so, and I'm not giving it.");
-        ~chatplayer("<p,quiz>Why not? I've come a long way.");
-        ~chatnpc("<p,neutral>The King's court has enough to worry about without a stranger wandering in unannounced. We're waiting on word from his council before anyone new is granted an audience.");
-        ~chatplayer("<p,worried>This can't wait. Lives may depend on it.");
-        ~chatnpc("<p,angry>Everything is urgent to somebody. My answer stands - no audience with the King. Now get out of my camp before I have you thrown out.");
-        %regicide_quest = ^regicide_at_tyras_camp;
-    case default :
-        ~chatnpc("<p,angry>I told you, no audience with the King. Don't push your luck.");
+~chatplayer("<p,happy>Hello.");
+if(%regicide_quest > ^regicide_spoken_iorwerth2) {
+    ~chatnpc("<p,scared>This is not a good place to be, go and prepare for the coming darkness.");
+    ~chatplayer("<p,confused>What do you mean?");
+    ~chatnpc("<p,scared>There is no great hero left to fight back the forces that face us now... Go, leave, prepare for the darkness. While you still have time!");
+    return;
 }
+// https://web.archive.org/web/20061231211932im_/http://www.runeweb.net/fireball/Regicide%20Images/Regicide16.PNG
+~chatnpc("<p,neutral>Yes, is there anything I can help with?|I'm General of what's left of this army|and I'm rather busy.");
+~chatplayer("<p,quiz>If you're a General can you help me meet the king?");
+~chatnpc("<p,neutral>The king will see no one. He can trust no one!");
+~chatplayer("<p,sad>Is there no way I can see him?");
+~chatnpc("<p,neutral>In the coming battle he will stand between us and the end. Then you will see him.");
+~chatplayer("<p,shifty>Not quite what I had in mind.");

@@ -1,0 +1,31 @@
+[opnpc1,regicide_tyras_camp_guard] @tyras_guard_dialogue;
+[opnpc1,regicide_tyras_guard] @tyras_guard_dialogue;
+
+[label,tyras_guard_dialogue]
+~chatplayer("<p,happy>Hello.");
+if(%regicide_quest > ^regicide_spoken_iorwerth2) {
+    ~chatnpc("<p,neutral>These are dark times, I must prepare for the coming battle.");
+    return;
+}
+~chatnpc("<p,neutral>Sorry, can't stop to talk, you should go to General Hining or the king who's in his tent.");
+
+[opnpc1,regicide_tyras_camp_tent_guard]
+~chatplayer("<p,happy>Hello.");
+if(%regicide_quest > ^regicide_spoken_iorwerth2) {
+    ~chatnpc("<p,neutral>Good day. Sorry I can't stop to talk. General Hining is keeping a tight watch.");
+    return;
+}
+~chatnpc("<p,neutral>Good day, I'm busy guarding King Tyras. I have no time for idle chat.");
+
+[ai_queue1,regicide_tyras_camp_guard] ~npc_default_retaliate_ap;
+[ai_opplayer2,regicide_tyras_camp_guard] npc_setmode(applayer2);
+[ai_applayer2,regicide_tyras_camp_guard] gosub(npc_default_attack);
+
+[ai_queue1,regicide_tyras_guard] ~npc_default_retaliate_ap;
+[ai_opplayer2,regicide_tyras_guard] npc_setmode(applayer2);
+[ai_applayer2,regicide_tyras_guard] gosub(npc_default_attack);
+
+// The deaths and drops are ours: [ai_queue3,regicide_old_camp_guard] and
+// [ai_queue3,regicide_tyras_camp_guard] in drop_tables/scripts/tyras_guard.rs2, which queue this.
+[queue,defeat_tyras_guard]
+%regicide_quest = ^regicide_defeated_guard;
