@@ -1,20 +1,14 @@
 [opnpc1,death_smithy]
-// --- Troll Romance: Dunstan builds the sled ---
-// ^troll_love_bring_dunstan_materials (20) and ^troll_love_dunstan_made_sled (22) had no
-// assignment anywhere in the repo, and trollromance_toboggon was never added to anyone's
-// inventory - only ever read and deleted. So Troll Romance stopped dead at
-// ^troll_love_learnt_about_trollweiss: no sled meant no waxed sled, no trollweiss, no Arrg, and
-// the completion queue at quest_troll_love.rs2 was unreachable.
-//
-// [proc,trollromance_dunstan_has_materials] was already written for exactly this and had no
-// callers, so the material list is its, not an invention: yew or maple logs for the runners, an
-// iron bar, and a rope.
-//
-// First in the handler so nothing below can shadow it, and bounded to the two stages it serves.
-// Troll Romance requires Troll Stronghold finished, so this can never collide with the
-// %troll_quest branches underneath.
-if(%troll_love = ^troll_love_learnt_about_trollweiss | %troll_love = ^troll_love_bring_dunstan_materials) {
-    @dunstan_sled;
+// --- Troll Romance ---
+// From the time Tenzing sends you to him about a sled, and for good after, Dunstan first asks which
+// you have come about: "Talk about a quest." for the sled, "Talk about something else." for his
+// usual menu (OSRS wiki, Transcript:Troll Romance and Transcript:Dunstan). Troll Romance requires
+// Troll Stronghold, so none of the %troll_quest branches below can apply by then.
+if (%troll_love >= ^troll_love_learnt_about_trollweiss) {
+    if (~p_choice2("Talk about a quest.", 1, "Talk about something else.", 2) = 1) {
+        @dunstan_troll_love;
+    }
+    @dunstan_ops;
 }
 if(%troll_quest = ^troll_freed_godric) {
     ~chatplayer("<p,neutral>Has Godric returned home?");
@@ -78,39 +72,123 @@ switch_obj(last_useitem) {
     case default : ~chatnpc("<p,confused>Sorry friend, but I can't do anything with that.");
 }
 
-[label,dunstan_sled]
-if(%troll_love = ^troll_love_learnt_about_trollweiss) {
-    ~chatplayer("<p,neutral>I need to get to the snowy peak north of here. I'm told a sled is the only way down it.");
-    ~chatnpc("<p,quiz>A sled? Aye, I could knock one together. It's not smithing, mind - but I've built worse.");
-    ~chatnpc("<p,neutral>Bring me yew or maple logs for the runners, an iron bar for the fittings, and a rope to hang on to.");
-    ~chatplayer("<p,happy>I'll go and get them.");
-    %troll_love = ^troll_love_bring_dunstan_materials;
-    return;
+// Troll Romance, word for word from the OSRS wiki's Transcript:Troll Romance (Talking to Dunstan;
+// again without materials; with materials; again before waxing the Sled) and Transcript:Dunstan
+// (after the quest). These replace lines of our own that stood in for them.
+[label,dunstan_troll_love]
+if (%troll_love = ^troll_love_learnt_about_trollweiss) {
+    ~chatplayer("<p,neutral>Hi!");
+    ~chatnpc("<p,happy>Hi! Did you want something?");
+    switch_int (~p_choice4("Can you put some spikes on my Climbing boots?", 1, "I need a sled!!", 2, "Is it OK if I use your anvil?", 3, "Nothing, thanks.", 4)) {
+        case 1 : @dunstan_spikeboots;
+        case 2 : @dunstan_need_sled;
+        case 3 : @dunstan_anvil;
+        case 4 : @dunstan_nothing;
+    }
 }
-// ^troll_love_bring_dunstan_materials
-if(~trollromance_dunstan_has_materials = false) {
-    ~chatnpc("<p,quiz>Have you got those materials yet?|Yew or maple logs, an iron bar, and a rope.");
-    ~chatplayer("<p,sad>Not all of them, no.");
-    ~chatnpc("<p,neutral>Then off you go. I'll not build half a sled.");
-    return;
+if (%troll_love = ^troll_love_bring_dunstan_materials) {
+    ~chatnpc("<p,quiz>Have you got all the materials for the sled yet?");
+    if (~trollromance_dunstan_has_materials = false) {
+        ~chatplayer("<p,sad>No, I haven't got everything yet.");
+        ~chatnpc("<p,neutral>Well, unfortunately I can't make the sled without all the materials.");
+        @dunstan_ops;
+    }
+    ~chatplayer("<p,happy>Yes, I have all the materials for the sled.");
+    ~dunstan_make_sled;
+    %troll_love = ^troll_love_dunstan_made_sled;
+    @dunstan_sled_wax_explain;
 }
-~chatplayer("<p,happy>I've got everything you asked for.");
-~chatnpc("<p,happy>Then give me a moment and a bit of peace.");
-// Three items out, one in - no space check needed, and the deletes come first regardless.
-if(inv_total(inv, yew_logs) > 0) {
+// Until the sled is waxed he just picks up where he left off - unless it has been lost, when the
+// sledder's menu below is the one with "Can you make me another sled?" in it.
+if (%troll_love = ^troll_love_dunstan_made_sled & calc(~obj_gettotal(trollromance_toboggon) + ~obj_gettotal(trollromance_toboggon_waxed)) > 0) {
+    ~chatnpc("<p,happy>Hello again.");
+    @dunstan_sled_wax_menu(true);
+}
+~chatnpc("<p,happy>Well, if it isn't our very own sledder! What can I do for you today?");
+// the law talisman's condition is his usual menu's (dunstan_ops)
+if (%troll_quest = ^troll_complete & ~obj_gettotal(law_talisman) = 0) {
+    @multi5("Can I have another law talisman?", dunstan_lawtali, "Can you put some spikes on my Climbing boots?", dunstan_spikeboots, "Can you make me another sled?", dunstan_another_sled, "What do I need for the sled wax again?", dunstan_sled_wax_again, "Nothing, thanks.", dunstan_nothing);
+}
+@multi4("Can you put some spikes on my Climbing boots?", dunstan_spikeboots, "Can you make me another sled?", dunstan_another_sled, "What do I need for the sled wax again?", dunstan_sled_wax_again, "Nothing, thanks.", dunstan_nothing);
+
+[label,dunstan_need_sled]
+~chatplayer("<p,neutral>I need a sled!!");
+~chatnpc("<p,laugh>Haha, very funny! Aren't you a bit old for rolling around in the snow?");
+if (~p_choice2("Yes.", 1, "No.", 2) = 1) {
+    ~chatplayer("<p,neutral>Yes.");
+    ~chatnpc("<p,quiz>So why do you need a sled then?");
+    ~chatplayer("<p,neutral>I need the sled to get to a certain location in the mountains.");
+} else {
+    ~chatplayer("<p,neutral>No.");
+    ~chatnpc("<p,laugh>Hahahaha.");
+    ~chatplayer("<p,neutral>No, I actually still like rolling around in the snow.");
+    ~chatnpc("<p,laugh>Well, I guess some of us never grow up!");
+    ~chatplayer("<p,neutral>I need the sled to get to a certain location in the mountains.");
+}
+~chatnpc("<p,neutral>Well, since you've helped my family out a couple of times, I'd be glad to build a sled for you.");
+~chatnpc("<p,neutral>Let me think...");
+~chatnpc("<p,neutral>...");
+%troll_love = ^troll_love_bring_dunstan_materials;
+~chatnpc("<p,neutral>Yeah, that should do it. I will need some yew or maple logs, a bar of iron and some rope.");
+~chatnpc("<p,neutral>I should have my designs ready by the time you have brought me all the materials.");
+
+// Yew if you have both - the logs are the runners either way.
+[proc,dunstan_make_sled]
+if (inv_total(inv, yew_logs) > 0) {
     inv_del(inv, yew_logs, 1);
 } else {
     inv_del(inv, maple_logs, 1);
 }
 inv_del(inv, iron_bar, 1);
 inv_del(inv, rope, 1);
-if_close;
-mes("Dunstan sets to work.");
-p_delay(3);
 inv_add(inv, trollromance_toboggon, 1);
-%troll_love = ^troll_love_dunstan_made_sled;
-~chatnpc("<p,happy>There. One sled.|It'll not win any races, but it'll get you down a mountain.");
-~chatnpc("<p,neutral>Wax the runners before you try it, or you'll be walking.");
+~objbox(trollromance_toboggon, "Dunstan takes the materials and some of his tools and starts making a sled. After a while Dunstan hands you a finished sled.", 250, 0, 0);
+
+[label,dunstan_sled_wax_explain]
+~chatnpc("<p,neutral>Well, here's the sled but it will need to be waxed. The wax will need to both protect the sled as well as smoothen it.");
+~chatnpc("<p,neutral>Maybe if you mix some wax with a bit of swamp tar it will achieve the desired effect. You'll also need something to store the wax in... like a cake tin.");
+@dunstan_sled_wax_menu(false);
+
+[label,dunstan_sled_wax_again]
+~chatplayer("<p,neutral>What do I need for the sled wax again?");
+~chatnpc("<p,neutral>You will need some wax and some swamp tar.");
+@dunstan_sled_wax_menu(false);
+
+// "See you!" is only offered once one of the others has been asked.
+[label,dunstan_sled_wax_menu](boolean $see_you)
+def_int $choice;
+if ($see_you = true) {
+    $choice = ~p_choice4("Where can I get wax from?", 1, "Where can I get swamp tar from?", 2, "What else do I need?", 3, "See you!", 4);
+} else {
+    $choice = ~p_choice3("Where can I get wax from?", 1, "Where can I get swamp tar from?", 2, "What else do I need?", 3);
+}
+if ($choice = 1) {
+    ~chatplayer("<p,quiz>Where can I get wax from?");
+    ~chatnpc("<p,laugh>I don't know. I'm a smith! But maybe you should look for some bees.");
+} else if ($choice = 2) {
+    ~chatplayer("<p,quiz>Where can I get swamp tar from?");
+    ~chatnpc("<p,neutral>The swamp of course! It's south of Lumbridge.");
+} else if ($choice = 3) {
+    ~chatplayer("<p,quiz>What else do I need?");
+    ~chatnpc("<p,neutral>You will also need a cake tin to store the wax in.");
+} else {
+    ~chatplayer("<p,happy>See you!");
+    ~chatnpc("<p,happy>Thank you, come again.");
+    return;
+}
+@dunstan_sled_wax_menu(true);
+
+[label,dunstan_another_sled]
+~chatplayer("<p,neutral>Can you make me another sled?");
+~chatnpc("<p,neutral>Yeah sure, have you got the maple or yew logs, an iron bar and some rope?");
+if (~trollromance_dunstan_has_materials = false) {
+    ~chatplayer("<p,sad>No, I haven't got everything yet.");
+    ~chatnpc("<p,neutral>Well, unfortunately I can't make the sled without all the materials.");
+    return;
+}
+~chatplayer("<p,happy>Yes, I have all the materials for the sled.");
+~dunstan_make_sled;
+@dunstan_sled_wax_explain;
 
 [label,dunstan_anythingelse]
 ~chatnpc("<p,neutral>Anything else before I get on with my work?");

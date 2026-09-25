@@ -63,15 +63,54 @@ if ($choice = 1) {
 }
 
 
-// TODO: Implement boss fight properly (Ranged and melee)
-
 [label,trollromance_arrg_combat]
 p_teleport(map_findsquare(0_45_56_34_27, 1, 2, ^map_findsquare_lineofwalk));
 npc_add(movecoord(coord, -4, 0, 0), trollromance_arrg_attackable, 500);
 npc_setmode(opplayer2);
 %npc_aggressive_player = uid;
 hint_npc;
-//queue*(playerhit_n_retaliate, 0)(npc_uid); // Is this correct?
+
+// The fight in the arena. Arrg closes to melee and hits there - slash, up to 38 - or throws a rock
+// from point blank, up to 30 (OSRS wiki, Arrg: "Slash, Ranged", max hits 38 and 30,
+// attack speed 4). "Arrg will attack with both melee and ranged attacks, but his ranged attacks hit
+// less often and they are less strong" (Sal's Realm, 2006) - the rock rolls his Ranged against your
+// ranged defence with no ranged accuracy bonus. He gives no warning before he switches ("the lack of
+// warning prior to him switching attacks"), and he "primarily uses" melee, so one throw in three.
+// He only fights from where he can reach you: at the wiki's safespots, stuck against the mountain wall,
+// he lands nothing at all.
+[ai_opplayer2,trollromance_arrg_attackable]
+if (%npc_action_delay > map_clock) return;
+if (~npc_check_notcombat = false) {
+    npc_setmode(null);
+    return;
+}
+if (~npc_check_notcombat_self = false) {
+    return;
+}
+if (random(3) = 0) {
+    ~trollromance_arrg_throw;
+    return;
+}
+anim(%com_defendanim, 0);
+npc_anim(npc_param(attack_anim), 0);
+sound_synth(npc_param(attack_sound), 0, 0);
+~npc_meleeattack;
+
+[proc,trollromance_arrg_throw]
+def_int $attack_roll = ~npc_ranged_attack_roll;
+def_int $defence_roll = ~player_defence_roll_specific(^ranged_style);
+def_int $maxhit = ~npc_ranged_maxhit;
+npc_anim(troll_rock_throw, 0);
+sound_synth(troll_with_rock_attack, 0, 0);
+spotanim_npc(troll_rock_launch, 96, 0);
+%npc_action_delay = add(map_clock, npc_param(attackrate));
+// the Thrower Trolls' own rock and flight (death_troll_thrower.rs2)
+def_int $duration = ~player_projectile(npc_coord, coord, uid, troll_rock_travel, 36, 36, 31, 8, 15, 128, 1);
+if (randominc($attack_roll) > randominc($defence_roll)) {
+    ~playerhit_n_ranged(randominc($maxhit), $duration, npc_param(attackrate));
+    return;
+}
+~playerhit_n_ranged(0, $duration, npc_param(attackrate));
 
 // A death script runs as the npc, which cannot write %troll_love (a protected player varp) - so the
 // kill never counted and Ug went on asking whether Arrg was dead. The player's own queue does it.
@@ -86,5 +125,4 @@ if (npc_findhero = ^true) {
 if (%troll_love = ^troll_love_dispose_of_arrg) {
     %troll_love = ^troll_love_defeated_arrg;
     ~send_quest_progress(questlist:troll_love, %troll_love, ^troll_love_complete);
-    mes("Arrg is beaten. Ug will want to hear about this.");
 }
