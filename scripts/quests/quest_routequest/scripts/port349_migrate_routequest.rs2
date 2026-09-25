@@ -1,6 +1,55 @@
 // Old saves onto the ported quest - see scripts/general/scripts/port349.rs2.
+//
+// The old In Search of the Myreque was this server's own, with six stages in %routequest:
+//   0 not started, 1 been down the Canifis trapdoor and met Veliaf, 2 passed his three questions,
+//   3 sent to open the southern route, 4 told him it was open, 5 complete.
+// and it used the same varps for other things:
+//   routequest_myreque_bits  bit 0 ladder mended, bit 1 Cyreg won over, bit 2 Curpile won over
+//                            (the original: bits 0-4 are the five Myreque you have introduced
+//                            yourself to)
+//   bridgerung1-3            the three rungs of the Hollows ladder, each paid for with a plank and
+//                            a nail (the original: the three rotten boards of the Mort Myre bridge)
+//   routequestionscorrect/answered, roomnum
+//                            a quiz counter and the floor you came out on (the original: Curpile's
+//                            quiz, reset every time it starts, and the ambush room, reset after it)
+//   thsfm_vanstrom_hide      1 once complete (the original: 1 once Vanstrom has shown himself)
+//
+// None of the old middle stages is a place in the original: its quest is Vanstrom's weapons, the
+// boatman, the bridge, Curpile's quiz and the ambush, and nothing the old one had you do (or hand
+// over) is any of those. So:
+//   5 complete     -> 105 complete. The bridge is mended (the original can't be finished without
+//                     crossing it, and it is the way back to the Myreque for In Aid of the Myreque),
+//                     all five were met, Vanstrom has gone from the chair. The rewards were paid
+//                     by the old ending and are not paid again.
+//   1-4 underway   -> 5, the first stage of the original, when its requirement (Nature Spirit) is
+//                     met: Vanstrom has asked you, the boatman is next. Without it, 0 - you go back
+//                     to Vanstrom once you have it. Nothing was handed in at any old stage, so
+//                     nothing is lost. Ladder rungs already mended stay as bridge boards already
+//                     mended: each one cost a plank.
+//   0              -> untouched.
 [proc,port349_migrate_routequest]
 if (%port349_routequest = ^true) {
     return;
 }
+def_int $old = %routequest;
+if ($old >= 5) {
+    %routequest = ^routequest_complete;
+    %bridgerung1 = 1;
+    %bridgerung2 = 1;
+    %bridgerung3 = 1;
+    %routequest_myreque_bits = 31; // bits 0-4, everyone introduced
+} else if ($old > 0) {
+    if (%druidspirit >= ^druidspirit_complete) {
+        %routequest = ^routequest_started;
+    } else {
+        %routequest = ^routequest_not_started;
+    }
+    %routequest_myreque_bits = 0;
+}
+if ($old > 0) {
+    %routequestionscorrect = 0;
+    %routequestionsanswered = 0;
+    %roomnum = 0;
+}
+~routequest_sync_vanstrom;
 %port349_routequest = ^true;

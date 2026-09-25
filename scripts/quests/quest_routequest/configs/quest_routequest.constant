@@ -1,95 +1,37 @@
-// In Search of the Myreque.
-//
-// Three varps and not one line of script anywhere. What is in the cache:
-//
-//   routequest               the progress varp
-//   routequest_myreque_bits  entirely unused by any varbit - a spare int
-//   routequestmulti          carries everything else:
-//     routequestionscorrect   bits 6-7    0-3
-//     routequestionsanswered  bits 8-9    0-3
-//     roomnum                 bits 16-18  0-7
-//     bridgerung1/2/3         bits 20/21/22
-//     thsfm_vanstrom_hide     bit 25
-//
-// Two of those are the quest on their own. A pair of two-bit counters that top out at three is a
-// three-question test you either pass or fail, and three single-bit rungs are a ladder with three
-// rungs missing.
-//
-// ---------------------------------------------------------------------------- the cast
-// route_cyreg_paddlehorn   "A tall and imposing man who's more than familiar with boating."
-// route_curpile_fyod       "A typical, if overly heavy handed, jobs worth guard."
-// route_veliaf_hurtz       "Looks like the leader of the Myreque."   op3=hidden
-// route_sani_piliu, route_harold_evans, route_radigad_ponfit,
-// route_polmafi_ferdygris, route_ivan_strom
-// route_vanstrom_klause    in five bodies: sitting, normal, vamp, vamp_misty, vamp_wingsgrow
-//
-// Veliaf, Radigad, Polmafi and Ivan are spawned on m54_153 plane 0 AND plane 3. Sani and Harold are
-// spawned on plane 3 only. Four on one floor and six on the other, and the four are exactly the
-// four who are still standing by the time the Myreque get to Burgh de Rott.
-//
-// ---------------------------------------------------------------------------- Vanstrom
-//   [multi_vanstrom_stranger_entity]
-//   multivar=thsfm_vanstrom_hide
-//   multinpc=0,route_vanstrom_klause_sitting
-//   multinpc=1,canafis_stranger
-//
-// He is spawned once, at 3503,3477, which is a chair in the Hair of the Dog in Canifis, and the bit
-// is called "hide" and it means it. At zero - which is where every account starts - the man in that
-// chair is Vanstrom Klause. He has been sitting in the tavern the whole time.
-^route_not_started = 0
-^route_found = 1        // been down the trapdoor, met Veliaf
-^route_tested = 2       // passed his three questions
-^route_route = 3        // sent to open the southern route
-^route_reported = 4     // told Veliaf it is open
-^route_complete = 5
+// In Search of the Myreque - the original quest, ported from PlagueCityRS 349 with its original
+// stage numbers. The varps and varbits it uses are the cache's own, in _unpack/377/all.varp and
+// all.varbit: routequest (progress), routequestmulti (routequestionscorrect/answered, roomnum,
+// bridgerung1-3, thsfm_vanstrom_hide) and routequest_myreque_bits (who you have introduced
+// yourself to).
+^routequest_not_started = 0
+^routequest_started = 5
+^routequest_spoke_to_boatman = 10
+^routequest_boatman_agreed = 15
+^routequest_boatman_repaired = 20
+^routequest_entered_hollowed = 25
+^routequest_found_guard = 52
+^routequest_answered_questions = 55
+^routequest_entered_underground = 60
+^routequest_introduced_veliaf = 65
+// vvv - possibly osrs-only state?
+//^routequest_gave_weapons = 67
+^routequest_enter_cutscene = 70
+// osrs also uses 71-79 that get all pushed in same tick as 80 after cutscene.
+^routequest_ambush = 80
+^routequest_saved_myreque = 85
+^routequest_told_exit_route = 90
+^routequest_discovered_wall = 95
+^routequest_found_exit = 97
+^routequest_spoke_to_stranger = 100
+// osrs also uses 110, then skips 105->110 in same tick.
+^routequest_complete = 105
 
-^route_questions_needed = 3
+// The name the rest of this server tests completion by - the quest list and quest points
+// (general/scripts/quests.rs2) and In Aid of the Myreque (quest_myreque2). Same number.
+^route_complete = 105
 
-^route_off = 0
-^route_on = 1
-
-// routequest_myreque_bits, used as a plain bit field because nothing else uses it at all.
-^route_bit_ladder = 0
-^route_bit_cyreg = 1
-^route_bit_curpile = 2
-
-// ---------------------------------------------------------------------------- places
-// m54_153 is the Hollows: four planes, sixteen route_cavewalltunnel mouths, one boarded ladder and
-// one ladder up into a tavern cellar.
-^route_hollows_boatside = 0_54_153_35_29   // by the stalagmite (was 36_30, a blocked tile)
-^route_stalagmite = 0_54_153_36_32
-^route_broken_ladder = 0_54_153_27_49
-^route_tavern_ladder = 0_54_153_21_53      // below the ladder (was 21_54, the ladder's own tile)
-^route_veliaf = 0_54_153_50_46
-
-// The cellar and the Myreque's hideout are not joined on foot. The cellar's false wall
-// (thrttavernbasementfalsewall, the south edge of 24_45) opens onto the Hollows, and the Hollows
-// reach the hideout through the Myreque's own double door (freedomfighterundergroundentrancel/r,
-// 44_20 and 45_20); the tunnel mouth at the hideout's south edge (49_39) is its way back out.
-// None of the three had a way through before, so Veliaf could not be reached at all.
-^route_hideout_inside = 0_54_153_49_40
-^route_hideout_door_outside = 0_54_153_44_19
-
-^route_canifis_trapdoor = 0_54_54_38_8     // 3494,3464  the Hair of the Dog
-^route_swamp_boat = 0_54_52_42_49          // 3498,3377  3x3, so nobody lands on it
-^route_swamp_landing = 0_54_52_42_54       // 3498,3382  a tile something already stands on
-^route_mortton_boat = 0_55_51_3_20         // 3523,3284  Cyreg is on the next tile along
-^route_mortton_landing = 0_54_51_18_16     // 3474,3280  Mort'ton
-^route_curpile = 0_54_53_52_48             // 3508,3440
-
-^route_boat_toll = 10
-
-// ---------------------------------------------------------------------------- the tunnels
-// Sixteen mouths. Three x/z positions repeat across planes - (49,39) on 0,1,2,3, (11,39) on 1,2,3
-// and (11,9) on 1 and 3 - which is a vertical warren, and the remaining seven sit on plane 0 alone,
-// which is a horizontal one. The horizontal pairings below are inferred from proximity and may not
-// match whatever the original had in mind; nothing is staked on them, because plane 0 also holds
-// the stalagmite and the tavern ladder, so a wrong guess moves you across one cave floor and never
-// traps you on it.
-^route_tunnel_a1 = 0_54_153_22_7
-^route_tunnel_a2 = 0_54_153_20_14
-^route_tunnel_b1 = 0_54_153_11_28
-^route_tunnel_b2 = 0_54_153_24_32
-^route_tunnel_c1 = 0_54_153_32_22
-^route_tunnel_c2 = 0_54_153_36_16
-^route_tunnel_d = 0_54_153_36_31         // the one beside the stalagmite: it is the way out
+^route_myreque_sani = 0
+^route_myreque_harold = 1
+^route_myreque_radigrad = 2
+^route_myreque_polmafi = 3
+^route_myreque_ivan = 4
