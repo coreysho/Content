@@ -1104,6 +1104,10 @@ if (process.env.HTRAP === 'imp' || process.env.HTRAP === 'emporium') {
         await layAt(START[0], START[1]);
         const b = boxAt(START[0], START[1]);
         check(b?.s === 'laid' && slots().length === 1 && (kinds() & 7) === 7 && tot('magic_box') === 4, `Activate lays the box at your feet: trap kind ${kinds() & 7}, one slot, one box spent`);
+        // Imps roam right up to the box here, and the loop could spring it in the middle of these clicks (a
+        // full run caught "only with a bead" answered by a box that had just let an imp get away): the hunter
+        // is held below the imp's 71 - the loop checks it - until Deactivate, as the clicks do not.
+        setLevel(BOXLEVEL - 1);
         { const n = msgs.length; oploc(2, b!.l); await waitTicks(1); check(msgs.slice(n).some(m => m.includes('Nothing has wandered')), 'Investigate: nothing in it yet'); }
         oplocu(b!.l, 'red_bead'); await waitTicks(1);
         check((v('hunter_imp_bait') & 1) === 1 && tot('red_bead') === 0, 'a red bead baits it (the bead is used)');
@@ -1112,6 +1116,7 @@ if (process.env.HTRAP === 'imp' || process.env.HTRAP === 'emporium') {
         { const n = msgs.length; oplocu(b!.l, 'magic_box'); await waitTicks(1); check(tot('magic_box') === 4 && msgs.slice(n).some(m => m.includes('Nothing interesting')), '...and only with a bead'); }
         oploc(1, b!.l); await waitTicks(3);
         check(boxAt(START[0], START[1]) === null && slots().length === 0 && tot('magic_box') === 5, 'Deactivate takes it up and gives the box back');
+        setLevel(LEVEL);
         await layAt(START[0], START[1]);
         check(v('hunter_imp_bait') === 0 && boxAt(START[0], START[1])?.s === 'laid', 'laying a box again leaves no bait over from the last one');
 
