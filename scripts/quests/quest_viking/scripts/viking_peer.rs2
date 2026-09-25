@@ -24,8 +24,9 @@
 // re-findable and every step re-runnable, so losing or banking a puzzle item cannot dead-end it.
 
 [opnpc1,viking_peer]
-// Peer owes Sigmund a favour too - that chain runs on its own and comes first.
-if (~viking_merchant(13, 18) = true) {
+// Link 9 of Sigmund's chain: the weather forecast, for a bodyguard's contract. Its menu also offers
+// to bank your equipment for his own trial.
+if (~viking_merchant(9) = true) {
     return;
 }
 if (%viking < ^viking_started) {
@@ -38,8 +39,9 @@ if (testbit(%viking_bits, ^viking_vote_peer) = 1) {
     return;
 }
 if (testbit(%viking_bits, ^viking_bit_peer_riddle) = 1) {
-    ~chatnpc("<p,neutral>The front door will open for you now. Go in, and come out the other side.");
-    ~chatnpc("<p,neutral>Nothing in your hands and nothing on your back. That is the whole of the rule.");
+    // Wiki: "Talking to Peer the Seer again" - the banking spell if you are carrying anything, the
+    // rule restated if you are not.
+    ~viking_peer_deposit_offer;
     return;
 }
 ~chatplayer("<p,quiz>Peer, I need your vote on the council.");
@@ -93,6 +95,9 @@ if (~p_choice5("Thee", 1, "Free", 2, "Teem", 3, "Tide", 4, "Tree", 5) = 5) {
 %viking_bits = setbit(%viking_bits, ^viking_bit_peer_riddle);
 ~chatnpc("<p,happy>Hah. You do listen.");
 ~chatnpc("<p,neutral>The front door is open. Go in with nothing at all, and come out the other side.");
+if (~viking_peer_carrying = true) {
+    ~viking_peer_deposit_offer;
+}
 
 [label,viking_riddle_wrong]
 ~chatnpc("<p,neutral>No. Come back when you have thought about it and I will set you another.");
@@ -401,6 +406,16 @@ mes("You tip the water down the drain.");
 [label,viking_pour]
 def_obj $mine = last_item;
 def_obj $other = last_useitem;
+// FIXED (walking the house end to end): "Use bucket on jug" pours the bucket INTO the jug. With a
+// container on both ends the target's own trigger is the one that fires, so last_item is the jug
+// and the item picked with Use is last_useitem - this label used to pour the other way, and "use
+// the full bucket on the empty jug" said "There is nothing in it to pour." The source is whichever
+// container was picked with Use; with a vase on the other end the handler has already swapped the
+// pointers so last_item is the container, as the note above says.
+if (~viking_container_kind(last_useitem) ! 0) {
+    $mine = last_useitem;
+    $other = last_item;
+}
 if ($other = viking_airtight_vase | $other = viking_airtight_vase_water | $other = viking_airtight_vase_frozen) {
     @viking_pour_into_vase($mine, $other);
 }
@@ -743,3 +758,36 @@ inv_del(inv, viking_red_splat, 28);
 inv_del(inv, viking_uncoloured_wooden_coin, 28);
 inv_del(inv, viking_red_wooden_coin, 28);
 inv_del(inv, viking_dummy_coin, 28);
+
+
+// --- Peer's banking spell ---
+// ADDED (walking the quest end to end): "enter my house with no items, weapons or armour", and the
+// nearest bank is Seers' Village. Peer offers to send everything you carry and wear straight to
+// your bank (wiki transcript, "Talking to Peer the Seer again"); it was missing, so every attempt
+// at his trial began with a walk to Seers' and back. Offered from his own talk once his trial is
+// set, and from the third option of his Merchant's-trial menu, as in the original.
+[proc,viking_peer_carrying]()(boolean)
+if (inv_freespace(inv) < inv_size(inv)) {
+    return(true);
+}
+return(~viking_wearing_anything);
+
+[proc,viking_peer_deposit_offer]
+if (~viking_peer_carrying = false) {
+    ~chatplayer("<p,quiz>So I just have to enter by one door of your house, and leave by the other?");
+    ~chatnpc("<p,neutral>That is correct outerlander. Be warned it is not as easy as it may at first sound...");
+    return;
+}
+~chatplayer("<p,quiz>So I can bring nothing with me when I enter your house?");
+~chatnpc("<p,neutral>That is correct outerlander, but as I say, I can use my small skill in magic to send your items directly into your bank account from here.");
+~chatnpc("<p,neutral>You will need to manually go to the bank to withdraw them again however. Would you like me to perform this small spell upon you, outerlander?");
+if (~p_choice2("Yes", 1, "No", 2) = 2) {
+    ~chatplayer("<p,angry>No thanks. Nobody touches my stuff but me!");
+    ~chatnpc("<p,neutral>As you wish, outerlander.");
+    ~chatnpc("<p,neutral>You may attempt my little task when you have deposited your equipment in the bank.");
+    return;
+}
+~chatplayer("<p,happy>Yes, thank you!");
+~bank_deposit_inv;
+~bank_deposit_worn;
+~chatnpc("<p,neutral>The task is done. I wish you luck with your test, outerlander.");
