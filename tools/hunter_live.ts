@@ -531,6 +531,138 @@ if (process.env.HTRAP === 'pitfall') {
     process.exit(fails ? 1 : 0);
 }
 
+// HTRAP=graahk: the Karamja hunter area (m43_46/m43_47, imported from 474) - its five pits, four horned
+// graahks and the teasing stick on the ground. Every pit: on the ground floor, a take-off tile with a
+// landing across it, reached on foot from ::karamja's tile, and spiked logs set and dismantled on it.
+// Every graahk: teased from the take-off of the pit nearest it, it must come to your heels (a 2x2 npc
+// moves naively; a boxed-in spawn never arrives). Then the tease's level gate and a real catch.
+if (process.env.HTRAP === 'graahk') {
+    const inv0 = player.getInventory(InvType.INV)!;
+    const tot = (n: string) => inv0.getItemCount(ObjType.getId(n));
+    const setLevel = (l: number) => { player.stats[PlayerStat.HUNTER] = getExpByLevel(l); player.baseLevels[PlayerStat.HUNTER] = l; player.levels[PlayerStat.HUNTER] = l; };
+    const { isMapBlocked, findPath } = await import('#/engine/GameMap.js');
+    const PIT = LocType.getId('loc474_19227');
+    const ST = ['hunter_pit_spiked', 'hunter_pit_collapsed', 'hunter_pit_graahk'];
+    const GRAAHK = NpcType.getId('hunter_horned_graahk');
+    const START = [2777, 3000]; // ::karamja lands here
+    const PITS = [[2762, 3005], [2766, 3010], [2771, 3004], [2777, 3001], [2784, 3001]];
+    const cnum = (n: string) => parseInt(new RegExp(`\\^${n} = (-?\\d+)`).exec(CONST + fs.readFileSync(`${process.env.BUILD_SRC_DIR}/scripts/skill_hunter/configs/hunter_karamja.constant`, 'utf8'))![1]);
+    const GLEVEL = cnum('hunter_graahk_level');
+    const pitAt = (x: number, z: number) => { for (const n of ST) { const l = World.getLoc(x, z, 0, LocType.getId(n)); if (l) return { name: n, loc: l }; } return null; };
+    const plainPit = (x: number, z: number) => World.getLoc(x, z, 0, PIT);
+    const run = (trigger: number, id: number, cat: number, target: any) => {
+        const script = ScriptProvider.getByTrigger(trigger, id, cat);
+        player.executeScript(ScriptRunner.init(script!, player, target), true);
+    };
+    const oploc = (op: number, loc: any) => { const t = LocType.get(loc.type); run(ServerTriggerType.OPLOC1 + (op - 1), t.id, t.category, loc); };
+    const tease = (npc: any) => { const t = NpcType.get(npc.type); run(ServerTriggerType.OPNPC1, t.id, t.category, npc); };
+    const teased = () => player.getVar(VarPlayerType.getId('hunter_tease_npc')) as number;
+    // the script's own landing rule: straight across, the first open tile 2-4 past the take-off
+    const landing = (fx: number, fz: number, px: number, pz: number) => {
+        const sx = Math.sign(px - fx), sz = Math.sign(pz - fz);
+        for (let k = 2; k <= 4; k++) if (!isMapBlocked(fx + sx * k, fz + sz * k, 0)) return [fx + sx * k, fz + sz * k];
+        return null;
+    };
+    const walks = (fx: number, fz: number, tx: number, tz: number) => {
+        const wp = findPath(0, fx, fz, tx, tz);
+        if (wp.length === 0) return fx === tx && fz === tz;
+        const last = wp[wp.length - 1];
+        return ((last >> 14) & 0x3fff) === tx && (last & 0x3fff) === tz;
+    };
+    const takeoffs = new Map<string, number[][]>();
+    player.teleport(START[0], START[1], 0); await waitTicks(2);
+    player.invAdd(InvType.INV, ObjType.getId('knife'), 1);
+    player.invAdd(InvType.INV, ObjType.getId('logs'), 15);
+
+    for (const [px, pz] of PITS) {
+        check(plainPit(px, pz) !== null, `the pit at ${px},${pz} is on the ground floor (a linkbelow bridge tile, as at Feldip)`);
+        const offs = [[0, -1], [0, 1], [-1, 0], [1, 0]].map(([dx, dz]) => [px + dx, pz + dz])
+            .filter(([x, z]) => !isMapBlocked(x, z, 0) && landing(x, z, px, pz) !== null && walks(START[0], START[1], x, z));
+        takeoffs.set(`${px},${pz}`, offs);
+        check(offs.length > 0, `...it has a take-off tile with a landing across it, reached on foot from ::karamja's tile (${offs.map(o => o.join(',')).join(' ')})`);
+        if (!offs.length) continue;
+        player.teleport(offs[0][0], offs[0][1], 0); await waitTicks(2);
+        oploc(3, plainPit(px, pz)); await waitTicks(5);
+        const logs = tot('logs');
+        check(pitAt(px, pz)?.name === 'hunter_pit_spiked', '...spiked logs set over it');
+        if (pitAt(px, pz)) { oploc(2, pitAt(px, pz)!.loc); await waitTicks(2); }
+        check(plainPit(px, pz) !== null && tot('logs') === logs + 1, '...and dismantled: the pit is back, and so is the log');
+    }
+
+    // spread first: NpcList is an Array subclass, so its own .filter returns another NpcList, whose
+    // iterator walks an id table that copy never filled - a for..of over it would see no graahks at all
+    const graahks = [...World.npcs].filter((n: any) => n && n.type === GRAAHK) as any[];
+    check(graahks.length === 4, `four horned graahks, as the wiki places them (${graahks.map(g => `${g.x},${g.z}`).join(' ')})`);
+    const stick = World.getObj(2774, 2994, 0, ObjType.getId('teasing_stick'), -1n);
+    check(stick !== null && !isMapBlocked(2774, 2994, 0) && walks(START[0], START[1], 2774, 2994), 'a teasing stick lies on an open tile south of the pits, reached on foot');
+
+    // the tease's level gate, and no tease without a stick
+    const nearest = (x: number, z: number) => graahks.filter(g => g.isActive).sort((a, b) => Math.max(Math.abs(a.x - x), Math.abs(a.z - z)) - Math.max(Math.abs(b.x - x), Math.abs(b.z - z)))[0];
+    setLevel(GLEVEL - 1);
+    player.invAdd(InvType.INV, ObjType.getId('teasing_stick'), 1);
+    tease(nearest(START[0], START[1])); await waitTicks(2);
+    check(teased() === -1, `below Hunter ${GLEVEL} a graahk cannot be teased`);
+    setLevel(LEVEL);
+    inv0.remove(ObjType.getId('teasing_stick'), 1);
+    { const n = msgs.length; tease(nearest(START[0], START[1])); await waitTicks(1); check(msgs.slice(n).some(m => m.includes('need a teasing stick')) && teased() === -1, 'no tease without a teasing stick'); }
+    player.invAdd(InvType.INV, ObjType.getId('teasing_stick'), 1);
+
+    // every graahk comes to the take-off tile of the pit nearest it
+    const reset = async (g: any) => { g.resetDefaults(); g.teleport(g.startX, g.startZ, 0); await waitTicks(2); };
+    for (const g of graahks) {
+        const [sx, sz] = [g.startX, g.startZ];
+        const byDist = PITS.slice().sort((a, b) => Math.max(Math.abs(a[0] - sx), Math.abs(a[1] - sz)) - Math.max(Math.abs(b[0] - sx), Math.abs(b[1] - sz)));
+        let came: string | null = null;
+        for (const [ox, oz] of takeoffs.get(`${byDist[0][0]},${byDist[0][1]}`) ?? []) {
+            await reset(g);
+            player.teleport(ox, oz, 0); await waitTicks(1);
+            tease(g);
+            for (let i = 0; i < 10 && Math.max(Math.abs(g.x - ox), Math.abs(g.z - oz)) > 2; i++) await waitTicks(1);
+            if (Math.max(Math.abs(g.x - ox), Math.abs(g.z - oz)) <= 3) { came = `${ox},${oz}`; break; }
+        }
+        check(came !== null, `the graahk from ${sx},${sz} follows a tease to the take-off of its nearest pit, ${byDist[0].join(',')} (${came ?? 'never came'})`);
+        await reset(g);
+    }
+
+    // a real catch: tease, jump, and the graahk in the pit
+    const [PX, PZ] = [2777, 3001];
+    const [SX, SZ] = takeoffs.get(`${PX},${PZ}`)![0];
+    const [LX, LZ] = landing(SX, SZ, PX, PZ)!;
+    const setPit = async () => { player.teleport(SX, SZ, 0); await waitTicks(2); oploc(3, plainPit(PX, PZ)); await waitTicks(5); };
+    const jump = async () => { player.teleport(SX, SZ, 0); await waitTicks(1); oploc(1, pitAt(PX, PZ)!.loc); await waitTicks(4); };
+    await setPit();
+    await jump();
+    check(player.x === LX && player.z === LZ && pitAt(PX, PZ)?.name === 'hunter_pit_spiked', `a jump from ${SX},${SZ} lands across at ${LX},${LZ}, and with nothing chasing the pit is untouched`);
+    let fell = false;
+    for (let attempt = 0; attempt < 12 && !fell; attempt++) {
+        if (pitAt(PX, PZ)?.name === 'hunter_pit_collapsed') {
+            const logs = tot('logs');
+            oploc(2, pitAt(PX, PZ)!.loc); await waitTicks(2);
+            check(plainPit(PX, PZ) !== null && tot('logs') === logs, 'a collapsed pit dismantles back to the pit, and the log is spent');
+        }
+        if (pitAt(PX, PZ) === null) await setPit();
+        player.teleport(SX, SZ, 0); await waitTicks(1);
+        const g = nearest(SX, SZ);
+        if (!g || !g.isActive) { await waitTicks(60); continue; }
+        tease(g);
+        for (let i = 0; i < 10 && Math.max(Math.abs(g.x - SX), Math.abs(g.z - SZ)) > 2; i++) await waitTicks(1);
+        await jump();
+        log('jump', attempt, '->', pitAt(PX, PZ)?.name);
+        if (pitAt(PX, PZ)?.name === 'hunter_pit_graahk') fell = true;
+    }
+    check(fell, 'a teased graahk followed the jump into the pit within 12 tries');
+    if (fell) {
+        const b = { bones: tot('big_bones'), fur: tot('graahk_fur'), logs: tot('logs'), xp: player.stats[PlayerStat.HUNTER] };
+        player.teleport(SX, SZ, 0); await waitTicks(1);
+        oploc(2, pitAt(PX, PZ)!.loc); await waitTicks(2);
+        check(tot('big_bones') === b.bones + 1 && tot('graahk_fur') === b.fur + 1, '...Dismantle pays big bones and graahk fur');
+        check(player.stats[PlayerStat.HUNTER] - b.xp === cnum('hunter_graahk_xp'), `...${(player.stats[PlayerStat.HUNTER] - b.xp) / 10} xp`);
+        check(tot('logs') === b.logs && plainPit(PX, PZ) !== null, '...no log back, and the pit is a pit again');
+    }
+    console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
+    process.exit(fails ? 1 : 0);
+}
+
 // HTRAP=deadfall: deadfalls on the four northern boulders, where only barb-tailed kebbits (33) live.
 if (process.env.HTRAP === 'deadfall') {
     const inv0 = player.getInventory(InvType.INV)!;
