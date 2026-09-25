@@ -1,691 +1,608 @@
-// The Fremennik Trials - Olaf the Bard's trial (viking_olaf, m41_57 local(49,35)).
-// Wiki: https://oldschool.runescape.wiki/w/The_Fremennik_Trials
-//
-// Olaf wants to hear something worth listening to. You need an enchanted lyre and you need to play
-// it on the longhall stage. Two routes to the lyre, both from the wiki:
-//
-//   the long way   Cut-branch from the swaying tree (Woodcutting 40) -> carve it with a knife
-//                  (Crafting 40) -> unstrung lyre; Lalli's golden fleece (the rock soup, below),
-//                  spun into golden wool, used on the lyre (Fletching 25)
-//   the short way  kill Lanzig until he drops one (1/17, wired in drop_tables/scripts/lanzig.rs2)
-//
-// Either way the lyre is then enchanted by offering a raw shark, manta ray or sea turtle on the
-// strange altar at the lake shrine, and played on the stage.
-//
-// CORRECTED (reported: "missing getting the pet rock, and cant get in to get the gold wool").
-// The note that used to sit here said there was no pet rock obj anywhere in the 377 cache and
-// simplified the chain away on that basis. That was wrong. The obj is [vt_useless_rock] - "Pet
-// rock", "The lowest maintenance pet you will ever have" - and vt_ is this quest's own prefix: it
-// is the ONLY vt_ obj in the cache, shipped for nothing else. viking_askelapen (Askeladden) is
-// placed in Rellekka and viking_trollcave_entrance sits four tiles from Lalli.
-//
-// The second half of the report is the real blocker. The golden sheep stand inside a ring of
-// viking_drystonewall at m43_56 that closes completely - x8 z21-28, x9 z20-21 and 28-29, x10 z19-20
-// and 29-30, x11-16 z19 and 30, x17 z19-20 and 29-30, x18 z20-21 and 28-29, x19 z21-28 - with no
-// gate loc anywhere on it and no gap. Shears or no shears, nobody could reach a sheep.
-//
-// So the chain is restored: Askeladden hands over the pet rock, Lalli takes it, and a troll who is
-// finally holding something of his own will lift you over his own wall.
-//
-// CORRECTED AGAIN (reported: "can't progress with Lalli for the golden wool", "using a knife on the
-// branch does nothing"). The wall-lifting above was an invention, and Lalli never said a word that
-// pointed anyone at Askeladden. The wiki's chain is the rock soup: Lalli will not give his wool
-// away; Askeladden, who got some out of him once, hands over his pet rock; Lalli will not have a
-// rock; so you tell him it is a magic soup rock, put it in Lalli's Stew (viking_troll_cauldron,
-// placed outside his cave at m43_56 (20,39) and never wired) with a potato, a cabbage and an onion,
-// and ask him to taste it. He gives you the golden fleece. The pen stays shut as the cache built it
-// - the golden sheep are scenery - and Lalli still lifts anyone left inside by the old version back
-// out. %viking_bits 26 now means "the rock is in the stew", which is also true of anyone who gave
-// Lalli the rock under the old version, so they only need the vegetables.
-//
-// The knife: [opheldu,knife] belongs to gnome cooking, and OpHeldUHandler runs the TARGET item's
-// trigger first - so branch-on-knife landed there, fell to its default and said "Nothing
-// interesting happens". It has a case for the branch now, next to the dramen branch, and both click
-// orders come here. The skills were also swapped: carving the lyre is Crafting 40, stringing it
-// Fletching 25.
-
 [opnpc1,viking_olaf]
-// Link 2 of Sigmund's chain: the ballad the sailor wants, for a pair of sturdy boots.
-if (~viking_merchant(2) = true) {
-    return;
+def_int $op;
+if(%viking = ^viking_not_started) {
+    ~chatplayer("<p,neutral>Hello there. So you're a bard?");
+    ~chatnpc("<p,neutral>I am afraid I cannot speak to outerlanders. Besides, I am busy composing an epic.");
+} else if(%viking < ^viking_complete) {
+    if(~get_viking_sigmund_progress > ^sigmund_not_started & ~get_viking_sigmund_progress < ^sigmund_complete) {
+        $op = ~p_choice2("Ask about the Merchant's trial", 1, "Ask about becoming a Fremennik", 2);
+        if($op = 1) @viking_olaf_merchant;
+    }
+    switch_int(~get_viking_olaf_progress) {
+        case ^olaf_complete :
+            ~chatplayer("<p,quiz>So can I rely on your vote with the council of elders in my favour?");
+            ~chatnpc("<p,happy>You have a truly poetic soul! Anyone who can compose such a beautiful epic, and then perform it so flawlessly can only bring good to our clan!");
+            ~chatplayer("<p,quiz>Erm... so that's a yes, then?");
+            ~chatnpc("<p,happy>Absolutely! We must collaborate together on a duet sometime, don't you think?");
+        case default :
+            if(testbit(%viking_bits, ^viking_learned_olaf) = ^true) {
+                ~chatplayer("<p,neutral>What do I have to do to earn your vote at the council of elders again?");
+                ~chatnpc("<p,neutral>Ah, it but a small thing outerlander. Simply make yourself an instrument, get the blessing of Fossegrimen, and then sing your own ballad at the longhall.");
+                ~chatnpc("<p,neutral>Is that clear enough, outerlander? Would you like me to repeat anything?");
+                @multi4("Remind me about crafting a lyre", olaf_remindlyre, "Remind me about Fossegrimen", olaf_remindfoss, "Remind me about playing on stage", olaf_remindstage, "I don't need a reminder", olaf_noremind);
+            }
+            ~chatplayer("<p,quiz>So how would I go about writing this epic?");
+            ~chatnpc("<p,neutral>Well, first of all you are going to need an instrument. Like all true bards you are going to have to make this yourself.");
+            ~chatplayer("<p,quiz>How do I make an instrument?");
+            ~chatnpc("<p,neutral>Well, it is a long and drawn-out process. Just east of this village there is an unusually musical tree that can be used to make very high quality instruments.");
+            ~chatnpc("<p,neutral>Cut a piece from it, and then carve it into a special shape that will allow you to string it. Using a knife as you would craft any other wooden object would be best for this.");
+            ~chatplayer("<p,quiz>Then what do I need to do?");
+            ~chatnpc("<p,neutral>Next you will need to string your lyre. There is a troll to the South-east who has some golden wool. I would not recommend using anything else to string your lyre with.");
+            ~chatplayer("<p,quiz>Anything else?");
+            ~chatnpc("<p,neutral>Well, when you have crafted your lyre you will need the blessing of the Fossegrimen to tune your lyre to perfection before you even consider a public performance.");
+            ~chatplayer("<p,quiz>Who or what is Fossegrimen?");
+            ~chatnpc("<p,neutral>Fossegrimen is a lake spirit that lives just a little way South-west of this village. Make her an offering of fish, and you will then be ready for your performance.");
+            ~chatnpc("<p,neutral>Make sure you give her a suitable offering however. If the offering is found to be unworthy, then you may find yourself unable to play your lyre with any skill at all!");
+            ~chatplayer("<p,quiz>So what would be a worthy offering?");
+            ~chatnpc("<p,neutral>A raw shark, manta ray, or sea turtle should be sufficient as an offering.");
+            ~chatplayer("<p,quiz>Okay, what else do I need to do?");
+            ~chatnpc("<p,neutral>When you have crafted your lyre and been blessed by Fossegrimen, then you will finally be ready to make your performance to the revellers at the longhall.");
+            ~chatnpc("<p,neutral>Head past the bouncers and onto the stage, and then begin to play. If all goes well, you should find the music spring to your mind and sing your own epic on the spot.");
+            ~chatnpc("<p,neutral>I will observe both you and the audience, and if you show enough talent, I will happily vote in your favour at the council of elders.");
+            %viking_bits = setbit(%viking_bits, ^viking_learned_olaf);
+            ~chatnpc("<p,neutral>Is that clear enough, outerlander? Would you like me to repeat anything?");
+            @multi4("Remind me about crafting a lyre", olaf_remindlyre, "Remind me about Fossegrimen", olaf_remindfoss, "Remind me about playing on stage", olaf_remindstage, "I don't need a reminder", olaf_noremind);
+        case ^olaf_not_started :
+            ~chatnpc("<p,quiz>Hello? Yes? You want something, outerlander?");
+            ~chatplayer("<p,quiz>Are you a member of the council?");
+            ~chatnpc("<p,happy>Why, indeed I am, outerlander! My talents as an exemplary musician made it difficult for them not to accept me! Why do you wish to know this?");
+            ~chatplayer("<p,neutral>Well, I ask because I am currently doing the Fremennik trials so as to join your clan. I need seven of the twelve council of elders to vote for me.");
+            ~chatnpc("<p,neutral>Ahhh... and you wish to earn my vote? I will gladly accept you as a Fremennik should you be able to prove yourself to have a little musical ability!");
+            ~chatplayer("<p,neutral>So how would I do that?");
+            ~chatnpc("<p,neutral>Why, by playing in our longhall! All you need to do is impress the revellers there with a few verses of an epic of your own creation!");
+            ~chatnpc("<p,quiz>So what say you outerlander? Are you up for the challenge?");
+            $op = ~p_choice2("Yes", 1, "No", 2);
+            if($op = 2) {
+                ~chatplayer("<p,angry>Forget it! This all sounds like way too much work for a stupid vote at a meeting! I'll find someone else instead.");
+                return;
+            }
+            ~set_viking_olaf_progress(^olaf_started);
+            ~chatplayer("<p,happy>Sure! This certainly sounds pretty easy to accomplish - I'll have your vote in no time!");
+            ~chatnpc("<p,happy>That is great news outerlander! We always need more music lovers here!");
+    }
+} else if(%viking = ^viking_complete) {
+    ~chatnpc("<p,quiz>Hello again to you <~get_viking_name>. Us bards should stick together, what?");
+    switch_int(~p_choice2("I was wondering...", 1, "I forget now...", 2)) { // options from rs3
+        case 1 : // osrs grammar here, rs3 looks to be fixed
+            ~chatplayer("<p,quiz>I was wondering... Can I learn to play my lyre again?");
+            ~chatnpc("<p,neutral>Well, that is an interesting question. Let me let you into a little secret. If you make another offering to Fossegrimen you will learn a secret melody.");
+            ~chatplayer("<p,quiz>What kind of melody?");
+            ~chatnpc("<p,neutral>It is the song of Rellekka. When you play it, it will bring you back to this town wherever you are in this world.");
+            ~chatnpc("<p,neutral>We often go adventuring with bards for precisely this reason; No matter where we have ended up we can return safe and sound to home.");
+            ~chatplayer("<p,happy>Thanks Olaf!");
+        case 2 :
+            ~chatplayer("<p,confused>I forget now...");
+    }
 }
-if (%viking < ^viking_started) {
-    ~chatplayer("<p,happy>Hello.");
-    ~chatnpc("<p,neutral>Hm? Oh. I'm working, outerlander.");
-    return;
-}
-if (testbit(%viking_bits, ^viking_vote_olaf) = 1) {
-    ~chatnpc("<p,happy>They still talk about that. You have my vote and my professional envy.");
-    return;
-}
-if (testbit(%viking_bits, ^viking_bit_olaf_asked) = 0) {
-    @viking_olaf_start;
-}
-@viking_olaf_reminder;
 
-[label,viking_olaf_start]
-~chatplayer("<p,quiz>Olaf, I need your vote on the council.");
-~chatnpc("<p,neutral>Everyone needs something. What I need is a night off.");
-~chatnpc("<p,neutral>Tell you what. You play the longhall in my place, and if the hall likes it, the vote is yours.");
-~chatplayer("<p,quiz>Play what, exactly?");
-~chatnpc("<p,neutral>A lyre, outerlander. And not a dead one - an enchanted one. The Fossegrimen at the lake shrine will see to that, if you bring her something worth eating.");
-~chatnpc("<p,neutral>Make one from the swaying tree east of the gates, if you have the hands for it. Lanzig has one too, if you have the stomach for that instead.");
-%viking_bits = setbit(%viking_bits, ^viking_bit_olaf_asked);
-~chatnpc("<p,neutral>The stage door is round the back of the longhall. Do not embarrass me.");
-
-[label,viking_olaf_reminder]
-~chatplayer("<p,quiz>About that performance.");
-if (inv_total(inv, viking_enchanted_strung_lyre) > 0) {
-    ~chatnpc("<p,happy>You have it! Then get on the stage and play, outerlander. The door is round the back.");
+[label,viking_olaf_merchant]
+if(inv_total(inv, viking_new_boots) > 0) {
+    ~chatplayer("<p,neutral>Hello Olaf. Do you have a beautiful love song written for me?");
+    ~chatnpc("<p,neutral>That depends outerlander... Do you have some new boots for me? My feet get so tired roaming the land...");
+    ~chatplayer("<p,neutral>As a matter of fact - I do!");
+    inv_del(inv, viking_new_boots, 1);
+    inv_add(inv, viking_song, 1);
+    ~chatnpc("<p,neutral>Oh! Superb! Those are great! They're just what I was looking for! Here, take this song with my compliments! It is one of my finest works yet!");
     return;
 }
-if (inv_total(inv, viking_strung_lyre) > 0) {
-    ~chatnpc("<p,neutral>A lyre, but a dead one. Take it to the Fossegrimen at the lake shrine with something worth eating - a shark, if you have one.");
+if(inv_total(inv, viking_song) > 0) {
+    ~chatplayer("<p,confused>So you think this song is pretty good then?");
+    ~chatnpc("<p,neutral>Ahhh.... outerlander... it is the most beautiful romantic ballad I have ever been inspired to write...");
+    ~chatnpc("<p,neutral>Only a woman with a heart of icy stone could fail to be moved by its beauty!");
+    ~chatplayer("<p,happy>Thanks! That sounds perfect!");
     return;
 }
-if (inv_total(inv, viking_unstrung_lyre) > 0) {
-    ~chatnpc("<p,neutral>A frame, but no string. Golden wool is what a lyre wants - Lalli the troll keeps the golden sheep, east past the swaying tree. He does not give it away easily.");
-    return;
+switch_int(~get_viking_sigmund_progress) {
+    case ^sigmund_spoke_thorvald :
+        // a few npcs use your for some reason, bad copy paste from thorvald probably...
+        ~chatplayer("<p,quiz>I don't suppose you have any idea where I could find the token to allow your seat at the champions table?");
+        ~chatnpc("<p,neutral>I'm sorry, no I don't.");
+    case ^sigmund_spoke_olaf :
+        ~chatplayer("<~merchant_question_text>");
+        ~chatnpc("<p,neutral>I'm sorry outerlander... If I did, I would not trouble you to go and find them for me, would I?");
+    case ^sigmund_spoke_sailor :
+        ~chatplayer("<~merchant_question_text>");
+        ~chatnpc("<p,neutral>Well, as official Fremennik bard, it falls within my remit to compose all music for the tribe. I am fully versed in all the various types of romantic music.");
+        ~chatplayer("<p,neutral>Great! Can you write me one then?");
+        ~chatnpc("<p,neutral>Well... normally I would be thrilled at the chance to show my skill as a poet in composing a seductively romantic ballad...");
+        ~chatplayer("<p,sad>let me guess; here comes the 'but'.");
+        ~chatnpc("<p,neutral>...but unfortunately I cannot concentrate fully upon my work recently.");
+        ~chatplayer("<p,quiz>Why is that then?");
+        ~chatnpc("<p,neutral>It is these old worn out shoes of mine... As a bard I am expected to wander the lands, singing of the glorious battles of our warriors.");
+        ~set_viking_sigmund_progress(^sigmund_spoke_olaf);
+        ~chatnpc("<p,neutral>If you can find me a pair of sturdy boots to replace these old worn out ones of mine, I will be happy to spend the time on composing you a romantic ballad.");
+    case default :
+        ~chatplayer("<~merchant_question_text>");
+        ~chatnpc("<p,neutral>I'm sorry, no I don't.");
 }
-~chatnpc("<p,neutral>Come back when you have a lyre. Cut a branch from the swaying tree east of the gates and carve it, then string it with golden wool from Lalli the troll. Or take one off Lanzig, whichever suits you.");
 
 
-// --- The swaying tree ---
+[label,olaf_remindlyre]
+~chatplayer("<p,quiz>Can you remind me about making a lyre again, please Olaf?");
+~chatnpc("<p,neutral>There are three parts to making the lyre; First you need to cut some special wood from the special musical tree which can be found just east of Rellekka.");
+~chatnpc("<p,neutral>When you have the wood, you will need to use a knife to craft it into a Lyre. When you have an unstrung lyre, you will need to string it before you can play it.");
+~chatnpc("<p,neutral>I would not use anything other than the golden string of Lalli, a troll who lives in a cave just to the South-east.");
+~chatnpc("<p,neutral>Is that clear enough, outerlander? Would you like me to repeat anything?");
+@multi3("Remind me about Fossegrimen", olaf_remindfoss, "Remind me about playing on stage", olaf_remindstage, "I don't need a reminder", olaf_noremind);
+
+[label,olaf_remindfoss]
+~chatplayer("<p,quiz>Can you remind me about getting a blessing from Fossegrimen again?");
+~chatnpc("<p,neutral>Certainly outerlander! Fossegrimen is a lake spirit who lives in the lake just to the South-west of here. She will bless you so that you may play your lyre,");
+~chatnpc("<p,neutral>if you give her a worthy offering. She will only accept raw fish, so place a raw fish on her pedestal, and she will bless you. The better the offering, the longer");
+~chatnpc("<p,neutral>the amount of time you will be blessed for. You will not be able to perform on stage without the blessing of the Fossegrimen.");
+~chatnpc("<p,neutral>Is that clear enough, outerlander? Would you like me to repeat anything?");
+@multi3("Remind me about crafting a lyre", olaf_remindlyre, "Remind me about playing on stage", olaf_remindstage, "I don't need a reminder", olaf_noremind);
+
+[label,olaf_remindstage]
+~chatplayer("<p,quiz>Can you remind me about how to perform at the longhall again please?");
+~chatnpc("<p,neutral>He will not let you pass unless he believes you are ready to perform on stage. Simply go past him and onto the stage and use your lyre, and you will");
+~chatnpc("<p,neutral>begin to play to entertain the revellers. If all has gone well, you will feel the music come to your mind, unbidden, as you sing an epic of your exploits.");
+~chatnpc("<p,neutral>I will watch your performance from backstage, and also study how much the crowd likes you, and if I believe you have enough talent, then I will vote for you at the council.");
+~chatnpc("<p,neutral>Is that clear enough, outerlander? Would you like me to repeat anything?");
+@multi3("Remind me about crafting a lyre", olaf_remindlyre, "Remind me about Fossegrimen", olaf_remindfoss, "I don't need a reminder", olaf_noremind);
+
+[label,olaf_noremind]
+~chatplayer("<p,neutral>No thanks, I think that's all pretty straight forward. I'll go and make my lyre now.");
+
 [oploc1,viking_musical_tree]
-if (stat(woodcutting) < ^viking_lyre_woodcut_level) {
-    mes("You need a Woodcutting level of <tostring(^viking_lyre_woodcut_level)> to cut a branch from this tree.");
+if(stat(woodcutting) < 40) {
+    ~mesbox("You are not a high enough Woodcutting level to chop a branch from this tree. You need a Woodcutting level of 40."); // osrs
     return;
 }
 def_namedobj $axe = ~woodcutting_axe_checker(true);
-if ($axe = null) {
+if($axe = null) {
     return;
 }
-if (inv_freespace(inv) < 1) {
-    mes("You don't have room for a branch.");
+if(inv_freespace(inv) = 0) {
+    ~mesbox("You do not have enough free space in your inventory to chop this tree.");
     return;
 }
-mes("You swing your axe at the swaying tree.");
+mes("You swing your axe at the tree.");
 anim(struct_param(oc_param($axe, woodcutting_struct), skill_anim), 0);
-p_delay(3);
+p_delay(2);
+mes("You cut a branch from the strangely musical tree.");
+anim(null, 0);
 inv_add(inv, viking_musical_tree_branch, 1);
-mes("You cut a branch from the swaying tree. It hums faintly in your hand.");
+stat_advance(woodcutting, 10);
 
-// The branch is carved with a knife. Both click orders arrive here: knife-on-branch through this
-// trigger, branch-on-knife through the case in [opheldu,knife] (skill_cooking/scripts/gnome_cooking/
-// cutting_fruit.rs2), which runs first when the knife is the target.
 [opheldu,viking_musical_tree_branch]
-if (last_useitem ! knife) {
-    ~displaymessage(^dm_default);
-    return;
-}
-@viking_carve_branch;
+if(last_useitem = knife) @craft_unstrung_lyre;
+~displaymessage(^dm_default);
 
-[label,viking_carve_branch]
-if (inv_total(inv, viking_musical_tree_branch) = 0) {
-    ~displaymessage(^dm_default);
+// Branch-on-knife lands in [opheldu,knife] (skill_cooking/scripts/gnome_cooking/cutting_fruit.rs2),
+// because the target's trigger runs first; that case comes here.
+[label,viking_carve_branch] @craft_unstrung_lyre;
+
+[label,craft_unstrung_lyre]
+if(stat(crafting) < 40) {
+    ~mesbox("You need to have a Crafting level of 40 to make a lyre."); // osrs
     return;
 }
-if (stat(crafting) < ^viking_lyre_carve_level) {
-    mes("You need a Crafting level of <tostring(^viking_lyre_carve_level)> to carve this branch into a lyre.");
-    return;
-}
+mes("You craft an unstrung lyre out of the branch.");
 anim(human_fletching, 0);
-p_delay(1);
+p_delay(0);
+// the branch may have been dropped during the delay
 if (inv_total(inv, viking_musical_tree_branch) = 0) {
     return;
 }
 inv_del(inv, viking_musical_tree_branch, 1);
 inv_add(inv, viking_unstrung_lyre, 1);
-stat_advance(crafting, 250);
-mes("You carve the branch into the frame of a lyre. It needs a string.");
+stat_advance(crafting, 10);
 
-
-// --- The golden fleece ---
-[opnpcu,viking_golden_sheepunsheered]
-if (last_useitem ! shears) {
-    ~displaymessage(^dm_default);
+[oplocu,viking_lake_shrine_altar]
+if(inv_total(inv, viking_strung_lyre) = 0) {
+    mes("You need a strung lyre before you can make an offering to Fossegrimen.");
     return;
 }
-if (inv_freespace(inv) < 1) {
-    mes("You don't have room for a fleece.");
-    return;
-}
-anim(human_shearing, 0);
-sound_synth(shear_sheep, 1, 0);
-if (random(4) = 0) {
-    mes("The sheep skips out of reach.");
-    npc_setmode(playerescape);
-    return;
-}
-npc_setmode(playerfaceclose);
-p_delay(0);
-npc_setmode(null);
-p_delay(0);
-npc_changetype_keepall(viking_golden_sheepsheered, 100);
-inv_add(inv, viking_golden_fleece, 1);
-mes("You shear the golden sheep. The fleece is far heavier than it looks.");
-
-[opnpcu,viking_golden_sheepsheered]
-if (last_useitem ! shears) {
-    ~displaymessage(^dm_default);
-    return;
-}
-mes("This one has already been shorn.");
-
-[opnpc1,viking_lalli_troll]
-~chatplayer("<p,happy>Hello.");
-~chatnpc("<p,neutral>Lalli is watching sheep. Lalli is good at watching sheep.");
-if (%viking < ^viking_started) {
-    return;
-}
-// Anyone the old version lifted into the pen gets lifted back out.
-if (inzone(^viking_pen_sw, ^viking_pen_ne, coord) = true) {
-    @viking_lalli_lift_out;
-}
-if (testbit(%viking_bits, ^viking_bit_olaf_asked) = 0 | testbit(%viking_bits, ^viking_vote_olaf) = 1) {
-    ~chatnpc("<p,happy>Golden apples, golden sheep. Lalli has everything.");
-    return;
-}
-if (~viking_stew_ready = true) {
-    @viking_lalli_taste;
-}
-if (testbit(%viking_bits, ^viking_bit_lalli_rock) = 1) {
-    ~chatplayer("<p,quiz>How is the soup?");
-    ~chatnpc("<p,quiz>Magic rock is in Lalli's pot. Rock is not doing much yet.");
-    ~chatplayer("<p,neutral>It needs a few things to get it going. A potato, a cabbage and an onion.");
-    ~chatnpc("<p,happy>Then human puts them in! Lalli is watching sheep.");
-    ~viking_stew_missing;
-    return;
-}
-if (inv_total(inv, vt_useless_rock) > 0) {
-    @viking_lalli_rock_soup;
-}
-~chatplayer("<p,quiz>I hear you have golden sheep. Could I have some of their wool?");
-~chatnpc("<p,angry>No! Golden wool is Lalli's. Lalli does not give golden wool to humans.");
-~chatnpc("<p,sad>Last human who got wool from Lalli was clever. Too clever. Lalli still does not know how it happened.");
-~chatplayer("<p,quiz>Who was that?");
-~chatnpc("<p,neutral>Little human. Always talking about being hero. Lives in the town.");
-~mesbox("That sounds like Askeladden, in Rellekka. He might tell you how he got the wool out of Lalli.");
-
-[label,viking_lalli_rock_soup]
-~chatplayer("<p,happy>Lalli, look what I've got.");
-~chatnpc("<p,confused>That is rock. Lalli knows rocks. Lalli is not stupid.");
-~chatplayer("<p,neutral>Ah, but it isn't just any rock. It's a magic rock. It makes soup.");
-~chatnpc("<p,quiz>...soup? From rock?");
-~chatplayer("<p,happy>The best soup you've ever tasted. Put it in your stew and I'll show you.");
-~chatnpc("<p,happy>Lalli likes soup! Human puts magic rock in Lalli's stew.");
-~mesbox("Use the pet rock on Lalli's stew by his cave, along with a potato, a cabbage and an onion.");
-
-// The fleece goes down before the dialogue that follows it: ~chatnpc ends in p_pausebutton and is
-// abortable.
-[label,viking_lalli_taste]
-if (~viking_has_fleece_or_later = true) {
-    ~chatnpc("<p,happy>Soup is good! Lalli already gave human the golden wool. Lalli is watching sheep.");
-    return;
-}
-if (inv_freespace(inv) < 1) {
-    ~chatnpc("<p,happy>Soup smells good! Human has no hands free for Lalli's thank-you, though.");
-    return;
-}
-mes("You ask Lalli to taste the soup. He dips a huge finger into the stew and licks it.");
-p_delay(2);
-inv_add(inv, viking_golden_fleece, 1);
-~chatnpc("<p,shock>Magic rock makes GOOD soup! Human is clever human.");
-~chatnpc("<p,happy>Lalli gives clever human golden wool. Soup for wool is fair trade.");
-~objbox(viking_golden_fleece, "Lalli hands you a golden fleece.", 250, 0, 0);
-
-[label,viking_lalli_lift_out]
-~chatplayer("<p,quiz>Out, please.");
-~chatnpc("<p,happy>Up you go!");
-if_close;
-mes("Lalli reaches over the wall and sets you down on the grass outside.");
-p_delay(3);
-p_teleport(^viking_lalli_coord);
-
-// --- Lalli's stew ---
-// Each ingredient goes in on its own, the rock first or last - it makes no difference to the soup.
-[oplocu,viking_troll_cauldron]
-def_obj $used = last_useitem;
-if (%viking < ^viking_started | testbit(%viking_bits, ^viking_bit_olaf_asked) = 0 | testbit(%viking_bits, ^viking_vote_olaf) = 1) {
-    mes("You had better not - Lalli is very fond of that stew.");
-    return;
-}
-switch_obj ($used) {
-    case vt_useless_rock : @viking_stew_add(vt_useless_rock, ^viking_bit_lalli_rock, "You drop the pet rock into the stew. It sinks without complaint.");
-    case potato : @viking_stew_add(potato, ^viking_bit_stew_potato, "You drop the potato into the stew.");
-    case cabbage : @viking_stew_add(cabbage, ^viking_bit_stew_cabbage, "You drop the cabbage into the stew.");
-    case onion : @viking_stew_add(onion, ^viking_bit_stew_onion, "You drop the onion into the stew.");
-    case default : ~displaymessage(^dm_default);
-}
-
-[label,viking_stew_add](obj $item, int $bit, string $line)
-if (testbit(%viking_bits, $bit) = 1) {
-    mes("There is one of those in the stew already.");
-    return;
-}
-p_arrivedelay;
-if (inv_total(inv, $item) = 0) {
-    return;
-}
-inv_del(inv, $item, 1);
-%viking_bits = setbit(%viking_bits, $bit);
-mes($line);
-if (~viking_stew_ready = true) {
-    mes("The stew smells a good deal better than it did. Lalli should taste it.");
-    return;
-}
-~viking_stew_missing;
-
-[proc,viking_stew_ready]()(boolean)
-if (testbit(%viking_bits, ^viking_bit_lalli_rock) = 0) { return(false); }
-if (testbit(%viking_bits, ^viking_bit_stew_potato) = 0) { return(false); }
-if (testbit(%viking_bits, ^viking_bit_stew_cabbage) = 0) { return(false); }
-if (testbit(%viking_bits, ^viking_bit_stew_onion) = 0) { return(false); }
-return(true);
-
-[proc,viking_stew_missing]
-def_string $need = "";
-if (testbit(%viking_bits, ^viking_bit_lalli_rock) = 0) { $need = append($need, " the pet rock,"); }
-if (testbit(%viking_bits, ^viking_bit_stew_potato) = 0) { $need = append($need, " a potato,"); }
-if (testbit(%viking_bits, ^viking_bit_stew_cabbage) = 0) { $need = append($need, " a cabbage,"); }
-if (testbit(%viking_bits, ^viking_bit_stew_onion) = 0) { $need = append($need, " an onion,"); }
-if (string_length($need) = 0) {
-    return;
-}
-mes("The stew still needs<substring($need, 0, sub(string_length($need), 1))>.");
-
-// Anything from the fleece onwards - Lalli only hands out another if all of it is gone.
-[proc,viking_has_fleece_or_later]()(boolean)
-if (inv_total(inv, viking_golden_fleece) > 0) { return(true); }
-if (inv_total(inv, viking_golden_wool) > 0) { return(true); }
-if (inv_total(inv, viking_strung_lyre) > 0) { return(true); }
-if (inv_total(inv, viking_enchanted_strung_lyre) > 0) { return(true); }
-return(false);
-
-[opheld2,vt_useless_rock] mes("You stroke your pet rock. It does not seem to mind.");
-
-// --- The pet rock ---
-// Hooked ahead of Askeladden's merchant-chain handler in viking_sigmund.rs2.
-[proc,viking_askeladden_rock]()(boolean)
-if (%viking < ^viking_started) {
-    return(false);
-}
-if (testbit(%viking_bits, ^viking_bit_olaf_asked) = 0) {
-    return(false);
-}
-// He is also Sigmund's merchant contact, so this only takes the conversation while the rock is
-// genuinely needed and hands him straight back the moment it is not - otherwise asking Olaf for his
-// trial would have locked Askeladden out of the merchant chain for good.
-if (testbit(%viking_bits, ^viking_bit_lalli_rock) = 1) {
-    return(false);
-}
-if (inv_total(inv, vt_useless_rock) > 0) {
-    return(false);
-}
-if (testbit(%viking_bits, ^viking_bit_askeladden_rock) = 1) {
-    ~chatplayer("<p,quiz>I've lost the rock.");
-    ~chatnpc("<p,happy>You LOST him? ...it's all right, I've got loads. Here.");
-    if (inv_freespace(inv) < 1) {
-        ~chatnpc("<p,neutral>You've nowhere to put him, though.");
-        return(true);
+if(%viking = ^viking_complete) {
+    if(last_useitem = raw_shrimp | last_useitem = raw_anchovies | last_useitem = raw_sardine | last_useitem = raw_salmon | last_useitem = raw_trout | last_useitem = raw_giant_carp
+        | last_useitem = raw_cod | last_useitem = raw_herring | last_useitem = raw_pike | last_useitem = raw_mackerel | last_useitem = raw_tuna | last_useitem = raw_bass
+        | last_useitem = raw_swordfish | last_useitem = raw_lobster | last_useitem = tbwt_raw_karambwan | last_useitem = tbwt_raw_karambwanji) { // no new fish (e.g. monkfish dont work), giant carp does work
+            mes("Fossegrimen requires a greater offering to enchant your lyre.");
+            return;
     }
-    inv_add(inv, vt_useless_rock, 1);
-    return(true);
-}
-~chatplayer("<p,quiz>Lalli the troll says somebody got golden wool out of him once. Was that you?");
-~chatnpc("<p,happy>Ha! Rock soup. Trolls love soup, and Lalli thinks anything is possible if it goes in a pot.");
-~chatnpc("<p,happy>Tell him you've got a magic rock that makes soup. Put it in his stew with a potato, a cabbage and an onion, and let him taste it. He'll give you anything.");
-~chatplayer("<p,quiz>And where do I get a magic rock?");
-if (inv_freespace(inv) < 1) {
-    ~chatnpc("<p,happy>I'd give you my pet rock, only you've not a hand free to take him with.");
-    return(true);
-}
-inv_add(inv, vt_useless_rock, 1);
-%viking_bits = setbit(%viking_bits, ^viking_bit_askeladden_rock);
-~objbox(vt_useless_rock, "Askeladden hands over a rock. It is, as far as you can tell, a rock.", 250, 0, 0);
-~chatnpc("<p,happy>Any rock is magic if you say so loudly enough. Potato, cabbage, onion - don't forget.");
-
-[opnpcu,viking_lalli_troll]
-if (last_useitem = vt_useless_rock) {
-    if (%viking >= ^viking_started & testbit(%viking_bits, ^viking_bit_olaf_asked) = 1 & testbit(%viking_bits, ^viking_vote_olaf) = 0) {
-        @viking_lalli_rock_soup;
+    if(last_useitem = raw_shark | last_useitem = raw_seaturtle | last_useitem = raw_mantaray) {
+        if(npc_findexact(0_41_56_2_12, viking_lake_spirit) = false) npc_add(0_41_56_2_12, viking_lake_spirit, 80);
+        npc_facesquare(coord);
+        mes("Your lyre is now enchanted. You can use it to teleport to Rellekka.");
+        mes("When the enchantment wears off you will need to re-enchant it.");
+        inv_del(inv, viking_strung_lyre, 1);
+        inv_setslot(inv, last_useslot, magic_strung_lyre, 1);
+        ~chatnpc("<p,happy>I offer you this enchantment for your worthy offering.");
+        return;
     }
-    ~chatnpc("<p,confused>That is rock. Lalli has lots of rocks.");
+}
+if(~get_viking_olaf_progress < ^olaf_complete & ~get_viking_olaf_progress > ^olaf_not_started) {
+    if(last_useitem = raw_shrimp | last_useitem = raw_anchovies | last_useitem = raw_sardine | last_useitem = raw_salmon | last_useitem = raw_trout | last_useitem = raw_giant_carp
+        | last_useitem = raw_cod | last_useitem = raw_herring | last_useitem = raw_pike | last_useitem = raw_mackerel | last_useitem = raw_tuna | last_useitem = raw_bass
+        | last_useitem = raw_swordfish | last_useitem = raw_lobster | last_useitem = tbwt_raw_karambwan | last_useitem = tbwt_raw_karambwanji) { // no new fish (e.g. monkfish dont work), giant carp does work
+            mes("Fossegrimen requires a greater offering to enchant your lyre.");
+            return;
+    }
+    if(last_useitem = raw_shark | last_useitem = raw_seaturtle | last_useitem = raw_mantaray) {
+        if(npc_findexact(0_41_56_2_12, viking_lake_spirit) = false) npc_add(0_41_56_2_12, viking_lake_spirit, 80);
+        npc_facesquare(coord);
+        mes("Fossegrimen has enchanted your lyre so that you may play it.");
+        inv_del(inv, viking_strung_lyre, 1);
+        inv_setslot(inv, last_useslot, viking_enchanted_strung_lyre, 1);
+        ~chatnpc("<p,neutral>Many thanks for the offering outerlander. Please accept as a gift the ability to play your lyre...");
+        return;
+    }
+}
+~displaymessage(^dm_default);
+
+[opheldu,viking_unstrung_lyre]
+if(last_useitem = viking_golden_wool) {
+    if(stat(fletching) < 25) {
+        ~mesbox("You need to have a Fletching level of 25 to string the lyre.");
+        return;
+    }
+    mes("You attach the golden strings to the lyre.");
+    inv_del(inv, viking_golden_wool, 1);
+    inv_del(inv, viking_unstrung_lyre, 1);
+    inv_add(inv, viking_strung_lyre, 1);
+    stat_advance(fletching, 10);
     return;
 }
 ~displaymessage(^dm_default);
 
-// The Rellekka wheel had op2=Spin and no handler at all. Sending it to the same menu every other
-// wheel uses rather than writing a second one.
-[oploc2,viking_spinningwheel] ~spinning_menu;
+[opheld1,viking_strung_lyre]
+~chatplayer("<p,sad>I really wouldn't know where to begin playing anything on this...");
+
+[opheld1,magic_strung_lyre]
+def_int $slot = last_slot;
+if (~wilderness_level(coord) > 20) {
+    mes("A mysterious force blocks your teleport spell!");
+    mes("You can't use this teleport after level 20 wilderness.");
+    return;
+}
+if (~pre_tele_checks(coord) = false) {
+    return;
+}
+p_stopaction;
+anim(viking_lyre_play_once, 0);
+midi_jingle("perfectly tuned");
+p_delay(2);
+~player_teleport_normal(map_findsquare(0_41_56_38_60, 0, 2, ^map_findsquare_lineofwalk));
+mes("Your lyre teleports you to Rellekka.");
+inv_setslot(inv, $slot, viking_strung_lyre, 1);
+
+[opheld1,viking_enchanted_strung_lyre]
+if(inzone(0_41_57_31_34, 0_41_57_38_37, coord) = true) {
+    if(~get_viking_olaf_progress = ^olaf_complete | %viking = ^viking_complete) {
+        mes("You have already completed the Bard's Trial.");
+        return;
+    }
+    if(~get_viking_olaf_progress > ^olaf_not_started) {
+        p_stopaction;
+        mes("You withdraw your lyre.");
+        @play_lyre_longhall;
+    }
+}
+p_stopaction;
+mes("You withdraw your lyre.");
+anim(viking_lyre_ready, 0);
+weakqueue(viking_play1, 1, 0);
+
+[queue,viking_play1]
+anim(viking_lyre_playing_loop, 0);
+say("Doh Ray Me So.");
+midi_jingle("ballad opening");
+weakqueue(viking_play2, 3, 0);
+
+[queue,viking_play2]
+anim(viking_lyre_playing_loop, 0);
+say("Fah La Ti Doh.");
+midi_jingle("ballad refrain");
+weakqueue(viking_play3, 3, 0);
+
+[queue,viking_play3]
+anim(viking_lyre_playing_loop, 0);
+say("La La La La.");
+midi_jingle("ballad refrain");
+weakqueue(viking_play4, 3, 0);
+
+[queue,viking_play4]
+anim(viking_lyre_playing_loop, 0);
+say("De-Doo-De-Doo.");
+midi_jingle("ballad refrain");
+weakqueue(viking_play5, 2, 0);
+
+[queue,viking_play5]
+anim(viking_lyre_play_once, 0);
+midi_jingle("perfectly tuned");
+weakqueue(viking_play6, 2, 0);
+
+[queue,viking_play6]
+mes("Your lyre is perfectly tuned.");
+
+[label,play_lyre_longhall]
+def_string $line1 = "<displayname()> is my name,";
+def_string $line2 = "I haven't much to say.";
+def_string $line3 = "But since I have to sing this song,";
+def_string $line4 = "I'll just go ahead and play.";
+// not sure how ordering of 99's works
+
+if(stat_base(cooking) = 99) {
+    $line1 = "When people speak of training";
+    $line2 = "Some people think they're fine.";
+    $line3 = "But they just all seem jealous that";
+    $line4 = "My Cooking's ninety-nine!";
+} else if(stat_base(woodcutting) = 99) {
+    $line1 = "When people speak of training";
+    $line2 = "Some people think they're fine.";
+    $line3 = "But they just all seem jealous that";
+    $line4 = "My Woodcutting's ninety-nine!";
+} else if(stat_base(fletching) = 99) {
+    $line1 = "When people speak of training";
+    $line2 = "Some people think they're fine.";
+    $line3 = "But they just all seem jealous that";
+    $line4 = "My Fletching's ninety-nine!";
+} else if(stat_base(fishing) = 99) {
+    $line1 = "When people speak of training";
+    $line2 = "Some people think they're fine.";
+    $line3 = "But they just all seem jealous that";
+    $line4 = "My Fishing's ninety-nine!";
+} else if(stat_base(firemaking) = 99) {
+    $line1 = "When people speak of training";
+    $line2 = "Some people think they're fine.";
+    $line3 = "But they just all seem jealous that";
+    $line4 = "My Firemaking's ninety-nine!";
+} else if(stat_base(crafting) = 99) {
+    $line1 = "When people speak of training";
+    $line2 = "Some people think they're fine.";
+    $line3 = "But they just all seem jealous that";
+    $line4 = "My Crafting's ninety-nine!";
+} else if(stat_base(smithing) = 99) {
+    $line1 = "When people speak of training";
+    $line2 = "Some people think they're fine.";
+    $line3 = "But they just all seem jealous that";
+    $line4 = "My Smithing's ninety-nine!";
+} else if(stat_base(mining) = 99) {
+    $line1 = "When people speak of training";
+    $line2 = "Some people think they're fine.";
+    $line3 = "But they just all seem jealous that";
+    $line4 = "My Mining's ninety-nine!";
+} else if(stat_base(herblore) = 99) {
+    $line1 = "When people speak of training";
+    $line2 = "Some people think they're fine.";
+    $line3 = "But they just all seem jealous that";
+    $line4 = "My Herblore's ninety-nine!";
+} else if(stat_base(agility) = 99) {
+    $line1 = "When people speak of training";
+    $line2 = "Some people think they're fine.";
+    $line3 = "But they just all seem jealous that";
+    $line4 = "My Agility's ninety-nine!";
+} else if(stat_base(thieving) = 99) {
+    $line1 = "When people speak of training";
+    $line2 = "Some people think they're fine.";
+    $line3 = "But they just all seem jealous that";
+    $line4 = "My Thieving's ninety-nine!";
+} else if(stat_base(runecraft) = 99) {
+    $line1 = "When people speak of training";
+    $line2 = "Some people think they're fine.";
+    $line3 = "But they just all seem jealous that";
+    $line4 = "My Runecraft's ninety-nine!"; // runecraft or runecrafting..?
+} else if(%legendsquest = ^legends_complete) {
+    $line1 = "I cannot even start to list";
+    $line2 = "The amount of foes I've killed.";
+    $line3 = "I will simply tell you this:";
+    $line4 = "I've joined the Legends' Guild!";
+} else if(%heroquest = ^hero_complete) {
+    $line1 = "When it comes to fighting";
+    $line2 = "I hit my share of zeroes";
+    $line3 = "But I'm well respected at";
+    $line4 = "The Guild reserved for Heroes.";
+} else if(%dragonquest >= ^dragon_complete) {
+    $line1 = "The thought of lots of questing";
+    $line2 = "Leaves some people unfulfilled,";
+    $line3 = "But I have done my simple best, in";
+    $line4 = "Entering the Champions' Guild.";
+}
+facesquare(0_41_57_34_22);
+p_delay(1);
+midi_jingle("ballad opening");
+anim(viking_lyre_playing_loop, 0);
+say($line1);
+~viking_audience_react;
+p_delay(3);
+midi_jingle("ballad refrain");
+anim(viking_lyre_playing_loop, 0);
+say($line2);
+~viking_audience_react;
+p_delay(3);
+midi_jingle("ballad refrain");
+anim(viking_lyre_playing_loop, 0);
+say($line3);
+~viking_audience_react;
+p_delay(3);
+midi_jingle("ballad refrain");
+anim(viking_lyre_playing_loop, 0);
+say($line4);
+~viking_audience_react;
+p_delay(3);
+midi_jingle("perfectly tuned");
+mes("Your lyre is perfectly tuned.");
+mes("Congratulations! You have completed the Bard's Trial!");
+mes("As you finished playing you felt Fossegrimen's power leave you...");
+~viking_audience_react;
+anim(viking_lyre_putaway, 0);
+queue(complete_olaf_trial, 0, 0);
+if(npc_find(movecoord(coord, 12, 0, 0), viking_olaf, 10, 0) = true) {
+    ~chatnpc("<p,neutral>Wow! That was awesome! You are one of the greatest bards I have ever had the pleasure of watching performing!");
+    ~chatnpc("<p,neutral>You have certainly earned my vote! I hope we can duet together soon!");
+}
+
+[proc,viking_audience_react]
+npc_findallany(coord, 10, ^vis_off);
+while(npc_findnext = true) {
+    if(npc_type = viking_heckler | npc_type = viking_heckler_2 | npc_type = viking_heckler_3 | npc_type = viking_heckler_4) {
+        if(random(20) = 0) npc_queue(11, 0, random(4));
+    }
+}
+
+[proc,viking_random_audience_line]
+switch_int(random(24)) {
+    case 0 : npc_say("YOU ARE A TERRIBLE BARD!");
+    case 1 : npc_say("Don't give up your day job outerlander!");
+    case 2 : npc_say("I thought somebody was murdering a cat!");
+    case 3 : npc_say("You know, I actually quite liked that verse...");
+    case 4 : npc_say("That's kind of catchy. Irritating. But catchy.");
+    case 5 : npc_say("Hey, I've done that quest too!");
+    case 6 : npc_say("I have produced better sounds in the outhouse!");
+    case 7 : npc_say("Your song makes no sense outerlander!");
+    case 8 : npc_say("What kind of bard are you anyway?");
+    case 9 : npc_say("I have met cows more musical than you!");
+    case 10 : npc_say("When do you get to the good parts?");
+    case 11 : npc_say("Truly, this is the worst sound I have ever heard!");
+    case 12 : npc_say("looting and drinking part?");
+    case 13 : npc_say("Please tell me that was the last verse...");
+    case 14 : npc_say("Please... Kill me now...");
+    case 15 : npc_say("You call THAT singing?");
+    case 16 : npc_say("Never before have mine ears been so offended!");
+    case 17 : npc_say("Worst. Bard. EVER.");
+    case 18 : npc_say("Please, ye gods! Make it stop!");
+    case 19 : npc_say("If you stopped singing");
+    case 20 : npc_say("The screams of my dying comrades sound better!");
+    case 21 : npc_say("My grandmother could do better, and she is dead!");
+    case 22 : npc_say("I do such feats before breakfast!");
+    case 23 : npc_say("Is your singing some kind of outerlander weapon?");
+}
+
+[queue,complete_olaf_trial]
+if (~get_viking_olaf_progress = ^olaf_complete | %viking >= ^viking_complete) {
+    return;
+}
+mes("You feel the musical ability from the Fossegrimen leave you...");
+%viking = add(%viking, 1);
+%viking_bits = clearbit(%viking_bits, ^viking_cabbage_stew);
+%viking_bits = clearbit(%viking_bits, ^viking_potato_stew);
+%viking_bits = clearbit(%viking_bits, ^viking_onion_stew);
+%viking_bits = clearbit(%viking_bits, ^viking_rock_stew);
+~set_viking_olaf_progress(^olaf_complete);
+def_int $totalinv = inv_total(inv, viking_enchanted_strung_lyre);
+def_int $totalbank = inv_total(bank, viking_enchanted_strung_lyre);
+if($totalinv > 0) {
+    inv_del(inv, viking_enchanted_strung_lyre, $totalinv);
+    inv_add(inv, viking_strung_lyre, $totalinv);
+}
+if($totalbank > 0) {
+    inv_del(bank, viking_enchanted_strung_lyre, $totalbank);
+    inv_add(bank, viking_strung_lyre, $totalbank);
+}
+
+[opnpc1,viking_longhall_bouncer] @viking_bouncer_dialogue;
+
+[queue,longhall_enter_dialogue]
+if(npc_findexact(0_41_57_43_36, viking_longhall_bouncer) = true) {
+    ~chatnpc("<p,neutral>Yeah, you're good to go through. Olaf tells me you're some kind of outerlander bard here on tour. I doubt you're worse than Olaf is.");
+}
+
+[oploc1,viking_bard_backstage_door]
+def_boolean $entering = ~check_axis(coord, loc_coord, loc_angle);
+if($entering = false) {
+    ~open_and_close_door2(viking_door_inactive, $entering, door_open);
+    return;
+}
+
+if(~get_viking_olaf_progress < ^olaf_complete & ~get_viking_olaf_progress > ^olaf_not_started & inv_total(inv, viking_enchanted_strung_lyre) > 0) {
+    longqueue(longhall_enter_dialogue, 0, 0, ^discard); // it queues this, no idea why
+    ~open_and_close_door2(viking_door_inactive, $entering, door_open);
+    return;
+}
+if(npc_findexact(0_41_57_43_36, viking_longhall_bouncer) = true) {
+    if(~get_viking_olaf_progress = ^olaf_complete | %viking = ^viking_complete) {
+        ~chatnpc("<p,angry>You can't go through there. Talent only, backstage.");
+        ~chatplayer("<p,angry>But I'm a Bard!");
+        ~chatnpc("<p,neutral>No you're not. I saw your performance. I was paid well to keep you from ever setting foot on stage here again.");
+    } else if(%viking > ^viking_not_started) {
+        ~chatnpc("<p,neutral>Get lost, outerlander. Performers only past this point.");
+        ~chatplayer("<p,happy>But I am a performer!");
+        ~chatnpc("<p,quiz>Oh, really? So where's your instrument?");
+        ~chatplayer("<p,shifty>Um... I'm an acapella bard?");
+        ~chatnpc("<p,quiz>Oh, really? You won't mind singing me a quick song then.");
+        switch_int(~p_choice4_header("Tie Me Chompy Bird Down", 1, "Murphy Row The Boat Ashore", 2, "My Old Man's A Miner", 3, "Elvarg The Magic Dragon", 4, "Select the song to sing")) {
+            case 1 :
+                ~chatplayer("<p,neutral>Tie me chompy bird down, Rantz Tie me chompy bird down! Me stickers don't get no quicker, So tie me chompy bird down!");
+            case 2 :
+                ~chatplayer("<p,neutral>Murphy row the boat ashore... We are siiiiinking...");
+            case 3 :
+                ~chatplayer("<p,neutral>My old man's a miner, Spends all day mining ore, He wears a dragon ammy, And lives in Falador - Oi!");
+            case 4 :
+                ~chatplayer("<p,neutral>Elvarg the magic dragon... Lives by the sea... He spends all his days eating folk, And dies occasionally...");
+        }
+        ~chatnpc("<p,neutral>That was a pile of tosh. Get lost, outerlander. You're a bard like I'm a goblin. Do I look stupid to you?");
+        ~chatplayer("<p,neutral>Well, actually...");
+        ~chatnpc("<p,neutral>I said, get lost.");
+    } else if(%viking = ^viking_not_started) @viking_bouncer_dialogue;
+}
+
+[label,viking_bouncer_dialogue]
+if(%viking = ^viking_complete) {
+    ~chatnpc("<p,angry>You can't go through there. Talent only, backstage.");
+    ~chatplayer("<p,angry>But I'm a Bard!");
+    ~chatnpc("<p,neutral>No you're not. I saw your performance. I was paid well to keep you from ever setting foot on stage here again.");
+    return;
+}
+if(inv_total(inv, viking_enchanted_strung_lyre) > 0) {
+    ~chatnpc("<p,neutral>You have an instrument now, huh?|Go on through the door.");
+    return;
+}
+~chatnpc("<p,angry>Hey, outerlander. You can't go through there. Talent only, backstage.");
+
+[opnpc1,viking_heckler] ~chatnpcnoturn("<p,angry>Shhh! I'm waiting for the show!");
+[opnpc1,viking_heckler_2] ~chatnpcnoturn("<p,angry>Shhh! I'm waiting for the show!");
+[opnpc1,viking_heckler_3] ~chatnpcnoturn("<p,angry>Shhh! I'm waiting for the show!");
+[opnpc1,viking_heckler_4] ~chatnpcnoturn("<p,angry>Shhh! I'm waiting for the show!");
+
+[ai_queue11,viking_heckler] ~viking_random_audience_line;
+[ai_queue11,viking_heckler_2] ~viking_random_audience_line;
+[ai_queue11,viking_heckler_3] ~viking_random_audience_line;
+[ai_queue11,viking_heckler_4] ~viking_random_audience_line;
+
+// --- Spinning the golden fleece ---
+// The Rellekka wheel is for Fremenniks only (349's skill_crafting/scripts/spinning/spinning.rs2);
+// the fleece spins on any other wheel through the generic [oplocu,spinningwheel], which calls
+// ~viking_spin_fleece.
+[oploc2,viking_spinningwheel]
+if(%viking < ^viking_complete) {
+    ~mesbox("Only Fremenniks may use this spinning wheel.");
+    return;
+}
+~spinning_menu;
 
 [oplocu,viking_spinningwheel]
+if(%viking < ^viking_complete) {
+    mes("Only Fremenniks may use this spinning wheel.");
+    return;
+}
 switch_obj (last_useitem) {
     case viking_golden_fleece : ~viking_spin_fleece;
-    case wool : ~spinning_menu;
-    case flax : ~spinning_menu;
-    case magic_roots : ~spinning_menu;
+    case wool, flax, magic_roots, sinew : ~spinning_menu;
+    case ball_of_wool : ~objbox(ball_of_wool, "You have already spun this wool.", 250, 0, divide(^objbox_height, 2));
+    case bow_string : ~objbox(bow_string, "You have already spun this bow string.", 250, 0, divide(^objbox_height, 2));
+    case viking_golden_wool : ~objbox(viking_golden_wool, "You have already spun this wool.", 250, 0, divide(^objbox_height, 2));
     case default : ~displaymessage(^dm_default);
 }
 
-// Called from here and from the generic [oplocu,spinningwheel] in
-// skill_crafting/scripts/spinning/spinning.rs2, so the fleece spins on any wheel in the game.
 [proc,viking_spin_fleece]
 if (inv_total(inv, viking_golden_fleece) = 0) {
     ~displaymessage(^dm_default);
     return;
 }
 anim(human_spinningwheel, 0);
-p_delay(2);
+sound_synth(spinning, 1, 0);
 inv_del(inv, viking_golden_fleece, 1);
 inv_add(inv, viking_golden_wool, 1);
-stat_advance(crafting, 250);
-mes("You spin the golden fleece into a length of golden wool.");
-
-[opheldu,viking_golden_wool]
-if (last_useitem ! viking_unstrung_lyre) {
-    ~displaymessage(^dm_default);
-    return;
-}
-if (stat(fletching) < ^viking_lyre_string_level) {
-    mes("You need a Fletching level of <tostring(^viking_lyre_string_level)> to string a lyre.");
-    return;
-}
-inv_del(inv, viking_golden_wool, 1);
-inv_del(inv, viking_unstrung_lyre, 1);
-inv_add(inv, viking_strung_lyre, 1);
-stat_advance(fletching, 500);
-mes("You string the lyre with golden wool.");
-
-
-// --- The Fossegrimen at the lake shrine ---
-// She has no placement anywhere in the cache, so she is summoned by the offering and left on a
-// short lifetime rather than standing at the shrine forever.
-[oplocu,viking_lake_shrine_altar]
-if (last_useitem ! raw_shark & last_useitem ! raw_mantaray & last_useitem ! raw_seaturtle) {
-    if (last_useitem = viking_strung_lyre | last_useitem = viking_unstrung_lyre) {
-        mes("The altar is cold. Whatever lives here wants feeding first.");
-        return;
-    }
-    ~displaymessage(^dm_default);
-    return;
-}
-def_obj $offering = last_useitem;
-inv_del(inv, $offering, 1);
-mes("You lay the <lowercase(oc_name($offering))> on the altar.");
+mes("You spin the fleece into some golden string.");
+stat_advance(crafting, 25);
 p_delay(2);
-if (npc_find(^viking_fossegrimen_spot, viking_lake_spirit, 8, ^vis_off) = false) {
-    npc_add(^viking_fossegrimen_spot, viking_lake_spirit, ^viking_fossegrimen_lifetime);
-}
-sound_synth(ghast_appear, 1, 0);
-~mesbox("The water stirs, and something rises out of it that is mostly not there.");
-if (inv_total(inv, viking_strung_lyre) = 0) {
-    ~chatnpc("<p,neutral>A gift, and nothing to put my voice into. Bring me a lyre, little thing.");
-    return;
-}
-inv_del(inv, viking_strung_lyre, 1);
-inv_add(inv, viking_enchanted_strung_lyre, 1);
-~chatnpc("<p,happy>A lyre. Yes. I will put a little of myself in it - enough to be worth hearing.");
-~mesbox("The lyre in your pack is warm to the touch.");
 
+// Fossegrimen carries Talk-to in the cache and 349 has nothing behind it; this server's lines from
+// before the port are kept so the click is not dead.
 [opnpc1,viking_lake_spirit]
 if (inv_total(inv, viking_strung_lyre) > 0) {
     ~chatnpc("<p,neutral>Lay something worth eating on the altar, and I will sing into your lyre.");
     return;
 }
 ~chatnpc("<p,neutral>The lake is cold and I am old. Bring me fish, little thing.");
-
-
-// --- The longhall's backstage door and its bouncer ---
-// The stage is the back of the longhall (m41_57 x31-38 z34-37) and the backstage room that joins
-// it runs east to the door at (43,35), a wall on the west edge of that tile. Olaf and the Longhall
-// Bouncer stand outside it. Wiki: "Head past the bouncers and onto the stage, and then begin to
-// play" - you go through the door, walk out onto the stage and play.
-//
-// FIXED (reported: "can't exit longhall door after playing lyre"). The door used to teleport you
-// onto the middle of the stage unless you were already standing ON the stage tiles, in which case
-// it put you outside. But you can only open a door from the tile beside it, and the tile beside it
-// on the inside (42,35) is backstage, not the stage - so from the inside the door always said "you
-// slip through the door and out onto the stage" and dropped you back at (36,36). Nobody who went in
-// could ever come out. It is an ordinary door now: from inside it always lets you out; from outside
-// the bouncer decides (the wiki's Longhall Bouncer transcript), and only a performer with an
-// enchanted lyre gets in, before the Bard's trial is done.
-[oploc1,viking_bard_backstage_door]
-if (coordx(coord) < coordx(loc_coord)) {
-    ~open_and_close_door(viking_door_inactive, false, false);
-    return;
-}
-// He has one placement, two tiles from the door. If he is somehow not there, the door applies his
-// rule without him.
-if (npc_find(loc_coord, viking_longhall_bouncer, 8, 0) = true) {
-    if (~viking_bouncer_lets_in = false) {
-        return;
-    }
-    ~chatnpc("<p,neutral>Yeah, you're good to go through. Olaf tells me you're some kind of outerlander bard here on tour. I doubt you're worse than Olaf is.");
-} else if (~viking_performer = false) {
-    mes("The door is guarded.");
-    return;
-}
-~open_and_close_door(viking_door_inactive, true, false);
-
-[opnpc1,viking_longhall_bouncer]
-if (~viking_bouncer_lets_in = false) {
-    return;
-}
-~chatnpc("<p,neutral>You have an instrument now, huh? Go on through the door.");
-
-// Who is let backstage: someone on the Bard's trial, before it is done, carrying an enchanted lyre.
-[proc,viking_performer]()(boolean)
-if (%viking < ^viking_started | %viking >= ^viking_complete) {
-    return(false);
-}
-if (testbit(%viking_bits, ^viking_vote_olaf) = 1) {
-    return(false);
-}
-if (inv_total(inv, viking_enchanted_strung_lyre) = 0) {
-    return(false);
-}
-return(true);
-
-// The bouncer's refusals, word for word (wiki: Transcript:Longhall Bouncer). True when he lets you
-// through.
-[proc,viking_bouncer_lets_in]()(boolean)
-if (%viking < ^viking_started) {
-    ~chatnpc("<p,angry>Hey, outerlander. You can't go through there. Talent only, backstage.");
-    return(false);
-}
-if (%viking >= ^viking_complete | testbit(%viking_bits, ^viking_vote_olaf) = 1) {
-    ~chatnpc("<p,neutral>You can't go through there. Talent only, backstage.");
-    ~chatplayer("<p,quiz>But I'm a Bard!");
-    ~chatnpc("<p,angry>No you're not. I saw your performance. I was paid well to keep you from ever setting foot on stage here again.");
-    return(false);
-}
-if (inv_total(inv, viking_enchanted_strung_lyre) = 0) {
-    ~chatnpc("<p,angry>Get lost, outerlander. Performers only past this point.");
-    ~chatplayer("<p,quiz>But I am a performer!");
-    ~chatnpc("<p,quiz>Oh, really? So where's your instrument?");
-    ~chatplayer("<p,neutral>Um... I'm an acapella bard?");
-    ~chatnpc("<p,neutral>Oh, really? You won't mind singing me a quick song then.");
-    switch_int (~p_choice4_header("Tie Me Chompy Bird Down", 1, "Murphy Row The Boat Ashore", 2, "My Old Man's A Miner", 3, "Elvarg The Magic Dragon", 4, "Select the song to sing")) {
-        case 1 : ~chatplayer("<p,happy>Tie me chompy bird down, Rantz|Tie me chompy bird down!|Me stickers don't get no quicker,|So tie me chompy bird down!");
-        case 2 : ~chatplayer("<p,happy>Murphy row the boat ashore...|We are siiiiinking...");
-        case 3 : ~chatplayer("<p,happy>My old man's a miner,|Spends all day mining ore,|He wears a dragon ammy,|And lives in Falador - Oi!");
-        case default : ~chatplayer("<p,happy>Elvarg the magic dragon...|Lives by the sea...|He spends all his days eating folk,|And dies occasionally...");
-    }
-    ~chatnpc("<p,angry>That was a pile of tosh. Get lost, outerlander. You're a bard like I'm a goblin. Do I look stupid to you?");
-    ~chatplayer("<p,neutral>Well, actually...");
-    ~chatnpc("<p,angry>I said, get lost.");
-    return(false);
-}
-return(true);
-
-// The audience. Talk-to had no handler on any of the four (dead clicks); the wiki's standard line.
-[opnpc1,viking_heckler] ~chatnpc("<p,angry>Shhh! I'm waiting for the show!");
-[opnpc1,viking_heckler_2] ~chatnpc("<p,angry>Shhh! I'm waiting for the show!");
-[opnpc1,viking_heckler_3] ~chatnpc("<p,angry>Shhh! I'm waiting for the show!");
-[opnpc1,viking_heckler_4] ~chatnpc("<p,angry>Shhh! I'm waiting for the show!");
-
-
-// --- The performance ---
-[opheld1,viking_strung_lyre]
-mes("You pluck at the strings. It makes a noise, but not a good one.");
-~mesbox("A lyre this plain is not going to impress anybody. The Fossegrimen at the lake shrine could put a voice into it.");
-
-[opheld1,viking_enchanted_strung_lyre]
-if (%viking < ^viking_started | testbit(%viking_bits, ^viking_vote_olaf) = 1) {
-    mes("You play the lyre. It sings back at you, sweet and strange.");
-    return;
-}
-if (~viking_on_stage = false) {
-    mes("You play the lyre. It sings back at you, sweet and strange.");
-    ~mesbox("Olaf wanted this played on the longhall stage, not out here.");
-    return;
-}
-@viking_olaf_performance;
-
-[proc,viking_on_stage]()(boolean)
-if (coordx(coord) < coordx(^viking_stage_sw) | coordx(coord) > coordx(^viking_stage_ne)) {
-    return(false);
-}
-if (coordz(coord) < coordz(^viking_stage_sw) | coordz(coord) > coordz(^viking_stage_ne)) {
-    return(false);
-}
-return(true);
-
-// Wiki transcript, "Performing with the Lyre": you sing four lines of an epic about the best thing
-// you have done - the Legends', Heroes' or Champions' Guild, a 99 - or, failing all of those, about
-// having nothing much to say. The hall heckles, Olaf is delighted, the vote is given, and the
-// Fossegrimen's blessing leaves the lyre.
-[label,viking_olaf_performance]
-mes("You withdraw your lyre.");
-anim(viking_lyre_play_once, 0);
-p_delay(1);
-def_int $verse = ~viking_olaf_verse;
-def_int $line = 0;
-while ($line < 4) {
-    say(~viking_olaf_verse_line($verse, $line));
-    anim(viking_lyre_play_once, 0);
-    ~viking_heckle;
-    p_delay(2);
-    $line = add($line, 1);
-}
-mes("Your lyre is perfectly tuned.");
-// The vote, and the blessing leaving every enchanted lyre you carry (the wiki: drop any spares
-// first "or they will become unenchanted"), happen before Olaf's line: ~chatnpc ends in
-// p_pausebutton and is abortable, and a player who clicks away mid-applause must not have played
-// for nothing.
-%viking_bits = setbit(%viking_bits, ^viking_vote_olaf);
-def_int $lyres = inv_total(inv, viking_enchanted_strung_lyre);
-inv_del(inv, viking_enchanted_strung_lyre, $lyres);
-inv_add(inv, viking_strung_lyre, $lyres);
-mes("Congratulations! You have completed the Bard's Trial!");
-mes("As you finished playing you felt Fossegrimen's power leave you...");
-if (npc_find(coord, viking_olaf, 16, 0) = true) {
-    ~chatnpc("<p,happy>Wow! That was awesome! You are one of the greatest bards I have ever had the pleasure of watching performing! You have certainly earned my vote! I hope we can duet together soon!");
-}
-mes("Olaf the Bard has given you his vote.");
-
-// 1 Legends' Guild, 2 Heroes' Guild, 3 Champions' Guild, 4 a 99, 0 nothing to boast of.
-[proc,viking_olaf_verse]()(int)
-if (%legendsquest >= ^legends_complete) {
-    return(1);
-}
-if (%heroquest >= ^hero_complete) {
-    return(2);
-}
-if (%qp >= 32) {
-    return(3);
-}
-if (~viking_first_99 ! null) {
-    return(4);
-}
-return(0);
-
-[proc,viking_first_99]()(stat)
-def_int $i = 1;
-while ($i <= enum_getoutputcount(stats)) {
-    def_stat $stat = enum(int, stat, stats, $i);
-    if ($stat ! null) {
-        if (stat_base($stat) >= 99) {
-            return($stat);
-        }
-    }
-    $i = add($i, 1);
-}
-return(null);
-
-[proc,viking_olaf_verse_line](int $verse, int $line)(string)
-switch_int ($verse) {
-    case 1 :
-        switch_int ($line) {
-            case 0 : return("I cannot even start to list");
-            case 1 : return("the amount of foes I've killed.");
-            case 2 : return("I will simply tell you this:");
-            case default : return("I've joined the Legends' Guild!");
-        }
-    case 2 :
-        switch_int ($line) {
-            case 0 : return("When it comes to fighting");
-            case 1 : return("I hit my share of zeroes");
-            case 2 : return("But I'm well respected at");
-            case default : return("the Guild reserved for Heroes.");
-        }
-    case 3 :
-        switch_int ($line) {
-            case 0 : return("The thought of lots of questing");
-            case 1 : return("leaves some people unfulfilled,");
-            case 2 : return("but I have done my simple best");
-            case default : return("in entering the Champions' Guild.");
-        }
-    case 4 :
-        switch_int ($line) {
-            case 0 : return("When people speak of training");
-            case 1 : return("some people think they're fine.");
-            case 2 : return("But they just all seem jealous that");
-            case default : return("my <lowercase(~stat_name(~viking_first_99))>'s ninety-nine!");
-        }
-}
-switch_int ($line) {
-    case 0 : return("<displayname> is my name,");
-    case 1 : return("I haven't much to say.");
-    case 2 : return("But since I have to sing this song,");
-}
-return("I'll just go ahead and play.");
-
-// One of the four hecklers in front of the stage shouts something (wiki: Ospak, Styrmir, Torbrund
-// and Fridgeir's overhead lines while you perform). Two of the wiki's lines are only recorded cut
-// off mid-sentence and are left out rather than guessed at.
-[proc,viking_heckle]
-def_npc $who = viking_heckler;
-switch_int (random(4)) {
-    case 1 : $who = viking_heckler_2;
-    case 2 : $who = viking_heckler_3;
-    case 3 : $who = viking_heckler_4;
-}
-if (npc_find(coord, $who, 12, 0) = false) {
-    return;
-}
-switch_int (random(22)) {
-    case 0 : npc_say("Hey, I've done that quest too!");
-    case 1 : npc_say("I have met cows more musical than you!");
-    case 2 : npc_say("I thought somebody was murdering a cat!");
-    case 3 : npc_say("Is your singing some kind of outerlander weapon?");
-    case 4 : npc_say("My grandmother could do better, and she is dead!");
-    case 5 : npc_say("Please, ye gods! Make it stop!");
-    case 6 : npc_say("Worst. Bard. EVER.");
-    case 7 : npc_say("You call THAT singing?");
-    case 8 : npc_say("Don't give up your day job outerlander!");
-    case 9 : npc_say("I do such feats before breakfast!");
-    case 10 : npc_say("Never before have mine ears been so offended!");
-    case 11 : npc_say("Your song makes no sense outerlander!");
-    case 12 : npc_say("You know, I actually quite liked that verse...");
-    case 13 : npc_say("That's kind of catchy. Irritating. But catchy.");
-    case 14 : npc_say("Please... Kill me now...");
-    case 15 : npc_say("When do you get to the good parts?");
-    case 16 : npc_say("Truly, this is the worst sound I have ever heard!");
-    case 17 : npc_say("What kind of bard are you anyway?");
-    case 18 : npc_say("Please tell me that was the last verse...");
-    case 19 : npc_say("The screams of my dying comrades sound better!");
-    case 20 : npc_say("I have produced better sounds in the outhouse!");
-    case default : npc_say("YOU ARE A TERRIBLE BARD!");
-}

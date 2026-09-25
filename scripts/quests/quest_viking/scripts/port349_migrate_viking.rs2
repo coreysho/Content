@@ -1,6 +1,219 @@
 // Old saves onto the ported quest - see scripts/general/scripts/port349.rs2.
+//
+// The old version of The Fremennik Trials kept %viking at 0 / 1 / 10 and every trial as loose bits
+// of %viking_bits (layout: the ^viking_old_* constants in quest_viking.constant). The port uses
+// 349's: %viking is 1 + the votes won, and each trial has a small stage number in its own bit range.
+// The two layouts share nothing, so %viking_bits is rebuilt from scratch here.
+//
+//   old                                          new
+//   %viking 0                                    untouched (not started)
+//   %viking >= 10 (complete)                     %viking 10, every trial at its complete stage,
+//                                                everything else in %viking_bits clear (as 349
+//                                                leaves it), and a Fremennik name rolled - the old
+//                                                version gave every man "Sigurd", every woman "Hild"
+//   %viking 1-9 (in progress):
+//     Manni     vote                             reveller complete
+//               lost the first contest           reveller started (the contest is set up); a hidden
+//                                                strange object carries over (firecracker_placed)
+//               otherwise                        not started
+//     Sigli     vote                             sigli complete
+//               Draugen slain, talisman charged  sigli defeated_draugen (hand Sigli the talisman)
+//               talisman given                   sigli started (the hunt begins afresh)
+//     Olaf      vote                             olaf complete
+//               rock, potato, cabbage and onion  olaf made_stew, all four stew bits (Lalli gives
+//               all in the stew                  the fleece)
+//               some of the stew in              olaf spoken_lalli2, with those stew bits
+//               Askeladden's rock received       olaf spoken_askelapen
+//               asked                            olaf started (Olaf explains the lyre in full)
+//     Sigmund   vote (or step 27)                sigmund complete
+//               steps 1-13, asking link N        sigmund stage N - the two numberings agree:
+//                                                349's "spoke to X" is the step after asking X
+//               steps 14-26, trading back        sigmund spoke_thora (13) - the trades back are
+//                                                driven by the goods in hand in 349, not the stage.
+//                                                ~viking_merchant_migrate first swaps the goods of a
+//                                                still-older version of the chain, as it always did
+//     Swensen   vote, or out of the maze         swensen complete (349 votes as you climb out)
+//               standing in the maze right now   swensen started, so the exit ladder counts
+//     Thorvald  vote, or three forms down        thorvald complete
+//               asked                            thorvald started (Koschei fought from the start)
+//     Peer      vote                             peer complete
+//               riddle answered                  peer completed_riddle, with a riddle rolled so the
+//                                                door has one; the old version's found red disk
+//                                                (viking_dummy_coin) becomes 349's
+//                                                viking_red_wooden_coin
+//     %viking = 1 + the trials now complete. Seven means Brundt finishes the quest on the next talk.
+//
+// Anyone left inside the golden sheep pen by the long-gone wall-lifting version is set down outside
+// it, since nothing in the port lifts anyone over that wall.
 [proc,port349_migrate_viking]
 if (%port349_viking = ^true) {
     return;
 }
+if (inzone(0_43_56_9_20, 0_43_56_18_29, coord) = true) {
+    p_teleport(0_43_56_18_38);
+}
+if (%viking = ^viking_not_started) {
+    %port349_viking = ^true;
+    return;
+}
+def_int $old = %viking_bits;
+if (%viking >= ^viking_complete) {
+    %viking_bits = 0;
+    ~set_viking_swensen_progress(^swensen_complete);
+    ~set_viking_reveller_progress(^reveller_complete);
+    ~set_viking_sigli_progress(^sigli_complete);
+    ~set_viking_thorvald_progress(^thorvald_complete);
+    ~set_viking_peer_progress(^peer_complete);
+    ~set_viking_olaf_progress(^olaf_complete);
+    ~set_viking_sigmund_progress(^sigmund_complete);
+    %viking = ^viking_complete;
+    ~generate_viking_name;
+    %port349_viking = ^true;
+    return;
+}
+%viking_bits = 0;
+def_int $done = 0;
+
+// Manni the Reveller
+if (testbit($old, ^viking_old_vote_manni) = 1) {
+    ~set_viking_reveller_progress(^reveller_complete);
+    $done = add($done, 1);
+} else if (testbit($old, ^viking_old_manni_beaten) = 1) {
+    ~set_viking_reveller_progress(^reveller_started);
+    if (testbit($old, ^viking_old_firecracker_planted) = 1) {
+        %viking_bits = setbit(%viking_bits, ^viking_firecracker_placed);
+    }
+}
+
+// Sigli the Huntsman
+if (testbit($old, ^viking_old_vote_sigli) = 1) {
+    ~set_viking_sigli_progress(^sigli_complete);
+    $done = add($done, 1);
+} else if (testbit($old, ^viking_old_draugen_slain) = 1) {
+    ~set_viking_sigli_progress(^sigli_defeated_draugen);
+} else if (testbit($old, ^viking_old_talisman_given) = 1) {
+    ~set_viking_sigli_progress(^sigli_started);
+}
+
+// Olaf the Bard
+if (testbit($old, ^viking_old_vote_olaf) = 1) {
+    ~set_viking_olaf_progress(^olaf_complete);
+    $done = add($done, 1);
+} else if (testbit($old, ^viking_old_olaf_asked) = 1) {
+    if (testbit($old, ^viking_old_lalli_rock) = 1) {
+        %viking_bits = setbit(%viking_bits, ^viking_rock_stew);
+    }
+    if (testbit($old, ^viking_old_stew_potato) = 1) {
+        %viking_bits = setbit(%viking_bits, ^viking_potato_stew);
+    }
+    if (testbit($old, ^viking_old_stew_cabbage) = 1) {
+        %viking_bits = setbit(%viking_bits, ^viking_cabbage_stew);
+    }
+    if (testbit($old, ^viking_old_stew_onion) = 1) {
+        %viking_bits = setbit(%viking_bits, ^viking_onion_stew);
+    }
+    if (testbit(%viking_bits, ^viking_rock_stew) = 1 & testbit(%viking_bits, ^viking_potato_stew) = 1
+        & testbit(%viking_bits, ^viking_cabbage_stew) = 1 & testbit(%viking_bits, ^viking_onion_stew) = 1) {
+        ~set_viking_olaf_progress(^olaf_made_stew);
+    } else if (testbit(%viking_bits, ^viking_rock_stew) = 1 | testbit(%viking_bits, ^viking_potato_stew) = 1
+        | testbit(%viking_bits, ^viking_cabbage_stew) = 1 | testbit(%viking_bits, ^viking_onion_stew) = 1) {
+        ~set_viking_olaf_progress(^olaf_spoken_lalli2);
+    } else if (testbit($old, ^viking_old_askeladden_rock) = 1) {
+        ~set_viking_olaf_progress(^olaf_spoken_askelapen);
+    } else {
+        ~set_viking_olaf_progress(^olaf_started);
+    }
+}
+
+// Sigmund the Merchant
+def_int $step = getbit_range($old, ^viking_old_merchant_lo, ^viking_old_merchant_hi);
+if (testbit($old, ^viking_old_vote_sigmund) = 1 | $step >= ^viking_old_merchant_done) {
+    ~set_viking_sigmund_progress(^sigmund_complete);
+    $done = add($done, 1);
+} else if ($step > ^viking_old_merchant_asked_all) {
+    ~viking_merchant_migrate($step);
+    ~set_viking_sigmund_progress(^sigmund_spoke_thora);
+} else if ($step > 0) {
+    ~set_viking_sigmund_progress($step);
+}
+
+// Swensen the Navigator
+if (testbit($old, ^viking_old_vote_swensen) = 1 | testbit($old, ^viking_old_maze_done) = 1) {
+    ~set_viking_swensen_progress(^swensen_complete);
+    $done = add($done, 1);
+} else if (inzone(0_41_156_0_0, 0_41_156_63_63, coord) = true) {
+    ~set_viking_swensen_progress(^swensen_started);
+}
+
+// Thorvald the Warrior
+if (testbit($old, ^viking_old_vote_thorvald) = 1 | getbit_range($old, ^viking_old_koschei_lo, ^viking_old_koschei_hi) >= 3) {
+    ~set_viking_thorvald_progress(^thorvald_complete);
+    $done = add($done, 1);
+} else if (testbit($old, ^viking_old_thorvald_asked) = 1) {
+    ~set_viking_thorvald_progress(^thorvald_started);
+}
+
+// Peer the Seer
+if (testbit($old, ^viking_old_vote_peer) = 1) {
+    ~set_viking_peer_progress(^peer_complete);
+    $done = add($done, 1);
+} else if (testbit($old, ^viking_old_peer_riddle) = 1) {
+    ~set_viking_peer_progress(^peer_completed_riddle);
+    %viking_bits = setbit_range_toint(%viking_bits, random(6), ^viking_seerdoor_start, ^viking_seerdoor_end);
+    def_int $disks = inv_total(inv, viking_dummy_coin);
+    if ($disks > 0) {
+        inv_del(inv, viking_dummy_coin, $disks);
+        inv_add(inv, viking_red_wooden_coin, $disks);
+    }
+}
+
+%viking = add(^viking_started, $done);
 %port349_viking = ^true;
+
+// The old chain's trades back: at old step S the player should be holding what link 27 - S gave
+// them. Before the old chain was rewritten (2026-09) four of those links handed out different goods
+// (Askeladden the fiscal statement, Manni and Brundt nothing, Thorvald the champions token), and this
+// swaps them for what the chain expects - kept from the old viking_sigmund.rs2, where it ran every
+// time Sigmund or a link was talked to. With the stage now 349's, it runs here, once.
+[proc,viking_merchant_migrate](int $step)
+def_namedobj $held = ~viking_old_merchant_gives(sub(^viking_old_merchant_done, $step));
+if (inv_total(inv, $held) > 0 | inv_total(bank, $held) > 0) {
+    return;
+}
+switch_int ($step) {
+    case 14 :
+        if (inv_total(inv, viking_promissary_note) > 0) {
+            inv_del(inv, viking_promissary_note, 1);
+            inv_add(inv, viking_promissary_note2, 1);
+        }
+    case 16 :
+        if (inv_freespace(inv) > 0) {
+            inv_add(inv, viking_champion_token, 1);
+        }
+    case 17 :
+        if (inv_total(inv, viking_champion_token) > 0) {
+            inv_del(inv, viking_champion_token, 1);
+            inv_add(inv, viking_promissary_note3, 1);
+        }
+    case 23 :
+        if (inv_freespace(inv) > 0) {
+            inv_add(inv, viking_promissary_note, 1);
+        }
+}
+
+[proc,viking_old_merchant_gives](int $link)(namedobj)
+switch_int ($link) {
+    case 1 : return(viking_rare_flower);
+    case 2 : return(viking_song);
+    case 3 : return(viking_new_boots);
+    case 4 : return(viking_promissary_note);
+    case 5 : return(viking_map_to_hunting_grounds);
+    case 6 : return(viking_bowstring);
+    case 7 : return(viking_unique_fish);
+    case 8 : return(viking_another_map);
+    case 9 : return(viking_weather_forecast);
+    case 10 : return(viking_promissary_note3);
+    case 11 : return(viking_champion_token);
+    case 12 : return(viking_legendary_cocktail);
+}
+return(viking_promissary_note2);

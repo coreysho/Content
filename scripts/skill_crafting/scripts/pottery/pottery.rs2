@@ -6,10 +6,21 @@ switch_obj (last_useitem)
 };
 
 [oplocu,potterywheel] @use_potters_wheel(last_useitem);
-[oplocu,viking_potterywheel] @use_potters_wheel(last_useitem);
+// The Fremennik Trials: Rellekka's wheel and oven are for Fremenniks only (349).
+[oplocu,viking_potterywheel]
+if(%viking < ^viking_complete) {
+    mes("Only Fremenniks may use this pottery wheel.");
+    return;
+}
+@use_potters_wheel(last_useitem);
 
 [oplocu,potteryoven] @use_pottery_oven(last_useitem);
-[oplocu,viking_potteryoven] @use_pottery_oven(last_useitem);
+[oplocu,viking_potteryoven]
+if(%viking < ^viking_complete) {
+    mes("Only Fremenniks may use this pottery oven.");
+    return;
+}
+@use_pottery_oven(last_useitem);
 [oplocu,fai_barbarian_pottery_oven] @use_pottery_oven(last_useitem);
 
 [label,use_pottery_oven](obj $item)
