@@ -188,6 +188,7 @@ if (last_useitem ! pestle_and_mortar) {
 // ~hundred_pirate_grind_one does inv_del/inv_add, which CORRUPTS last_useitem - the compiler
 // rejects any read of it after the grind call. Capture it first and compare the local.
 def_obj $used = last_useitem;
+def_int $used_slot = last_useslot;
 // Warriors' Guild shot put: ground ashes (minigames/game_warriorsguild/scripts/wguild_shotput.rs2)
 if ($used = ashes) {
     @wguild_grind_ashes;
@@ -216,6 +217,14 @@ if ($used = tbwt_raw_karambwan | $used = tbwt_poorly_cooked_karambwan | $used = 
 // true if it recognised the item.
 if (~hundred_pirate_grind($used) = true) {
     return;
+}
+// Regicide's brimstone and quicklime, clicked onto the pestle rather than the other way round
+// (quests/quest_regicide/scripts/quest_regicide.rs2).
+if ($used = regicide_sulphar) {
+    @regicide_grind_sulphar($used_slot);
+}
+if ($used = regicide_quicklime) {
+    @regicide_grind_quicklime;
 }
 if ($used ! garlic) {
     ~displaymessage(^dm_default);

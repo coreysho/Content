@@ -1,153 +1,118 @@
-// Regicide - Lord Iorwerth dialogue at Iorwerth Camp (checklist item #6).
-// Mention King Lathas sent you -> Iorwerth gives the crystal pendant and sends the player to the
-// Elf Tracker, south of the Poison Waste. regicide_crystal_pendant confirmed present in
-// scripts/_unpack/377/all.obj (name=Crystal pendant, desc=Lord Iorwerth's crystal pendant).
-
 [opnpc1,lord_iorwerth]
-switch_int(%regicide_quest) {
-    case ^regicide_not_started, ^regicide_started :
-        ~chatnpc("<p,neutral>This is elven land. State your business, human.");
-        ~chatplayer("<p,neutral>I'm sorry, I don't have anything to discuss with you yet.");
+if(inv_total(inv, trail_clue_hard_riddle018) > 0) {
+    // https://www.youtube.com/watch?v=Pu1lndWPMKU
+    if(~obj_gettotal(trail_clue_hard_riddle018_puzzlebox) > 0) {
+        if(inv_total(inv, trail_clue_hard_riddle018_puzzlebox) = 0) {
+            ~chatplayer("<p,neutral>I don't have the puzzle box with me.");
+            ~chatnpc("<p,angry>That's not much use. Go and fetch it.");
+            return;
+        }
+        if(~trail_puzzle_complete = true) {
+            ~chatnpc("<p,neutral>You have done well, human!");
+            inv_del(inv, trail_clue_hard_riddle018_puzzlebox, 1);
+            ~progress_clue_hard(trail_clue_hard_riddle018, "Lord Iorwerth has given you another clue scroll!");
+            return;
+        }
+        // TODO: check mesanim
+        ~chatnpc("<p,neutral>Do not waste my time, human!");
         return;
-    case ^regicide_met_elves :
-        ~chatnpc("<p,neutral>This is elven land, human. You have some nerve, coming here.");
-        ~chatplayer("<p,worried>I mean no harm - King Lathas of East Ardougne sent me. I saw Essyllt and Morvran kill an elf named Idris on the path here.");
-        ~chatnpc("<p,shock>Lathas? So the humans are stirring again...");
-        ~chatnpc("<p,neutral>Idris was a fool to approach you, but his death is not your doing. Tell me, why did Lathas send you into Tirannwn?");
-        ~chatplayer("<p,neutral>He fears King Tyras' court has been infiltrated by agents of the Dark Lord.");
-        ~chatnpc("<p,sad>That much, at least, is true. Very well, human - you may prove useful.");
-        if (inv_freespace(inv) = 0) {
-            ~chatnpc("<p,neutral>I have something for you, and you have no room to carry it. Come back when you do.");
-            return;
-        }
-        mes("Lord Iorwerth hands you a crystal pendant.");
-        inv_add(inv, regicide_crystal_pendant, 1);
-        ~chatnpc("<p,neutral>That pendant will let you pass through our forest defences unharmed - keep it safe, and do not lose it.");
-        ~chatnpc("<p,neutral>Seek out our tracker to the south, past the Poison Waste. She knows this land better than any of us, and can guide you further.");
-        ~chatplayer("<p,neutral>Thank you, Lord Iorwerth. I'll find her.");
-        %regicide_quest = ^regicide_met_iorwerth;
-    case ^regicide_met_iorwerth :
-        if (~regicide_replace_pendant = true) return;
-        ~chatnpc("<p,neutral>The tracker is south of the Poison Waste, human. Go on - you're wasting daylight.");
-    case ^regicide_met_tracker, ^regicide_at_tyras_camp :
-        if (~regicide_replace_pendant = true) return;
-        ~chatnpc("<p,neutral>Tyras Camp is south, past the forest. Come back when you have something to tell me.");
-    case ^regicide_told_tracker : @regicide_iorwerth_book;
-    case ^regicide_has_book :
-        if (~regicide_resupply = true) return;
-        ~chatnpc("<p,neutral>The still is in Rimmington, human, on the far side of the sea. Read the book. It is all in the book.");
-    case ^regicide_tyras_bombed : @regicide_iorwerth_letter;
-    case ^regicide_has_letter, ^regicide_seal_broken :
-        // Lathas will not finish the quest without the letter, and it is the only copy.
-        if (~obj_gettotal(regicide_iorwerth_message) = 0 & inv_freespace(inv) > 0) {
-            ~chatnpc("<p,angry>You lost it? Careless. I will write it again, and you will not lose this one.");
+    }
+    ~chatnpc("<p,neutral>Before I will help you, human, you must complete this for me!");
+    ~give_trail_puzzle(trail_clue_hard_riddle018_puzzlebox, "Lord Iorwerth has given you a puzzle box!");
+    return;
+}
+switch_int(%regicide_quest) {
+    case ^regicide_complete :
+        ~chatplayer("<p,neutral>Good day, Lord Iorwerth.");
+        ~chatnpc("<p,happy>Ahh <displayname()>. Good day, sorry I cannot stop to talk. So much to do, so little time.");
+    case ^regicide_reported_iorwerth, ^regicide_spoken_arianwyn :
+        if(~obj_gettotal(regicide_iorwerth_message) = 0) {
+            ~chatplayer("<p,sad>Lord Iorwerth, I have lost the message for King Lathas.");
+            ~chatnpc("<p,neutral>Here, have another copy, but don't let it fall into the wrong hands.");
+            ~chatplayer("<p,neutral>Thank you Lord Iorwerth.");
             inv_add(inv, regicide_iorwerth_message, 1);
-            if (%regicide_quest = ^regicide_has_letter) ~regicide_place_arianwyn;
+            ~objbox(regicide_iorwerth_message, "Lord Iorwerth hands you a scroll.", 250, 0, 0);
             return;
         }
-        ~chatnpc("<p,neutral>Take the letter to Lathas. Go east, over the pass - the way is open to you now.");
-    case default :
-        ~chatnpc("<p,neutral>Tread carefully out there, human.");
+        ~chatplayer("<p,neutral>Good day, Lord Iorwerth.");
+        ~chatnpc("<p,neutral>Have you delivered the message to King Lathas yet?");
+        ~chatplayer("<p,neutral>Not yet, my lord.");
+        ~chatnpc("<p,neutral>There is no time for delay, he'll need to see that.");
+    case ^regicide_killed_tyras :
+        ~chatplayer("<p,neutral>Lord Iorwerth, the deed is done.");
+        ~chatnpc("<p,happy>Good good... One of my scouts just reported that they have seen his tent in a ball of flame.");
+        // https://web.archive.org/web/20061231211932im_/http://www.runeweb.net/fireball/Regicide%20Images/Regicide25.PNG
+        ~chatnpc("<p,neutral>I'm sure you will want to get back to your king|and tell him. He will undoubtedly want some proof.|He should trust me enough in this matter,|Give him this letter, it verifies that the job is done.");
+        inv_add(inv, regicide_iorwerth_message, 1);
+        %regicide_quest = ^regicide_reported_iorwerth;
+        ~objbox(regicide_iorwerth_message, "Lord Iorwerth hands you a scroll.", 250, 0, 0);
+        ~chatnpc("<p,neutral>I'd use the pass through Arandar, You'll find the start of the trail in the far north-east of the woods. I have informed the guards there, you should now have the right to pass the Arandar palisade.");
+        ~chatplayer("<p,neutral>Thank you my lord.");
+    case ^regicide_spoken_iorwerth2 :
+        if(~obj_gettotal(regicide_alchemy) = 0) {
+            ~chatplayer("<p,sad>I lost my copy of the Big Book o' Bangs.");
+            if(inv_freespace(inv) = 0) {
+                ~chatnpc("<p,neutral>It's lucky I had a scribe make a few copies. Clear some space in your inventory so that I can give you a replacement.");
+                return;
+            }
+            ~chatnpc("<p,neutral>It's lucky I had a scribe make a few copies.");
+            inv_add(inv, regicide_alchemy, 1);
+            ~objbox(regicide_alchemy, "Lord Iorwerth hands you a book.", 250, 0, 0);
+            return;
+        }
+        ~chatplayer("<p,happy>Hello.");
+        ~chatnpc("<p,neutral>Good day, <displayname()>. Have you yet found a way to rid us of Tyras?");
+        ~chatplayer("<p,happy>No but I'm working on it.");
+        ~chatnpc("<p,neutral>Good, we are running short of time.");
+    case ^regicide_entered_camp :
+        ~chatnpc("<p,neutral><displayname()> how goes your search... Any luck hunting down that brigand?");
+        ~chatplayer("<p,neutral>I've finally tracked the brute down. His camp is in a secluded bit of forest, almost directly south of here.");
+        ~chatnpc("<p,neutral>Good job. I had a plan to destroy his camp, using the knowledge found in this book but before I had perfected any formula they moved camp. Here you may find the book useful.");
+        %regicide_quest = ^regicide_spoken_iorwerth2;
+        inv_add(inv, regicide_alchemy, 1);
+        ~objbox(regicide_alchemy, "Lord Iorwerth gives you a Book.", 250, 0, 0);
+    case ^regicide_defeated_guard :
+        ~chatnpc("<p,neutral><displayname()>, how goes your search? Any luck hunting down that brigand?");
+        ~chatplayer("<p,neutral>I have come across heavy resistance trying to follow some tracks from the old camp. I'm guessing I'm on the right path.");
+        ~chatnpc("<p,neutral>Good. Come find me when you've located the camp.");
+    case ^regicide_spoken_tracker2 :
+        ~chatnpc("<p,neutral><displayname()>, how goes your search? Any luck hunting down that brigand?");
+        ~chatplayer("<p,neutral>I think I just need to follow some tracks I found. Your scout showed me how.");
+        ~chatnpc("<p,neutral>Good. Come find me when you've located the camp.");
+    case ^regicide_found_footprints :
+        ~chatnpc("<p,neutral><displayname()>, how goes your search? Any luck hunting down that brigand?");
+        ~chatplayer("<p,sad>I've found some tracks at Tyras's old camp, but they trail off in to the trees.");
+        ~chatnpc("<p,neutral>Ask my scout. He may be able to help there.");
+        ~chatplayer("<p,neutral>Thanks I'll go ask him");
+        ~chatnpc("<p,neutral>Good. Come find me when you've located the camp.");
+    case ^regicide_shown_pendant :
+        ~chatnpc("<p,neutral><displayname()>, how goes your search? Any luck hunting down that brigand?");
+        ~chatplayer("<p,neutral>I've found no trace of him as yet.");
+        ~chatnpc("<p,neutral>I'm sure you will find something at his old camp that can help you.");
+        ~chatplayer("<p,neutral>I'll take a look and see what I can find.");
+        ~chatnpc("<p,neutral>Good. Come find me when you've located the camp.");
+    case ^regicide_spoken_tracker :
+        ~chatnpc("<p,neutral>Good day, <displayname()>. How may I help you now?");
+        ~chatplayer("<p,neutral>Your scout refused to help, unless I take proof that you sent me.");
+        if(~obj_gettotal(regicide_crystal_pendant) > 0) {
+            ~chatnpc("<p,neutral>Just show him the pendant I gave you.");
+            return;
+        }
+        if(inv_freespace(inv) = 0) {
+            // allegience is correct here
+            ~chatnpc("<p,neutral>Bless his loyalty but curse his suspicion. I will give you a token by which you may prove your allegience, but you must first clear some inventory space.");
+            return;
+        }
+        ~chatnpc("<p,neutral>Bless his loyalty but curse his suspicion. Here, he will recognise this.");
+        inv_add(inv, regicide_crystal_pendant, 1);
+        ~objbox(regicide_crystal_pendant, "Lord Iorwerth gives you a crystal pendant.", 180, 0, divide(^objbox_height, -2));
+    case ^regicide_spoken_iorwerth :
+        ~chatnpc("<p,neutral>The only help I can offer at this time is the use of a tracker. He can be found over the river to the south east. Good luck!");
+    case ^regicide_spoken_scouts :
+        // https://web.archive.org/web/20061231211932im_/http://www.runeweb.net/fireball/Regicide%20Images/Regicide9.PNG
+        ~chatplayer("<p,neutral>Hello I'm <displayname()>.|Your scouts said that I should come and see you.");
+        ~chatnpc("<p,neutral>Ahh.. <displayname()>. Welcome to Isafdar. I understand you've been sent here to rid us of that criminal Tyras. I offer my full support.");
+        ~chatnpc("<p,neutral>Unfortunately all my troops are hunting down a group of renegade elves, but you should find one of our trackers by Tyras's old camp. He should be able to help you.");
+        %regicide_quest = ^regicide_spoken_iorwerth;
+        ~chatplayer("<p,neutral>Thank you. I shall return, when my task is complete.");
 }
-
-// The Big Book O' Bangs handover, plus the two things the player would otherwise have no way to get
-// hold of. Limestone has NO source anywhere on this server - the obj exists, but not one rock in any
-// of the 660 map regions yields it and there is no limestone mine in this cache - and the empty
-// barrels the coal-tar step needs are equally unobtainable (every barrel loc in Isafdar is scenery
-// with no Take option). Rather than build a limestone mine out of nothing, Iorwerth supplies both.
-// He is the one commissioning the bomb; an elf lord handing over the raw materials with the
-// instructions is the least invented way to close the gap. If a limestone mine ever lands, the
-// limestone line here is the thing to delete.
-[label,regicide_iorwerth_book]
-~chatplayer("<p,angry>Hining turned me away. Nobody gets near King Tyras - not me, not anyone, not for months.");
-~chatnpc("<p,neutral>Then it is as we feared, and the thing behind Tyras has closed the door behind it.");
-~chatnpc("<p,neutral>Listen to me. We cannot take that camp by force, and we cannot walk into it. But it has a catapult, and a catapult can be made to fire the wrong way.");
-~chatplayer("<p,quiz>You want me to shell your own enemy's camp?");
-~chatnpc("<p,angry>I want the thing wearing Tyras' court like a coat to be underneath it when the roof comes down. Yes.");
-// Five things change hands and only the pendant leaves, so the room has to be there first.
-if (inv_freespace(inv) < 5) {
-    ~chatnpc("<p,neutral>I have a book and a load to give you and you are carrying half of Isafdar already. Put something down first.");
-    return;
-}
-if (inv_total(inv, regicide_crystal_pendant) > 0) {
-    inv_del(inv, regicide_crystal_pendant, 1);
-    mes("You hand the crystal pendant back to Lord Iorwerth.");
-}
-inv_add(inv, regicide_alchemy, 1);
-inv_add(inv, regicide_barrel_empty, ^regicide_barrels_given);
-inv_add(inv, limestone, 1);
-%regicide_quest = ^regicide_has_book;
-~objbox(regicide_alchemy, "Lord Iorwerth gives you the Big Book O' Bangs, three empty barrels and a lump of limestone.", 250, 0, 0);
-~chatnpc("<p,neutral>Everything you need is written down. Coal-tar from the Poison Waste, sulphur from the rocks beside it, and a still in the human town of Rimmington to draw one out of the other.");
-~chatnpc("<p,neutral>Come back to me when the tent is burning.");
-
-// After the catapult. The sealed letter, and Arianwyn put on the path east - he is placed nowhere in
-// any map, so he is a scripted spawn, the same way the Draugen and Koschei are. Talking to Iorwerth
-// again at this state puts him back if he has despawned, so the ending cannot dead-end.
-[label,regicide_iorwerth_letter]
-~chatplayer("<p,neutral>It's done. The tent went up with the King in it.");
-~chatnpc("<p,happy>Then Tirannwn is rid of it. You have my thanks, human, and that is not a thing I say often.");
-~chatnpc("<p,neutral>There is one more thing. Lathas sent you, and Lathas will want to hear it from someone he trusts.");
-if (inv_freespace(inv) < 1) {
-    ~chatnpc("<p,neutral>And nowhere to put it. Make room and come back.");
-    return;
-}
-inv_add(inv, regicide_iorwerth_message, 1);
-%regicide_quest = ^regicide_has_letter;
-~regicide_place_arianwyn;
-~objbox(regicide_iorwerth_message, "Lord Iorwerth hands you a letter, folded and sealed.", 250, 0, 0);
-~chatnpc("<p,neutral>Sealed, and not by wax. Do not try to open it - it is not for your eyes and it will not let you.");
-~chatnpc("<p,neutral>The pass east through the mountains is open to you now. Go home, human.");
-
-[proc,regicide_place_arianwyn]
-if (npc_find(^regicide_arianwyn_spot, regicide_good_elf3, 8, ^vis_off) = true) {
-    return;
-}
-npc_add(^regicide_arianwyn_spot, regicide_good_elf3, ^regicide_arianwyn_lifetime);
-
-// Things only Iorwerth can hand out, handed out again if they are lost - without them the quest has
-// no way forward. The pendant is what lets a low-Agility player through the dense forest (and what
-// the tracker asks to see).
-[proc,regicide_replace_pendant]()(boolean)
-if (~obj_gettotal(regicide_crystal_pendant) > 0) {
-    return(false);
-}
-if (inv_freespace(inv) = 0) {
-    ~chatnpc("<p,angry>Where is my pendant, human? Make room, and I will trust you with another.");
-    return(true);
-}
-~chatnpc("<p,angry>Where is my pendant, human? Take this one, and do not lose it.");
-inv_add(inv, regicide_crystal_pendant, 1);
-mes("Lord Iorwerth hands you another crystal pendant.");
-return(true);
-
-// Limestone and empty barrels have no source anywhere else (see the note above), and a tar pit can
-// swallow all three barrels - so if the player has nothing left in either chain, he tops them up.
-[proc,regicide_resupply]()(boolean)
-def_boolean $barrels = false;
-if (~obj_gettotal(regicide_barrel_empty) = 0 & ~obj_gettotal(regicide_barrel_tar) = 0 & ~obj_gettotal(regicide_barrel_naphtha) = 0
-    & ~obj_gettotal(regicide_barrel_naphtha_sulphar_mix) = 0 & ~obj_gettotal(regicide_barrel_naphtha_quicklime_mix) = 0
-    & ~obj_gettotal(regicide_barrel_lid) = 0 & ~obj_gettotal(regicide_barrel_lid_fused) = 0 & ~regicide_still_active = false) {
-    $barrels = true;
-}
-def_boolean $lime = false;
-if (~obj_gettotal(limestone) = 0 & ~obj_gettotal(regicide_quicklime) = 0 & ~obj_gettotal(regicide_quicklime_dust) = 0
-    & ~obj_gettotal(regicide_barrel_naphtha_quicklime_mix) = 0 & ~obj_gettotal(regicide_barrel_lid) = 0 & ~obj_gettotal(regicide_barrel_lid_fused) = 0) {
-    $lime = true;
-}
-if ($barrels = false & $lime = false) {
-    return(false);
-}
-if (inv_freespace(inv) < 4) {
-    ~chatnpc("<p,neutral>You have run out of what I gave you. Make some room and I will give you more.");
-    return(true);
-}
-~chatnpc("<p,angry>Gone already? Here. Try not to feed these to the swamp as well.");
-if ($barrels = true) {
-    inv_add(inv, regicide_barrel_empty, ^regicide_barrels_given);
-}
-if ($lime = true) {
-    inv_add(inv, limestone, 1);
-}
-mes("Lord Iorwerth gives you what you were missing.");
-return(true);

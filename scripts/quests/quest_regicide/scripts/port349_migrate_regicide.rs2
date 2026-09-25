@@ -1,6 +1,87 @@
 // Old saves onto the ported quest - see scripts/general/scripts/port349.rs2.
+//
+// Before the port this server ran its own re-creation of Regicide, with its own stage numbers in the
+// same varps. What the old version could leave behind (git history, quest_regicide before the port):
+//
+//   %regicide_quest                         old meaning                         -> 349 stage
+//    0  not started                                                             -> 0, untouched
+//    1  ^regicide_started      Lathas sent you west (no messenger, no scroll)   -> 2  spoken_lathas
+//    2  ^regicide_met_elves    Idris killed in front of you                     -> 3  spoken_scouts
+//    3  ^regicide_met_iorwerth Iorwerth gave the pendant, sent you to tracker   -> 4  spoken_iorwerth
+//                              (the tracker takes the pendant at 4; lost, Iorwerth hands another at 5)
+//    4  ^regicide_met_tracker  tracker sent you on to Tyras Camp                -> 6  shown_pendant
+//                              (you have not found the camp in the original's sense yet, so back
+//                               to searching the old camp for the tracks, never forward)
+//    5  ^regicide_at_tyras_camp  in the camp, Hining turned you away            -> 10 entered_camp
+//    6  ^regicide_told_tracker   reported that to the tracker                   -> 10 entered_camp
+//    7  ^regicide_has_book     Big Book o' Bangs, 3 barrels and limestone given -> 11 spoken_iorwerth2
+//    8  ^regicide_tyras_bombed the catapult has been fired                      -> 12 killed_tyras
+//    9  ^regicide_has_letter   Iorwerth's sealed letter in hand                 -> 13 reported_iorwerth
+//   10  ^regicide_seal_broken  Arianwyn opened the letter                       -> 14 spoken_arianwyn
+//   15  complete                                                                -> 15 complete
+//   Nothing in the old version could set 11-14, so those are left alone.
+//
+//   %regicide_bits, old: bit 0 = catapult guard fed, bit 1 = bomb loaded into the catapult.
+//   The 349 bits in the same varp mean something else (0 Koftik's food, 1 been down the well,
+//   2 met the old camp guard, 3 rabbit given to the catapult guard, 5 read the book to the chemist),
+//   so for anyone past stage 0 they are rebuilt from scratch:
+//     - guard fed          -> ^regicide_given_rabbit, so the rabbit is not asked for twice;
+//     - bomb loaded        -> the old catapult had already taken the fused barrel bomb out of the
+//                             pack and the original has no loaded state, so it is handed back
+//                             (pack, else bank, else at your feet) rather than lost;
+//     - ^regicide_down_well for anyone who has been in Isafdar (old stage 2 and up);
+//     - ^regicide_seen_guard past the old camp guard's stage, so he is never spawned for them;
+//     - Koftik's food is left unset: the old version never gave it.
+//   The old still used %regicide_still_settings/%regicide_still_total, which are not saved, so there
+//   is nothing to carry over from it. The old items the player still holds (pendant, book, barrels,
+//   limestone, letter) all have the same names and uses in the original.
 [proc,port349_migrate_regicide]
 if (%port349_regicide = ^true) {
     return;
 }
 %port349_regicide = ^true;
+
+def_int $old = %regicide_quest;
+if ($old <= 0 | ($old > 10 & $old ! ^regicide_complete)) {
+    return;
+}
+
+def_int $old_bits = %regicide_bits;
+def_int $new;
+switch_int ($old) {
+    case 1 : $new = ^regicide_spoken_lathas;
+    case 2 : $new = ^regicide_spoken_scouts;
+    case 3 : $new = ^regicide_spoken_iorwerth;
+    case 4 : $new = ^regicide_shown_pendant;
+    case 5, 6 : $new = ^regicide_entered_camp;
+    case 7 : $new = ^regicide_spoken_iorwerth2;
+    case 8 : $new = ^regicide_killed_tyras;
+    case 9 : $new = ^regicide_reported_iorwerth;
+    case 10 : $new = ^regicide_spoken_arianwyn;
+    case default : $new = ^regicide_complete;
+}
+
+def_int $bits = 0;
+if ($new >= ^regicide_spoken_scouts) {
+    $bits = setbit($bits, ^regicide_down_well);
+}
+if ($new > ^regicide_spoken_tracker2) {
+    $bits = setbit($bits, ^regicide_seen_guard);
+}
+if ($new = ^regicide_spoken_iorwerth2 & testbit($old_bits, 0) = ^true) {
+    $bits = setbit($bits, ^regicide_given_rabbit);
+}
+%regicide_quest = $new;
+%regicide_bits = $bits;
+
+// The bomb the old catapult swallowed (old bit 1), only while it had not yet been fired.
+if ($old = 7 & testbit($old_bits, 1) = ^true) {
+    mes("The barrel bomb you had loaded into Tyras's catapult has been returned to you.");
+    if (inv_freespace(inv) > 0) {
+        inv_add(inv, regicide_barrel_lid_fused, 1);
+    } else if (inv_freespace(bank) > 0) {
+        inv_add(bank, regicide_barrel_lid_fused, 1);
+    } else {
+        obj_add(coord, regicide_barrel_lid_fused, 1, ^lootdrop_duration);
+    }
+}

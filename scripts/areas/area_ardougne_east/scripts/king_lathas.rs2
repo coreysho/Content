@@ -1,4 +1,44 @@
 [opnpc1,kinglathas]
+// Regicide (349 original dialogue and stages).
+if(%regicide_quest > ^regicide_not_started) {
+    switch_int(%regicide_quest) {
+        case ^regicide_complete :
+            ~chatplayer("<p,neutral>Good day my lord.");
+            ~chatnpc("<p,neutral>Hello <displayname()>. I've got nothing for you right now.");
+        case ^regicide_killed_tyras, ^regicide_reported_iorwerth, ^regicide_spoken_arianwyn :
+            ~chatplayer("<p,happy>My lord, Tyras is dead!");
+            ~chatnpc("<p,happy>This is grand news indeed! You'll forgive me if I'm a little apprehensive about this, but I take it you do have proof?");
+            if(inv_total(inv, regicide_iorwerth_message) = 0 | %regicide_quest < ^regicide_spoken_arianwyn) {
+                ~chatplayer("<p,sad>No I have nothing to corroborate this.");
+                ~chatnpc("<p,neutral>I am sure you have done as you say, but on this matter I can afford no doubts. You must find something to confirm your story.");
+                ~chatplayer("<p,neutral>I'll see what I can do"); // no period
+                return;
+            }
+            ~chatplayer("<p,neutral>Yes, I have a letter sent by Lord Iorwerth.");
+            ~objbox(regicide_iorwerth_message, "You hand the king the message. He looks at the seal then opens it.", 250, 0, 0);
+            inv_del(inv, regicide_iorwerth_message, 1);
+            queue(quest_regicide_complete, 0, 0);
+            ~chatnpc("<p,neutral>Yes... Good... This will do nicely. Well done, You're really proving to be quite useful. I'll send word when I next require your services. Oh and I guess you'll be wanting your reward.");
+        case ^regicide_entered_camp, ^regicide_spoken_iorwerth2 :
+            ~chatplayer("<p,happy>Goodday my lord."); // authentic typo
+            ~chatnpc("<p,neutral>Ah... <displayname()> how goes your exploration? Any luck finding my brother in the west lands?");
+            ~chatplayer("<p,neutral>I have tracked him down, but I've yet to deal with him.");
+            ~chatnpc("<p,neutral>What are you doing here then? I'm counting on you <displayname()>.");
+            ~chatplayer("<p,neutral>Yes my lord.");
+        case default :
+            ~chatplayer("<p,neutral>My Liege. What must I do again?");
+            ~chatnpc("<p,neutral>In short you must use the underpass to enter|the west lands, kill my brother Tyras, find an easy|route home and finally return back here, to report.|And don't worry, you will be well rewarded.");
+        case ^regicide_received_message :
+            ~chatplayer("<p,neutral>I received your message my Liege. How may I serve the kingdom?");
+            ~chatnpc("<p,neutral>Ahh.. <displayname()>. Yes... We have finally finished the work on the Well of Voyage. It is now time for us to move against my brother.");
+            ~chatnpc("<p,neutral>I've managed to get a letter through to the elves|that live to the west. They informed me that Tyras|and his brigands are camped up in the|woods to the South of their city.");
+            ~chatnpc("<p,neutral>The elves have agreed to help, however they have their battles to fight. Unfortunately the men at arms I promised you are unavailable but I have faith that you'll get the job done.");
+            ~chatnpc("<p,neutral>Finally and most importantly you must find an easy way to the west lands. We cannot use the well as a trade route, and certainly cannot move any bulk of troops through there.");
+            %regicide_quest = ^regicide_spoken_lathas;
+            ~chatnpc("<p,neutral>In short you must use the underpass to enter|the west lands, kill my brother Tyras, find an easy|route home and finally return back here, to report.|And don't worry, you will be well rewarded.");
+    }
+    return;
+}
 if(%biohazard = ^biohazard_reported_elena) {
     ~chatplayer("<p,quiz>I assume that you are the King of East Ardougne?");
     ~chatnpc("<p,angry>You assume correctly, but where do you get such impertinence.");
@@ -34,28 +74,14 @@ if(%biohazard = ^biohazard_reported_elena) {
 } else if(%biohazard = ^biohazard_complete) {
     switch_int(%upass) {
         case ^upass_complete :
-            if(%regicide_quest = ^regicide_not_started) {
-                ~chatplayer("<p,happy>Hello King Lathas.");
-                // magi isn't a typo lol
-                ~chatnpc("<p,happy>Ah, traveller! The magi have finally finished resurrecting the Well of Voyage.");
-                ~chatplayer("<p,quiz>That's good news. What now?");
-                ~chatnpc("<p,sad>I'm afraid the news from the west is grim. My brother Tyras' own court has been infiltrated - some of his closest men now serve the Dark Lord in secret.");
-                ~chatnpc("<p,neutral>I need someone I can trust to travel through the well into Tirannwn, find out what has become of Tyras' kingdom, and put a stop to whatever the Dark Lord's agents are planning.");
-                ~chatplayer("<p,neutral>I'll do what I can, Lathas.");
-                ~chatnpc("<p,happy>Thank you, traveller. Speak to me again if you need reminding of what to do, and take the well when you're ready to depart.");
-                %regicide_quest = ^regicide_started;
-                ~send_quest_progress(questlist:regicide, 1, ^regicide_complete);
-            } else if(%regicide_quest >= ^regicide_has_letter & %regicide_quest < ^regicide_complete & inv_total(inv, regicide_iorwerth_message) > 0) {
-                @lathas_regicide_finish;
-            } else if(%regicide_quest = ^regicide_complete) {
-                ~chatplayer("<p,happy>Hello King Lathas.");
-                ~chatnpc("<p,happy>Traveller! Thanks to you, Tyras' court is safe from the Dark Lord's influence once more. Gielinor owes you a great debt.");
-            } else {
-                ~chatplayer("<p,happy>Hello King Lathas.");
-                ~chatnpc("<p,quiz>How are you getting on in Tirannwn?");
-                ~chatplayer("<p,neutral>Still working on it, Lathas.");
-                ~chatnpc("<p,neutral>Keep at it, traveller. My brother's kingdom - and perhaps all of Gielinor - depends on it.");
-            }
+            ~chatplayer("<p,happy>Hello King Lathas.");
+            // magi isn't a typo lol
+            ~chatnpc("<p,happy>Well hello there traveller. The magi are still resurrecting the Well of Voyage, but I'll have word sent to you as soon as it's ready.");
+            ~chatplayer("<p,happy>Ok then, take care.");
+            ~chatnpc("<p,happy>You too.");
+            // Ours: the original only starts the messenger's timer at login, so a player who has just
+            // finished the Underground Pass would otherwise have to log out before word could come.
+            ~start_king_messenger_timer;
         case ^upass_defeated_iban :
             ~chatnpc("<p,quiz>The traveller returns, any news?");
             ~chatplayer("<p,happy>Indeed, the quest is complete, Lathas. I have defeated Iban and his undead minions.");
@@ -99,32 +125,3 @@ if(%biohazard = ^biohazard_reported_elena) {
 ~chatplayer("<p,neutral>It's a pretty nasty place but I'm OK.");
 ~chatnpc("<p,neutral>Well keep up the good work.");
 
-
-// Regicide's ending. Lathas takes Iorwerth's letter and hears exactly what he wanted to hear; the
-// player, if they met Arianwyn on the way, knows precisely what they are handing over and hands it
-// over anyway - which is how the real quest ends. If they somehow missed Arianwyn the seal is still
-// intact and they finish it none the wiser, rather than being unable to finish it at all.
-[label,lathas_regicide_finish]
-~chatplayer("<p,neutral>It's done, Lathas. Tyras' camp took a barrel of naphtha through the roof of the King's tent.");
-~chatnpc("<p,happy>My brother... ah. A hard price, but the Dark Lord's hold on the west is broken with him.");
-~chatplayer("<p,neutral>Lord Iorwerth asked me to give you this.");
-inv_del(inv, regicide_iorwerth_message, 1);
-mes("You hand King Lathas the letter.");
-if (%regicide_quest = ^regicide_seal_broken) {
-    ~chatnpc("<p,happy>...");
-    ~chatnpc("<p,happy>Excellent. Excellent. You have done Kandarin a very great service today, traveller, and it will not be forgotten.");
-    ~chatplayer("<p,neutral>No. I don't imagine it will.");
-} else {
-    ~chatnpc("<p,happy>...");
-    ~chatnpc("<p,happy>Excellent. You have done Kandarin a very great service today, traveller.");
-    ~chatplayer("<p,happy>Glad to help, Lathas.");
-}
-queue(regicide_quest_complete, 0, 0);
-
-// Through the player queue, the same way Underground Pass finishes above: the completion screen and
-// its rewards must not sit behind an abortable dialogue.
-[queue,regicide_quest_complete]
-%regicide_quest = ^regicide_complete;
-stat_advance(agility, ^regicide_reward_agility_xp);
-inv_add(inv, coins, ^regicide_reward_coins);
-~send_quest_complete(questlist:regicide, regicide_iorwerth_message, 250, ^regicide_questpoints, "You have completed the\\nRegicide Quest!", "13,750 Agility XP|15,000 Coins|Access to Tirannwn|Ability to wield the Dragon halberd");

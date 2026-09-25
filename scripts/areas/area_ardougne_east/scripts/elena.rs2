@@ -27,9 +27,9 @@ if (%mourning_quest >= ^mourning_met_gnome & %mourning_quest < ^mourning_complet
     ~mourning_elena_chat;
     return;
 }
-// After Regicide (PlagueCityRS 349). 349 gates this on "> ^regicide_reported_iorwerth", a stage
-// number our Regicide does not have; ^regicide_complete is 15 in both, so it is keyed on that.
-if(%regicide_quest >= ^regicide_complete) {
+// Regicide (349). After Mourning's End's check above: that quest needs Regicide finished, so this
+// branch would otherwise hide it.
+if(%regicide_quest > ^regicide_reported_iorwerth) {
     ~chatplayer("<p,happy>Hello.");
     ~chatnpc("<p,happy>Hello <displayname()>. It's been a long time. What can I do for you?");
     ~chatplayer("<p,happy>Just passing by.");

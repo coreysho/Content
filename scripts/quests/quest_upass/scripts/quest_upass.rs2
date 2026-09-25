@@ -327,10 +327,6 @@ if(loc_angle = ^loc_south) {
 }
 
 [oploc1,bloodwell_upass]
-// Regicide: once the mages have restored it, this is the Well of Voyage west into Tirannwn.
-if (%upass = ^upass_complete & %regicide_quest >= ^regicide_started) {
-    @regicide_well_of_voyage;
-}
 mes("You search the stone structure...");
 p_delay(0);
 mes("On the side you find an old inscription,");
@@ -577,6 +573,18 @@ switch_obj (last_useitem) {
 
 [label,open_iban_door]
 if(coordx(loc_coord) < coordx(coord)) {
+    // Regicide (349): once King Lathas has sent you west, the temple doors open onto the ruins of
+    // the temple (m31_73), where the restored Well of Voyage (regicide_voyage_temple_well1) is.
+    if(%regicide_quest >= ^regicide_spoken_lathas) {
+        mes("You pull open the large doors...");
+        // Temp note: dur updated
+        loc_change(loc_param(next_loc_stage), 5);
+        sound_synth(door_open, 1, 0);
+        p_teleport(movecoord(loc_coord, 1, 0, 0));
+        p_delay(0);
+        p_teleport(movecoord(coord, -130, 0, 64));
+        return;
+    }
     if(inv_total(worn, zamrobetop) = 0 | inv_total(worn, zamrobebottom) = 0 | inv_freespace(worn) ! calc(inv_size(worn) - 2)) {
         mes("The door refuses to open...");
         p_delay(1);
@@ -620,6 +628,11 @@ if(coordx(loc_coord) < coordx(coord)) {
     mes("...And walk out of the temple.");
     sound_synth(door_open, 1, 0);
     ~forcemove(movecoord(loc_coord, 2, 0, 0));
+    // Regicide (349): walking out of the ruined copy of the temple puts you back in the real pass.
+    // Ours: only from the copy - the original also tried it from the real temple's doors.
+    if(%regicide_quest >= ^regicide_spoken_lathas & inzone(1_31_73_0_0, 1_31_73_63_63, loc_coord) = true) {
+        p_teleport(movecoord(coord, 128, 0, -64));
+    }
 }
 
 [opheld1,ibandoll]
