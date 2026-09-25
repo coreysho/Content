@@ -31,8 +31,19 @@ p_telejump(0_35_75_29_40);
 p_telejump(0_37_75_32_44);
 
 [oploc1,abyss_exit_to_law]
-// TODO: Entrana gear check
-p_telejump(0_37_75_32_44);
+// The Law altar is on Entrana, and its rift keeps Entrana's law: no weapons or armour, worn or
+// carried. RuneHQ's Abyss guide ("no weapons may be equipped or in the inventory to enter") and
+// Old School (the law rift "has the same restrictions as entering Entrana") agree; only
+// RuneScape 3 later let you through and stopped you at the temple's portal instead. The list is the
+// Port Sarim monks' own (has_entrana_restricted_items), so an axe or a pickaxe kept from the outer
+// ring counts. The line is 2009Scape's for the Law altar from the Abyss.
+if (~has_entrana_restricted_items = true) {
+    mes("The power of Saradomin prevents you from taking armour or weaponry to Entrana.");
+    return;
+}
+// FIXED 2026-09-25: this rift sent you to the Nature altar (it had nature's landing tile). It now
+// lands where the Law altar's mysterious ruins put you (runecraft.dbrow's runecraft_law enter_coord).
+p_telejump(0_38_75_32_19);
 
 [oploc1,abyss_exit_to_death]
 p_telejump(0_50_50_0_0);
