@@ -1,0 +1,333 @@
+// Net traps: a young tree bent over a small fishing net and a rope (Hunter 29). OSRS locs imported by
+// tools/models/importosrslocs.py --no-anim; their models re-encoded by osrs2ob2.py with the loc recolours
+// baked in, and their animations converted by animconvosrs.py into hunter_nettrap.seq. Examines are
+// the OSRS wiki's. See scripts/hunter_traps.rs2 for how the states follow one another.
+//
+// One set of states per young-tree colour - swamp (Canifis), orange (Uzer), red (Ourania), black (Bone
+// Yard) - because the tree and the creature in the net are both recoloured per area in the cache. The
+// map's young trees themselves are in hunter_canifis.loc, hunter_uzer.loc, hunter_ourania.loc and
+// hunter_boneyard.loc.
+//
+// The sprung states (catching, caught, escaping, escaped) are ONE loc, 1x2, covering the tree and the
+// net tile both: the tree sprung upright with the net hanging from it. OSRS added a Reset op to the caught
+// and escaped states in February 2025; it is not 2006, and is commented out.
+
+[hunter_nettrap_net]
+// OSRS loc 9343 (and 8731, 8992, 9002 - the same net for every tree)
+name=Net trap
+desc=Theoretically, it should close around anything that trips the trigger string.
+model=osrsloc_9343
+blockwalk=no
+blockrange=no
+raiseobject=no
+category=hunter_nettrap_set
+op1=Dismantle
+op2=Investigate
+
+// The tree tile while a sprung net stands anchored on the net tile (a tree facing south or west): the
+// sprung loc draws the tree, so this draws nothing. Not in the cache - the engine anchors a 1x2 loc on its
+// south-west tile, and for those two facings that is the net's tile, not the tree's.
+[hunter_nettrap_tree_gone]
+blockwalk=no
+blockrange=no
+active=no
+
+// ---- swamp (swamp lizard)
+
+[hunter_nettrap_swamp_bending]
+// OSRS loc 9342: the young tree while it is being bent over - no ops, so nobody else can set it.
+// The bend itself is loc_anim(osrsloc_anim_5266), which ends on the bent pose the set state holds.
+name=Young tree
+desc=A young tree, probably quite flexible.
+model=osrsloc_9342
+mapscene=68
+raiseobject=no
+forceapproach=north
+
+[hunter_nettrap_swamp_set]
+// OSRS loc 9257
+name=Young tree
+desc=It's been bent over to provide the springing action for the net trap below.
+model=osrsloc_9257
+raiseobject=no
+anim=osrsloc_anim_5267
+category=hunter_nettrap_set
+op1=Dismantle
+op2=Investigate
+
+[hunter_nettrap_swamp_catching]
+// OSRS loc 9003
+name=Net trap
+model=osrsloc_9003
+length=2
+blockwalk=no
+blockrange=no
+mapscene=68
+raiseobject=no
+anim=osrsloc_anim_5268
+
+[hunter_nettrap_swamp_caught]
+// OSRS loc 9004
+name=Net trap
+desc=It looks like there's something caught in it.
+model=osrsloc_9004
+length=2
+blockwalk=no
+blockrange=no
+mapscene=68
+raiseobject=no
+anim=osrsloc_anim_5269
+category=hunter_nettrap_caught
+op1=Check
+// op2=Reset
+
+[hunter_nettrap_swamp_escaping]
+// OSRS loc 9005
+name=Net trap
+model=osrsloc_9005
+length=2
+blockwalk=no
+blockrange=no
+mapscene=68
+raiseobject=no
+anim=osrsloc_anim_5270
+
+[hunter_nettrap_swamp_escaped]
+// OSRS loc 9158
+name=Net trap
+desc=Something has triggered this trap but it looks like it must have escaped.
+model=osrsloc_9158
+length=2
+blockwalk=no
+blockrange=no
+mapscene=68
+raiseobject=no
+anim=osrsloc_anim_5271
+category=hunter_nettrap_escaped
+op1=Dismantle
+// op2=Reset
+
+// ---- orange (orange salamander)
+
+[hunter_nettrap_orange_bending]
+// OSRS loc 8733: the young tree while it is being bent over - no ops, so nobody else can set it.
+// The bend itself is loc_anim(osrsloc_anim_5266), which ends on the bent pose the set state holds.
+name=Young tree
+desc=A young tree, probably quite flexible.
+model=osrsloc_8733
+mapscene=68
+raiseobject=no
+forceapproach=north
+
+[hunter_nettrap_orange_set]
+// OSRS loc 8730
+name=Young tree
+desc=It's been bent over to provide the springing action for the net trap below.
+model=osrsloc_8730
+raiseobject=no
+anim=osrsloc_anim_5267
+category=hunter_nettrap_set
+op1=Dismantle
+op2=Investigate
+
+[hunter_nettrap_orange_catching]
+// OSRS loc 8972
+name=Net trap
+model=osrsloc_8972
+length=2
+blockwalk=no
+blockrange=no
+mapscene=68
+raiseobject=no
+anim=osrsloc_anim_5268
+
+[hunter_nettrap_orange_caught]
+// OSRS loc 8734
+name=Net trap
+desc=It looks like there's something caught in it.
+model=osrsloc_8734
+length=2
+blockwalk=no
+blockrange=no
+mapscene=68
+raiseobject=no
+anim=osrsloc_anim_5269
+category=hunter_nettrap_caught
+op1=Check
+// op2=Reset
+
+[hunter_nettrap_orange_escaping]
+// OSRS loc 8974
+name=Net trap
+model=osrsloc_8974
+length=2
+blockwalk=no
+blockrange=no
+mapscene=68
+raiseobject=no
+anim=osrsloc_anim_5270
+
+[hunter_nettrap_orange_escaped]
+// OSRS loc 8973
+name=Net trap
+desc=Something has triggered this trap but it looks like it must have escaped.
+model=osrsloc_8973
+length=2
+blockwalk=no
+blockrange=no
+mapscene=68
+raiseobject=no
+anim=osrsloc_anim_5271
+category=hunter_nettrap_escaped
+op1=Dismantle
+// op2=Reset
+
+// ---- red (red salamander)
+
+[hunter_nettrap_red_bending]
+// OSRS loc 8991: the young tree while it is being bent over - no ops, so nobody else can set it.
+// The bend itself is loc_anim(osrsloc_anim_5266), which ends on the bent pose the set state holds.
+name=Young tree
+desc=A young tree, probably quite flexible.
+model=osrsloc_8991
+mapscene=68
+raiseobject=no
+forceapproach=north
+
+[hunter_nettrap_red_set]
+// OSRS loc 8989
+name=Young tree
+desc=It's been bent over to provide the springing action for the net trap below.
+model=osrsloc_8989
+raiseobject=no
+anim=osrsloc_anim_5267
+category=hunter_nettrap_set
+op1=Dismantle
+op2=Investigate
+
+[hunter_nettrap_red_catching]
+// OSRS loc 8985
+name=Net trap
+model=osrsloc_8985
+length=2
+blockwalk=no
+blockrange=no
+mapscene=68
+raiseobject=no
+anim=osrsloc_anim_5268
+
+[hunter_nettrap_red_caught]
+// OSRS loc 8986
+name=Net trap
+desc=It looks like there's something caught in it.
+model=osrsloc_8986
+length=2
+blockwalk=no
+blockrange=no
+mapscene=68
+raiseobject=no
+anim=osrsloc_anim_5269
+category=hunter_nettrap_caught
+op1=Check
+// op2=Reset
+
+[hunter_nettrap_red_escaping]
+// OSRS loc 8987
+name=Net trap
+model=osrsloc_8987
+length=2
+blockwalk=no
+blockrange=no
+mapscene=68
+raiseobject=no
+anim=osrsloc_anim_5270
+
+[hunter_nettrap_red_escaped]
+// OSRS loc 8988
+name=Net trap
+desc=Something has triggered this trap but it looks like it must have escaped.
+model=osrsloc_8988
+length=2
+blockwalk=no
+blockrange=no
+mapscene=68
+raiseobject=no
+anim=osrsloc_anim_5271
+category=hunter_nettrap_escaped
+op1=Dismantle
+// op2=Reset
+
+// ---- black (black salamander)
+
+[hunter_nettrap_black_bending]
+// OSRS loc 9001: the young tree while it is being bent over - no ops, so nobody else can set it.
+// The bend itself is loc_anim(osrsloc_anim_5266), which ends on the bent pose the set state holds.
+name=Young tree
+desc=A young tree, probably quite flexible.
+model=osrsloc_9001
+mapscene=68
+raiseobject=no
+forceapproach=north
+
+[hunter_nettrap_black_set]
+// OSRS loc 8999
+name=Young tree
+desc=It's been bent over to provide the springing action for the net trap below.
+model=osrsloc_8999
+raiseobject=no
+anim=osrsloc_anim_5267
+category=hunter_nettrap_set
+op1=Dismantle
+op2=Investigate
+
+[hunter_nettrap_black_catching]
+// OSRS loc 8993
+name=Net trap
+model=osrsloc_8993
+length=2
+blockwalk=no
+blockrange=no
+mapscene=68
+raiseobject=no
+anim=osrsloc_anim_5268
+
+[hunter_nettrap_black_caught]
+// OSRS loc 8996
+name=Net trap
+desc=It looks like there's something caught in it.
+model=osrsloc_8996
+length=2
+blockwalk=no
+blockrange=no
+mapscene=68
+raiseobject=no
+anim=osrsloc_anim_5269
+category=hunter_nettrap_caught
+op1=Check
+// op2=Reset
+
+[hunter_nettrap_black_escaping]
+// OSRS loc 8997
+name=Net trap
+model=osrsloc_8997
+length=2
+blockwalk=no
+blockrange=no
+mapscene=68
+raiseobject=no
+anim=osrsloc_anim_5270
+
+[hunter_nettrap_black_escaped]
+// OSRS loc 8998
+name=Net trap
+desc=Something has triggered this trap but it looks like it must have escaped.
+model=osrsloc_8998
+length=2
+blockwalk=no
+blockrange=no
+mapscene=68
+raiseobject=no
+anim=osrsloc_anim_5271
+category=hunter_nettrap_escaped
+op1=Dismantle
+// op2=Reset

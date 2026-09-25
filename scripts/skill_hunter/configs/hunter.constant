@@ -157,7 +157,7 @@
 ^hunter_catch_wild_kebbit = 6
 ^hunter_catch_barbtailed_kebbit = 7
 
-// Which kind of trap a slot holds (two bits each of %hunter_trap_kinds).
+// Which kind of trap a slot holds (three bits each of %hunter_trap_kinds).
 ^hunter_kind_box = 0
 ^hunter_kind_snare = 1
 ^hunter_kind_deadfall = 2
@@ -207,3 +207,52 @@
 ^hunter_track_hops_extra = 2
 ^hunter_track_step_min = 2
 ^hunter_track_step_max = 9
+// ---------------------------------------------------------------------------------------------
+// NET TRAPS (2026-09-24). A small fishing net and a rope, set on a young tree: the tree is bent over the
+// net, and a lizard or salamander that runs across the net springs it and hangs in it. OSRS's four 2006
+// creatures, levels and experience, each in the hunter area OSRS keeps it in:
+//   swamp lizard       29   152    Canifis hunter area (m55_53, 474's young trees)
+//   orange salamander  47   224    Uzer hunter area (m53_48, 474's rocks and young trees)
+//   red salamander     59   272    Ourania hunter area (m38_50, OSRS's young trees on 377's ground)
+//   black salamander   67   319.2  Bone Yard hunter area, Wilderness (m51_57, 474's young trees)
+// A net trap needs Hunter 29 to set, the swamp lizard's level, as in OSRS.
+^hunter_nettrap_level = 29
+^hunter_swamp_lizard_level = 29
+^hunter_swamp_lizard_xp = 1520
+^hunter_orange_salamander_level = 47
+^hunter_orange_salamander_xp = 2240
+^hunter_red_salamander_level = 59
+^hunter_red_salamander_xp = 2720
+^hunter_black_salamander_level = 67
+^hunter_black_salamander_xp = 3192
+
+// The roll. Unlike the other traps', these ARE OSRS's figures: the wiki gives each creature's catch rate
+// by level (swamp lizard 55% at 29 and certain from 66; orange 56% at 47, certain from 87; red 56% at 59
+// and 94% at 99; black 56% at 67 and 83% at 99), and these low/high values put stat_random on exactly
+// those numbers - worked through the engine's own formula at each quoted level. A high above 255 is how
+// "certain from level N" comes out.
+^hunter_swamp_lizard_low = 52
+^hunter_swamp_lizard_high = 360
+^hunter_orange_salamander_low = 12
+^hunter_orange_salamander_high = 290
+^hunter_red_salamander_low = 1
+^hunter_red_salamander_high = 240
+^hunter_black_salamander_low = 0
+^hunter_black_salamander_high = 212
+
+^hunter_catch_swamp_lizard = 9
+^hunter_catch_orange_salamander = 10
+^hunter_catch_red_salamander = 11
+^hunter_catch_black_salamander = 12
+^hunter_kind_nettrap = 4
+
+// Which young tree: the key of every hunter_net_* enum (configs/hunter_nettrap.enum).
+^hunter_net_swamp = 0
+^hunter_net_orange = 1
+^hunter_net_red = 2
+^hunter_net_black = 3
+^hunter_net_colours = 4
+
+// How long a young tree stays bent while a net is set on it (ticks) - only long enough to outlast the
+// setting, after which it is either a set trap or a plain tree again.
+^hunter_net_bend_duration = 10

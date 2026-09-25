@@ -108,6 +108,256 @@ if (process.env.HTRAP === 'cape') {
     process.exit(fails ? 1 : 0);
 }
 
+// HTRAP=net, HAREA=canifis|uzer|ourania|boneyard: net traps on the area's young trees. Every tree is set
+// and taken down once; both geometries (a tree facing north/east holds its sprung net on its own tile, one
+// facing south/west on the net's) are sprung by hand and checked; then a real catch off the real loop,
+// the cap, standing on the net, ownership, the leash, a fall-over, [logout] and Release.
+if (process.env.HTRAP === 'net') {
+    const AREA = process.env.HAREA ?? 'canifis';
+    const A = ({
+        canifis: { colour: 'swamp', npc: 'hunter_swamp_lizard', key: 'swamp_lizard', box: [3520, 3425, 3575, 3460], trees: 12, spawns: 12, start: [3547, 3442] },
+        uzer: { colour: 'orange', npc: 'hunter_orange_salamander', key: 'orange_salamander', box: [3392, 3066, 3425, 3140], trees: 10, spawns: 11, start: [3408, 3088] },
+        ourania: { colour: 'red', npc: 'hunter_red_salamander', key: 'red_salamander', box: [2440, 3212, 2485, 3256], trees: 12, spawns: 9, start: [2468, 3242] },
+        boneyard: { colour: 'black', npc: 'hunter_black_salamander', key: 'black_salamander', box: [3285, 3655, 3325, 3685], trees: 4, spawns: 6, start: [3299, 3664] }
+    } as any)[AREA];
+    const cnum = (n: string) => parseInt(new RegExp(`\\^${n} = (-?\\d+)`).exec(CONST)![1]);
+    const CLEVEL = cnum(`hunter_${A.key}_level`), CXP = cnum(`hunter_${A.key}_xp`), NETLEVEL = cnum('hunter_nettrap_level');
+    const CAN_CATCH = LEVEL >= CLEVEL;
+    const inv0 = player.getInventory(InvType.INV)!;
+    const tot = (n: string) => inv0.getItemCount(ObjType.getId(n));
+    const setLevel = (l: number) => { player.stats[PlayerStat.HUNTER] = getExpByLevel(l); player.baseLevels[PlayerStat.HUNTER] = l; player.levels[PlayerStat.HUNTER] = l; };
+    const L = (n: string) => LocType.getId(n);
+    const TREE = L(`hunter_young_tree_${A.colour}`), NET = L('hunter_nettrap_net'), GONE = L('hunter_nettrap_tree_gone');
+    const ST: Record<string, number> = {};
+    for (const s of ['bending', 'set', 'catching', 'caught', 'escaping', 'escaped']) ST[s] = L(`hunter_nettrap_${A.colour}_${s}`);
+    const NAMES: [number, string][] = [[TREE, 'tree'], [NET, 'net'], [GONE, 'gone'], ...Object.entries(ST).map(([k, v]) => [v, k] as [number, string])];
+    const at = (x: number, z: number) => { for (const [id, n] of NAMES) { const l = World.getLoc(x, z, 0, id); if (l) return { n, l }; } return null; };
+    const DIR = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+    const { isMapBlocked, reachedLoc } = await import('#/engine/GameMap.js');
+    const trees: any[] = [];
+    for (let x = A.box[0]; x <= A.box[2]; x++) for (let z = A.box[1]; z <= A.box[3]; z++) {
+        const l = World.getLoc(x, z, 0, TREE);
+        if (l) trees.push({ x, z, a: l.angle, nx: x + DIR[l.angle][0], nz: z + DIR[l.angle][1] });
+    }
+    const state = (t: any) => `${at(t.x, t.z)?.n ?? '-'}/${at(t.nx, t.nz)?.n ?? '-'}`;
+    const sprung = (t: any) => (t.a < 2 ? at(t.x, t.z) : at(t.nx, t.nz))!;
+    const slots = () => [1, 2, 3, 4, 5].map(i => player.getVar(VarPlayerType.getId(`hunter_trap${i}`)) as number).filter(c => c !== -1);
+    const oploc = (op: number, loc: any) => {
+        const t = LocType.get(loc.type);
+        const s = ScriptProvider.getByTrigger(ServerTriggerType.OPLOC1 + (op - 1), t.id, t.category);
+        if (!s) { log('no script for op', op, t.debugname); return; }
+        player.executeScript(ScriptRunner.init(s, player, loc), true);
+    };
+    const setTree = async (t: any) => { player.teleport(t.nx, t.nz, 0); await waitTicks(1); const l = World.getLoc(t.x, t.z, 0, TREE); if (l) oploc(1, l); await waitTicks(5); return state(t) === 'set/net'; };
+    // straight into a sprung state, as the loop's own spring puts it there - checked at once, before the
+    // owner's timer (every 2 ticks) moves a catching/escaping state on
+    const spring = (t: any, s: string) => {
+        const sc = ScriptProvider.getByName('[proc,hunter_net_spring]')!;
+        player.executeScript(ScriptRunner.init(sc, player, null, [(t.x << 14) | t.z, t.a, ST[s]]), true);
+    };
+    const onGround = (x: number, z: number, n: string) => World.getObj(x, z, 0, ObjType.getId(n), player.hash64) !== null;
+    const kit = () => {
+        if (tot('net') < 5) player.invAdd(InvType.INV, ObjType.getId('net'), 5 - tot('net'));
+        if (tot('rope') < 5) player.invAdd(InvType.INV, ObjType.getId('rope'), 5 - tot('rope'));
+    };
+
+    // ---- the map
+    check(trees.length === A.trees, `${A.trees} ${A.colour} young trees on the map at ${AREA} (${trees.length})`);
+    const netBlocked = trees.filter(t => isMapBlocked(t.nx, t.nz, 0));
+    check(netBlocked.length === 0, `every tree's net tile is open ground (${netBlocked.map(t => `${t.nx},${t.nz}`).join(' ') || 'all'})`);
+    const fa = LocType.get(TREE).forceapproach;
+    const noReach = trees.filter(t => !reachedLoc(0, t.nx, t.nz, t.x, t.z, 1, 1, 1, t.a, 10, fa));
+    check(noReach.length === 0, `...and it is the tile the tree is set from (${noReach.map(t => `${t.x},${t.z}`).join(' ') || 'all'})`);
+    // and it joins the rest of the area: a walk (a flood fill over the engine's own collision, 40 tiles
+    // round the area) from the landing tile of ::nettrap reaches every net tile
+    const cut: string[] = [];
+    {
+        const { canTravel } = await import('#/engine/GameMap.js');
+        const { CollisionType } = await import('#/engine/routefinder/index.js');
+        const seenT = new Set<string>([`${A.start[0]},${A.start[1]}`]); const q = [[A.start[0], A.start[1]]];
+        while (q.length) {
+            const [x, z] = q.shift()!;
+            for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                const k = `${x + dx},${z + dz}`;
+                if (seenT.has(k) || x + dx < A.box[0] - 40 || x + dx > A.box[2] + 40 || z + dz < A.box[1] - 40 || z + dz > A.box[3] + 40) continue;
+                if (!canTravel(0, x, z, dx, dz, 1, 0, CollisionType.NORMAL)) continue;
+                seenT.add(k); q.push([x + dx, z + dz]);
+            }
+        }
+        for (const t of trees) if (!seenT.has(`${t.nx},${t.nz}`)) cut.push(`${t.x},${t.z}`);
+    }
+    check(cut.length === 0, `...and a player can walk from the ::nettrap landing tile to every one of them (${cut.join(' ') || 'all'})`);
+    const NPC = NpcType.getId(A.npc);
+    let spawns = 0;
+    for (const n of World.npcs) if (n && n.type === NPC) spawns++;
+    check(spawns === A.spawns, `${A.spawns} ${A.npc} in the world (${spawns})`);
+
+    // ---- the gates
+    kit();
+    const T0 = trees.slice().sort((p, q) => Math.hypot(p.nx - A.start[0], p.nz - A.start[1]) - Math.hypot(q.nx - A.start[0], q.nz - A.start[1]));
+    setLevel(NETLEVEL - 1);
+    await setTree(T0[0]);
+    check(slots().length === 0 && state(T0[0]) === 'tree/-' && tot('net') === 5, `below Hunter ${NETLEVEL} a young tree cannot be set`);
+    setLevel(Math.max(LEVEL, NETLEVEL));
+    inv0.remove(ObjType.getId('rope'), 5);
+    { const n = msgs.length; await setTree(T0[0]); check(msgs.slice(n).some(m => m.includes('small fishing net and a rope')) && slots().length === 0 && state(T0[0]) === 'tree/-', 'no net trap without a rope'); }
+    kit();
+
+    // ---- every tree takes a trap, and gives it back (Dismantle from the net on some, the tree on others)
+    let every = 0;
+    for (const [i, t] of trees.entries()) {
+        const ok = await setTree(t);
+        const kinds = player.getVar(VarPlayerType.getId('hunter_trap_kinds')) as number;
+        if (!ok || slots().length !== 1 || tot('net') !== 4 || tot('rope') !== 4 || (kinds & 7) !== 4 || ((kinds >> 15) & 3) !== t.a) { log('set failed', t, state(t), slots(), kinds); continue; }
+        if (i === 0) { const n = msgs.length; oploc(2, at(t.nx, t.nz)!.l); await waitTicks(1); check(msgs.slice(n).some(m => m.includes('Nothing has run into it')), 'Investigate on the net: the trap is set'); }
+        oploc(1, (i % 2 ? at(t.nx, t.nz) : at(t.x, t.z))!.l); await waitTicks(3);
+        if (state(t) === 'tree/-' && slots().length === 0 && tot('net') === 5 && tot('rope') === 5) every++;
+        else log('dismantle failed', t, state(t), slots(), tot('net'), tot('rope'));
+    }
+    check(every === trees.length, `every tree sets (bent, the net on its facing tile, one slot holding kind and angle, a net and a rope spent) and dismantles back (${every}/${trees.length})`);
+
+    // ---- both geometries, sprung by hand: a catch and an escape on each
+    const byAngle = [trees.find(t => t.a < 2), trees.find(t => t.a >= 2)].filter(Boolean);
+    for (const t of byAngle) {
+        const g = t.a < 2 ? 'facing north/east' : 'facing south/west';
+        await setTree(t);
+        spring(t, 'catching');
+        check(state(t) === (t.a < 2 ? 'catching/-' : 'gone/catching'), `${g} (${t.x},${t.z}): sprung, the net hangs from the tree (${state(t)})`);
+        await waitTicks(4);
+        check(state(t) === (t.a < 2 ? 'caught/-' : 'gone/caught'), `...and the loop moves it on to caught (${state(t)})`);
+        const b = { c: tot(A.key), n: tot('net'), r: tot('rope'), xp: player.stats[PlayerStat.HUNTER] };
+        player.teleport(t.nx, t.nz, 0); await waitTicks(1);
+        oploc(1, sprung(t).l); await waitTicks(3);
+        check(tot(A.key) === b.c + 1 && tot('net') === b.n + 1 && tot('rope') === b.r + 1, `...Check pays the ${A.key} and gives the net and rope back`);
+        check(player.stats[PlayerStat.HUNTER] - b.xp === CXP, `...${(player.stats[PlayerStat.HUNTER] - b.xp) / 10} xp`);
+        check(state(t) === 'tree/-' && slots().length === 0, `...and the young tree stands there again, the slot free (${state(t)})`);
+        await setTree(t);
+        spring(t, 'escaping'); await waitTicks(4);
+        check(state(t) === (t.a < 2 ? 'escaped/-' : 'gone/escaped'), `${g}: an escape leaves the net empty (${state(t)})`);
+        const e = { c: tot(A.key), n: tot('net'), r: tot('rope'), xp: player.stats[PlayerStat.HUNTER] };
+        oploc(1, sprung(t).l); await waitTicks(3);
+        check(tot(A.key) === e.c && tot('net') === e.n + 1 && tot('rope') === e.r + 1 && player.stats[PlayerStat.HUNTER] === e.xp && state(t) === 'tree/-', '...Dismantle gives the net and rope back, and nothing else');
+    }
+
+    // ---- somebody else's trap
+    {
+        const t = T0[0];
+        await setTree(t);
+        const c = slots()[0]; const vid = VarPlayerType.getId('hunter_trap1');
+        const n = msgs.length;
+        player.setVar(vid, -1); oploc(1, at(t.x, t.z)!.l); player.setVar(vid, c);
+        await waitTicks(2);
+        check(msgs.slice(n).some(m => m.includes("isn't your trap")) && state(t) === 'set/net', "a net trap not in your varps is not yours, and stays set");
+        oploc(1, at(t.x, t.z)!.l); await waitTicks(3);
+    }
+
+    // ---- standing on the net: nothing is caught
+    if (CAN_CATCH) {
+        const t = T0[0];
+        await setTree(t);
+        player.teleport(t.nx, t.nz, 0);
+        let near = 0, sprang = false;
+        for (let i = 0; i < 150; i++) {
+            await waitTicks(1);
+            for (const n of World.npcs) if (n && n.type === NPC && Math.max(Math.abs(n.x - t.nx), Math.abs(n.z - t.nz)) <= 3) { near++; break; }
+            if (state(t) !== 'set/net') sprang = true;
+        }
+        check(!sprang, `standing on the net for 150 ticks, nothing is caught (${near} of them with a ${A.npc} within 3 tiles)`);
+        oploc(1, at(t.x, t.z)!.l); await waitTicks(3);
+    }
+
+    // ---- the real loop: as many traps as the level allows, the player standing off the nets
+    const max = Math.min(5, 1 + Math.floor(Math.max(LEVEL, NETLEVEL) / 20));
+    // trees all within the leash of one another - the Bone Yard's fourth tree is 24 tiles from its first,
+    // and walking to it collapses the first trap, as it should
+    const LEASH = cnum('hunter_trap_leash');
+    const near: any[] = [];
+    for (const t of T0) if (near.every(u => Math.max(Math.abs(t.nx - u.x), Math.abs(t.nz - u.z)) <= LEASH)) near.push(t);
+    const used: any[] = [];
+    for (const t of near) { if (used.length >= max) break; if (await setTree(t)) used.push(t); }
+    check(used.length === Math.min(max, near.length) && slots().length === used.length, `${used.length} net traps set at level ${LEVEL} (cap ${max}; ${near.length} trees within the leash of each other)`);
+    if (used.length < near.length) {
+        const extra = near.find(t => !used.includes(t))!;
+        const n = msgs.length; await setTree(extra);
+        check(msgs.slice(n).some(m => m.includes('more than')) && state(extra) === 'tree/-', `a net trap over the cap of ${max} is refused`);
+    }
+    // an open tile off every net, near the first trap
+    const nets = new Set(trees.map(t => `${t.nx},${t.nz}`)), treeTiles = new Set(trees.map(t => `${t.x},${t.z}`));
+    let stand = [used[0].nx, used[0].nz];
+    search: for (let r = 1; r < 5; r++) for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) {
+        const x = used[0].nx + dx, z = used[0].nz + dz;
+        if (!nets.has(`${x},${z}`) && !treeTiles.has(`${x},${z}`) && !isMapBlocked(x, z, 0)) { stand = [x, z]; break search; }
+    }
+    player.teleport(stand[0], stand[1], 0); await waitTicks(1);
+    let caught: any = null; const seen = new Map<string, string>();
+    const LIMIT = CAN_CATCH ? 1500 : 300;
+    for (let i = 0; i < LIMIT && !caught; i++) {
+        await waitTicks(1);
+        for (const t of used) {
+            const s = state(t);
+            if (seen.get(`${t.x},${t.z}`) !== s) { log('net trap', t.x, t.z, 'a', t.a, '->', s); seen.set(`${t.x},${t.z}`, s); }
+            if (s.includes('caught')) { caught = t; break; }
+            if (s.includes('escaped')) {
+                const n0 = tot('net');
+                player.teleport(t.nx, t.nz, 0); await waitTicks(1);
+                oploc(1, sprung(t).l); await waitTicks(3);
+                check(tot('net') === n0 + 1 && state(t) === 'tree/-', `an escaped net trap dismantles (${t.x},${t.z})`);
+                await setTree(t);
+                player.teleport(stand[0], stand[1], 0); await waitTicks(1);
+            }
+        }
+    }
+    if (CAN_CATCH) {
+        check(caught !== null, `a ${A.npc} ran into a net trap within ${LIMIT} ticks`);
+        if (caught) {
+            const b = { c: tot(A.key), xp: player.stats[PlayerStat.HUNTER] };
+            player.teleport(caught.nx, caught.nz, 0); await waitTicks(1);
+            oploc(1, sprung(caught).l); await waitTicks(3);
+            check(tot(A.key) === b.c + 1 && player.stats[PlayerStat.HUNTER] - b.xp === CXP && state(caught) === 'tree/-', `...Checked: a ${A.key} and ${CXP / 10} xp (a tree facing ${['north', 'east', 'south', 'west'][caught.a]})`);
+            await setTree(caught);
+        }
+    } else {
+        check([...seen.values()].every(s => !/catching|escaping|caught|escaped/.test(s)), `at level ${LEVEL}, below the ${A.npc}'s ${CLEVEL}, nothing runs into a net trap`);
+        check(slots().length === 0 && used.every(t => state(t) === 'tree/-'), '...and traps left past their duration fall over: every tree stands up, every slot is free');
+        check(used.every(t => onGround(t.nx, t.nz, 'net') && onGround(t.nx, t.nz, 'rope')) && msgs.some(m => m.includes('fallen over')), '...with the net and the rope on the ground where each net was');
+        kit();
+        for (const t of used) await setTree(t);
+    }
+
+    // ---- the leash
+    {
+        const held = used.filter(t => state(t) !== 'tree/-');
+        player.teleport(stand[0], stand[1] + 30, 0);
+        await waitTicks(6);
+        check(held.length > 0 && slots().length === 0 && held.every(t => state(t) === 'tree/-'), `walking 30 tiles away collapses every net trap (${held.length}) and stands its tree up`);
+        check(held.every(t => onGround(t.nx, t.nz, 'net') && onGround(t.nx, t.nz, 'rope')), '...leaving the net and rope on the ground');
+    }
+
+    // ---- [logout]
+    {
+        kit();
+        const two = T0.slice(0, 2);
+        for (const t of two) await setTree(t);
+        const n = tot('net'), r = tot('rope'), held = slots().length;
+        const lo = ScriptProvider.getByTrigger(ServerTriggerType.LOGOUT, -1, -1);
+        player.executeScript(ScriptRunner.init(lo!, player), true); await waitTicks(2);
+        check(held === 2 && slots().length === 0 && two.every(t => state(t) === 'tree/-'), '[logout] takes both net traps down and stands the trees up');
+        check(tot('net') === n + 2 && tot('rope') === r + 2, '...and gives back both nets and both ropes');
+    }
+
+    // ---- Release
+    {
+        if (tot(A.key) === 0) player.invAdd(InvType.INV, ObjType.getId(A.key), 1);
+        const c = tot(A.key), id = ObjType.getId(A.key);
+        player.lastItem = id; player.lastSlot = inv0.getItemIndex(id);
+        const s = ScriptProvider.getByTrigger(ServerTriggerType.OPHELD5, id, ObjType.get(id).category);
+        player.executeScript(ScriptRunner.init(s!, player), true); await waitTicks(1);
+        check(tot(A.key) === c - 1 && msgs.some(m => m.includes('scurries away')), `Release lets a ${A.key} go`);
+    }
+    console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
+    process.exit(fails ? 1 : 0);
+}
+
 // HTRAP=tracking: Feldip weasel trails from the burrow at 2525,2889, followed to the bush.
 if (process.env.HTRAP === 'tracking') {
     const inv0 = player.getInventory(InvType.INV)!;

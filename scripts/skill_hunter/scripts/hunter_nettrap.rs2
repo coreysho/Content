@@ -1,0 +1,335 @@
+// Hunter - net traps: swamp lizards and orange, red and black salamanders. The numbers are in
+// configs/hunter.constant, the tree and its states in configs/hunter_nettrap.loc, and which colour of
+// young tree turns into what in configs/hunter_nettrap.enum. The shared trap loop - the five slots,
+// the cap, the owner's timer, the leash, [logout] - is hunter_traps.rs2; this is the part that is only
+// net traps.
+//
+// A NET TRAP IS TWO TILES. Set-trap on a young tree (a small fishing net and a rope, Hunter 29) bends it
+// over, and the net goes on the tile the tree faces - the tile you set it from, since a young tree can
+// only be reached from that side. A creature that runs across the net springs it: the tree whips up,
+// and the net hangs from it with the creature inside (catching -> caught: Check) or empty (escaping ->
+// escaped: Dismantle). OSRS's rule that nothing is caught while its hunter stands on the net is kept.
+//
+//     young tree --Set-trap--> bending (the bend plays) --> set tree + net on the facing tile
+//     set  --a creature the owner could catch runs within ^hunter_trap_lure_radius of the net, 1 in
+//            ^hunter_trap_lure_chance-->  stat_random:  pass -> catching -> caught
+//                                                       fail -> escaping -> escaped
+//
+// The sprung states are one 1x2 loc covering both tiles, and the engine anchors a 1x2 loc on its
+// south-west tile. For a tree facing north or east (angle 0 or 1) that is the tree's own tile, so the
+// map's tree is simply changed into it and the net loc goes. For a tree facing south or west it is the
+// NET's tile: the net loc is changed into it instead, and the tree becomes hunter_nettrap_tree_gone,
+// which draws nothing, for as long as the net hangs there.
+//
+// Whatever the state, the map's tree is a CHANGED static loc and the net tile holds an ADDED one, both
+// with the same duration, so a trap left alone falls over whole: the tree stands up again by itself,
+// the net loc vanishes, and the timer finds nothing and puts the net and rope on the ground. Every other
+// ending (Check, Dismantle, the leash, [logout]) does the same by hand, in ~hunter_net_clear.
+
+// ------------------------------------------------------------------------------------ setting
+
+[oploc1,_hunter_young_tree]
+if (stat(hunter) < ^hunter_nettrap_level) {
+    ~mesbox("You need a Hunter level of <tostring(^hunter_nettrap_level)> to set up a net trap.");
+    return;
+}
+if (inv_total(inv, net) < 1 | inv_total(inv, rope) < 1) {
+    mes("You need a small fishing net and a rope to set up a net trap.");
+    return;
+}
+if (~hunter_trap_free_slot = 0) {
+    mes("You don't have a high enough Hunter level to set up more than <~pluralise(~hunter_trap_max, "trap")>.");
+    return;
+}
+def_int $colour = ~hunter_net_colour(loc_type);
+def_coord $tree = loc_coord;
+def_int $angle = loc_angle;
+def_coord $net = ~hunter_net_tile($tree, $angle);
+if (map_locaddunsafe($net) = true) {
+    mes("You can't set a trap here.");
+    return;
+}
+// The tree is claimed for the setting - bent, and with no ops while it is - so nobody else can set it
+// while we work; the bend (OSRS seq 5266) ends on the pose the set tree holds.
+loc_change(enum(int, loc, hunter_net_bending, $colour), ^hunter_net_bend_duration);
+loc_anim(osrsloc_anim_5266);
+anim(human_hunter_set_nettrap, 0);
+sound_synth(springtrap_reset, 1, 0);
+mes("You begin setting up the trap.");
+p_delay(2);
+// Everything the player could have changed is asked again after the delay, as for every trap: a free
+// slot (the owner's timer may have freed or the player filled one) and the net and rope.
+if (loc_find($tree, enum(int, loc, hunter_net_bending, $colour)) = false) {
+    return;
+}
+def_int $slot = ~hunter_trap_free_slot;
+if ($slot = 0 | inv_total(inv, net) < 1 | inv_total(inv, rope) < 1 | map_locaddunsafe($net) = true) {
+    // straight back up: changed back to what the map has, it is the map's tree again
+    loc_change(enum(int, loc, hunter_net_tree, $colour), 1);
+    return;
+}
+inv_del(inv, net, 1);
+inv_del(inv, rope, 1);
+~hunter_trap_set($slot, $tree);
+~hunter_trap_set_kind($slot, ^hunter_kind_nettrap);
+~hunter_trap_set_angle($slot, $angle);
+loc_change(enum(int, loc, hunter_net_set, $colour), ^hunter_trap_duration);
+loc_add($net, hunter_nettrap_net, $angle, centrepiece_straight, ^hunter_trap_duration);
+settimer(hunter_traps, ^hunter_trap_interval);
+
+// ------------------------------------------------------------------------------------ the trap
+
+// The set tree and the net both carry Dismantle and Investigate, as in OSRS.
+[oploc1,_hunter_nettrap_set] @hunter_net_takeup(^hunter_catch_none);
+[oploc2,_hunter_nettrap_set]
+if (~hunter_trap_slot(~hunter_net_tree_of(loc_coord, loc_type, loc_angle)) = 0) {
+    mes("This isn't your trap.");
+    return;
+}
+mes("The trap is set. Nothing has run into it yet.");
+
+[oploc1,_hunter_nettrap_caught] @hunter_net_takeup(enum(int, int, hunter_net_catch, ~hunter_net_colour(loc_type)));
+[oploc1,_hunter_nettrap_escaped] @hunter_net_takeup(^hunter_catch_none);
+
+// Take the trap down - with whatever is in it - and get the net and the rope back.
+[label,hunter_net_takeup](int $catch)
+def_coord $tree = ~hunter_net_tree_of(loc_coord, loc_type, loc_angle);
+def_int $slot = ~hunter_trap_slot($tree);
+if ($slot = 0) {
+    mes("This isn't your trap.");
+    return;
+}
+def_int $need = calc(~hunter_slot_need(net) + ~hunter_slot_need(rope));
+if ($catch ! ^hunter_catch_none) {
+    $need = calc($need + 1);
+}
+if (inv_freespace(inv) < $need) {
+    mes("You don't have enough inventory space.");
+    return;
+}
+anim(human_hunter_check_trap, 0);
+sound_synth(disarm_trap, 1, 0);
+// The locs go and the slot is freed before anything is paid, and nothing yields between them: a
+// double click finds no trap the second time.
+~hunter_net_clear($tree, ~hunter_trap_angle($slot));
+~hunter_trap_set($slot, null);
+inv_add(inv, net, 1);
+inv_add(inv, rope, 1);
+if ($catch = ^hunter_catch_none) {
+    mes("You dismantle the trap.");
+} else {
+    ~hunter_catch_pay($catch);
+}
+facesquare($tree);
+
+// ------------------------------------------------------------------------------------ the loop
+
+// One net trap, one look, from [timer,hunter_traps]. Returns whether the slot still holds a trap.
+[proc,hunter_net_tick](int $slot, coord $tree)(boolean)
+def_int $angle = ~hunter_trap_angle($slot);
+def_coord $net = ~hunter_net_tile($tree, $angle);
+def_loc $at_tree = ~hunter_net_type($tree);
+if ($at_tree = null) {
+    // Untouched for ^hunter_trap_duration: the tree has stood up by itself and the net loc has gone
+    // with it. What is left is the net and the rope, on the ground where the net was.
+    obj_add($net, net, 1, ^lootdrop_duration);
+    obj_add($net, rope, 1, ^lootdrop_duration);
+    ~hunter_trap_set($slot, null);
+    mes("One of your traps has fallen over.");
+    return(false);
+}
+if (coordy($tree) ! coordy(coord) | distance($tree, coord) > ^hunter_trap_leash) {
+    ~hunter_net_clear($tree, $angle);
+    obj_add($net, net, 1, ^lootdrop_duration);
+    obj_add($net, rope, 1, ^lootdrop_duration);
+    ~hunter_trap_set($slot, null);
+    mes("You've moved too far away from one of your traps, and it has collapsed.");
+    return(false);
+}
+def_int $colour = ~hunter_net_colour($at_tree);
+if ($at_tree = enum(int, loc, hunter_net_set, $colour)) {
+    ~hunter_net_lure($tree, $net, $angle, $colour);
+    return(true);
+}
+// Sprung: the state is on the tree's tile or, facing south or west, on the net's.
+def_loc $state = $at_tree;
+if ($angle >= 2) {
+    $state = ~hunter_net_type($net);
+    $colour = ~hunter_net_colour($state);
+}
+if ($colour = -1) {
+    return(true);
+}
+if ($state = enum(int, loc, hunter_net_catching, $colour)) {
+    ~hunter_net_spring($tree, $angle, enum(int, loc, hunter_net_caught, $colour));
+} else if ($state = enum(int, loc, hunter_net_escaping, $colour)) {
+    ~hunter_net_spring($tree, $angle, enum(int, loc, hunter_net_escaped, $colour));
+}
+return(true);
+
+// A set net trap and the creature around it. Only this tree's own creature is looked for - one kind
+// lives by each colour of tree - and only if the owner could catch it (OSRS: nothing walks into a trap
+// its hunter could not hold it with).
+[proc,hunter_net_lure](coord $tree, coord $net, int $angle, int $colour)
+if (random(^hunter_trap_lure_chance) ! 0) {
+    return;
+}
+// OSRS: a creature is only caught while its hunter is not standing on the net.
+if (coord = $net) {
+    return;
+}
+if (stat(hunter) < ~hunter_net_level($colour)) {
+    return;
+}
+if (npc_find($net, enum(int, npc, hunter_net_prey, $colour), ^hunter_trap_lure_radius, 0) = false) {
+    return;
+}
+sound_synth(springtrap_release, 1, 0);
+if (~hunter_net_roll($colour) = false) {
+    // it runs across and away; the tree springs up with the net empty
+    ~hunter_net_spring($tree, $angle, enum(int, loc, hunter_net_escaping, $colour));
+    return;
+}
+// A static map npc: npc_del schedules its respawn, as for every other trap's prey. The catching loc's
+// own model has the creature in the net.
+npc_del;
+~hunter_net_spring($tree, $angle, enum(int, loc, hunter_net_catching, $colour));
+
+// Put the trap into a sprung state ($to, a 1x2 loc) - see the top of this file for which tile holds it.
+// Both tiles are written with a fresh duration together, so they still run out together.
+[proc,hunter_net_spring](coord $tree, int $angle, loc $to)
+def_coord $net = ~hunter_net_tile($tree, $angle);
+def_loc $t = ~hunter_net_type($tree);
+def_loc $n = ~hunter_net_type($net);
+if ($angle < 2) {
+    if ($t ! null & loc_find($tree, $t) = true) {
+        loc_change($to, ^hunter_trap_duration);
+    }
+    if ($n ! null & loc_find($net, $n) = true) {
+        loc_del(1);
+    }
+    return;
+}
+if ($t ! null & loc_find($tree, $t) = true) {
+    loc_change(hunter_nettrap_tree_gone, ^hunter_trap_duration);
+}
+if ($n ! null & loc_find($net, $n) = true) {
+    loc_change($to, ^hunter_trap_duration);
+}
+
+// End a net trap where it stands: the net tile's loc goes for good (it was added), and the map's tree
+// is changed back to itself - which makes it the map's tree again at once, not after a duration.
+[proc,hunter_net_clear](coord $tree, int $angle)
+def_coord $net = ~hunter_net_tile($tree, $angle);
+def_loc $t = ~hunter_net_type($tree);
+def_loc $n = ~hunter_net_type($net);
+// The colour is on the tree unless the tree is the empty stand-in, and then it is on the net's tile.
+def_int $colour = ~hunter_net_colour($t);
+if ($colour = -1) {
+    $colour = ~hunter_net_colour($n);
+}
+if ($n ! null & loc_find($net, $n) = true) {
+    loc_del(1);
+}
+if ($t ! null & $colour ! -1 & loc_find($tree, $t) = true) {
+    loc_change(enum(int, loc, hunter_net_tree, $colour), 1);
+}
+
+// ------------------------------------------------------------------------------------ geometry
+
+// The tile a young tree faces - where its net goes, and where it is set from (its forceapproach side).
+[proc,hunter_net_tile](coord $tree, int $angle)(coord)
+switch_int ($angle) {
+    case 0 : return(movecoord($tree, 0, 0, 1));
+    case 1 : return(movecoord($tree, 1, 0, 0));
+    case 2 : return(movecoord($tree, 0, 0, -1));
+    case 3 : return(movecoord($tree, -1, 0, 0));
+}
+return($tree);
+
+// The tree a clicked net-trap loc belongs to: the set tree is the tree; the net, and a sprung state
+// anchored on the net's tile (facing south or west), are one step in front of it.
+[proc,hunter_net_tree_of](coord $at, loc $type, int $angle)(coord)
+if ($type = hunter_nettrap_net | ($angle >= 2 & ~hunter_net_is_set_tree($type) = false)) {
+    switch_int ($angle) {
+        case 0 : return(movecoord($at, 0, 0, -1));
+        case 1 : return(movecoord($at, -1, 0, 0));
+        case 2 : return(movecoord($at, 0, 0, 1));
+        case 3 : return(movecoord($at, 1, 0, 0));
+    }
+}
+return($at);
+
+[proc,hunter_net_is_set_tree](loc $type)(boolean)
+def_int $c = 0;
+while ($c < ^hunter_net_colours) {
+    if ($type = enum(int, loc, hunter_net_set, $c)) {
+        return(true);
+    }
+    $c = calc($c + 1);
+}
+return(false);
+
+// ------------------------------------------------------------------------------------ lookups
+
+// Which colour of young tree a tree or trap loc is (^hunter_net_*), or -1 (the net, the empty stand-in,
+// or not a net trap at all).
+[proc,hunter_net_colour](loc $type)(int)
+if ($type = null) {
+    return(-1);
+}
+def_int $c = 0;
+while ($c < ^hunter_net_colours) {
+    if ($type = enum(int, loc, hunter_net_tree, $c) | $type = enum(int, loc, hunter_net_bending, $c)
+        | $type = enum(int, loc, hunter_net_set, $c) | $type = enum(int, loc, hunter_net_catching, $c)
+        | $type = enum(int, loc, hunter_net_caught, $c) | $type = enum(int, loc, hunter_net_escaping, $c)
+        | $type = enum(int, loc, hunter_net_escaped, $c)) {
+        return($c);
+    }
+    $c = calc($c + 1);
+}
+return(-1);
+
+// Which net-trap loc is on this tile, or null. Only says which: a loc_find's pointer does not outlive
+// the proc it is in, so the caller finds it again.
+[proc,hunter_net_type](coord $at)(loc)
+if (loc_find($at, hunter_nettrap_net) = true) return(hunter_nettrap_net);
+if (loc_find($at, hunter_nettrap_tree_gone) = true) return(hunter_nettrap_tree_gone);
+def_int $c = 0;
+while ($c < ^hunter_net_colours) {
+    if (loc_find($at, enum(int, loc, hunter_net_set, $c)) = true) return(enum(int, loc, hunter_net_set, $c));
+    if (loc_find($at, enum(int, loc, hunter_net_catching, $c)) = true) return(enum(int, loc, hunter_net_catching, $c));
+    if (loc_find($at, enum(int, loc, hunter_net_caught, $c)) = true) return(enum(int, loc, hunter_net_caught, $c));
+    if (loc_find($at, enum(int, loc, hunter_net_escaping, $c)) = true) return(enum(int, loc, hunter_net_escaping, $c));
+    if (loc_find($at, enum(int, loc, hunter_net_escaped, $c)) = true) return(enum(int, loc, hunter_net_escaped, $c));
+    $c = calc($c + 1);
+}
+return(null);
+
+[proc,hunter_net_level](int $colour)(int)
+switch_int ($colour) {
+    case ^hunter_net_orange : return(^hunter_orange_salamander_level);
+    case ^hunter_net_red : return(^hunter_red_salamander_level);
+    case ^hunter_net_black : return(^hunter_black_salamander_level);
+}
+return(^hunter_swamp_lizard_level);
+
+[proc,hunter_net_roll](int $colour)(boolean)
+switch_int ($colour) {
+    case ^hunter_net_orange : return(stat_random(hunter, ^hunter_orange_salamander_low, ^hunter_orange_salamander_high));
+    case ^hunter_net_red : return(stat_random(hunter, ^hunter_red_salamander_low, ^hunter_red_salamander_high));
+    case ^hunter_net_black : return(stat_random(hunter, ^hunter_black_salamander_low, ^hunter_black_salamander_high));
+}
+return(stat_random(hunter, ^hunter_swamp_lizard_low, ^hunter_swamp_lizard_high));
+
+// ------------------------------------------------------------------------------------ the catch
+
+// OSRS's Release, in the Drop slot: a live catch is let go, not dropped.
+[opheld5,swamp_lizard] @hunter_net_release(swamp_lizard, "lizard");
+[opheld5,orange_salamander] @hunter_net_release(orange_salamander, "salamander");
+[opheld5,red_salamander] @hunter_net_release(red_salamander, "salamander");
+[opheld5,black_salamander] @hunter_net_release(black_salamander, "salamander");
+
+[label,hunter_net_release](namedobj $obj, string $what)
+inv_del(inv, $obj, 1);
+mes("You release the <$what> and it scurries away.");

@@ -62,3 +62,29 @@ if (inv_total(inv, noose_wand) < 1 & inv_freespace(inv) > 0) {
     inv_add(inv, noose_wand, 1);
 }
 p_telejump(0_40_45_10_7);
+
+// ::nettrap <area> - five small fishing nets and five ropes, and to a young tree in one of the four
+// net-trapping areas: 1 the swamp lizards south-east of Canifis (the default), 2 the orange salamanders
+// at Uzer, 3 the red ones at Ourania, 4 the black ones in the Bone Yard (Wilderness). Lands on the
+// tile a young tree faces, which is where you set it from. Pair with ::hunter 6000000 - 600,000 xp,
+// just past level 67's 547,953 - to catch all four.
+[debugproc,nettrap](int $area)
+if (p_finduid(uid) = false) {
+    return;
+}
+def_int $n = 0;
+while ($n < 5 & inv_total(inv, net) < 5 & inv_freespace(inv) > 0) {
+    inv_add(inv, net, 1);
+    $n = calc($n + 1);
+}
+$n = 0;
+while ($n < 5 & inv_total(inv, rope) < 5 & inv_freespace(inv) > 0) {
+    inv_add(inv, rope, 1);
+    $n = calc($n + 1);
+}
+switch_int ($area) {
+    case 2 : p_telejump(0_53_48_16_16);
+    case 3 : p_telejump(0_38_50_36_42);
+    case 4 : p_telejump(0_51_57_35_16);
+    case default : p_telejump(0_55_53_27_50);
+}

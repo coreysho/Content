@@ -11,7 +11,11 @@ among the tropical wagtails, and at 10, below the wagtail's 19 - the same gate f
 Hunter skillcape: refused at 50, worn at 99, and its emote and graphic play. And deadfalls on the
 northern boulders at 40, and at 30 - below the barb-tailed kebbit's 33, the only prey there. And a
 pitfall at 40: spikes, a tease, the jump, a larupia in the pit - with the tease's level gate. And
-Feldip weasel tracking at 10: trails from a burrow, every hint checked against the real bearing."""
+Feldip weasel tracking at 10: trails from a burrow, every hint checked against the real bearing.
+And net traps in each of the four areas - swamp lizards at Canifis (40), orange salamanders at Uzer (50,
+and 40, below their 47: nothing comes, and the traps fall over), red at Ourania (60), black in the Bone
+Yard (70): every young tree set and dismantled, both geometries sprung and checked, a real catch, the
+cap, standing on the net, ownership, the leash, [logout] and Release."""
 import os, shutil, subprocess, sys
 
 C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -23,11 +27,13 @@ tp_existed = os.path.exists(tp)
 shutil.copy(os.path.join(C, 'tools', 'hunter_live.ts'), dst)
 failed = 0
 try:
-    for trap, level in (('box', '70'), ('box', '40'), ('snare', '25'), ('snare', '10'), ('deadfall', '40'), ('deadfall', '30'), ('pitfall', '40'), ('tracking', '10'), ('cape', '50')):
-        env = dict(os.environ, HTRAP=trap, HLEVEL=level, BUILD_SRC_DIR=C, NODE_PRODUCTION='true', NODE_MEMBERS='true')
-        r = subprocess.run(['npx', 'tsx', 'tools/_hunter_live.ts'], cwd=E, env=env, capture_output=True, text=True, timeout=900)
+    PASSES = (('box', '70'), ('box', '40'), ('snare', '25'), ('snare', '10'), ('deadfall', '40'), ('deadfall', '30'), ('pitfall', '40'), ('tracking', '10'), ('cape', '50'),
+              ('net', '40', 'canifis'), ('net', '50', 'uzer'), ('net', '40', 'uzer'), ('net', '60', 'ourania'), ('net', '70', 'boneyard'))
+    for trap, level, *area in PASSES:
+        env = dict(os.environ, HTRAP=trap, HLEVEL=level, HAREA=(area or [''])[0], BUILD_SRC_DIR=C, NODE_PRODUCTION='true', NODE_MEMBERS='true')
+        r = subprocess.run(['npx', 'tsx', 'tools/_hunter_live.ts'], cwd=E, env=env, capture_output=True, text=True, timeout=900, shell=os.name == 'nt')
         lines = [l for l in r.stdout.splitlines() if l.startswith('  ok') or l.startswith('  FAIL')]
-        print(f'== {trap}, Hunter {level}')
+        print(f'== {trap}{" at " + area[0] if area else ""}, Hunter {level}')
         print('\n'.join(lines))
         bad = sum(1 for l in lines if l.startswith('  FAIL'))
         if r.returncode and not bad:
