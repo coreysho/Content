@@ -184,7 +184,13 @@ return(false);
 [opnpcu,hunter_ruby_harvest]
 @hunter_net_butterfly(^hunter_ruby_level, ^hunter_ruby_xp, ^hunter_ruby_low, ^hunter_ruby_high, "Ruby harvest", hunter_jar_ruby);
 
-[opheld1,hunter_jar_ruby] @hunter_release(hunter_jar_ruby, "Ruby harvest");
+// Let out, it boosts Attack by 4 + 15%, as OSRS's does (the wiki's Ruby harvest (item)); used on another
+// player in multi-combat it is shared (hunter_butterfly_share.rs2).
+[opheld1,hunter_jar_ruby]
+inv_del(inv, hunter_jar_ruby, 1);
+inv_add(inv, hunter_butterfly_jar, 1);
+stat_boost(attack, ^hunter_ruby_boost, ^hunter_ruby_boost_pct);
+mes("You release the Ruby harvest. It flits away, and you feel your aim sharpen.");
 
 // ------------------------------------------------------------------------------------- staff test
 

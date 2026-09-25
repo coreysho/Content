@@ -1,0 +1,55 @@
+// Hunter - baiting a net trap with herb tar (2026-09-25). OSRS's, from the wiki's net trap page: "Adding a
+// creature's corresponding bait to a trap will increase the catch rate by +3%" (Mod Ash, 2 November 2016:
+// "+3% for the bait"), and each salamander's bait is the tar its own weapon burns - guam tar for a swamp
+// lizard (the guam tar page: "optionally used as bait for hunting swamp lizards to increase the catch rate
+// by 3%"), marrentill for an orange salamander, tarromin for a red, harralander for a black
+// (configs/hunter_netbait.enum). The tars are made in hunter_tar.rs2.
+//
+// Use the tar on your own set net trap - the bent tree or the net, both are the trap. One tar is used; the
+// trap's next spring takes the bait, whether the creature is caught or runs off, as a baited magic box's
+// does (hunter_imps.rs2), and setting a trap again starts it unbaited. The +3% is 8 of stat_random's 256
+// (3.1%), added to both ends of the creature's range, as the imp's bead bonus is.
+//
+// The other +2% of that page, smoking the trap with a torch, is not here.
+
+[oplocu,_hunter_nettrap_set]
+def_obj $tar = last_useitem;
+def_coord $tree = ~hunter_net_tree_of(loc_coord, loc_type, loc_angle);
+def_int $colour = ~hunter_net_colour(~hunter_net_type($tree));
+if ($colour = -1 | $tar ! enum(int, obj, hunter_net_bait, $colour)) {
+    ~displaymessage(^dm_default);
+    return;
+}
+def_int $slot = ~hunter_trap_slot($tree);
+if ($slot = 0) {
+    mes("This isn't your trap.");
+    return;
+}
+if (~hunter_net_baited($slot) = true) {
+    mes("The trap is already baited.");
+    return;
+}
+inv_del(inv, $tar, 1);
+~hunter_net_bait_set($slot, true);
+mes("You bait the trap with the <lowercase(oc_name($tar))>.");
+
+// The bonus a slot's trap springs with, taking the bait: ^hunter_net_bait_bonus if it was baited, else 0.
+[proc,hunter_net_bait_take](int $slot)(int)
+if (~hunter_net_baited($slot) = false) {
+    return(0);
+}
+~hunter_net_bait_set($slot, false);
+return(^hunter_net_bait_bonus);
+
+[proc,hunter_net_baited](int $slot)(boolean)
+if (testbit(%hunter_net_bait, calc($slot - 1)) = ^true) {
+    return(true);
+}
+return(false);
+
+[proc,hunter_net_bait_set](int $slot, boolean $on)
+if ($on = true) {
+    %hunter_net_bait = setbit(%hunter_net_bait, calc($slot - 1));
+} else {
+    %hunter_net_bait = clearbit(%hunter_net_bait, calc($slot - 1));
+}
