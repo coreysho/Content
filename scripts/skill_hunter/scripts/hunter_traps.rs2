@@ -389,6 +389,12 @@ switch_int ($catch) {
         inv_add(inv, stripy_feather, ^hunter_bird_feathers);
         mes("You've caught a tropical wagtail.");
         ~hunter_xp(^hunter_wagtail_xp);
+    case ^hunter_catch_golden_warbler :
+        inv_add(inv, bones, 1);
+        inv_add(inv, raw_bird_meat, 1);
+        inv_add(inv, yellow_feather, ^hunter_bird_feathers);
+        mes("You've caught a golden warbler.");
+        ~hunter_xp(^hunter_warbler_xp);
     case ^hunter_catch_wild_kebbit :
         inv_add(inv, bones, 1);
         inv_add(inv, kebbit_claws, 1);
@@ -474,6 +480,7 @@ if (loc_find($at, $type) = true) {
         case hunter_snare_springing : loc_change(hunter_snare_collapsed, ^hunter_trap_duration);
         case hunter_snare_catching_swift : loc_change(hunter_snare_caught_swift, ^hunter_trap_duration);
         case hunter_snare_catching_wagtail : loc_change(hunter_snare_caught_wagtail, ^hunter_trap_duration);
+        case hunter_snare_catching_warbler : loc_change(hunter_snare_caught_warbler, ^hunter_trap_duration);
         case hunter_deadfall_set : ~hunter_trap_lure_deadfall($at);
     }
 }
@@ -506,6 +513,10 @@ if (random(^hunter_trap_lure_chance) ! 0) {
 def_int $lvl = stat(hunter);
 if ($lvl >= ^hunter_wagtail_level & npc_find($at, hunter_tropical_wagtail, ^hunter_trap_lure_radius, 0) = true) {
     ~hunter_trap_spring(hunter_snare_catching_wagtail, hunter_snare_springing, ^hunter_wagtail_low, ^hunter_wagtail_high);
+    return;
+}
+if ($lvl >= ^hunter_warbler_level & npc_find($at, hunter_golden_warbler, ^hunter_trap_lure_radius, 0) = true) {
+    ~hunter_trap_spring(hunter_snare_catching_warbler, hunter_snare_springing, ^hunter_warbler_low, ^hunter_warbler_high);
     return;
 }
 if ($lvl >= ^hunter_swift_level & npc_find($at, hunter_crimson_swift, ^hunter_trap_lure_radius, 0) = true) {
@@ -700,6 +711,8 @@ if (loc_find($at, hunter_snare_catching_swift) = true) return(hunter_snare_catch
 if (loc_find($at, hunter_snare_catching_wagtail) = true) return(hunter_snare_catching_wagtail);
 if (loc_find($at, hunter_snare_caught_swift) = true) return(hunter_snare_caught_swift);
 if (loc_find($at, hunter_snare_caught_wagtail) = true) return(hunter_snare_caught_wagtail);
+if (loc_find($at, hunter_snare_catching_warbler) = true) return(hunter_snare_catching_warbler);
+if (loc_find($at, hunter_snare_caught_warbler) = true) return(hunter_snare_caught_warbler);
 if (loc_find($at, hunter_deadfall_set) = true) return(hunter_deadfall_set);
 if (loc_find($at, hunter_deadfall_collapsed) = true) return(hunter_deadfall_collapsed);
 if (loc_find($at, hunter_deadfall_wild) = true) return(hunter_deadfall_wild);
@@ -723,6 +736,7 @@ switch_int ($catch) {
     case ^hunter_catch_chinchompa_red : $need = calc($need + ~hunter_slot_need(red_chinchompa));
     case ^hunter_catch_swift : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(raw_bird_meat) + ~hunter_slot_need(red_feather));
     case ^hunter_catch_wagtail : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(raw_bird_meat) + ~hunter_slot_need(stripy_feather));
+    case ^hunter_catch_golden_warbler : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(raw_bird_meat) + ~hunter_slot_need(yellow_feather));
     case ^hunter_catch_wild_kebbit : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(kebbit_claws));
     case ^hunter_catch_barbtailed_kebbit : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(barbtail_harpoon));
     case ^hunter_catch_larupia : $need = calc($need + ~hunter_slot_need(big_bones) + ~hunter_slot_need(larupia_fur));

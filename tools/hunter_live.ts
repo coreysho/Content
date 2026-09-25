@@ -437,6 +437,256 @@ if (process.env.HTRAP === 'tracking') {
     process.exit(fails ? 1 : 0);
 }
 
+// HTRAP=desert: the Kharidian desert (hunter_desert.rs2). HAREA=devil - desert devil tracking in the Uzer
+// hunter area: the ground (every trail node and hiding spot where the enum says, with an op behind it, and
+// walkable to from ::desert), the level gate, and trails followed to a catch with every hint checked.
+// HAREA=warbler - bird snares among the golden warblers, and at HLEVEL below their 5 nothing comes.
+// HAREA=shop - Artimeus and the Nardah Hunter Shop.
+if (process.env.HTRAP === 'desert') {
+    const AREA = process.env.HAREA ?? 'devil';
+    const DCONST = fs.readFileSync(`${process.env.BUILD_SRC_DIR}/scripts/skill_hunter/configs/hunter_desert.constant`, 'utf8');
+    const dnum = (n: string) => parseInt(new RegExp(`\\^${n} = (-?\\d+)`).exec(DCONST)![1]);
+    const inv0 = player.getInventory(InvType.INV)!;
+    const tot = (n: string) => inv0.getItemCount(ObjType.getId(n));
+    const setLevel = (l: number) => { player.stats[PlayerStat.HUNTER] = getExpByLevel(l); player.baseLevels[PlayerStat.HUNTER] = l; player.levels[PlayerStat.HUNTER] = l; };
+    const v = (n: string) => player.getVar(VarPlayerType.getId(n)) as number;
+    const xz = (c: number) => ({ x: (c >> 14) & 0x3fff, z: c & 0x3fff });
+    const oploc = (op: number, loc: any) => {
+        const t = LocType.get(loc.type);
+        const s = ScriptProvider.getByTrigger(ServerTriggerType.OPLOC1 + (op - 1), t.id, t.category);
+        if (!s) { log('no script for op', op, t.debugname); return false; }
+        player.executeScript(ScriptRunner.init(s, player, loc), true);
+        return true;
+    };
+    const { isMapBlocked, reachedLoc, canTravel } = await import('#/engine/GameMap.js');
+    const { CollisionType } = await import('#/engine/routefinder/index.js');
+    // a walk: a flood fill over the engine's own collision from a tile, within a box
+    const flood = (sx: number, sz: number, box: number[]) => {
+        const seenT = new Set<string>([`${sx},${sz}`]); const q = [[sx, sz]];
+        while (q.length) {
+            const [x, z] = q.shift()!;
+            for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                const k = `${x + dx},${z + dz}`;
+                if (seenT.has(k) || x + dx < box[0] || x + dx > box[2] || z + dz < box[1] || z + dz > box[3]) continue;
+                if (!canTravel(0, x, z, dx, dz, 1, 0, CollisionType.NORMAL)) continue;
+                seenT.add(k); q.push([x + dx, z + dz]);
+            }
+        }
+        return seenT;
+    };
+    // can a player standing somewhere in `walk` interact with this loc?
+    const reachable = (walk: Set<string>, loc: any) => {
+        if (!loc) return false;
+        const t = LocType.get(loc.type);
+        const w = loc.angle & 1 ? t.length : t.width, l = loc.angle & 1 ? t.width : t.length;
+        for (let x = loc.x - 1; x <= loc.x + w; x++) for (let z = loc.z - 1; z <= loc.z + l; z++) {
+            if (!walk.has(`${x},${z}`)) continue;
+            if (loc.shape === 22 || reachedLoc(0, x, z, loc.x, loc.z, t.width, t.length, 1, loc.angle, loc.shape, t.forceapproach)) return true;
+        }
+        return false;
+    };
+    const npcsOf = (name: string) => { const id = NpcType.getId(name); const out: any[] = []; for (const n of World.npcs) if (n && n.type === id) out.push(n); return out; };
+    const debugTele = async (spot: number) => {
+        const s = ScriptProvider.getByName('[debugproc,desert]')!;
+        player.executeScript(ScriptRunner.init(s, player, null, [spot]), true);
+        await waitTicks(2);
+    };
+
+    if (AREA === 'devil') {
+        const ENUM = fs.readFileSync(`${process.env.BUILD_SRC_DIR}/scripts/skill_hunter/configs/hunter_desert.enum`, 'utf8');
+        const coords = (name: string) => {
+            const body = ENUM.split(`[${name}]`)[1].split('\n[')[0];
+            return [...body.matchAll(/val=\d+,0_(\d+)_(\d+)_(\d+)_(\d+)/g)].map(m => ({ x: +m[1] * 64 + +m[3], z: +m[2] * 64 + +m[4] }));
+        };
+        const NODES = coords('hunter_devil_nodes'), SANDS = coords('hunter_devil_sands');
+        const NODE_TYPES = ['hunter_desert_cactus4', 'hunter_desert_cactus5', 'hunter_desert_rockslide1', 'hunter_desert_rockslide2', 'hunter_desert_rockslide3', 'hunter_desert_rockslide4', 'loc474_19552'].map(n => LocType.getId(n));
+        const BURROW = LocType.getId('loc474_19552'), SAND = LocType.getId('loc474_19430');
+        const nodeAt = (x: number, z: number) => { for (const t of NODE_TYPES) { const l = World.getLoc(x, z, 0, t); if (l) return l; } return null; };
+        const sandAt = (x: number, z: number) => World.getLoc(x, z, 0, SAND);
+        const locAtXZ = (x: number, z: number) => nodeAt(x, z) ?? sandAt(x, z);
+
+        // ---- the ground
+        check(NODES.length === 17 && SANDS.length === 6, `the enum lists 17 nodes (15 cacti and rockslides, 2 burrows) and 6 hiding spots (${NODES.length}, ${SANDS.length})`);
+        const noNode = NODES.filter(c => !nodeAt(c.x, c.z)), noSand = SANDS.filter(c => !sandAt(c.x, c.z));
+        check(noNode.length === 0, `every node coord has a tracking cactus, rockslide or burrow on it (${noNode.map(c => `${c.x},${c.z}`).join(' ') || 'all'})`);
+        check(noSand.length === 0, `every hiding-spot coord has disturbed sand on it (${noSand.map(c => `${c.x},${c.z}`).join(' ') || 'all'})`);
+        // and nothing else in the square is a node the enum does not know about (a dead end of a trail)
+        const extra: string[] = [];
+        for (let x = 3392; x < 3392 + 64; x++) for (let z = 3072; z < 3072 + 64; z++) {
+            if (nodeAt(x, z) && !NODES.some(c => c.x === x && c.z === z)) extra.push(`${x},${z}`);
+            if (sandAt(x, z) && !SANDS.some(c => c.x === x && c.z === z)) extra.push(`sand ${x},${z}`);
+        }
+        check(extra.length === 0, `...and no tracking loc on the map that the enum leaves out (${extra.join(' ') || 'none'})`);
+        const dead: string[] = [];
+        for (const t of NODE_TYPES) if (!ScriptProvider.getByTrigger(ServerTriggerType.OPLOC1, t, LocType.get(t).category)) dead.push(LocType.get(t).debugname!);
+        for (const op of [1, 2]) if (!ScriptProvider.getByTrigger(ServerTriggerType.OPLOC1 + op - 1, SAND, LocType.get(SAND).category)) dead.push(`sand op${op}`);
+        check(dead.length === 0, `Inspect on every node type, and Search and Attack on the sand, have a script (${dead.join(' ') || 'all'})`);
+        await debugTele(1);
+        const start = { x: player.x, z: player.z };
+        check(start.x === 3400 && start.z === 3118 && tot('noose_wand') === 1 && tot('hunter_bird_snare') === 5, `::desert lands in the tracking ground (${start.x},${start.z}) with a noose wand and five snares`);
+        const walk = flood(start.x, start.z, [3392 - 20, 3072 - 20, 3392 + 64 + 20, 3136 + 20]);
+        const cut = [...NODES, ...SANDS].filter(c => !reachable(walk, locAtXZ(c.x, c.z)));
+        check(cut.length === 0, `...and a player can walk from there to every node and every hiding spot (${cut.map(c => `${c.x},${c.z}`).join(' ') || 'all'})`);
+        inv0.remove(ObjType.getId('noose_wand'), 1);
+
+        const dir = (fx: number, fz: number, tx: number, tz: number) => {
+            const dx = tx - fx, dz = tz - fz, ax = Math.abs(dx), az = Math.abs(dz);
+            const ns = dz > 0 ? 'north' : dz < 0 ? 'south' : '', ew = dx > 0 ? 'east' : dx < 0 ? 'west' : '';
+            if (ax > az * 2) return ew; if (az > ax * 2) return ns; if (!ns) return ew; if (!ew) return ns; return `${ns}-${ew}`;
+        };
+        const op = async (opn: number, loc: any) => { player.teleport(loc.x, loc.z - 1, 0); await waitTicks(1); oploc(opn, loc); await waitTicks(3); };
+        const burrows = NODES.map(c => World.getLoc(c.x, c.z, 0, BURROW)).filter(Boolean) as any[];
+        check(burrows.length === 2, `two burrows (${burrows.map(b => `${b.x},${b.z}`).join(' ')})`);
+        // the level gate
+        const LVL = dnum('hunter_devil_level');
+        setLevel(LVL - 1);
+        await op(1, burrows[0]);
+        check(v('hunter_track_next') === -1, `below Hunter ${LVL} a burrow gives no trail`);
+        setLevel(LEVEL);
+        { const s = sandAt(SANDS[0].x, SANDS[0].z)!; const n = msgs.length; player.invAdd(InvType.INV, ObjType.getId('noose_wand'), 1);
+          await op(2, s); check(msgs.slice(n).some(m => m.includes('nothing in there')), 'Attack on disturbed sand with no trail finds nothing'); inv0.remove(ObjType.getId('noose_wand'), 1); }
+        let caught = false, trails = 0, hintsOk = true, hints = 0, steps = 0, ends = true;
+        const lengths: number[] = [];
+        // at least four trails, from both burrows, however soon the first catch comes
+        while ((!caught || trails < 4) && trails < 12) {
+            trails++;
+            const burrow = burrows[trails % 2];
+            let n = msgs.length;
+            await op(1, burrow);
+            check(trails > 1 || v('hunter_track_next') !== -1, 'a burrow starts a trail');
+            const bushC = xz(v('hunter_track_bush'));
+            if (!SANDS.some(c => c.x === bushC.x && c.z === bushC.z)) { ends = false; log('trail ends off the sands', bushC); }
+            let from = { x: burrow.x, z: burrow.z }, len = 0;
+            for (let hop = 0; hop < 10; hop++) {
+                const next = xz(v('hunter_track_next')), bush = xz(v('hunter_track_bush'));
+                const said = msgs.slice(n).reverse().find(m => m.includes('tracks'));
+                hints++; if (!said || !said.includes(dir(from.x, from.z, next.x, next.z))) { hintsOk = false; log('hint mismatch', said, from, next, dir(from.x, from.z, next.x, next.z)); }
+                if (next.x === bush.x && next.z === bush.z) { if (!said?.includes('disturbed sand')) { hintsOk = false; log('the last hint does not name the sand', said); } break; }
+                const loc = nodeAt(next.x, next.z);
+                if (!loc) { check(false, `the trail's next step ${next.x},${next.z} has something to inspect`); break; }
+                if (hop === 0 && trails === 1) {
+                    const other = NODES.map(c => nodeAt(c.x, c.z)).find(l => l && l.type !== BURROW && (l.x !== next.x || l.z !== next.z));
+                    if (other) { const m0 = msgs.length; await op(1, other); check(msgs.slice(m0).some(m => m.includes('find no tracks')) && v('hunter_track_next') === ((next.x << 14) | next.z), `inspecting the wrong ${LocType.get(other.type).name!.toLowerCase()} finds no tracks and keeps the trail`); }
+                }
+                n = msgs.length; await op(1, loc); steps++; len++;
+                from = next;
+            }
+            lengths.push(len);
+            const bush = xz(v('hunter_track_bush'));
+            const bl = sandAt(bush.x, bush.z);
+            check(trails > 1 || bl !== null, `the trail ends at disturbed sand (${bush.x},${bush.z})`);
+            if (!bl) break;
+            if (trails === 1) {
+                const n0 = msgs.length; await op(1, bl); check(msgs.slice(n0).some(m => m.includes('desert devil hiding')), '...Search on it finds the desert devil');
+                const n1 = msgs.length; await op(2, bl); check(msgs.slice(n1).some(m => m.includes('need a noose wand')), '...which needs a noose wand to catch');
+                player.invAdd(InvType.INV, ObjType.getId('noose_wand'), 1);
+            }
+            const b = { bones: tot('bones'), fur: tot('desert_devil_fur'), xp: player.stats[PlayerStat.HUNTER] };
+            await op(2, bl);
+            await waitTicks(4);
+            if (tot('desert_devil_fur') > b.fur) {
+                caught = true;
+                check(tot('bones') === b.bones + 1 && tot('desert_devil_fur') === b.fur + 1, '...caught: bones and desert devil fur');
+                check(player.stats[PlayerStat.HUNTER] - b.xp === dnum('hunter_devil_xp'), `...${(player.stats[PlayerStat.HUNTER] - b.xp) / 10} xp`);
+            }
+            check(v('hunter_track_next') === -1 && v('hunter_track_bush') === -1, `...and the trail is spent either way (trail ${trails})`);
+        }
+        check(caught, `a desert devil caught within 12 trails (${trails})`);
+        check(ends, "every trail ended in the desert's disturbed sand, never at a Feldip bush");
+        check(hintsOk, `every hint named the real direction of the next step, the last one the sand (${hints} hints, ${steps} cacti and rockslides; trails ${lengths.join(',')} long)`);
+    }
+
+    if (AREA === 'warbler') {
+        const LVL = dnum('hunter_warbler_level'), XP = dnum('hunter_warbler_xp');
+        const CAN = LEVEL >= LVL;
+        const birds = npcsOf('hunter_golden_warbler');
+        check(birds.length === 10, `10 golden warblers in the world (${birds.length})`);
+        check(birds.every(b => b.x >= 3392 && b.x < 3456 && b.z >= 3072 && b.z < 3200), '...all in the Uzer hunter area');
+        const TYPES = ['hunter_snare_laid', 'hunter_snare_springing', 'hunter_snare_collapsed', 'hunter_snare_catching_warbler', 'hunter_snare_caught_warbler'];
+        const locAt = (x: number, z: number) => { for (const t of TYPES) { const l = World.getLoc(x, z, 0, LocType.getId(t)); if (l) return { name: t, loc: l }; } return null; };
+        const slots = () => [1, 2, 3, 4, 5].map(i => player.getVar(VarPlayerType.getId(`hunter_trap${i}`)) as number).filter(c => c !== -1);
+        const lay = async (x: number, z: number) => {
+            player.teleport(x, z, 0); await waitTicks(2);
+            const id = ObjType.getId('hunter_bird_snare'); player.lastItem = id; player.lastSlot = inv0.getItemIndex(id);
+            if (player.lastSlot === -1) return;
+            player.executeScript(ScriptRunner.init(ScriptProvider.getByTrigger(ServerTriggerType.OPHELD1, id, ObjType.get(id).category)!, player), true);
+            await waitTicks(6);
+        };
+        await debugTele(2);
+        const north = { x: player.x, z: player.z };
+        const walkN = flood(north.x, north.z, [3370, 3110, 3450, 3190]);
+        await debugTele(3);
+        const south = { x: player.x, z: player.z };
+        const walkS = flood(south.x, south.z, [3370, 3050, 3450, 3130]);
+        const lost = birds.filter(b => !walkN.has(`${b.x},${b.z}`) && !walkS.has(`${b.x},${b.z}`));
+        check(lost.length === 0, `every warbler is on ground a player can walk to from ::desert 2 or 3 (${lost.map(b => `${b.x},${b.z}`).join(' ') || 'all'})`);
+        // lay round the north flock's middle, on open tiles
+        const max = Math.min(5, 1 + Math.floor(LEVEL / 20));
+        const cands: number[][] = [];
+        for (let r = 0; r < 4 && cands.length < 12; r++) for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) {
+            const x = 3402 + dx * 2, z = 3150 + dz * 2;
+            if (Math.max(Math.abs(dx), Math.abs(dz)) === r && walkN.has(`${x},${z}`) && !isMapBlocked(x, z, 0)) cands.push([x, z]);
+        }
+        for (const [x, z] of cands) { if (slots().length >= max) break; await lay(x, z); }
+        const laid = slots();
+        check(laid.length === max && tot('hunter_bird_snare') === 5 - max, `${max} snares laid among the warblers at level ${LEVEL} (${laid.length})`);
+        let caught: any = null; const seen = new Map<string, string>();
+        const LIMIT = CAN ? 1500 : 300;
+        for (let t = 0; t < LIMIT && !caught; t++) {
+            await waitTicks(1);
+            for (const c of slots()) {
+                const { x, z } = xz(c); const s = locAt(x, z)?.name ?? '(none)';
+                if (seen.get(`${x},${z}`) !== s) { log('snare', x, z, '->', s); seen.set(`${x},${z}`, s); }
+                if (s === 'hunter_snare_caught_warbler') { caught = { x, z }; break; }
+                if (s === 'hunter_snare_collapsed') { oploc(1, locAt(x, z)!.loc); await waitTicks(2); await lay(x, z); }
+            }
+        }
+        if (CAN) {
+            check(caught !== null, `a golden warbler flew into a snare within ${LIMIT} ticks`);
+            if (caught) {
+                const b: any = { snare: tot('hunter_bird_snare'), xp: player.stats[PlayerStat.HUNTER] };
+                const LOOT = ['bones', 'raw_bird_meat', 'yellow_feather', 'red_feather', 'stripy_feather'];
+                for (const n of LOOT) b[n] = tot(n);
+                oploc(1, locAt(caught.x, caught.z)!.loc); await waitTicks(2);
+                const got = Object.fromEntries(LOOT.map(n => [n, tot(n) - b[n]]).filter(([, d]) => d !== 0));
+                const f = parseInt(/\^hunter_bird_feathers = (\d+)/.exec(CONST)![1]);
+                check(JSON.stringify(got) === JSON.stringify({ bones: 1, raw_bird_meat: 1, yellow_feather: f }), `...Check pays bones, raw bird meat and ${f} yellow feathers, and nothing else (${JSON.stringify(got)})`);
+                check(player.stats[PlayerStat.HUNTER] - b.xp === XP, `...${(player.stats[PlayerStat.HUNTER] - b.xp) / 10} xp`);
+                check(tot('hunter_bird_snare') === b.snare + 1 && locAt(caught.x, caught.z) === null, '...gives the snare back and clears the tile');
+            }
+        } else {
+            check([...seen.values()].every(s => !/catching|caught/.test(s)), `at level ${LEVEL}, below the golden warbler's ${LVL}, nothing flies into a snare`);
+            check(slots().length === 0 && msgs.some(m => m.includes('fallen over')), '...and the snares left there fall over');
+        }
+        // [logout] hands back whatever is still laid
+        const lo = ScriptProvider.getByTrigger(ServerTriggerType.LOGOUT, -1, -1);
+        player.executeScript(ScriptRunner.init(lo!, player), true); await waitTicks(2);
+        check(slots().length === 0, '[logout] frees every slot');
+    }
+
+    if (AREA === 'shop') {
+        const art = npcsOf('artimeus');
+        check(art.length === 1 && Math.abs(art[0].x - 3441) <= 3 && Math.abs(art[0].z - 2902) <= 3, `Artimeus is in Nardah, at the OSRS wiki's 3441,2902 (${art.map(a => `${a.x},${a.z}`).join(' ')})`);
+        const t = NpcType.get(art[0].type);
+        const talk = ScriptProvider.getByTrigger(ServerTriggerType.OPNPC1, t.id, t.category);
+        check(talk !== undefined && talk.name.includes('artimeus'), `Talk-to is his own dialogue (${talk?.name})`);
+        await debugTele(4);
+        const walk = flood(player.x, player.z, [3392 + 10, 2880 - 10, 3392 + 70, 2880 + 60]);
+        check([[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => walk.has(`${art[0].x + dx},${art[0].z + dz}`)), `...and he can be walked up to from ::desert 4 (${player.x},${player.z})`);
+        check(walk.size > 400, `...which is not a sealed room (${walk.size} tiles reachable)`);
+        const trade = ScriptProvider.getByTrigger(ServerTriggerType.OPNPC3, t.id, t.category)!;
+        player.executeScript(ScriptRunner.init(trade, player, art[0]), true); await waitTicks(2);
+        const SHOP = InvType.getId('nardah_hunter_shop');
+        check(player.getVar(VarPlayerType.getId('shop')) === SHOP, 'Trade opens the Nardah Hunter Shop');
+        const shop = player.getInventory(SHOP)!;
+        const want: Record<string, number> = { net: 5, noose_wand: 50, hunter_bird_snare: 50, hunter_box_trap: 25, teasing_stick: 5, torch_unlit: 20 };
+        const off = Object.entries(want).filter(([n, q]) => shop.getItemCount(ObjType.getId(n)) !== q);
+        check(off.length === 0, `...stocked as the wiki has it (${off.map(([n]) => `${n} ${shop.getItemCount(ObjType.getId(n))}`).join(' ') || Object.keys(want).join(', ')})`);
+    }
+    console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
+    process.exit(fails ? 1 : 0);
+}
+
 // HTRAP=pitfall: spiked logs over the pit at 2543,2908 (reached only from 2543,2907, south), a
 // tease, and the jump north to 2543,2910 with the larupia behind.
 if (process.env.HTRAP === 'pitfall') {

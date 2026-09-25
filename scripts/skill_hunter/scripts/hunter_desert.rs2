@@ -1,0 +1,153 @@
+// Hunter in the Kharidian desert: the Uzer hunter area's desert devils and golden warblers, and Artimeus's
+// Nardah Hunter Shop. Numbers in configs/hunter_desert.constant. The area's third creature, the orange
+// salamander, is a net trap's (hunter_nettrap.rs2).
+
+// -------------------------------------------------------------------------- desert devil tracking
+//
+// The Feldip weasel's tracking (hunter_tracking.rs2), on the desert's own ground: the same trail state
+// (%hunter_track_next, %hunter_track_bush, %hunter_track_hops), the same compass and step lengths, the
+// same noose. A trail starts at one of the area's two burrows, runs through its cacti and rockslides
+// (every one carries category=hunter_track_desert, listed by coord in configs/hunter_desert.enum), and
+// ends in a patch of disturbed sand. A player follows one trail at a time; starting one here drops a
+// Feldip trail and the other way round, and neither can be finished on the other's ground, because
+// every step is a coord.
+
+[oploc1,_hunter_track_desert]
+if (stat(hunter) < ^hunter_devil_level) {
+    ~mesbox("You need a Hunter level of <tostring(^hunter_devil_level)> to track desert devils.");
+    return;
+}
+def_coord $at = loc_coord;
+anim(human_pickupfloor, 0);
+p_delay(1);
+// On the trail: this is the next step.
+if (%hunter_track_next ! null & $at = %hunter_track_next) {
+    @hunter_devil_advance($at);
+}
+// A burrow always has fresh tracks leading out of it.
+if (loc_type = loc474_19552) {
+    @hunter_devil_start($at);
+}
+mes("You search the <lowercase(loc_name)> but find no tracks.");
+
+[label,hunter_devil_start](coord $burrow)
+def_coord $sand = enum(int, coord, hunter_devil_sands, random(enum_getoutputcount(hunter_devil_sands)));
+%hunter_track_bush = $sand;
+%hunter_track_hops = calc(^hunter_devil_hops_min + random(calc(^hunter_devil_hops_extra + 1)));
+def_coord $next = ~hunter_devil_pick($burrow, $sand);
+%hunter_track_next = $next;
+mes("You find some tracks leading out of the burrow, heading <~hunter_track_direction($burrow, $next)>.");
+
+[label,hunter_devil_advance](coord $at)
+%hunter_track_hops = calc(%hunter_track_hops - 1);
+def_coord $sand = %hunter_track_bush;
+if (%hunter_track_hops <= 0) {
+    %hunter_track_next = $sand;
+    mes("The tracks lead to some disturbed sand to the <~hunter_track_direction($at, $sand)>.");
+    return;
+}
+def_coord $next = ~hunter_devil_pick($at, $sand);
+%hunter_track_next = $next;
+if ($next = $sand) {
+    mes("The tracks lead to some disturbed sand to the <~hunter_track_direction($at, $sand)>.");
+    return;
+}
+mes("The tracks continue to the <~hunter_track_direction($at, $next)>.");
+
+// ~hunter_track_pick over the desert's nodes: one a few tiles on from $from that is closer to the sand
+// than $from is, at random - or the sand itself, when nothing qualifies.
+[proc,hunter_devil_pick](coord $from, coord $sand)(coord)
+def_coord $pick = $sand;
+def_int $seen = 0;
+def_int $here = distance($from, $sand);
+def_int $i = 0;
+while ($i < enum_getoutputcount(hunter_devil_nodes)) {
+    def_coord $node = enum(int, coord, hunter_devil_nodes, $i);
+    def_int $step = distance($from, $node);
+    if ($node ! $from & $step >= ^hunter_track_step_min & $step <= ^hunter_track_step_max & distance($node, $sand) < $here) {
+        $seen = calc($seen + 1);
+        if (random($seen) = 0) {
+            $pick = $node;
+        }
+    }
+    $i = calc($i + 1);
+}
+return($pick);
+
+// The hiding spot. As with the Feldip bush, the end of the trail is "the next step is this sand".
+[oploc1,loc474_19430]
+anim(human_pickupfloor, 0);
+if (%hunter_track_next ! null & loc_coord = %hunter_track_next & loc_coord = %hunter_track_bush) {
+    mes("There's a desert devil hiding in the sand.");
+    return;
+}
+mes("You search the disturbed sand but find nothing.");
+
+[oploc2,loc474_19430]
+if (inv_total(inv, noose_wand) < 1 & inv_total(worn, noose_wand) < 1) {
+    mes("You need a noose wand to catch anything hiding in there.");
+    return;
+}
+if (%hunter_track_next = null | loc_coord ! %hunter_track_next | loc_coord ! %hunter_track_bush) {
+    mes("There's nothing in there to catch.");
+    return;
+}
+if (inv_freespace(inv) < 2) {
+    mes("You don't have enough inventory space.");
+    return;
+}
+anim(human_hunter_noose, 0);
+p_delay(2);
+%hunter_track_next = null;
+%hunter_track_bush = null;
+if (stat_random(hunter, ^hunter_devil_low, ^hunter_devil_high) = false) {
+    mes("The desert devil slips out of the noose and scurries off. You'll have to find its tracks again.");
+    return;
+}
+inv_add(inv, bones, 1);
+inv_add(inv, desert_devil_fur, 1);
+mes("You've caught a desert devil.");
+~hunter_xp(^hunter_devil_xp);
+
+// ------------------------------------------------------------------------------- golden warblers
+//
+// Bird snares, on the loop in hunter_traps.rs2: the lure, the state changes, the pay and the room are
+// lines there; this is the Check.
+[oploc1,hunter_snare_caught_warbler] @hunter_trap_takeup(^hunter_catch_golden_warbler);
+
+// ------------------------------------------------------------------------------------ Artimeus
+//
+// The Nardah Hunter Shop's keeper (OSRS's transcript). Trade is [opnpc3,_shop_keeper]'s.
+[opnpc1,artimeus]
+~chatnpc("<p,happy>Greetings, friend; my business here deals with Hunter related items. Is there anything in which I can interest you?");
+if (~p_choice2("What kinds of items do you stock?", 1, "I'm not in the market for Hunter equipment right now, thanks.", 2) = 2) {
+    ~chatplayer("<p,neutral>I'm not in the market for Hunter equipment right now, thanks.");
+    ~chatnpc("<p,neutral>Maybe another time, then.");
+    return;
+}
+~chatplayer("<p,quiz>What kinds of items do you stock?");
+~chatnpc("<p,happy>Take a look for yourself.");
+~openshop_activenpc;
+
+// ---------------------------------------------------------------------------------------- staff
+
+// ::desert <spot> - five bird snares and a noose wand, and to the Uzer hunter area: 1 (the default) the
+// middle of the desert devils' tracking ground, 2 the golden warblers at the area's north end, 3 the
+// warblers at its south end among the young trees; 4 is Artimeus's shop in Nardah. Pair with ::hunter
+// 20000 (2,000 xp, level 13) for everything here but the orange salamanders (::nettrap 2).
+[debugproc,desert](int $spot)
+if (p_finduid(uid) = false) {
+    return;
+}
+if (inv_total(inv, hunter_bird_snare) < 5 & inv_freespace(inv) > 0) {
+    inv_add(inv, hunter_bird_snare, calc(5 - inv_total(inv, hunter_bird_snare)));
+}
+if (inv_total(inv, noose_wand) < 1 & inv_freespace(inv) > 0) {
+    inv_add(inv, noose_wand, 1);
+}
+switch_int ($spot) {
+    case 2 : p_telejump(0_53_49_9_15);
+    case 3 : p_telejump(0_53_48_13_19);
+    case 4 : p_telejump(0_53_45_49_20);
+    case default : p_telejump(0_53_48_8_46);
+}
