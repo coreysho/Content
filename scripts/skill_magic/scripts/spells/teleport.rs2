@@ -138,16 +138,7 @@ if(inv_total(inv, plaguesample) > 0) { // Biohazard plague sample
     mes("The plague sample is too delicate...it disintegrates in the crossing.");
     return;
 }
-if (inv_getobj(worn, ^wearpos_rhand) = trollromance_toboggon_waxed) { // Troll Romance sled
-    if(inv_freespace(inv) > 0) {
-        ~unequip_trollromance_sled;
-        mes("You remove the sled.");
-    } else {
-        inv_del(worn, trollromance_toboggon_waxed, 1);
-        ~update_bas;
-        mes("You drop the sled.");
-    }
-}
+~trollromance_leave_with_sled; // Troll Romance sled
 
 [proc,pre_tele_checks](coord $coord)(boolean)
 // Monkey Madness: Awowogei's monkey does not survive a teleport, and the walk back to the Grand Tree
