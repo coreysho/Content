@@ -89,3 +89,35 @@ p_arrivedelay;
 [oploc1,mm_bamboo_ladder_dungeon_exit]
 p_arrivedelay;
 ~climb_ladder(movecoord(coord(), 0, 0, -6400), true);
+
+// The temple's trapdoor and the crypt under it. mm_temple_trapdoor sits in the hole at m43_43
+// (55,33) - that tile is blocked in the map, so the trapdoor is only ever worked from beside it -
+// and forceapproach=east turned by the loc's angle 2 puts the approach on its WEST side, the open
+// ground floor under the hut at (54,33), which is reached on foot from Marim. The cache ships the
+// open state (mm_temple_trapdoor_open, Climb-down/Close) and the rope back up in the crypt,
+// mm_climbing_rope_bottom_temple at m43_143 (56,49); none of the three had a trigger, so the crypt
+// - and the nut cave off it that Recipe for Disaster's Awowogei needs - could not be reached.
+//
+// Neither end is the 6400-tile offset of the other: straight down from the trapdoor is solid rock,
+// so both landings are fixed tiles next to the loc at the other end (see quest_mm.constant). No
+// quest gate beyond the island itself: you only reach Ape Atoll through Monkey Madness, and the
+// temple and its crypt were open to anyone standing in Marim.
+
+[oploc1,mm_temple_trapdoor]
+mes("The trapdoor opens...");
+sound_synth(door_open, 1, 0);
+loc_change(mm_temple_trapdoor_open, 500);
+
+[oploc1,mm_temple_trapdoor_open]
+mes("You climb down through the trapdoor...");
+~climb_ladder(^mm_temple_crypt_arrive, false);
+
+[oploc2,mm_temple_trapdoor_open]
+mes("You close the trapdoor.");
+sound_synth(door_close, 1, 0);
+loc_change(mm_temple_trapdoor, 500);
+
+[oploc1,mm_climbing_rope_bottom_temple]
+p_arrivedelay;
+mes("You climb up the rope.");
+~climb_ladder(^mm_temple_trapdoor_side, true);
