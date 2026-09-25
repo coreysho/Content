@@ -2171,6 +2171,9 @@ if (process.env.HTRAP === 'rellekka') {
 }
 
 const TRAP = ObjType.getId(TRAPNAME);
+// Eagles' Peak done, as a box trapper would have it: a ferret only goes for the trap of somebody who has
+// finished it (quests/quest_eaglespeak, the 2006 gate on ferrets).
+if (!SNARE) player.setVar(VarPlayerType.getId('eaglespeak'), 7);
 const inv = player.getInventory(InvType.INV)!;
 const total = (name: string) => inv.getItemCount(ObjType.getId(name));
 player.invAdd(InvType.INV, TRAP, 5);

@@ -572,7 +572,9 @@ if ($lvl >= ^hunter_chinchompa_level & npc_find($at, hunter_chinchompa, ^hunter_
     ~hunter_trap_spring(hunter_boxtrap_catching_chinchompa, hunter_boxtrap_collapsed, ^hunter_chinchompa_low, ^hunter_chinchompa_high);
     return;
 }
-if ($lvl >= ^hunter_ferret_level & npc_find($at, hunter_ferret, ^hunter_trap_lure_radius, 0) = true) {
+// A ferret only goes for the trap of somebody who has done Eagles' Peak (2006: "can be caught in a box
+// trap with level 27 Hunter after completing the quest"); OSRS's gate on box traps themselves is 2018's.
+if ($lvl >= ^hunter_ferret_level & ~eaglespeak_can_trap_ferret = true & npc_find($at, hunter_ferret, ^hunter_trap_lure_radius, 0) = true) {
     ~hunter_trap_spring(hunter_boxtrap_catching_ferret, hunter_boxtrap_collapsed, ^hunter_ferret_low, ^hunter_ferret_high);
     return;
 }

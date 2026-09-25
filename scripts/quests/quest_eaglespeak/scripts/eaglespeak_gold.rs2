@@ -1,0 +1,282 @@
+// Eagles' Peak - the gold feather's room (m30_76, level 2), through the tunnel in the north-east of the
+// cave. The feather is at the end of the long corridor due west of the entrance, and the way is shut by
+// metal birds sitting on tracks in the floor and by stone gates shaped like pairs of wings. Seed from
+// the holder by the entrance, put in a feeder, draws the birds on that track to it, unless a closed gate
+// or another bird is in the way; the four eagle levers open and shut the gates.
+//
+// 474 placed the room's tracks, feeders and levers (m30_76) but not the five birds or the gates, which
+// the server moved; 474's own positions for them are not in any source. They are rebuilt here from the
+// two wiki walkthroughs (OSRS's and RuneScape's), which agree on the solution, and from 474's tracks:
+//
+//   track A   the north corridor, x1931-1944 z4914-15, feeders at its ends (1931,4916) and (1945,4915).
+//             Its bird starts at the west end, in front of the north-west lever.
+//   track B   an L: west along z4898-99 from x1935 to a corner at x1945-46, and north from the corner
+//             up to the long corridor at z4906-07. Feeders at its west end (1935,4897), the corner
+//             (1947,4898) and its north end (1947,4907). Its east-west bird starts at the west end, in
+//             front of the south-west lever; its north-south bird at the north end, across the corridor.
+//   track C   north-south at x1963-64 z4894-4901 (feeders (1962,4901), (1962,4894)): its bird starts at
+//             the north end, across the south-east passage; and east-west at x1967-72 z4890-91 (feeders
+//             (1966,4890), (1972,4892)): its bird starts at the east end, under the passage down to the
+//             south-east lever.
+//
+//   gates     east - across the passage into the south-east (x1953), shut
+//             south - across track B's north-south arm (z4903), shut
+//             north-west - across track A (x1937), open
+//             corridor - across the corridor to the feather room (x1934), shut
+//   levers    (the RuneScape wiki's table) the centre one toggles east and north-west, the east one
+//             north-west, the south-west one north-west and south, the north-west one the corridor.
+//
+// A feeder the corner of track B serves both of its birds: the north-south one comes if nothing stops
+// it, otherwise the east-west one - "The north-south eagle will be blocked by a gate and return, however
+// the east-west eagle will remain at this feeder" (RuneScape wiki).
+//
+// The puzzle is the world's, not the player's: the birds and gates are world locs, which is what the
+// reset lever outside the room is for. They are laid out whenever somebody comes into the room and one
+// is missing (after a restart, or when they have stood untouched for an hour).
+
+// =========================================================================== the pieces
+[proc,eagle_gold_ensure]
+// track A
+if (loc_find(2_30_76_11_50, loc474_19935) = false & loc_find(2_30_76_23_50, loc474_19935) = false) {
+    ~eagle_gold_bird_add(2_30_76_11_50);
+}
+// track B: its two birds, and the corner they share - the corner's bird is the east-west one while
+// the north-south one is at the north end, and the other way about
+def_boolean $w = loc_find(2_30_76_15_34, loc474_19935);
+def_boolean $top = loc_find(2_30_76_25_42, loc474_19935);
+def_boolean $corner = loc_find(2_30_76_25_34, loc474_19935);
+if ($w = false & ($corner = false | $top = false)) {
+    ~eagle_gold_bird_add(2_30_76_15_34);
+}
+if ($top = false & ($corner = false | $w = false)) {
+    ~eagle_gold_bird_add(2_30_76_25_42);
+}
+// track C
+if (loc_find(2_30_76_43_36, loc474_19935) = false & loc_find(2_30_76_43_30, loc474_19935) = false) {
+    ~eagle_gold_bird_add(2_30_76_43_36);
+}
+if (loc_find(2_30_76_47_26, loc474_19935) = false & loc_find(2_30_76_51_26, loc474_19935) = false) {
+    ~eagle_gold_bird_add(2_30_76_51_26);
+}
+// the gates
+~eagle_gold_gate_ensure(2_30_76_33_36, 2_30_76_33_37, 0, 2, true);
+~eagle_gold_gate_ensure(2_30_76_25_39, 2_30_76_26_39, 1, 3, true);
+~eagle_gold_gate_ensure(2_30_76_17_50, 2_30_76_17_51, 0, 2, false);
+~eagle_gold_gate_ensure(2_30_76_14_42, 2_30_76_14_43, 0, 2, true);
+
+[proc,eagle_gold_bird_add](coord $at)
+loc_add($at, loc474_19935, 0, centrepiece_straight, ^eaglespeak_gold_duration);
+
+[proc,eagle_gold_gate_ensure](coord $a, coord $b, int $rota, int $rotb, boolean $shut)
+if (loc_find($a, loc474_19870) = true | loc_find($a, loc474_19871) = true) {
+    return;
+}
+~eagle_gold_gate_set($a, $b, $rota, $rotb, $shut);
+
+[proc,eagle_gold_gate_set](coord $a, coord $b, int $rota, int $rotb, boolean $shut)
+def_loc $wing = loc474_19871;
+if ($shut = true) {
+    $wing = loc474_19870;
+}
+if (loc_find($a, loc474_19870) = true) loc_del(1);
+if (loc_find($a, loc474_19871) = true) loc_del(1);
+if (loc_find($b, loc474_19870) = true) loc_del(1);
+if (loc_find($b, loc474_19871) = true) loc_del(1);
+loc_add($a, $wing, $rota, centrepiece_straight, ^eaglespeak_gold_duration);
+loc_add($b, $wing, $rotb, centrepiece_straight, ^eaglespeak_gold_duration);
+
+[proc,eagle_gold_gate_shut](coord $a)(boolean)
+if (loc_find($a, loc474_19871) = true) {
+    return(false);
+}
+return(true);
+
+[proc,eagle_gold_gate_toggle](coord $a, coord $b, int $rota, int $rotb)
+if (~eagle_gold_gate_shut($a) = true) {
+    ~eagle_gold_gate_set($a, $b, $rota, $rotb, false);
+} else {
+    ~eagle_gold_gate_set($a, $b, $rota, $rotb, true);
+}
+
+[proc,eagle_gold_gate_east] ~eagle_gold_gate_toggle(2_30_76_33_36, 2_30_76_33_37, 0, 2);
+[proc,eagle_gold_gate_south] ~eagle_gold_gate_toggle(2_30_76_25_39, 2_30_76_26_39, 1, 3);
+[proc,eagle_gold_gate_northwest] ~eagle_gold_gate_toggle(2_30_76_17_50, 2_30_76_17_51, 0, 2);
+[proc,eagle_gold_gate_corridor] ~eagle_gold_gate_toggle(2_30_76_14_42, 2_30_76_14_43, 0, 2);
+
+// A bird from one end of its track to the other; false (and nothing moves) if there is none at $from.
+[proc,eagle_gold_bird_move](coord $from, coord $to)(boolean)
+if (loc_find($from, loc474_19935) = false | loc_find($to, loc474_19935) = true) {
+    return(false);
+}
+loc_del(1);
+~eagle_gold_bird_add($to);
+return(true);
+
+// =========================================================================== the seed
+[oploc1,loc474_19919]
+if (inv_itemspace(inv, odd_bird_seed, 1, inv_size(inv)) = false) {
+    mes("You don't have enough inventory space to hold that item.");
+    return;
+}
+anim(human_pickuptable, 0);
+inv_add(inv, odd_bird_seed, 1);
+mes("You take a handful of the birdseed-like substance from the holder.");
+
+[oplocu,loc474_19940] @eagle_gold_feed(1);
+[oplocu,loc474_19936] @eagle_gold_feed(2);
+[oplocu,loc474_19942] @eagle_gold_feed(3);
+[oplocu,loc474_19937] @eagle_gold_feed(4);
+[oplocu,loc474_19941] @eagle_gold_feed(5);
+[oplocu,loc474_19943] @eagle_gold_feed(6);
+[oplocu,loc474_19938] @eagle_gold_feed(7);
+[oplocu,loc474_19939] @eagle_gold_feed(8);
+[oplocu,loc474_19944] @eagle_gold_feed(9);
+
+[label,eagle_gold_feed](int $feeder)
+if (last_useitem ! odd_bird_seed) {
+    ~displaymessage(^dm_default);
+    return;
+}
+inv_del(inv, odd_bird_seed, 1);
+anim(human_eagle_reach, 0);
+loc_anim(eagle_feeder_feed);
+// (after the feeder's own anim: every loc_find in here moves the active loc)
+~eagle_gold_ensure;
+p_delay(1);
+def_boolean $moved = false;
+switch_int ($feeder) {
+    // track A: west end, east end - past the north-west gate
+    case 1 :
+        if (~eagle_gold_gate_shut(2_30_76_17_50) = false) $moved = ~eagle_gold_bird_move(2_30_76_23_50, 2_30_76_11_50);
+    case 2 :
+        if (~eagle_gold_gate_shut(2_30_76_17_50) = false) $moved = ~eagle_gold_bird_move(2_30_76_11_50, 2_30_76_23_50);
+    // track B: the north end draws the north-south bird up past the south gate
+    case 3 :
+        if (~eagle_gold_gate_shut(2_30_76_25_39) = false & loc_find(2_30_76_15_34, loc474_19935) = true) {
+            $moved = ~eagle_gold_bird_move(2_30_76_25_34, 2_30_76_25_42);
+        }
+    // the corner: the north-south bird if it can come, else the east-west one
+    case 4 :
+        if (~eagle_gold_gate_shut(2_30_76_25_39) = false & loc_find(2_30_76_15_34, loc474_19935) = true) {
+            $moved = ~eagle_gold_bird_move(2_30_76_25_42, 2_30_76_25_34);
+        }
+        if ($moved = false & loc_find(2_30_76_25_42, loc474_19935) = true) {
+            $moved = ~eagle_gold_bird_move(2_30_76_15_34, 2_30_76_25_34);
+        }
+    // the west end: the east-west bird back from the corner
+    case 5 :
+        if (loc_find(2_30_76_25_42, loc474_19935) = true) {
+            $moved = ~eagle_gold_bird_move(2_30_76_25_34, 2_30_76_15_34);
+        }
+    // track C
+    case 6 : $moved = ~eagle_gold_bird_move(2_30_76_43_30, 2_30_76_43_36);
+    case 7 : $moved = ~eagle_gold_bird_move(2_30_76_43_36, 2_30_76_43_30);
+    case 8 : $moved = ~eagle_gold_bird_move(2_30_76_51_26, 2_30_76_47_26);
+    case 9 : $moved = ~eagle_gold_bird_move(2_30_76_47_26, 2_30_76_51_26);
+}
+if ($moved = false) {
+    mes("Putting feed into this feeder seems to have no effect.");
+}
+
+// =========================================================================== the levers
+[oploc1,eagle_gold_lever_centre] @eagle_gold_lever(1, eagle_gold_lever_centre_down);
+[oploc2,eagle_gold_lever_centre_down] @eagle_gold_lever(1, eagle_gold_lever_centre);
+[oploc1,eagle_gold_lever_se] @eagle_gold_lever(2, eagle_gold_lever_se_down);
+[oploc2,eagle_gold_lever_se_down] @eagle_gold_lever(2, eagle_gold_lever_se);
+[oploc1,eagle_gold_lever_sw] @eagle_gold_lever(3, eagle_gold_lever_sw_down);
+[oploc2,eagle_gold_lever_sw_down] @eagle_gold_lever(3, eagle_gold_lever_sw);
+[oploc1,eagle_gold_lever_nw] @eagle_gold_lever(4, eagle_gold_lever_nw_down);
+[oploc2,eagle_gold_lever_nw_down] @eagle_gold_lever(4, eagle_gold_lever_nw);
+
+[label,eagle_gold_lever](int $lever, loc $next)
+if (loc_type = eagle_gold_lever_centre | loc_type = eagle_gold_lever_se | loc_type = eagle_gold_lever_sw | loc_type = eagle_gold_lever_nw) {
+    anim(human_leverdown, 0);
+} else {
+    anim(human_leverup, 0);
+}
+loc_change($next, ^eaglespeak_gold_duration);
+// (after the lever's own change: every loc_find in here moves the active loc)
+~eagle_gold_ensure;
+p_delay(0);
+switch_int ($lever) {
+    case 1 :
+        ~eagle_gold_gate_east;
+        ~eagle_gold_gate_northwest;
+    case 2 : ~eagle_gold_gate_northwest;
+    case 3 :
+        ~eagle_gold_gate_northwest;
+        ~eagle_gold_gate_south;
+    case 4 : ~eagle_gold_gate_corridor;
+}
+mes("As you move the lever you hear a low grinding elsewhere in the caves.");
+
+// =========================================================================== the reset lever
+// Outside the room, by the tunnel into it (m31_77).
+[oploc1,loc474_19945]
+~mesbox("As you reach for the lever, you notice the word 'reset' engraved into the handle in large angular letters.");
+if (~p_choice2_header("Yes, pull the reset lever.", 1, "On second thoughts, not just yet.", 2, "Are you sure you wish to pull this lever?") = 2) {
+    return;
+}
+anim(human_leverdown, 0);
+p_delay(0);
+if (~eagle_gold_is_reset = true) {
+    mes("You pull the lever, but nothing much seems to happen.");
+    return;
+}
+~eagle_gold_reset;
+mes("As you move the lever you hear a low grinding elsewhere in the caves.");
+
+[proc,eagle_gold_is_reset]()(boolean)
+if (loc_find(2_30_76_11_50, loc474_19935) = false) return(false);
+if (loc_find(2_30_76_15_34, loc474_19935) = false) return(false);
+if (loc_find(2_30_76_25_42, loc474_19935) = false) return(false);
+if (loc_find(2_30_76_43_36, loc474_19935) = false) return(false);
+if (loc_find(2_30_76_51_26, loc474_19935) = false) return(false);
+if (~eagle_gold_gate_shut(2_30_76_33_36) = false) return(false);
+if (~eagle_gold_gate_shut(2_30_76_25_39) = false) return(false);
+if (~eagle_gold_gate_shut(2_30_76_17_50) = true) return(false);
+if (~eagle_gold_gate_shut(2_30_76_14_42) = false) return(false);
+return(true);
+
+[proc,eagle_gold_reset]
+~eagle_gold_bird_del(2_30_76_11_50);
+~eagle_gold_bird_del(2_30_76_23_50);
+~eagle_gold_bird_del(2_30_76_15_34);
+~eagle_gold_bird_del(2_30_76_25_34);
+~eagle_gold_bird_del(2_30_76_25_42);
+~eagle_gold_bird_del(2_30_76_43_36);
+~eagle_gold_bird_del(2_30_76_43_30);
+~eagle_gold_bird_del(2_30_76_47_26);
+~eagle_gold_bird_del(2_30_76_51_26);
+~eagle_gold_gate_set(2_30_76_33_36, 2_30_76_33_37, 0, 2, true);
+~eagle_gold_gate_set(2_30_76_25_39, 2_30_76_26_39, 1, 3, true);
+~eagle_gold_gate_set(2_30_76_17_50, 2_30_76_17_51, 0, 2, false);
+~eagle_gold_gate_set(2_30_76_14_42, 2_30_76_14_43, 0, 2, true);
+~eagle_gold_lever_up(2_30_76_23_47, eagle_gold_lever_centre_down, eagle_gold_lever_centre);
+~eagle_gold_lever_up(2_30_76_58_27, eagle_gold_lever_se_down, eagle_gold_lever_se);
+~eagle_gold_lever_up(2_30_76_15_38, eagle_gold_lever_sw_down, eagle_gold_lever_sw);
+~eagle_gold_lever_up(2_30_76_5_51, eagle_gold_lever_nw_down, eagle_gold_lever_nw);
+~eagle_gold_ensure;
+
+[proc,eagle_gold_bird_del](coord $at)
+if (loc_find($at, loc474_19935) = true) {
+    loc_del(1);
+}
+
+[proc,eagle_gold_lever_up](coord $at, loc $down, loc $up)
+if (loc_find($at, $down) = true) {
+    loc_change($up, 1);
+}
+
+// =========================================================================== the feather
+[oploc1,loc474_19950]
+if (~eaglespeak_has_feather(eagle_golden_feather) = true) {
+    mes("I already have a golden feather like that.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("You don't have enough inventory space to hold that item.");
+    return;
+}
+anim(human_pickuptable, 0);
+inv_add(inv, eagle_golden_feather, 1);

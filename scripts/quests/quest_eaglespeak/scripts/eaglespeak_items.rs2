@@ -1,0 +1,54 @@
+// Eagles' Peak - the quest's books and the Destroy on its feathers.
+
+// =========================================================================== the books
+// The bird book, William Oddity's Guide to the Avian: the first time it is opened during the quest the
+// metal feather falls out of it. Both texts are the OSRS wiki's transcripts; the pages are this book
+// interface's (general/scripts/book.rs2, which turns them).
+[opheld1,bird_book]
+if (%eaglespeak = ^eaglespeak_started & inv_total(inv, eagle_metal_feather) = 0) {
+    ~mesbox("As you open the book something falls out from between the pages. It appears to be a small metal feather.");
+    ~eaglespeak_give(eagle_metal_feather, "The metal feather falls to the ground.");
+    %eaglespeak = ^eaglespeak_feather;
+    ~send_quest_progress(questlist:eaglespeak, %eaglespeak, ^eaglespeak_complete);
+}
+%book_page = 0;
+%open_book = bird_book;
+@book_flip_page(0, 0, 2, eaglespeak_bird_book);
+
+[proc,eaglespeak_bird_book]
+switch_int (%book_page) {
+    case 0 : ~book("Guide to the Avian", "@dbl@Crimson Swift@bla@|This tropical bird is typically found in dense jungle areas. Subtlety is not one of its strong points with its striking red plumage ensuring it will be visible wherever it goes. This makes it a popular first bird for hunters and spotters alike.||@dbl@Cerulean Twitch@bla@|This polar bird, found in the far Northern regions, can survive at impressively low temperatures. Although its long tail affords it great manoeuvrability, it is also the cause of a great deal of interest from collectors.");
+    case 1 : ~book("Guide to the Avian", "@dbl@Golden Warbler@bla@|The golden warbler can be easily identified by its hideously annoying song. Although the warbler is prized by hunters for its fine feathers, it is probably caught just as much simply to shut it up.||@dbl@Tropical Wagtail@bla@|This beautiful bird can be found in hot jungle climates where it expertly catches small insects for food. It is perhaps therefore ironic that it is usually caught for its bright plumage, which can be used in turn to make excellent fly fishing lures.||@dbl@Copper Longtail@bla@|The copper longtail is found in temperate wooded regions and is one of the most common birds in the world. Although its appearance is unremarkable it is a graceful and successful bird that continues to fend well for itself.");
+    case 2 : ~book("Guide to the Avian", "@dbl@Giant Eagle@bla@|Little is known about the giant eagles. There are reported sightings in many parts of the world, but the nests of these magnificent creatures remain elusive. The only record of such a nest being found is in the folk tale of the bandits of the golden claw. It is said that the bandits leader could talk to and befriend the eagles, and used the eagles' nest at the top of what is now known as eagles' peak as a hideout. The story goes on to hint at a secret entrance to the hideaway existing near the peak of the mountain, but until this day it has not been found.");
+}
+
+// The feathered journal of Arthur Artimus, in the cave under the peak.
+[opheld1,feathered_journal]
+%book_page = 0;
+%open_book = feathered_journal;
+@book_flip_page(0, 0, 3, eaglespeak_feathered_journal);
+
+[proc,eaglespeak_feathered_journal]
+switch_int (%book_page) {
+    case 0 : ~book("Feathered Journal", "We're all set for the raid on the Gnome Stronghold tomorrow. They must have something good in a place that well defended. We'll sneak in over the west river while the gnomes are watching some big 'gnome ball' match, whatever that is. This time Armen won't be bringing his pet kebbit. That thing caused nothing but trouble last time.||The start to the so called 'gnome ball' match appears to have been delayed; some sort of rubbish about bad light. Looks like we're stuck waiting here for now.");
+    case 1 : ~book("Feathered Journal", "I'm going to kill Armen, he assured me his kebbit was tied up safely. We were lucky to escape with our lives, especially Davey who got his foot caught in a rabbit hole whilst we were running away. Those long eared pests seem to get everywhere. Currently hiding in a cave in the mountains. The only 'loot' we managed to grab was a bag of refreshments from the gnome ball pitch. There'd better be something good in there, I could eat a camel right now.||Gnome food again today. Worms, however they're cooked, get boring after a while.");
+    case 2 : ~book("Feathered Journal", "Gnomes are still looking for us outside, might be in here for a while. Fortunately this cave system seems to go a lot deeper than we originally thought, although some of the noises coming from the darker areas concern me slightly. Barakur has been playing with mechanisms as per usual. He thinks he can rig up something to hide the cave entrance. Is this what dwarves do when they get bored? Armen said he saw some kind of giant bird. I'm skeptical, although this place does give me the creeps.||Okay, we all saw the birds this time. Typically Armen insists he can tame them; that guy is animal crazy.");
+    case 3 : ~book("Feathered Journal", "Gnomes seem to have stopped looking for us, although with Barakur's hidden entrance this would be a good place to stash loot.||Armen tried roping one of the eagles today; got dragged halfway to Al Kharid apparently. Barakur seems to have taken the hideout idea to heart and is now designing an inner door.||Barakur has completed two of apparently three parts of the puzzle for his second door. I'm sure he'd be making quicker progress if Armen's kebbit didn't keep getting in the way.");
+}
+
+// =========================================================================== Destroy
+// The destroy texts are the OSRS wiki's.
+[opheld5,eagle_metal_feather] @eaglespeak_destroy(eagle_metal_feather, "You can obtain another metal feather from the camp-site at the base of Eagles' Peak.");
+[opheld5,eagle_bronze_feather] @eaglespeak_destroy(eagle_bronze_feather, "You can obtain another bronze feather from the room with the net trap in Eagles' Peak.");
+[opheld5,eagle_silver_feather] @eaglespeak_destroy(eagle_silver_feather, "You can obtain another silver feather from the kebbit's lair in Eagles' Peak.");
+[opheld5,eagle_golden_feather] @eaglespeak_destroy(eagle_golden_feather, "You can obtain another golden feather from the room with the metal birds in Eagles' Peak.");
+
+[label,eaglespeak_destroy](namedobj $obj, string $again)
+~mesbox($again);
+if (~p_choice2("Destroy it.", 1, "Keep it.", 2) ! 1) {
+    return;
+}
+if (inv_total(inv, $obj) < 1) {
+    return;
+}
+inv_del(inv, $obj, 1);
