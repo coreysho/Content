@@ -1,83 +1,162 @@
 // A Soul's Bane - Launa beside the rift, and Tolna once he is out.
 //
-// [soulbane_launa_multi] is multinpc=0,soulbane_launa - index 0 only - so Launa is present while
-// soulbane_launa_pres is 0, which it always is. [soulbane_tolna_multi] is multinpc=1,soulbane_tolna_top
-// and nothing else, so Tolna shows on the grass at soulbane_tolna_pres=1 only - set when he climbs
-// out of the rift with you (quest_soulbane.rs2).
+// [soulbane_launa_multi] is multinpc=0,soulbane_launa - index 0 only - so Launa is there while
+// soulbane_launa_pres is 0. [soulbane_tolna_multi] is multinpc=1,soulbane_tolna_top and nothing
+// else, so Tolna shows on the grass at soulbane_tolna_pres=1 only. Both flip when Tolna climbs out
+// of the rift with you (quest_soulbane.rs2): he takes her place, and she has gone home with Brana -
+// "they've returned home with peace of mind".
+//
+// All of the talking is the OSRS wiki's transcript of the quest, stage by stage.
 
 [opnpc1,soulbane_launa_multi]
 switch_int (%soulbane_prog) {
     case ^soulbane_not_started : @soulbane_launa_start;
-    case ^soulbane_asked : @soulbane_launa_rope;
+    case ^soulbane_asked :
+        ~chatplayer("<p,neutral>Hi.");
+        ~chatnpc("<p,quiz>Have you discovered anything yet?");
+        ~chatplayer("<p,confused>Sorry, what am I supposed to do again?");
+        ~chatnpc("<p,angry>Go into the rift beside me and find my husband and son!");
+        ~chatplayer("<p,neutral>Ah, I'm on my way!");
     case ^soulbane_complete :
-        ~chatnpc("<p,happy>I have my husband and my son back. I can't thank you enough.");
-        ~chatnpc("<p,neutral>Tolna says the creatures down there are still fair game for anyone who wants to test their mettle. Just mind you come back up again.");
+        // Only a save finished before she went home can still see her here: send her home now.
+        %soulbane_launa_pres = ^soulbane_on;
+        %soulbane_tolna_pres = ^soulbane_on;
     case default : @soulbane_launa_progress;
 }
 
 [label,soulbane_launa_start]
-~chatnpc("<p,sad>Please, be careful around that rift.");
-switch_int (~p_choice2("What happened here?", 1, "Don't worry, I'll keep well away.", 2)) {
+~chatplayer("<p,neutral>Hi there.");
+~chatnpc("<p,sad>Hello.");
+~chatplayer("<p,quiz>What's this big hole in the ground all about?");
+~chatnpc("<p,sad>Oh I wish I knew for sure... All I do know is that it opened seemingly by itself a few months ago. It was first discovered by the students over at the digsite, a few of which have gone down there but never returned.");
+~chatnpc("<p,sad>They told me about it straight away.");
+~chatplayer("<p,quiz>So why is it important to you?");
+~chatnpc("<p,sad>A few reasons, but I think the situation is beyond help now.");
+~chatplayer("<p,quiz>What situation? Maybe I can help.");
+~chatnpc("<p,sad>I suppose it wouldn't hurt to tell you. I'm waiting to see my son Tolna. Don't suppose you've seen him?");
+~chatplayer("<p,quiz>Your son, Tolna? I don't know, what does he look like?");
+~chatnpc("<p,sad>I don't really know.");
+~chatplayer("<p,confused>You don't know what your own son looks like?");
+~chatnpc("<p,sad>No. You see, I haven't seen him for... for... 25 years now. He just ran away one day and never returned. I'm hoping he's down this rift as I know he headed in this direction. My husband went to look, but he hasn't");
+~chatnpc("<p,sad>returned for days.");
+switch_int (~p_choice2("Would you like me to go down to look for your husband and son?", 1, "Surely by now they'd both be dead?", 2)) {
     case 2 :
-        ~chatplayer("<p,neutral>Don't worry, I'll keep well away.");
-        ~chatnpc("<p,sad>If only my husband had done the same.");
+        ~chatplayer("<p,neutral>Surely by now they'd both be dead?");
+        ~chatnpc("<p,shock>What?!?!");
+        ~chatplayer("<p,shock>Oops.");
+        ~chatnpc("<p,angry>How could you say such a thing? Get away from me!");
         return;
     case 1 :
-        ~chatplayer("<p,quiz>What happened here?");
+        ~chatplayer("<p,neutral>Would you like me to go down to look for your husband and son?");
 }
-~chatnpc("<p,sad>The ground just split open a few months ago. I've been sitting here watching it ever since.");
-~chatnpc("<p,sad>Twenty-five years ago my son Tolna went off hunting for the ruins of some ancient civilisation. He never came home.");
-~chatnpc("<p,sad>When the rift opened, my husband Brana was certain Tolna was down there. He climbed in after him days ago, and he hasn't come back either.");
-switch_int (~p_choice2("I could go down there and look for them.", 1, "I'm sorry to hear that.", 2)) {
-    case 2 :
-        ~chatplayer("<p,neutral>I'm sorry to hear that.");
-        ~chatnpc("<p,sad>So am I.");
-        return;
-    case 1 :
-        ~chatplayer("<p,neutral>I could go down there and look for them.");
-}
-~chatnpc("<p,shock>Would you really? Nobody else has dared.");
-~chatnpc("<p,neutral>You'll need a rope. Tie it to the edge of the rift and climb down - and please, bring them home.");
+~chatnpc("<p,happy>You would do that? Oh thank you so much!");
+~chatplayer("<p,neutral>Don't worry. I'll investigate.");
+~chatnpc("<p,neutral>Thank you. You can use a rope to get into the rift, just attach it at the edge.");
+~chatplayer("<p,neutral>No problem.");
+~chatnpc("<p,sad>Be careful.");
 %soulbane_prog = ^soulbane_asked;
 %soulbane_warning_pres = ^soulbane_on;
 ~send_quest_progress(questlist:soulbane, %soulbane_prog, ^soulbane_complete);
 
-[label,soulbane_launa_rope]
-if (%soulbane_riftrope_pres = ^soulbane_off) {
-    ~chatnpc("<p,sad>You'll need a rope tied to the edge of the rift to climb down.");
-    return;
-}
-~chatnpc("<p,sad>The rope's secure. Please find them.");
-
+// What she says follows the room you are up to, and whether you have been into it yet
+// (soulbane_room_entered; the last room's is the scene with Brana, soulbane_final_seencut).
 [label,soulbane_launa_progress]
-if (%soulbane_prog = ^soulbane_tolna & %soulbane_tolna_pres = ^soulbane_on) {
-    ~chatnpc("<p,happy>Tolna! Brana! You found them! Go on, talk to my son - he has something to say to you.");
-    return;
-}
 switch_int (%soulbane_prog) {
-    case ^soulbane_anger : ~chatnpc("<p,sad>Tolna always did have a temper. Please, keep looking.");
-    case ^soulbane_fear : ~chatnpc("<p,sad>You look shaken. Is there any sign of them?");
-    case ^soulbane_confusion : ~chatnpc("<p,sad>Please don't give up on them.");
-    case ^soulbane_hopelessness : ~chatnpc("<p,sad>I've waited twenty-five years. I can wait a little longer.");
-    case ^soulbane_tolna : ~chatnpc("<p,sad>You've been so far down. Are they alive?");
+    case ^soulbane_anger :
+        ~chatplayer("<p,neutral>Hi, I've been down into the rift and I found a strange room. I also heard a voice claiming to be called Tolna.");
+        ~chatnpc("<p,shock>My son! What did he say?");
+        ~chatplayer("<p,neutral>He said, 'Why should I, Tolna, be trapped in such a wretched place? Feel my ANGER!'.");
+        ~chatnpc("<p,sad>Who can be surprised at his frustration?");
+        ~chatplayer("<p,neutral>It's a very aggressive room. I think I need to defeat the monsters in there.");
+        ~chatnpc("<p,neutral>Don't waste any time, his life could depend on you.");
+    case ^soulbane_fear :
+        if (%soulbane_room_entered = ^soulbane_off) {
+            ~chatplayer("<p,happy>I managed to defeat the monsters in the room!");
+            ~chatnpc("<p,quiz>Have you found him then?");
+            ~chatplayer("<p,neutral>Sorry, I've yet to enter the next room.");
+            ~chatnpc("<p,sad>Please hurry!");
+            return;
+        }
+        ~chatplayer("<p,neutral>Hi. I've made my way into a second room. I heard your son's voice again as well.");
+        ~chatnpc("<p,shock>What did he say? What did he say?");
+        ~chatplayer("<p,neutral>'It's so quiet and dark. I FEAR I may never escape this horrid place. Mum, help me!'");
+        ~chatnpc("<p,sad>You must save him! Help him get over his fear!");
+    case ^soulbane_confusion :
+        if (%soulbane_room_entered = ^soulbane_off) {
+            ~chatplayer("<p,happy>I've overcome fear in the second room and an exit has been illuminated.");
+            ~chatnpc("<p,quiz>What can you see?");
+            ~chatplayer("<p,neutral>Erm, I haven't actually ventured through yet.");
+            ~chatnpc("<p,angry>What are you waiting for? He must be so afraid in that place.");
+            return;
+        }
+        ~chatplayer("<p,neutral>Hi, I've journeyed through to a third room. Your son's voice spoke as I entered.");
+        ~chatnpc("<p,quiz>Really? What did he say?");
+        ~chatplayer("<p,neutral>Simply, 'Where am I? How long have I been here? Am I still the person I once was? I hate my CONFUSION'.");
+        ~chatnpc("<p,sad>You have to help him overcome his confusion!");
+    case ^soulbane_hopelessness :
+        if (%soulbane_room_entered = ^soulbane_off) {
+            ~chatplayer("<p,happy>Hi. I have prevailed over a third room.");
+            ~chatnpc("<p,quiz>Are you any closer to finding my son?");
+            ~chatplayer("<p,neutral>I think I may be getting closer.");
+            ~chatnpc("<p,sad>Please don't waste any time.");
+            return;
+        }
+        ~chatplayer("<p,neutral>I have travelled through to a fourth room. As I entered your son's voice spoke to me!");
+        ~chatnpc("<p,shock>Oh my! What did he say?");
+        ~chatplayer("<p,neutral>He said, 'What's the point? Why do I defy such HOPELESSNESS? No-one will ever help me'.");
+        ~chatnpc("<p,sad>You must fight to give him back his hope!");
+        ~chatplayer("<p,quiz>Can I succeed?");
+        ~chatnpc("<p,happy>Of course you can!");
+    case ^soulbane_tolna :
+        if (%soulbane_final_seencut = ^soulbane_off) {
+            ~chatplayer("<p,happy>I have endured against hopelessness to finish the fourth room.");
+            ~chatnpc("<p,quiz>Any sight of my son?");
+            ~chatplayer("<p,neutral>Only his voice. So far he has said to me, 'Why should I, Tolna, be trapped in such a wretched place? Feel my ANGER!', 'It's so quiet and dark. I FEAR I may never escape this horrid place. Mum, help me!', 'Where");
+            ~chatplayer("<p,neutral>am I? How long have I been here? Am I still the person I once was? I hate my CONFUSION' and 'What's the point? Why do I defy such HOPELESSNESS? No-one will ever help me'.");
+            ~chatnpc("<p,sad>You must find him and bring him back to me. Please, I beg you.");
+            ~chatplayer("<p,neutral>Don't worry, I will find him!");
+            return;
+        }
+        if (~soulbane_heads_dead = false) {
+            ~chatplayer("<p,neutral>I've found your son.");
+            ~chatnpc("<p,shock>You have?");
+            ~chatplayer("<p,sad>And your husband, but I'm afraid your son is no longer physically what he once was.");
+            ~chatnpc("<p,sad>Can you save them?");
+            ~chatplayer("<p,neutral>I will try.");
+            ~chatnpc("<p,sad>Thank you.");
+            return;
+        }
+        ~chatplayer("<p,happy>I have returned your son to his normal state!");
+        ~chatnpc("<p,shock>And you've spoken to him?!?");
+        ~chatplayer("<p,confused>Er, no, sorry. I just came back here to tell you.");
+        ~chatnpc("<p,angry>What are you waiting for, bring him back to me!");
 }
 
 // =========================================================================== Tolna
 // He only renders here at soulbane_tolna_pres=1, which the climb out of the rift sets, and the
-// quest completes when you talk to him - "talk again [on the surface] to complete the quest".
+// quest completes when you talk to him ("Talking to Tolna on the surface").
 [opnpc1,soulbane_tolna_multi]
 if (%soulbane_prog >= ^soulbane_complete) {
-    ~chatnpc("<p,neutral>I'll keep an eye on the rift. Whatever was in there left a lot of creatures behind - good practice for anyone brave enough.");
+    ~chatplayer("<p,neutral>Hello Tolna.");
+    ~chatnpc("<p,neutral>There is a part of the rift that is perfectly laid out for combat training, and remnants of my subconscious remain in there. You're welcome to go down there and practice fighting any time.");
     return;
 }
 if (%soulbane_prog ! ^soulbane_tolna | %soulbane_tolna_pres = ^soulbane_off) {
     return;
 }
-~chatnpc("<p,happy>Thank you, adventurer. If it weren't for you I'd still be down there, and so would my father.");
-~chatnpc("<p,sad>I should have listened to my parents. I went looking for the remains of an ancient people, and the ground opened up and swallowed me.");
-~chatnpc("<p,neutral>There was something down there with me - something old and powerful, watching. It fed on everything bad in me until that was all I was.");
-~chatplayer("<p,neutral>It's over now. Your mother has waited a long time for you.");
-~chatnpc("<p,happy>I know. I'm not going anywhere again.");
+~chatplayer("<p,neutral>Hello Tolna.");
+~chatnpc("<p,happy>Hi. Thanks again for saving me, I'm so glad to be out of that horrible place. I was foolish to ignore my parents' warnings when I ran away that day. Luckily I've been able to patch things up with them so they've");
+~chatnpc("<p,happy>returned home with peace of mind.");
+~chatplayer("<p,quiz>What exactly happened to you down there?");
+~chatnpc("<p,neutral>I managed to find the remnants of the ancient civilisation that the stories talked about. It seems people used to worship a god there years ago in numbers far greater than a simple cult following. Sadly there is little");
+~chatnpc("<p,neutral>remaining so I have nothing else to tell. As soon as I entered this area the ground swallowed me whole. I felt there was something watching, waiting. It's like there is some evil power under the ground that wanted me to");
+~chatnpc("<p,sad>suffer. As if it got some sort of empowerment from it. At least what ever it is, it doesn't want to reveal itself to the world yet...");
+~chatplayer("<p,neutral>At least we have a warning. Did you manage to retrieve anything?");
+~chatnpc("<p,neutral>Not really, just a few coins, which you're welcome to have.");
+~chatplayer("<p,quiz>Thanks. So what are you going to do now?");
+~chatnpc("<p,neutral>I've decided to keep open the rift. There is a part of it that is perfectly laid out for combat training and remnants of my subconscious remain in there. I want to show people the problems I have faced, so that they");
+~chatnpc("<p,neutral>may learn from them. You're welcome to go down there and practice fighting any time.");
+~chatplayer("<p,happy>Thanks.");
 if_close;
 @soulbane_finish;
 
@@ -86,6 +165,8 @@ if_close;
 // The rope stays: the rift goes on to Tolna's rift, the training dungeon, from now on. The warning
 // signs come down - there is nothing left down there anybody needs warning about.
 %soulbane_warning_pres = ^soulbane_off;
+%soulbane_launa_pres = ^soulbane_on;
+%soulbane_tolna_pres = ^soulbane_on;
 stat_advance(defence, 5000);
 stat_advance(hitpoints, 5000);
 session_log(^log_adventure, "Quest complete: A Soul's Bane");
