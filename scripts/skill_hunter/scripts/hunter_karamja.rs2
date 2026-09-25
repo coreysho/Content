@@ -1,0 +1,32 @@
+// Hunter - Karamja: the horned graahks' pitfalls, west of Shilo Village. See configs/hunter_karamja.loc
+// for the ground (474's pits, imported) and configs/hunter_karamja.constant for the numbers.
+//
+// Everything that is a pitfall lives in hunter_traps.rs2 and is the Feldip one: the five pits are the
+// Feldip Pit loc (loc474_19227), so setting the spiked logs, the jump, the slots, the cap, the leash,
+// a duration running out and [logout] need nothing here. What is the graahk's own is its tease and
+// its pit; the jump asks npc_type which animal came after you.
+
+[opnpc1,hunter_horned_graahk] @hunter_pit_tease(^hunter_graahk_level, "graahk", "horned graahks");
+
+// A graahk in the pit: Dismantle takes it out - big bones and graahk fur, and the map's pit back.
+[oploc2,hunter_pit_graahk] @hunter_trap_takeup(^hunter_catch_graahk);
+
+// ::karamja - a knife, five logs and a teasing stick, and to the Karamja hunter area: the take-off
+// tile south of the pit at 2777,3001. The dead trees round the pits chop for more logs. Pair with
+// ::hunter 750000 - 75,000 xp, just past level 41's 61,512 (the x10 form, as ::hunter takes it).
+[debugproc,karamja]
+if (p_finduid(uid) = false) {
+    return;
+}
+if (inv_total(inv, knife) < 1 & inv_freespace(inv) > 0) {
+    inv_add(inv, knife, 1);
+}
+def_int $logs = 0;
+while ($logs < 5 & inv_freespace(inv) > 0) {
+    inv_add(inv, logs, 1);
+    $logs = calc($logs + 1);
+}
+if (inv_total(inv, teasing_stick) < 1 & inv_freespace(inv) > 0) {
+    inv_add(inv, teasing_stick, 1);
+}
+p_telejump(0_43_46_25_56);

@@ -29,7 +29,7 @@ tp_existed = os.path.exists(tp)
 shutil.copy(os.path.join(C, 'tools', 'hunter_live.ts'), dst)
 failed = 0
 try:
-    PASSES = (('box', '70'), ('box', '40'), ('snare', '25'), ('snare', '10'), ('deadfall', '40'), ('deadfall', '30'), ('pitfall', '40'), ('tracking', '10'), ('cape', '50'),
+    PASSES = (('box', '70'), ('box', '40'), ('snare', '25'), ('snare', '10'), ('deadfall', '40'), ('deadfall', '30'), ('pitfall', '40'), ('graahk', '45'), ('tracking', '10'), ('cape', '50'),
               ('net', '40', 'canifis'), ('net', '50', 'uzer'), ('net', '40', 'uzer'), ('net', '60', 'ourania'), ('net', '70', 'boneyard'),
               ('desert', '20', 'devil'), ('desert', '20', 'warbler'), ('desert', '4', 'warbler'), ('desert', '20', 'shop'))
     for trap, level, *area in PASSES:
