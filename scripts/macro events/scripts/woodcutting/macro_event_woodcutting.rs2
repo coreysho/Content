@@ -2,6 +2,15 @@
 if (~macro_event_allowed = false) {
     return;
 }
+// 349 (its macro_randomwoodcuttingachey): a tree with no ent of its own cannot turn into one
+if (loc_param(ent) = null) {
+    switch_int (random(calc(~macro_event_general_count + 2))) {
+        case 0 : ~macro_event_dryad_spawn;
+        case 1 : ~macro_event_lost_axe_spawn;
+        case default : ~macro_event_general_spawn(~macro_event_set_random);
+    }
+    return;
+}
 switch_int (random(calc(~macro_event_general_count + 3))) {
     case 0 : ~macro_event_dryad_spawn;
     case 1 : ~macro_event_ent_spawn;
