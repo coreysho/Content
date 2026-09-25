@@ -1,10 +1,13 @@
 [oplocu,fountain_of_heroes]
 if (last_useitem = amulet_of_glory | last_useitem = amulet_of_glory_1 | last_useitem = amulet_of_glory_2 | last_useitem = amulet_of_glory_3) {
     def_int $slot = last_useslot;
-    mes("You dip the amulet in the fountain...");
-    anim(human_pickupfloor, 0);
+    // PlagueCityRS 349, from 2005-06 sources: no dipping anim and no delay before the objbox until the
+    // rework of (probably) May 2007, and the two messages below rather than "You dip the amulet...".
+    // no linebreak in mes in 2006 (https://i.imgur.com/oc5tZGV.png) / (https://i.imgur.com/irYaotF.png)
+    // pre rework no dipping anim, objbox instant (https://www.youtube.com/watch?v=5g-qEIkOmng&t=73s)
     inv_setslot(inv, $slot, amulet_of_glory_4, 1); // setslot in osrs
-    p_delay(1);
+    mes("You dip the amulet in the fountain...you feel a power emanating from it.");
+    mes("You can now rub the amulet to teleport and wear it to get more gems whilst mining.");
     ~objbox(amulet_of_glory_4, "You dip the amulet in the fountain...you feel a power emanating from it.|@dbl@Effect:@bla@ You can now rub the amulet to teleport and wear it to get more gems whilst mining.", 250, 0, -20);
     return;
 }
