@@ -22,8 +22,11 @@ And the Rellekka grounds at 60, 45 and 8:
 the map (spawns, boulders, pits, the trail's nodes and drifts, the ground walkable from the Keldagrim pass,
 the plateau's steps both ways), then a polar kebbit trail, both butterflies netted into jars and let out, a
 cerulean twitch in a snare, a sabre-toothed kebbit under a deadfall and a kyatt teased into a pit - each
-creature's level gate at the lower levels."""
-
+creature's level gate at the lower levels.
+And imp catching with magic boxes north-east of Yanille at 75 (and at 65, below the 71 to lay one: the
+gate) - bait, a real catch, Retrieve, the imp's respawn, the cap, the leash, [logout] - and the
+imp-in-a-box's Talk-to, banking and limits. And Aleck's Hunter Emporium in Yanille: the refit, Aleck
+and Leon and their shops, a purchase, the butterfly net, the hunters' crossbow's level and ammunition."""
 import os, shutil, subprocess, sys
 
 C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -38,7 +41,8 @@ try:
     PASSES = (('box', '70'), ('box', '40'), ('snare', '25'), ('snare', '10'), ('deadfall', '40'), ('deadfall', '30'), ('pitfall', '40'), ('graahk', '45'), ('tracking', '10'), ('cape', '50'),
               ('net', '40', 'canifis'), ('net', '50', 'uzer'), ('net', '40', 'uzer'), ('net', '60', 'ourania'), ('net', '70', 'boneyard'),
               ('desert', '20', 'devil'), ('desert', '20', 'warbler'), ('desert', '4', 'warbler'), ('desert', '20', 'shop'),
-              ('rellekka', '60'), ('rellekka', '45'), ('rellekka', '8'))
+              ('rellekka', '60'), ('rellekka', '45'), ('rellekka', '8'),
+              ('imp', '75'), ('imp', '65'), ('emporium', '60'))
     for trap, level, *area in PASSES:
         env = dict(os.environ, HTRAP=trap, HLEVEL=level, HAREA=(area or [''])[0], BUILD_SRC_DIR=C, NODE_PRODUCTION='true', NODE_MEMBERS='true')
         r = subprocess.run(['npx', 'tsx', 'tools/_hunter_live.ts'], cwd=E, env=env, capture_output=True, text=True, timeout=900, shell=os.name == 'nt')

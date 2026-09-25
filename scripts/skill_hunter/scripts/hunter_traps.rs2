@@ -38,6 +38,9 @@
 // A NET TRAP is set on a young tree, and is two tiles: the tree, bent over, and the net on the tile it
 // faces. Everything about it that is not the shared loop lives in hunter_nettrap.rs2.
 //
+// A MAGIC BOX (kind 7) is laid like a box trap and catches imps; the box becomes an imp-in-a-box. Its
+// lure, its Retrieve and the imp-in-a-box live in hunter_imps.rs2.
+//
 // No experience for laying, dismantling or resetting a collapsed trap - OSRS pays only for a catch.
 
 // ------------------------------------------------------------------------------------ laying
@@ -79,6 +82,8 @@ if ($slot = 0 | ~area_allow_loc_add($at) = false) {
 ~hunter_trap_set($slot, $at);
 if ($trap = hunter_bird_snare) {
     ~hunter_trap_set_kind($slot, ^hunter_kind_snare);
+} else if ($trap = magic_box) {
+    ~hunter_imp_box_laid($slot);
 } else {
     ~hunter_trap_set_kind($slot, ^hunter_kind_box);
 }
@@ -534,6 +539,8 @@ if (loc_find($at, $type) = true) {
         case hunter_snare_catching_warbler : loc_change(hunter_snare_caught_warbler, ^hunter_trap_duration);
         case hunter_deadfall_set : ~hunter_trap_lure_deadfall($at);
         case hunter_snare_catching_twitch : loc_change(hunter_snare_caught_twitch, ^hunter_trap_duration);
+        case hunter_magicbox_laid : ~hunter_imp_lure($slot, $at);
+        case hunter_magicbox_catching : loc_change(hunter_magicbox_caught, ^hunter_trap_duration);
     }
 }
 return(true);
@@ -738,6 +745,7 @@ switch_int (~hunter_trap_kind($slot)) {
     case ^hunter_kind_deadfall : return(logs);
     case ^hunter_kind_pitfall : return(logs);
     case ^hunter_kind_nettrap : return(net);
+    case ^hunter_kind_magicbox : return(magic_box);
 }
 return(hunter_box_trap);
 
@@ -785,6 +793,10 @@ if (loc_find($at, hunter_snare_catching_twitch) = true) return(hunter_snare_catc
 if (loc_find($at, hunter_snare_caught_twitch) = true) return(hunter_snare_caught_twitch);
 if (loc_find($at, hunter_deadfall_sabretooth) = true) return(hunter_deadfall_sabretooth);
 if (loc_find($at, hunter_pit_kyatt) = true) return(hunter_pit_kyatt);
+if (loc_find($at, hunter_magicbox_laid) = true) return(hunter_magicbox_laid);
+if (loc_find($at, hunter_magicbox_failed) = true) return(hunter_magicbox_failed);
+if (loc_find($at, hunter_magicbox_catching) = true) return(hunter_magicbox_catching);
+if (loc_find($at, hunter_magicbox_caught) = true) return(hunter_magicbox_caught);
 return(null);
 
 // ------------------------------------------------------------------------------------ inventory

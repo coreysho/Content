@@ -1,0 +1,165 @@
+// Imported from a modern OSRS cache by tools/models/importosrs.py, except the imp-in-a-box, whose
+// model is the rev 474 one (tools/models/import474.py) - see below.
+// Models are RE-ENCODED from OSRS model format into the 317-family format
+// (tools/models/osrs2ob2.py); every one is round-trip verified before writing.
+// wearpos/wearpos2/wearpos3 come from the cache - do not hand-edit them.
+//
+// IMP CATCHING (scripts/hunter_imps.rs2): the magic box, and the imp-in-a-box it becomes.
+
+// OSRS obj 10025. Not stackable and 1 kg, as it was until OSRS changed both on 20 August 2025. The
+// cache's five recolours (HSL16 18343, 52017, 11187, 40871, 685) match no face of model 19969 -
+// tools/models/ob2render.py says so for every one - so they are left out rather than carried as noise:
+// in 2006 an empty magic box and an imp-in-a-box looked the same, which is why OSRS redrew the imp box
+// in January 2020.
+[magic_box]
+name=Magic box
+desc=A magical catching box.
+model=obj_magic_box
+2dzoom=1070
+2dxan=164
+2dyan=1852
+2dyof=-4
+weight=1kg
+cost=600
+members=yes
+// op4 (Activate, from the ground) is OSRS's, but it lays the box where the obj lies rather than where
+// you stand, and nothing here handles that for any trap yet - commented out, as the box trap's is.
+// op4=Activate
+op5=hidden
+iop1=Activate
+
+// OSRS objs 10027 and 10028, on the REV 474 model 19970: the 2006 imp-in-a-box, which is the magic box
+// with the imp inside it and no different outside. OSRS's 19970 is the January 2020 redraw with the
+// imp's face on the panel. Talk-to, and Bank - which opens the deposit box interface for the imp - and
+// any item used on it is banked too. Two charges: (2) -> (1) -> an empty magic box again.
+[imp_box_2]
+name=Imp-in-a-box(2)
+desc=A full magical catching box.
+model=obj_imp_box
+2dyof=-4
+2dzoom=1070
+2dxan=164
+2dyan=1852
+weight=1kg
+iop1=Talk-to
+iop2=Bank
+cost=600
+members=yes
+tradeable=no
+
+[imp_box_1]
+name=Imp-in-a-box(1)
+desc=A half-full magical catching box.
+model=obj_imp_box
+2dyof=-4
+2dzoom=1070
+2dxan=164
+2dyan=1852
+weight=1kg
+iop1=Talk-to
+iop2=Bank
+cost=600
+members=yes
+tradeable=no
+
+// OSRS obj 10010. The build nets butterflies by USING a net on them (hunter_butterflies.rs2 - the
+// butterflies carry no op), and takes this or the small fishing net. Wieldable, as the fishing net is
+// and as OSRS's is; OSRS's third op, Check totals, came with the implings and is not here.
+[butterfly_net]
+name=Butterfly net
+desc=For catching butterflies...
+model=obj_butterfly_net
+manwear=obj_butterfly_net_manwear,0
+womanwear=obj_butterfly_net_womanwear,6
+wearpos=righthand
+2dzoom=1440
+2dxan=152
+2dyan=1956
+2dxof=-7
+2dyof=1
+weight=226g
+cost=20
+members=yes
+iop2=Wield
+
+// LEON'S (scripts/hunter_imps.rs2, the Emporium section). OSRS objs 10156, 10158 and 10159: the one
+// crossbow that fires kebbit bolts, and the only bolts it fires (~player_ranged_check_ammo). OSRS's
+// numbers: Ranged 50, +55 ranged attack, speed 4, range 8; bolts +28 and +38 ranged strength.
+[hunters_crossbow]
+name=Hunters' crossbow
+desc=A weapon made of bone and wood.
+model=obj_hunters_crossbow
+manwear=obj_hunters_crossbow_manwear,0
+womanwear=obj_hunters_crossbow_womanwear,0
+wearpos=righthand
+2dzoom=1330
+2dxan=236
+2dyan=128
+2dxof=-6
+2dyof=-36
+weight=5000g
+cost=1300
+members=yes
+iop2=Wield
+category=weapon_crossbow
+param=rangeattack,55
+param=levelrequire,50
+param=attackrate,4
+param=attackrange,8
+param=rangeattack_anim,osrs_crossbow_fire
+param=ready_baseanim,osrs_crossbow_ready
+param=turnonspot_baseanim,osrs_human_turnonspot
+param=walk_f_baseanim,osrs_crossbow_walk
+param=walk_b_baseanim,osrs_crossbow_walk
+param=walk_l_baseanim,osrs_crossbow_walk
+param=walk_r_baseanim,osrs_crossbow_walk
+param=running_baseanim,osrs_crossbow_run
+param=defend_anim,human_unarmedblock
+param=rangeattack_sound,crossbow
+param=damagetype,^ranged_style
+
+[cert_hunters_crossbow]
+certlink=hunters_crossbow
+certtemplate=template_for_cert
+
+[kebbit_bolts]
+name=Kebbit bolts
+desc=Bolts made from the spikes of a prickly kebbit.
+model=obj_kebbit_bolts
+wearpos=quiver
+2dzoom=790
+2dxan=1788
+2dyan=308
+recol1s=24311
+recol1d=27435
+recol2s=28539
+recol2d=28494
+recol3s=32767
+recol3d=32722
+weight=5g
+cost=18
+members=yes
+stackable=yes
+iop2=Wield
+category=bolts
+param=rangebonus,28
+param=proj_launch,osrs_crossbowbolt_launch
+param=proj_travel,crossbowbolt_travel
+
+[long_kebbit_bolts]
+name=Long kebbit bolts
+desc=Bolts made from the spikes of a razor-backed kebbit.
+model=obj_long_kebbit_bolts
+wearpos=quiver
+2dzoom=790
+2dxan=1788
+2dyan=308
+weight=5g
+cost=31
+members=yes
+stackable=yes
+iop2=Wield
+category=bolts
+param=rangebonus,38
+param=proj_launch,osrs_crossbowbolt_launch
+param=proj_travel,crossbowbolt_travel

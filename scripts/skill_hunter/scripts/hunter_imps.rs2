@@ -1,0 +1,300 @@
+// Hunter - imp catching with a magic box, the imp-in-a-box, and Aleck's Hunter Emporium in Yanille
+// (Aleck and Leon). See configs/hunter_imps.constant for the numbers and configs/hunter_emporium.loc
+// for the shop's building.
+//
+// THE MAGIC BOX is a trap of the shared loop (hunter_traps.rs2), kind 7: laid from the pack at your
+// feet, and looked at by the owner's timer like any box trap -
+//
+//     laid  --an imp wanders within ^hunter_trap_lure_radius, 1 in ^hunter_trap_lure_chance,
+//             and the owner is not standing on the box-->  roll:  pass -> catching -> caught (Retrieve)
+//                                                                 fail -> failed (Deactivate)
+//
+// Retrieve pays 450 xp and turns the box itself into an Imp-in-a-box(2): the box is not handed back
+// as well, because it is the imp's box now. Deactivate takes up an empty or failed box. The imps are
+// the world's own (npc 708, the Imp Catcher imps): npc_del respawns one at its own rate, and it drops
+// its beads only when it dies, so catching changes nothing about Imp Catcher.
+
+// ------------------------------------------------------------------------------------ the box
+
+[opheld1,magic_box] @hunter_trap_lay(magic_box, ^hunter_magicbox_level, hunter_magicbox_laid);
+
+// Called by [label,hunter_trap_lay] once the slot is claimed: the kind, and no bait left over from
+// the last box in this slot.
+[proc,hunter_imp_box_laid](int $slot)
+~hunter_trap_set_kind($slot, ^hunter_kind_magicbox);
+~hunter_imp_bait_set($slot, false);
+
+[oploc1,hunter_magicbox_laid] @hunter_trap_takeup(^hunter_catch_none);
+[oploc1,hunter_magicbox_failed] @hunter_trap_takeup(^hunter_catch_none);
+[oploc2,hunter_magicbox_laid] @hunter_trap_investigate;
+
+// Retrieve: the imp, in its box. Nothing else comes back - the box is the catch.
+[oploc1,hunter_magicbox_caught]
+def_int $slot = ~hunter_trap_slot(loc_coord);
+if ($slot = 0) {
+    mes("This isn't your trap.");
+    return;
+}
+if (inv_freespace(inv) < 1) {
+    mes("You don't have enough inventory space.");
+    return;
+}
+def_coord $at = loc_coord;
+anim(human_hunter_check_trap, 0);
+sound_synth(disarm_trap, 1, 0);
+// As in ~hunter_trap_takeup: the loc goes and the slot is freed before anything is paid, with no
+// yield between, so a second click finds nothing to retrieve.
+loc_del(1);
+~hunter_trap_set($slot, null);
+inv_add(inv, imp_box_2, 1);
+mes("You've caught an imp.");
+~hunter_xp(^hunter_imp_xp);
+facesquare($at);
+
+// Bait: any Imp Catcher bead, on your own laid box, once. OSRS's +3%.
+[oplocu,hunter_magicbox_laid]
+def_obj $bead = last_useitem;
+if ($bead ! black_bead & $bead ! red_bead & $bead ! white_bead & $bead ! yellow_bead) {
+    ~displaymessage(^dm_default);
+    return;
+}
+def_int $slot = ~hunter_trap_slot(loc_coord);
+if ($slot = 0) {
+    mes("This isn't your trap.");
+    return;
+}
+if (~hunter_imp_baited($slot) = true) {
+    mes("The box is already baited.");
+    return;
+}
+inv_del(inv, $bead, 1);
+~hunter_imp_bait_set($slot, true);
+mes("You bait the magic box with the <lowercase(oc_name($bead))>.");
+
+// A laid box and the imps around it - called from ~hunter_trap_tick, which has already seen to the
+// leash. Nothing goes in while the owner stands on the box, as in OSRS; the owner could stand there
+// for ever otherwise and let the imps come to them.
+[proc,hunter_imp_lure](int $slot, coord $at)
+if (random(^hunter_trap_lure_chance) ! 0) {
+    return;
+}
+if (stat(hunter) < ^hunter_imp_level | coord = $at) {
+    return;
+}
+if (npc_find($at, imp, ^hunter_trap_lure_radius, 0) = false) {
+    return;
+}
+def_int $low = ^hunter_imp_low;
+def_int $high = ^hunter_imp_high;
+if (~hunter_imp_baited($slot) = true) {
+    // the bait is taken whether the imp is caught or not
+    ~hunter_imp_bait_set($slot, false);
+    $low = calc($low + ^hunter_imp_bait_bonus);
+    $high = calc($high + ^hunter_imp_bait_bonus);
+}
+~hunter_trap_spring(hunter_magicbox_catching, hunter_magicbox_failed, $low, $high);
+
+[proc,hunter_imp_baited](int $slot)(boolean)
+if (testbit(%hunter_imp_bait, calc($slot - 1)) = ^true) {
+    return(true);
+}
+return(false);
+
+[proc,hunter_imp_bait_set](int $slot, boolean $on)
+if ($on = true) {
+    %hunter_imp_bait = setbit(%hunter_imp_bait, calc($slot - 1));
+} else {
+    %hunter_imp_bait = clearbit(%hunter_imp_bait, calc($slot - 1));
+}
+
+// ---------------------------------------------------------------------------- the imp-in-a-box
+
+// Talk-to. The OSRS imp is a cheeky, cramped one that will bank two things for its freedom; these are
+// its lines in this build's words. No <p,...> moods: its chathead is an imp's, and 377's chat
+// animations are made for a human face (configs/hunter_emporium.npc, imp_in_a_box).
+[opheld1,imp_box_2] @hunter_imp_talk(2);
+[opheld1,imp_box_1] @hunter_imp_talk(1);
+
+[label,hunter_imp_talk](int $charges)
+if ($charges = 2) {
+    ~chatnpc_specific("Imp", imp_in_a_box, "Oi! Mind 'ow you shake this thing. It's dark in 'ere, and there's no room to swing a newt.");
+} else {
+    ~chatnpc_specific("Imp", imp_in_a_box, "You again? One more job and I'm off, remember. That was the deal.");
+}
+switch_int (~p_choice2("What can you do for me?", 1, "Nothing. Go back to sleep.", 2)) {
+    case 1 :
+        ~chatplayer("<p,quiz>What can you do for me?");
+        ~chatnpc_specific("Imp", imp_in_a_box, "Tell you what. Give me something - one thing, or one stack of 'em - and I'll 'op off and put it in your bank.");
+        ~chatnpc_specific("Imp", imp_in_a_box, "Do that twice and we're square, and you get your box back. Use the thing on the box, or ask me to bank and pick it out.");
+    case 2 :
+        ~chatplayer("<p,neutral>Nothing. Go back to sleep.");
+        ~chatnpc_specific("Imp", imp_in_a_box, "Sleep? In 'ere? Charming.");
+}
+
+// Bank: the deposit box interface, the imp's for as long as it is open (%hunter_imp_bank; see
+// [label,deposit_box_deposit] in interface_bank). Its title says whose it is; the deposit box's own
+// opener sets both back.
+[opheld2,imp_box_2] @hunter_imp_bank_open;
+[opheld2,imp_box_1] @hunter_imp_bank_open;
+
+[label,hunter_imp_bank_open]
+if (~hunter_imp_bank_allowed = false) {
+    return;
+}
+if_openmain(inter_95);
+%hunter_imp_bank = true;
+if_settext(inter_95:com_60, "Imp-in-a-box - choose an item for the imp to bank");
+if_settab(null, 3);
+if_settab(null, 4);
+inv_transmit(inv, inter_95:com_62);
+
+// Any item used on an imp-in-a-box is banked by that box's imp.
+[opheldu,imp_box_2] @hunter_imp_bank_item(last_useslot, imp_box_2);
+[opheldu,imp_box_1] @hunter_imp_bank_item(last_useslot, imp_box_1);
+
+// A click in the imp's deposit box: the box that pays for it is a half-full one first, so a player
+// with both keeps the full one full.
+[label,hunter_imp_bank_slot](int $slot)
+def_namedobj $box = imp_box_1;
+if (inv_total(inv, imp_box_1) = 0) {
+    $box = imp_box_2;
+}
+if (inv_total(inv, $box) = 0) {
+    if_close;
+    return;
+}
+@hunter_imp_bank_item($slot, $box);
+
+[label,hunter_imp_bank_item](int $slot, namedobj $box)
+def_obj $item = inv_getobj(inv, $slot);
+if ($item = null) {
+    return;
+}
+if ($item = imp_box_2 | $item = imp_box_1) {
+    mes("The imp isn't carrying its own box to the bank.");
+    return;
+}
+if (~hunter_imp_bank_allowed = false) {
+    if_close;
+    return;
+}
+// Everything a bank refuses, the imp refuses the same way, with the bank's own message.
+if (~bank_check_nobreak($item) = true) {
+    return;
+}
+// One item, or the whole stack of a stackable one.
+def_int $amount = 1;
+if (oc_stackable($item) = true) {
+    $amount = inv_total(inv, $item);
+}
+def_int $before = inv_total(inv, $item);
+~bank_deposit_request(inv, $item, $amount, $slot);
+if (inv_total(inv, $item) >= $before) {
+    // the bank was full, or already held a full stack - it has said so; the imp has not gone anywhere
+    return;
+}
+spotanim_pl(smokepuff, 0, 0);
+sound_synth(smokepuff, 1, 0);
+inv_del(inv, $box, 1);
+if ($box = imp_box_2) {
+    inv_add(inv, imp_box_1, 1);
+    mes("The imp teleports away, taking the item to your bank, and pops back into the box.");
+    return;
+}
+inv_add(inv, magic_box, 1);
+mes("The imp teleports away, taking the item to your bank - and does not come back. Your box is empty.");
+if_close;
+
+// OSRS: not above level 30 of the Wilderness.
+[proc,hunter_imp_bank_allowed]()(boolean)
+if (~wilderness_level(coord) > 30) {
+    mes("The imp can't reach your bank from this deep in the Wilderness.");
+    return(false);
+}
+return(true);
+
+// ---------------------------------------------------------------------- Aleck's Hunter Emporium
+
+// Aleck: Talk-to (OSRS's three answers, in this build's words) and Trade (op5, where the cache has it).
+[opnpc1,aleck]
+~chatnpc("<p,happy>Welcome to Aleck's Hunter Emporium! Everything a hunter needs - traps, nets, jars, boxes - and what I haven't got, you don't need. What can I do for you?");
+switch_int (~p_choice3("Ok, let's see what you've got!", 1, "I'm not interested, thanks.", 2, "Who's that guy over there?", 3)) {
+    case 1 :
+        ~chatplayer("<p,happy>Ok, let's see what you've got!");
+        ~openshop_activenpc;
+    case 2 :
+        ~chatplayer("<p,neutral>I'm not interested, thanks.");
+        ~chatnpc("<p,neutral>Suit yourself. You know where I am when you need a trap.");
+    case 3 :
+        ~chatplayer("<p,quiz>Who's that guy over there?");
+        ~chatnpc("<p,bored>Him? Leon. Keeps trying to get me to sell those contraptions of his - crossbows made of bone, if you please.");
+        ~chatnpc("<p,bored>I can't see them working myself. Mad as a box of chinchompas, if you ask me.");
+}
+
+[opnpc5,aleck] ~openshop_activenpc;
+
+// Leon sells his one crossbow (op3) and makes its bolts (op4, Ammo). OSRS 2006: one kebbit spike and
+// 20 coins for six kebbit bolts, a long kebbit spike and 40 coins for six long ones (twelve since 2024).
+// The spikes come from tracking prickly and razor-backed kebbits, in the Piscatoris hunting area,
+// which this build does not have yet - so Ammo is Leon's offer and his price, and the trade itself
+// waits for the spikes.
+[opnpc1,leon]
+~chatnpc("<p,happy>Ah, a hunter! You look like someone who appreciates a well-made weapon.");
+switch_int (~p_choice3("What are you selling?", 1, "What do you make bolts from?", 2, "No thanks.", 3)) {
+    case 1 :
+        ~chatplayer("<p,quiz>What are you selling?");
+        ~chatnpc("<p,happy>My own design - a crossbow of bone and wood. Light, quick, and it fires bolts made from kebbit spikes. Nothing else, mind; it's particular.");
+        ~openshop_activenpc;
+    case 2 :
+        ~chatplayer("<p,quiz>What do you make bolts from?");
+        @leon_ammo_offer;
+    case 3 :
+        ~chatplayer("<p,neutral>No thanks.");
+        ~chatnpc("<p,neutral>Your loss. Aleck'll come round to them one of these days.");
+}
+
+[opnpc3,leon] ~openshop_activenpc;
+[opnpc4,leon] @leon_ammo_offer;
+
+[label,leon_ammo_offer]
+~chatnpc("<p,neutral>Kebbit spikes. Bring me a spike from a prickly kebbit and 20 coins, and I'll turn it into six kebbit bolts.");
+~chatnpc("<p,neutral>The long spikes off a razor-backed kebbit make long kebbit bolts - six for a spike and 40 coins. Those kebbits are up Piscatoris way.");
+~chatnpc("<p,sad>You haven't any spikes on you, though. Come back when you have.");
+
+// Ranged 50 to wield, as in OSRS; the level check every crossbow has (levelrequire/scripts/crossbows.rs2).
+[opheld2,hunters_crossbow] @levelrequire_ranged(50, last_slot);
+
+// Called by ~player_ranged_check_ammo: the hunters' crossbow fires kebbit bolts and nothing else, and
+// kebbit bolts fire from nothing else.
+[proc,hunter_crossbow_ammo_ok](obj $rhand, obj $ammo)(boolean)
+def_boolean $kebbit = false;
+if ($ammo = kebbit_bolts | $ammo = long_kebbit_bolts) {
+    $kebbit = true;
+}
+if ($rhand = hunters_crossbow & $kebbit = false) {
+    return(false);
+}
+if ($rhand ! hunters_crossbow & $kebbit = true) {
+    return(false);
+}
+return(true);
+
+// ------------------------------------------------------------------------------------- testing
+
+// ::imps - five magic boxes and a bead of each colour, and to the imps north-east of Yanille (m40_48,
+// eight of them round the fields by the Watchtower). Pair with ::hunter 8500000 - 850,000 xp, just past
+// level 71's 847,277 - to lay a box.
+[debugproc,imps]
+if (p_finduid(uid) = false) {
+    return;
+}
+def_int $n = 0;
+while ($n < 5 & inv_total(inv, magic_box) < 5 & inv_freespace(inv) > 0) {
+    inv_add(inv, magic_box, 1);
+    $n = calc($n + 1);
+}
+if (inv_total(inv, black_bead) < 1 & inv_freespace(inv) > 0) inv_add(inv, black_bead, 1);
+if (inv_total(inv, red_bead) < 1 & inv_freespace(inv) > 0) inv_add(inv, red_bead, 1);
+if (inv_total(inv, white_bead) < 1 & inv_freespace(inv) > 0) inv_add(inv, white_bead, 1);
+if (inv_total(inv, yellow_bead) < 1 & inv_freespace(inv) > 0) inv_add(inv, yellow_bead, 1);
+p_telejump(0_40_48_50_52);

@@ -1,0 +1,23 @@
+// ---------------------------------------------------------------------------------------------
+// IMP CATCHING (2026-09-25). A magic box, laid like a box trap, catches the imps that wander every
+// town and field - the same imps (npc 708) that drop the Imp Catcher beads, and nothing about them
+// changes: a caught imp is npc_del'd, which respawns it at its own respawnrate as a netted butterfly
+// is, and it only drops anything when it dies. OSRS's numbers (the wiki's Magic box and Imp pages):
+// Hunter 71 to lay one and to catch one, 450 xp, and an Imp-in-a-box(2).
+//
+// Trap kind 7 in the framework (scripts/hunter_traps.rs2, the three bits of %hunter_trap_kinds): the
+// magic box shares the five slots, the cap, the owner's timer, the leash, the fall-over and [logout].
+^hunter_kind_magicbox = 7
+^hunter_magicbox_level = 71
+^hunter_imp_level = 71
+^hunter_imp_xp = 4500
+
+// The roll. The wiki gives imp catching's rate outright - 0% at level 1 rising in a straight line to
+// 77% at 99 - and these put stat_random on it: at 99, (196 + 1)/256 = 77.0%; at 71, 140/256 = 54.7%
+// against the wiki's 55.0%; at 1, nothing.
+^hunter_imp_low = -1
+^hunter_imp_high = 196
+
+// A bead (any of the four Imp Catcher beads) used on a laid box as bait adds 3% - the wiki's figure.
+// 8/256 on both ends of the roll is +3.1% at every level.
+^hunter_imp_bait_bonus = 8

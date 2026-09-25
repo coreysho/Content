@@ -1,9 +1,17 @@
-[inv_button1,inter_95:com_62] @bank_deposit(last_slot, 1);
-[inv_button2,inter_95:com_62] @bank_deposit(last_slot, 5);
-[inv_button3,inter_95:com_62] @bank_deposit(last_slot, 10);
-[inv_button4,inter_95:com_62] @bank_deposit(last_slot, ^max_32bit_int);
-[inv_button5,inter_95:com_62] @bank_deposit(last_slot, null);
+[inv_button1,inter_95:com_62] @deposit_box_deposit(last_slot, 1);
+[inv_button2,inter_95:com_62] @deposit_box_deposit(last_slot, 5);
+[inv_button3,inter_95:com_62] @deposit_box_deposit(last_slot, 10);
+[inv_button4,inter_95:com_62] @deposit_box_deposit(last_slot, ^max_32bit_int);
+[inv_button5,inter_95:com_62] @deposit_box_deposit(last_slot, null);
 [inv_buttond,inter_95:com_62] inv_movetoslot(inv, inv, last_slot, last_targetslot);
+
+// The deposit box an imp-in-a-box's Bank op opens is the imp's: it banks the item itself and uses up a
+// charge (skill_hunter/scripts/hunter_imps.rs2). A real deposit box clears %hunter_imp_bank when it opens.
+[label,deposit_box_deposit](int $slot, int $requested_number)
+if (%hunter_imp_bank = true) {
+    @hunter_imp_bank_slot($slot);
+}
+@bank_deposit($slot, $requested_number);
 
 [if_close,inter_95]
 inv_stoptransmit(inter_95:com_62);
@@ -16,6 +24,8 @@ if_settab(wornitems, ^tab_wornitems);
 // https://youtu.be/HxwZF7ZBGos?si=HfkHOPtJ0vjTEfTW&t=66
 [oploc1,loc_9398]
 if_openmain(inter_95);
+%hunter_imp_bank = false;
+if_settext(inter_95:com_60, "The Bank of Gielinor - Deposit Box"); // an imp-in-a-box retitles it
 // hide inv and worn
 if_settab(null, 3);
 if_settab(null, 4);
