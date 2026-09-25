@@ -39,10 +39,11 @@ if(last_useitem = ground_bat_bones) {
 ~attempt_brew_potion(last_useslot, last_slot);
 
 [opheldu,tarrominvial]
-// Shades of Mort'ton: ashes in a tarromin potion is Serum 207 (quests/quest_mortton/scripts/quest_mortton.rs2)
-if (last_useitem = ashes) {
-    @mortton_make_serum;
-}
+// Shades of Mort'ton: ashes in a tarromin potion is Serum 207 (the mort_serum3_tarrominvial struct)
+~attempt_brew_potion(last_useslot, last_slot);
+
+// Shades of Mort'ton: tarromin in a vial of ashes and water is Serum 207 too (mort_serum3_ashesvial)
+[opheldu,ashesvial]
 ~attempt_brew_potion(last_useslot, last_slot);
 
 [opheldu,harralandervial]
@@ -126,6 +127,12 @@ if (~herblore_requires_druidic_ritual = false) {
 
 if (map_members = ^false) {
     mes(^mes_members_herblore);
+    return(false);
+}
+
+// Shades of Mort'ton: Herbi Flax's recipe, so only for somebody who has read his diary
+if(($struct = ashesvial | $struct = mort_serum3_tarrominvial | $struct = mort_serum3_ashesvial) & %morttonquest < ^mortton_read_diary) {
+    mes("You're not sure what effect this might have.");
     return(false);
 }
 

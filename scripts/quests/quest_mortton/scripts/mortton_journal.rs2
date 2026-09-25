@@ -1,95 +1,140 @@
+// https://youtu.be/WIzjtcXkv7M?si=Om_geSsyfYgbpXNv&t=125
 [if_button,questlist:mortton]
 def_string $text;
 
-if (%morttonquest >= ^mortton_complete) {
-    $text = "@str@Mort'ton was not diseased. It was being worn away by the|";
-    $text = append($text, "@str@shades, and the temple flame that used to keep them out|");
-    $text = append($text, "@str@had been dark long enough that nobody left alive could|");
-    $text = append($text, "@str@remember it lit.|");
-    $text = append($text, "@str@Herbi Flax's diary gave me enough serum to get a sentence|");
-    $text = append($text, "@str@out of Razmire and Ulsquire, and between them they knew what|");
-    $text = append($text, "@str@the flame was for: not warmth, but burning the shades|");
-    $text = append($text, "@str@properly.||");
-    $text = append($text, "@red@QUEST COMPLETE!");
+if(%morttonquest = 0) {
+    $text = "@dbl@I can start this quest by exploring the town of @dre@Mort'ton@dbl@ which is accessible from the southern edge of @dre@Mort Myre@dbl@.";
+    ~quest_journal("Shades of Mort'ton", $text);
+    return;
+} else if (%morttonquest = ^mortton_quest_complete) {
+    $text = "@str@I travelled to the town of Mort'ton where the people had an|@str@affliction. I found the diary of 'Herbi Flax' and managed to|@str@work out the ingredients for a special serum. The serum|@str@worked on the afflicted and I was able to speak to several|@str@villagers.|@str@After slaying five shades and helping to rebuild a sacred|@str@temple, I was able to put the shades spirits to rest. The|@str@town has pretty much returned to normal, except for all the|@str@shade activity, but now I have a way to put the shades|@str@spirits to rest and gain access to their treasure filled lairs!|";
+    $text = append($text, "@red@QUEST COMPLETE!"); 
     ~quest_journal("Shades of Mort'ton", $text);
     return;
 }
-
-if (%morttonquest >= ^mortton_kill_shades & %morttonquest < ^mortton_killed_5_shades) {
-    // The five tally stages are five apart, so the count is arithmetic rather than five branches.
-    def_int $killed = calc((%morttonquest - ^mortton_kill_shades) / 5);
-    $text = "@str@Razmire came back far enough to explain: the shades are|";
-    $text = append($text, "@str@using the town up, and the temple flame used to keep them|");
-    $text = append($text, "@str@out of it.|");
-    $text = append($text, "@dbl@I have put down @dre@<tostring($killed)>@dbl@ of @dre@<tostring(^mortton_shades_needed)>@dbl@ shades");
-    ~quest_journal("Shades of Mort'ton", $text);
-    return;
+if(%morttonquest >= ^mortton_read_diary) {
+    $text = "@str@I can start this quest by exploring the town of Mort'ton|@str@which is accessible from the southern edge of Mort Myre.|";
+} 
+if (%morttonquest >= ^mortton_made_serum) {
+    $text = append($text, "@str@I made my way down through Mort Myre and found the town|@str@of Mort'ton. I discovered a diary which had some notes on|@str@a special serum in it. I made the serum.|");
+}
+if (%morttonquest >= ^mortton_kill_shades) {
+    $text = append($text, "@str@I made serum 207 from tarromin, water and ashes by using|@str@Herbi Flax's diary. I wonder what the serum is used for?|");
+    $text = append($text, "@str@I used the serum on a local NPC and I've been able to ask|@str@a few questions about the place.|");
+    if (%morttonquest = ^mortton_kill_shades) {
+        $text = append($text, "@dbl@I talked to @dre@Razmire Keelgan@dbl@ and he asked me to kill @dre@five shades@dbl@ for him. He seems to hate them!|");
+    } else {
+        $text = append($text, "@str@I talked to Razmire Keelgan and he asked me to kill five|@str@shades for him. He seems to hate them!|");
+    }
+}
+if (%morttonquest >= ^mortton_shades_to_razmire) {
+    $text = append($text, "@str@I've killed five shades and showed the remains to Razmire.|");
+    $text = append($text, "@str@Razmire told me to show the remains to Ulsquire.|");
+}
+if (%morttonquest >= ^mortton_shades_to_ulsquire) {
+    $text = append($text, "@str@I showed Ulsquire the shade remains and he gave me some|@str@information which may be useful.|");
+}
+if (%morttonquest >= ^mortton_rebuild_temple) {
+    $text = append($text, "@str@Ulsquire seems to know a lot about this area, he's quite|@str@interested in 'Flaemtaer temple' and wishes he could|@str@rebuild it.|");
+}
+if (%morttonquest >= ^mortton_can_light_altar) {
+    //Replaced timber beams with wooden planks (guess)
+    $text = append($text, "@str@I helped rebuild the temple using limestone bricks, wooden|@str@planks and nails.|");
+}
+if (%morttonquest >= ^mortton_created_sacred_oil) {
+    $text = append($text, "@str@When all of the temple walls were rebuilt, a fire altar|@str@appeared. The flame from the altar was sacred.|@str@I placed a flask of olive oil in the flame and it became|@str@sacred oil.|");
+}
+if (%morttonquest >= ^mortton_created_pyre_logs) {
+    $text = append($text, "@str@I used sacred oil on logs turning them into pyre logs.|");
+}
+if (%morttonquest >= ^mortton_logs_on_pyre) {
+    $text = append($text, "@str@I placed some pyre logs onto a funeral pyre.|");
+}
+if (%morttonquest >= ^mortton_lit_pyre) {
+    $text = append($text, "@str@I placed the shade remains on the pyre and set it on fire in|@str@order to put the Shades to rest.|");
 }
 
-switch_int (%morttonquest) {
-    case ^mortton_not_started :
-        $text = "@dbl@I can start this quest in @dre@Mort'ton@dbl@, south of|";
-        $text = append($text, "@dbl@@dre@Canifis@dbl@. Everyone there is too far gone to talk|");
-        $text = append($text, "@dbl@Something in the ruined houses may explain it");
+if(%morttonquest = ^mortton_read_diary) {
+    $text = append($text,"@dbl@I made my way down through @dre@Mort Myre@dbl@ and I found the town of @dre@Mort'ton@dbl@. ");
+    if (inv_total(inv, serum_book) = 0 & inv_total(bank, serum_book) = 0) {
+        $text = append($text, "I discovered a @dre@diary@dbl@ which had some interesting @dre@notes@dbl@ in it. @dbl@Maybe it was important?");
+    } else if (inv_total(bank, serum_book) > 0) {
+        $text = append($text, "I discovered a @dre@diary@dbl@ which had some interesting @dre@notes@dbl@ in it, I placed the book in my @dre@bank@dbl@.");
+    } else {
+        $text = append($text, "I've found a @dre@diary@dbl@ which has some interesting @dre@notes@dbl@ in it. Perhaps this can help me?");
+    }
+}
+if(%morttonquest = ^mortton_made_serum) {
+    if (testbit(%morttonmulti, ^mortton_used_serum_on_razmire) = ^true | testbit(%morttonmulti, ^mortton_used_serum_on_ulsquire) = ^true) {
+        $text = append($text, "@str@I made serum 207 from tarromin, water and ashes by|@str@using Herbi Flax's diary. I wonder what the serum is used|@str@for?|");
+        $text = append($text, "@dbl@I used the @dre@serum@dbl@ on a local NPC and I've been able to ask a few questions about the place.");
+    } else {
+        $text = append($text, "@dbl@I made @dre@serum 207@dbl@ from tarromin, water and ashes by using @dre@Herbi Flax's@dbl@ diary. I wonder what the @dre@serum@dbl@ is used for?");
+    }
+}
 
-    case ^mortton_read_diary :
-        $text = "@str@Herbi Flax's diary says the affliction is not a sickness -|";
-        $text = append($text, "@str@they are being worn away, and there is nothing left in them|");
-        $text = append($text, "@str@to fight it.|");
-        $text = append($text, "@dbl@Serum 207: a @dre@tarromin potion@dbl@ and a handful of @dre@ashes|");
-        $text = append($text, "@dbl@Mix the @dre@ashes@dbl@ into the @dre@potion@dbl@ to make it");
+if (%morttonquest = ^mortton_kill_shades) {
+    $text = append($text, "@dbl@I have to kill @dre@five@dbl@ shades.");
+} else if (%morttonquest = ^mortton_killed_1_shade) {
+    $text = append($text, "@dbl@I've killed @dre@one@dbl@ shade, I need to kill another @dre@four@dbl@.");
+} else if (%morttonquest = ^mortton_killed_2_shades) {
+    $text = append($text, "@dbl@I've killed @dre@two@dbl@ shades, I need to kill another @dre@three@dbl@.");
+} else if (%morttonquest = ^mortton_killed_3_shades) {
+    $text = append($text, "@dbl@I've killed @dre@three@dbl@ shades, I need to kill another @dre@two@dbl@.");
+} else if (%morttonquest = ^mortton_killed_4_shades) {
+    $text = append($text, "@dbl@I've killed @dre@four@dbl@ shades, I need to kill another @dre@one@dbl@.");
+} else if (%morttonquest = ^mortton_killed_5_shades) {
+    $text = append($text, "@dbl@I've killed all @dre@five shades@dbl@, I should return to @dre@Razmire@dbl@ now.");
+}
 
-    case ^mortton_made_serum :
-        $text = "@str@I have Serum 207.|";
-        $text = append($text, "@dbl@@dre@Razmire Keelgan@dbl@ is the one selling bricks. A dose might|");
-        $text = append($text, "@dbl@get a sentence out of him");
+if (%morttonquest = ^mortton_shades_to_razmire) {
+    $text = append($text, "@dbl@I should show the @dre@shade@dbl@ remains to @dre@Ulsquire@dbl@.");
+}
 
-    case ^mortton_killed_5_shades :
-        $text = "@str@Five shades down.|";
-        $text = append($text, "@dbl@I should tell @dre@Razmire");
+if (%morttonquest = ^mortton_shades_to_ulsquire) {
+    $text = append($text, "@dre@Ulsquire@dbl@ seems to know a lot about this area, maybe if I @dre@investigate@dbl@ around here a little more I can help the locals.");
+}
 
-    case ^mortton_shades_to_razmire :
-        $text = "@str@While the temple flame was lit the shades could not come|";
-        $text = append($text, "@str@into the town at all.|");
-        $text = append($text, "@dbl@@dre@Ulsquire Shauncy@dbl@ kept the temple records. He needs a dose|");
-        $text = append($text, "@dbl@of the serum too");
+if (%morttonquest = ^mortton_ulsquire_temple) {
+    $text = append($text, "@dre@Ulsquire@dbl@ seems to know a lot about this area, he's quite interested in @dre@'Flaemtaer temple'@dbl@ and wishes he could rebuild it.");
+}
 
-    case ^mortton_shades_to_ulsquire :
-        $text = "@str@Ulsquire has had a dose.|";
-        $text = append($text, "@dbl@I should hear what he has to say");
+if (%morttonquest = ^mortton_rebuild_temple) {
+    $text = append($text, "@dbl@I've started @dre@rebuilding@dbl@ the @dre@temple@dbl@ using @dre@limestone bricks@dbl@, @dre@wooden planks@dbl@ and @dre@nails@dbl@. I wonder what @dre@power@dbl@ the @dre@temple@dbl@ has, if any?|");
+    if (inv_totalcat(inv, olive_oil) > 0) {
+        $text = append($text, "@dbl@I have some @dre@olive oil@dbl@ which @dre@Ulsquire@dbl@ said may be useful when the @dre@temple@dbl@ is constructed.");
+    }
+}
 
-    case ^mortton_ulsquire_temple :
-        $text = "@str@Walls, then the altar, then oil, then wood, then a body,|";
-        $text = append($text, "@str@then a light. In that order or not at all.|");
-        $text = append($text, "@dbl@I need a @dre@hammer@dbl@, and for each repair a @dre@plank@dbl@, a|");
-        $text = append($text, "@dbl@@dre@limestone brick@dbl@ and @dre@5 swamp paste@dbl@ - Razmire sells them all -|");
-        $text = append($text, "@dbl@to @dre@repair the temple walls");
+if (%morttonquest = ^mortton_can_light_altar) {
+    $text = append($text, "@dbl@There must be some way to make use of the @dre@altar@dbl@ that appears in the @dre@middle@dbl@ of the @dre@temple@dbl@.");
+}
 
-    case ^mortton_rebuild_temple :
-        $text = "@str@The walls are going back up.|";
-        $text = append($text, "@dbl@@dre@<tostring(%temple_repaired_p)>@dbl@ of @dre@<tostring(^mortton_wall_levels)>@dbl@ courses laid");
+if (%morttonquest = ^mortton_created_sacred_oil) {
+    $text = append($text, "@dre@Ulsquire@dbl@ said something about putting the @dre@Shades@dbl@ to rest by giving them a @dre@holy cremation@dbl@, maybe this @dre@oil@dbl@ can help?");
+}
 
-    case ^mortton_can_light_altar :
-        $text = "@str@The temple is whole and the altar is an altar again.|";
-        $text = append($text, "@dbl@@dre@Light it@dbl@ with a tinderbox, then use @dre@olive oil@dbl@ on the|");
-        $text = append($text, "@dbl@flame to bless it");
+if (%morttonquest = ^mortton_created_pyre_logs) {
+    def_int $shade_count = inv_totalcat(inv, shade_remains);
+    def_int $pyre_log_count = inv_totalcat(inv, sacred_pyre_logs);
+    if($shade_count = 0 & $pyre_log_count = 0) {
+        $text = append($text, "@dbl@Maybe the @dre@pyre logs@dbl@ are connected to the @dre@Shade@dbl@ remains?|");        
+    } else if($shade_count > 0 & $pyre_log_count = 0) {
+        $text = append($text, "@dbl@I have some @dre@Shade@dbl@ remains, I need to find a way to put its @dre@spirit@dbl@ to rest.");
+    } else if($shade_count = 0 & $pyre_log_count > 0) {
+        $text = append($text, "@dbl@I have some @dre@pyre logs@dbl@, perhaps I can use these somehow to put a @dre@Shades spirit@dbl@ to rest.");
+    } else {
+        $text = append($text, "@str@Maybe the pyre logs are connected to the Shade remains?|");
+        $text = append($text, "@dbl@I have some @dre@Shade@dbl@ remains and I have some @dre@pyre logs@dbl@, I can now try to put a @dre@shades@dbl@ spirit to rest.");
+    }
+}
 
-    case ^mortton_created_sacred_oil :
-        $text = "@str@The altar is burning and I have sacred oil.|";
-        $text = append($text, "@dbl@Use the @dre@oil on logs@dbl@ to make pyre logs - plain logs take|");
-        $text = append($text, "@dbl@two doses from the one vial");
+if (%morttonquest = ^mortton_logs_on_pyre) {
+    $text = append($text, "@dbl@I need to put the @dre@shade remains@dbl@ on the @dre@funeral pyre@dbl@ and then @dre@light@dbl@ it in order to put the@dre@ shade spirit@dbl@ to rest.");
+}
 
-    case ^mortton_created_pyre_logs :
-        $text = "@str@I have pyre logs.|";
-        $text = append($text, "@dbl@Build a @dre@funeral pyre@dbl@ with them, then lay @dre@shade remains|");
-        $text = append($text, "@dbl@on it");
-
-    case ^mortton_logs_on_pyre :
-        $text = "@str@The pyre is built and the remains are on it.|";
-        $text = append($text, "@dbl@@dre@Light it");
-
-    case default :
-        $text = "@dbl@I can start this quest in @dre@Mort'ton@dbl@, south of @dre@Canifis";
+if (%morttonquest = ^mortton_lit_pyre) {
+    $text = append($text, "@dbl@The @dre@shades spirit@dbl@ was released, I should tell @dre@Ulsquire@dbl@.");
 }
 
 ~quest_journal("Shades of Mort'ton", $text);

@@ -4,6 +4,27 @@ if(oc_category(last_useitem) = potion) {
 }
 ~displaymessage(^dm_default);
 
+// Shades of Mort'ton's serums and oils decant like any potion (349: category_108/109/110; the sacred
+// oil's own [opheldu,_sacred_oil] is in minigames/game_mortton/scripts/mortton_pyre.rs2, as it also
+// makes pyre logs)
+[opheldu,_mort_serum]
+if(oc_category(last_useitem) = mort_serum) {
+    @decant_potion(last_item, last_useitem);
+}
+~displaymessage(^dm_default);
+
+[opheldu,_mort_serum_perm]
+if(oc_category(last_useitem) = mort_serum_perm) {
+    @decant_potion(last_item, last_useitem);
+}
+~displaymessage(^dm_default);
+
+[opheldu,_olive_oil]
+if(oc_category(last_useitem) = olive_oil) {
+    @decant_potion(last_item, last_useitem);
+}
+~displaymessage(^dm_default);
+
 [label,decant_potion](obj $potion, obj $used_potion)
 def_enum $potion_enum = ~get_potion_type($potion, $used_potion);
 if ($potion_enum = null) {

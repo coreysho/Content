@@ -1,6 +1,71 @@
 // Old saves onto the ported quest - see scripts/general/scripts/port349.rs2.
+//
+// The old version of Shades of Mort'ton used the same stage list as the original (it was built from
+// the constant file 349 ships), with two differences in what the numbers meant:
+//   - it ended at 80 (lighting the pyre). The original's 80 is ^mortton_lit_pyre - "go and tell
+//     Ulsquire" - and the quest is complete at 85, when he hears it.
+//   - 75 was "remains laid on the pyre" (the wood went on without a stage); the original's 75 is
+//     "logs on the pyre", with the remains and the light still to come.
+// Everything else it wrote: %morttonmulti bits 1 (^ulsquire_visible) and 3 (^razmire_visible) as a
+// permanent "cured", bits 0 and 2 (serum used on them), bit 8 (table searched, which gave nothing);
+// %temple_repaired_p as a count of courses laid (0-10, two per plank/brick/5-paste set); and
+// %temple_sanctity = 100 once the altar was lit. It never touched the %pyre_loc (9-13) or
+// %temple_resources (14-27) bits.
+//
+//   old stage                              new stage
+//   0  not started                         0   untouched
+//   5..70                                  same number: the same step of the same quest
+//   75 remains on the pyre                 70  ^mortton_created_pyre_logs - the loaded pyre was a
+//                                              temporary loc that a restart puts back empty, so they
+//                                              build it again (wood, remains, light)
+//   80 (old complete) and anything above   85  ^mortton_quest_complete - rewards were given at 80,
+//                                              so Ulsquire's [queue,mortton_quest_complete] (at 80)
+//                                              can never pay them a second time
+//
+// %morttonmulti:
+//   bits 1 and 3 cleared - in the original they are "lucid for the next 200 ticks", set by a dose and
+//   cleared by [queue,razmire_reset] / [queue,ulsquire_reset]; left set with no queue behind them,
+//   Razmire and Ulsquire would stay cured for that player for good.
+//   bits 0 and 2 kept - "has spoken to them lucid", which only picks the greeting.
+//   bit 8 cleared - the original's table search hands out three herbs once, and the old one gave
+//   nothing, so they get them.
+//   ^shadeattack (bit 4) and ^mortton_temple_fullpool_warning (bit 31) cleared - short timers.
+// %temple_resources: the temple is repaired from a resource pool now (a plank, a limestone brick
+//   and 5 swamp paste put 800 into it). Players at 55 or 60 spent sets on the old walls, so each set
+//   (two courses) is paid back into the pool rather than lost - at most the five the old walls took.
+// %temple_repaired_p, %temple_sanctity, %mortton_current_shade: temp in the original (recomputed
+//   from the walls, drained by a timer, set while a pyre burns) - the old values mean nothing there
+//   and are zeroed; they are no longer saved.
 [proc,port349_migrate_mortton]
 if (%port349_mortton = ^true) {
     return;
 }
+
+def_int $stage = %morttonquest;
+if ($stage > ^mortton_not_started) {
+    if ($stage >= ^mortton_lit_pyre) {
+        %morttonquest = ^mortton_quest_complete;
+    } else if ($stage = ^mortton_logs_on_pyre) {
+        %morttonquest = ^mortton_created_pyre_logs;
+    }
+
+    if ($stage = ^mortton_rebuild_temple | $stage = ^mortton_can_light_altar) {
+        def_int $sets = min(5, divide(%temple_repaired_p, 2));
+        if ($sets > 0) {
+            %temple_resources = min(15000, add(%temple_resources, multiply($sets, 800)));
+        }
+    }
+}
+
+// stale or transient bits, whatever the stage (the old version let anyone search the table)
+%morttonmulti = clearbit(%morttonmulti, ^ulsquire_visible);
+%morttonmulti = clearbit(%morttonmulti, ^razmire_visible);
+%morttonmulti = clearbit(%morttonmulti, ^shades_table_searched);
+%morttonmulti = clearbit(%morttonmulti, ^shadeattack);
+%morttonmulti = clearbit(%morttonmulti, ^mortton_temple_fullpool_warning);
+
+%temple_repaired_p = 0;
+%temple_sanctity = 0;
+%mortton_current_shade = null;
+
 %port349_mortton = ^true;
