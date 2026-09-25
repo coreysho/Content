@@ -1,0 +1,152 @@
+// Darkness under Lumbridge: the Lumbridge Swamp Caves, the Lost Tribe's tunnels behind the castle
+// cellar and the goblin maze, and the Dorgeshuun mine. Nothing was dark here before - you could
+// walk the whole maze without a light.
+//
+// OSRS wiki (Darkness, Light sources): these are level 3 dark areas. Every light carried or worn
+// takes a level off (a candle or torch 1, an oil lamp, oil lantern, sapphire lantern or lit mining
+// helmet 2, a bullseye lantern or the Firemaking cape 3), and the screen is dimmed by what is left.
+// With no light at all: "You hear tiny insects skittering over the ground..." after 9 seconds,
+// "Tiny biting insects swarm all over you!" after another 9, and a point of damage every tick from
+// then on until a light is lit or the dark is left behind. Near the Swamp Caves' rope the swarm
+// sends you back up it instead: "You manage to find your way to the exit."
+//
+// The 377 cache has the pieces: the darkness_level varbit on goblin_caves, and three viewport
+// overlays that are nothing but a black rectangle - inter_249 (trans 200), inter_250 (trans 150)
+// and inter_248 (trans 50), light to dark.
+//
+// A softtimer runs every tick while the player is in one of the three map squares (the mapzone
+// triggers below start and stop it), because the castle cellar shares m50_150 with the tunnels and
+// only part of that square is dark. The same tick check springs the goblin maze's traps
+// (quest_lost_tribe.rs2).
+
+[mapzone,0_49_149] ~darkness_start;
+[mapzone,0_50_149] ~darkness_start;
+[mapzone,0_50_150] ~darkness_start;
+[mapzone,0_51_150] ~darkness_start;
+[mapzoneexit,0_49_149] ~darkness_start;
+[mapzoneexit,0_50_149] ~darkness_start;
+[mapzoneexit,0_50_150] ~darkness_start;
+[mapzoneexit,0_51_150] ~darkness_start;
+
+[proc,darkness_start]
+if (~darkness_square(coord) = true) {
+    softtimer(cave_darkness, 1);
+    ~darkness_update;
+    return;
+}
+clearsofttimer(cave_darkness);
+~darkness_clear;
+
+[softtimer,cave_darkness]
+if (~darkness_square(coord) = false) {
+    clearsofttimer(cave_darkness);
+    ~darkness_clear;
+    return;
+}
+~darkness_update;
+~lost_tribe_trap_check;
+
+// Any of the three squares, whichever part of it: the timer keeps running in the cellar.
+[proc,darkness_square](coord $coord)(boolean)
+if (coordy($coord) ! 0) {
+    return(false);
+}
+if (inzone(^darkness_swamp_sw, ^darkness_swamp_ne, $coord) = true) {
+    return(true);
+}
+if (inzone(0_50_150_0_0, ^darkness_tunnels_ne, $coord) = true) {
+    return(true);
+}
+return(false);
+
+// The dark part of them.
+[proc,darkness_area](coord $coord)(boolean)
+if (coordy($coord) ! 0) {
+    return(false);
+}
+if (inzone(^darkness_swamp_sw, ^darkness_swamp_ne, $coord) = true) {
+    return(true);
+}
+if (inzone(^darkness_tunnels_sw, ^darkness_tunnels_ne, $coord) = true) {
+    return(true);
+}
+return(false);
+
+// Brightness of everything lit that the player has on them, worn or carried (OSRS wiki, Light
+// sources). Three or more is as good as daylight.
+[proc,darkness_brightness]()(int)
+def_int $light = 0;
+$light = add($light, inv_total(inv, lit_candle));
+$light = add($light, inv_total(inv, lit_black_candle));
+$light = add($light, inv_total(inv, torch_lit));
+$light = add($light, inv_total(inv, candle_lantern_lit));
+$light = add($light, inv_total(inv, candle_lantern_black_lit));
+$light = add($light, multiply(inv_total(inv, oil_lamp_lit), 2));
+$light = add($light, multiply(inv_total(inv, oil_lantern_lit), 2));
+$light = add($light, multiply(inv_total(inv, tog_sapphire_lantern_lit), 2));
+$light = add($light, multiply(inv_total(inv, cave_goblin_mining_helmet_lit), 2));
+$light = add($light, multiply(inv_total(worn, cave_goblin_mining_helmet_lit), 2));
+$light = add($light, multiply(inv_total(inv, bullseye_lantern_lit), 3));
+if (~skillcape_worn(firemaking) = true) {
+    $light = add($light, 3);
+}
+return(min($light, 3));
+
+[proc,darkness_update]
+def_int $dark = 0;
+if (~darkness_area(coord) = true) {
+    $dark = sub(3, ~darkness_brightness);
+}
+if ($dark ! %darkness_shown) {
+    switch_int ($dark) {
+        case 3 : if_openoverlay(inter_248);
+        case 2 : if_openoverlay(inter_250);
+        case 1 : if_openoverlay(inter_249);
+        case default : if_openoverlay(null);
+    }
+    %darkness_shown = $dark;
+}
+if ($dark < 3) {
+    %darkness_insect_ticks = 0;
+    return;
+}
+// 0-29 counting up (the warning at 15), 30 the swarm about to arrive, 31 swarming
+if (%darkness_insect_ticks < ^darkness_insect_ticks) {
+    %darkness_insect_ticks = add(%darkness_insect_ticks, 1);
+    if (%darkness_insect_ticks = ^darkness_warning_ticks) {
+        mes("You hear tiny insects skittering over the ground...");
+    }
+    if (%darkness_insect_ticks < ^darkness_insect_ticks) {
+        return;
+    }
+}
+if (getqueue(darkness_insects) = 0) {
+    queue(darkness_insects, 0, 0);
+}
+
+[proc,darkness_clear]
+%darkness_insect_ticks = 0;
+if (%darkness_shown > 0) {
+    if_openoverlay(null);
+    %darkness_shown = 0;
+}
+
+// The bites themselves, queued so they land with protected access. The first one brings the swarm
+// message; by the Swamp Caves' rope the swarm drives you back up it instead.
+[queue,darkness_insects](int $unused)
+if (~darkness_area(coord) = false | ~darkness_brightness > 0) {
+    %darkness_insect_ticks = 0;
+    return;
+}
+if (%darkness_insect_ticks <= ^darkness_insect_ticks) {
+    %darkness_insect_ticks = add(^darkness_insect_ticks, 1);
+    mes("<col=ff0000>Tiny biting insects swarm all over you!</col>");
+    if (distance(coord, ^darkness_swamp_rope) <= 3) {
+        mes("You manage to find your way to the exit.");
+        anim(human_reachforladder, 0);
+        p_delay(1);
+        p_teleport(^darkness_swamp_rope_top);
+        return;
+    }
+}
+~damage_self(1);

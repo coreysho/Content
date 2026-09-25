@@ -78,12 +78,25 @@ if (%soulbane_prog >= ^soulbane_complete) {
 @soulbane_enter_room(%soulbane_prog);
 
 // The rift's Exits all lead straight back up. soulbane_rope_up is the one in Tolna's rift proper.
-[oploc1,soul_bane_awall_void_small] @soulbane_to_surface;
-[oploc1,soul_bane_fwall_void_small] @soulbane_to_surface;
-[oploc1,soul_bane_cwall_void_small] @soulbane_to_surface;
-[oploc1,soul_bane_hwall_void_small] @soulbane_to_surface;
-[oploc1,soul_bane_tolna_void_small] @soulbane_to_surface;
+// During the quest they ask first (OSRS transcript, "Leaving the room"): whatever room you are in
+// is started again next time - "Any incomplete rooms will be restarted" - while a room already
+// beaten stays beaten.
+[oploc1,soul_bane_awall_void_small] @soulbane_leave_room;
+[oploc1,soul_bane_fwall_void_small] @soulbane_leave_room;
+[oploc1,soul_bane_cwall_void_small] @soulbane_leave_room;
+[oploc1,soul_bane_hwall_void_small] @soulbane_leave_room;
+[oploc1,soul_bane_tolna_void_small] @soulbane_leave_room;
 [oploc1,soulbane_rope_up] @soulbane_to_surface;
+
+[label,soulbane_leave_room]
+p_arrivedelay;
+if (%soulbane_prog > ^soulbane_asked & %soulbane_prog < ^soulbane_complete) {
+    if (~p_choice2_header("Yes, I don't mind starting this room again.", 1, "No, I'll finish this room first.", 2, "Do you wish to leave?") = 2) {
+        return;
+    }
+    ~soulbane_restart_room;
+}
+@soulbane_to_surface;
 
 [label,soulbane_to_surface]
 p_arrivedelay;
@@ -93,19 +106,70 @@ mes("You climb back up to the surface.");
 p_delay(1);
 p_teleport(^soulbane_surface_land);
 
+// The room the player's stage is in goes back to the start. The Anger room's rage bar already
+// empties every time it is entered.
+[proc,soulbane_restart_room]
+switch_int (%soulbane_prog) {
+    case ^soulbane_fear :
+        %soulbane_fear_killedtally = 0;
+        %soulbane_fear_monspres = ^soulbane_off;
+    case ^soulbane_confusion :
+        %soulbane_confu_door1pres = ^soulbane_off;
+        %soulbane_confu_door2pres = ^soulbane_off;
+        %soulbane_confu_door3pres = ^soulbane_off;
+        %soulbane_confu_door4pres = ^soulbane_off;
+        %soulbane_confu_door5pres = ^soulbane_off;
+        %soulbane_confu_hitcount1 = 0;
+        %soulbane_confu_hitcount2 = 0;
+        %soulbane_confu_hitcount3 = 0;
+        %soulbane_confu_hitcount4 = 0;
+    case ^soulbane_hopelessness :
+        %soulbane_hope_killedtally = 0;
+        %soulbane_hope_monmes = 0;
+    case ^soulbane_tolna :
+        if (~soulbane_heads_dead = false) {
+            %soulbane_final_tol1dead = ^soulbane_off;
+            %soulbane_final_tol2dead = ^soulbane_off;
+            %soulbane_final_tol3dead = ^soulbane_off;
+        }
+}
+
 [label,soulbane_enter_room](int $stage)
-switch_int ($stage) {
-    case ^soulbane_asked :
-        %soulbane_prog = ^soulbane_anger;
-        ~send_quest_progress(questlist:soulbane, %soulbane_prog, ^soulbane_complete);
-        ~soulbane_enter_anger;
-        ~mesbox("You land in a red cave. A rack of weapons stands against the wall, a wall of fire blocks the way on, and the creatures in here look furious.");
+if ($stage = ^soulbane_asked) {
+    %soulbane_prog = ^soulbane_anger;
+    %soulbane_room_entered = ^soulbane_off;
+    ~send_quest_progress(questlist:soulbane, %soulbane_prog, ^soulbane_complete);
+}
+switch_int (%soulbane_prog) {
     case ^soulbane_anger : ~soulbane_enter_anger;
     case ^soulbane_fear : ~soulbane_enter_fear;
     case ^soulbane_confusion : ~soulbane_enter_confusion;
     case ^soulbane_hopelessness : ~soulbane_enter_hope;
     case default : ~soulbane_enter_tolna;
 }
+~soulbane_room_voice;
+
+// Tolna's voice, the first time into each room (OSRS transcript). The Fear room also has the
+// player wonder why it isn't dark, every time in.
+[proc,soulbane_room_voice]
+if (%soulbane_room_entered = ^soulbane_off) {
+    %soulbane_room_entered = ^soulbane_on;
+    switch_int (%soulbane_prog) {
+        case ^soulbane_anger : ~mesbox("Why should I, Tolna, be trapped in such a wretched place?|Arrghh, It's not fair! Feel my ANGER!");
+        case ^soulbane_fear : ~mesbox("It's so quiet and dark. I FEAR I may never escape this horrid place.|Mum, Dad, help me!");
+        case ^soulbane_confusion : ~mesbox("Where am I? How long have I been here? Am I still the person I once was?|Oh why am I so CONFUSED?");
+        case ^soulbane_hopelessness : ~mesbox("What's the point? No-one will ever help me.|I'm not worth anything. Will anyone ever combat my HOPELESSNESS?");
+    }
+}
+if (%soulbane_prog = ^soulbane_fear) {
+    ~chatplayer("<p,confused>Hmmm, no light sources. So why can I still see down here? This can't just be a simple dungeon.");
+}
+
+// A room is beaten: the stage moves on, and the next room has not been seen yet.
+[proc,soulbane_advance](int $stage)
+%soulbane_prog = $stage;
+%soulbane_room_entered = ^soulbane_off;
+~send_quest_progress(questlist:soulbane, %soulbane_prog, ^soulbane_complete);
 
 // =========================================================================== Anger
 // The rage bar is soulbane_anger_damagedealt, and it only fills with damage an angry monster takes
@@ -228,8 +292,7 @@ anim(human_dhsword_spin, 0);
 ~soulbane_clear_type(coord, soulbane_anger_goblin, 30);
 stat_advance(attack, 400);
 %soulbane_anger_flamepres = ^soulbane_on;
-%soulbane_prog = ^soulbane_fear;
-~send_quest_progress(questlist:soulbane, %soulbane_prog, ^soulbane_complete);
+~soulbane_advance(^soulbane_fear);
 ~mesbox("Your rage boils over! You spin around, and every creature in the cave falls. The fire blocking the way on dies down.");
 
 // Every one of a type near a coord: gone, with its death animation.
@@ -311,6 +374,7 @@ if_close;
 mes("You step through into the next cave.");
 p_delay(1);
 ~soulbane_enter_fear;
+~soulbane_room_voice;
 
 // =========================================================================== Fear
 // Six dark holes line the walls. One of them - soulbane_fear_enemydoor, 1-6 - has a fear reaper in
@@ -386,20 +450,21 @@ if ($next >= %soulbane_fear_enemydoor) {
     $next = add($next, 1);
 }
 %soulbane_fear_enemydoor = $next;
+// what the player says after each kill (OSRS transcript - overheads)
 switch_int ($tally) {
-    case 1 : mes("I really don't like looking in these holes... but I have to.");
-    case 2 : mes("I'm not feeling quite so frightened now.");
-    case 3 : mes("These holes aren't that scary after all.");
-    case 4 : mes("This really isn't so bad!");
+    case 1 : say("I don't like looking in these holes but I must!");
+    case 2 : say("I don't feel quite so afraid now.");
+    case 3 : say("These holes aren't that spooky.");
+    case 4 : say("This isn't so scary after all!");
 }
 if ($tally < ^soulbane_fear_needed) {
     return;
 }
 // [soulbane_fwall_exit_multi] is the ordinary way round: 0 closed, 1 open.
 %soulbane_fear_exitlit = ^soulbane_on;
-%soulbane_prog = ^soulbane_confusion;
-~send_quest_progress(questlist:soulbane, %soulbane_prog, ^soulbane_complete);
-~mesbox("Phew, I'm not scared any more. None of this feels real - it's more like something out of someone's nightmare. A black hole in the west wall is lit up now.");
+~soulbane_advance(^soulbane_confusion);
+~chatplayer("<p,happy>Phew, I don't feel so scared now. This feels like the figment of someone's imagination!");
+mes("What's that?");
 
 [oploc1,soulbane_fwall_exit_multi]
 p_arrivedelay;
@@ -411,6 +476,7 @@ if_close;
 mes("You step into the black hole.");
 p_delay(1);
 ~soulbane_enter_confusion;
+~soulbane_room_voice;
 
 // =========================================================================== Confusion
 // Five confusion beasts, one of them real (soulbane_confu_creeper) and four illusions (fake1-4).
@@ -563,8 +629,7 @@ if ($gone < ^soulbane_confu_doors) {
 ~soulbane_clear_type(^soulbane_confu_room, soulbane_confu_creeper_fake3, 30);
 ~soulbane_clear_type(^soulbane_confu_room, soulbane_confu_creeper_fake4, 30);
 %soulbane_confu_door6open = ^soulbane_on;
-%soulbane_prog = ^soulbane_hopelessness;
-~send_quest_progress(questlist:soulbane, %soulbane_prog, ^soulbane_complete);
+~soulbane_advance(^soulbane_hopelessness);
 ~mesbox("The last of the false doors vanishes. Only one door is left - that must be the way on.");
 
 [oploc1,soulbane_door_multi1] @soulbane_confu_false_door;
@@ -587,6 +652,7 @@ if_close;
 mes("You step through the door.");
 p_delay(1);
 ~soulbane_enter_hope;
+~soulbane_room_voice;
 
 // =========================================================================== Hopelessness
 // Five hopeless creatures, each of which has to be put down three times: form 1
@@ -633,23 +699,28 @@ if ($next ! null & add(%soulbane_hope_killedtally, 1) < ^soulbane_hope_needed) {
     npc_add($at, $next, ^soulbane_npc_duration);
     npc_setmode(opplayer2);
 }
-queue(soulbane_hope_kill, 0, 0);
+if ($next = null) {
+    queue(soulbane_hope_kill, 0, 1); // the smallest form: that creature is gone for good
+} else {
+    queue(soulbane_hope_kill, 0, 0);
+}
 
-// soulbane is a protected varp: the tally is kept on the player, not in the death trigger
-[queue,soulbane_hope_kill](int $unused)
+// soulbane is a protected varp: the tally is kept on the player, not in the death trigger.
+// soulbane_hope_monmes counts the creatures put down for good (all three forms), which is what
+// the player's remarks follow (OSRS transcript - overheads, one per creature).
+[queue,soulbane_hope_kill](int $gone)
 if (%soulbane_prog ! ^soulbane_hopelessness) {
     return;
 }
 %soulbane_hope_killedtally = min(add(%soulbane_hope_killedtally, 1), ^soulbane_hope_needed);
-def_int $tally = %soulbane_hope_killedtally;
-if ($tally < ^soulbane_hope_needed) {
-    // soulbane_hope_monmes is which of the creatures' taunts you have heard, once each
-    if (%soulbane_hope_monmes < 3 & $tally >= multiply(add(%soulbane_hope_monmes, 1), 4)) {
+if (%soulbane_hope_killedtally < ^soulbane_hope_needed) {
+    if ($gone = 1 & %soulbane_hope_monmes < 4) {
         %soulbane_hope_monmes = add(%soulbane_hope_monmes, 1);
         switch_int (%soulbane_hope_monmes) {
-            case 1 : mes("A voice in your head whispers: there's no point. You'll never find him.");
-            case 2 : mes("A voice in your head whispers: give up. Everyone else did.");
-            case 3 : mes("A voice in your head whispers: even if you find him, it's too late.");
+            case 1 : say("Is there any end to killing these monsters?");
+            case 2 : say("This is hard work!");
+            case 3 : say("I've almost killed them all now!");
+            case 4 : say("Maybe if I kill one more?");
         }
     }
     return;
@@ -658,9 +729,8 @@ if ($tally < ^soulbane_hope_needed) {
 ~soulbane_clear_type(^soulbane_hope_room, soulbane_hope_monst2, 30);
 ~soulbane_clear_type(^soulbane_hope_room, soulbane_hope_monst1, 30);
 %soulbane_hope_bridgepres = ^soulbane_on;
-%soulbane_prog = ^soulbane_tolna;
-~send_quest_progress(questlist:soulbane, %soulbane_prog, ^soulbane_complete);
-~mesbox("The last of the creatures is gone, and a bridge has appeared across the chasm. A bridge of hope, perhaps.");
+~soulbane_advance(^soulbane_tolna);
+~chatplayer("<p,happy>A bridge of hope! Tolna should feel that help is at hand by now!");
 
 // soul_bane_hwall_void_exit, on the far side of the bridge: "I think it's the forward."
 [oploc1,soul_bane_hwall_void_exit]
@@ -670,15 +740,31 @@ if (%soulbane_prog < ^soulbane_tolna) {
     return;
 }
 if_close;
-mes("You squeeze through into the passage.");
+mes("You step through into the passage.");
 p_delay(1);
 ~soulbane_enter_tolna;
 
 // =========================================================================== Tolna
-// Three heads at once in a multicombat room (maps/multiway.csv), then Tolna himself, and Brana.
+// The last room, plane 1 of m46_81 - the one shaped like a brain. Brana has got here first and
+// found his son: Tolna is the three-headed thing rising out of the chasm (soulbane_final_tolna1-3,
+// "Is that really Tolna?"). The first time in, the two of them have it out (the OSRS "Finding
+// Tolna" scene) before the heads turn on you; then all three at once, in a multicombat room
+// (maps/multiway.csv). With the last head down Tolna is himself again, on the narrow path into the
+// chasm, and talking to him takes the three of you back up.
+//
+// Brana's lines are chat with his head (the wiki's screenshot of the scene); Tolna has no chathead
+// in this form, so what he says is told as a plain statement.
 [proc,soulbane_enter_tolna]
 p_teleport(^soulbane_tolna_room);
+if (%soulbane_prog ! ^soulbane_tolna) {
+    return;
+}
+%soulbane_room_entered = ^soulbane_on;
 ~soulbane_stock_tolna;
+if (%soulbane_final_seencut = ^soulbane_off & ~soulbane_heads_dead = false) {
+    p_delay(1);
+    ~soulbane_final_cutscene;
+}
 
 [proc,soulbane_stock_tolna]
 if (%soulbane_prog ! ^soulbane_tolna) {
@@ -689,15 +775,63 @@ if (~soulbane_heads_dead = true) {
     ~soulbane_spawn_once(^soulbane_tolna_spot, soulbane_tolna_top, 20);
     return;
 }
+// Until the scene has played the heads don't hunt (huntrange 0), so nothing is thrown at a player
+// who is still reading.
+def_boolean $quiet = false;
+if (%soulbane_final_seencut = ^soulbane_off) {
+    $quiet = true;
+}
 if (%soulbane_final_tol1dead = ^soulbane_off) {
-    ~soulbane_spawn_once(^soulbane_tolna_head1_spot, soulbane_final_tolna1, 20);
+    ~soulbane_spawn_head(^soulbane_tolna_head1_spot, soulbane_final_tolna1, $quiet);
 }
 if (%soulbane_final_tol2dead = ^soulbane_off) {
-    ~soulbane_spawn_once(^soulbane_tolna_head2_spot, soulbane_final_tolna2, 20);
+    ~soulbane_spawn_head(^soulbane_tolna_head2_spot, soulbane_final_tolna2, $quiet);
 }
 if (%soulbane_final_tol3dead = ^soulbane_off) {
-    ~soulbane_spawn_once(^soulbane_tolna_head3_spot, soulbane_final_tolna3, 20);
+    ~soulbane_spawn_head(^soulbane_tolna_head3_spot, soulbane_final_tolna3, $quiet);
 }
+
+[proc,soulbane_spawn_head](coord $at, npc $type, boolean $quiet)
+if (npc_find($at, $type, 20, ^vis_off) = true) {
+    return;
+}
+npc_add($at, $type, ^soulbane_npc_duration);
+if ($quiet = true) {
+    npc_sethunt(0);
+}
+
+// Back to the heads' own huntrange (all.npc, 12), and straight at the player in the room.
+[proc,soulbane_heads_wake]
+~soulbane_head_wake(soulbane_final_tolna1);
+~soulbane_head_wake(soulbane_final_tolna2);
+~soulbane_head_wake(soulbane_final_tolna3);
+
+[proc,soulbane_head_wake](npc $type)
+if (npc_find(^soulbane_tolna_room, $type, 20, ^vis_off) = true) {
+    npc_sethunt(12);
+    npc_setmode(opplayer2);
+}
+
+// "Finding Tolna" (OSRS wiki transcript), word for word.
+[proc,soulbane_final_cutscene]
+~chatnpc_specific("Brana", soulbane_brana, "<p,shock>Son! Is that you?");
+~chatnpc_specific("Brana", soulbane_brana, "<p,sad>Please speak to me! Tolna?");
+~mesbox("Why should I speak to you? Besides, I'm no longer the boy you once knew.");
+~chatnpc_specific("Brana", soulbane_brana, "<p,confused>What do you mean?");
+~chatnpc_specific("Brana", soulbane_brana, "<p,sad>You'll always be my son!");
+~mesbox("No. Something evil in this dungeon has morphed my body and mind.");
+~chatnpc_specific("Brana", soulbane_brana, "<p,neutral>There must be a way.");
+~chatnpc_specific("Brana", soulbane_brana, "<p,neutral>Don't give up so easily!");
+~mesbox("Don't give up? You had your chance to help me, 25 years it's taken you!");
+~chatnpc_specific("Brana", soulbane_brana, "<p,sad>Sorry, but your mother and I...");
+~chatnpc_specific("Brana", soulbane_brana, "<p,sad>tried so hard to find you!");
+~mesbox("Lies!");
+~mesbox("Ah, we have a visitor!");
+~chatplayer("<p,angry>Your father isn't lying.");
+~mesbox("Hah! If that's the way you think, then you shall both die!");
+if_close;
+%soulbane_final_seencut = ^soulbane_on;
+~soulbane_heads_wake;
 
 [proc,soulbane_heads_dead]()(boolean)
 if (%soulbane_final_tol1dead = ^soulbane_on & %soulbane_final_tol2dead = ^soulbane_on & %soulbane_final_tol3dead = ^soulbane_on) {
@@ -757,6 +891,7 @@ if (%soulbane_prog ! ^soulbane_tolna) {
 }
 queue(soulbane_head_kill, 0, $head);
 
+// "After defeating Tolna's body - Tolna's human body appears on the narrow path."
 [queue,soulbane_head_kill](int $head)
 if (%soulbane_prog ! ^soulbane_tolna) {
     return;
@@ -767,34 +902,50 @@ switch_int ($head) {
     case 3 : %soulbane_final_tol3dead = ^soulbane_on;
 }
 if (~soulbane_heads_dead = false) {
-    mes("One of the heads falls limp.");
     return;
 }
-p_delay(1);
 ~soulbane_spawn_once(^soulbane_tolna_spot, soulbane_tolna_top, 20);
-~mesbox("The last head falls, and the creature shrinks away to nothing. In its place stands a man.");
 
-// Tolna in the rift, himself again. Talking to him takes the three of you back up; the quest is
-// finished beside the rift, where [soulbane_tolna_multi] now shows him (soulbane_tolna_pres).
+// Tolna in the rift, himself again ("Talking to human Tolna"). At the end the three of you are
+// taken up to the surface, where Tolna now stands by the rift (soulbane_tolna_pres) and Launa -
+// gone home with Brana, as Tolna says - is not (soulbane_launa_pres; her multinpc draws her at 0).
 [opnpc1,soulbane_tolna_top]
 if (%soulbane_prog ! ^soulbane_tolna | ~soulbane_heads_dead = false) {
-    ~chatnpc("<p,neutral>Let's get out of this place.");
+    mes("Tolna doesn't seem interested in talking right now.");
     return;
 }
-~chatnpc("<p,sad>Father... I'm sorry. I don't know what came over me. Something down here got inside my head.");
-~chatnpc_specific("Brana", soulbane_brana, "<p,neutral>It doesn't matter now, son. You're you again. Let's go home to your mother.");
-~chatplayer("<p,happy>Launa is waiting for you both at the top.");
-~chatnpc("<p,neutral>Then let's not keep her waiting any longer.");
+~chatplayer("<p,quiz>Tolna?");
+~chatnpc("<p,confused>Sorry? What happened?");
+~chatplayer("<p,neutral>You've been trapped down here for years. I've come to rescue you on behalf of your parents.");
+~chatnpc("<p,neutral>Oh yeah. I was looking for the legacy of a civilisation that used to live down here.");
+~chatnpc_specific("Brana", soulbane_brana, "<p,happy>Son!");
+~chatnpc("<p,sad>Father? Oh, I'm so sorry, can you ever forgive me?");
+~chatnpc_specific("Brana", soulbane_brana, "<p,happy>Don't worry, I'm just glad you're back to yourself. Are you OK?");
+~chatnpc("<p,neutral>I'm fine, my memories are slowly returning. How's mother?");
+~chatnpc_specific("Brana", soulbane_brana, "<p,sad>She misses you dearly!");
+~chatnpc("<p,quiz>Where is she?");
+~chatplayer("<p,neutral>She's up at the surface waiting for you.");
+~chatnpc_specific("Brana", soulbane_brana, "<p,happy>Thank you traveller, I'm glad my wife and I never gave up hope. We should return to her and tell her the good news.");
+~chatnpc("<p,happy>Thank you so much. I truly owe you for your help.");
+~chatplayer("<p,happy>I'm just glad I could help.");
 if_close;
-%soulbane_final_seencut = ^soulbane_on;
 %soulbane_tolna_pres = ^soulbane_on;
-mes("You all climb back up to the surface together.");
-p_delay(2);
+%soulbane_launa_pres = ^soulbane_on;
+p_delay(1);
 p_teleport(^soulbane_surface_land);
 
+// Brana ("Talking to Brana", and after the heads fall).
 [opnpc1,soulbane_brana]
-if (%soulbane_prog = ^soulbane_tolna & ~soulbane_heads_dead = false) {
-    ~chatnpc("<p,shock>That thing... it's my son. Please, you have to stop him - but don't hurt him!");
+if (%soulbane_prog = ^soulbane_tolna & ~soulbane_heads_dead = true) {
+    ~chatplayer("<p,happy>I think I've saved your son.");
+    ~chatnpc("<p,neutral>Please talk to him, make sure he's OK!");
     return;
 }
-~chatnpc("<p,happy>Thank you. I never thought I'd see my boy again.");
+~chatplayer("<p,quiz>Are you ok?");
+~chatnpc("<p,shock>Please! You must help my son! He's beyond sense.");
+~chatplayer("<p,quiz>But how can I help?");
+~chatnpc("<p,neutral>I take it you have travelled through the mental dilemmas of my son, as I have.");
+~chatplayer("<p,neutral>That's correct.");
+~chatnpc("<p,neutral>Now you must do what I cannot, conquer the physical dilemma!");
+~chatplayer("<p,neutral>I will try.");
+~chatnpc("<p,happy>Thank you stranger.");
