@@ -1,0 +1,51 @@
+[ai_queue1,_snail] ~npc_default_retaliate_ap;
+[ai_opplayer2,_snail] npc_setmode(applayer2);
+
+[ai_applayer2,_snail]
+if (%npc_action_delay > map_clock) {
+    npc_setmode(applayer2);
+    return;
+}
+if (~npc_check_notcombat = false) {
+    npc_setmode(null);
+    return;
+}
+if (~npc_check_notcombat_self = false) {
+    return;
+}
+def_int $maxhit = 2;
+
+npc_anim(npc_param(attack_anim), 0);
+~.sound_area(snail_spit, 0, npc_coord, 10);
+
+%npc_action_delay = add(map_clock, npc_param(attackrate));
+// map_projanim_v2	id=curse_travel (109), starttime=20, endtime=56, angle=10, progress=56, startheight=32, endheight=124
+def_int $duration = ~player_projectile(npc_coord, coord, uid, curse_travel, 43, 31, 20, 16, 26, 56, 10);
+
+// seem to completely ignore defence
+// reduction is on the rolled damage rather than max hit 
+def_int $damage = ~snelm_reduction(randominc($maxhit));
+// 349's playerhit_n_ranged takes a check_protect_prayer flag (true here); ours leaves it to the caller
+if (~check_protect_prayer(^ranged_style) = true) {
+    $damage = 0;
+}
+~playerhit_n_ranged($damage, $duration, npc_param(attackrate));
+
+// The snails' deaths (shell and corpse) are our drop tables - drop_tables/scripts/*_blamish_snail.rs2 -
+// so 349's [ai_queue3,mmsnail*] are not ported.
+
+// 349: skill_crafting/scripts/snelm/snelm.rs2 - a snelm takes the edge off a snail's spit
+[proc,snelm_reduction](int $damage)(int)
+def_obj $head = inv_getobj(worn, ^wearpos_hat);
+if($head = null) {
+    return ($damage);
+}
+def_int $reduction = 0;
+if($head = snelm_round_red+black | $head = snelm_point_red+black | $head = snelm_point_blue) {
+    $reduction = 12;
+} else if($head = snelm_round_blue | $head = snelm_round_orange | $head = snelm_point_yellow) {
+    $reduction = 8;
+} else if($head = snelm_round_swamp | $head = snelm_round_swamp | $head = snelm_round_yellow) {
+    $reduction = 4;
+}
+return (max(0, sub($damage, $reduction)));

@@ -125,6 +125,11 @@ if (~in_castlewars_game(coord) = true | ~in_castlewars_waitingroom(coord) = true
     anim(null, 0);
     return; // https://youtu.be/Yk7DSYxGucE?t=111 Random event is supposed to teleport you & note. But he only notes
 }
+// Shades of Mort'ton (349): the Flamtaer temple overlay goes when you teleport out - it is not a
+// zone or mapsquare trigger, it happens as you leave
+if(~inzone_coord_pair_table(mortton_temple_zones, coord) = true) {
+    if_openoverlay(null);
+}
 p_telejump($coord);
 anim(null, 0);
 // todo: ensure this proc is used for other teleports too
