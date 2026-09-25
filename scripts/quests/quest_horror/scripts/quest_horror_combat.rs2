@@ -8,10 +8,9 @@
 //
 // Design (OSRS wiki, https://oldschool.runescape.wiki/w/Dagannoth_Mother): she cycles through six
 // colours every 18 seconds (30 ticks) - white/air, blue/water, orange/melee, brown/earth, red/fire,
-// green/ranged - and only damage of the matching type/element hurts her during each phase. The wiki
-// doesn't say what exactly happens to a mismatched hit (blocked vs reduced vs reflected) - implemented
-// here as fully blocked (0 damage), which is the standard OSRS-era pattern for this kind of mechanic
-// and the simplest reading of "shows her weaknesses". The actual damage-zeroing lives in the three
+// green/ranged - and only damage of the matching type/element hurts her during each phase. A wrong
+// hit does nothing (RS wiki: "Using the wrong type of attack incurs splash damage"): a wrong spell
+// splashes (~dagmother_spell_splashes), a wrong melee or ranged hit is a 0. The actual damage-zeroing lives in the three
 // combat-resolution files themselves (skill_combat/scripts/player/player_{melee,ranged,magic}.rs2),
 // following the exact same inline per-npc-type special case pattern already used there for
 // salarin_the_twisted/chronozon/kurask/turoth - this file only drives the phase timer and identifies
@@ -132,24 +131,65 @@ return(12);
 [ai_queue5,horror_dagganoth_fire] gosub(dagmother_advance_phase);
 [ai_queue5,horror_dagganoth_ranged] gosub(dagmother_advance_phase);
 
+// Does not touch %npc_dagmother_phase: the colour she is wearing when the cycle restarts (see the
+// pause below) is the one she carries on from. The emergence sets phase 0 for her first form.
 [proc,dagmother_start_cycle]
 if (%npc_dagmother_cycling = ^true) {
     return;
 }
 %npc_dagmother_cycling = ^true;
-%npc_dagmother_phase = 0;
-npc_queue(5, 0, 30); // first phase change 18s (30 ticks) after combat starts, matching the wiki cycle
+npc_queue(5, 0, 30); // a change every 18s (30 ticks), the wiki cycle
 
+// keepall, so the damage she has taken and anything drained stay with her through every colour -
+// all six forms have the same stat block, so nothing else about her changes either.
+//
+// The duration is her npc_add lifetime, not ^max_32bit_int: an npc_add'd npc's lifecycle is the
+// despawn timer, and every changetype overwrites it, so the old max-int here meant she never
+// despawned once she had changed colour. The cycle also pauses whenever nobody is fighting her (she
+// holds her colour and the next hit restarts it), so an abandoned Mother is not kept alive for ever
+// by her own colour changes.
 [proc,dagmother_advance_phase]
 if (npc_stat(hitpoints) = 0) {
     return; // she's dead - stop the chain rather than queue another change onto a dead/despawning npc
+}
+if (npc_getmode ! applayer2 & npc_getmode ! opplayer2) {
+    %npc_dagmother_cycling = ^false;
+    return;
 }
 %npc_dagmother_phase = add(%npc_dagmother_phase, 1);
 if (%npc_dagmother_phase > 5) {
     %npc_dagmother_phase = 0;
 }
-npc_changetype_keepall(~dagmother_phase_type(%npc_dagmother_phase), ^max_32bit_int);
+// A changetype changes her npc_uid ((type << 16) | nid), and the player she is fighting has the OLD
+// one in %aggressive_npc. Left alone, ~npc_check_notcombat reads that as "in combat with some other
+// npc" for 8 ticks: she dropped her target at every colour change (and the player's own attack check
+// said they were under attack from something else). Carried over to the new uid here.
+def_boolean $hers = false;
+if (finduid(%npc_aggressive_player) = true) {
+    if (%aggressive_npc = npc_uid) {
+        $hers = true;
+    }
+}
+npc_changetype_keepall(~dagmother_phase_type(%npc_dagmother_phase), ^horror_boss_lifetime);
+if ($hers = true) {
+    %aggressive_npc = npc_uid;
+}
 npc_queue(5, 0, 30);
+// The chat line is the 7 December 2004 "More Small Changes" addition for colour-blind players, and
+// the overhead noise goes with it; both from the OSRS transcript ("The Dagannoth changes to blue...").
+switch_int (%npc_dagmother_phase) {
+    case 0 : npc_say("Tktktktktktkt"); ~dagmother_colour_mes("white");
+    case 1 : npc_say("Krrrrrrk"); ~dagmother_colour_mes("blue");
+    case 2 : npc_say("Chkhkhkhkhk"); ~dagmother_colour_mes("orange");
+    case 3 : npc_say("Krrrrrrssssssss"); ~dagmother_colour_mes("brown");
+    case 4 : npc_say("Sssssrrrkkkkk"); ~dagmother_colour_mes("red");
+    case 5 : npc_say("Krkrkrkrkrkrkrkr"); ~dagmother_colour_mes("green");
+}
+
+[proc,dagmother_colour_mes](string $colour)
+if (finduid(%npc_aggressive_player) = true) {
+    mes("The Dagannoth changes to <$colour>...");
+}
 
 // wiki order: white(air) -> blue(water) -> orange(melee) -> brown(earth) -> red(fire) -> green(ranged)
 [proc,dagmother_phase_type](int $phase)(npc)
@@ -181,6 +221,16 @@ if (npc_type = horror_dagganoth_fire & ($spell = ^fire_strike | $spell = ^fire_b
     return(true);
 }
 return(false);
+
+// player_magic.rs2's ~pvm_default_spell: true when the target is the Mother and the spell is the wrong
+// one for her colour, which makes the cast splash. False for every other npc.
+[proc,dagmother_spell_splashes](int $spell)(boolean)
+if (npc_type = horror_dagganoth_air | npc_type = horror_dagganoth_water | npc_type = horror_dagganoth_earth | npc_type = horror_dagganoth_fire | npc_type = horror_dagganoth_ranged | npc_type = horror_dagganoth_melee) {
+    if (~dagmother_spell_matches_phase($spell) = false) {
+        return(true);
+    }
+}
+return(false);
 // ---------------------------------------------------------------- The encounters themselves
 //
 // Added 2026-09-08. Until now nothing in the repo ever set ^horror_dagannoth_defeated (it was handed
@@ -199,13 +249,12 @@ return(false);
 // (ScriptOpcodePointers.ts:654), and only P_FINDUID sets the protected pointer. Same pattern as
 // san_tojalon.rs2 and the Desert Treasure ice trolls.
 
+// No drop: neither wiki gives the quest's level-100 Dagannoth one (the old big_bones was invented).
 [ai_queue3,horror_dagannoth_jr4]
 gosub(npc_death);
-def_coord $spot = npc_coord;
 if (npc_findhero = ^false) {
     return;
 }
-obj_add($spot, big_bones, 1, ^lootdrop_duration);
 queue(horror_boss_slain, 0, ^horror_slain_dagannoth);
 
 [ai_queue3,horror_dagganoth_air] @horror_mother_death;
@@ -217,13 +266,15 @@ queue(horror_boss_slain, 0, ^horror_slain_dagannoth);
 
 // Declared against all six phase forms because npc_changetype_keepall swaps her type every 30 ticks -
 // whichever colour she happens to be wearing when she dies is the type the death hook resolves on.
+// OSRS drop table: Bones (always) and the rusty casket (always, handed straight to the player by
+// [queue,horror_boss_slain]). These were big_bones before.
 [label,horror_mother_death]
 gosub(npc_death);
 def_coord $spot = npc_coord;
 if (npc_findhero = ^false) {
     return;
 }
-obj_add($spot, big_bones, 1, ^lootdrop_duration);
+obj_add($spot, bones, 1, ^lootdrop_duration);
 queue(horror_boss_slain, 0, ^horror_slain_mother);
 
 // Both kills hand off to a player queue rather than writing %horror straight from the death hook.
@@ -264,13 +315,32 @@ mes("Among the remains lies a small rusted casket - you have no room to carry it
 // cache's own three emergence stages (walkanim/readyanim horror_dagannoth_emerge_a/b/c, all size 3
 // like her combat forms, no op2 and no combat params - they cannot be fought). ai_queue6 is free in
 // this codebase (queue1-3 are the skill_combat defaults, 5 is her phase timer, 8 is freeze/stun).
+//
+// FIXED (horror2): she fought with 1 hitpoint. The emergence stages carry no stat block, so she is
+// spawned with the engine default of 1 hitpoint, and the last stage used to npc_changetype_keepall
+// into her combat form - which keeps the npc's current AND base levels, so the 1 came with her and
+// the first hit killed her. The last step is a plain npc_changetype now: that one re-bases every stat
+// on the new type's (Npc.changeType, reset=true), less any damage taken - and nothing can damage the
+// emergence forms, which have no Attack op. From there on the colour cycle keeps using keepall, which
+// is what carries her real damage from colour to colour.
+//
+// She is aggressive (OSRS: "The dagannoth mother appears and attacks the player"), so whoever brought
+// her out is remembered here and she opens on them the moment she is out of the water, and her
+// colour cycle starts then too rather than waiting for the first hit.
 [proc,horror_spawn_mother]
 npc_add(^horror_dag_cavern_mother_spawn, horror_dagganoth_aira, ^horror_boss_lifetime);
+%npc_aggressive_player = uid;
 npc_queue(6, 0, 2);
 
-[ai_queue6,horror_dagganoth_aira] npc_changetype_keepall(horror_dagganoth_airb, ^max_32bit_int); npc_queue(6, 0, 2);
-[ai_queue6,horror_dagganoth_airb] npc_changetype_keepall(horror_dagganoth_airc, ^max_32bit_int); npc_queue(6, 0, 2);
-[ai_queue6,horror_dagganoth_airc] npc_changetype_keepall(horror_dagganoth_air, ^max_32bit_int);
+[ai_queue6,horror_dagganoth_aira] npc_changetype_keepall(horror_dagganoth_airb, ^horror_boss_lifetime); npc_queue(6, 0, 2);
+[ai_queue6,horror_dagganoth_airb] npc_changetype_keepall(horror_dagganoth_airc, ^horror_boss_lifetime); npc_queue(6, 0, 2);
+[ai_queue6,horror_dagganoth_airc]
+npc_changetype(horror_dagganoth_air, ^horror_boss_lifetime);
+%npc_dagmother_phase = 0;
+if (finduid(%npc_aggressive_player) = true) {
+    npc_setmode(applayer2);
+    gosub(dagmother_start_cycle);
+}
 
 // Checked against every form she can currently be wearing, including the three emergence stages, so
 // a player who climbs back down mid-emergence does not get a second Mother.

@@ -4,13 +4,16 @@
 // op2 already exists) are untouched raw cache values, everything from "param=slayer_category" onward
 // (existing in the cache) plus the stat/param block after it (new) wires these into skill_combat.
 //
-// Stats sourced from the OSRS wiki for "Dagannoth (Horror from the Deep)" and "Dagannoth Mother":
-// both share the exact same base stat block (level 100, 120 hp, 78 atk/str, 81 def, 1 magic, 50
-// ranged, stab melee, max hit 9, all attack/defence bonuses +0, attack speed 4 ticks) - Mother's is
-// just layered with the elemental/style weakness-cycling mechanic on top (see quest_horror_combat.rs2
-// and the matching edits in skill_combat/scripts/player/player_{melee,ranged,magic}.rs2). Explicitly
-// excludes the 25 Jun 2025 "35% earth spell weakness" update added to the generic Dagannoth - that
-// postdates this server's January 2006 target era.
+// Stats sourced from the OSRS wiki infoboxes for "Dagannoth (Horror from the Deep)" and "Dagannoth
+// mother" (neither lists a stat change since release, 17 Nov 2004, apart from the 2025 earth weakness):
+// both are level 100 with 120 hp, 78 atk/str, 81 def, 1 magic, 50 ranged, every attack bonus +0,
+// attack speed 4 ticks, melee max hit 9 (from strength 78 and +0 - ~npc_melee_maxhit gives 9). They
+// are NOT the same block, which this header used to claim: the Dagannoth's defence bonuses are all +0,
+// but the Mother's are +150 stab/slash/crush, +50 magic and +50 ranged (dstab/dslash/dcrush = 150,
+// dmagic = 50, dlight/dstandard/dheavy = 50) - the wiki guide's "she has a higher resistance to melee".
+// Her six forms had +0 here, so she was far softer than she should be. She also shoots "double 12s"
+// (see quest_horror_combat.rs2). The 25 Jun 2025 "35% earth spell weakness" is not written here; the
+// server-wide elemental_weakness enum is generated from OSRS for every monster and is left alone.
 //
 // horror_dagannoth_jr1/jr2/jr3 (emergence animation stages, no op2/combat params - not fought
 // directly) precede jr4 in the cache; horror_dagganoth_aira/airb/airc are Dagannoth Mother's
@@ -86,11 +89,11 @@ strength=78
 defence=81
 magic=1
 ranged=50
-param=stabdefence,0
-param=slashdefence,0
-param=crushdefence,0
-param=magicdefence,0
-param=rangedefence,0
+param=stabdefence,150
+param=slashdefence,150
+param=crushdefence,150
+param=magicdefence,50
+param=rangedefence,50
 param=attackbonus,0
 param=strengthbonus,0
 param=damagetype,^stab_style
@@ -141,11 +144,11 @@ strength=78
 defence=81
 magic=1
 ranged=50
-param=stabdefence,0
-param=slashdefence,0
-param=crushdefence,0
-param=magicdefence,0
-param=rangedefence,0
+param=stabdefence,150
+param=slashdefence,150
+param=crushdefence,150
+param=magicdefence,50
+param=rangedefence,50
 param=attackbonus,0
 param=strengthbonus,0
 param=damagetype,^stab_style
@@ -196,11 +199,11 @@ strength=78
 defence=81
 magic=1
 ranged=50
-param=stabdefence,0
-param=slashdefence,0
-param=crushdefence,0
-param=magicdefence,0
-param=rangedefence,0
+param=stabdefence,150
+param=slashdefence,150
+param=crushdefence,150
+param=magicdefence,50
+param=rangedefence,50
 param=attackbonus,0
 param=strengthbonus,0
 param=damagetype,^stab_style
@@ -251,11 +254,11 @@ strength=78
 defence=81
 magic=1
 ranged=50
-param=stabdefence,0
-param=slashdefence,0
-param=crushdefence,0
-param=magicdefence,0
-param=rangedefence,0
+param=stabdefence,150
+param=slashdefence,150
+param=crushdefence,150
+param=magicdefence,50
+param=rangedefence,50
 param=attackbonus,0
 param=strengthbonus,0
 param=damagetype,^stab_style
@@ -306,11 +309,11 @@ strength=78
 defence=81
 magic=1
 ranged=50
-param=stabdefence,0
-param=slashdefence,0
-param=crushdefence,0
-param=magicdefence,0
-param=rangedefence,0
+param=stabdefence,150
+param=slashdefence,150
+param=crushdefence,150
+param=magicdefence,50
+param=rangedefence,50
 param=attackbonus,0
 param=strengthbonus,0
 param=damagetype,^stab_style
@@ -361,11 +364,11 @@ strength=78
 defence=81
 magic=1
 ranged=50
-param=stabdefence,0
-param=slashdefence,0
-param=crushdefence,0
-param=magicdefence,0
-param=rangedefence,0
+param=stabdefence,150
+param=slashdefence,150
+param=crushdefence,150
+param=magicdefence,50
+param=rangedefence,50
 param=attackbonus,0
 param=strengthbonus,0
 param=damagetype,^stab_style

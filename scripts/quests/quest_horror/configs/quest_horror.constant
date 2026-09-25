@@ -29,7 +29,8 @@
 // Every coord below was checked walkable in the sim (Engine-TS/tools/sim/horrortribe.ts).
 // Beside the basement's iron ladder, south of the strange wall.
 ^horror_basement_arrival = 1_39_72_23_11
-// Beside the lighthouse's own ladder, on its ground floor.
+// Beside the lighthouse's own ladder, on its ground floor (the real one - ~horror_lighthouse_coord
+// moves it into the attacked copy for players mid-quest).
 ^horror_lighthouse_return = 0_39_56_14_60
 // The small room north of the strange wall, beside horror_ladder_top2.
 ^horror_wall_room_arrival = 1_39_72_19_21
@@ -71,3 +72,23 @@
 // Which boss the [queue,horror_boss_slain] handoff is reporting.
 ^horror_slain_dagannoth = 1
 ^horror_slain_mother = 2
+
+// --- The two lighthouses ---
+// The 377 cache ships the lighthouse twice. m39_56 is the real one on the causeway: the working
+// lighting mechanism (horror_lighthouse_cog, animated), Jossik well upstairs, Larrissa outside the
+// door. m38_71 is a full copy of the same island, ransacked - horror_lighthouse_cog_broken at the
+// same tile, smashed chairs and table, blood and claw marks on every floor, emptied shelves, and
+// Larrissa (horror_girlfriend_postquest) standing inside. It is 2006's version of what OSRS now
+// does with an instance: from the moment the door is open until the Dagannoth Mother is dead, the
+// lighthouse you walk into is the copy. Every tile of the copy is the real tile moved by the same
+// offset, so a coord converts one way or the other with a single movecoord.
+^horror_copy_dx = -64
+^horror_copy_dz = 960
+^horror_copy_sw = 0_38_71_0_0
+^horror_copy_ne = 3_38_71_63_63
+// The building's bounding box in the real lighthouse (every floor); plane 0 is octagonal inside it.
+^horror_lighthouse_sw = 0_39_56_8_52
+^horror_lighthouse_ne = 3_39_56_17_61
+// How long the copy's mechanism shows lit after a player relights it. The copy is shared, so this is
+// only the moment of the repair; the player's own %horror_lighting is what the quest reads.
+^horror_torch_lit_duration = 200
