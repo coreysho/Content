@@ -96,3 +96,21 @@ if (inv_freespace(inv) < 1) {
 inv_del(inv, coins, $cost);
 inv_add(inv, $item, 1);
 ~chatnpc("<p,happy>There you go. Mind your fingers.");
+
+// Until 2026-09-21 this operator handed out obj 8187 (`plank`), the construction import's duplicate of
+// the real Plank (woodplank) - same name, same model, same description. Every quest that wants a
+// plank checks woodplank, so a player still carrying those old planks is told "Nothing interesting
+// happens" at Horror from the Deep's bridge, the Observatory, Dragon Slayer's hull and the rest, with
+// what looks like the right plank in hand. On login, any left in the backpack or the bank become
+// real planks, one for one; the old id is handed out nowhere any more, so this stops at zero.
+[proc,sawmill_old_planks_login]
+def_int $count = inv_total(inv, plank);
+if ($count > 0) {
+    inv_del(inv, plank, $count);
+    inv_add(inv, woodplank, $count);
+}
+def_int $banked = inv_total(bank, plank);
+if ($banked > 0) {
+    inv_del(bank, plank, $banked);
+    inv_add(bank, woodplank, $banked);
+}
