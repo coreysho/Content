@@ -1,0 +1,84 @@
+// Small helpers the PlagueCityRS 349 version of Eadgar's Ruse takes from its own shared scripts.
+// They carry an eadgar_ prefix so they cannot collide with the same helpers arriving under their
+// 349 names from another port (349: ~chatnpc_model in interface_chat/scripts/chat.rs2,
+// [queue,clear_overlay] in general/scripts/general_queues.rs2, ~force_unequip_greegree in
+// quests/quest_mm/scripts/mm_greegree.rs2).
+
+// A chathead that is a bare model rather than an npc: the drunk parrot (model 3624) and the fake
+// man (model 4053), neither of which exists as an npc.
+[proc,eadgar_chatnpc_model_page](string $npc_name, int $chathead, int $page)
+def_int $lines = split_linecount($page);
+def_interface $interface = null;
+
+if ($lines = 0) {
+    // sanity check
+    return;
+} else if ($lines = 1) {
+    $interface = npcchat1;
+    if_setmodel(npcchat1:com_0, $chathead);
+    if_setanim(npcchat1:com_0, split_getanim($page));
+    if_settext(npcchat1:com_1, $npc_name);
+    if_settext(npcchat1:com_2, split_get($page, 0));
+} else if ($lines < 3) {
+    $interface = npcchat2;
+    if_setmodel(npcchat2:com_0, $chathead);
+    if_setanim(npcchat2:com_0, split_getanim($page));
+    if_settext(npcchat2:com_1, $npc_name);
+    if_settext(npcchat2:com_2, split_get($page, 0));
+    if_settext(npcchat2:com_3, split_get($page, 1));
+} else if ($lines = 3) {
+    $interface = npcchat3;
+    if_setmodel(npcchat3:com_0, $chathead);
+    if_setanim(npcchat3:com_0, split_getanim($page));
+    if_settext(npcchat3:com_1, $npc_name);
+    if_settext(npcchat3:com_2, split_get($page, 0));
+    if_settext(npcchat3:com_3, split_get($page, 1));
+    if_settext(npcchat3:com_4, split_get($page, 2));
+} else if ($lines = 4) {
+    $interface = npcchat4;
+    if_setmodel(npcchat4:com_0, $chathead);
+    if_setanim(npcchat4:com_0, split_getanim($page));
+    if_settext(npcchat4:com_1, $npc_name);
+    if_settext(npcchat4:com_2, split_get($page, 0));
+    if_settext(npcchat4:com_3, split_get($page, 1));
+    if_settext(npcchat4:com_4, split_get($page, 2));
+    if_settext(npcchat4:com_5, split_get($page, 3));
+}
+if_openchat($interface);
+
+[proc,eadgar_chatnpc_model](string $npc_name, int $chathead, string $string)
+split_init($string, 380, 4, q8_full);
+def_int $page = 0;
+def_int $pagetotal = split_pagecount;
+while ($page < $pagetotal) {
+    ~eadgar_chatnpc_model_page($npc_name, $chathead, $page);
+    p_pausebutton;
+    $page = calc($page + 1);
+}
+
+// Takes the fade-to-black overlay down after a storeroom guard's club lands.
+[queue,eadgar_clear_overlay]
+if_openoverlay(null);
+
+// Parroty Pete will not talk to a monkey. 349 wrenches the greegree off; ours transforms through
+// ~equip/~on_unequip (quests/quest_mm/scripts/mm_stage3.rs2), so the same thing is done through
+// those: into the pack if there is room, onto the floor if not, and ~on_unequip turns you back.
+[proc,eadgar_force_unequip_greegree]
+def_obj $obj = inv_getobj(worn, ^wearpos_rhand);
+def_int $count = inv_getnum(worn, ^wearpos_rhand);
+if ($obj = null) {
+    return;
+}
+if (~mm_is_monkey = false) {
+    return;
+}
+def_int $overflow = inv_itemspace2(inv, $obj, $count, inv_size(inv));
+if (inv_freespace(inv) = 0) {
+    inv_dropslot(worn, coord, ^wearpos_rhand, 300);
+} else {
+    inv_moveitem(worn, inv, $obj, sub($count, $overflow));
+}
+~update_all($obj);
+~on_unequip($obj);
+p_stopaction;
+~mesbox("The Monkey Greegree wrenches itself from your hand as its power begins to fade...");
