@@ -1,5 +1,6 @@
 [oploc1,mournerstewdoorup] 
-if(~check_axis(coord, loc_coord, loc_angle) = false & inv_total(worn, doctor_gown) = 0) {
+// Mourning's End Part I: the full uniform passes the mourner on this door too.
+if(~check_axis(coord, loc_coord, loc_angle) = false & inv_total(worn, doctor_gown) = 0 & ~mourning_hq_admits = false) {
     mes("The mourner is refusing to open the door.");
     return;
 }
@@ -8,6 +9,8 @@ if(~check_axis(coord, loc_coord, loc_angle) = false & inv_total(worn, doctor_gow
 [oploc1,mournerstewdoor] 
 if(~check_axis(coord, loc_coord, loc_angle) = false) {
     ~open_and_close_door2(mournerstewdooropen, ~check_axis(coord, loc_coord, loc_angle), door_open);
+} else if(~mourning_hq_admits = true) {
+    @mourning_hq_front_door;
 } else {
     @west_ardougne_mourner_headquarters_doors;
 }

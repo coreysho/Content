@@ -17,7 +17,9 @@
 [oploc2,fenk_grave_poor] @fenk_dig_grave;
 
 [label,fenk_dig_grave]
-if (%fenk_quest ! ^fenk_started) {
+// Still open after the doctor has seen all four parts, so a limb lost before the sewing can be
+// dug up again.
+if (%fenk_quest ! ^fenk_started & %fenk_quest ! ^fenk_parts_gathered) {
     mes("You have no reason to disturb this, and every reason not to.");
     return;
 }
@@ -117,10 +119,12 @@ inv_add(inv, fenk_head_empty, 1);
 [oploc1,fenk_broomcupboard]
 loc_change(fenk_broomcupboard_open, 200);
 
-[oploc2,fenk_broomcupboard_open]
+// The open cupboard's ops are op2=Search and op3=Shut in the cache - there is no op1 on it. They
+// used to be handled as op1/op2, so Search shut the cupboard and the brush could never be taken.
+[oploc3,fenk_broomcupboard_open]
 loc_change(fenk_broomcupboard, 200);
 
-[oploc1,fenk_broomcupboard_open]
+[oploc2,fenk_broomcupboard_open]
 if (~obj_gettotal(fenk_brush0) > 0 | ~obj_gettotal(fenk_brush1) > 0 | ~obj_gettotal(fenk_brush2) > 0 | ~obj_gettotal(fenk_brush3) > 0) {
     mes("You have taken the brush already.");
     return;
@@ -170,11 +174,28 @@ inv_del(inv, $brush, 1);
 inv_add(inv, $longer, 1);
 mes("You lash another cane to the brush.");
 
+[proc,fenk_shed_amulet]
+if (inv_freespace(inv) = 0) {
+    mes("Something pale is sitting on the bench inside, and you have no room to pick it up.");
+    return;
+}
+inv_add(inv, fenk_marble_amulet, 1);
+mes("On the bench, under forty years of dust, is a triangle of white marble on a cord.");
+
 // The shed key is on a ledge above the door. Only the fully extended brush reaches it.
+// The broom cupboard is INSIDE the shed (it is only reachable from its east side, which is the
+// shed floor), so the ledge-and-brush route below can never be the way in: the brush is behind the
+// door it would open. The gardener's ghost hands over the key instead, as in the original, and the
+// door has to let the player through once it is unlocked - it is a wall like any other.
 [oploc1,fenk_shed_door]
 p_arrivedelay;
 if (%fenk_unlocked_shed = 1) {
-    mes("The shed is already open.");
+    // Opening it again is how a player who was too full to lift the amulet the first time, or who
+    // has lost it since, gets it - otherwise the memorial could never be moved.
+    if (%fenk_coffin = 0 & ~obj_gettotal(fenk_marble_amulet) = 0 & ~obj_gettotal(fenk_star_amulet) = 0) {
+        ~fenk_shed_amulet;
+    }
+    ~open_and_close_door2(fenk_shed_door, ~check_axis(coord, loc_coord, loc_angle), door_open);
     return;
 }
 if (inv_total(inv, fenk_shed_key) > 0) {
@@ -184,13 +205,9 @@ if (inv_total(inv, fenk_shed_key) > 0) {
     // What is actually in the shed. The gardener's ghost says the old master kept the marble half
     // of his amulet in here, "of all the daft places", and this is the only way into the building.
     if (~obj_gettotal(fenk_marble_amulet) = 0 & ~obj_gettotal(fenk_star_amulet) = 0) {
-        if (inv_freespace(inv) = 0) {
-            ~mesbox("Something pale is sitting on the bench inside, and you have no room to pick it up.");
-            return;
-        }
-        inv_add(inv, fenk_marble_amulet, 1);
-        ~mesbox("On the bench, under forty years of dust, is a triangle of white marble on a cord.");
+        ~fenk_shed_amulet;
     }
+    ~open_and_close_door2(fenk_shed_door, ~check_axis(coord, loc_coord, loc_angle), door_open);
     return;
 }
 if (inv_total(inv, fenk_brush3) = 0) {
@@ -212,7 +229,8 @@ if (%fenk_wound_clock = 1) {
     mes("The clock is wound. Somewhere above you, something heavy has moved.");
     return;
 }
-if (%fenk_quest < ^fenk_creature_spoke) {
+// From the moment the creature is alive: it is up in the tower, and the tower is what this opens.
+if (%fenk_quest < ^fenk_creature_alive) {
     mes("The clock has stopped. You have no particular reason to start it.");
     return;
 }
@@ -221,10 +239,12 @@ anim(human_pickuptable, 0);
 sound_synth(lever, 1, 0);
 ~mesbox("You wind the clock. It begins to tick, and somewhere over your head a counterweight drops and a bolt slides back.");
 
+// The door is a wall like any other, so unbolting it has to let the player through as well: the
+// ladder up to the creature on the tower top is on the far side of it.
 [oploc1,fenk_tower_door]
 p_arrivedelay;
 if (%fenk_unlocked_tower = 1) {
-    mes("The tower door stands open.");
+    ~open_and_close_door2(fenk_tower_door, ~check_axis(coord, loc_coord, loc_angle), door_open);
     return;
 }
 if (%fenk_wound_clock = 0 & inv_total(inv, fenk_tower_key) = 0) {
@@ -234,6 +254,7 @@ if (%fenk_wound_clock = 0 & inv_total(inv, fenk_tower_key) = 0) {
 %fenk_unlocked_tower = 1;
 sound_synth(unlock, 1, 0);
 mes("The tower door swings open.");
+~open_and_close_door2(fenk_tower_door, ~check_axis(coord, loc_coord, loc_angle), door_open);
 
 // =========================================================================== the conductor
 

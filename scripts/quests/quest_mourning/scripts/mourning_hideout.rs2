@@ -38,6 +38,27 @@ if (%mourning_quest = ^mourning_entered_hq) {
     ~mesbox("The shaft goes down a long way, and it was not dug by anyone in a hurry. This is not a cellar. It is the top of a mine.");
 }
 
+// --- The way into the headquarters ---
+// The HQ is the Biohazard stew house, and its front door (mournerstewdoor) only ever opened for a
+// doctor during Biohazard - after it, "The door is locked". Every Mourning's End player has finished
+// Biohazard (Roving Elves -> Regicide -> Underground Pass -> Biohazard), so the uniform could not get
+// anyone inside: the yard with the trapdoor, the upstairs quarters and the storeroom gate were all
+// behind that door, and the quest stopped at stage 3. In the uniform the mourner on the door lets you
+// in, as in the original, and walking in is what "entered the HQ" means.
+[proc,mourning_hq_admits]()(boolean)
+if (%mourning_quest >= ^mourning_has_disguise & ~mourning_wearing_disguise = true) {
+    return(true);
+}
+return(false);
+
+[label,mourning_hq_front_door]
+~open_and_close_door2(mournerstewdooropen, ~check_axis(coord, loc_coord, loc_angle), door_open);
+if (%mourning_quest = ^mourning_has_disguise) {
+    %mourning_quest = ^mourning_entered_hq;
+    ~send_quest_progress(questlist:mourning, 4, ^mourning_complete);
+    mes("The Mourner on the door glances at you, sees the mask, and goes back to looking at nothing.");
+}
+
 [oploc1,mourner_hideout_ladder1]
 ~climb_ladder(^mourning_hideout_top, true);
 

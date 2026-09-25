@@ -1,0 +1,22 @@
+// Marim's bamboo gate (m42_43, the pair at (31,14) and (33,14)) - the only way into the village on
+// foot. Both halves shipped with Open and no trigger, so nobody could walk into Marim at all: not
+// after Monkey Madness, and not for Recipe for Disaster's King Awowogei, whose three wise monkeys
+// and red banana tree are inside. quest_mm.constant already says what the gate should do instead of
+// the jail it does not build: the guards stop a human. A monkey - anyone wearing a greegree - is let
+// through. The gateway tiles either side are (32,13)/(33,13) and (32,15)/(33,15).
+[oploc1,mm_bamboo_largedoor] @mm_marim_gate;
+[oploc1,mm_bamboo_largedoor_left] @mm_marim_gate;
+
+[label,mm_marim_gate]
+if (inv_totalcat(worn, mm_greegree) = 0) {
+    mes("A monkey guard on the far side glares at you through the bamboo.");
+    mes("They are not opening the gate for a human.");
+    return;
+}
+mes("The guard sees a monkey and lets you through.");
+sound_synth(door_open, 1, 0);
+if (coordz(coord) < coordz(loc_coord)) {
+    p_teleport(movecoord(coord, 0, 0, 2));
+} else {
+    p_teleport(movecoord(coord, 0, 0, -2));
+}

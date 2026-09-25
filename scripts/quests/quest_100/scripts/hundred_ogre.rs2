@@ -59,6 +59,16 @@ switch_int (%100_ogre_prog) {
         @hundred_rantz_launch;
     case default :
         ~chatnpc("<p,happy>Boat go. Kids row. You hunt.");
+        // The boat npc on this shore sits out on the water with no walkable tile beside it, so
+        // nobody can click it; Rantz shouts for the kids instead.
+        if (%100_ogre_prog >= ^hundred_ogre_hunting & %100_ogre_jubbly_boat_visible = 1) {
+            if (~p_choice2("Row me out to the island.", 1, "Not now.", 2) = 1) {
+                ~chatplayer("<p,happy>Row me out to the island.");
+                ~chatnpc("<p,happy>KIDS! Row!");
+                if_close;
+                @hundred_row_to_island;
+            }
+        }
 }
 
 [label,hundred_rantz_intro]
@@ -139,7 +149,9 @@ if (%100_ogre_jubbly_push_tree = ^hundred_tree_trimmed) {
 // --- The boat ---
 // One varbit reveals both ends at once, so this is a two-way ferry off two triggers.
 
-[opnpc1,100_jubbly_multi_boat_feldip]
+[opnpc1,100_jubbly_multi_boat_feldip] @hundred_row_to_island;
+
+[label,hundred_row_to_island]
 mes("Fycie and Bugs row you out to the island.");
 p_delay(3);
 p_teleport(^hundred_jubbly_island);
