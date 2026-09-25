@@ -58,83 +58,188 @@
 // old, inverted wiring (lighthouse straight down to Jossik, bosses in m39_156, no way back up) and are
 // replaced by the ladder section below and quest_horror.constant.
 
+// Larrissa's dialogue follows the quest transcript (RS wiki and OSRS wiki, "Transcript:Horror from the
+// Deep") branch for branch - every option, condition and outcome is the original's - but the lines are
+// written in our own words rather than copied.
 [opnpc1,horror_girlfriend_prequest]
 if (%horror = ^horror_not_started) {
-    ~chatplayer("<p,quiz>Hello, is everything alright?");
-    ~chatnpc("<p,sad>Oh, adventurer, thank goodness! Something dreadful has happened - the lighthouse has stopped working, and I fear something has happened to Jossik, the lighthouse keeper!");
-    ~chatplayer("<p,neutral>The lighthouse guards the coast, doesn't it? Someone should find out what's wrong.");
-    ~chatnpc("<p,sad>Would you? Please, I'm too afraid to go in there myself. My name is Larrissa.");
-    def_int $op = ~p_choice2("I'll take a look.", 1, "Sorry, I'm busy right now.", 2);
-    if ($op = 2) {
-        ~chatplayer("<p,neutral>Sorry, I'm busy right now.");
+    @horror_larrissa_start;
+}
+if (%horror >= ^horror_mother_defeated) {
+    @horror_larrissa_thanks;
+}
+if (%horror = ^horror_dagannoth_defeated) {
+    @horror_larrissa_found_jossik;
+}
+if (getbit_range(%horror_lighting, 0, 2) = 7) {
+    ~chatnpc("<p,sad>Have you found any sign of my Jossik yet?");
+    ~chatplayer("<p,neutral>Not yet...");
+    ~chatnpc("<p,sad>I came out here to see if I could find some trace of him... but there's nothing at all. I'm so worried...");
+    ~chatplayer("<p,neutral>Don't worry, I'm sure he's fine. I'll find him somehow.");
+    return;
+}
+def_boolean $bridge = false;
+if (getbit_range(%horror_bridges, 0, 1) = 3) {
+    $bridge = true;
+}
+if ($bridge = true & testbit(%horror_bridges, ^horror_door_unlocked_bit) = 1) {
+    if (%horror = ^horror_started & %horror_lighting = 0) {
+        ~chatnpc("<p,happy>Quickly, we must go inside and find out what has happened to my Jossik!");
         return;
     }
-    ~chatplayer("<p,happy>I'll take a look.");
-    ~chatnpc("<p,happy>Oh, thank you! The bridges to the east are broken though - you'll need some planks to cross them. My cousin Gunnjorn, at the Barbarian Outpost agility arena, might be able to help you further.");
-    %horror = ^horror_started;
-    ~send_quest_progress(questlist:horror, 1, ^horror_complete);
-} else if (%horror < ^horror_mother_defeated) {
-    // She stays out here in the real world; the Larrissa who goes in with you is the copy's one below.
-    if (testbit(%horror_bridges, ^horror_door_unlocked_bit) = 0 | getbit_range(%horror_bridges, 0, 1) ! 3) {
-        ~chatnpc("<p,sad>Please, adventurer - the bridge still needs mending, and my cousin Gunnjorn has the spare key. Then we can find out what has happened to my Jossik.");
-    } else if (getbit_range(%horror_lighting, 0, 2) ! 7) {
-        ~chatnpc("<p,worried>Adventurer, you have to do something about that light! Ships come round this coast all the time.");
-        ~chatplayer("<p,neutral>Okay, I'll see what I can do.");
-    } else {
-        ~chatnpc("<p,sad>Have you found any sign of Jossik yet? I came out here to look, but there is nothing.");
-        ~chatplayer("<p,neutral>Not yet. Don't worry, I'll find him.");
-    }
-} else {
-    ~chatnpc("<p,happy>Thank you again for rescuing Jossik!");
+    // back outside with the light still out
+    ~chatnpc("<p,angry>Adventurer! You have to do something about the broken light! Ships come round this coast - they mustn't be wrecked here!");
+    ~chatplayer("<p,neutral>Okay, I'll see what I can do.");
+    return;
 }
+if ($bridge = true & inv_total(inv, horror_key) > 0) {
+    ~chatplayer("<p,happy>I've got your key for you!");
+    ~chatnpc("<p,happy>Oh, thank you so much!");
+    ~chatnpc("<p,happy>Quickly, we must go inside and find out what has happened to my Jossik!");
+    return;
+}
+if (inv_total(inv, horror_key) > 0) {
+    ~chatplayer("<p,happy>I've got your key for you!");
+    ~chatnpc("<p,sad>Thank you, adventurer, but I need you to mend the bridge for me. A key to the lighthouse is little comfort while I'm stuck out here on this causeway!");
+    return;
+}
+if ($bridge = true) {
+    ~chatplayer("<p,happy>I've fixed the bridge for you!");
+    ~chatnpc("<p,happy>Oh, thank you so much!");
+    ~chatnpc("<p,sad>Please find the lighthouse key for me too, though! I can't bear to think something bad has happened to my Jossik...");
+    return;
+}
+~chatplayer("<p,neutral>Hello again.");
+~chatnpc("<p,sad>Oh, please find my darling! I just know something awful has happened!");
+@horror_larrissa_options;
+
+[label,horror_larrissa_start]
+~chatnpc("<p,sad>Oh, thank Armadyl! I'm so worried... please, help me!");
+if (~p_choice2("With what?", 1, "Sorry, just passing through.", 2) = 2) {
+    @horror_larrissa_decline;
+}
+~chatplayer("<p,quiz>With what?");
+~chatnpc("<p,sad>Oh... it's awful... My boyfriend lives here in this lighthouse, and I haven't seen him for days! I think something terrible has happened to him!");
+~chatnpc("<p,sad>See for yourself - the light has gone out, and the front door is locked tight! He would NEVER do that!");
+~chatnpc("<p,sad>Without the light this coast is deadly to ships! And why lock the front door, so nobody can light it again?");
+~chatplayer("<p,neutral>Maybe he's just gone on holiday? Living in a lighthouse must be pretty dull.");
+~chatnpc("<p,angry>That would be terribly irresponsible, and he's far too thoughtful! He'd never leave the light untended, and he'd never go without telling me!");
+~chatnpc("<p,sad>Please, I know something dreadful has happened to him... I can feel it! Please help me, adventurer!");
+if (~p_choice2("But how can I help?", 1, "Sorry, just passing through.", 2) = 2) {
+    @horror_larrissa_decline;
+}
+~chatplayer("<p,quiz>But how can I help?");
+~chatnpc("<p,neutral>Well, we have to get the lighthouse working again somehow! And as you may have noticed, the storm that broke the bridge has left me stranded on this causeway.");
+~chatnpc("<p,neutral>You got here somehow, so if you could visit my cousin and fetch the spare key I left with him, and mend the bridge enough for me to get to Rellekka and tell my family what has happened, I'd be ever so grateful!");
+if (~p_choice2_header("Yes.", 1, "No.", 2, "Start the Horror from the Deep quest?") = 2) {
+    @horror_larrissa_decline;
+}
+~chatplayer("<p,happy>Okay, I'll help!");
+%horror = ^horror_started;
+~send_quest_progress(questlist:horror, 1, ^horror_complete);
+~chatnpc("<p,happy>OH! THANK YOU SO MUCH! I know my darling would never have gone off with the light out and without even telling me where!");
+@horror_larrissa_options;
+
+[label,horror_larrissa_decline]
+~chatplayer("<p,neutral>Sorry, just passing through.");
+~chatnpc("<p,sad>Oh... my poor Jossik... I just know something terrible has happened...");
+
+[label,horror_larrissa_options]
+def_int $op = ~p_choice3("Where is your cousin?", 1, "How can I fix the bridge?", 2, "I'll see what I can do.", 3);
+if ($op = 1) {
+    ~chatplayer("<p,quiz>Where is your cousin?");
+    if (testbit(%horror_bridges, ^horror_key_given_bit) = 1) {
+        ~chatnpc("<p,confused>What? My cousin is the one who gave you my spare lighthouse key. Is your memory going, adventurer?");
+        ~chatplayer("<p,shifty>Er... no... I was just... testing you. Yes. Testing.");
+        return;
+    }
+    ~chatnpc("<p,neutral>My cousin was always mad about agility. He left our home in Rellekka long ago to follow it.");
+    ~chatnpc("<p,neutral>I don't know exactly where he went, but it'll be somewhere he can practise his agility. His name is Gunnjorn - mention my name and he'll know it.");
+    @horror_larrissa_options;
+}
+if ($op = 2) {
+    ~chatplayer("<p,quiz>How can I fix the bridge?");
+    ~chatnpc("<p,angry>Well, I'm not some helpless girl! My agility's good enough that two planks will do - a ledge I can balance along.");
+    ~chatnpc("<p,neutral>Just use a plank on each side of the bridge. You'll need a hammer, and thirty steel nails for each plank. I think there are some planks around here...");
+    @horror_larrissa_options;
+}
+~chatplayer("<p,neutral>I'll see what I can do.");
+~chatnpc("<p,happy>Thank you so much!");
+
+[label,horror_larrissa_found_jossik]
+~chatplayer("<p,happy>I found Jossik! He's in a cavern under the lighthouse...");
+~chatnpc("<p,happy>That's wonderful news! But why doesn't he come up out of there?");
+~chatplayer("<p,shifty>Um... well, there's a big monster down there with him that won't let him leave.");
+~chatnpc("<p,shock>What?!? You MUST save him! I'm begging you, please! Do something!");
+~chatplayer("<p,neutral>Okay, okay, sheesh, keep your hair on...");
+
+[label,horror_larrissa_thanks]
+~chatnpc("<p,happy>Oh! Thank you so much for all your help rescuing my darling Jossik!");
+~chatnpc("<p,happy>I don't know what would have become of him if you hadn't happened along this path!");
+~chatplayer("<p,happy>Don't worry about it, I was glad to help.");
 
 // The Larrissa inside the attacked lighthouse (m38_71 p0 13,55 - see "The two lighthouses" below).
 // Despite its debugname this npc is not a post-quest one: it is the Larrissa who has followed you in,
 // and only players between opening the door and killing the Dagannoth Mother ever see her.
 [opnpc1,horror_girlfriend_postquest]
-if (getbit_range(%horror_lighting, 0, 2) ! 7) {
-    ~chatnpc("<p,sad>This is terrible... what can have happened here? You must get the light working - I won't have Jossik blamed for a shipwreck!");
-    if (~p_choice2("What am I supposed to be doing?", 1, "Okay, I'll see what I can do.", 2) = 2) {
-        ~chatplayer("<p,neutral>Okay, I'll see what I can do.");
+if (%horror >= ^horror_mother_defeated) {
+    @horror_larrissa_thanks;
+}
+if (%horror = ^horror_dagannoth_defeated) {
+    @horror_larrissa_found_jossik;
+}
+if (getbit_range(%horror_lighting, 0, 2) = 7) {
+    ~chatplayer("<p,happy>I have managed to fix the light!");
+    ~chatnpc("<p,happy>Excellent work, adventurer!");
+    ~chatnpc("<p,happy>Now you can put all your energy into finding out what has happened to my darling Jossik!");
+    return;
+}
+~chatnpc("<p,sad>This is terrible...");
+~chatnpc("<p,sad>What can have happened here? Please, you have to fix the light - we can't let my Jossik take the blame for a shipwreck!");
+if (~p_choice2("What am I supposed to be doing again?", 1, "Okay, I will see what I can do.", 2) = 2) {
+    ~chatplayer("<p,neutral>Okay, I will see what I can do.");
+    return;
+}
+~chatplayer("<p,quiz>What am I supposed to be doing again?");
+~chatnpc("<p,angry>You MUST find a way to fix the light! Ships are in terrible danger for as long as it isn't working!");
+~chatplayer("<p,quiz>Do you have any idea how I could do that?");
+~chatnpc("<p,sad>I'm sorry, adventurer, I don't know anything about lighthouses.");
+~chatnpc("<p,neutral>But there must be some sort of guide around here. Jossik knew nothing about lighthouses when he started, so the council must have left him a manual or something.");
+
+
+// Gunnjorn. [opnpc1,gunnjorn] can only be declared once globally, so his base flavour lines (from
+// area_barbarian_outpost/scripts/gunnjorn.rs2) live here too. The key hand-out follows the transcript:
+// a first meeting where you ask for Larrissa's key, and a "lost that key" version if you come back
+// without it - only while the door has never been opened (the key is used up in the lock). No room,
+// no key. %horror_bridges bit ^horror_key_given_bit remembers the first meeting.
+[opnpc1,gunnjorn]
+~chatnpc("<p,happy>Haha welcome to my obstacle course.|Have fun, but remember this isn't a child's playground.|People have died here.");
+if (%horror < ^horror_started | %horror >= ^horror_mother_defeated | inv_total(inv, horror_key) > 0 | testbit(%horror_bridges, ^horror_door_unlocked_bit) = 1) {
+    ~chatnpc("<p,happy>The best way to train,|is to go round the course in a clockwise direction.");
+    return;
+}
+if (testbit(%horror_bridges, ^horror_key_given_bit) = 1) {
+    ~chatplayer("<p,sad>Hello again, Gunnjorn. I'm afraid I've lost that key you gave me.");
+    if (inv_freespace(inv) = 0) {
+        ~chatnpc("<p,neutral>I'd give you another, but you don't seem to have any room for it.");
         return;
     }
-    ~chatplayer("<p,quiz>What am I supposed to be doing? Do you know how to fix it?");
-    ~chatnpc("<p,sad>I know nothing about lighthouses, I'm sorry. Neither did Jossik when he started here - the council must have left him a manual of some kind. Try his books.");
-    return;
-}
-if (%horror < ^horror_dagannoth_defeated) {
-    ~chatplayer("<p,happy>I've fixed the light!");
-    ~chatnpc("<p,happy>Wonderful work! Now you can put everything into finding my Jossik.");
-    return;
-}
-if (%horror < ^horror_mother_defeated) {
-    ~chatplayer("<p,neutral>I found Jossik. He's in a cavern under the lighthouse, but there's a huge creature down there that won't let him leave.");
-    ~chatnpc("<p,shock>What? Then you must save him! Please, do something!");
-    return;
-}
-~chatnpc("<p,happy>Thank you again for rescuing Jossik - I don't know what I'd have done without you.");
-
-
-// Gunnjorn is reachable at the Barbarian Outpost agility arena independent of the broken bridges,
-// so the key hand-out is gated on possession (not a %horror stage) to avoid an order-dependent
-// sequence break if he's spoken to before or after the bridges are repaired.
-// [opnpc1,gunnjorn] can only be declared once globally - this merges in the original base flavour
-// dialogue from area_barbarian_outpost/scripts/gunnjorn.rs2 (now removed from there, see that file's
-// own comment) as the not-yet-quest-relevant case, rather than dropping it in favour of the quest line.
-[opnpc1,gunnjorn]
-if (%horror = ^horror_not_started) {
-    ~chatnpc("<p,happy>Haha welcome to my obstacle course.|Have fun, but remember this isn't a child's playground.|People have died here.");
-    ~chatnpc("<p,happy>The best way to train,|is to go round the course in a clockwise direction.");
-} else if (%horror >= ^horror_started & %horror < ^horror_complete & inv_total(inv, horror_key) = 0 & testbit(%horror_bridges, ^horror_door_unlocked_bit) = 0) {
-    // Any stage, not just the first: a key lost before it has ever turned in the lock would
-    // otherwise leave the lighthouse shut for good.
-    ~chatplayer("<p,neutral>Larrissa said you might be able to help me get into the lighthouse.");
-    ~chatnpc("<p,neutral>Ah, poor Jossik. Here, take this key - it's the spare for the lighthouse's front door.");
+    ~chatnpc("<p,happy>No problem. Here you go.");
     inv_add(inv, horror_key, 1);
-    ~chatplayer("<p,happy>Thanks, I'll head back and see what I can do.");
-} else if (%horror >= ^horror_started) {
-    ~chatnpc("<p,neutral>Good luck down there.");
+    return;
 }
+~chatplayer("<p,quiz>Hi, are you called Gunnjorn?");
+~chatnpc("<p,happy>Why, I am indeed! This agility course is mine - it can be very dangerous!");
+~chatplayer("<p,neutral>Yes, that's great. Anyway, I hear you have a cousin called Larrissa who gave you a key...?");
+~chatnpc("<p,quiz>So she did! How do you know about that? She said she probably wouldn't need it, but gave it to me for safe keeping, just in case.");
+~chatplayer("<p,neutral>Well, something has happened at the lighthouse, and she's been locked out. I need you to give me her key.");
+if (inv_freespace(inv) = 0) {
+    ~chatnpc("<p,neutral>I'd give you the key, but you don't seem to have any room for it.");
+    return;
+}
+~chatnpc("<p,happy>Sure. Here you go.");
+inv_add(inv, horror_key, 1);
+%horror_bridges = setbit(%horror_bridges, ^horror_key_given_bit);
 
 
 // --- The Lighthouse's front doorway (loc 4577) ---
@@ -178,6 +283,8 @@ if (%horror < ^horror_complete & testbit(%horror_bridges, ^horror_door_unlocked_
         mes("The door is locked. Larrissa's cousin Gunnjorn has the spare key.");
         return;
     }
+    // RS wiki transcript, "Unlocking the Lighthouse": the key is taken. The door stays unlocked.
+    inv_del(inv, horror_key, 1);
     mes("You unlock the lighthouse front door.");
     %horror_bridges = setbit(%horror_bridges, ^horror_door_unlocked_bit);
 }
@@ -548,25 +655,54 @@ if (loc_find(^horror_far_right_door_coord, horror_far_right_door) = true) {
 }
 
 
-// --- Lighthouse bookcase (horror_bookcase, loc 4617, real op1=Search) ---
-// Placed at m39_56 plane 1 local(12,60) - the lighthouse's middle floor - and again in the m38_71
-// copy of that room. The Search option had no handler at all, so it did nothing. There's no item
-// reward attached to it in the cache, so it's wired as the puzzle's in-world hint instead: the
-// strange wall's six recesses are otherwise only described by studying the wall itself, which you
-// can't do until you're already past it.
+// --- Lighthouse bookcase (horror_bookcase, loc 4617, op1=Search) ---
+// On the middle floor of both lighthouses. Transcript: three important-looking books - the lighthouse
+// manual, the ancient diary and Jossik's journal (the cache's horror_diary3/_diary2/_diary1) - taken
+// one at a time or all three together. Reading them is not needed to finish the quest, but the manual
+// says how the light is mended and Silas's diary how the strange wall is opened.
 [oploc1,horror_bookcase]
-mes("You search the shelves.");
-p_delay(1);
-if (%horror < ^horror_started) {
-    ~mesbox("Shipping manifests, tide tables and a keeper's journal. The last few entries are about noises from under the lighthouse.");
+~mesbox("There are three books here that look important... What would you like to do?");
+def_int $op = ~p_choice4("Take the Lighthouse Manual.", 1, "Take the ancient Diary.", 2, "Take Jossik's Journal.", 3, "Take all three books.", 4);
+if ($op = 4) {
+    if (inv_freespace(inv) < 3) {
+        mes("You do not have enough room to take all three.");
+        return;
+    }
+    inv_add(inv, horror_diary3, 1);
+    inv_add(inv, horror_diary2, 1);
+    inv_add(inv, horror_diary1, 1);
     return;
 }
-if (getbit_range(%horror_wall, 0, 5) = 63) {
-    ~mesbox("Shipping manifests and tide tables. Nothing else in here seems useful now.");
+if (inv_freespace(inv) = 0) {
+    mes("You do not have enough room to take that.");
     return;
 }
-~mesbox("Tucked among the tide tables is a keeper's journal. One page describes a sealed door beneath the lighthouse, and copies out a rhyme carved beside it:");
-~mesbox("'Fire and air, water and earth, a blade and a shaft - press each to its own mark, and the way shall open.'");
+if ($op = 1) {
+    inv_add(inv, horror_diary3, 1);
+} else if ($op = 2) {
+    inv_add(inv, horror_diary2, 1);
+} else {
+    inv_add(inv, horror_diary1, 1);
+}
+
+// Moved here from general_use/scripts/readables_generated.rs2, whose one-line stand-ins said nothing
+// the quest needs. The contents follow the wiki's account of each book (OSRS wiki, Horror from the
+// Deep, and the Manual / Diary / Journal item pages), retold in our own words.
+[opheld1,horror_diary3]
+~mesbox("Lightomatic Deluxe 500|Maintenance, Upkeep and Users' Manual. Second Edition.");
+~mesbox("Congratulations on your purchase of the Lightomatic Deluxe 500, the finest lighthouse mechanism money can buy. Kept clean and in good repair, it will shine for many years.");
+~mesbox("Troubleshooting. Q: My light has gone out! A: Check the lens - a cracked lens can be mended with molten glass. The torch must be coated in swamp tar to burn, and can then be lit again with a tinderbox.");
+
+[opheld1,horror_diary2]
+~mesbox("The diary is old, and the handwriting grows wilder with every page. It belonged to Silas, the keeper before Jossik.");
+~mesbox("...they speak to me from beneath the waves. Nobody else hears them. I do not know why it is me they have chosen, but I will not fail them...");
+~mesbox("...I have built them a door of metal in the rock below, so that no one else will find the way. Only the key will open it: the fire, the air, the water and the earth - white, blue, brown and red - and beside them the warrior's sword and the huntsman's arrow...");
+~mesbox("The last pages are nothing but scrawl.");
+
+[opheld1,horror_diary1]
+~mesbox("Jossik's journal. He took the keeper's post at the lighthouse after his uncle Silas vanished, knowing nothing at all about lighthouses.");
+~mesbox("The later entries speak of voices at night, and of strange noises that seem to come from somewhere beneath the lighthouse.");
+~mesbox("The last entry says he has decided to go down to the basement and find out what is making them.");
 
 // --- The lighthouse basement (m39_56 <-> m39_72) and the post-quest dagannoth caves (m39_156) ---
 //
@@ -618,7 +754,6 @@ if (%horror >= ^horror_complete) {
 }
 mes("You climb down the ladder into darkness.");
 p_telejump(^horror_jossik_cave_arrival);
-~horror_dag_cavern_arrive;
 
 // Both copies (m39_72 and m39_156) climb back up to the room north of the wall; m39_156 has no
 // walkable upper floor of its own.
@@ -627,68 +762,88 @@ p_arrivedelay;
 mes("You climb up the ladder.");
 p_telejump(^horror_wall_room_arrival);
 
-// Both bosses are spawned in Jossik's cave rather than placed in the map, and only for a player who
-// still needs them - so they are never standing around for someone who has already finished, and a
-// player who logged out mid-fight gets them back simply by climbing down again (or speaking to
-// Jossik, who is the one that sees the first one coming in OSRS). Searched for by radius, not by
-// exact tile: a boss that has taken a step would otherwise not be found and a second one added.
-[proc,horror_dag_cavern_arrive]
-if (%horror = ^horror_wall_opened) {
-    if (npc_find(^horror_dag_cavern_jr4_spawn, horror_dagannoth_jr4, 20, ^vis_off) = false) {
-        npc_add(^horror_dag_cavern_jr4_spawn, horror_dagannoth_jr4, ^horror_boss_lifetime);
-        // Aggressive (OSRS: "A dagannoth appears and attacks the player"): it comes for whoever
-        // brought it out rather than waiting to be hit.
-        %npc_aggressive_player = uid;
-        npc_setmode(opplayer2);
-        mes("Something enormous shifts in the dark ahead of you.");
-    }
-    return;
+// Both bosses come out of the water when Jossik sees them coming, as in the original: the level-100
+// Dagannoth at the end of your first talk with him, and the Mother when it is dead ("That was one of
+// its babies..." - said on the kill, or on talking to him again). Nothing appears just for climbing
+// down. A player who logged out mid-fight, or whose boss despawned, gets it back by talking to him
+// again; while one is out he is too busy to talk. Searched for by radius, not by exact tile: a boss
+// that has taken a step would otherwise not be found and a second one added.
+[proc,horror_dagannoth_present]()(boolean)
+if (npc_find(^horror_dag_cavern_jr4_spawn, horror_dagannoth_jr4, 20, ^vis_off) = true) {
+    return(true);
 }
-if (%horror = ^horror_dagannoth_defeated) {
-    if (~horror_mother_present = false) {
-        ~horror_spawn_mother;
-    }
-}
+return(false);
+
+[proc,horror_spawn_dagannoth]
+npc_add(^horror_dag_cavern_jr4_spawn, horror_dagannoth_jr4, ^horror_boss_lifetime);
+// Aggressive (transcript: it "emerges from [the water] and attacks the player").
+%npc_aggressive_player = uid;
+npc_setmode(opplayer2);
 
 
 // --- Fallen Jossik (injured, in the cave below the strange wall) and horror_lighthousekeeeper_well
-// (topside, the final reward exchange) ---
+// (the library upstairs, after the quest) ---
 // horror_lighthousekeeeper_injured (npc 1335) is placed at m39_72 p0 local(22,25); the well Jossik
-// (1334) at m39_56 p1 local(13,55). They are two separate npcs, so no changetype is needed.
-// The stage machine is driven by the kills (quest_horror_combat.rs2); this handler only reads it,
-// except for the casket hand-over.
+// (1334) at m39_56 p1 local(13,55). Dialogue follows the transcript, in our own words; every Jossik
+// line goes through ~chatnpc_specific so the same labels can run from the kill's player queue.
 [opnpc1,horror_lighthousekeeeper_injured]
 if (%horror < ^horror_wall_opened) {
+    // only reachable round the back, through the Waterbirth maze
     ~chatplayer("<p,shock>Jossik! Are you alright?");
-    ~chatnpc("<p,sad>Adventurer! Thank Guthix... there are creatures down here, dagannoth of some kind. Get out while you can!");
-} else if (%horror < ^horror_dagannoth_defeated) {
-    ~chatplayer("<p,shock>Jossik! Are you alright?");
-    ~chatnpc("<p,sad>Adventurer! Thank Guthix... there are creatures down here, dagannoth of some kind.");
-    ~chatnpc("<p,scared>Look out - behind you!");
-    ~horror_dag_cavern_arrive;
-} else if (%horror < ^horror_mother_defeated) {
-    ~chatplayer("<p,neutral>I killed that dagannoth.");
-    ~chatnpc("<p,scared>That wasn't the only one. There's something bigger in the water... I can hear it moving.");
-    ~horror_dag_cavern_arrive;
-} else if (%horror < ^horror_casket_given) {
-    ~chatplayer("<p,happy>It's dead. I found this rusty casket where it was nesting.");
-    ~chatnpc("<p,neutral>A casket? Let's get out of here and I'll take a look upstairs.");
-    %horror = ^horror_casket_given;
-    ~send_quest_progress(questlist:horror, 5, ^horror_complete);
-} else {
-    ~chatnpc("<p,relieved>Let's get back up top - I don't want to spend any longer down here than I have to.");
+    ~chatnpc("<p,scared>Adventurer! There are creatures down here, dagannoth of some kind. Get out while you can!");
+    return;
+}
+if (%horror >= ^horror_mother_defeated) {
+    ~chatnpc("<p,happy>Go on up - I'll follow you to my library. I don't want to stay down here a moment longer than I have to.");
+    return;
+}
+if (%horror = ^horror_wall_opened) {
+    if (~horror_dagannoth_present = true) {
+        mes("You are too busy to talk to Jossik.");
+        return;
+    }
+    @horror_jossik_first;
+}
+if (~horror_mother_present = true) {
+    mes("You are too busy to talk to Jossik.");
+    return;
+}
+@horror_jossik_babies;
+
+[label,horror_jossik_first]
+~chatnpc_specific("Jossik", horror_lighthousekeeeper_injured, "<p,sad>*cough* Please... please help me... I think my leg is broken, and those creatures will be back any minute!");
+~chatplayer("<p,quiz>I guess you're Jossik then... What creatures are you talking about?");
+~chatnpc_specific("Jossik", horror_lighthousekeeeper_injured, "<p,scared>I... I don't know. I've never seen anything like them!");
+~chatnpc_specific("Jossik", horror_lighthousekeeeper_injured, "<p,sad>I was looking for anything about my uncle Silas, who vanished from this lighthouse months ago. I found the secret of that strange wall and that it opens like a door - but when I came down here I was attacked by...");
+~chatnpc_specific("Jossik", horror_lighthousekeeeper_injured, "<p,scared>Well, I don't know what they are, but they're terribly strong! They hurt me so badly I couldn't get away, and I've been fearing for my life ever since!");
+~chatplayer("<p,neutral>Don't worry, I'm here now. Larrissa was worried about you and asked me to help.");
+~chatplayer("<p,neutral>I'll go back up and tell her I've found you and you're still alive, and then we'll work out some way of getting you out of here, okay?");
+~chatnpc_specific("Jossik", horror_lighthousekeeeper_injured, "<p,shock>NO! No, you can't leave me now! Look! They're coming again! Do something!");
+if (%horror = ^horror_wall_opened & ~horror_dagannoth_present = false) {
+    ~horror_spawn_dagannoth;
+}
+
+[label,horror_jossik_babies]
+~chatplayer("<p,neutral>Okay, now that the creature's dead we can get you out of here.");
+~chatnpc_specific("Jossik", horror_lighthousekeeeper_injured, "<p,scared>No... you don't understand...");
+~chatnpc_specific("Jossik", horror_lighthousekeeeper_injured, "<p,scared>That wasn't the creature that attacked me...");
+~chatnpc_specific("Jossik", horror_lighthousekeeeper_injured, "<p,scared>That was one of its babies...");
+if (%horror = ^horror_dagannoth_defeated & ~horror_mother_present = false) {
+    ~horror_spawn_mother;
 }
 
 [opnpc1,horror_lighthousekeeeper_well]
-// From the Mother's death on, the lighthouse you climb back into is the real one with Jossik in his
-// library, so he takes the casket whether or not you stopped to speak to him in the cave first (in
-// OSRS he follows you straight up: "Follow me upstairs ... Bring it to my library").
+// Saves from before the quest completed on the Mother's death stopped at stage 4 or 5 with the Mother
+// already dead: they are finished here, and the casket is still owed to them.
 if (%horror >= ^horror_mother_defeated & %horror < ^horror_complete) {
-    ~chatplayer("<p,neutral>Here's that casket I found.");
-    inv_del(inv, horror_casket, 1);
-    ~chatnpc("<p,happy>Ah, I recognise this - it's one of ours. There should be a damaged prayer book inside. Which order would you like?");
-    @multi4("A book of Saradomin.", horror_book_saradomin, "A book of Zamorak.", horror_book_zamorak, "A book of Guthix.", horror_book_guthix, "None for me, thanks.", horror_book_none);
-} else if (%horror >= ^horror_complete) {
+    %horror = ^horror_complete;
+    %horror_bridges = setbit(%horror_bridges, ^horror_casket_owed_bit);
+    queue(horror_quest_complete, 0, 0);
+}
+if (%horror >= ^horror_complete & testbit(%horror_bridges, ^horror_casket_owed_bit) = 1) {
+    @horror_jossik_casket;
+}
+if (%horror >= ^horror_complete) {
     // Two separate post-quest services, which the old single ~openshop_activenpc call conflated:
     // the wiki's 5,000gp replacement for a LOST damaged prayer book is a dialogue transaction, and
     // is not in [lighthouseshop]'s stock at all - that inv is the general store ("Jossik's Wares":
@@ -767,64 +922,76 @@ inv_del(inv, coins, 5000);
 inv_add(inv, $book, 1);
 ~mesbox("You hand over 5,000 coins and Jossik fetches you another damaged prayer book.");
 
-[label,horror_book_saradomin]
-~chatplayer("<p,happy>A book of Saradomin.");
-// @finish_horror_quest sets ^horror_complete, so an unguarded add here loses the book with no
-// way back except paying Jossik 5,000gp. The casket is deliberately not required to be in hand
-// (see quest_horror_combat.rs2), so nothing has freed a slot by this point.
+// --- The casket (after the quest) ---
+// Transcript, "Post-quest dialogue - Jossik": he reads the faint writing on the casket with you. You
+// pick a god, he asks if you are REALLY sure, and you pick again; the same god twice opens it and the
+// damaged book of that god is yours (a different one goes round again). No casket on you - he picked
+// up the one you dropped. No free space - come back when you have some. %horror_bridges bit
+// ^horror_casket_owed_bit is set on the kill and cleared here, so it is opened exactly once.
+[label,horror_jossik_casket]
+~chatplayer("<p,happy>I see you managed to get away from those monsters in one piece!");
+~chatnpc("<p,happy>It seems I wasn't as badly hurt as I thought! Thank you again for all your help.");
+~chatnpc("<p,neutral>Now, about that casket you found on the creature's body...");
+if (inv_total(inv, horror_casket) = 0) {
+    ~chatplayer("<p,confused>I never got any casket from that monster.");
+    ~chatnpc("<p,laugh>Of course you did! You dropped it, and I picked it up. I have it right here.");
+    ~chatnpc("<p,neutral>Now, let's have a look at it. There's some writing on it, but it's very faint. Can you make it out?");
+} else {
+    ~chatplayer("<p,quiz>I have it here. You said you might be able to tell me something about it?");
+    ~chatnpc("<p,happy>I can indeed! Let me have a closer look... Yes! There's something written on it, though it's very faint. Can you read it?");
+}
+@horror_casket_say(~horror_casket_pick);
+
+[proc,horror_casket_pick]()(int)
+return(~p_choice3_header("Saradomin.", 1, "Zamorak.", 2, "Guthix.", 3, "What does the casket say?"));
+
+[label,horror_casket_say](int $god)
+~chatplayer("<p,neutral>I think it says... <~horror_god_name($god)>.");
+~chatnpc("<p,quiz>Are you sure? I mean, are you REALLY sure? Maybe you'd better look again.");
 if (inv_freespace(inv) = 0) {
-    ~mesbox("Jossik holds out a damaged book of Saradomin - but you have no room to take it. Make some space and ask again.");
+    ~chatnpc("<p,neutral>I think you should free up some space in your pack first!");
+    ~chatnpc("<p,neutral>Whatever's in this casket might be valuable, and you wouldn't want to just throw it away.");
     return;
 }
-inv_add(inv, unfinished_saradominbook, 1);
-~mesbox("Jossik hands you a damaged book of Saradomin, salvaged from the wreck of the casket.");
-@finish_horror_quest;
-
-[label,horror_book_zamorak]
-~chatplayer("<p,happy>A book of Zamorak.");
-// @finish_horror_quest sets ^horror_complete, so an unguarded add here loses the book with no
-// way back except paying Jossik 5,000gp. The casket is deliberately not required to be in hand
-// (see quest_horror_combat.rs2), so nothing has freed a slot by this point.
-if (inv_freespace(inv) = 0) {
-    ~mesbox("Jossik holds out a damaged book of Zamorak - but you have no room to take it. Make some space and ask again.");
-    return;
+def_int $again = ~horror_casket_pick;
+if ($again ! $god) {
+    @horror_casket_say($again);
 }
-inv_add(inv, unfinished_zamorakbook, 1);
-~mesbox("Jossik hands you a damaged book of Zamorak, salvaged from the wreck of the casket.");
-@finish_horror_quest;
-
-[label,horror_book_guthix]
-~chatplayer("<p,happy>A book of Guthix.");
-// @finish_horror_quest sets ^horror_complete, so an unguarded add here loses the book with no
-// way back except paying Jossik 5,000gp. The casket is deliberately not required to be in hand
-// (see quest_horror_combat.rs2), so nothing has freed a slot by this point.
-if (inv_freespace(inv) = 0) {
-    ~mesbox("Jossik holds out a damaged book of Guthix - but you have no room to take it. Make some space and ask again.");
-    return;
+~chatplayer("<p,neutral>Nope, it definitely says <~horror_god_name($god)>.");
+~chatnpc("<p,happy>I think you're right! Hand it here, and let's see what's inside.");
+if (inv_total(inv, horror_casket) > 0) {
+    inv_del(inv, horror_casket, 1);
 }
-inv_add(inv, unfinished_guthixbook, 1);
-~mesbox("Jossik hands you a damaged book of Guthix, salvaged from the wreck of the casket.");
-@finish_horror_quest;
+inv_add(inv, ~horror_god_book($god), 1);
+%horror_bridges = clearbit(%horror_bridges, ^horror_casket_owed_bit);
+~chatnpc("<p,shock>Well I never! It's a holy book of <~horror_god_name($god)>! I thought these had all been lost. Well, it's all yours - I hope you appreciate it.");
 
-[label,horror_book_none]
-~chatplayer("<p,neutral>None for me, thanks.");
-~chatnpc("<p,happy>Suit yourself - I'll keep hold of it in case you change your mind.");
-@finish_horror_quest;
+[proc,horror_god_name](int $god)(string)
+if ($god = 2) {
+    return("Zamorak");
+}
+if ($god = 3) {
+    return("Guthix");
+}
+return("Saradomin");
 
-// Through the player queue, and through ~send_quest_complete rather than ~send_quest_progress.
-// The old ending called send_quest_progress, which only recolours the journal line - so finishing
-// this quest gave no completion scroll, no jingle, no reward panel, and no quest points at the time,
-// because ~update_questpoints is called from send_quest_complete's default branch and nowhere else
-// in a completion path. The points only appeared silently on the next login, whenever
-// ~update_questlist next ran. The queue is for the same reason Underground Pass uses one: the
-// rewards must not sit behind an abortable ~chatnpc.
-[label,finish_horror_quest]
-queue(horror_quest_complete, 0, 0);
-~chatnpc("<p,happy>Thank you again for everything, adventurer. I don't know what would have happened to me down there without you.");
+[proc,horror_god_book](int $god)(namedobj)
+if ($god = 2) {
+    return(unfinished_zamorakbook);
+}
+if ($god = 3) {
+    return(unfinished_guthixbook);
+}
+return(unfinished_saradominbook);
 
+// The quest completes on the Dagannoth Mother's death (transcript: the completion message, then
+// Jossik's "Follow me upstairs") - see quest_horror_combat.rs2's [queue,horror_boss_slain], which
+// sets %horror there and queues this for the rewards. Through the player queue and
+// ~send_quest_complete (not send_quest_progress) so the scroll, jingle and quest points are not left
+// behind an abortable ~chatnpc.
 [queue,horror_quest_complete]
 %horror = ^horror_complete;
 stat_advance(magic, 46625);
 stat_advance(strength, 46625);
 stat_advance(ranged, 46625);
-~send_quest_complete(questlist:horror, unfinished_saradominbook, 250, ^horror_questpoints, "You have completed the\\nHorror from the Deep Quest!", "4,662 Strength XP|4,662 Ranged XP|4,662 Magic XP|Access to the Lighthouse basement");
+~send_quest_complete(questlist:horror, horror_casket, 250, ^horror_questpoints, "You have completed the\\nHorror from the Deep Quest!", "4,662 Strength XP|4,662 Ranged XP|4,662 Magic XP|A damaged god book - see Jossik|Access to the Lighthouse basement");

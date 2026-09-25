@@ -76,11 +76,26 @@ if (~npc_check_notcombat = false) {
 if (~npc_check_notcombat_self = false) {
     return;
 }
+//
+// She also reads your prayers (RS wiki guide: "She can detect prayer and will automatically switch to
+// an attack type different to your protection prayer"; OSRS wiki guide: she "may detect Prayer changes
+// and automatically use the opposite attack type"). Protect from Melee while you stand on her gets
+// you shot point-blank; Protect from Missiles while you keep your distance brings her in to claw you
+// (opplayer2 walks her up; its trigger lands back here once she is touching you).
 if (npc_range(coord) <= 1) {
+    if (~check_protect_prayer(^melee_style) = true) {
+        ~dagmother_range_attack;
+        npc_setmode(applayer2);
+        return;
+    }
     anim(%com_defendanim, 0);
     npc_anim(npc_param(attack_anim), 0);
     ~npc_meleeattack;
     npc_setmode(applayer2);
+    return;
+}
+if (~check_protect_prayer(^ranged_style) = true) {
+    npc_setmode(opplayer2);
     return;
 }
 ~dagmother_range_attack;
@@ -237,7 +252,7 @@ return(false);
 // out by simply talking to the injured Jossik) or ^horror_mother_defeated (nothing set it at all),
 // so %horror stuck at stage 3 and Horror from the Deep could not be finished. Both stages are now
 // set by the kills, and the two bosses are spawned in Jossik's cave by the ladder down to it and by
-// Jossik himself (quest_horror.rs2's [oploc1,horror_ladder_top2] -> ~horror_dag_cavern_arrive).
+// Jossik himself (quest_horror.rs2's [label,horror_jossik_first] and [label,horror_jossik_babies]).
 //
 // Neither boss was placed anywhere in the map - horror_dagannoth_jr1-4 and horror_dagganoth_aira/
 // airb/airc/air/water/fire/earth/ranged/melee all have zero placements in the whole 660-region
@@ -292,24 +307,28 @@ if ($which = ^horror_slain_dagannoth) {
     }
     %horror = ^horror_dagannoth_defeated;
     ~send_quest_progress(questlist:horror, 3, ^horror_complete);
-    mes("The dagannoth collapses. At the far end of the cavern, the water begins to churn.");
-    ~horror_spawn_mother;
-    return;
+    // Jossik speaks up as soon as it dies, and the Mother comes out of the water at the end of it.
+    @horror_jossik_babies;
 }
 if (%horror >= ^horror_mother_defeated) {
     return;
 }
-%horror = ^horror_mother_defeated;
-~send_quest_progress(questlist:horror, 4, ^horror_complete);
-// The casket is flavour, not a gate - the injured Jossik dialogue reads %horror, never the item -
-// so losing it or leaving it on the floor can never dead-end the quest.
+// The quest completes here, on her death, as in the original (RS and OSRS transcripts: you are put in
+// front of the strange wall by the ladder, "Congratulations! You have completed: 'Horror from the
+// Deep'", the rusty casket if you have room, and Jossik tells you to bring it to his library). He
+// opens the casket afterwards - quest_horror.rs2's [label,horror_jossik_casket], owed by the bit set
+// here. With no room for the casket, he has picked it up himself.
+%horror = ^horror_complete;
+%horror_bridges = setbit(%horror_bridges, ^horror_casket_owed_bit);
+p_telejump(^horror_basement_arrival);
 if (inv_freespace(inv) > 0) {
     inv_add(inv, horror_casket, 1);
-    mes("Among the remains you find a small rusted casket, and pocket it.");
-    return;
 }
-obj_add(coord, horror_casket, 1, ^lootdrop_duration);
-mes("Among the remains lies a small rusted casket - you have no room to carry it.");
+queue(horror_quest_complete, 0, 0);
+~chatplayer("<p,happy>Okay, it's dead! Let's get out of here!");
+~chatnpc_specific("Jossik", horror_lighthousekeeeper_injured, "<p,scared>Yes, quickly - the mother may be dead, but her children aren't!");
+~chatnpc_specific("Jossik", horror_lighthousekeeeper_injured, "<p,neutral>Follow me upstairs, I might be able to help you with that casket you found.");
+~chatnpc_specific("Jossik", horror_lighthousekeeeper_injured, "<p,quiz>Bring it to my library - it looks familiar somehow...");
 
 // She emerges from the water rather than simply appearing: horror_dagganoth_aira/airb/airc are the
 // cache's own three emergence stages (walkanim/readyanim horror_dagannoth_emerge_a/b/c, all size 3
