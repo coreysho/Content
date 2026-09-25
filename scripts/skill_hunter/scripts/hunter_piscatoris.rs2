@@ -1,0 +1,226 @@
+// Hunter - the Piscatoris hunter area, everything but falconry (hunter_falconry.rs2). See
+// configs/hunter_piscatoris.constant for the numbers and configs/hunter_piscatoris.loc for the map.
+//
+//   tracking     the common kebbit (south) and the razor-backed kebbit (north): the Feldip weasel's
+//                trail of directions, on this area's plants, burrows and bushes
+//   bird snares  the copper longtail - the shared trap loop, with one more catch
+//   deadfalls    the prickly kebbit on the northern boulders - the same; the southern boulders have
+//                wild kebbits, which the loop already knows
+//   box traps    chinchompas - the loop already knows them; they only needed spawning here
+//   butterflies  the ruby harvest, netted like every other butterfly in this build
+
+// ------------------------------------------------------------------------------------ tracking
+//
+// The same trail as Feldip's (hunter_tracking.rs2, whose direction proc this uses): a burrow starts
+// one - a bush at random, and two to four plants toward it, each a few tiles on and closer to the bush
+// - and every correct Inspect names the way to the next step. The state is Feldip's three temp varps,
+// so a player follows one trail at a time wherever it is. Which ground a node belongs to is which
+// mapsquare it is in: 36_55 (south) is the common kebbits', 36_56 (north) the razor-backs'.
+
+[oploc1,_hunter_pisc_track_node] @hunter_pisc_track_inspect(~hunter_pisc_track_razor(loc_coord));
+[oploc1,loc474_19492] @hunter_pisc_track_inspect(false);
+[oploc1,loc474_19438] @hunter_pisc_track_inspect(true);
+
+[proc,hunter_pisc_track_razor](coord $at)(boolean)
+if (coordz($at) >= 3584) {
+    return(true);
+}
+return(false);
+
+[label,hunter_pisc_track_inspect](boolean $razor)
+def_int $level = ^hunter_common_kebbit_level;
+def_string $kind = "common kebbits";
+if ($razor = true) {
+    $level = ^hunter_razorback_kebbit_level;
+    $kind = "razor-backed kebbits";
+}
+if (stat(hunter) < $level) {
+    ~mesbox("You need a Hunter level of <tostring($level)> to track <$kind>.");
+    return;
+}
+def_coord $at = loc_coord;
+anim(human_pickupfloor, 0);
+p_delay(1);
+// On the trail: this is the next step (a burrow can be one too).
+if (%hunter_track_next ! null & $at = %hunter_track_next) {
+    @hunter_pisc_track_advance($at, $razor);
+}
+// A burrow always has fresh tracks leading out of it.
+if (loc_type = loc474_19492 | loc_type = loc474_19438) {
+    @hunter_pisc_track_start($at, $razor);
+}
+mes("You search the <lowercase(loc_name)> but find no tracks.");
+
+[label,hunter_pisc_track_start](coord $burrow, boolean $razor)
+def_enum $bushes = hunter_pisc_common_bushes;
+if ($razor = true) {
+    $bushes = hunter_pisc_razor_bushes;
+}
+def_coord $bush = enum(int, coord, $bushes, random(enum_getoutputcount($bushes)));
+%hunter_track_bush = $bush;
+%hunter_track_hops = calc(^hunter_track_hops_min + random(calc(^hunter_track_hops_extra + 1)));
+def_coord $next = ~hunter_pisc_track_pick($burrow, $bush, $razor);
+%hunter_track_next = $next;
+mes("You find some tracks leading out of the burrow, heading <~hunter_track_direction($burrow, $next)>.");
+
+[label,hunter_pisc_track_advance](coord $at, boolean $razor)
+%hunter_track_hops = calc(%hunter_track_hops - 1);
+def_coord $bush = %hunter_track_bush;
+if (%hunter_track_hops <= 0) {
+    %hunter_track_next = $bush;
+    mes("The tracks lead to a bush to the <~hunter_track_direction($at, $bush)>.");
+    return;
+}
+def_coord $next = ~hunter_pisc_track_pick($at, $bush, $razor);
+%hunter_track_next = $next;
+if ($next = $bush) {
+    mes("The tracks lead to a bush to the <~hunter_track_direction($at, $bush)>.");
+    return;
+}
+mes("The tracks continue to the <~hunter_track_direction($at, $next)>.");
+
+// A node of this ground a few tiles on from $from and closer to $bush than $from is, at random - or
+// the bush itself, when nothing qualifies. Feldip's ~hunter_track_pick, on this ground's node list.
+[proc,hunter_pisc_track_pick](coord $from, coord $bush, boolean $razor)(coord)
+def_enum $nodes = hunter_pisc_common_nodes;
+if ($razor = true) {
+    $nodes = hunter_pisc_razor_nodes;
+}
+def_coord $pick = $bush;
+def_int $seen = 0;
+def_int $here = distance($from, $bush);
+def_int $i = 0;
+while ($i < enum_getoutputcount($nodes)) {
+    def_coord $node = enum(int, coord, $nodes, $i);
+    def_int $step = distance($from, $node);
+    if ($node ! $from & $step >= ^hunter_track_step_min & $step <= ^hunter_track_step_max & distance($node, $bush) < $here) {
+        $seen = calc($seen + 1);
+        if (random($seen) = 0) {
+            $pick = $node;
+        }
+    }
+    $i = calc($i + 1);
+}
+return($pick);
+
+// The bushes: Search to see whether the kebbit is in there, Attack with a noose wand to catch it.
+[oploc1,loc474_19429] @hunter_pisc_bush_search("common kebbit");
+[oploc1,loc474_19428] @hunter_pisc_bush_search("razor-backed kebbit");
+[oploc2,loc474_19429] @hunter_pisc_bush_attack(false);
+[oploc2,loc474_19428] @hunter_pisc_bush_attack(true);
+
+[label,hunter_pisc_bush_search](string $kind)
+anim(human_pickupfloor, 0);
+if (%hunter_track_next ! null & loc_coord = %hunter_track_next & loc_coord = %hunter_track_bush) {
+    mes("There's a <$kind> hiding in the bush.");
+    return;
+}
+mes("You search the bush but find nothing but leaves.");
+
+[label,hunter_pisc_bush_attack](boolean $razor)
+if (inv_total(inv, noose_wand) < 1 & inv_total(worn, noose_wand) < 1) {
+    mes("You need a noose wand to catch anything hiding in there.");
+    return;
+}
+if (%hunter_track_next = null | loc_coord ! %hunter_track_next | loc_coord ! %hunter_track_bush) {
+    mes("There's nothing in there to catch.");
+    return;
+}
+if (inv_freespace(inv) < 2) {
+    mes("You don't have enough inventory space.");
+    return;
+}
+anim(human_hunter_noose, 0);
+p_delay(2);
+%hunter_track_next = null;
+%hunter_track_bush = null;
+if ($razor = true) {
+    if (stat_random(hunter, ^hunter_razorback_kebbit_low, ^hunter_razorback_kebbit_high) = false) {
+        mes("The kebbit slips out of the noose and bolts. You'll have to find its tracks again.");
+        return;
+    }
+    inv_add(inv, bones, 1);
+    inv_add(inv, long_kebbit_spike, 1);
+    mes("You've caught a razor-backed kebbit.");
+    ~hunter_xp(^hunter_razorback_kebbit_xp);
+    return;
+}
+if (stat_random(hunter, ^hunter_common_kebbit_low, ^hunter_common_kebbit_high) = false) {
+    mes("The kebbit slips out of the noose and bolts. You'll have to find its tracks again.");
+    return;
+}
+inv_add(inv, bones, 1);
+inv_add(inv, common_kebbit_fur, 1);
+mes("You've caught a common kebbit.");
+~hunter_xp(^hunter_common_kebbit_xp);
+
+// --------------------------------------------------------------------------- snares, deadfalls
+//
+// The copper longtail and the prickly kebbit are two more catches in the shared loop
+// (hunter_traps.rs2), which calls the two lures below from its own and knows their states. Checking
+// the catch is the loop's own takeup.
+
+[oploc1,hunter_snare_caught_longtail] @hunter_trap_takeup(^hunter_catch_copper_longtail);
+[oploc1,hunter_deadfall_prickly] @hunter_trap_takeup(^hunter_catch_prickly_kebbit);
+
+// Called by ~hunter_trap_lure_snare with the snare as active_loc. True when a longtail was tried.
+[proc,hunter_pisc_lure_snare](coord $at)(boolean)
+if (stat(hunter) >= ^hunter_longtail_level & npc_find($at, hunter_copper_longtail, ^hunter_trap_lure_radius, 0) = true) {
+    ~hunter_trap_spring(hunter_snare_catching_longtail, hunter_snare_springing, ^hunter_longtail_low, ^hunter_longtail_high);
+    return(true);
+}
+return(false);
+
+// Called by ~hunter_trap_lure_deadfall with the deadfall as active_loc.
+[proc,hunter_pisc_lure_deadfall](coord $at)(boolean)
+if (stat(hunter) >= ^hunter_prickly_kebbit_level & npc_find($at, hunter_prickly_kebbit, ^hunter_trap_lure_radius, 0) = true) {
+    ~hunter_trap_spring(hunter_deadfall_prickly, hunter_deadfall_collapsed, ^hunter_prickly_kebbit_low, ^hunter_prickly_kebbit_high);
+    return(true);
+}
+return(false);
+
+// ---------------------------------------------------------------------------------- butterflies
+
+[opnpcu,hunter_ruby_harvest]
+@hunter_net_butterfly(^hunter_ruby_level, ^hunter_ruby_xp, ^hunter_ruby_low, ^hunter_ruby_high, "Ruby harvest", hunter_jar_ruby);
+
+[opheld1,hunter_jar_ruby] @hunter_release(hunter_jar_ruby, "Ruby harvest");
+
+// ------------------------------------------------------------------------------------- staff test
+
+// ::piscatoris [where] - to the Piscatoris hunter area with a kit for everything in it: five bird
+// snares, five box traps, a knife and three logs, a noose wand and a small fishing net. Lands by the
+// southern (common kebbit) burrows; `::piscatoris 2` by the falconry stile, `::piscatoris 3` among the
+// prickly kebbits' boulders, `::piscatoris 4` by the razor-backed kebbits' burrows. Pair with ::hunter
+// 7000000 - 700,000 xp, past level 69's 668,051 - to catch everything, dashing kebbits included, and
+// bring 500 coins for Matthias.
+[debugproc,piscatoris](int $where)
+if (p_finduid(uid) = false) {
+    return;
+}
+if (inv_total(inv, hunter_bird_snare) < 5 & inv_freespace(inv) > 0) {
+    inv_add(inv, hunter_bird_snare, calc(5 - inv_total(inv, hunter_bird_snare)));
+}
+if (inv_total(inv, hunter_box_trap) < 5 & inv_freespace(inv) > 0) {
+    inv_add(inv, hunter_box_trap, calc(5 - inv_total(inv, hunter_box_trap)));
+}
+if (inv_total(inv, knife) < 1 & inv_freespace(inv) > 0) {
+    inv_add(inv, knife, 1);
+}
+def_int $logs = 0;
+while ($logs < 3 & inv_freespace(inv) > 0) {
+    inv_add(inv, logs, 1);
+    $logs = calc($logs + 1);
+}
+if (inv_total(inv, noose_wand) < 1 & inv_total(worn, noose_wand) < 1 & inv_freespace(inv) > 0) {
+    inv_add(inv, noose_wand, 1);
+}
+if (inv_total(inv, net) < 1 & inv_freespace(inv) > 0) {
+    inv_add(inv, net, 1);
+}
+switch_int ($where) {
+    case 2 : p_telejump(0_37_56_3_39);
+    case 3 : p_telejump(0_36_56_21_34);
+    case 4 : p_telejump(0_36_56_50_13);
+    case default : p_telejump(0_36_55_31_58);
+}

@@ -1,0 +1,228 @@
+// The Piscatoris hunter area - mapsquares 36_55 and 36_56, and the west of 37_55 and 37_56 (the falconry
+// enclosure) - from the rev 474 cache by tools/models/import474rect.py.
+//
+// 377 HAS THE GROUND ALREADY, and most of what stands on it: the same heights and overlays, 3,385 and
+// 3,130 of the two squares' locs. What it lacks is the way in. Every tile of both squares is flagged
+// blocked, as are the western halves of 37_55/37_56 - a landscape Jagex had built and closed off - and
+// the Hunter things themselves are missing: the tracking plants, burrows and bushes, the deadfall
+// boulders, rabbit holes, the falconer's perches and stile. So the rects bring 474's tile flags and its
+// locs. Checked before and after: the terrain differs only in those flags, except
+//   - 84 tiles along 36_55's south edge, where 474 re-coloured the underlay to meet its own new 36_54
+//     (Eagles' Peak) - those keep 377's underlay, so the seam with 377's 36_54 does not change;
+//   - 35 tiles in 36_56 given heights for a bank of rock - taken, as they are inside the square.
+// A loc the 377 map already had keeps its 377 id and its line (the colony's rocks, the fairy ring - which
+// 474 moved to a ground-decoration slot and stays in 377's), and 474's area-sound and minimap-icon locs
+// (16403-16446, 19750, and 19583, a tracking-marker transformer with no default) are not placed.
+//
+// THE TRACKING NODES are kept as locs of their own. 474 gives every plant on a trail its own id; by
+// looks alone the importer would have made them the 377 plants they are copies of (opless) and the
+// burrows and bushes the Feldip ones (whose Inspect starts a Feldip weasel trail). So they come in as
+// one type per look - four plants, one burrow and one bush per tracking ground - on the models of the
+// objects they copy. The plants carry category=hunter_pisc_track_node, one trigger for all of them.
+//
+// Ops, so that none is a dead click:
+//   - the plants' and burrows' Inspect and the bushes' Search/Attack: common kebbit (south, 36_55) and
+//     razor-backed kebbit (north, 36_56) tracking - scripts/hunter_piscatoris.rs2;
+//   - the stile's Climb-over: the falconry enclosure's only way in - scripts/hunter_falconry.rs2;
+//   - the boulders (loc474_19205, Feldip's) already carry the deadfall's Set-trap;
+//   - the rabbit hole's Flush is commented out: rabbits and ferreting were never finished (OSRS added
+//     rabbit snaring in 2024), and nothing here handles it.
+
+[loc474_19337]
+// rev 474 loc 19337 (import474map.py)
+name=Rabbit hole
+model=loc474_19337
+recol1s=26350
+recol1d=15750
+recol2s=23179
+recol2d=14694
+recol3s=20008
+recol3d=12615
+recol4s=16837
+recol4d=11524
+recol5s=13666
+recol5d=8385
+hillskew=yes
+forceapproach=south
+// op1=Flush - see the header
+
+[loc474_19339]
+// rev 474 loc 19339 (import474map.py) - and the other plants that look like it (19343, 19347, ...)
+name=Plant
+model=plant3
+recol1s=15855
+recol1d=5378
+recol2s=12684
+recol2d=5314
+recol3s=6342
+recol3d=3200
+recol4s=10570
+recol4d=7332
+recol5s=9513
+recol5d=6275
+recol6s=8456
+recol6d=5218
+blockrange=no
+ambient=40
+op1=Inspect
+category=hunter_pisc_track_node
+
+[loc474_19340]
+// rev 474 loc 19340 (import474map.py)
+name=Plant
+model=plant1
+recol1s=15855
+recol1d=5378
+recol2s=12684
+recol2d=5314
+recol3s=10570
+recol3d=7332
+recol4s=9513
+recol4d=6275
+recol5s=8456
+recol5d=5218
+blockrange=no
+resizex=64
+resizey=64
+resizez=64
+ambient=40
+op1=Inspect
+category=hunter_pisc_track_node
+
+[loc474_19341]
+// rev 474 loc 19341 (import474map.py)
+name=Plant
+model=plant2
+recol1s=15855
+recol1d=5378
+recol2s=12684
+recol2d=5314
+recol3s=10570
+recol3d=7332
+recol4s=9513
+recol4d=6275
+recol5s=8456
+recol5d=5218
+blockrange=no
+resizex=64
+resizey=64
+resizez=64
+ambient=40
+op1=Inspect
+category=hunter_pisc_track_node
+
+[loc474_19342]
+// rev 474 loc 19342 (import474map.py)
+name=Plant
+model=plant4
+recol1s=15855
+recol1d=5378
+recol2s=12684
+recol2d=5314
+recol3s=10570
+recol3d=6275
+blockrange=no
+resizex=64
+resizey=64
+resizez=64
+ambient=40
+op1=Inspect
+category=hunter_pisc_track_node
+
+[loc474_19429]
+// rev 474 loc 19429 (import474map.py): a common kebbit's hiding place
+name=Bush
+model=loc474_19427
+blockrange=no
+forcedecor=yes
+mapscene=9
+op1=Search
+op2=Attack
+
+[loc474_19492]
+// rev 474 loc 19492 (import474map.py) - and 19493, 19494: the common kebbit burrows
+name=Burrow
+model=loc474_19593
+recol1s=26350
+recol1d=15750
+recol2s=23179
+recol2d=14694
+recol3s=20008
+recol3d=12615
+recol4s=16837
+recol4d=11524
+recol5s=13666
+recol5d=8385
+resizex=64
+resizey=34
+resizez=64
+op1=Inspect
+
+[loc474_19428]
+// rev 474 loc 19428 (import474map.py): a razor-backed kebbit's hiding place
+name=Bush
+model=loc474_19427
+blockrange=no
+forcedecor=yes
+mapscene=9
+op1=Search
+op2=Attack
+
+[loc474_19438]
+// rev 474 loc 19438 (import474map.py) - and 19439, 19440: the razor-backed kebbit burrows
+name=Burrow
+model=loc474_19593
+recol1s=26350
+recol1d=15750
+recol2s=23179
+recol2d=14694
+recol3s=20008
+recol3d=12615
+recol4s=16837
+recol4d=11524
+recol5s=13666
+recol5d=8385
+resizex=64
+resizey=34
+resizez=64
+op1=Inspect
+
+[loc474_19220]
+// rev 474 loc 19220 (import474map.py)
+name=Perch
+model=loc474_19220
+blockrange=no
+mapscene=9
+resizex=76
+resizey=76
+resizez=76
+
+[loc474_19221]
+// rev 474 loc 19221 (import474map.py)
+name=Occupied perch
+model=loc474_19221
+model2=loc474_19221_2
+blockrange=no
+mapscene=9
+resizex=76
+resizey=76
+resizez=76
+// 474 plays seq 5203 on it, the falcon shifting on its perch: OSRS's 5203, converted
+anim=osrs_seq_5203
+
+[loc474_19222]
+// rev 474 loc 19222 (import474map.py)
+name=Stile
+model=loc474_19222
+recol1s=9409
+recol1d=9445
+recol2s=11523
+recol2d=15717
+recol3s=8353
+recol3d=8387
+length=2
+blockrange=no
+hillskew=yes
+mapscene=70
+raiseobject=no
+op1=Climb-over

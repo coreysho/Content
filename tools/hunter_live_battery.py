@@ -26,7 +26,12 @@ creature's level gate at the lower levels.
 And imp catching with magic boxes north-east of Yanille at 75 (and at 65, below the 71 to lay one: the
 gate) - bait, a real catch, Retrieve, the imp's respawn, the cap, the leash, [logout] - and the
 imp-in-a-box's Talk-to, banking and limits. And Aleck's Hunter Emporium in Yanille: the refit, Aleck
-and Leon and their shops, a purchase, the butterfly net, the hunters' crossbow's level and ammunition."""
+and Leon and their shops, a purchase, the butterfly net, the hunters' crossbow's level and ammunition.
+cap, standing on the net, ownership, the leash, [logout] and Release. And the Piscatoris hunter area: its imported
+ground (spawns, tracking nodes, the walk in, the fenced enclosure, no dead ops), common and razor-backed kebbit
+tracking, copper longtail snares, prickly kebbit deadfalls and chinchompa box traps at 60, 30 and 8 (each gate), and
+falconry at 70 and 50 (below the dark and dashing kebbits): Matthias, the glove, a catch of each, a miss, a falcon
+left to give up, the stile, and a teleport out."""
 import os, shutil, subprocess, sys
 
 C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -42,7 +47,9 @@ try:
               ('net', '40', 'canifis'), ('net', '50', 'uzer'), ('net', '40', 'uzer'), ('net', '60', 'ourania'), ('net', '70', 'boneyard'),
               ('desert', '20', 'devil'), ('desert', '20', 'warbler'), ('desert', '4', 'warbler'), ('desert', '20', 'shop'),
               ('rellekka', '60'), ('rellekka', '45'), ('rellekka', '8'),
-              ('imp', '75'), ('imp', '65'), ('emporium', '60'))
+              ('imp', '75'), ('imp', '65'), ('emporium', '60'),
+              # the Piscatoris hunter area: the map, tracking, the traps (with each level gate), falconry
+              ('pisc_map', '70'), ('pisc_track', '60'), ('pisc_traps', '60'), ('pisc_traps', '30'), ('pisc_traps', '8'), ('falconry', '70'), ('falconry', '50'))
     for trap, level, *area in PASSES:
         env = dict(os.environ, HTRAP=trap, HLEVEL=level, HAREA=(area or [''])[0], BUILD_SRC_DIR=C, NODE_PRODUCTION='true', NODE_MEMBERS='true')
         r = subprocess.run(['npx', 'tsx', 'tools/_hunter_live.ts'], cwd=E, env=env, capture_output=True, text=True, timeout=900, shell=os.name == 'nt')

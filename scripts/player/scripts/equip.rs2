@@ -35,6 +35,9 @@ if (p_finduid(uid) = true) {
             mes("You can't remove your team's colours.");
             return;
         }
+    if (~falconry_equip_blocked($obj) = true) { // Hunter: nothing goes on over Matthias's glove
+        return;
+    }
     def_obj $previous_weapon = inv_getobj(worn, ^wearpos_rhand);
     if (~try_equip($slot) = false) {
         mes("You don't have enough free space to do that.");
@@ -125,6 +128,9 @@ if (p_finduid(uid) = true) {
         return;
     }
     if (~duel_arena_flower_power_unequip_check($slot) = false) {
+        return;
+    }
+    if (~falconry_unequip_blocked($obj) = true) { // Hunter: only Matthias takes his glove off
         return;
     }
     if ($obj = ball_gnomeball_game & ~inzone_coord_pair_table(gnomeball_zones, coord) = true) {

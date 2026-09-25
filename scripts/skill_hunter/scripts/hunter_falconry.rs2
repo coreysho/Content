@@ -1,0 +1,287 @@
+// Hunter - falconry, in Matthias's enclosure at the east end of the Piscatoris hunter area. See
+// configs/hunter_piscatoris.constant for the numbers, configs/hunter_falconry.varp for the one varp.
+//
+// Matthias lends a gyr falcon and his glove for 500 coins, to a hunter of 43 or more with nothing in
+// their hands. The glove goes on the hand - the weapon and shield slots - and only Matthias takes it
+// off. With the falcon on it you stand and walk as he does, holding the bird up.
+//
+// CATCH a kebbit from up to 7 tiles away: the falcon leaves the glove (the glove swaps to the empty
+// one) and flies at it - OSRS's graphic 922 as a projectile - and on landing rolls the kebbit's catch
+// chance, which is the hunter's level alone, not the distance:
+//   caught  - the kebbit is gone (npc_del: it respawns at its rate) and a falcon stands where it was,
+//             wings spread over its kill (npc_add, OSRS's "Gyr Falcon" with Retrieve, for
+//             ^falconry_wait ticks). Only the owner can Retrieve it: bones, the kebbit's fur, the
+//             experience, and the falcon back on the glove. Left too long, the falcon gives up and
+//             flies home to Matthias; talk to him to get it back.
+//   missed  - the falcon flies back to the glove, and the kebbit runs on.
+// In 2006 you stood still while the falcon flew (OSRS lifted that in 2026), so the player waits the
+// flight out.
+//
+// THE FENCE. The stile in the north wall of Matthias's hut is the only way in or out, and it will not
+// let you leave with the glove on. Leave any other way - a teleport - and a soft timer on the glove
+// sees you outside the enclosure and sends the falcon home: the glove comes off. A logout keeps the
+// glove on, as in OSRS; a falcon out on a catch does not wait through it, so it comes back as a lost
+// one, for Matthias to put right.
+
+// -------------------------------------------------------------------------------------- Matthias
+
+[opnpc1,hunter_matthias]
+def_obj $glove = inv_getobj(worn, ^wearpos_rhand);
+// An empty glove and no falcon on a catch: the bird has gone home to him.
+if ($glove = falconers_glove & ~falconry_falcon_out = false) {
+    ~chatnpc("<p,neutral>Lost your bird? Don't fret - a falcon soon learns where it gets fed, and she came straight back here.");
+    ~falconry_set_glove(falconers_glove_falcon);
+    ~mesbox("Matthias whistles, and the falcon flutters down onto your glove.");
+    return;
+}
+~chatnpc("<p,happy>Hello there. Can I help you?");
+@falconry_matthias_menu;
+
+[label,falconry_matthias_menu]
+def_obj $glove = inv_getobj(worn, ^wearpos_rhand);
+if ($glove = falconers_glove | $glove = falconers_glove_falcon) {
+    switch_int (~p_choice3("What is this place?", 1, "I'd like to give you back your falcon.", 2, "Nothing, thanks.", 3)) {
+        case 1 : @falconry_matthias_place;
+        case 2 : @falconry_matthias_return;
+        case 3 : ~chatplayer("<p,neutral>Nothing, thanks.");
+    }
+    return;
+}
+switch_int (~p_choice3("What is this place?", 1, "Could I have a go with your bird?", 2, "Nothing, thanks.", 3)) {
+    case 1 : @falconry_matthias_place;
+    case 2 : @falconry_matthias_hire;
+    case 3 : ~chatplayer("<p,neutral>Nothing, thanks.");
+}
+
+[label,falconry_matthias_place]
+~chatplayer("<p,quiz>What is this place?");
+~chatnpc("<p,happy>This is where I train my falcons. The kebbits out there are too quick and too sharp-eyed for a trap, but not for a gyr falcon.");
+~chatnpc("<p,neutral>Send one after a kebbit and, if it's quick enough, it'll pin the creature down and wait for you to come and collect them both.");
+~chatnpc("<p,neutral>The spotted ones are easiest; the dark ones are harder to see coming, and the dashing ones... well, you'll see.");
+@falconry_matthias_menu;
+
+[label,falconry_matthias_hire]
+~chatplayer("<p,quiz>Could I have a go with your bird?");
+if (stat(hunter) < ^falconry_level) {
+    ~chatnpc("<p,neutral>I'm sorry, but I only lend my birds to hunters who know what they're doing. Come back when you've a Hunter level of <tostring(^falconry_level)>.");
+    return;
+}
+~chatnpc("<p,neutral>You look like you know your way around a hunt. It's <tostring(^falconry_fee)> coins to borrow one of my falcons, glove and all, for as long as you stay inside the fence. Still interested?");
+switch_int (~p_choice2("Yes, please.", 1, "No, thanks.", 2)) {
+    case 2 :
+        ~chatplayer("<p,neutral>No, thanks.");
+        return;
+}
+~chatplayer("<p,happy>Yes, please.");
+if (inv_total(inv, coins) < ^falconry_fee) {
+    ~chatplayer("<p,sad>Oh - I don't have enough money on me.");
+    ~chatnpc("<p,neutral>Then I can't help you, I'm afraid.");
+    return;
+}
+if (inv_getobj(worn, ^wearpos_rhand) ! null | inv_getobj(worn, ^wearpos_lhand) ! null | inv_getobj(worn, ^wearpos_hands) ! null) {
+    ~chatnpc("<p,neutral>You'll need your hands free for the glove. Put away whatever you're holding and take off your gloves, then ask me again.");
+    return;
+}
+inv_del(inv, coins, ^falconry_fee);
+~falconry_set_glove(falconers_glove_falcon);
+softtimer(falconry, ^falconry_interval);
+~mesbox("Matthias pulls a heavy glove onto your hand, and a falcon hops onto it.");
+~chatnpc("<p,happy>Pick a kebbit and she'll go after it. If she gets it, go and collect her - she won't sit on it for ever. And don't go wandering off with my glove!");
+
+[label,falconry_matthias_return]
+~chatplayer("<p,neutral>I'd like to give you back your falcon.");
+~falconry_take_glove;
+~chatnpc("<p,happy>Thank you. Come back any time.");
+
+// ------------------------------------------------------------------------------------ catching
+
+[apnpc1,hunter_spotted_kebbit] @falconry_catch_ap(hunter_falcon_spotted, ^hunter_spotted_kebbit_level, ^hunter_spotted_kebbit_low, ^hunter_spotted_kebbit_high);
+[apnpc1,hunter_dark_kebbit] @falconry_catch_ap(hunter_falcon_dark, ^hunter_dark_kebbit_level, ^hunter_dark_kebbit_low, ^hunter_dark_kebbit_high);
+[apnpc1,hunter_dashing_kebbit] @falconry_catch_ap(hunter_falcon_dashing, ^hunter_dashing_kebbit_level, ^hunter_dashing_kebbit_low, ^hunter_dashing_kebbit_high);
+[opnpc1,hunter_spotted_kebbit] @falconry_catch(hunter_falcon_spotted, ^hunter_spotted_kebbit_level, ^hunter_spotted_kebbit_low, ^hunter_spotted_kebbit_high);
+[opnpc1,hunter_dark_kebbit] @falconry_catch(hunter_falcon_dark, ^hunter_dark_kebbit_level, ^hunter_dark_kebbit_low, ^hunter_dark_kebbit_high);
+[opnpc1,hunter_dashing_kebbit] @falconry_catch(hunter_falcon_dashing, ^hunter_dashing_kebbit_level, ^hunter_dashing_kebbit_low, ^hunter_dashing_kebbit_high);
+
+// The falcon is sent from up to ^falconry_range tiles away; further than that, keep walking.
+[label,falconry_catch_ap](npc $falcon, int $level, int $low, int $high)
+if (npc_range(coord) > ^falconry_range) {
+    p_aprange(^falconry_range);
+    return;
+}
+@falconry_catch($falcon, $level, $low, $high);
+
+[label,falconry_catch](npc $falcon, int $level, int $low, int $high)
+if (stat(hunter) < $level) {
+    ~mesbox("You need a Hunter level of <tostring($level)> to catch a <lowercase(npc_name)>.");
+    return;
+}
+def_obj $glove = inv_getobj(worn, ^wearpos_rhand);
+if ($glove = falconers_glove) {
+    if (~falconry_falcon_out = true) {
+        mes("Your falcon is still out on its last catch.");
+    } else {
+        mes("Your falcon has flown back to Matthias. You'll have to ask him for it.");
+    }
+    return;
+}
+if ($glove ! falconers_glove_falcon) {
+    mes("You need a trained falcon to catch a kebbit like that.");
+    return;
+}
+def_npc_uid $prey = npc_uid;
+facesquare(npc_coord);
+anim(osrs_seq_5162, 0);
+~falconry_set_glove(falconers_glove);
+def_int $flight = ~npc_projectile(coord, $prey, hunter_falcon_flying, 70, 20, 20, 12, 20, 32, 8);
+p_delay(calc(($flight + 29) / 30));
+// Taken meanwhile (by somebody else's falcon): nothing to land on, and she comes back.
+if (npc_finduid($prey) = false) {
+    mes("The kebbit has gone, and your falcon returns to your glove.");
+    ~falconry_set_glove(falconers_glove_falcon);
+    return;
+}
+if (stat_random(hunter, $low, $high) = false) {
+    mes("The falcon swoops down on the kebbit, but just misses catching it.");
+    def_int $back = ~player_projectile(npc_coord, coord, uid, hunter_falcon_flying, 20, 70, 0, 12, 20, 0, 8);
+    p_delay(calc(($back + 29) / 30));
+    ~falconry_set_glove(falconers_glove_falcon);
+    return;
+}
+def_coord $at = npc_coord;
+// A static map npc: npc_del schedules its respawn at the kebbit's respawnrate.
+npc_del;
+npc_add($at, $falcon, ^falconry_wait);
+%falconry_falcon = npc_uid;
+sound_synth(springtrap_release, 1, 0);
+mes("The falcon successfully swoops down and captures the kebbit.");
+
+// ------------------------------------------------------------------------------------ retrieving
+
+[opnpc1,hunter_falcon_spotted] @falconry_retrieve(spotted_kebbit_fur, ^hunter_spotted_kebbit_xp);
+[opnpc1,hunter_falcon_dark] @falconry_retrieve(dark_kebbit_fur, ^hunter_dark_kebbit_xp);
+[opnpc1,hunter_falcon_dashing] @falconry_retrieve(dashing_kebbit_fur, ^hunter_dashing_kebbit_xp);
+
+[label,falconry_retrieve](namedobj $fur, int $xp)
+if (%falconry_falcon = null | npc_uid ! %falconry_falcon) {
+    mes("This isn't your falcon.");
+    return;
+}
+if (inv_freespace(inv) < 2) {
+    mes("You don't have enough inventory space.");
+    return;
+}
+anim(human_pickupfloor, 0);
+// The npc goes and the uid is cleared before anything is paid, and nothing yields between: a
+// double click cannot retrieve one catch twice.
+npc_del;
+%falconry_falcon = null;
+~falconry_set_glove(falconers_glove_falcon);
+inv_add(inv, bones, 1);
+inv_add(inv, $fur, 1);
+mes("You retrieve the falcon as well as the fur of the dead kebbit.");
+~hunter_xp($xp);
+
+// ------------------------------------------------------------------------------------- the glove
+
+// While the glove is on: outside the enclosure (a teleport - the stile will not let it out), the
+// falcon goes home and the glove comes off; and a falcon that has given up on its catch is noticed.
+[softtimer,falconry] queue(falconry_tick, 0, 0);
+
+// A queue rather than the soft timer itself: taking the glove off needs the player (protected
+// access), which a queue waits for - a teleport's delay, a dialogue - and a soft timer does not.
+[queue,falconry_tick]
+def_obj $glove = inv_getobj(worn, ^wearpos_rhand);
+if ($glove ! falconers_glove & $glove ! falconers_glove_falcon) {
+    %falconry_falcon = null;
+    clearsofttimer(falconry);
+    return;
+}
+if (~falconry_in_area(coord) = false) {
+    ~falconry_take_glove;
+    mes("As you leave, Matthias' falcon flies back to him.");
+    clearsofttimer(falconry);
+    return;
+}
+if (%falconry_falcon ! null & npc_finduid(%falconry_falcon) = false) {
+    %falconry_falcon = null;
+    mes("Your falcon has left its prey. You see it heading back toward the falconer.");
+}
+
+// login.rs2: the glove survives a logout, and its timer has to be started again.
+[proc,falconry_login]
+def_obj $glove = inv_getobj(worn, ^wearpos_rhand);
+if ($glove = falconers_glove | $glove = falconers_glove_falcon) {
+    softtimer(falconry, ^falconry_interval);
+}
+
+// Inside Matthias's fence: its x range on the row (configs/hunter_piscatoris.enum, falconry_area_rows).
+[proc,falconry_in_area](coord $c)(boolean)
+if (coordy($c) ! 0) {
+    return(false);
+}
+def_int $row = enum(int, int, falconry_area_rows, coordz($c));
+if ($row = 0) {
+    return(false);
+}
+if (coordx($c) < calc($row / 10000) | coordx($c) > modulo($row, 10000)) {
+    return(false);
+}
+return(true);
+
+// Is the falcon out on a catch - sitting on it, waiting to be retrieved?
+[proc,falconry_falcon_out]()(boolean)
+if (%falconry_falcon ! null & npc_finduid(%falconry_falcon) = true) {
+    return(true);
+}
+return(false);
+
+[proc,falconry_set_glove](namedobj $glove)
+def_obj $was = inv_getobj(worn, ^wearpos_rhand);
+inv_setslot(worn, ^wearpos_rhand, $glove, 1);
+~update_all($was);
+
+// The glove comes off, and a falcon still out on a catch flies home with it.
+[proc,falconry_take_glove]
+if (%falconry_falcon ! null & npc_finduid(%falconry_falcon) = true) {
+    npc_del;
+}
+%falconry_falcon = null;
+def_obj $was = inv_getobj(worn, ^wearpos_rhand);
+if ($was = falconers_glove | $was = falconers_glove_falcon) {
+    inv_delslot(worn, ^wearpos_rhand);
+    ~update_all($was);
+}
+
+// equip.rs2 asks these. The glove stays on until Matthias takes it off, and nothing that would push
+// it off (a weapon, a shield) or cover it (gloves) goes on over it.
+[proc,falconry_unequip_blocked](obj $obj)(boolean)
+if ($obj = falconers_glove | $obj = falconers_glove_falcon) {
+    mes("You should speak to Matthias to get this removed safely.");
+    return(true);
+}
+return(false);
+
+[proc,falconry_equip_blocked](obj $obj)(boolean)
+def_obj $glove = inv_getobj(worn, ^wearpos_rhand);
+if ($glove ! falconers_glove & $glove ! falconers_glove_falcon) {
+    return(false);
+}
+if (~wearpos_conflicts($obj, $glove) = true | oc_wearpos($obj) = ^wearpos_hands) {
+    mes("You can't wear that with the falconer's glove on.");
+    return(true);
+}
+return(false);
+
+// --------------------------------------------------------------------------------------- the stile
+
+// The enclosure's way in, in the north wall of Matthias's hut. Not with his glove on.
+[oploc1,loc474_19222]
+// inside is the stile's own row and south of it: the hut's floor runs right up to the wall
+if (coordz(coord) <= coordz(loc_coord)) {
+    def_obj $glove = inv_getobj(worn, ^wearpos_rhand);
+    if ($glove = falconers_glove | $glove = falconers_glove_falcon) {
+        ~chatplayer("<p,neutral>I should return the glove I borrowed from the falconer before leaving.");
+        return;
+    }
+}
+~climb_stile;
