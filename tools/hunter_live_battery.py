@@ -15,7 +15,9 @@ Feldip weasel tracking at 10: trails from a burrow, every hint checked against t
 And net traps in each of the four areas - swamp lizards at Canifis (40), orange salamanders at Uzer (50,
 and 40, below their 47: nothing comes, and the traps fall over), red at Ourania (60), black in the Bone
 Yard (70): every young tree set and dismantled, both geometries sprung and checked, a real catch, the
-cap, standing on the net, ownership, the leash, [logout] and Release."""
+cap, standing on the net, ownership, the leash, [logout] and Release.
+And the desert (hunter_desert.rs2): desert devil tracking at Uzer at 20 - the ground, the gate, trails to a
+catch - golden warbler snares at 20 and at 4 (below their 5: nothing comes), and Artimeus's Nardah Hunter Shop."""
 import os, shutil, subprocess, sys
 
 C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -28,7 +30,8 @@ shutil.copy(os.path.join(C, 'tools', 'hunter_live.ts'), dst)
 failed = 0
 try:
     PASSES = (('box', '70'), ('box', '40'), ('snare', '25'), ('snare', '10'), ('deadfall', '40'), ('deadfall', '30'), ('pitfall', '40'), ('tracking', '10'), ('cape', '50'),
-              ('net', '40', 'canifis'), ('net', '50', 'uzer'), ('net', '40', 'uzer'), ('net', '60', 'ourania'), ('net', '70', 'boneyard'))
+              ('net', '40', 'canifis'), ('net', '50', 'uzer'), ('net', '40', 'uzer'), ('net', '60', 'ourania'), ('net', '70', 'boneyard'),
+              ('desert', '20', 'devil'), ('desert', '20', 'warbler'), ('desert', '4', 'warbler'), ('desert', '20', 'shop'))
     for trap, level, *area in PASSES:
         env = dict(os.environ, HTRAP=trap, HLEVEL=level, HAREA=(area or [''])[0], BUILD_SRC_DIR=C, NODE_PRODUCTION='true', NODE_MEMBERS='true')
         r = subprocess.run(['npx', 'tsx', 'tools/_hunter_live.ts'], cwd=E, env=env, capture_output=True, text=True, timeout=900, shell=os.name == 'nt')
