@@ -1,0 +1,87 @@
+// Eagles' Peak - the silver feather's room (m30_76, level 2), through the tunnel a little further north
+// in the cave. The feather is gone from its pedestal; a Hunter can pick up the thief's trail from it to
+// one heap of rocks, on to a second, and to an opening in the wall, where a giant kebbit jumps out with
+// the feather. The trail is 474's: footprint locs that show a stretch at a time (eaglespeak.loc,
+// eagle_trail_*), on eaglespeak_silver_trail - 1 the pedestal, 3 the first heap (the trail to it and on
+// from it), 4 the second heap, 5 the kebbit dealt with, 6 its feather taken from the opening.
+
+[oploc1,loc474_19974]
+if (stat(hunter) < ^eaglespeak_hunter_level) {
+    ~mesbox("There is a clear patch in the layer of dust covering the top of the pedestal. It looks like something lay here recently, but you don't have a high enough Hunter level to determine where it may have gone.");
+    return;
+}
+if (%eaglespeak_silver_trail = 0) {
+    %eaglespeak_silver_trail = 1;
+    ~mesbox("There is a clear patch in the layer of dust covering the top of the pedestal. It looks like something lay here recently. Around the base of the pedestal you spy what appear to be faint footprints leading away from the area.");
+    return;
+}
+~mesbox("There is a clear patch in the layer of dust covering the top of the pedestal. It looks like something lay here recently, but you can't find any further clues as to where it may have gone.");
+
+// The first heap of rocks the trail leads to (474 loc 19969), the second (19970), and the rest (19971).
+[oploc1,loc474_19969]
+if (%eaglespeak_silver_trail >= 3) {
+    mes("Apart from the unusual tracks you found earlier, there is little else to find amongst these rocks.");
+    return;
+}
+if (%eaglespeak_silver_trail = 1 & stat(hunter) >= ^eaglespeak_hunter_level) {
+    %eaglespeak_silver_trail = 3;
+    ~mesbox("These rocks appear to have shifted recently. Further inspection reveals faint tracks among the debris, although they aren't tracks you recognise.");
+    return;
+}
+mes("Closer inspection reveals the rocks to be hard, grey and generally just rock-like.");
+
+[oploc1,loc474_19970]
+if (%eaglespeak_silver_trail >= 4) {
+    mes("Apart from the unusual tracks you found earlier, there is little else to find amongst these rocks.");
+    return;
+}
+if (%eaglespeak_silver_trail = 3) {
+    %eaglespeak_silver_trail = 4;
+    ~mesbox("After carefully examining the rocks, you manage to pick up the mysterious trail again. The tracks aren't entirely unfamiliar, but they do seem somewhat larger than any you have seen before.");
+    return;
+}
+mes("Closer inspection reveals the rocks to be hard, grey and generally just rock-like.");
+
+[oploc1,loc474_19971]
+mes("Closer inspection reveals the rocks to be hard, grey and generally just rock-like.");
+
+// The opening at the end of the trail (474 loc 19967).
+[oploc1,loc474_19967]
+if (%eaglespeak_silver_trail = 4) {
+    if (npc_find(2_30_76_51_21, eagle_kebbit, 6, 0) = true) {
+        mes("You peer down the tunnel for signs of the mysterious creature.");
+        return;
+    }
+    mes("You peer down the tunnel for signs of the mysterious creature.");
+    anim(human_eagle_peer, 0);
+    p_delay(2);
+    say("Er...");
+    p_delay(1);
+    npc_add(2_30_76_50_21, eagle_kebbit, 500);
+    npc_anim(eagle_kebbit_jump, 0);
+    npc_setmode(opplayer2);
+    return;
+}
+if (%eaglespeak_silver_trail >= 5 & ~eaglespeak_has_feather(eagle_silver_feather) = false) {
+    ~mesbox("Upon closer inspection you find a small silver feather at the entrance to the tunnel.");
+    %eaglespeak_silver_trail = 6;
+    ~eaglespeak_give(eagle_silver_feather, "The silver feather falls to the ground.");
+    return;
+}
+anim(human_eagle_peer, 0);
+mes("This tunnel seems to get thinner quite quickly. I doubt a human could fit down it.");
+
+// The kebbit is killed for the feather (in 2006 it has no Threaten, which OSRS added in 2018 so the
+// fight could be had without combat experience). The feather is its drop; the bones are death_drop's.
+[ai_queue3,eagle_kebbit]
+gosub(npc_death);
+if (npc_findhero = ^false) {
+    return;
+}
+obj_add(npc_coord, eagle_silver_feather, 1, ^lootdrop_duration);
+queue(eaglespeak_kebbit_killed, 0, 0);
+
+[queue,eaglespeak_kebbit_killed]
+if (%eaglespeak_silver_trail = 4) {
+    %eaglespeak_silver_trail = 5;
+}

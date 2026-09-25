@@ -1,0 +1,184 @@
+// Eagles' Peak (28 November 2006, a week after Hunter; Ian Gower). Charlie at Ardougne Zoo sends the
+// player after Nickolaus, a huntsman who went after a northern ferret west of the Gnome Stronghold and
+// has not been heard from. All of the talking is the wiki transcripts' (OSRS, and RuneScape's for the
+// lines Charlie has between the steps, which the OSRS one leaves out).
+//
+// Where each part lives:
+//   quest_eaglespeak.rs2     Charlie, the reward, the quest journal
+//   eaglespeak_camp.rs2      Nickolaus's camp, the bird book, the climb, the rocky outcrop, Nickolaus
+//                            back at his camp and the ferret he helps the player catch
+//   eaglespeak_cave.rs2      the cave under the peak: its tunnels, the giant feathers, the stone door,
+//                            the chasm, the nest's eagle and Nickolaus in the nest
+//   eaglespeak_bronze.rs2, eaglespeak_silver.rs2, eaglespeak_gold.rs2   the three feather rooms
+//   eaglespeak_asyff.rs2     the eagle costumes, from the Varrock fancy dress shop
+//   eaglespeak_transport.rs2 the eagles after the quest, and the three eyries they fly to
+//   eaglespeak_items.rs2     the books, and the quest items' Destroy
+
+// =========================================================================== Charlie
+[opnpc1,eagle_charlie]
+switch_int (%eaglespeak) {
+    case ^eaglespeak_not_started : @eaglespeak_charlie_start;
+    case ^eaglespeak_started :
+        ~chatnpc("<p,quiz>Ah, hello again. Have you had any luck finding out about Nickolaus' whereabouts yet?");
+        ~chatplayer("<p,sad>No, nothing yet I'm afraid.");
+        ~chatnpc("<p,neutral>Like I said, he's most likely to be camping out somewhere to the west of the Gnome Stronghold.");
+    case ^eaglespeak_feather :
+        ~chatnpc("<p,quiz>Ah, hello again. Have you had any luck finding out about Nickolaus' whereabouts yet?");
+        ~chatplayer("<p,neutral>I found a camp-site in the right sort of area, but it looked like someone had left in a hurry. I also found a small metal feather, I don't suppose you know what that means?");
+        ~chatnpc("<p,confused>No, we just sent him to look for ferrets. I don't know what else he'd have been doing up there.");
+    case ^eaglespeak_passage :
+        ~chatnpc("<p,quiz>Ah, hello again. Have you had any luck finding out about Nickolaus' whereabouts yet?");
+        ~chatplayer("<p,neutral>I found a camp-site in the right sort of area, but it looked like someone had left in a hurry. I also found a small metal feather which opened some sort of secret passage into the mountains!");
+        ~chatnpc("<p,neutral>Well we certainly didn't ask him to do anything like that. Then again he never was very reliable at staying on task.");
+    case ^eaglespeak_help :
+        ~chatnpc("<p,quiz>Ah, hello again. Have you had any luck finding out about Nickolaus' whereabouts yet?");
+        ~chatplayer("<p,happy>Yes, I found a secret passage into the mountain and Nickolaus was inside!");
+        ~chatnpc("<p,quiz>Well then, if you've found him what's taking him so long.");
+        ~chatplayer("<p,neutral>He seems to have gone and gotten himself abducted by giant eagles. They're holding him in their nest.");
+        ~chatnpc("<p,laugh>Don't be daft, giant eagles don't really exist. It's just an old story, everyone knows that.");
+        ~chatplayer("<p,shock>No really, I'm serious!");
+        ~chatnpc("<p,neutral>Okay then, as long as you bring him back you can believe what you like.");
+    case ^eaglespeak_disguised, ^eaglespeak_ferret :
+        ~chatnpc("<p,quiz>Ah, hello again. Have you had any luck finding a clue as to Nickolaus' whereabouts yet?");
+        ~chatplayer("<p,happy>Yes I have actually. He'd been abducted by giant eagles, but I managed to rescue him. He's now gotten back to his hunting.");
+        ~chatnpc("<p,confused>Giant eagles? What a strange notion. Well, regardless, if you've found him can you tell him to hurry up with that ferret.");
+        if (%eaglespeak = ^eaglespeak_ferret & inv_total(inv, ferret) > 0) {
+            @eaglespeak_charlie_ferret;
+        }
+        if (%eaglespeak = ^eaglespeak_disguised) {
+            ~chatplayer("<p,neutral>Right you are.");
+        }
+    case default :
+        ~chatplayer("<p,quiz>Hi, how are you getting on with that ferret?");
+        ~chatnpc("<p,neutral>Well he seems to be just as vicious as the one we lost, but we're still very grateful for your help in acquiring him.");
+}
+
+[label,eaglespeak_charlie_start]
+~chatplayer("<p,happy>Hi!");
+~chatnpc("<p,neutral>Yes, er, welcome to the zoo! I'm afraid I'm kind of busy right now; what was it you wanted?");
+switch_int (~p_choice2("Ah, you sound like someone who needs a quest doing!", 1, "Where did you get the animals from?", 2)) {
+    case 1 :
+        ~chatplayer("<p,happy>Ah, you sound like someone who needs a quest doing!");
+        if (stat(hunter) < ^eaglespeak_hunter_level) {
+            ~chatnpc("<p,quiz>Well... maybe. How much do you know about hunting?");
+            ~chatplayer("<p,neutral>Well I know a little bit...");
+            ~chatnpc("<p,sad>No, I could do with some help, but I'm afraid I need somebody with a little more experience.");
+            return;
+        }
+        ~chatnpc("<p,neutral>Actually, now that you come to mention it, you might be able to help me.");
+        ~chatnpc("<p,neutral>A few weeks ago we had a delivery of a northern ferret. They're funny little creatures. Turns out they're tricksy little blighters too.");
+        ~chatnpc("<p,sad>Whilst we were unloading him from the cart he managed to escape his cage. What's more he gave the driver a nasty nip on the way out too.");
+        ~chatnpc("<p,sad>This was obviously a bit of a blow, you can't make a new attraction without any animals.");
+        ~chatnpc("<p,neutral>We got in contact with one of our associates, a huntsman called Nickolaus, who agreed to capture us another.");
+        ~chatnpc("<p,quiz>Funny thing is we haven't heard from him for some time now. I don't suppose you'd mind having a look for him?");
+        switch_int (~p_choice2("Sure. Any idea where I should start looking?", 1, "Sorry, I don't have the time.", 2)) {
+            case 1 :
+                ~chatplayer("<p,neutral>Sure. Any idea where I should start looking?");
+                ~chatnpc("<p,neutral>Well the northern ferret is mostly found around the mountains just west of the Gnome Stronghold, so that would probably be as good a place as any to start looking.");
+                ~chatplayer("<p,happy>Okay, thanks.");
+                %eaglespeak = ^eaglespeak_started;
+                ~send_quest_progress(questlist:eaglespeak, %eaglespeak, ^eaglespeak_complete);
+            case 2 :
+                ~chatplayer("<p,neutral>Sorry, I don't have the time.");
+                ~chatnpc("<p,neutral>Oh well, I'm sure he'll be okay out there on his own.");
+        }
+    case 2 :
+        ~chatplayer("<p,quiz>Where did you get the animals from?");
+        ~chatnpc("<p,happy>We get them from all over the place! The most exotic creatures have been brought back by explorers and sold to us.");
+        ~chatplayer("<p,shock>Where on Gielinor did you get that scary looking Cyclops?!");
+        ~chatnpc("<p,happy>Yes he is scary looking!");
+        ~chatnpc("<p,neutral>He's from a very far away land, we couldn't find out more as the explorer who brought him back died shortly afterwards!");
+}
+
+[label,eaglespeak_charlie_ferret]
+~chatplayer("<p,happy>Even better, I have a ferret right here for you.");
+~chatnpc("<p,happy>You do? Ah, yes, wonderful, I never doubted you for a second. That'll make an excellent addition to the zoo.");
+if (inv_total(inv, ferret) < 1) {
+    return;
+}
+inv_del(inv, ferret, 1);
+@eaglespeak_complete;
+
+// A ferret used on Charlie once the zoo has one (OSRS transcript).
+[opnpcu,eagle_charlie]
+if (last_useitem ! ferret) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%eaglespeak = ^eaglespeak_ferret) {
+    ~chatnpc("<p,quiz>Ah, hello again. Have you had any luck finding a clue as to Nickolaus' whereabouts yet?");
+    @eaglespeak_charlie_ferret;
+}
+if (%eaglespeak < ^eaglespeak_complete) {
+    ~displaymessage(^dm_default);
+    return;
+}
+~chatplayer("<p,happy>Hey, I've got another ferret if you're interested?");
+~chatnpc("<p,neutral>Er, oh! Well that's very kind of you, but we don't really need another ferret at the moment, I'm afraid. We're having enough trouble taming the one we've got.");
+
+// The reward (OSRS wiki): 2 quest points, 2,500 Hunter experience; the ability to box-trap ferrets
+// (quest_eaglespeak.rs2 ~eaglespeak_can_trap_ferret), the eagle transport, and a ferret in the zoo.
+[label,eaglespeak_complete]
+%eaglespeak = ^eaglespeak_complete;
+stat_advance(hunter, ^eaglespeak_reward_xp);
+session_log(^log_adventure, "Quest complete: Eagles' Peak");
+~send_quest_complete(questlist:eaglespeak, eagle_cape, 250, ^eaglespeak_questpoints, "You have completed\\nEagles' Peak!", "2 Quest Points|2,500 Hunter XP|The eagle transport system|Ferrets can be caught in box traps");
+
+// Box-trapping a ferret wants the quest - in 2006 a ferret "can be caught in a box trap with level 27
+// Hunter after completing the quest Eagles' Peak" (RuneScape wiki, Ferret (Hunter)). Box traps
+// themselves were not gated: OSRS added that in its 28 June 2018 Game Integrity Changes. The ferret the
+// player loses before handing it over can be caught again once Nickolaus has shown them how.
+[proc,eaglespeak_can_trap_ferret]()(boolean)
+if (%eaglespeak >= ^eaglespeak_ferret) {
+    return(true);
+}
+return(false);
+
+// =========================================================================== the journal
+[if_button,questlist:eaglespeak]
+def_string $text;
+switch_int (%eaglespeak) {
+    case ^eaglespeak_not_started :
+        $text = "@dbl@I can start this quest by speaking to @dre@Charlie@dbl@ the zookeeper at|";
+        $text = append($text, "@dre@Ardougne Zoo@dbl@.||");
+        $text = append($text, "@dbl@To complete this quest I will need:|");
+        $text = append($text, "@dre@Level 27 Hunter");
+    case ^eaglespeak_started :
+        $text = "@str@Charlie sent me to find Nickolaus, a huntsman who went after|";
+        $text = append($text, "@str@a northern ferret for the zoo and has not been heard from.|");
+        $text = append($text, "@dbl@I should look around the @dre@mountains@dbl@ just west of the|");
+        $text = append($text, "@dre@Gnome Stronghold");
+    case ^eaglespeak_feather :
+        $text = "@str@Charlie sent me to find Nickolaus, a huntsman who went after|";
+        $text = append($text, "@str@a northern ferret for the zoo and has not been heard from.|");
+        $text = append($text, "@str@I found his camp abandoned at the foot of @str@Eagles' Peak.|");
+        $text = append($text, "@dbl@A small @dre@metal feather@dbl@ fell out of one of his books. There may|");
+        $text = append($text, "@dbl@be a use for it at the @dre@top of the mountain");
+    case ^eaglespeak_passage :
+        $text = "@str@I found Nickolaus's camp abandoned at the foot of Eagles' Peak,|";
+        $text = append($text, "@str@and a metal feather that opened a hidden passage at the top.|");
+        $text = append($text, "@dbl@I should explore the @dre@caves@dbl@ inside the mountain");
+    case ^eaglespeak_help :
+        $text = "@str@I found Nickolaus in the caves under Eagles' Peak, stuck in the|";
+        $text = append($text, "@str@nest of a giant eagle across a chasm.|");
+        $text = append($text, "@dbl@He wants a disguise for each of us. The @dre@fancy dress shop@dbl@ in|");
+        $text = append($text, "@dre@Varrock@dbl@ can make them from @dre@10 eagle feathers@dbl@, @dre@swamp tar@dbl@ and|");
+        $text = append($text, "@dre@yellow dye@dbl@. Then I must find a way through the @dre@stone door|");
+        $text = append($text, "@dbl@and past the @dre@eagle@dbl@ guarding the nest, wearing my disguise");
+    case ^eaglespeak_disguised :
+        $text = "@str@I rescued Nickolaus from the giant eagle's nest in disguise.|";
+        $text = append($text, "@dbl@He said he would meet me back at his @dre@camp@dbl@ at the foot of|");
+        $text = append($text, "@dre@Eagles' Peak@dbl@. I still need a @dre@ferret@dbl@ for the zoo");
+    case ^eaglespeak_ferret :
+        $text = "@str@I rescued Nickolaus from the giant eagle's nest in disguise,|";
+        $text = append($text, "@str@and he showed me how to catch a ferret in a box trap.|");
+        $text = append($text, "@dbl@I should take a @dre@ferret@dbl@ to @dre@Charlie@dbl@ at Ardougne Zoo");
+    case default :
+        $text = "@str@Charlie at Ardougne Zoo sent me after Nickolaus, a huntsman|";
+        $text = append($text, "@str@who had gone missing hunting ferrets near Eagles' Peak. I found|");
+        $text = append($text, "@str@him held in a giant eagle's nest inside the mountain and got|");
+        $text = append($text, "@str@him out in a pair of eagle costumes, and he showed me how to|");
+        $text = append($text, "@str@catch the ferret the zoo wanted.||");
+        $text = append($text, "@red@QUEST COMPLETE!");
+}
+~quest_journal("Eagles' Peak", $text);

@@ -1,0 +1,51 @@
+// Eagles' Peak - the bronze feather's room (m30_76, level 2), through the tunnel west of the stone door.
+// The feather sits on a pedestal in a net; reaching for it springs the net and hauls the pedestal up out
+// of reach, and the four winches in the corners pull it down again. The pedestal is one loc in the room
+// (474 loc 19980, placed in the map where the room's floor is flagged for it), its states 474's: hanging
+// in the net (19982) and falling (19983), back to 19980 when they wear off. Whose net is sprung and which
+// winches they have wound is the player's own (eaglespeak_bronze_net, eaglespeak_winches).
+
+[oploc1,loc474_19980]
+if (~eaglespeak_has_feather(eagle_bronze_feather) = true) {
+    mes("I already have a bronze feather like that.");
+    return;
+}
+if (%eaglespeak_bronze_net = 1 & %eaglespeak_winches = 15) {
+    if (inv_freespace(inv) < 1) {
+        mes("You don't have enough inventory space to hold that item.");
+        return;
+    }
+    anim(human_pickuptable, 0);
+    inv_add(inv, eagle_bronze_feather, 1);
+    // The next one is behind the net again.
+    %eaglespeak_bronze_net = 0;
+    %eaglespeak_winches = 0;
+    return;
+}
+%eaglespeak_bronze_net = 1;
+%eaglespeak_winches = 0;
+loc_change(loc474_19982, 200);
+mes("As you reach for the bronze feather, the netting on the ground shoots upwards, snatching the pedestal out of your reach.");
+
+[oploc1,loc474_19976] @eaglespeak_winch(0);
+[oploc1,loc474_19977] @eaglespeak_winch(1);
+[oploc1,loc474_19978] @eaglespeak_winch(2);
+[oploc1,loc474_19979] @eaglespeak_winch(3);
+
+[label,eaglespeak_winch](int $bit)
+if (%eaglespeak_bronze_net = 0) {
+    mes("The winch doesn't seem to move.");
+    return;
+}
+if (testbit(%eaglespeak_winches, $bit) = ^true) {
+    mes("The winch doesn't seem to turn any further.");
+    return;
+}
+anim(human_eagle_winch, 0);
+p_delay(2);
+%eaglespeak_winches = setbit(%eaglespeak_winches, $bit);
+mes("You wind the winch until it won't go any further.");
+if (%eaglespeak_winches = 15 & loc_find(2_30_76_53_50, loc474_19982) = true) {
+    // The net gives, and the pedestal comes back down.
+    loc_change(loc474_19983, 4);
+}
