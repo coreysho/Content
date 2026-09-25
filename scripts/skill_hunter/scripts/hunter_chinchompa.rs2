@@ -1,0 +1,391 @@
+// Hunter - CHINCHOMPAS AS WEAPONS (2026-09-25). A box trap's catch (hunter_traps.rs2) is OSRS's thrown
+// explosive. OSRS's, from the wiki's chinchompa pages and Mod Ash:
+//
+//                     wield       ranged attack   ranged strength
+//   chinchompa        45 Ranged   +45             0
+//   red chinchompa    55 Ranged   +70             +15
+//
+//   * thrown every 4 ticks - 3 on Medium fuse - at up to 9 tiles, 10 on Long fuse; used up whether it
+//     hits or not, and never left on the ground;
+//   * the fuse sets the accuracy by the distance to the target (configs/hunter_weapons.constant):
+//     Short fuse is best close in, Long fuse far out, Medium in the middle - a percentage of the attack
+//     roll, "applied to the accuracy roll when the attack is cast";
+//   * it explodes over the 3x3 round its target. In a multi-combat area everything attackable in that
+//     3x3 is hit too, up to 11 targets in all (9 at players). ONE accuracy roll is made, against the
+//     target you threw at: if it hits, every target is hit, each with its own damage roll; if it misses,
+//     the whole group is missed. In single combat only the target is hit.
+//
+// The fuses are the thrown weapons' Accurate, Rapid and Longrange - the same experience, the same speeds
+// and reach - so a chinchompa is a weapon_thrown obj and everything that treats one as a thrown weapon
+// still does. Its throw (human_chinchompa_attack), stance, walk, run and block, and its attack and
+// explosion sounds, are all in the 377 cache already; the flying chinchompa is OSRS's spotanim 908 (909 for
+// the red), and the explosion OSRS's 157 - which is 377's firewave_impact, the same graphic.
+//
+// THE MULTI RULE is the one this server's barrage and rune thrownaxe special already use: the thrower,
+// and each extra target, must be in a multi-combat area.
+
+[opheld2,chinchompa] @levelrequire_ranged(45, last_slot);
+[opheld2,red_chinchompa] @levelrequire_ranged(55, last_slot);
+
+[proc,chinchompa_armed]()(boolean)
+if (map_members = ^false) {
+    return(false);
+}
+def_obj $rhand = inv_getobj(worn, ^wearpos_rhand);
+if ($rhand = chinchompa | $rhand = red_chinchompa) {
+    return(true);
+}
+return(false);
+
+// The fuse's share of the attack roll, in percent, at this many tiles.
+[proc,chinchompa_fuse_pct](int $distance)(int)
+def_int $band = 2;
+if ($distance <= ^chinchompa_band_near) {
+    $band = 0;
+} else if ($distance <= ^chinchompa_band_mid) {
+    $band = 1;
+}
+switch_int (%damagestyle) {
+    case ^style_ranged_rapid :
+        // Medium fuse
+        if ($band = 1) return(100);
+        return(75);
+    case ^style_ranged_longrange :
+        // Long fuse
+        if ($band = 2) return(100);
+        if ($band = 1) return(75);
+        return(50);
+    case default :
+        // Short fuse
+        if ($band = 0) return(100);
+        if ($band = 1) return(75);
+        return(50);
+}
+return(100);
+
+// ---------------------------------------------------------------------------------------------
+// At a monster - reached from [label,player_combat_start] whenever a chinchompa is wielded
+// ---------------------------------------------------------------------------------------------
+[label,chinchompa_attack]
+if (~npc_is_attackable = false) {
+    return;
+}
+if (%action_delay > map_clock) {
+    p_opnpc(2);
+    return;
+}
+if (npc_stat(hitpoints) = 0) {
+    return;
+}
+def_obj $rhand = inv_getobj(worn, ^wearpos_rhand);
+%action_delay = add(map_clock, oc_param($rhand, attackrate));
+if (%damagestyle = ^style_ranged_rapid) {
+    %action_delay = sub(%action_delay, 1);
+}
+// the imbued black mask's bonus, as every ranged attack has it
+def_int $mask_num = 1;
+def_int $mask_div = 1;
+if (~black_mask_imbued_on_task = true) {
+    $mask_num = 23;
+    $mask_div = 20;
+}
+def_int $pct = ~chinchompa_fuse_pct(npc_range(coord));
+def_boolean $hit = ~player_npc_hit_roll_boosted(^ranged_style, multiply($mask_num, $pct), multiply($mask_div, 100));
+def_int $maxhit = scale($mask_num, $mask_div, %com_maxhit);
+anim(%com_attackanim, 0);
+sound_synth(%com_attacksound, 0, 0);
+// thrown as a dart is, and it lands a tick later than it arrives, as every ranged hit here does
+def_int $flight = ~npc_projectile(coord, npc_uid, oc_param($rhand, proj_travel), 40, 36, 32, 15, 0, 11, 5);
+def_int $ticks = calc(($flight + 30) / 30);
+def_npc_uid $primary = npc_uid;
+def_coord $centre = npc_coord;
+~chinchompa_hit_npc($hit, $maxhit, $ticks, $flight);
+spotanim_npc(firewave_impact, 92, $flight);
+sound_synth(chinchompa_explode, 0, $flight);
+if (map_multiway(coord) = true) {
+    ~chinchompa_splash_npcs($primary, $centre, $hit, $maxhit, $ticks, $flight);
+}
+inv_del(worn, $rhand, 1);
+if (inv_total(worn, $rhand) = 0) {
+    mes("That was your last one!");
+    p_stopaction;
+    ~update_all($rhand);
+    return;
+}
+// back onto the target thrown at, if the splash moved the pointer and it is still there
+if (npc_finduid($primary) = false) {
+    return;
+}
+p_opnpc(2);
+
+// One target's share of the explosion - on the active npc. The accuracy roll is the thrown-at target's,
+// passed in; the damage is rolled here, for this one.
+[proc,chinchompa_hit_npc](boolean $hit, int $maxhit, int $ticks, int $flight)
+def_int $damage = 0;
+if ($hit = true) {
+    def_int $max = $maxhit;
+    // as the other ranged attacks: a kurask or turoth wants broad arrows, the Dagannoth Mother takes
+    // ranged only in her ranged phase, and a cave kraken's hide turns all but a seventh aside
+    if (npc_param(slayer_category) = ^slayer_kurask | npc_param(slayer_category) = ^slayer_turoth) {
+        $max = 0;
+    }
+    if (npc_type = horror_dagganoth_air | npc_type = horror_dagganoth_water | npc_type = horror_dagganoth_earth | npc_type = horror_dagganoth_fire | npc_type = horror_dagganoth_melee) {
+        $max = 0;
+    }
+    $damage = randominc(min($max, npc_param(max_dealt)));
+    if (npc_type = cave_kraken) {
+        $damage = divide($damage, 7);
+    }
+    def_int $damage_capped = min($damage, npc_stat(hitpoints));
+    ~barrows_set_hit_npc($damage_capped, ^ranged_style);
+    ~give_combat_experience(%damagestyle, $damage_capped, %npc_combat_xp_multiplier);
+    npc_heropoints($damage_capped);
+}
+~npc_retaliate($ticks);
+npc_queue(2, $damage, $ticks);
+npc_anim(npc_param(defend_anim), $flight);
+if (npc_param(defend_sound) ! null) {
+    sound_synth(npc_param(defend_sound), 0, $flight);
+}
+
+// The rest of the 3x3, in two passes as ~pvm_spell_aoe does it (the damage ops act on the primary npc
+// pointer, the search walks the secondary one). Only what could be attacked on its own is hit: an npc
+// with an Attack op, alive, in a multi-combat area, and not something a random event has sent after
+// someone else or one the thrower's Slayer level cannot wound - those are passed over without a word.
+[proc,chinchompa_splash_npcs](npc_uid $primary, coord $centre, boolean $hit, int $maxhit, int $ticks, int $flight)
+def_npc_uid $t1;
+def_npc_uid $t2;
+def_npc_uid $t3;
+def_npc_uid $t4;
+def_npc_uid $t5;
+def_npc_uid $t6;
+def_npc_uid $t7;
+def_npc_uid $t8;
+def_npc_uid $t9;
+def_npc_uid $t10;
+def_int $found = 0;
+def_int $room = sub(^chinchompa_max_npcs, 1);
+npc_huntall($centre, 1, ^vis_lineofsight);
+while (.npc_findnext = true) {
+    if (.npc_uid ! $primary & $found < $room & map_multiway(.npc_coord) = true & .npc_hasop(2) = true) {
+        switch_int ($found) {
+            case 0 : $t1 = .npc_uid;
+            case 1 : $t2 = .npc_uid;
+            case 2 : $t3 = .npc_uid;
+            case 3 : $t4 = .npc_uid;
+            case 4 : $t5 = .npc_uid;
+            case 5 : $t6 = .npc_uid;
+            case 6 : $t7 = .npc_uid;
+            case 7 : $t8 = .npc_uid;
+            case 8 : $t9 = .npc_uid;
+            case 9 : $t10 = .npc_uid;
+        }
+        $found = add($found, 1);
+    }
+}
+~chinchompa_splash_npc($t1, $hit, $maxhit, $ticks, $flight);
+~chinchompa_splash_npc($t2, $hit, $maxhit, $ticks, $flight);
+~chinchompa_splash_npc($t3, $hit, $maxhit, $ticks, $flight);
+~chinchompa_splash_npc($t4, $hit, $maxhit, $ticks, $flight);
+~chinchompa_splash_npc($t5, $hit, $maxhit, $ticks, $flight);
+~chinchompa_splash_npc($t6, $hit, $maxhit, $ticks, $flight);
+~chinchompa_splash_npc($t7, $hit, $maxhit, $ticks, $flight);
+~chinchompa_splash_npc($t8, $hit, $maxhit, $ticks, $flight);
+~chinchompa_splash_npc($t9, $hit, $maxhit, $ticks, $flight);
+~chinchompa_splash_npc($t10, $hit, $maxhit, $ticks, $flight);
+
+[proc,chinchompa_splash_npc](npc_uid $target, boolean $hit, int $maxhit, int $ticks, int $flight)
+if ($target = null) {
+    return;
+}
+if (npc_finduid($target) = false) {
+    return;
+}
+if (npc_stat(hitpoints) = 0) {
+    return;
+}
+if (%npc_macro_event_target ! null & %npc_macro_event_target ! uid) {
+    return;
+}
+if (stat(slayer) < enum(int, int, slayer_req, npc_param(slayer_category))) {
+    return;
+}
+~chinchompa_hit_npc($hit, $maxhit, $ticks, $flight);
+
+// ---------------------------------------------------------------------------------------------
+// At another player - reached from [label,pvp_combat_start]
+// ---------------------------------------------------------------------------------------------
+// The same throw against the secondary player pointer, pvp_ranged.rs2's way: the duel arena's "no
+// ranged", Protect from Missiles' 40%, tick eating, a skull. The splash takes up to 8 more players
+// (9 in all) who could be attacked on their own - ~pvp_is_attackable, as the barrage's splash asks it.
+[label,pvp_chinchompa_attack]
+if (~duel_arena_ranged_check = false) {
+    return;
+}
+if (.%death = ^true) {
+    p_stopaction;
+    return;
+}
+if (%action_delay > map_clock) {
+    p_opplayer(2);
+    return;
+}
+def_obj $rhand = inv_getobj(worn, ^wearpos_rhand);
+%action_delay = add(map_clock, oc_param($rhand, attackrate));
+if (%damagestyle = ^style_ranged_rapid) {
+    %action_delay = sub(%action_delay, 1);
+}
+p_opplayer(2);
+~set_pk_vars;
+def_int $pct = ~chinchompa_fuse_pct(distance(coord, .coord));
+def_boolean $hit = ~pvp_chinchompa_roll($pct);
+anim(%com_attackanim, 0);
+sound_synth(%com_attacksound, 0, 0);
+.sound_synth(%com_attacksound, 0, 0);
+def_int $flight = ~player_projectile(coord, .coord, .uid, oc_param($rhand, proj_travel), 40, 36, 32, 15, 0, 11, 5);
+def_player_uid $primary = .uid;
+def_coord $centre = .coord;
+~pvp_chinchompa_hit($hit, $flight);
+.spotanim_pl(firewave_impact, 92, $flight);
+.sound_synth(chinchompa_explode, 0, $flight);
+sound_synth(chinchompa_explode, 0, $flight);
+if (map_multiway(coord) = true) {
+    ~pvp_chinchompa_splash($primary, $centre, $hit, $flight);
+}
+inv_del(worn, $rhand, 1);
+if (inv_total(worn, $rhand) = 0) {
+    mes("That was your last one!");
+    p_stopaction;
+    ~update_all($rhand);
+}
+if (.finduid($primary) = false) {
+    return;
+}
+
+[proc,pvp_chinchompa_roll](int $pct)(boolean)
+def_int $attack_roll = scale($pct, 100, ~player_attack_roll_specific(^ranged_style));
+def_int $defence_roll = ~.player_defence_roll_specific(^ranged_style);
+if (randominc($attack_roll) > randominc($defence_roll)) {
+    return(true);
+}
+return(false);
+
+[proc,pvp_chinchompa_hit](boolean $hit, int $flight)
+def_int $damage = 0;
+if ($hit = true) {
+    def_int $maxhit = %com_maxhit;
+    if (~.check_protect_prayer(^ranged_style) = true) {
+        $maxhit = scale(6, 10, $maxhit); // reduction of 40%
+    }
+    $damage = min(randominc($maxhit), .stat(hitpoints));
+    ~give_combat_experience_pvp(%damagestyle, $damage, ~pvp_xp_multiplier(~.player_combat_level));
+    both_heropoints($damage);
+    ~barrows_set_hit_player($damage, ^ranged_style);
+}
+.queue*(pvp_retaliate, calc($flight / 30))(uid);
+~.pvp_damage(calc($flight / 30), $damage);
+.anim(.%com_defendanim, $flight);
+
+[proc,pvp_chinchompa_splash](player_uid $primary, coord $centre, boolean $hit, int $flight)
+def_player_uid $t1;
+def_player_uid $t2;
+def_player_uid $t3;
+def_player_uid $t4;
+def_player_uid $t5;
+def_player_uid $t6;
+def_player_uid $t7;
+def_player_uid $t8;
+def_int $found = 0;
+def_int $room = sub(^chinchompa_max_players, 1);
+huntall($centre, 1, ^vis_lineofsight);
+while (.huntnext = true) {
+    if (.uid ! $primary & .uid ! uid & $found < $room & map_multiway(.coord) = true) {
+        switch_int ($found) {
+            case 0 : $t1 = .uid;
+            case 1 : $t2 = .uid;
+            case 2 : $t3 = .uid;
+            case 3 : $t4 = .uid;
+            case 4 : $t5 = .uid;
+            case 5 : $t6 = .uid;
+            case 6 : $t7 = .uid;
+            case 7 : $t8 = .uid;
+        }
+        $found = add($found, 1);
+    }
+}
+~pvp_chinchompa_splash_one($t1, $hit, $flight);
+~pvp_chinchompa_splash_one($t2, $hit, $flight);
+~pvp_chinchompa_splash_one($t3, $hit, $flight);
+~pvp_chinchompa_splash_one($t4, $hit, $flight);
+~pvp_chinchompa_splash_one($t5, $hit, $flight);
+~pvp_chinchompa_splash_one($t6, $hit, $flight);
+~pvp_chinchompa_splash_one($t7, $hit, $flight);
+~pvp_chinchompa_splash_one($t8, $hit, $flight);
+
+[proc,pvp_chinchompa_splash_one](player_uid $target, boolean $hit, int $flight)
+if ($target = null) {
+    return;
+}
+if (.finduid($target) = false) {
+    return;
+}
+if (.%death = ^true) {
+    return;
+}
+if (~pvp_is_attackable = false) {
+    return;
+}
+~set_pk_vars;
+~pvp_chinchompa_hit($hit, $flight);
+
+// ---------------------------------------------------------------------------------------------
+// The combat tab
+// ---------------------------------------------------------------------------------------------
+// 474 has a chinchompa tab (475: Short fuse, Medium fuse, Long fuse) and a salamander one (474: Scorch,
+// Flare, Blaze), both the thrown tab's layout to the pixel - but a new interface is not this round's to
+// add. So the thrown tab carries their words while one of them is wielded, and its own otherwise; the
+// client wipes what the server set on a tab when it is replaced, so this is sent every time the tab is.
+// The salamander's style icons (474's own) are not in this build, so the thrown tab's are hidden for it.
+[proc,hunter_thrown_tab_labels](obj $obj)
+if ($obj = chinchompa | $obj = red_chinchompa) {
+    ~hunter_thrown_tab_text("Short fuse", "Medium fuse", "Long fuse", "(Short fuse)\\n(Ranged XP)", "(Medium fuse)\\n(Ranged XP)", "(Long fuse)\\n(Ranged XP)\\n(Defence XP)", false);
+    return;
+}
+if (oc_category($obj) = weapon_salamander) {
+    ~hunter_thrown_tab_text("Scorch", "Flare", "Blaze", "(Aggressive)\\n(Slash)\\n(Strength XP)", "(Accurate)\\n(Ranged)\\n(Ranged XP)", "(Defensive)\\n(Magic)\\n(Magic XP)", true);
+    return;
+}
+~hunter_thrown_tab_text("Accurate", "Rapid", "Longrange", "(Accurate)\\n(Ranged XP)", "(Rapid)\\n(Ranged XP)", "(Longrange)\\n(Ranged XP)\\n(Defence XP)", false);
+
+[proc,hunter_thrown_tab_text](string $a, string $b, string $c, string $ta, string $tb, string $tc, boolean $hideicons)
+if_settext(combat_thrown:com_25, $a);
+if_settext(combat_thrown:com_26, $b);
+if_settext(combat_thrown:com_27, $c);
+if_settext(combat_thrown:com_29, $ta);
+if_settext(combat_thrown:com_30, $tb);
+if_settext(combat_thrown:com_31, $tc);
+if_sethide(combat_thrown:com_5, $hideicons);
+if_sethide(combat_thrown:com_6, $hideicons);
+if_sethide(combat_thrown:com_7, $hideicons);
+
+[proc,.hunter_thrown_tab_labels](obj $obj)
+if ($obj = chinchompa | $obj = red_chinchompa) {
+    ~.hunter_thrown_tab_text("Short fuse", "Medium fuse", "Long fuse", "(Short fuse)\\n(Ranged XP)", "(Medium fuse)\\n(Ranged XP)", "(Long fuse)\\n(Ranged XP)\\n(Defence XP)", false);
+    return;
+}
+if (oc_category($obj) = weapon_salamander) {
+    ~.hunter_thrown_tab_text("Scorch", "Flare", "Blaze", "(Aggressive)\\n(Slash)\\n(Strength XP)", "(Accurate)\\n(Ranged)\\n(Ranged XP)", "(Defensive)\\n(Magic)\\n(Magic XP)", true);
+    return;
+}
+~.hunter_thrown_tab_text("Accurate", "Rapid", "Longrange", "(Accurate)\\n(Ranged XP)", "(Rapid)\\n(Ranged XP)", "(Longrange)\\n(Ranged XP)\\n(Defence XP)", false);
+
+[proc,.hunter_thrown_tab_text](string $a, string $b, string $c, string $ta, string $tb, string $tc, boolean $hideicons)
+.if_settext(combat_thrown:com_25, $a);
+.if_settext(combat_thrown:com_26, $b);
+.if_settext(combat_thrown:com_27, $c);
+.if_settext(combat_thrown:com_29, $ta);
+.if_settext(combat_thrown:com_30, $tb);
+.if_settext(combat_thrown:com_31, $tc);
+.if_sethide(combat_thrown:com_5, $hideicons);
+.if_sethide(combat_thrown:com_6, $hideicons);
+.if_sethide(combat_thrown:com_7, $hideicons);
