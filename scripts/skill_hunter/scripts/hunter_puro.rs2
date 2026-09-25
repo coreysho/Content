@@ -1,0 +1,663 @@
+// Hunter - PURO-PURO and the crop circles (Impetuous Impulses, 11 June 2007), ported as OSRS has it.
+// The implings themselves are hunter_implings.rs2.
+//
+// THE MAP. m40_67 is rev 474's own square (import474map.py): the wheat maze, the portal and the crop
+// circle at its heart. Its two area-sound locs are not placed. The permanent crop circle is 474's in
+// Zanaris's wheat field (m37_69); the roaming one's fields are 377's own, plus Doric's hut and
+// Rimmington's, which Jagex sowed for it in June 2007 (474's wheat, import474rect.py, on 377's heights).
+//
+// NPCS (the OSRS wiki's maps): the invisible spawns its map pins - 2 high, 12 mid, 10 low (its text says 21
+// low; the other 11 have no pins, so they are not placed) - 51 fixed implings, 28 imp defenders, Elnock at
+// 2586,4314, Immenizz at the portal, the wandering impling in Zanaris. A pin that lands on a row of wheat
+// (34 of them - the map's pins are a square out here and there) stands on the nearest open square instead.
+
+// ---------------------------------------------------------------------------------- crop circles
+
+// Enter: to the heart of Puro-Puro. Hunter 17, not boostable (OSRS). Through the roaming circle you also
+// get Farmer's Affinity for thirty minutes, and the portal will send you back to that field; through
+// Zanaris's, back to Zanaris.
+[oploc1,crop_circle_centre]
+if (map_members = ^false) {
+    mes("You need to be on a members' world to enter the crop circle.");
+    return;
+}
+if (stat_base(hunter) < ^puro_level) {
+    mes("You need a Hunter level of <tostring(^puro_level)> to enter the crop circle.");
+    return;
+}
+def_int $site = ~puro_site_at(loc_coord);
+%puro_return_site = $site;
+if ($site ! ^puro_site_zanaris) {
+    %puro_affinity_until = add(world_minute, ^puro_affinity_minutes);
+}
+@puro_arrive;
+
+[label,puro_arrive]
+p_delay(0);
+p_telejump(^puro_arrive);
+if (%puro_return_site ! ^puro_site_zanaris) {
+    mes("You feel an affinity with the wheat."); // Farmer's Affinity
+}
+
+// Which field a crop circle's centre stands in: 0 Zanaris, else the roaming circle's site.
+[proc,puro_site_at](coord $centre)(int)
+def_int $i = 1;
+while ($i <= ^puro_sites) {
+    if (enum(int, coord, puro_site_coord, $i) = $centre) {
+        return($i);
+    }
+    $i = add($i, 1);
+}
+return(^puro_site_zanaris);
+
+// Leave: the portal (474's op, "Exit" in OSRS) takes you back to the field you came in by, even when
+// the roaming circle has moved on since (Immenizz: "you will always go back to where you came from").
+[oploc1,puro_portal]
+def_coord $dest = enum(int, coord, puro_site_coord, %puro_return_site);
+p_delay(0);
+p_telejump(map_findsquare($dest, 0, 1, ^map_findsquare_lineofwalk));
+
+// The roaming circle: the nine locs of Zanaris's, round the field's centre, for as long as it stays.
+[proc,puro_circle_place](int $site, int $ticks)
+def_coord $c = enum(int, coord, puro_site_coord, $site);
+loc_add(movecoord($c, -1, 0, -1), crop_circle_a, 0, centrepiece_straight, $ticks);
+loc_add(movecoord($c, 1, 0, 1), crop_circle_a, 2, centrepiece_straight, $ticks);
+loc_add(movecoord($c, 0, 0, -1), crop_circle_b, 0, centrepiece_straight, $ticks);
+loc_add(movecoord($c, 0, 0, 1), crop_circle_b, 2, centrepiece_straight, $ticks);
+loc_add(movecoord($c, -1, 0, 1), crop_circle_c, 2, centrepiece_straight, $ticks);
+loc_add(movecoord($c, 1, 0, -1), crop_circle_c, 0, centrepiece_straight, $ticks);
+loc_add(movecoord($c, -1, 0, 0), crop_circle_d, 2, centrepiece_straight, $ticks);
+loc_add(movecoord($c, 1, 0, 0), crop_circle_d, 0, centrepiece_straight, $ticks);
+loc_add($c, crop_circle_centre, 0, centrepiece_straight, $ticks);
+
+// The roaming circle's field right now: a fixed rotation, fifteen minutes in each (OSRS).
+[proc,puro_current_site]()(int)
+return(add(modulo(divide(map_clock, ^puro_circle_ticks), ^puro_sites), 1));
+
+// ---------------------------------------------------------------------------------- the wheat
+
+// Push-through (Magical wheat, OSRS): across the row to the other side, 6, 8 or 10 ticks by a Strength
+// roll - fast 0% at 1 to 39% at 99, else medium 4% at 1 to 100% at 99 (Mod Ash), else slow - each 3
+// ticks quicker under Farmer's Affinity; 4 and 2 Strength experience for the two quick ones, for a
+// player who asked Elnock for it (off by default since March 2023).
+[oploc5,puro_wheat] @puro_push;
+[oploc5,puro_wheat_end] @puro_push;
+[oploc5,puro_wheat_end_short] @puro_push;
+[oploc5,puro_wheat_inner] @puro_push;
+[oploc5,puro_wheat_shifting] @puro_push;
+
+[label,puro_push]
+def_coord $wheat = loc_coord;
+def_int $dx = sub(coordx($wheat), coordx(coord));
+def_int $dz = sub(coordz($wheat), coordz(coord));
+if (abs($dx) > 1 | abs($dz) > 1 | ($dx = 0 & $dz = 0)) {
+    return;
+}
+def_coord $dest = movecoord($wheat, $dx, 0, $dz);
+if (map_blocked($dest) = true & $dx ! 0 & $dz ! 0) {
+    $dest = movecoord($wheat, 0, 0, $dz);
+    if (map_blocked($dest) = true) {
+        $dest = movecoord($wheat, $dx, 0, 0);
+    }
+}
+if (map_blocked($dest) = true) {
+    mes("The wheat is too thick to push through here.");
+    return;
+}
+def_int $ticks = 10;
+def_int $xp = 0;
+if (stat_random(strength, 0, 100) = true) {
+    $ticks = 6;
+    $xp = 40;
+    mes("You use your strength to push through the wheat in the most efficient fashion."); // OSRS
+} else if (stat_random(strength, 10, 256) = true) {
+    $ticks = 8;
+    $xp = 20;
+    mes("You use your strength to push through the wheat."); // OSRS
+} else {
+    mes("You push through the wheat. It's hard work, though."); // OSRS
+}
+if (%puro_affinity_until > world_minute) {
+    $ticks = sub($ticks, ^puro_affinity_ticks);
+}
+anim(puro_wheat_push, 0);
+p_exactmove(coord, $dest, 0, multiply($ticks, 30), ~coord_direction(coord, $dest));
+p_delay(sub($ticks, 1));
+anim(null, 0);
+if (%puro_wheat_strength_xp = 1 & $xp > 0) {
+    stat_advance(strength, $xp);
+}
+
+// The shifting sections: now and then one grows across its gap, or wilts away (hunter_implings_sites.enum,
+// the wiki's map). Driven by the controller below, one section every ten ticks, so each changes every
+// few minutes ("new hedges and passages appearing every few minutes").
+[proc,puro_shift](int $section)
+def_int $t = multiply($section, 2);
+def_coord $a = enum(int, coord, puro_shift_tile, $t);
+def_coord $b = enum(int, coord, puro_shift_tile, add($t, 1));
+def_int $angle = enum(int, int, puro_shift_angle, $t);
+if (loc_find($a, puro_wheat_shifting) = true) {
+    loc_del(1);
+    loc_add($a, puro_wheat_wilting, $angle, grounddecor, 3);
+    if (loc_find($b, puro_wheat_shifting) = true) {
+        loc_del(1);
+    }
+    loc_add($b, puro_wheat_wilting, $angle, grounddecor, 3);
+    return;
+}
+// grown: nobody standing in it, as a wall would not grow over a player
+if (map_blocked($a) = true | map_blocked($b) = true) {
+    return;
+}
+huntall($a, 0, 0);
+if (huntnext = true) {
+    return;
+}
+huntall($b, 0, 0);
+if (huntnext = true) {
+    return;
+}
+loc_add($a, puro_wheat_shifting, $angle, grounddecor, 1000000);
+loc_add($b, puro_wheat_shifting, $angle, grounddecor, 1000000);
+
+// ---------------------------------------------------------------------------------- the controller
+
+// One invisible npc in Puro-Puro's walled-off corner whose timer (every tick) runs everything the world
+// does on its own clock: the maze's wheat, the roaming crop circle, and the Gielinor implings' cycle.
+[ai_timer,impling_controller]
+if (modulo(map_clock, 10) = 0) {
+    ~puro_shift(random(divide(^puro_shift_tiles, 2)));
+}
+def_int $site = ~puro_current_site;
+if (loc_find(enum(int, coord, puro_site_coord, $site), crop_circle_centre) = false) {
+    ~puro_circle_place($site, sub(^puro_circle_ticks, modulo(map_clock, ^puro_circle_ticks)));
+}
+if (map_members = ^true & modulo(map_clock, ^impling_cycle_ticks) = 1) {
+    ~impling_world_cycle;
+}
+
+// Every thirty minutes (Impling#Gielinor): four from the high table, N from the mid (N 5-10), 2N from the
+// low - each an invisible spawn put at one of the variable spawn points, at random, for the thirty
+// minutes (the wandering ones of the last cycle despawn on their own, at its end).
+[proc,impling_world_cycle]
+def_int $n = add(5, random(6));
+~impling_world_add(impling_spawner_world_high, 4);
+~impling_world_add(impling_spawner_world_mid, $n);
+~impling_world_add(impling_spawner_world_low, multiply($n, 2));
+
+[proc,impling_world_add](npc $spawner, int $count)
+def_int $i = 0;
+while ($i < $count) {
+    npc_add(enum(int, coord, impling_world_spawn, random(^impling_world_spawns)), $spawner, sub(^impling_cycle_ticks, 2));
+    $i = add($i, 1);
+}
+
+// ---------------------------------------------------------------------------------- imp defenders
+
+// Imp defenders (OSRS): an imp that gets next to you frees one of your jarred implings - the lowest -
+// shouting "Be free!", and knocks the jar a few steps away. Higher Thieving and imp repellent make it
+// less likely. OSRS publishes no numbers for either, so these are this build's: every five ticks an imp
+// beside you tries, you keep your jars on a Thieving roll of 50% at level 1 to 100% at 99, and with imp
+// repellent in your pack it must beat a second roll as well.
+[ai_timer,imp_defender]
+huntall(npc_coord, 1, 0);
+while (huntnext = true) {
+    if (inv_totalcat(inv, impling_jar_full) > 0) {
+        if (stat_random(thieving, 128, 256) = false) {
+            if (inv_total(inv, imp_repellent) = 0 | stat_random(thieving, 128, 256) = false) {
+                npc_say("Be free!");
+                queue(imp_defender_free, 0, 0);
+                return;
+            }
+        }
+    }
+}
+
+[queue,imp_defender_free](int $unused)
+def_int $tier = 1;
+def_obj $jar = null;
+while ($tier <= 11) {
+    $jar = enum(int, namedobj, impling_jar_by_tier, $tier);
+    if (inv_total(inv, $jar) > 0) {
+        inv_del(inv, $jar, 1);
+        obj_add(map_findsquare(coord, 1, 3, ^map_findsquare_lineofwalk), impling_jar, 1, ^lootdrop_duration);
+        npc_add(coord, enum(int, npc, impling_puro_by_tier, $tier), 500);
+        mes("An imp defender sets one of your implings free and knocks the jar from your hands!");
+        return;
+    }
+    $tier = add($tier, 1);
+}
+
+// ---------------------------------------------------------------------------------- Elnock Inquisitor
+
+[opnpc1,elnock_inquisitor]
+if (%puro_met_elnock = 0) {
+    ~chatplayer("<p,quiz>What's a gnome doing here?");
+    ~chatnpc("<p,neutral>I'm an investigator. I'm watching the implings.");
+    ~chatplayer("<p,quiz>Why would you want to do that?");
+    ~chatnpc("<p,neutral>My client has asked me to find out where certain missing items have been going.");
+    ~chatplayer("<p,quiz>Who is this client?");
+    ~chatnpc("<p,neutral>I'm not at liberty to discuss that. Investigator-client confidentiality don't you know.");
+    @elnock_first_menu;
+}
+~chatnpc("<p,happy>Ah, good day, it's you again. What can I do for you?");
+@elnock_menu;
+
+[label,elnock_first_menu]
+switch_int (~p_choice4("Where is this place?", 1, "So what are these implings?", 2, "Can I catch these implings then?", 3, "I've heard I may find dragon equipment in Puro-Puro.", 4)) {
+    case 1 :
+        ~chatplayer("<p,quiz>Where is this place?");
+        ~chatnpc("<p,neutral>The fairies call it Puro-Puro. It seems to be the home plane of the implings.");
+        ~chatnpc("<p,neutral>I don't think these creatures have a name for it. As you can see there isn't a lot else here other than wheat.");
+        ~chatplayer("<p,quiz>How did you get here?");
+        ~chatnpc("<p,neutral>The same way you did, I suspect. Through a portal in a wheat field. I followed one back.");
+        ~chatplayer("<p,neutral>I haven't noticed them do that.");
+        ~chatnpc("<p,happy>That's why I'm the investigator and you're the adventurer.");
+        @elnock_first_menu;
+    case 2 :
+        ~chatplayer("<p,quiz>So, what are these implings?");
+        ~chatnpc("<p,neutral>That's a very interesting question. My best guess is that they are relatives to imps, which is why there are imps here as well.");
+        ~chatnpc("<p,neutral>Implings do appear to like collecting objects and, as my clients have noted, have no concept of ownership. However, I do not sense any malicious intent.");
+        ~chatnpc("<p,neutral>It is my observation that they collect things that other creatures want, rather than they want them themselves. It seems to provide them with sustenance.");
+        ~chatplayer("<p,quiz>So they feed off our desire for things?");
+        ~chatnpc("<p,neutral>Possibly. Either way, it seems that they almost exclusively collect things that people want, except their younglings who I infer haven't learnt the best things to collect yet.");
+        ~chatplayer("<p,quiz>So the more experienced implings have the more desirable items?");
+        ~chatnpc("<p,neutral>That is my observation. Yes.");
+        @elnock_first_menu;
+    case 3 :
+        ~chatplayer("<p,quiz>Can I catch these implings, then?");
+        ~chatnpc("<p,happy>Indeed you may. In fact I encourage it. You will, however, require some equipment.");
+        %puro_met_elnock = 1;
+        @elnock_how;
+    case 4 :
+        ~chatplayer("<p,quiz>I've heard I may find dragon equipment in Puro-Puro.");
+        ~chatnpc("<p,neutral>Have you indeed? Well, that may well be true, though bear in mind that implings are quite small so they are unlikely to be lugging a sizeable shield around with them.");
+        ~chatnpc("<p,neutral>However, since it seems that dragon items are very desirable to humans then it certainly is possible that the most expert implings may try to obtain such equipment.");
+        ~chatplayer("<p,happy>So, it's true then? Cool!");
+        ~chatnpc("<p,neutral>I should warn you, though, if the impling is strong enough to collect dragon equipment, then you will have to be very skilled at hunting implings in order to catch them.");
+        @elnock_first_menu;
+}
+
+[label,elnock_how]
+~chatnpc("<p,neutral>Firstly you will need a butterfly net in which to catch them and at least one special impling jar to store an impling.");
+~chatnpc("<p,neutral>You will also require some experience as a Hunter since these creatures are elusive. The more immature implings require less experience, but some of the rarer implings are extraordinarily hard to find and catch.");
+~chatnpc("<p,neutral>Once you have caught one, you may break the jar open and obtain the object the impling is carrying. Alternatively, you may exchange certain combinations of jars with me. I will return the jars to my clients.");
+~chatnpc("<p,neutral>In exchange I will be able to provide you with some equipment that may help you hunt butterflies more effectively.");
+~chatnpc("<p,neutral>Also, beware. Those imps walking around the maze do not like the fact that their kindred spirits are being captured and will attempt to steal any full jars you have on you, setting the implings free.");
+switch_int (~p_choice4("Tell me more about these jars.", 1, "Tell me more about these thieving imps.", 2, "So what's this equipment you can give me then?", 3, "Do you have some spare equipment I can use?", 4)) {
+    case 1 :
+        ~chatplayer("<p,quiz>Tell me more about these jars.");
+        ~chatnpc("<p,neutral>You cannot use an ordinary butterfly jar as a container as the implings will escape from them with ease. However, I have done some investigation and have come up with a solution -");
+        ~chatnpc("<p,neutral>if a butterfly jar is coated with a thin layer of a substance noxious to them they become incapable of escape.");
+        ~chatplayer("<p,quiz>What substance is that, then?");
+        ~chatnpc("<p,neutral>I have tried a few experiments with the help of a friend back home, and it turns out that a combination of anchovy oil and flowers - marigolds, rosemary or nasturtiums - will work.");
+        ~chatplayer("<p,quiz>How do you make anchovy oil then?");
+        ~chatnpc("<p,neutral>I'd grind up some cooked anchovies and pass them through a sieve.");
+        ~chatplayer("<p,quiz>Where do I make these jars?");
+        ~chatnpc("<p,neutral>Well, I believe there is a chemist in Rimmington that has a small still that you could use.");
+        ~chatplayer("<p,quiz>Is there anywhere I can buy these jars?");
+        ~chatnpc("<p,neutral>Well I may be able to let you have a few - if it means you will start hunting these implings - although I do not have an infinite supply.");
+    case 2 :
+        ~chatplayer("<p,quiz>Tell me more about these thieving imps.");
+        ~chatnpc("<p,neutral>Imps and implings appear to be related, and the imps here are quite protective of their smaller relations. If you allow them to get too close then they will attempt to steal jarred implings from your pack, if you have them.");
+        ~chatnpc("<p,neutral>They will then set them free, dropping your jar on the floor. So, if you're quick, you may be able to catch it again.");
+        ~chatnpc("<p,neutral>I have some impling deterrent which I may trade if you prove that you can catch implings well.");
+    case 3 :
+        ~chatplayer("<p,quiz>So what's this equipment you can give me, then?");
+        ~chatnpc("<p,neutral>I have been given permission by my clients to give three pieces of equipment to able hunters.");
+        ~chatnpc("<p,neutral>Firstly, I have some imp deterrent. If you bring me three baby implings, two young implings and one gourmet impling already jarred, I will give you a vial. Imps don't like the smell, so they will be less likely to steal jarred implings from you.");
+        ~chatnpc("<p,neutral>Secondly, I have magical butterfly nets. If you bring me three gourmet implings, two earth implings and one essence impling I will give you a new net. It will help you catch both implings and butterflies.");
+        ~chatnpc("<p,neutral>Lastly, I have magical jar generators. If you bring me three essence implings, two eclectic implings and one nature impling I will give you a jar generator.");
+        ~chatnpc("<p,neutral>This object will create either butterfly or impling jars (up to a limited number of charges) without having to carry a pack full of them.");
+    case 4 :
+        @elnock_spare;
+}
+
+[label,elnock_menu]
+switch_int (~p_choice5("Can you remind me how to catch implings again?", 1, "Can I trade some jarred implings please?", 2, "Do you have some spare equipment I can use?", 3, "Can you tell me about the wheat?", 4, "Can I buy a few impling jars?", 5)) {
+    case 1 :
+        ~chatplayer("<p,quiz>Can you remind me how to catch implings again?");
+        ~chatnpc("<p,happy>Certainly.");
+        @elnock_how;
+    case 2 :
+        ~chatplayer("<p,quiz>Can I trade some jarred implings please?");
+        @elnock_exchange;
+    case 3 :
+        ~chatplayer("<p,quiz>Do you have some spare equipment I can use?");
+        @elnock_spare;
+    case 4 :
+        @elnock_wheat;
+    case 5 :
+        @elnock_jars;
+}
+
+// Once only (OSRS): a butterfly net and seven impling jars.
+[label,elnock_spare]
+if (%puro_free_equipment = 1) {
+    ~chatnpc("<p,neutral>I have already given you some equipment.");
+} else if (inv_freespace(inv) < 8) {
+    ~chatnpc("<p,neutral>You'll need eight free spaces in your pack for what I have for you.");
+    return;
+} else {
+    ~chatnpc("<p,happy>Yes! I have some spare equipment for you.");
+    inv_add(inv, butterfly_net, 1);
+    inv_add(inv, impling_jar, 7);
+    %puro_free_equipment = 1;
+    ~chatnpc("<p,happy>There you go. You have everything you need now.");
+}
+~chatnpc("<p,neutral>If you are ready to start hunting implings, then enter the main part of the maze.");
+~chatnpc("<p,neutral>Just push through the wheat that surrounds the centre of the maze and get catching!");
+
+[label,elnock_wheat]
+~chatplayer("<p,quiz>Can you tell me about the wheat?");
+~chatnpc("<p,neutral>The wheat here can be hard to push through and pushing through it definitely makes you stronger. I found it easier to push through it for about half an hour just after coming through a temporary crop circle.");
+~chatnpc("<p,neutral>I call it the Farmer's Affinity.");
+if (%puro_wheat_strength_xp = 1) {
+    ~chatplayer("<p,quiz>What if I didn't want to become stronger pushing through the wheat?");
+    ~chatnpc("<p,neutral>I could give you oil to rub on you to reduce friction. Still as hard to push but you don't get stronger.");
+    if (~p_choice2_header("Yes", 1, "No", 2, "Turn wheat Strength XP OFF?") = 1) {
+        %puro_wheat_strength_xp = 0;
+        mes("You will no longer get Strength XP pushing through the wheat.");
+    }
+    return;
+}
+~chatplayer("<p,quiz>You gave me oil to stop me getting stronger. What if I changed my mind?");
+~chatnpc("<p,neutral>I could lend you a cloth to wipe it off. That should let you become strong while pushing through the wheat.");
+if (~p_choice2_header("Yes", 1, "No", 2, "Turn wheat Strength XP ON?") = 1) {
+    %puro_wheat_strength_xp = 1;
+    mes("You will once again get Strength XP pushing through the wheat.");
+}
+
+// Ten jars a day at 2,000 coins (OSRS, since 2021). The day is date_runeday.
+[label,elnock_jars]
+~chatplayer("<p,quiz>Can I buy a few impling jars?");
+def_int $bought = 0;
+if (divide(%puro_elnock_jars, 16) = date_runeday) {
+    $bought = modulo(%puro_elnock_jars, 16);
+}
+def_int $left = sub(^puro_elnock_daily_jars, $bought);
+if ($left < 1) {
+    ~chatnpc("<p,neutral>You've already purchased 10 jars today, that's enough. Please come back tomorrow if you'd like to buy more.");
+    return;
+}
+~chatnpc("<p,neutral>I usually prefer trading these jars for implings, but if you desperately need them I'm willing to sell you up to 10 jars per day.");
+~chatnpc("<p,neutral>I will sell these jars for 2,000 coins each. How many would you like to purchase?");
+p_dialogprompt("How many jars would you like to purchase? (1-<tostring($left)>)");
+p_countdialog;
+def_int $n = last_int;
+if ($n < 1) {
+    ~chatnpc("<p,neutral>My time is valuable, please give me a serious offer next time.");
+    return;
+}
+if ($n > $left) {
+    ~chatnpc("<p,neutral>That's too many, I can let you purchase a maximum of <tostring($left)> jars for a total of <tostring(multiply($left, ^puro_elnock_jar_price))> coins today.");
+    return;
+}
+def_int $cost = multiply($n, ^puro_elnock_jar_price);
+~chatnpc("<p,neutral>So you would like to purchase <tostring($n)> <~puro_jar_word($n)>, costing you a total of <tostring($cost)> coins. Is that correct?");
+if (~p_choice2("Yes", 1, "No", 2) ! 1) {
+    ~chatnpc("<p,neutral>My time is valuable, please give me a serious offer next time.");
+    return;
+}
+if (inv_total(inv, coins) < $cost) {
+    ~chatnpc("<p,neutral>You don't seem to have brought enough coins, please come back with <tostring($cost)> coins if you'd like to buy the jars.");
+    return;
+}
+if (inv_freespace(inv) < $n) {
+    ~chatnpc("<p,neutral>You haven't the room in your pack for them.");
+    return;
+}
+inv_del(inv, coins, $cost);
+inv_add(inv, impling_jar, $n);
+%puro_elnock_jars = add(multiply(date_runeday, 16), add($bought, $n));
+if ($n = $left) {
+    ~chatnpc("<p,happy>Here you go. If you need some more I'll have 10 new jars ready for purchase tomorrow.");
+} else {
+    ~chatnpc("<p,happy>Here you go. You can come back if you need more and tomorrow I will have another 10 jars ready for purchase.");
+}
+
+[proc,puro_jar_word](int $n)(string)
+if ($n = 1) {
+    return("jar");
+}
+return("jars");
+
+// ELNOCK'S EXCHANGE (Impetuous Impulses#Elnock's Exchange). OSRS and 474 show it as a window of their own
+// (474's interface 540, drawn by client scripts this client does not run); here it is his list, asked
+// for in the chat, with the same four trades:
+//   3 baby, 2 young, 1 gourmet               -> imp repellent
+//   3 gourmet, 2 earth, 1 essence            -> magic butterfly net
+//   3 essence, 2 eclectic, 1 nature          -> jar generator (or, if you have one, a recharge)
+//   1 of any impling                         -> 3 impling jars (the lowest you carry - or use the jar on him)
+[opnpc3,elnock_inquisitor] @elnock_exchange;
+
+[label,elnock_exchange]
+switch_int (~p_choice5("Imp repellent (3 baby, 2 young, 1 gourmet)", 1, "Magic butterfly net (3 gourmet, 2 earth, 1 essence)", 2, "Jar generator (3 essence, 2 eclectic, 1 nature)", 3, "Three impling jars (1 of any impling)", 4, "Nothing, thanks.", 5)) {
+    case 1 : @elnock_trade(baby_impling_jar, young_impling_jar, gourmet_impling_jar, imp_repellent);
+    case 2 : @elnock_trade(gourmet_impling_jar, earth_impling_jar, essence_impling_jar, magic_butterfly_net);
+    case 3 : @elnock_trade(essence_impling_jar, eclectic_impling_jar, nature_impling_jar, jar_generator);
+    case 4 : @elnock_three_jars(~impling_lowest_jar);
+}
+
+[label,elnock_trade](namedobj $three, namedobj $two, namedobj $one, namedobj $reward)
+if (inv_total(inv, $three) < 3 | inv_total(inv, $two) < 2 | inv_total(inv, $one) < 1) {
+    ~chatnpc("<p,neutral>You don't have the implings I need for that. Bring me three <oc_name($three)>s, two <oc_name($two)>s and one <oc_name($one)>.");
+    return;
+}
+// one generator a player (OSRS): with one already, the trade recharges it instead
+if ($reward = jar_generator & (%jar_generator_charge > 0 | ~obj_gettotal(jar_generator) > 0)) {
+    if (~p_choice2_header("Yes", 1, "No", 2, "Recharge your jar generator?") ! 1) {
+        return;
+    }
+    inv_del(inv, $three, 3);
+    inv_del(inv, $two, 2);
+    inv_del(inv, $one, 1);
+    %jar_generator_charge = ^jar_generator_full;
+    ~objbox(jar_generator, "Elnock recharges your jar generator.", 250, 0, divide(^objbox_height, 2));
+    return;
+}
+inv_del(inv, $three, 3);
+inv_del(inv, $two, 2);
+inv_del(inv, $one, 1);
+inv_add(inv, $reward, 1);
+if ($reward = jar_generator) {
+    %jar_generator_charge = ^jar_generator_full;
+}
+~objbox($reward, "Elnock gives you <lowercase(~add_article(oc_name($reward)))>.", 250, 0, divide(^objbox_height, 2));
+
+[label,elnock_three_jars](obj $jar)
+if ($jar = null) {
+    ~chatnpc("<p,neutral>You don't have any jarred implings for me.");
+    return;
+}
+inv_del(inv, $jar, 1);
+inv_add(inv, impling_jar, 3);
+~objbox(impling_jar, "Elnock takes your <lowercase(oc_name($jar))> and gives you three impling jars.", 250, 0, divide(^objbox_height, 2));
+
+// A jarred impling used on Elnock: that one, for three jars.
+[opnpcu,elnock_inquisitor]
+if (oc_category(last_useitem) = impling_jar_full) {
+    @elnock_three_jars(last_useitem);
+}
+~displaymessage(^dm_default);
+
+[proc,impling_lowest_jar]()(obj)
+def_int $tier = 1;
+def_obj $jar = null;
+while ($tier <= 11) {
+    $jar = enum(int, namedobj, impling_jar_by_tier, $tier);
+    if (inv_total(inv, $jar) > 0) {
+        return($jar);
+    }
+    $tier = add($tier, 1);
+}
+return(null);
+
+// ---------------------------------------------------------------------------------- Immenizz, the wandering impling
+
+[opnpc1,immenizz]
+~chatplayer("<p,quiz>Hello. So, what is this place?");
+~chatnpc("<p,happy>This is my home, mundane human! What do you have in your pockets? Something tasty?");
+~chatplayer("<p,angry>Stay out of my pockets! I don't have anything that you want.");
+~chatnpc("<p,quiz>Ah, but do you have anything that *you* want?");
+~chatplayer("<p,neutral>Of course I do!");
+~chatnpc("<p,happy>Then you have something that implings want.");
+~chatplayer("<p,confused>Eh?");
+~chatnpc("<p,happy>We want things you people want. They are tasty to us! The more you want them, the tastier they are!");
+~chatplayer("<p,quiz>So, you collect things that humans want? Interesting... So, what would happen if I caught an impling in a butterfly net?");
+~chatnpc("<p,angry>Don't do that! That would be cruel. But chase us, yes! That is good. Implings are not easy to catch. Especially ones with really tasty food.");
+~chatplayer("<p,neutral>So, some of these implings have things that I will really want? Hmm, maybe it would be worth my while trying to catch some.");
+
+// The wandering impling in Zanaris: OSRS shows the roaming circle's field in a short cutscene, which this
+// client cannot play, so he names the place instead.
+[opnpc1,wandering_impling]
+~chatnpc("<p,quiz>Is it here? Is it there? Is it elsewhere?");
+~chatplayer("<p,quiz>Is what where?");
+~chatnpc("<p,neutral>This gate's sister...");
+~chatplayer("<p,confused>I didn't know gates had relations.");
+~chatnpc("<p,neutral>Oh yes. This one here - she is calm and boring. She stays here all the time. She doesn't like to move, but her sister is fidgety and refuses to stay in the same place for more than half an hour.");
+~chatplayer("<p,quiz>So where is the, errr, fidgety sister at the moment?");
+@wandering_impling_gates;
+
+[opnpc3,wandering_impling] @wandering_impling_gates;
+
+[label,wandering_impling_gates]
+~chatnpc("<p,happy>Oh well. I don't know what you humans call these places. It's a wheat field - <enum(int, string, puro_site_name, ~puro_current_site)>, you might say.");
+
+// ---------------------------------------------------------------------------------- impling jars from scratch
+
+// Anchovies ground with a pestle and mortar: anchovy paste. Eight pastes on a vial, with a sieve in your
+// pack: anchovy oil. The oil and marigolds, rosemary or nasturtiums: imp repellent (Herblore 3, 5 xp).
+// The repellent in the chemist's lamp oil still in Rimmington, then a butterfly jar on the still: an
+// impling jar (OSRS).
+// Grinding is hooked into the two triggers that already exist for those items - [opheldu,anchovies]
+// (pizza.rs2) and [opheldu,pestle_and_mortar] (dt_blood.rs2) - since a trigger is declared once; the
+// other combines have one side each here, which OpHeldUHandler finds from either direction.
+[label,anchovy_grind]
+inv_del(inv, anchovies, 1);
+inv_add(inv, anchovy_paste, 1);
+anim(human_herbing_grind, 0);
+mes("You grind the anchovies into a fishy, sticky paste.");
+
+[opheldu,anchovy_paste]
+if (last_useitem ! vial_empty) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@anchovy_oil_make;
+
+[label,anchovy_oil_make]
+if (inv_total(inv, mourning_sieve) = 0) {
+    mes("You need a sieve to strain the paste into the vial.");
+    return;
+}
+if (inv_total(inv, anchovy_paste) < 8) {
+    mes("You need eight lots of anchovy paste to make a vial of anchovy oil.");
+    return;
+}
+inv_del(inv, anchovy_paste, 8);
+inv_del(inv, vial_empty, 1);
+inv_add(inv, anchovy_oil, 1);
+mes("You sieve the paste into the vial and make some anchovy oil.");
+
+[opheldu,anchovy_oil]
+if (last_useitem ! marigold & last_useitem ! rosemary & last_useitem ! nasturtium) {
+    ~displaymessage(^dm_default);
+    return;
+}
+@imp_repellent_make(last_useitem);
+
+[label,imp_repellent_make](obj $flower)
+if (stat(herblore) < 3) {
+    mes("You need a Herblore level of 3 to make imp repellent.");
+    return;
+}
+inv_del(inv, $flower, 1);
+inv_del(inv, anchovy_oil, 1);
+inv_add(inv, imp_repellent, 1);
+stat_advance(herblore, 50);
+mes("You mix the flowers with the anchovy oil to make a very smelly imp repellent.");
+
+[opheld4,imp_repellent]
+inv_del(inv, imp_repellent, 1);
+inv_add(inv, vial_empty, 1);
+mes("You empty the vial.");
+
+[opheld4,anchovy_oil]
+inv_del(inv, anchovy_oil, 1);
+inv_add(inv, vial_empty, 1);
+mes("You empty the vial.");
+
+[oplocu,lamp_oil_still]
+if (last_useitem = imp_repellent) {
+    if (%puro_still_repellent = 1) {
+        mes("There is already imp repellent in the still.");
+        return;
+    }
+    inv_del(inv, imp_repellent, 1);
+    inv_add(inv, vial_empty, 1);
+    %puro_still_repellent = 1;
+    mes("You pour the imp repellent into the still.");
+    return;
+}
+if (last_useitem = hunter_butterfly_jar) {
+    if (%puro_still_repellent = 0) {
+        mes("There is nothing in the still to coat the jar with.");
+        return;
+    }
+    inv_del(inv, hunter_butterfly_jar, 1);
+    inv_add(inv, impling_jar, 1);
+    %puro_still_repellent = 0;
+    mes("You hold the jar over the still and the repellent coats its inside. It is now an impling jar.");
+    return;
+}
+~displaymessage(^dm_default);
+
+// The chemist in Rimmington (OSRS): the impling jar question, and a sieve. Reached from the end of his
+// Talk-to (quest_biohazard/scripts/chemist.rs2), where he used to only be busy.
+[label,chemist_implings]
+if (~p_choice2("I'm more interested in impling jars.", 1, "Never mind.", 2) ! 1) {
+    mes("The chemist is busy at the moment.");
+    return;
+}
+~chatplayer("<p,neutral>I have a slightly odd question.");
+~chatnpc("<p,happy>Jolly good, the odder the better. I like oddities.");
+~chatplayer("<p,quiz>Do you know how I might distil a mix of anchovy oil and flowers so that it forms a layer on the inside of a butterfly jar?");
+~chatnpc("<p,quiz>That is an odd question. I commend you for it. Why would you want to do that?");
+~chatplayer("<p,neutral>Apparently, if I can make a jar like this it will be useful for storing implings in.");
+~chatnpc("<p,quiz>So, do you have any of this fish-and-flower flavoured oil and a butterfly jar then?");
+if (inv_total(inv, imp_repellent) > 0 & inv_total(inv, hunter_butterfly_jar) > 0) {
+    ~chatplayer("<p,happy>As it happens, I do.");
+    ~chatnpc("<p,neutral>Well then. Hmmm. My lamp oil still may be able to do what you want. Give it a go and see if it works.");
+    ~chatplayer("<p,happy>Thanks!");
+    return;
+}
+~chatplayer("<p,neutral>Actually, no.");
+~chatnpc("<p,neutral>If you go and get them then I may be able to help you. I'm better at coming up with answers if the questions are in my hands.");
+@chemist_implings_more;
+
+[label,chemist_implings_more]
+switch_int (~p_choice3("So how do you make anchovy oil?", 1, "Do you have a sieve I can use?", 2, "I'd better go and get the repellent.", 3)) {
+    case 1 :
+        ~chatplayer("<p,quiz>So, how do you make anchovy oil?");
+        ~chatnpc("<p,neutral>Anchovies are pretty oily fish. I'd have thought you could just grind them up and sieve out the bits. You'd probably want to remove any water first - Cooking should do that pretty well.");
+        @chemist_implings_more;
+    case 2 :
+        ~chatplayer("<p,quiz>Do you have a sieve I can use?");
+        if (inv_total(inv, mourning_sieve) > 0) {
+            ~chatnpc("<p,neutral>Errm, yes. But you already have one. Two sieves is a bit excessive, don't you think?");
+            return;
+        }
+        if (inv_total(bank, mourning_sieve) > 0) {
+            ~chatnpc("<p,quiz>Are you sure you don't already have one?");
+            ~objbox(mourning_sieve, "You already have a sieve that will do the job in your bank.", 250, 0, divide(^objbox_height, 2));
+            return;
+        }
+        ~chatnpc("<p,neutral>Errm, yes. Here, have this one. It's only been used for sieving dead rats out of sewer water.");
+        inv_add(inv, mourning_sieve, 1);
+        ~chatplayer("<p,confused>Err, why? Actually, on second thoughts I don't want to know.");
+        ~chatnpc("<p,neutral>Well, it should be ideally suited to your task.");
+        ~chatplayer("<p,neutral>Fair enough.");
+    case 3 :
+        ~chatplayer("<p,neutral>I'd better go and get the repellent.");
+}

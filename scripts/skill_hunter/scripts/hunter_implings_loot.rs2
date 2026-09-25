@@ -1,0 +1,446 @@
+// IMPLING JARS' LOOT - written out mechanically from the OSRS wiki's impling jar pages (Baby impling jar ..
+// Dragon impling jar: their Main drops and Tertiary tables, rates as the wiki gives them, each row's
+// wiki name in its comment). A change belongs on the wiki's numbers: check the page before editing a row.
+//
+// A table is one random() over the sum of its rates, walked as the drop tables walk theirs (a ladder of
+// thresholds, as drop_tables/scripts/*.rs2 do). An item this build does not have is left out and the
+// roll goes to the rest of the table - what OSRS does for the dragon javelin tips a player without
+// Monkey Madness II cannot have (Mod Ash, 20 May 2020: "It rolls for the remaining items on their
+// table if you can't have that one"). "(noted)" is the cert. Tertiaries are the clue scrolls, through
+// ~impling_clue (the drop tables' ~trail_cluedrop, into your pack); the beginner and elite tiers are
+// not in this build, so those two rolls are not made.
+
+[proc,impling_loot](int $tier)
+switch_int ($tier) {
+    case 1 : ~impling_loot_baby;
+    case 2 : ~impling_loot_young;
+    case 3 : ~impling_loot_gourmet;
+    case 4 : ~impling_loot_earth;
+    case 5 : ~impling_loot_essence;
+    case 6 : ~impling_loot_eclectic;
+    case 7 : ~impling_loot_nature;
+    case 8 : ~impling_loot_magpie;
+    case 9 : ~impling_loot_ninja;
+    case 10 : ~impling_loot_dragon;
+    case 11 : ~impling_loot_lucky;
+}
+
+// Baby impling jar. Not in this build, so left out: Clue scroll (beginner) (tertiary).
+[proc,impling_loot_baby]
+~impling_clue(^trail_tier_easy, 100);
+def_int $roll = random(100);
+if ($roll < 10) {
+    ~impling_give(chisel, 1);   // Chisel
+} else if ($roll < 20) {
+    ~impling_give(thread, 1);   // Thread
+} else if ($roll < 30) {
+    ~impling_give(needle, 1);   // Needle
+} else if ($roll < 40) {
+    ~impling_give(knife, 1);   // Knife
+} else if ($roll < 50) {
+    ~impling_give(cheese, 1);   // Cheese
+} else if ($roll < 60) {
+    ~impling_give(hammer, 1);   // Hammer
+} else if ($roll < 70) {
+    ~impling_give(ball_of_wool, 1);   // Ball of wool
+} else if ($roll < 80) {
+    ~impling_give(anchovies, 1);   // Anchovies
+} else if ($roll < 90) {
+    // nothing   // Nothing
+} else if ($roll < 91) {
+    ~impling_give(spicespot, 1);   // Spice
+} else if ($roll < 92) {
+    ~impling_give(flax, 1);   // Flax
+} else if ($roll < 93) {
+    ~impling_give(mud_pie, 1);   // Mud pie
+} else if ($roll < 94) {
+    ~impling_give(seaweed, 1);   // Seaweed
+} else if ($roll < 95) {
+    ~impling_give(air_talisman, 1);   // Air talisman
+} else if ($roll < 96) {
+    ~impling_give(silver_bar, 1);   // Silver bar
+} else if ($roll < 97) {
+    ~impling_give(sapphire, 1);   // Sapphire
+} else if ($roll < 98) {
+    ~impling_give(hard_leather, 1);   // Hard leather
+} else if ($roll < 99) {
+    ~impling_give(lobster, 1);   // Lobster
+} else {
+    ~impling_give(softclay, 1);   // Soft clay
+}
+
+// Young impling jar. Not in this build, so left out: Clue scroll (beginner) (tertiary).
+[proc,impling_loot_young]
+~impling_clue(^trail_tier_easy, 50);
+def_int $roll = random(100);
+if ($roll < 10) {
+    ~impling_give(nails, 5);   // Steel nails
+} else if ($roll < 20) {
+    ~impling_give(lockpick, 1);   // Lockpick
+} else if ($roll < 30) {
+    ~impling_give(blankrune_high, 1);   // Pure essence
+} else if ($roll < 40) {
+    ~impling_give(tuna, 1);   // Tuna
+} else if ($roll < 50) {
+    ~impling_give(chocolate_slice, 1);   // Chocolate slice
+} else if ($roll < 60) {
+    ~impling_give(steel_axe, 1);   // Steel axe
+} else if ($roll < 70) {
+    ~impling_give(meat_pizza, 1);   // Meat pizza
+} else if ($roll < 80) {
+    ~impling_give(coal, 1);   // Coal
+} else if ($roll < 90) {
+    ~impling_give(bow_string, 1);   // Bow string
+} else if ($roll < 91) {
+    ~impling_give(snape_grass, 1);   // Snape grass
+} else if ($roll < 92) {
+    ~impling_give(softclay, 1);   // Soft clay
+} else if ($roll < 93) {
+    ~impling_give(studded_chaps, 1);   // Studded chaps
+} else if ($roll < 94) {
+    ~impling_give(steel_full_helm, 1);   // Steel full helm
+} else if ($roll < 95) {
+    ~impling_give(oak_plank, 1);   // Oak plank
+} else if ($roll < 96) {
+    ~impling_give(3dose1defense, 1);   // Defence potion(3)
+} else if ($roll < 97) {
+    ~impling_give(mithril_bar, 1);   // Mithril bar
+} else if ($roll < 98) {
+    ~impling_give(yew_longbow, 1);   // Yew longbow
+} else if ($roll < 99) {
+    ~impling_give(garden_pie, 1);   // Garden pie
+} else {
+    ~impling_give(jangerberries, 1);   // Jangerberries
+}
+
+// Gourmet impling jar. Not in this build, so left out: Grubby key (pre-roll 1/500), Rainbow fish.
+[proc,impling_loot_gourmet]
+~impling_clue(^trail_tier_easy, 25);
+def_int $roll = random(99);
+if ($roll < 20) {
+    ~impling_give(tuna, 1);   // Tuna
+} else if ($roll < 30) {
+    ~impling_give(bass, 1);   // Bass
+} else if ($roll < 40) {
+    ~impling_give(curry, 1);   // Curry
+} else if ($roll < 50) {
+    ~impling_give(meat_pie, 1);   // Meat pie
+} else if ($roll < 60) {
+    ~impling_give(chocolate_cake, 1);   // Chocolate cake
+} else if ($roll < 70) {
+    ~impling_give(giant_frogspawn, 1);   // Frog spawn
+} else if ($roll < 80) {
+    ~impling_give(spicespot, 1);   // Spice
+} else if ($roll < 90) {
+    ~impling_give(curry_leaf, 1);   // Curry leaf
+} else if ($roll < 91) {
+    ~impling_give(ugthanki_kebab, 1);   // Ugthanki kebab
+} else if ($roll < 92) {
+    ~impling_give(cert_lobster, 4);   // Lobster (noted)
+} else if ($roll < 93) {
+    ~impling_give(cert_shark, 3);   // Shark (noted)
+} else if ($roll < 94) {
+    ~impling_give(fish_pie, 1);   // Fish pie
+} else if ($roll < 95) {
+    ~impling_give(chefs_delight, 1);   // Chef's delight
+} else if ($roll < 96) {
+    ~impling_give(cert_garden_pie, 6);   // Garden pie (noted)
+} else if ($roll < 97) {
+    ~impling_give(cert_swordfish, 3);   // Swordfish (noted)
+} else if ($roll < 98) {
+    ~impling_give(basket_strawberry_5, 1);   // Strawberries(5)
+} else {
+    ~impling_give(cert_tbwt_cooked_karambwan, 2);   // Cooked karambwan (noted)
+}
+
+// Earth impling jar. Every item of the table is in this build.
+[proc,impling_loot_earth]
+~impling_clue(^trail_tier_medium, 100);
+def_int $roll = random(100);
+if ($roll < 10) {
+    ~impling_give(fire_talisman, 1);   // Fire talisman
+} else if ($roll < 20) {
+    ~impling_give(earth_talisman, 1);   // Earth talisman
+} else if ($roll < 30) {
+    ~impling_give(tiara_earth, 1);   // Earth tiara
+} else if ($roll < 40) {
+    ~impling_give(earthrune, 32);   // Earth rune
+} else if ($roll < 50) {
+    ~impling_give(mithril_ore, 1);   // Mithril ore
+} else if ($roll < 60) {
+    ~impling_give(cert_bucket_sand, 4);   // Bucket of sand (noted)
+} else if ($roll < 70) {
+    ~impling_give(unicorn_horn, 1);   // Unicorn horn
+} else if ($roll < 80) {
+    ~impling_give(cert_bucket_compost, 6);   // Compost (noted)
+} else if ($roll < 90) {
+    ~impling_give(gold_ore, 1);   // Gold ore
+} else if ($roll < 91) {
+    ~impling_give(steel_bar, 1);   // Steel bar
+} else if ($roll < 92) {
+    ~impling_give(mithril_pickaxe, 1);   // Mithril pickaxe
+} else if ($roll < 93) {
+    ~impling_give(wildblood_hop_seed, 2);   // Wildblood seed
+} else if ($roll < 94) {
+    ~impling_give(jangerberry_bush_seed, 2);   // Jangerberry seed
+} else if ($roll < 95) {
+    ~impling_give(cert_bucket_supercompost, 2);   // Supercompost (noted)
+} else if ($roll < 96) {
+    ~impling_give(cert_mithril_ore, 3);   // Mithril ore (noted)
+} else if ($roll < 97) {
+    ~impling_give(harralander_seed, 2);   // Harralander seed
+} else if ($roll < 98) {
+    ~impling_give(cert_coal, 6);   // Coal (noted)
+} else if ($roll < 99) {
+    ~impling_give(cert_emerald, 2);   // Emerald (noted)
+} else {
+    ~impling_give(ruby, 1);   // Ruby
+}
+
+// Essence impling jar. Every item of the table is in this build.
+[proc,impling_loot_essence]
+~impling_clue(^trail_tier_medium, 50);
+def_int $roll = random(100);
+if ($roll < 10) {
+    ~impling_give(cert_blankrune_high, 20);   // Pure essence (noted)
+} else if ($roll < 20) {
+    ~impling_give(waterrune, 30);   // Water rune
+} else if ($roll < 30) {
+    ~impling_give(airrune, 30);   // Air rune
+} else if ($roll < 40) {
+    ~impling_give(firerune, 50);   // Fire rune
+} else if ($roll < 50) {
+    ~impling_give(mindrune, 25);   // Mind rune
+} else if ($roll < 60) {
+    ~impling_give(bodyrune, 28);   // Body rune
+} else if ($roll < 70) {
+    ~impling_give(chaosrune, 4);   // Chaos rune
+} else if ($roll < 80) {
+    ~impling_give(cosmicrune, 4);   // Cosmic rune
+} else if ($roll < 90) {
+    ~impling_give(mind_talisman, 1);   // Mind talisman
+} else if ($roll < 91) {
+    ~impling_give(cert_blankrune_high, 35);   // Pure essence (noted)
+} else if ($roll < 92) {
+    ~impling_give(lavarune, 4);   // Lava rune
+} else if ($roll < 93) {
+    ~impling_give(mudrune, 4);   // Mud rune
+} else if ($roll < 94) {
+    ~impling_give(smokerune, 4);   // Smoke rune
+} else if ($roll < 95) {
+    ~impling_give(steamrune, 4);   // Steam rune
+} else if ($roll < 96) {
+    ~impling_give(deathrune, 13);   // Death rune
+} else if ($roll < 97) {
+    ~impling_give(lawrune, 13);   // Law rune
+} else if ($roll < 98) {
+    ~impling_give(bloodrune, 7);   // Blood rune
+} else if ($roll < 99) {
+    ~impling_give(soulrune, 11);   // Soul rune
+} else {
+    ~impling_give(naturerune, 13);   // Nature rune
+}
+
+// Eclectic impling jar. Not in this build, so left out: Red spiky vambraces.
+[proc,impling_loot_eclectic]
+~impling_clue(^trail_tier_medium, 25);
+def_int $roll = random(99);
+if ($roll < 10) {
+    ~impling_give(mithril_pickaxe, 1);   // Mithril pickaxe
+} else if ($roll < 20) {
+    ~impling_give(curry_leaf, 1);   // Curry leaf
+} else if ($roll < 30) {
+    ~impling_give(snape_grass, 1);   // Snape grass
+} else if ($roll < 40) {
+    ~impling_give(airrune, calc(30 + random(29)));   // Air rune
+} else if ($roll < 50) {
+    ~impling_give(oak_plank, 4);   // Oak plank (noted in OSRS; this build has no note for it)
+} else if ($roll < 60) {
+    ~impling_give(candle_lantern_empty, 1);   // Empty candle lantern
+} else if ($roll < 70) {
+    ~impling_give(gold_ore, 1);   // Gold ore
+} else if ($roll < 80) {
+    ~impling_give(cert_gold_bar, 5);   // Gold bar (noted)
+} else if ($roll < 90) {
+    ~impling_give(unicorn_horn, 1);   // Unicorn horn
+} else if ($roll < 91) {
+    ~impling_give(adamant_kiteshield, 1);   // Adamant kiteshield
+} else if ($roll < 92) {
+    ~impling_give(blue_dragonhide_chaps, 1);   // Blue d'hide chaps
+} else if ($roll < 93) {
+    ~impling_give(rune_dagger, 1);   // Rune dagger
+} else if ($roll < 94) {
+    ~impling_give(battlestaff, 1);   // Battlestaff
+} else if ($roll < 95) {
+    ~impling_give(cert_adamantite_ore, 10);   // Adamantite ore (noted)
+} else if ($roll < 96) {
+    ~impling_give(cert_slayers_respite, 2);   // Slayer's respite (noted)
+} else if ($roll < 97) {
+    ~impling_give(wild_pie, 1);   // Wild pie
+} else if ($roll < 98) {
+    ~impling_give(watermelon_seed, 3);   // Watermelon seed
+} else {
+    ~impling_give(diamond, 1);   // Diamond
+}
+
+// Nature impling jar. Every item of the table is in this build.
+[proc,impling_loot_nature]
+~impling_clue(^trail_tier_hard, 100);
+def_int $roll = random(100);
+if ($roll < 10) {
+    ~impling_give(limpwurt_seed, 1);   // Limpwurt seed
+} else if ($roll < 20) {
+    ~impling_give(jangerberry_bush_seed, 1);   // Jangerberry seed
+} else if ($roll < 30) {
+    ~impling_give(belladonna_seed, 1);   // Belladonna seed
+} else if ($roll < 40) {
+    ~impling_give(harralander_seed, 1);   // Harralander seed
+} else if ($roll < 50) {
+    ~impling_give(cactus_spine, 1);   // Cactus spine
+} else if ($roll < 60) {
+    ~impling_give(magic_logs, 1);   // Magic logs
+} else if ($roll < 70) {
+    ~impling_give(cert_tarromin, 4);   // Tarromin (noted)
+} else if ($roll < 80) {
+    ~impling_give(coconut, 1);   // Coconut
+} else if ($roll < 90) {
+    ~impling_give(irit_seed, 1);   // Irit seed
+} else if ($roll < 91) {
+    ~impling_give(curry_tree_seed, 1);   // Curry tree seed
+} else if ($roll < 92) {
+    ~impling_give(orange_tree_seed, 1);   // Orange tree seed
+} else if ($roll < 93) {
+    ~impling_give(snapdragon, 1);   // Snapdragon
+} else if ($roll < 94) {
+    ~impling_give(kwuarm_seed, 1);   // Kwuarm seed
+} else if ($roll < 95) {
+    ~impling_give(avantoe_seed, 5);   // Avantoe seed
+} else if ($roll < 96) {
+    ~impling_give(willow_seed, 1);   // Willow seed
+} else if ($roll < 97) {
+    ~impling_give(torstol_seed, 1);   // Torstol seed
+} else if ($roll < 98) {
+    ~impling_give(ranarr_seed, 1);   // Ranarr seed
+} else if ($roll < 99) {
+    ~impling_give(cert_torstol, 2);   // Torstol (noted)
+} else {
+    ~impling_give(dwarf_weed_seed, 1);   // Dwarf weed seed
+}
+
+// Magpie impling jar. Every item of the table is in this build.
+[proc,impling_loot_magpie]
+~impling_clue(^trail_tier_hard, 50);
+def_int $roll = random(21);
+if ($roll < 2) {
+    ~impling_give(cert_dragonhide_black, 6);   // Black dragonhide (noted)
+} else if ($roll < 3) {
+    ~impling_give(cert_strung_diamond_amulet, 3);   // Diamond amulet (noted)
+} else if ($roll < 4) {
+    ~impling_give(cert_amulet_of_power, 3);   // Amulet of power (noted)
+} else if ($roll < 5) {
+    ~impling_give(cert_ring_of_forging, 3);   // Ring of forging (noted)
+} else if ($roll < 6) {
+    ~impling_give(splitbark_gauntlets, 1);   // Splitbark gauntlets
+} else if ($roll < 7) {
+    ~impling_give(mystic_boots, 1);   // Mystic boots
+} else if ($roll < 8) {
+    ~impling_give(mystic_gloves, 1);   // Mystic gloves
+} else if ($roll < 9) {
+    ~impling_give(rune_warhammer, 1);   // Rune warhammer
+} else if ($roll < 10) {
+    ~impling_give(cert_ring_of_life, 4);   // Ring of life (noted)
+} else if ($roll < 11) {
+    ~impling_give(rune_sq_shield, 1);   // Rune sq shield
+} else if ($roll < 12) {
+    ~impling_give(dragon_dagger, 1);   // Dragon dagger
+} else if ($roll < 13) {
+    ~impling_give(tiara_nature, 1);   // Nature tiara
+} else if ($roll < 14) {
+    ~impling_give(cert_runite_bar, 2);   // Runite bar (noted)
+} else if ($roll < 15) {
+    ~impling_give(cert_diamond, 4);   // Diamond (noted)
+} else if ($roll < 16) {
+    ~impling_give(pineapple_tree_seed, 1);   // Pineapple seed
+} else if ($roll < 17) {
+    ~impling_give(cert_ring_of_recoil, 3);   // Ring of recoil (noted)
+} else if ($roll < 18) {
+    ~impling_give(keyhalf2, 1);   // Loop half of key
+} else if ($roll < 19) {
+    ~impling_give(keyhalf1, 1);   // Tooth half of key
+} else if ($roll < 20) {
+    ~impling_give(snapdragon_seed, 1);   // Snapdragon seed
+} else {
+    ~impling_give(sinister_key, 1);   // Sinister key
+}
+
+// Ninja impling jar. Every item of the table is in this build.
+[proc,impling_loot_ninja]
+~impling_clue(^trail_tier_hard, 25);
+def_int $roll = random(19);
+if ($roll < 1) {
+    ~impling_give(snakeskin_boots, 1);   // Snakeskin boots
+} else if ($roll < 2) {
+    ~impling_give(splitbark_helm, 1);   // Splitbark helm
+} else if ($roll < 3) {
+    ~impling_give(mystic_boots, 1);   // Mystic boots
+} else if ($roll < 4) {
+    ~impling_give(rune_chainbody, 1);   // Rune chainbody
+} else if ($roll < 5) {
+    ~impling_give(mystic_gloves, 1);   // Mystic gloves
+} else if ($roll < 6) {
+    ~impling_give(machette_opal, 1);   // Opal machete
+} else if ($roll < 7) {
+    ~impling_give(rune_claws, 1);   // Rune claws
+} else if ($roll < 8) {
+    ~impling_give(rune_scimitar, 1);   // Rune scimitar
+} else if ($roll < 9) {
+    ~impling_give(dragon_dagger_p+, 1);   // Dragon dagger(p+)
+} else if ($roll < 10) {
+    ~impling_give(rune_arrow, 70);   // Rune arrow
+} else if ($roll < 11) {
+    ~impling_give(rune_dart, 70);   // Rune dart
+} else if ($roll < 12) {
+    ~impling_give(rune_knife, 40);   // Rune knife
+} else if ($roll < 13) {
+    ~impling_give(rune_thrownaxe, 50);   // Rune thrownaxe
+} else if ($roll < 14) {
+    ~impling_give(onyx_bolts, 2);   // Onyx bolts
+} else if ($roll < 15) {
+    ~impling_give(onyx_bolttips, 4);   // Onyx bolt tips
+} else if ($roll < 16) {
+    ~impling_give(cert_dragonhide_black, 10);   // Black dragonhide (noted)
+} else if ($roll < 17) {
+    ~impling_give(cert_3doseprayerrestore, 4);   // Prayer potion(3) (noted)
+} else if ($roll < 18) {
+    ~impling_give(cert_weapon_poison+, 4);   // Weapon poison(+) (noted)
+} else {
+    ~impling_give(cert_dagganoth_hide, 3);   // Dagannoth hide (noted)
+}
+
+// Dragon impling jar. Not in this build, so left out: Dragonstone bolt tips, Dragonstone bolt tips, Dragon arrow, Dragonstone bolts, Dragon dart, Dragon dart tip, Dragon arrowtips, Dragon javelin tips, Clue scroll (elite) (tertiary).
+[proc,impling_loot_dragon]
+def_int $roll = random(11);
+if ($roll < 1) {
+    ~impling_give(mystic_robe_bottom, 1);   // Mystic robe bottom
+} else if ($roll < 2) {
+    ~impling_give(cert_amulet_of_glory, 3);   // Amulet of glory (noted)
+} else if ($roll < 3) {
+    ~impling_give(cert_strung_dragonstone_amulet, 2);   // Dragonstone amulet (noted)
+} else if ($roll < 4) {
+    ~impling_give(dragon_longsword, 1);   // Dragon longsword
+} else if ($roll < 5) {
+    ~impling_give(cert_dragon_dagger_p++, 3);   // Dragon dagger(p++) (noted)
+} else if ($roll < 6) {
+    ~impling_give(cert_dragonstone, 3);   // Dragonstone (noted)
+} else if ($roll < 7) {
+    ~impling_give(cert_babydragon_bones, calc(100 + random(201)));   // Babydragon bones (noted)
+} else if ($roll < 8) {
+    ~impling_give(cert_dragon_bones, calc(50 + random(51)));   // Dragon bones (noted)
+} else if ($roll < 9) {
+    ~impling_give(magic_tree_seed, 1);   // Magic seed
+} else if ($roll < 10) {
+    ~impling_give(snapdragon_seed, 6);   // Snapdragon seed
+} else {
+    ~impling_give(cert_summer_pie, 15);   // Summer pie (noted)
+}
+
