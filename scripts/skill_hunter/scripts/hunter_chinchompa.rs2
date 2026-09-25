@@ -341,51 +341,6 @@ if (~pvp_is_attackable = false) {
 // ---------------------------------------------------------------------------------------------
 // The combat tab
 // ---------------------------------------------------------------------------------------------
-// 474 has a chinchompa tab (475: Short fuse, Medium fuse, Long fuse) and a salamander one (474: Scorch,
-// Flare, Blaze), both the thrown tab's layout to the pixel - but a new interface is not this round's to
-// add. So the thrown tab carries their words while one of them is wielded, and its own otherwise; the
-// client wipes what the server set on a tab when it is replaced, so this is sent every time the tab is.
-// The salamander's style icons (474's own) are not in this build, so the thrown tab's are hidden for it.
-[proc,hunter_thrown_tab_labels](obj $obj)
-if ($obj = chinchompa | $obj = red_chinchompa) {
-    ~hunter_thrown_tab_text("Short fuse", "Medium fuse", "Long fuse", "(Short fuse)\\n(Ranged XP)", "(Medium fuse)\\n(Ranged XP)", "(Long fuse)\\n(Ranged XP)\\n(Defence XP)", false);
-    return;
-}
-if (oc_category($obj) = weapon_salamander) {
-    ~hunter_thrown_tab_text("Scorch", "Flare", "Blaze", "(Aggressive)\\n(Slash)\\n(Strength XP)", "(Accurate)\\n(Ranged)\\n(Ranged XP)", "(Defensive)\\n(Magic)\\n(Magic XP)", true);
-    return;
-}
-~hunter_thrown_tab_text("Accurate", "Rapid", "Longrange", "(Accurate)\\n(Ranged XP)", "(Rapid)\\n(Ranged XP)", "(Longrange)\\n(Ranged XP)\\n(Defence XP)", false);
-
-[proc,hunter_thrown_tab_text](string $a, string $b, string $c, string $ta, string $tb, string $tc, boolean $hideicons)
-if_settext(combat_thrown:com_25, $a);
-if_settext(combat_thrown:com_26, $b);
-if_settext(combat_thrown:com_27, $c);
-if_settext(combat_thrown:com_29, $ta);
-if_settext(combat_thrown:com_30, $tb);
-if_settext(combat_thrown:com_31, $tc);
-if_sethide(combat_thrown:com_5, $hideicons);
-if_sethide(combat_thrown:com_6, $hideicons);
-if_sethide(combat_thrown:com_7, $hideicons);
-
-[proc,.hunter_thrown_tab_labels](obj $obj)
-if ($obj = chinchompa | $obj = red_chinchompa) {
-    ~.hunter_thrown_tab_text("Short fuse", "Medium fuse", "Long fuse", "(Short fuse)\\n(Ranged XP)", "(Medium fuse)\\n(Ranged XP)", "(Long fuse)\\n(Ranged XP)\\n(Defence XP)", false);
-    return;
-}
-if (oc_category($obj) = weapon_salamander) {
-    ~.hunter_thrown_tab_text("Scorch", "Flare", "Blaze", "(Aggressive)\\n(Slash)\\n(Strength XP)", "(Accurate)\\n(Ranged)\\n(Ranged XP)", "(Defensive)\\n(Magic)\\n(Magic XP)", true);
-    return;
-}
-~.hunter_thrown_tab_text("Accurate", "Rapid", "Longrange", "(Accurate)\\n(Ranged XP)", "(Rapid)\\n(Ranged XP)", "(Longrange)\\n(Ranged XP)\\n(Defence XP)", false);
-
-[proc,.hunter_thrown_tab_text](string $a, string $b, string $c, string $ta, string $tb, string $tc, boolean $hideicons)
-.if_settext(combat_thrown:com_25, $a);
-.if_settext(combat_thrown:com_26, $b);
-.if_settext(combat_thrown:com_27, $c);
-.if_settext(combat_thrown:com_29, $ta);
-.if_settext(combat_thrown:com_30, $tb);
-.if_settext(combat_thrown:com_31, $tc);
-.if_sethide(combat_thrown:com_5, $hideicons);
-.if_sethide(combat_thrown:com_6, $hideicons);
-.if_sethide(combat_thrown:com_7, $hideicons);
+// 474's own (interface 475: Short fuse, Medium fuse, Long fuse), ported by LostCityServer
+// tools/models/portcombat474.py as combat_chinchompa; player_attackstyles.rs2 sends it for either
+// chinchompa, and its buttons are the thrown weapons' three styles.
