@@ -49,7 +49,13 @@ if (last_useitem = ashes) {
 ~attempt_brew_potion(last_useslot, last_slot);
 
 [opheldu,ranarrvial]
-~attempt_brew_potion(last_useslot, last_slot);
+// Eadgar's Ruse: the troll truth potion - quests/quest_eadgar/scripts/eadgar_troll_thistle.rs2
+switch_obj(last_useitem) {
+    case eadgar_troll_thistle : mes("I need to dry it over a fire first."); // different mes than opheldu the other way around
+    case eadgar_dried_troll_thistle : @eadgar_dried_troll_thistle_mes;
+    case eadgar_ground_troll_thistle : @eadgar_mix_troll_truth_potion;
+    case default : ~attempt_brew_potion(last_useslot, last_slot);
+}
 
 [opheldu,iritvial]
 ~attempt_brew_potion(last_useslot, last_slot);
@@ -133,6 +139,9 @@ def_int $herb_level = struct_param($struct, brew_potion_level);
 if ($current_level < $herb_level) {
     if($struct = blamish_oil) {
         ~mesbox("You need level 25 Herblore to make this potion.");
+        return(false);
+    } else if($struct = eadgar_ground_troll_thistle_potion) {
+        ~mesbox("You need level 31 Herblore to make this potion.");
         return(false);
     }
     // https://youtu.be/VthR9A85TQU?t=159

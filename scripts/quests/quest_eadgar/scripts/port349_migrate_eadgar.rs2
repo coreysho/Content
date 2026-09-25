@@ -1,6 +1,69 @@
 // Old saves onto the ported quest - see scripts/general/scripts/port349.rs2.
+//
+// The old version of Eadgar's Ruse was re-created with an invented plan (dose the troll stew so
+// Burntmeat hands over the key, distract the guard with a robe stuffed with a drunk parrot) on
+// invented stages, and completed at 70:
+//   0 not started, 10 started, 20 met Eadgar, 30 potion made, 40 stew dosed, 50 has the storeroom
+//   key, 60 has the goutweed, 70 complete.
+// The original (PlagueCityRS 349, OSRS varp values) completes at 110 and gets there a different way:
+// Eadgar, Burntmeat, a drunk parrot hidden under the prison rack, a scarecrow of logs, 5 raw
+// chickens, 10 grain and a dirty robe, a troll truth potion, the fake man for Burntmeat, the key in
+// the kitchen drawers, and the goutweed out from under the storeroom guards.
+//
+// Mapping (the only places the two plans meet are "Burntmeat has given up the storeroom" and "I
+// have the goutweed"; everything in between goes back to the last point both versions share):
+//   0        -> 0    untouched
+//   10       -> 10   ^eadgar_started: Sanfew has asked for goutweed - same meaning in both.
+//   20,30,40 -> 15   ^eadgar_spoken_eadgar_first: the player has met Eadgar, but none of the old
+//                    middle (thistle potion, dosed stew) is a step of the original. Eadgar sends
+//                    them to the troll cook and the original plan runs from there. Leftover old
+//                    items (troll potion, robe, drunk parrot, alco-chunks) stay where they are;
+//                    the original takes each of them again when its step comes, and nothing
+//                    hands out a second robe or parrot while one is owned. The one exception is
+//                    the old fake man: the original's Eadgar builds the fake man himself at 86
+//                    whether or not one is owned, so an old one would become a second. It is
+//                    removed (inventory and bank) - it is a quest-only object with no other use.
+//   50       -> 90   ^eadgar_got_burnt_meat: Burntmeat has given up the storeroom key; the player
+//                    is holding it (the original's door takes it at this stage), and if it has
+//                    been lost the kitchen drawers hand out another at this stage only.
+//   60       -> 100  ^eadgar_unlocked_storeroom: the player has been in the storeroom and has the
+//                    goutweed - Sanfew completes the quest on it at this stage (and the crate
+//                    gives another if it has gone).
+//   70+      -> 110  ^eadgar_complete: quest points, the Trollheim teleport gate and Sanfew's
+//                    post-quest goutweed exchange all test >= / = ^eadgar_complete. Nothing the
+//                    original checks afterwards lives outside %eadgar_quest, and the herblore xp
+//                    is given only by [queue,eadgar_quest_complete], which is not re-run.
+//
+// %eadgar_scarecrow_items (bits 1-3 of %eadgar_bits) was the old version's "guard distracted" flag.
+// In the original those bits are ^eadgar_given_logs (1) and ^eadgar_given_clothes (2), so an old
+// flag of 1 would read as "logs already handed to Eadgar". Nothing reads the varbit any more, so it
+// is cleared. %eadgar_grain and %eadgar_chickens were never written by the old version (and were
+// not saved), so they are already 0.
 [proc,port349_migrate_eadgar]
 if (%port349_eadgar = ^true) {
     return;
+}
+def_int $old = %eadgar_quest;
+if ($old > 0) {
+    if ($old >= 70) {
+        %eadgar_quest = ^eadgar_complete;
+    } else if ($old >= 60) {
+        %eadgar_quest = ^eadgar_unlocked_storeroom;
+    } else if ($old >= 50) {
+        %eadgar_quest = ^eadgar_got_burnt_meat;
+    } else if ($old >= 20) {
+        %eadgar_quest = ^eadgar_spoken_eadgar_first;
+        if (inv_total(inv, eadgar_fake_man) > 0) {
+            inv_del(inv, eadgar_fake_man, inv_total(inv, eadgar_fake_man));
+        }
+        if (inv_total(bank, eadgar_fake_man) > 0) {
+            inv_del(bank, eadgar_fake_man, inv_total(bank, eadgar_fake_man));
+        }
+    } else {
+        %eadgar_quest = ^eadgar_started;
+    }
+    %eadgar_scarecrow_items = 0;
+    %eadgar_grain = 0;
+    %eadgar_chickens = 0;
 }
 %port349_eadgar = ^true;

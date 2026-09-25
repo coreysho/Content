@@ -1,33 +1,24 @@
-// Eadgar's Ruse.
+// Eadgar's Ruse - %eadgar_quest stages, ported from PlagueCityRS 349 (varp values from OSRS).
+// ^eadgar_complete = 110 lives in general/configs/quest.constant with the other completion values.
 //
-// The only quest so far with NO cache constraint on its stage numbers: nothing in all.npc or
-// all.loc carries multivar=eadgar_quest, eadgar_bits, eadgar_grain or eadgar_chickens. So the
-// stages run in tens, like Mountain Daughter's.
-//
-// What the cache DOES dictate is the chain of objects, which spell the plan out in their own
-// descriptions: Troll thistle -> "It'll be easier to grind now" -> "It's ready for mixing" ->
-// Troll potion, "It's part of Eadgar's plan". And a Fake man, "It's good enough to fool a troll",
-// alongside a Dirty robe and a Drunk parrot.
-//
-// Ops available are thinner than the object list suggests and shape the implementation:
-//   eadgar_troll_thistle (npc) op1=Pick        - the thistle is an npc, not a loc
-//   eadgar_zoo_keeper_aviary  op1=Talk-to      - Parroty Pete
-//   eadgar_druid_washing      op1=Talk-to      - Tegid, in Taverley
-//   eadgar_parrotts           NO ops           - reached with opnpcu, which needs none
-//   eadgar_storeroom_guard    NO ops           - so he is a check on the door, not a conversation
-//   eadgar_crate_goutweed     op1=Search
-//   eadgar_storeroomdoor      op1=Open
-//   eadgar_rack               op1=Search
-//   eadgar_laundry_basket     op1=Search       - already shared with Mourning's End Part I
-^eadgar_not_started = 0
+// Before the port this quest ran on invented stages 10-60 with ^eadgar_complete = 70; old saves are
+// translated once at login by ~port349_migrate_eadgar (scripts/port349_migrate_eadgar.rs2).
 ^eadgar_started = 10
-^eadgar_met_eadgar = 20
-^eadgar_potion_made = 30
-^eadgar_stew_dosed = 40
-^eadgar_has_key = 50
-^eadgar_has_goutweed = 60
+^eadgar_spoken_eadgar_first = 15
+^eadgar_spoken_burntmeat_first = 20
+^eadgar_spoken_burntmeat_second = 25
+^eadgar_needs_parrot = 30
+// value of 40 appears unused
+^eadgar_explained_plan = 50
+^eadgar_hid_parrot = 60
+^eadgar_needs_items = 70
+^eadgar_needs_potion = 80
+^eadgar_needs_parrot_back = 85
+^eadgar_got_parrot_back = 86
+^eadgar_got_fake_man = 87
+^eadgar_got_burnt_meat = 90
+^eadgar_unlocked_storeroom = 100
 
-// The goutweed crates sit beside the storeroom guard at abs (2856,10074) and (2857,10074); the
-// guard is at (2857,10075) and the storeroom door at (2869,10085). No coord constants are needed -
-// obj_find takes a single tile and no radius, so the decoy is handed to the guard rather than left
-// lying near him, and the crates read %eadgar_scarecrow_items instead of scanning the floor.
+// varbits
+^eadgar_pete_dialog_1 = 0
+^eadgar_pete_dialog_2 = 11
