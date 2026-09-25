@@ -564,7 +564,10 @@ if (process.env.HTRAP?.startsWith('pisc') || process.env.HTRAP === 'falconry') {
             // keep sending until a catch - and, where the level makes a miss likely (below 57), a miss too
             let caught = false;
             const wantMiss = LEVEL < 57 && k === K[0];
-            for (let tries = 0; tries < 40 && (!caught || (wantMiss && !missSeen)); tries++) {
+            // enough sends that no miss (when one is wanted) is a one-in-a-million event at this level's odds
+            const KP = statChance(pnum(`hunter_${k.key}_low`), pnum(`hunter_${k.key}_high`), LEVEL);
+            const SENDS = Math.max(40, Math.ceil(rollBudget(wantMiss ? 1 - KP : KP) * 1.5));
+            for (let tries = 0; tries < SENDS && (!caught || (wantMiss && !missSeen)); tries++) {
                 const n = msgs.length;
                 const r = await send(k);
                 if (!r) { await waitTicks(20); continue; }
@@ -572,7 +575,11 @@ if (process.env.HTRAP?.startsWith('pisc') || process.env.HTRAP === 'falconry') {
                 const falcons = liveFalcons(k.falcon);
                 if (falcons.length) {
                     const f = falcons[0];
-                    if (caught) { { const [bx, bz] = besideInside(f); player.teleport(bx, bz, 0); } await waitTicks(1); opnpc(1, f); await waitTicks(3); continue; }
+                    // Every catch pays bones and a fur, two slots, and Retrieve (rightly) refuses a full pack: a run
+                    // of catches before the wanted miss once filled it, the falcon was left on its kill until it gave
+                    // up, and with the glove empty nothing more could be sent. The spoils of these extra catches are
+                    // thrown away first.
+                    if (caught) { inv0.remove(ObjType.getId('bones'), tot('bones')); inv0.remove(ObjType.getId(k.fur), tot(k.fur)); { const [bx, bz] = besideInside(f); player.teleport(bx, bz, 0); } await waitTicks(1); opnpc(1, f); await waitTicks(3); continue; }
                     caught = true;
                     check(v('falconry_falcon') !== -1 && hand() === GLOVE, `${k.npc}: caught - a falcon sits on the kill and the glove is empty`);
                     // the kebbit runs on while she flies, so she comes down near where it was sent from, not on it
@@ -587,10 +594,13 @@ if (process.env.HTRAP?.startsWith('pisc') || process.env.HTRAP === 'falconry') {
                     check(player.stats[PlayerStat.HUNTER] - b.xp === pnum(`hunter_${k.key}_xp`), `${k.npc}: ...${(player.stats[PlayerStat.HUNTER] - b.xp) / 10} xp`);
                     check(hand() === GLOVEF && v('falconry_falcon') === -1 && liveFalcons(k.falcon).length === 0, `${k.npc}: ...and the falcon is back on the glove`);
                 } else if (msgs.slice(n).some(m => m.includes('just misses'))) {
+                    // she flies back as far as she flew out, and send() only waits nine ticks: from a far kebbit the
+                    // return can take longer, so wait for her (a flake at 50 once, checked before she landed)
+                    for (let w = 0; w < 30 && hand() !== GLOVEF; w++) await waitTicks(1);
                     if (!missSeen) { missSeen = true; check(hand() === GLOVEF, `a miss: the falcon comes back to the glove (${k.npc})`); }
                 }
             }
-            check(caught, `${k.npc}: caught within 40 sends`);
+            check(caught, `${k.npc}: caught within ${SENDS} sends`);
         }
         // at 50 a spotted kebbit is caught about two times in three, so a miss turns up; at 70 it may not
         if (LEVEL < 57) check(missSeen, 'a miss was seen, and the falcon came back to the glove');
