@@ -1,0 +1,64 @@
+// Hunter - the Rellekka hunting grounds (2026-09-25): the snowy peninsula north-east of Rellekka, mapsquares
+// 42_58 and 42_59 from the rev 474 cache (see configs/hunter_rellekka_map.loc). Everything OSRS hunts
+// there, each with the method an earlier round built:
+//
+//   polar kebbit          1     30     tracking, holes to a snow drift, on the plateau   bones, polar kebbit fur
+//   cerulean twitch       11    64.67  bird snare                                         bones, raw bird meat, blue feathers
+//   sapphire glacialis    25    34     butterfly netting                                  (the jar)
+//   snowy knight          35    44     butterfly netting                                  (the jar)
+//   sabre-toothed kebbit  51    200    deadfall                                           bones, kebbit teeth
+//   sabre-toothed kyatt   55    300    pitfall                                            big bones, kyatt fur
+//
+// Levels, experience and loot are OSRS's as the skill shipped: the sabre-toothed kebbit's is 200, the
+// figure until August 2026, when OSRS cut every deadfall creature's by a fifth (to 160) - the Feldip
+// kebbits here keep their pre-cut 128/168 too. The raw beast meat and raw kyatt OSRS added to the polar
+// kebbit and kyatt in 2023 are left out, as are the Hunters' Rumours drops.
+//
+// See scripts/hunter_rellekka.rs2.
+
+^hunter_polar_kebbit_level = 1
+^hunter_polar_kebbit_xp = 300
+^hunter_twitch_level = 11
+// 64.67, written 647 in the x10 form (rounded, as 198.25 is written 1983).
+^hunter_twitch_xp = 647
+^hunter_glacialis_level = 25
+^hunter_glacialis_xp = 340
+^hunter_snowyknight_level = 35
+^hunter_snowyknight_xp = 440
+^hunter_sabretooth_kebbit_level = 51
+^hunter_sabretooth_kebbit_xp = 2000
+^hunter_kyatt_level = 55
+^hunter_kyatt_xp = 3000
+
+// The rolls, as stat_random's low/high (out of 256 at levels 1 and 99, straight-line between).
+// These three are the OSRS wiki's own catch rates, reproduced through the engine's formula exactly:
+//   polar kebbit: 93% at level 1, certain from 3 (a high above 255 is how "certain" comes out);
+//   cerulean twitch: 32% at 1, 149% (so certain long before) at 99 - 43% at its level 11;
+//   sabre-toothed kebbit: 80.9%, 85.9%, 90.6%, 95.7% at 51-54 and certain from 55 - the low is negative
+//     because nobody below 51 ever rolls it, and it is what puts that steep a line through those points.
+^hunter_polar_kebbit_low = 237
+^hunter_polar_kebbit_high = 1127
+^hunter_twitch_low = 81
+^hunter_twitch_high = 380
+^hunter_sabretooth_kebbit_low = -427
+^hunter_sabretooth_kebbit_high = 816
+// OSRS publishes none for the kyatt, so it takes the shape the larupia's has: about an even chance at its
+// level, most of the way there by 99.
+^hunter_kyatt_low = 40
+^hunter_kyatt_high = 220
+// And the two butterflies take the tiers the netting already has at 25 and 35 (configs/hunter.constant).
+^hunter_glacialis_low = 60
+^hunter_glacialis_high = 225
+^hunter_snowyknight_low = 50
+^hunter_snowyknight_high = 215
+
+// A sapphire glacialis let out of its jar boosts Defence by 4 + 15%; a snowy knight heals 15 - OSRS's.
+^hunter_glacialis_boost = 4
+^hunter_glacialis_boost_pct = 15
+^hunter_snowyknight_heal = 15
+
+// What a trap is holding, for ~hunter_catch_pay and ~hunter_catch_room (the ^hunter_catch_* family in
+// hunter.constant). Rellekka's block is 60-69, so no other hunting ground's catches land on the same value.
+^hunter_catch_twitch = 60
+^hunter_catch_sabretooth_kebbit = 61
+^hunter_catch_kyatt = 62

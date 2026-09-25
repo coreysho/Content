@@ -26,6 +26,7 @@ import SeqType from '#/cache/config/SeqType.js';
 import NpcType from '#/cache/config/NpcType.js';
 import SpotanimType from '#/cache/config/SpotanimType.js';
 import Component from '#/cache/config/Component.js';
+import EnumType from '#/cache/config/EnumType.js';
 const PlayerStat = { HUNTER: 22 };
 import { getExpByLevel } from '#/engine/entity/Player.js';
 
@@ -35,6 +36,7 @@ for (const k of ['loginThread', 'friendThread', 'loggerThread']) (World as any)[
 
 const LEVEL = parseInt(process.env.HLEVEL ?? '70');
 const CONST = fs.readFileSync(`${process.env.BUILD_SRC_DIR}/scripts/skill_hunter/configs/hunter.constant`, 'utf8');
+const RCONST = fs.readFileSync(`${process.env.BUILD_SRC_DIR}/scripts/skill_hunter/configs/hunter_rellekka.constant`, 'utf8');
 // HTRAP=box (default) lays box traps in the grey chinchompas' clearing; HTRAP=snare lays bird snares
 // among the tropical wagtails. The level gate is the lowest-level prey near the traps.
 const SNARE = process.env.HTRAP === 'snare';
@@ -618,6 +620,375 @@ if (process.env.HTRAP === 'deadfall') {
     check(slotsN().length === 0, `[logout] frees every slot (${held} held)`);
     check(NORTH.slice(0, max).every(([x, z]) => boulderAt(x, z) !== null), '...every boulder is a boulder again');
     check(tot('logs') === logs + unsprung, `...and each unsprung deadfall's log comes back (${unsprung}: ${logs} -> ${tot('logs')})`);
+    console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
+    process.exit(fails ? 1 : 0);
+}
+
+// HTRAP=rellekka: the Rellekka hunting grounds (hunter_rellekka.rs2), at HLEVEL. The map first - every
+// spawn, boulder, pit, hole, tunnel, log and drift where it should be, the ground walkable from the pass
+// by the Keldagrim entrance, the plateau reached by its steps and back - then each creature the level
+// allows, caught off the real loop: a polar kebbit trail to a drift, a cerulean twitch in a snare, a
+// sabre-toothed kebbit under a deadfall, a kyatt teased into a pit, and both butterflies netted into jars
+// and let out again. Below a creature's level, the gate: nothing comes to that trap, or it refuses.
+if (process.env.HTRAP === 'rellekka') {
+    const inv0 = player.getInventory(InvType.INV)!;
+    const tot = (n: string) => inv0.getItemCount(ObjType.getId(n));
+    const cnum = (n: string) => { const m = new RegExp(`\\^${n} = (-?\\d+)`).exec(CONST + RCONST); if (!m) throw new Error(n); return parseInt(m[1]); };
+    const setLevel = (l: number) => { player.stats[PlayerStat.HUNTER] = getExpByLevel(l); player.baseLevels[PlayerStat.HUNTER] = l; player.levels[PlayerStat.HUNTER] = l; };
+    const xp = () => player.stats[PlayerStat.HUNTER];
+    const v = (n: string) => player.getVar(VarPlayerType.getId(n)) as number;
+    const slotsN = () => [1, 2, 3, 4, 5].map(i => v(`hunter_trap${i}`)).filter(c => c !== -1);
+    const L = (n: string) => LocType.getId(n);
+    const run = (trigger: number, id: number, cat: number, target: any) => {
+        const script = ScriptProvider.getByTrigger(trigger, id, cat);
+        if (!script) { log('no script', trigger, id); return false; }
+        player.executeScript(ScriptRunner.init(script, player, target), true);
+        return true;
+    };
+    const oploc = (op: number, loc: any) => { const t = LocType.get(loc.type); return run(ServerTriggerType.OPLOC1 + (op - 1), t.id, t.category, loc); };
+    const opnpc = (op: number, npc: any) => { const t = NpcType.get(npc.type); return run(ServerTriggerType.OPNPC1 + (op - 1), t.id, t.category, npc); };
+    const opheld = (op: number, name: string) => {
+        const id = ObjType.getId(name); const slot = inv0.getItemIndex(id);
+        if (slot === -1) return false;
+        player.lastItem = id; player.lastSlot = slot;
+        return run(ServerTriggerType.OPHELD1 + (op - 1), id, ObjType.get(id).category, null);
+    };
+    const npcsOf = (name: string) => { const id = NpcType.getId(name); const out: any[] = []; for (const n of World.npcs) if (n && n.type === id) out.push(n); return out; };
+    const nearest = (name: string, x: number, z: number, lv = 0) => { let b: any = null, bd = 999; for (const n of npcsOf(name)) { if (n.level !== lv) continue; const d = Math.max(Math.abs(n.x - x), Math.abs(n.z - z)); if (d < bd) { bd = d; b = n; } } return b; };
+    const scan = (names: string[], lv: number, box = [2688, 3712, 2751, 3839]) => {
+        const out: any[] = []; const ids = names.map(L);
+        for (let x = box[0]; x <= box[2]; x++) for (let z = box[1]; z <= box[3]; z++) for (const id of ids) { const l = World.getLoc(x, z, lv, id); if (l) out.push(l); }
+        return out;
+    };
+    const { canTravel, isMapBlocked, reachedLoc } = await import('#/engine/GameMap.js');
+    const { CollisionType } = await import('#/engine/routefinder/index.js');
+    const flood = (lv: number, sx: number, sz: number, box: number[]) => {
+        const seen = new Set<string>([`${sx},${sz}`]); const q = [[sx, sz]];
+        while (q.length) { const [x, z] = q.shift()!;
+            for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, nz = z + dz, k = `${nx},${nz}`;
+                if (seen.has(k) || nx < box[0] || nx > box[2] || nz < box[1] || nz > box[3]) continue;
+                if (!canTravel(lv, x, z, dx, dz, 1, 0, CollisionType.NORMAL)) continue; seen.add(k); q.push([nx, nz]); } }
+        return seen;
+    };
+    // a reachable tile from which the player can operate the loc (as the route finder would end a walk)
+    const standFor = (loc: any, seen: Set<string>) => {
+        const t = LocType.get(loc.type);
+        for (let r = 1; r <= 3; r++) for (let dx = -r; dx <= r + t.width; dx++) for (let dz = -r; dz <= r + t.length; dz++) {
+            const x = loc.x + dx, z = loc.z + dz;
+            if (!seen.has(`${x},${z}`)) continue;
+            if (reachedLoc(loc.level, x, z, loc.x, loc.z, t.width, t.length, 1, loc.angle, loc.shape, t.forceapproach)) return [x, z];
+        }
+        return null;
+    };
+    const LANDING = [2715, 3797];
+    const BOX0 = [2600, 3640, 2760, 3839];
+
+    // ---------------------------------------------------------------- the map
+    const want: Record<string, number> = { hunter_sabretooth_kebbit: 12, hunter_sabretooth_kyatt: 6, hunter_cerulean_twitch: 13, hunter_sapphire_glacialis: 12, hunter_snowy_knight: 9, hunting_expert_rellekka: 1 };
+    for (const [n, c] of Object.entries(want)) check(npcsOf(n).length === c, `${c} ${n} in the world (${npcsOf(n).length})`);
+    const ground = flood(0, LANDING[0], LANDING[1], BOX0);
+    check(ground.has('2725,3720') && ground.has('2700,3710'), `the grounds are walkable from the pass by the Keldagrim entrance and from Rellekka's north-east shore (${ground.size} tiles)`);
+    const boulders = scan(['loc474_19205'], 0, [2688, 3740, 2751, 3800]);
+    check(boulders.length === 10, `10 deadfall boulders on the ground (${boulders.length})`);
+    const pits = scan(['loc474_19227'], 0, [2688, 3776, 2751, 3810]);
+    check(pits.length === 6, `6 pits, on the ground floor (linkbelow bridge tiles) (${pits.length})`);
+    const unreach = [...boulders, ...pits].filter(l => standFor(l, ground) === null);
+    check(unreach.length === 0, `...each one reachable on foot from the ::rellekka landing (${unreach.map(l => `${l.x},${l.z}`).join(' ') || 'all'})`);
+    const ascend = scan(['loc474_19690'], 0), descend = scan(['loc474_19691'], 1);
+    check(ascend.length === 2 && descend.length === 2, `two flights of steps up to the plateau and two down (${ascend.length}/${descend.length})`);
+    // the steps
+    let plateau = new Set<string>();
+    for (const s of ascend) {
+        const st = standFor(s, ground);
+        if (!st) { check(false, `steps at ${s.x},${s.z}: no tile to climb them from`); continue; }
+        player.teleport(st[0], st[1], 0); await waitTicks(1);
+        oploc(1, s); await waitTicks(3);
+        const up = player.level === 1 && !isMapBlocked(player.x, player.z, 1);
+        check(up, `Ascend the steps at ${s.x},${s.z} from ${st[0]},${st[1]}: on the plateau at ${player.x},${player.z},${player.level}`);
+        if (up) plateau = flood(1, player.x, player.z, [2688, 3776, 2751, 3839]);
+        const d = descend.find(q => Math.abs(q.x - s.x) <= 1 && Math.abs(q.z - s.z) <= 2);
+        const ds = d && standFor(d, plateau);
+        if (!d || !ds) { check(false, `...and the steps down beside them are reachable from there`); continue; }
+        player.teleport(ds[0], ds[1], 1); await waitTicks(1);
+        oploc(1, d); await waitTicks(3);
+        check(player.level === 0 && ground.has(`${player.x},${player.z}`), `...Descend comes back down onto the walkable ground (${player.x},${player.z},${player.level})`);
+    }
+    check(plateau.has('2710,3829'), `the Hunting expert's tile is on the plateau the steps lead to (${plateau.size} tiles)`);
+    const NODE = ['loc474_19640', 'loc474_19641', ...[19418, 19419, 19420, 19421, 19422, 19423, 19424, 19425, 19426].map(i => `loc474_${i}`)];
+    const nodes = scan(NODE, 1, [2688, 3776, 2751, 3839]);
+    const drifts = scan(['loc474_19435'], 1, [2688, 3776, 2751, 3839]);
+    check(nodes.length === 11 && drifts.length === 4, `11 holes, tunnels and hollow logs and 4 snow drifts on the plateau (${nodes.length}, ${drifts.length})`);
+    const cenum = (name: string) => { const e = (EnumType as any).get(EnumType.getId(name)); return [...e.values.values()].map((c: number) => ({ x: (c >> 14) & 0x3fff, z: c & 0x3fff, y: c >> 28 })); };
+    const enodes = cenum('hunter_polar_track_nodes'), edrifts = cenum('hunter_polar_track_drifts');
+    check(enodes.length === nodes.length && enodes.every((c: any) => nodes.some(l => l.x === c.x && l.z === c.z)), `every node the trail enum lists has its loc on the map, and every one on the map is listed (${enodes.length})`);
+    check(edrifts.length === drifts.length && edrifts.every((c: any) => drifts.some(l => l.x === c.x && l.z === c.z)), `...and the same for the snow drifts (${edrifts.length})`);
+    const cantReach = [...nodes, ...drifts].filter(l => standFor(l, plateau) === null);
+    check(cantReach.length === 0, `...every one of them reachable on the plateau (${cantReach.map(l => `${l.x},${l.z}`).join(' ') || 'all'})`);
+    const opsLive = [...boulders, ...pits, ...nodes, ...drifts, ...ascend, ...descend].filter(l => {
+        const t = LocType.get(l.type);
+        return (t.op ?? []).some((o: any, i: number) => o && !ScriptProvider.getByTrigger(ServerTriggerType.OPLOC1 + i, t.id, t.category));
+    });
+    check(opsLive.length === 0, `every op on the grounds' hunter locs has a handler (${opsLive.map(l => LocType.get(l.type).debugname).join(' ') || 'all'})`);
+
+    // ---------------------------------------------------------------- polar kebbit tracking
+    player.invAdd(InvType.INV, ObjType.getId('noose_wand'), 1);
+    {
+        const at = (x: number, z: number) => [...nodes, ...drifts].find(l => l.x === x && l.z === z) ?? null;
+        const xz = (c: number) => ({ x: (c >> 14) & 0x3fff, z: c & 0x3fff });
+        const dir = (fx: number, fz: number, tx: number, tz: number) => {
+            const dx = tx - fx, dz = tz - fz, ax = Math.abs(dx), az = Math.abs(dz);
+            const ns = dz > 0 ? 'north' : dz < 0 ? 'south' : '', ew = dx > 0 ? 'east' : dx < 0 ? 'west' : '';
+            if (ax > az * 2) return ew; if (az > ax * 2) return ns; if (!ns) return ew; if (!ew) return ns; return `${ns}-${ew}`;
+        };
+        const op = async (o: number, l: any) => { const st = standFor(l, plateau)!; player.teleport(st[0], st[1], 1); await waitTicks(1); oploc(o, l); await waitTicks(3); };
+        const holes = nodes.filter(l => LocType.get(l.type).debugname!.match(/19640|19641/));
+        check(holes.length === 2, 'two holes to start a trail from');
+        { const n = msgs.length; await op(1, drifts[0]); check(msgs.slice(n).some(m => m.includes('nothing but snow')), 'Search on a drift with no trail finds nothing'); }
+        let caught = false, trails = 0, hints = 0, hintsOk = true, wrongOk = false;
+        // four trails at least, from both holes, and on until a kebbit is caught
+        while ((!caught || trails < 4) && trails < 10) {
+            const hole = holes[trails % 2]; trails++;
+            let n = msgs.length; await op(1, hole);
+            let from = { x: hole.x, z: hole.z };
+            for (let hop = 0; hop < 8; hop++) {
+                const next = xz(v('hunter_track_next')), end = xz(v('hunter_track_bush'));
+                const said = msgs.slice(n).reverse().find(m => m.includes('tracks'));
+                hints++; if (!said || !said.includes(dir(from.x, from.z, next.x, next.z))) { hintsOk = false; log('hint', said, from, next); }
+                if (next.x === end.x && next.z === end.z) break;
+                const l = at(next.x, next.z);
+                if (!l) { check(false, `the trail's next step ${next.x},${next.z} has something to inspect`); break; }
+                if (!wrongOk) {
+                    const other = nodes.find(q => (q.x !== next.x || q.z !== next.z) && !holes.includes(q))!;
+                    const m0 = msgs.length; await op(1, other);
+                    wrongOk = msgs.slice(m0).some(m => m.includes('find no tracks')) && (v('hunter_track_next') & 0xfffffff) === ((next.x << 14) | next.z);
+                    check(wrongOk, 'inspecting the wrong tunnel or log finds no tracks and keeps the trail');
+                }
+                n = msgs.length; await op(1, l); from = next;
+            }
+            const end = xz(v('hunter_track_bush')); const d = at(end.x, end.z);
+            check(d !== null && LocType.get(d.type).debugname === 'loc474_19435', `trail ${trails} ends at a snow drift (${end.x},${end.z})`);
+            if (!d) break;
+            if (trails === 1) { const m0 = msgs.length; await op(1, d); check(msgs.slice(m0).some(m => m.includes('polar kebbit hiding')), '...Search on it finds the polar kebbit'); }
+            const b = { bones: tot('bones'), fur: tot('polar_kebbit_fur'), xp: xp() };
+            await op(2, d); await waitTicks(3);
+            if (tot('polar_kebbit_fur') > b.fur) {
+                caught = true;
+                check(tot('bones') === b.bones + 1, '...Attack with the noose wand: a polar kebbit - bones and polar kebbit fur');
+                check(xp() - b.xp === cnum('hunter_polar_kebbit_xp'), `...${(xp() - b.xp) / 10} xp`);
+            }
+            check(v('hunter_track_next') === -1, `...and the trail is spent either way (trail ${trails})`);
+        }
+        check(caught, `a polar kebbit caught within 10 trails (${trails})`);
+        check(hintsOk, `every hint named the real direction of the next step (${hints})`);
+    }
+
+    // ---------------------------------------------------------------- butterflies, netted into jars
+    {
+        player.invAdd(InvType.INV, ObjType.getId('net'), 1);
+        const NETID = ObjType.getId('net');
+        for (const [npcName, jar, key] of [['hunter_sapphire_glacialis', 'sapphire_glacialis', 'glacialis'], ['hunter_snowy_knight', 'snowy_knight', 'snowyknight']]) {
+            const lvl = cnum(`hunter_${key}_level`);
+            if (tot('hunter_butterfly_jar') === 0) player.invAdd(InvType.INV, ObjType.getId('hunter_butterfly_jar'), 1);
+            let got = false, tries = 0, refused = false;
+            for (; tries < 40 && !got; tries++) {
+                const b = npcsOf(npcName).find((n: any) => n.isActive)!;
+                if (!b) { await waitTicks(10); continue; }
+                player.teleport(b.x, b.z - 1 < 0 ? b.z + 1 : b.z - 1, b.level); await waitTicks(1);
+                const b0 = { j: tot(jar), xp: xp() }; const n0 = msgs.length;
+                player.lastUseItem = NETID; player.lastUseSlot = inv0.getItemIndex(NETID);
+                run(ServerTriggerType.OPNPCU, b.type, NpcType.get(b.type).category, b); await waitTicks(4);
+                // the refusal is a mesbox, not a chat line: what shows it is that nothing was caught or paid
+                if (LEVEL < lvl) { refused = tot(jar) === b0.j && xp() === b0.xp && b.isActive && !msgs.slice(n0).some(m => m.includes('swing the net')); break; }
+                if (tot(jar) > b0.j) { got = true; check(xp() - b0.xp === cnum(`hunter_${key}_xp`) && tot('hunter_butterfly_jar') === 0, `a ${jar} netted into its jar (${tries + 1} swings), ${(xp() - b0.xp) / 10} xp`); }
+            }
+            if (LEVEL < lvl) { check(refused, `below Hunter ${lvl} a ${jar} cannot be netted`); continue; }
+            check(got, `a ${jar} caught within 40 swings`);
+            if (!got) continue;
+            if (jar === 'snowy_knight') {
+                player.levels[3] = Math.max(1, player.baseLevels[3] - 20); const hp = player.levels[3];
+                opheld(4, jar); await waitTicks(1);
+                check(player.levels[3] === Math.min(player.baseLevels[3], hp + cnum('hunter_snowyknight_heal')) && tot(jar) === 0 && tot('hunter_butterfly_jar') === 1, `Release: the snowy knight heals ${cnum('hunter_snowyknight_heal')} (${hp} -> ${player.levels[3]}) and the jar comes back`);
+            } else {
+                const def = player.levels[1];
+                opheld(4, jar); await waitTicks(1);
+                const want = player.baseLevels[1] + 4 + Math.floor(player.baseLevels[1] * 15 / 100);
+                check(player.levels[1] === want && tot(jar) === 0 && tot('hunter_butterfly_jar') === 1, `Release: the sapphire glacialis boosts Defence by 4 + 15% (${def} -> ${player.levels[1]}) and the jar comes back`);
+                player.levels[1] = player.baseLevels[1];
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------- bird snares: cerulean twitches
+    {
+        const TW = cnum('hunter_twitch_level');
+        const S = ['hunter_snare_laid', 'hunter_snare_springing', 'hunter_snare_collapsed', 'hunter_snare_catching_twitch', 'hunter_snare_caught_twitch', 'hunter_snare_catching_swift', 'hunter_snare_caught_swift'];
+        const snAt = (x: number, z: number) => { for (const n of S) { const l = World.getLoc(x, z, 0, L(n)); if (l) return { n, l }; } return null; };
+        if (tot('hunter_bird_snare') < 5) player.invAdd(InvType.INV, ObjType.getId('hunter_bird_snare'), 5 - tot('hunter_bird_snare'));
+        const max = Math.min(5, 1 + Math.floor(LEVEL / 20));
+        // open ground tiles beside the ground twitches' spawns
+        const spots: number[][] = [];
+        for (const [x, z] of [[2716, 3775], [2727, 3772], [2719, 3769], [2731, 3767], [2733, 3775]]) {
+            for (const [dx, dz] of [[1, 0], [0, 1], [-1, 0], [0, -1], [1, 1]]) { const k = `${x + dx},${z + dz}`; if (ground.has(k) && !spots.some(s => s[0] === x + dx && s[1] === z + dz)) { spots.push([x + dx, z + dz]); break; } }
+        }
+        for (const [x, z] of spots) { if (slotsN().length >= max) break; player.teleport(x, z, 0); await waitTicks(1); opheld(1, 'hunter_bird_snare'); await waitTicks(6); }
+        check(slotsN().length === max, `${max} bird snares laid among the cerulean twitches (${slotsN().length})`);
+        const home = spots[0];
+        let caught: any = null; const seen = new Map<string, string>();
+        for (let t = 0; t < (LEVEL >= TW ? 900 : 300) && !caught; t++) {
+            await waitTicks(1);
+            for (const c of slotsN()) {
+                const x = (c >> 14) & 0x3fff, z = c & 0x3fff; const s = snAt(x, z)?.n ?? '(none)';
+                if (seen.get(`${x},${z}`) !== s) { log('snare', x, z, '->', s); seen.set(`${x},${z}`, s); }
+                if (s === 'hunter_snare_caught_twitch' || s === 'hunter_snare_caught_swift') { caught = { x, z, s }; break; }
+                if (s === 'hunter_snare_collapsed') { oploc(1, snAt(x, z)!.l); await waitTicks(2); player.teleport(x, z, 0); await waitTicks(1); opheld(1, 'hunter_bird_snare'); await waitTicks(6); player.teleport(home[0], home[1], 0); }
+            }
+        }
+        if (LEVEL >= TW) {
+            check(caught?.s === 'hunter_snare_caught_twitch', `a cerulean twitch caught within 900 ticks (${caught?.s ?? 'none'})`);
+            if (caught) {
+                const b = { bones: tot('bones'), meat: tot('raw_bird_meat'), f: tot('blue_feather'), xp: xp(), sn: tot('hunter_bird_snare') };
+                player.teleport(caught.x, caught.z, 0); await waitTicks(1);
+                oploc(1, snAt(caught.x, caught.z)!.l); await waitTicks(3);
+                check(tot('bones') === b.bones + 1 && tot('raw_bird_meat') === b.meat + 1 && tot('blue_feather') === b.f + cnum('hunter_bird_feathers') && tot('hunter_bird_snare') === b.sn + 1,
+                    `...Check: bones, raw bird meat, ${cnum('hunter_bird_feathers')} blue feathers and the snare back`);
+                check(xp() - b.xp === cnum('hunter_twitch_xp'), `...${(xp() - b.xp) / 10} xp`);
+            }
+        } else check(caught === null, `at level ${LEVEL}, below the twitch's ${TW}, nothing flies into a snare`);
+        const lo = ScriptProvider.getByTrigger(ServerTriggerType.LOGOUT, -1, -1);
+        player.executeScript(ScriptRunner.init(lo!, player), true); await waitTicks(2);
+        check(slotsN().length === 0, '[logout] takes every snare up');
+    }
+
+    // ---------------------------------------------------------------- deadfalls: sabre-toothed kebbits
+    {
+        const KL = cnum('hunter_sabretooth_kebbit_level');
+        const DF = ['hunter_deadfall_set', 'hunter_deadfall_collapsed', 'hunter_deadfall_sabretooth', 'hunter_deadfall_wild', 'hunter_deadfall_barbtailed'];
+        const dfAt = (x: number, z: number) => { for (const n of DF) { const l = World.getLoc(x, z, 0, L(n)); if (l) return { n, l }; } return null; };
+        const boulderAt = (x: number, z: number) => World.getLoc(x, z, 0, L('loc474_19205'));
+        player.invAdd(InvType.INV, ObjType.getId('knife'), 1);
+        player.invAdd(InvType.INV, ObjType.getId('logs'), 10);
+        const max = Math.min(5, 1 + Math.floor(LEVEL / 20));
+        const use = boulders.slice(0, max);
+        const set = async (b: any) => { const st = standFor(b, ground)!; player.teleport(st[0], st[1], 0); await waitTicks(1); oploc(1, boulderAt(b.x, b.z)); await waitTicks(5); };
+        for (const b of use) await set(b);
+        if (LEVEL < cnum('hunter_deadfall_level')) {
+            check(slotsN().length === 0 && use.every(b => boulderAt(b.x, b.z) !== null), `below Hunter ${cnum('hunter_deadfall_level')} no deadfall can be set`);
+        } else {
+        check(slotsN().length === max && use.every(b => dfAt(b.x, b.z) !== null), `${max} deadfalls set on the boulders (${slotsN().length})`);
+        const home = standFor(use[0], ground)!;
+        player.teleport(home[0], home[1], 0);
+        let caught: any = null; const seen = new Map<string, string>();
+        for (let t = 0; t < (LEVEL >= KL ? 1200 : 300) && !caught; t++) {
+            await waitTicks(1);
+            for (const b of use) {
+                const s = dfAt(b.x, b.z)?.n ?? (boulderAt(b.x, b.z) ? 'boulder' : '(none)');
+                if (seen.get(`${b.x},${b.z}`) !== s) { log('deadfall', b.x, b.z, '->', s); seen.set(`${b.x},${b.z}`, s); }
+                if (s === 'hunter_deadfall_sabretooth' || s === 'hunter_deadfall_wild' || s === 'hunter_deadfall_barbtailed') { caught = { b, s }; break; }
+                if (s === 'hunter_deadfall_collapsed') { oploc(1, dfAt(b.x, b.z)!.l); await waitTicks(3); await set(b); player.teleport(home[0], home[1], 0); }
+                if (s === 'boulder' && tot('logs') > 0) { await set(b); player.teleport(home[0], home[1], 0); }
+            }
+        }
+        if (LEVEL >= KL) {
+            check(caught?.s === 'hunter_deadfall_sabretooth', `a sabre-toothed kebbit caught under a deadfall within 1200 ticks (${caught?.s ?? 'none'})`);
+            if (caught) {
+                const b = { bones: tot('bones'), teeth: tot('kebbit_teeth'), logs: tot('logs'), xp: xp() };
+                oploc(1, dfAt(caught.b.x, caught.b.z)!.l); await waitTicks(3);
+                check(tot('bones') === b.bones + 1 && tot('kebbit_teeth') === b.teeth + 1 && tot('logs') === b.logs, '...Check: bones and kebbit teeth, and no log back');
+                check(xp() - b.xp === cnum('hunter_sabretooth_kebbit_xp'), `...${(xp() - b.xp) / 10} xp`);
+                check(boulderAt(caught.b.x, caught.b.z) !== null, '...and the boulder is a boulder again');
+            }
+        } else check(caught === null, `at level ${LEVEL}, below the sabre-toothed kebbit's ${KL}, nothing comes to a deadfall here`);
+        const lo = ScriptProvider.getByTrigger(ServerTriggerType.LOGOUT, -1, -1);
+        player.executeScript(ScriptRunner.init(lo!, player), true); await waitTicks(3);
+        check(slotsN().length === 0 && use.every(b => boulderAt(b.x, b.z) !== null), '[logout] frees every slot and hands every boulder back');
+        }
+    }
+
+    // ---------------------------------------------------------------- pitfalls: sabre-toothed kyatts
+    {
+        const KY = cnum('hunter_kyatt_level');
+        const ST = ['hunter_pit_spiked', 'hunter_pit_collapsed', 'hunter_pit_kyatt', 'hunter_pit_larupia'];
+        const pitAt = (p: any) => { for (const n of ST) { const l = World.getLoc(p.x, p.z, 0, L(n)); if (l) return { n, l }; } return null; };
+        const plain = (p: any) => World.getLoc(p.x, p.z, 0, L('loc474_19227'));
+        player.invAdd(InvType.INV, ObjType.getId('teasing_stick'), 1);
+        if (tot('logs') < 15) player.invAdd(InvType.INV, ObjType.getId('logs'), 15 - tot('logs'));
+        // each pit's take-off tiles: open ground straight beside it with open ground 2-4 tiles on past it
+        const takeoffs = (p: any) => {
+            const out: any[] = [];
+            for (const [dx, dz] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+                const sx = p.x - dx, sz = p.z - dz;
+                if (!ground.has(`${sx},${sz}`)) continue;
+                for (let k = 2; k <= 4; k++) { const lx = sx + dx * k, lz = sz + dz * k; if (!isMapBlocked(lx, lz, 0)) { out.push({ sx, sz, lx, lz }); break; } }
+            }
+            return out;
+        };
+        const noTake = pits.filter(p => takeoffs(p).length === 0);
+        check(noTake.length === 0, `every pit has a take-off tile and a landing past it (${noTake.map(p => `${p.x},${p.z}`).join(' ') || 'all'})`);
+        const kyattOf = (t: any) => nearest('hunter_sabretooth_kyatt', t.sx, t.sz);
+        // the kyatts near a take-off tile, nearest home first: a player picks which one to tease
+        const kyattsFor = (t: any) => npcsOf('hunter_sabretooth_kyatt').filter((k: any) => Math.max(Math.abs(k.startX - t.sx), Math.abs(k.startZ - t.sz)) <= 10)
+            .sort((a: any, b: any) => Math.max(Math.abs(a.startX - t.sx), Math.abs(a.startZ - t.sz)) - Math.max(Math.abs(b.startX - t.sx), Math.abs(b.startZ - t.sz)));
+        const home = (k: any) => { k.targetOp = 0; k.teleport(k.startX, k.startZ, 0); };
+        if (LEVEL < KY) {
+            const p = pits[0], t = takeoffs(p)[0];
+            player.teleport(t.sx, t.sz, 0); await waitTicks(1);
+            const n = msgs.length; opnpc(1, kyattOf(t)); await waitTicks(2);
+            check(v('hunter_tease_npc') === -1, `below Hunter ${KY} a kyatt cannot be teased`);
+        } else {
+            // every pit: its nearest kyatt, teased from the take-off tile, comes to heel
+            const follows: string[] = [], stuck: string[] = []; const pair = new Map<any, any>();
+            for (const p of pits) {
+                let ok = false;
+                for (const t of takeoffs(p)) {
+                    for (const k of kyattsFor(t)) {
+                        home(k); player.teleport(t.sx, t.sz, 0); await waitTicks(1);
+                        opnpc(1, k); await waitTicks(10);
+                        const came = Math.max(Math.abs(k.x - t.sx), Math.abs(k.z - t.sz)) <= cnum('hunter_pit_reach');
+                        home(k); player.setVar(VarPlayerType.getId('hunter_tease_npc'), -1);
+                        if (came) { ok = true; pair.set(p, { t, k }); break; }
+                        log('kyatt did not come', p.x, p.z, 'takeoff', t.sx, t.sz, 'kyatt from', k.startX, k.startZ);
+                    }
+                    if (ok) break;
+                }
+                (ok ? follows : stuck).push(`${p.x},${p.z}${ok ? ` (from ${pair.get(p).k.startX},${pair.get(p).k.startZ})` : ''}`);
+                player.teleport(LANDING[0], LANDING[1], 0); await waitTicks(2);
+            }
+            check(stuck.length === 0, `at every pit a kyatt teased from a take-off tile follows to it: ${follows.join(', ')}${stuck.length ? '; not: ' + stuck.join(' ') : ''}`);
+            let fell: any = null;
+            const usable = pits.filter(p => pair.has(p));
+            for (let attempt = 0; attempt < 16 && !fell && usable.length; attempt++) {
+                const p = usable[attempt % usable.length]; const { t, k: kk } = pair.get(p);
+                player.teleport(t.sx, t.sz, 0); await waitTicks(1);
+                if (pitAt(p)?.n === 'hunter_pit_collapsed') { oploc(2, pitAt(p)!.l); await waitTicks(2); }
+                if (!pitAt(p)) { oploc(3, plain(p)); await waitTicks(5); }
+                if (pitAt(p)?.n !== 'hunter_pit_spiked') { log('pit not spiked', p.x, p.z, pitAt(p)?.n); continue; }
+                const k = kk; if (!k.isActive) { await waitTicks(60); continue; }
+                home(k); await waitTicks(1);
+                opnpc(1, k); await waitTicks(8);
+                player.teleport(t.sx, t.sz, 0); await waitTicks(1);
+                oploc(1, pitAt(p)!.l); await waitTicks(4);
+                log('jump', attempt, p.x, p.z, '->', pitAt(p)?.n, 'player', player.x, player.z);
+                if (pitAt(p)?.n === 'hunter_pit_kyatt') fell = p;
+            }
+            check(fell !== null, 'a kyatt followed the jump into a pit within 16 tries');
+            if (fell) {
+                const b = { bones: tot('big_bones'), fur: tot('kyatt_fur'), logs: tot('logs'), xp: xp() };
+                oploc(2, pitAt(fell)!.l); await waitTicks(2);
+                check(tot('big_bones') === b.bones + 1 && tot('kyatt_fur') === b.fur + 1 && tot('logs') === b.logs, '...Dismantle: big bones and kyatt fur, no log back');
+                check(xp() - b.xp === cnum('hunter_kyatt_xp'), `...${(xp() - b.xp) / 10} xp`);
+                check(plain(fell) !== null, '...and the pit is a pit again');
+            }
+            const lo = ScriptProvider.getByTrigger(ServerTriggerType.LOGOUT, -1, -1);
+            player.executeScript(ScriptRunner.init(lo!, player), true); await waitTicks(3);
+            check(slotsN().length === 0 && pits.every(p => plain(p) !== null), '[logout] frees every slot and hands every pit back');
+        }
+    }
+
+    // ---------------------------------------------------------------- the expert, the guide
+    {
+        const ex = npcsOf('hunting_expert_rellekka')[0];
+        check(ex && ScriptProvider.getByTrigger(ServerTriggerType.OPNPC1, ex.type, NpcType.get(ex.type).category) !== undefined && ex.level === 1, 'the plateau Hunting expert stands on level 1 and has something to say');
+    }
     console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
     process.exit(fails ? 1 : 0);
 }

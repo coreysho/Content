@@ -1,0 +1,226 @@
+// Hunter - the Rellekka hunting grounds. See configs/hunter_rellekka.constant for the creatures and their
+// numbers, and configs/hunter_rellekka_map.loc for the ground.
+//
+// Everything here rides a method an earlier round built, so this file holds only what is Rellekka's own:
+// the polar kebbit's trail, the two butterflies and their jars, the kyatt's tease, the ops on the new
+// trap states, the steps up to the plateau, the plateau's Hunting expert and ::rellekka. The traps' loop
+// (hunter_traps.rs2) knows the cerulean twitch, the sabre-toothed kebbit and the kyatt by name.
+
+// ------------------------------------------------------------------ polar kebbit tracking
+
+// The plateau's holes, tunnels and hollow logs carry category=hunter_polar_track_node: one trigger for
+// all of them. A hole always has fresh tracks; the trail runs through the tunnels and logs to one of the
+// snow drifts, exactly as a Feldip weasel's runs through the jungle plants to a bush (hunter_tracking.rs2,
+// whose compass ~hunter_track_direction and trail varps this shares - a player follows one trail at a
+// time, whichever ground it is on).
+[oploc1,_hunter_polar_track_node]
+if (stat(hunter) < ^hunter_polar_kebbit_level) {
+    ~mesbox("You need a Hunter level of <tostring(^hunter_polar_kebbit_level)> to track polar kebbits.");
+    return;
+}
+def_coord $at = loc_coord;
+anim(human_pickupfloor, 0);
+p_delay(1);
+if (%hunter_track_next ! null & $at = %hunter_track_next) {
+    @hunter_polar_track_advance($at);
+}
+if (loc_type = loc474_19640 | loc_type = loc474_19641) {
+    @hunter_polar_track_start($at);
+}
+mes("You search the <lowercase(loc_name)> but find no tracks.");
+
+[label,hunter_polar_track_start](coord $hole)
+def_coord $drift = enum(int, coord, hunter_polar_track_drifts, random(enum_getoutputcount(hunter_polar_track_drifts)));
+%hunter_track_bush = $drift;
+%hunter_track_hops = calc(^hunter_track_hops_min + random(calc(^hunter_track_hops_extra + 1)));
+def_coord $next = ~hunter_polar_track_pick($hole, $drift);
+%hunter_track_next = $next;
+if ($next = $drift) {
+    mes("You find some tracks leading out of the hole, to a snow drift to the <~hunter_track_direction($hole, $drift)>.");
+    return;
+}
+mes("You find some tracks leading out of the hole, heading <~hunter_track_direction($hole, $next)>.");
+
+[label,hunter_polar_track_advance](coord $at)
+%hunter_track_hops = calc(%hunter_track_hops - 1);
+def_coord $drift = %hunter_track_bush;
+if (%hunter_track_hops <= 0) {
+    %hunter_track_next = $drift;
+    mes("The tracks lead to a snow drift to the <~hunter_track_direction($at, $drift)>.");
+    return;
+}
+def_coord $next = ~hunter_polar_track_pick($at, $drift);
+%hunter_track_next = $next;
+if ($next = $drift) {
+    mes("The tracks lead to a snow drift to the <~hunter_track_direction($at, $drift)>.");
+    return;
+}
+mes("The tracks continue to the <~hunter_track_direction($at, $next)>.");
+
+// ~hunter_track_pick over this ground's nodes: a node a few tiles on from $from that is closer to $drift
+// than $from is, at random - or the drift itself, when nothing qualifies.
+[proc,hunter_polar_track_pick](coord $from, coord $drift)(coord)
+def_coord $pick = $drift;
+def_int $seen = 0;
+def_int $here = distance($from, $drift);
+def_int $i = 0;
+while ($i < enum_getoutputcount(hunter_polar_track_nodes)) {
+    def_coord $node = enum(int, coord, hunter_polar_track_nodes, $i);
+    def_int $step = distance($from, $node);
+    if ($node ! $from & $step >= ^hunter_track_step_min & $step <= ^hunter_track_step_max & distance($node, $drift) < $here) {
+        $seen = calc($seen + 1);
+        if (random($seen) = 0) {
+            $pick = $node;
+        }
+    }
+    $i = calc($i + 1);
+}
+return($pick);
+
+// The snow drift at the end of the trail.
+[oploc1,loc474_19435]
+anim(human_pickupfloor, 0);
+if (%hunter_track_next ! null & loc_coord = %hunter_track_next & loc_coord = %hunter_track_bush) {
+    mes("There's a polar kebbit hiding in the snow drift.");
+    return;
+}
+mes("You search the snow drift but find nothing but snow.");
+
+[oploc2,loc474_19435]
+if (inv_total(inv, noose_wand) < 1 & inv_total(worn, noose_wand) < 1) {
+    mes("You need a noose wand to catch anything hiding in there.");
+    return;
+}
+if (%hunter_track_next = null | loc_coord ! %hunter_track_next | loc_coord ! %hunter_track_bush) {
+    mes("There's nothing in there to catch.");
+    return;
+}
+if (inv_freespace(inv) < 2) {
+    mes("You don't have enough inventory space.");
+    return;
+}
+anim(human_hunter_noose, 0);
+p_delay(2);
+%hunter_track_next = null;
+%hunter_track_bush = null;
+if (stat_random(hunter, ^hunter_polar_kebbit_low, ^hunter_polar_kebbit_high) = false) {
+    mes("The kebbit slips out of the noose and bolts. You'll have to find its tracks again.");
+    return;
+}
+inv_add(inv, bones, 1);
+inv_add(inv, polar_kebbit_fur, 1);
+mes("You've caught a polar kebbit.");
+~hunter_xp(^hunter_polar_kebbit_xp);
+
+// ------------------------------------------------------------------ butterflies
+
+[opnpcu,hunter_sapphire_glacialis]
+@hunter_net_butterfly(^hunter_glacialis_level, ^hunter_glacialis_xp, ^hunter_glacialis_low, ^hunter_glacialis_high, "sapphire glacialis", sapphire_glacialis);
+
+[opnpcu,hunter_snowy_knight]
+@hunter_net_butterfly(^hunter_snowyknight_level, ^hunter_snowyknight_xp, ^hunter_snowyknight_low, ^hunter_snowyknight_high, "snowy knight", snowy_knight);
+
+// Let one out: the jar comes back, and the butterfly does what OSRS's does on its way.
+[opheld4,sapphire_glacialis]
+inv_del(inv, sapphire_glacialis, 1);
+inv_add(inv, hunter_butterfly_jar, 1);
+stat_boost(defence, ^hunter_glacialis_boost, ^hunter_glacialis_boost_pct);
+mes("You release the sapphire glacialis. You feel a little tougher as it flutters off.");
+
+[opheld4,snowy_knight]
+inv_del(inv, snowy_knight, 1);
+inv_add(inv, hunter_butterfly_jar, 1);
+stat_heal(hitpoints, ^hunter_snowyknight_heal, 0);
+mes("You release the snowy knight. It circles you once, and you feel better for it.");
+
+// ------------------------------------------------------------------ the kyatt
+
+// Tease a kyatt: it follows you, and the jump over a spiked pit looks for it - the larupia's tease
+// (hunter_traps.rs2), at the kyatt's level.
+[opnpc1,hunter_sabretooth_kyatt] @hunter_tease(^hunter_kyatt_level, "sabre-toothed kyatts", "kyatt");
+
+// ------------------------------------------------------------------ the catches
+
+[oploc1,hunter_snare_caught_twitch] @hunter_trap_takeup(^hunter_catch_twitch);
+[oploc1,hunter_deadfall_sabretooth] @hunter_trap_takeup(^hunter_catch_sabretooth_kebbit);
+[oploc2,hunter_pit_kyatt] @hunter_trap_takeup(^hunter_catch_kyatt);
+
+// ------------------------------------------------------------------ the plateau
+
+// Two flights of Steps cut into the cliff between the ground and the plateau (level 1), where the polar
+// kebbits, the Hunting expert and some of the birds and butterflies are.
+// Both flights face the same way (angle 2), up to the north: the foot of each is the tile south of it on
+// the ground, the head the tile north of it on the plateau (read off the collision map, checked live).
+[oploc1,loc474_19690]
+p_arrivedelay;
+p_telejump(movecoord(loc_coord, 0, 1, 3));
+
+[oploc1,loc474_19691]
+p_arrivedelay;
+p_telejump(movecoord(loc_coord, 0, -1, -2));
+
+// ------------------------------------------------------------------ the Hunting expert
+
+// The plateau's Hunting expert: the Rellekka grounds' own advice, and the cape, as the Feldip one.
+[opnpc1,hunting_expert_rellekka]
+if (~skillcape_offer(hunter) = true) {
+    return;
+}
+~chatnpc("<p,happy>Cold enough for you? You get used to it. The animals up here certainly have.");
+@hunting_expert_rellekka_menu;
+
+[label,hunting_expert_rellekka_menu]
+switch_int (~p_choice3("What can I hunt here?", 1, "Where do I get traps?", 2, "Thanks, I'll be off.", 3)) {
+    case 1 :
+        ~chatplayer("<p,quiz>What can I hunt here?");
+        ~chatnpc("<p,neutral>Polar kebbits, up here on the plateau. Look in a hole for fresh tracks and follow them through the tunnels and hollow logs - they always end at a snow drift. A noose wand does the rest. Anyone can manage it.");
+        ~chatnpc("<p,neutral>Cerulean twitches, below and up here both. A bird snare where they flit about, and a bit of patience. Their feathers are a lovely blue.");
+        ~chatnpc("<p,neutral>Butterflies, if you've a net - sapphire glacialis and snowy knights. Keep a jar handy if you want to keep one. Let a snowy knight out when you're hurt and you'll see why people do.");
+        ~chatnpc("<p,neutral>The boulders south of the steps make deadfalls, with a knife and some logs. Sabre-toothed kebbits nose about down there, but they're no beginner's catch.");
+        ~chatnpc("<p,neutral>And the kyatts. Spiked logs over one of the pits, a poke with a teasing stick, and jump the pit with it on your heels. Only if you're good - a kyatt that clears the pit is not a happy kyatt.");
+        ~chatnpc("<p,neutral>Stay near your traps. Wander off and they'll collapse, and nothing walks into a trap it knows you couldn't hold it with.");
+        @hunting_expert_rellekka_menu;
+    case 2 :
+        ~chatplayer("<p,quiz>Where do I get traps?");
+        ~chatnpc("<p,neutral>The general store in Rellekka keeps bird snares, teasing sticks and noose wands now - enough of us come through. Knives you'll have to bring, or buy at the lighthouse.");
+        @hunting_expert_rellekka_menu;
+    case 3 :
+        ~chatplayer("<p,neutral>Thanks, I'll be off.");
+        ~chatnpc("<p,happy>Good hunting. Wrap up warm.");
+}
+
+// ------------------------------------------------------------------ ::rellekka
+
+// ::rellekka - to the Rellekka hunting grounds with five bird snares, a knife, three logs, a teasing
+// stick, a noose wand, a small fishing net and a butterfly jar. Lands at the foot of the steps up to the
+// plateau: the deadfall boulders and the twitches are south of it, the pits and the kyatts north and
+// east, the polar kebbits' holes and the Hunting expert up the steps. Pair with ::hunter 6000000 -
+// 600,000 xp, past level 55's 166,636 - to catch everything, with four traps.
+[debugproc,rellekka]
+if (p_finduid(uid) = false) {
+    return;
+}
+if (inv_total(inv, hunter_bird_snare) < 5 & inv_freespace(inv) > 0) {
+    inv_add(inv, hunter_bird_snare, calc(5 - inv_total(inv, hunter_bird_snare)));
+}
+if (inv_total(inv, knife) < 1 & inv_freespace(inv) > 0) {
+    inv_add(inv, knife, 1);
+}
+def_int $logs = 0;
+while ($logs < 3 & inv_freespace(inv) > 0) {
+    inv_add(inv, logs, 1);
+    $logs = calc($logs + 1);
+}
+if (inv_total(inv, teasing_stick) < 1 & inv_freespace(inv) > 0) {
+    inv_add(inv, teasing_stick, 1);
+}
+if (inv_total(inv, noose_wand) < 1 & inv_freespace(inv) > 0) {
+    inv_add(inv, noose_wand, 1);
+}
+if (inv_total(inv, net) < 1 & inv_freespace(inv) > 0) {
+    inv_add(inv, net, 1);
+}
+if (inv_total(inv, hunter_butterfly_jar) < 1 & inv_freespace(inv) > 0) {
+    inv_add(inv, hunter_butterfly_jar, 1);
+}
+p_telejump(0_42_59_27_21);

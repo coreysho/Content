@@ -165,14 +165,18 @@ loc_change(hunter_pit_spiked, ^hunter_trap_duration);
 settimer(hunter_traps, ^hunter_trap_interval);
 mes("You lay the spiked logs across the pit.");
 
-// Tease a larupia: it follows you, and the jump over a spiked pit looks for it.
-[opnpc1,hunter_spined_larupia]
-if (stat(hunter) < ^hunter_larupia_level) {
-    ~mesbox("You need a Hunter level of <tostring(^hunter_larupia_level)> to hunt spined larupias.");
+// Tease a larupia: it follows you, and the jump over a spiked pit looks for it. One label for every
+// pitfall creature (the Rellekka kyatt's tease is hunter_rellekka.rs2's one line), so that follow mode
+// is still set in this one file.
+[opnpc1,hunter_spined_larupia] @hunter_tease(^hunter_larupia_level, "spined larupias", "larupia");
+
+[label,hunter_tease](int $level, string $plural, string $name)
+if (stat(hunter) < $level) {
+    ~mesbox("You need a Hunter level of <tostring($level)> to hunt <$plural>.");
     return;
 }
 if (inv_total(inv, teasing_stick) < 1 & inv_total(worn, teasing_stick) < 1) {
-    mes("You need a teasing stick to tease the larupia.");
+    mes("You need a teasing stick to tease the <$name>.");
     return;
 }
 anim(fenk_human_poke, 0);
@@ -180,7 +184,7 @@ facesquare(npc_coord);
 %hunter_tease_npc = npc_uid;
 %hunter_tease_clock = map_clock;
 npc_setmode(playerfollow);
-mes("You poke the larupia with the stick. It turns on you, snarling.");
+mes("You poke the <$name> with the stick. It turns on you, snarling.");
 
 // Jump the spiked pit. Owner only, like every other op on a trap.
 [oploc1,hunter_pit_spiked]
@@ -211,6 +215,20 @@ if (distance(npc_coord, $from) > ^hunter_pit_reach) {
 }
 %hunter_tease_npc = null;
 if (loc_find($pit, hunter_pit_spiked) = false) {
+    return;
+}
+// A Rellekka kyatt (hunter_rellekka.rs2) falls in the same way, at its own odds and into its own state.
+if (npc_type = hunter_sabretooth_kyatt) {
+    if (stat_random(hunter, ^hunter_kyatt_low, ^hunter_kyatt_high) = false) {
+        npc_setmode(null);
+        loc_change(hunter_pit_collapsed, ^hunter_trap_duration);
+        mes("The kyatt leaps the pit, and the spiked logs give way under it.");
+        return;
+    }
+    npc_del;
+    loc_change(hunter_pit_kyatt, ^hunter_trap_duration);
+    sound_synth(springtrap_release, 1, 0);
+    mes("The kyatt follows you straight into the pit!");
     return;
 }
 if (stat_random(hunter, ^hunter_larupia_low, ^hunter_larupia_high) = false) {
@@ -420,6 +438,22 @@ switch_int ($catch) {
         inv_add(inv, black_salamander, 1);
         mes("You've caught a black salamander.");
         ~hunter_xp(^hunter_black_salamander_xp);
+    case ^hunter_catch_twitch :
+        inv_add(inv, bones, 1);
+        inv_add(inv, raw_bird_meat, 1);
+        inv_add(inv, blue_feather, ^hunter_bird_feathers);
+        mes("You've caught a cerulean twitch.");
+        ~hunter_xp(^hunter_twitch_xp);
+    case ^hunter_catch_sabretooth_kebbit :
+        inv_add(inv, bones, 1);
+        inv_add(inv, kebbit_teeth, 1);
+        mes("You've caught a sabre-toothed kebbit.");
+        ~hunter_xp(^hunter_sabretooth_kebbit_xp);
+    case ^hunter_catch_kyatt :
+        inv_add(inv, big_bones, 1);
+        inv_add(inv, kyatt_fur, 1);
+        mes("You've caught a sabre-toothed kyatt.");
+        ~hunter_xp(^hunter_kyatt_xp);
 }
 
 // ------------------------------------------------------------------------------------ the loop
@@ -475,6 +509,7 @@ if (loc_find($at, $type) = true) {
         case hunter_snare_catching_swift : loc_change(hunter_snare_caught_swift, ^hunter_trap_duration);
         case hunter_snare_catching_wagtail : loc_change(hunter_snare_caught_wagtail, ^hunter_trap_duration);
         case hunter_deadfall_set : ~hunter_trap_lure_deadfall($at);
+        case hunter_snare_catching_twitch : loc_change(hunter_snare_caught_twitch, ^hunter_trap_duration);
     }
 }
 return(true);
@@ -508,6 +543,10 @@ if ($lvl >= ^hunter_wagtail_level & npc_find($at, hunter_tropical_wagtail, ^hunt
     ~hunter_trap_spring(hunter_snare_catching_wagtail, hunter_snare_springing, ^hunter_wagtail_low, ^hunter_wagtail_high);
     return;
 }
+if ($lvl >= ^hunter_twitch_level & npc_find($at, hunter_cerulean_twitch, ^hunter_trap_lure_radius, 0) = true) {
+    ~hunter_trap_spring(hunter_snare_catching_twitch, hunter_snare_springing, ^hunter_twitch_low, ^hunter_twitch_high);
+    return;
+}
 if ($lvl >= ^hunter_swift_level & npc_find($at, hunter_crimson_swift, ^hunter_trap_lure_radius, 0) = true) {
     ~hunter_trap_spring(hunter_snare_catching_swift, hunter_snare_springing, ^hunter_swift_low, ^hunter_swift_high);
     return;
@@ -520,6 +559,10 @@ if (random(^hunter_trap_lure_chance) ! 0) {
     return;
 }
 def_int $lvl = stat(hunter);
+if ($lvl >= ^hunter_sabretooth_kebbit_level & npc_find($at, hunter_sabretooth_kebbit, ^hunter_trap_lure_radius, 0) = true) {
+    ~hunter_trap_spring(hunter_deadfall_sabretooth, hunter_deadfall_collapsed, ^hunter_sabretooth_kebbit_low, ^hunter_sabretooth_kebbit_high);
+    return;
+}
 if ($lvl >= ^hunter_barbtailed_kebbit_level & npc_find($at, hunter_barbtailed_kebbit, ^hunter_trap_lure_radius, 0) = true) {
     ~hunter_trap_spring(hunter_deadfall_barbtailed, hunter_deadfall_collapsed, ^hunter_barbtailed_kebbit_low, ^hunter_barbtailed_kebbit_high);
     return;
@@ -707,6 +750,10 @@ if (loc_find($at, hunter_deadfall_barbtailed) = true) return(hunter_deadfall_bar
 if (loc_find($at, hunter_pit_spiked) = true) return(hunter_pit_spiked);
 if (loc_find($at, hunter_pit_collapsed) = true) return(hunter_pit_collapsed);
 if (loc_find($at, hunter_pit_larupia) = true) return(hunter_pit_larupia);
+if (loc_find($at, hunter_snare_catching_twitch) = true) return(hunter_snare_catching_twitch);
+if (loc_find($at, hunter_snare_caught_twitch) = true) return(hunter_snare_caught_twitch);
+if (loc_find($at, hunter_deadfall_sabretooth) = true) return(hunter_deadfall_sabretooth);
+if (loc_find($at, hunter_pit_kyatt) = true) return(hunter_pit_kyatt);
 return(null);
 
 // ------------------------------------------------------------------------------------ inventory
@@ -726,6 +773,9 @@ switch_int ($catch) {
     case ^hunter_catch_wild_kebbit : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(kebbit_claws));
     case ^hunter_catch_barbtailed_kebbit : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(barbtail_harpoon));
     case ^hunter_catch_larupia : $need = calc($need + ~hunter_slot_need(big_bones) + ~hunter_slot_need(larupia_fur));
+    case ^hunter_catch_twitch : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(raw_bird_meat) + ~hunter_slot_need(blue_feather));
+    case ^hunter_catch_sabretooth_kebbit : $need = calc($need + ~hunter_slot_need(bones) + ~hunter_slot_need(kebbit_teeth));
+    case ^hunter_catch_kyatt : $need = calc($need + ~hunter_slot_need(big_bones) + ~hunter_slot_need(kyatt_fur));
 }
 if (inv_freespace(inv) < $need) {
     return(false);
