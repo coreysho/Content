@@ -31,7 +31,12 @@ cap, standing on the net, ownership, the leash, [logout] and Release. And the Pi
 ground (spawns, tracking nodes, the walk in, the fenced enclosure, no dead ops), common and razor-backed kebbit
 tracking, copper longtail snares, prickly kebbit deadfalls and chinchompa box traps at 60, 30 and 8 (each gate), and
 falconry at 70 and 50 (below the dark and dashing kebbits): Matthias, the glove, a catch of each, a miss, a falcon
-left to give up, the stile, and a teleport out."""
+left to give up, the stile, and a teleport out.
+
+The box, snare, Rellekka, imp and Piscatoris trap passes do not wait on luck: a watch for a catch keeps a prey
+in reach of every trap, lays again whatever fell over
+after its duration, and runs for as long as the creature's catch odds at that level say it must for a miss
+to be a one-in-a-million event (catchBudget and keepPreyNear at the top of hunter_live.ts)."""
 import os, shutil, subprocess, sys
 
 C = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
