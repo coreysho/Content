@@ -447,7 +447,7 @@ if (process.env.HTRAP?.startsWith('pisc') || process.env.HTRAP === 'falconry') {
         // 2. deadfalls on the boulders among the prickly kebbits (the north)
         if (LEVEL >= 23) {
             const PK = pnum('hunter_prickly_kebbit_level'), can = LEVEL >= PK;
-            player.invAdd(InvType.INV, ObjType.getId('knife'), 1); player.invAdd(InvType.INV, ObjType.getId('logs'), 15);
+            player.invAdd(InvType.INV, ObjType.getId('knife'), 1); player.invAdd(InvType.INV, ObjType.getId('logs'), 6); // topped up by set() as they go
             const BOULDER = LocType.getId('loc474_19205');
             // four boulders within the leash of each other, among the northern prickly kebbits
             const B = [[2323, 3627], [2327, 3636], [2337, 3631], [2322, 3643]];
@@ -475,6 +475,9 @@ if (process.env.HTRAP?.startsWith('pisc') || process.env.HTRAP === 'falconry') {
         // 3. box traps among the chinchompas in the south-east
         if (LEVEL >= 27) {
             const CH = parseInt(/\^hunter_chinchompa_level = (\d+)/.exec(CONST)![1]), can = LEVEL >= CH;
+            // an empty pack first: what the snares and deadfalls caught and the logs the deadfalls gave back (logs
+            // do not stack) could leave no room for five box traps, and none were laid (a full run caught it)
+            inv0.removeAll();
             player.invAdd(InvType.INV, ObjType.getId('hunter_box_trap'), 5);
             const lay = async (x: number, z: number) => { if (tot('hunter_box_trap') < 1) player.invAdd(InvType.INV, ObjType.getId('hunter_box_trap'), 1); player.teleport(x, z, 0); await waitTicks(2); opheld('hunter_box_trap'); await waitTicks(5); };
             const CAND = [[2361, 3565], [2363, 3563], [2359, 3563], [2362, 3567], [2360, 3561], [2364, 3561], [2358, 3566], [2362, 3569]].filter(([x, z]) => !isMapBlocked(x, z, 0));
