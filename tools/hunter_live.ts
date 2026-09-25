@@ -2190,10 +2190,12 @@ if (process.env.HTRAP === 'rellekka') {
         const ST = ['hunter_pit_spiked', 'hunter_pit_collapsed', 'hunter_pit_kyatt', 'hunter_pit_larupia'];
         const pitAt = (p: any) => { for (const n of ST) { const l = World.getLoc(p.x, p.z, 0, L(n)); if (l) return { n, l }; } return null; };
         const plain = (p: any) => World.getLoc(p.x, p.z, 0, L('loc474_19227'));
-        player.invAdd(InvType.INV, ObjType.getId('teasing_stick'), 1);
-        // logs do not stack: a few at a time, topped up as they are spent, so a kyatt caught on the first jump
-        // still finds room for its bones and fur
-        if (tot('logs') < 3) player.invAdd(InvType.INV, ObjType.getId('logs'), 3 - tot('logs'));
+        // A pack with room in it: what the earlier sections caught and the logs they left (logs do not stack)
+        // could fill it, and a kyatt caught on the first jump then found no room for its bones and fur. Only
+        // what a pitfall needs - a knife, a teasing stick and a few logs, topped up as they are spent.
+        inv0.removeAll();
+        for (const o of ['knife', 'teasing_stick']) player.invAdd(InvType.INV, ObjType.getId(o), 1);
+        player.invAdd(InvType.INV, ObjType.getId('logs'), 3);
         // each pit's take-off tiles: open ground straight beside it with open ground 2-4 tiles on past it
         const takeoffs = (p: any) => {
             const out: any[] = [];
