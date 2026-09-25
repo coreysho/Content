@@ -207,14 +207,17 @@ anim(null, 0);
 p_delay(0);
 
 [label,rcu_break_rock]
-def_namedobj $pickaxe = rune_pickaxe; // TODO: fixme, pickaxe check
+// The best pickaxe you have the Mining level for, worn or carried - Mining's own choice
+// (skill_mining/scripts/pickaxe_checker.rs2) - swung with its own animation. Which pickaxe it is
+// changes only the swing: every one has the same chance at the rock (OSRS wiki, Rock (Abyss)).
+def_obj $pickaxe = ~pickaxe_checker;
 
 if ($pickaxe = null) {
     mes("You need a pickaxe for which you have the required Mining level to mine this rock.");
     return;
 }
 mes("You attempt to mine your way through...");
-anim(human_mining_mithril_pickaxe, 0); // TODO: fixme, pickaxe anim
+anim(oc_param($pickaxe, mining_animation), 0);
 sound_synth(mining_3, 1, 0); // guess
 ~rcu_loc_face_center;
 p_delay(7);
@@ -249,26 +252,30 @@ mes("You attempt to chop your way through...");
 ~rcu_loc_face_center;
 p_delay(3);
 
-def_namedobj $axe = mithril_axe; // TODO: fixme, axe check
+// The best axe you have the Woodcutting level for, worn or carried - Woodcutting's own choice
+// (woodcut.rs2's woodcutting_best_axe, the quiet half of woodcutting_axe_checker, whose messages
+// are about trees) - swung with its own animation. Like the rock, the axe does not change the odds.
+def_namedobj $axe = ~woodcutting_best_axe;
 
 if ($axe = null) {
     mes("You need an axe to chop through the tendrils.");
     mes("You do not have an axe that you have the Woodcutting level to use.");
     return;
 }
-anim(human_woodcutting_mithril_axe, 0); // TODO: fixme, correct axe anim
+def_seq $chop = struct_param(oc_param($axe, woodcutting_struct), skill_anim);
+anim($chop, 0);
 sound_synth(woodchop_quick, 1, 0); // guess
 p_delay(1);
 
 if (stat_random(woodcutting, 0, 255) = true) {
-    anim(human_woodcutting_mithril_axe, 0); // TODO: fixme, correct axe anim
+    anim($chop, 0);
     sound_synth(woodchop_quick, 1, 0); // guess
     cam_moveto(coord, 2500, 0, 0);
     cam_lookat(loc_coord, 0, 10, 10);
     p_delay(1);
 
     %rcu_abyssal_generator = 14;
-    anim(human_woodcutting_mithril_axe, 0); // TODO: fixme, correct axe anim
+    anim($chop, 0);
     sound_synth(woodchop_quick, 1, 0); // guess
     p_delay(1);
     
@@ -323,14 +330,45 @@ if (stat_random(thieving, 0, 255) = true) {
     mes("...but fail to distract them enough to get past.");
 }
 
-// TODO: Find out more anims that are used here
+// Misdirecting the eyes plays a random emote, unlocked or not (2009Scape's AbyssPlugin draws from
+// the whole emote list the same way). The list is every emote on this server's Emotes tab
+// (interface_controls/scripts/emotes.rs2) that has an animation in 377 - not Slap Head or Idea
+// (Stronghold emotes with no 377 animation), nor Zombie Hand or Bunny Hop (no animation wired).
 [proc,rcu_distract_eyes_rand_anim]()(seq)
-switch_int (random(4)) {
-    case 0 : return (human_stamp);
-    case 1 : return (human_chicken_dance);
-    case 2 : return (emote_beckon);
-    case 3 : return (emote_clap);
-    case default : return (emote_climbing_rope);
+switch_int (random(33)) {
+    case 0 : return (emote_yes);
+    case 1 : return (emote_no);
+    case 2 : return (emote_bow);
+    case 3 : return (emote_angry);
+    case 4 : return (emote_think);
+    case 5 : return (emote_wave);
+    case 6 : return (emote_shrug);
+    case 7 : return (emote_cheer);
+    case 8 : return (emote_beckon);
+    case 9 : return (emote_laugh);
+    case 10 : return (emote_jump_with_joy);
+    case 11 : return (emote_yawn);
+    case 12 : return (emote_dance);
+    case 13 : return (emote_dance_scottish);
+    case 14 : return (emote_dance_spin);
+    case 15 : return (emote_dance_headbang);
+    case 16 : return (emote_cry);
+    case 17 : return (emote_blow_kiss);
+    case 18 : return (emote_panic);
+    case 19 : return (emote_ya_boo_sucks);
+    case 20 : return (emote_clap);
+    case 21 : return (emote_fremmenik_salute);
+    case 22 : return (human_cave_goblin_bow);
+    case 23 : return (human_cave_goblin_dance);
+    case 24 : return (emote_glass_box);
+    case 25 : return (emote_climbing_rope);
+    case 26 : return (emote_mime_lean);
+    case 27 : return (emote_glass_wall);
+    case 28 : return (human_stamp);
+    case 29 : return (human_chicken_dance);
+    case 30 : return (zombie_walk_emote);
+    case 31 : return (zombie_dance);
+    case default : return (terrified_emote);
 }
 
 [label,rcu_squeeze_through_gap]
