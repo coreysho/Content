@@ -1,55 +1,83 @@
-// Tai Bwo Wannai Trio.
+// Tai Bwo Wannai Trio - the original quest (ported from PlagueCityRS 349), original stage numbers.
 //
-// Six varps and no varbits at all - every one of them is read directly. Only tbwt_main ships with
-// transmit=yes, which is correct, because it is the only one a multi keys on; none of the six had
-// scope=perm.
+// %tbwt_main            the quest stage, 0-6 below. The six multinpc shells in the 377 cache key
+//                       on it: each son is out in the field (shore / Cairn Isle / jungle) at 0-5 and
+//                       at home in the village at 6, which is exactly ^tbwt_complete, so the cache
+//                       and the original stage numbers agree.
+// %tbwt_tiadeche, %tbwt_tinsay, %tbwt_tamayu, %tbwt_lubufu   one progress varp per strand.
+// %tbwt_flags           a bitfield: Timfraku's title for you (bits 0-1), whether Tiadeche has handed
+//                       you his first catch (bit 2), how many doses of agility potion Tamayu has
+//                       drunk (bits 3-5) and which spears he has been given (bits 6-8).
 //
-// ---------------------------------------------------------------------------- the three sons
-// Six multinpc shells, two per son, both keyed on tbwt_main:
-//
-//   [tbwt_tiadeche_multinpc_shore]  multinpc 0,1,2,3,4,5 -> tbwt_tiadeche
-//   [tbwt_tiadeche_multinpc_house]  multinpc 6           -> tbwt_tiadeche_final
-//   [tbwt_tinsay_multinpc_island]   multinpc 0..5        -> tbwt_tinsay
-//   [tbwt_tinsay_multinpc_house]    multinpc 6           -> tbwt_tinsay_final
-//   [tbwt_tamayu_multinpc_jungle]   multinpc 0..5        -> tbwt_tamayu
-//   [tbwt_tamayu_multinpc_house]    multinpc 6           -> tbwt_tamayu
-//
-// So the legal range of tbwt_main is 0-6 and the three sons are out at every value below 6 and
-// home at 6, all together, in one write. Nothing in between - there is no state where one son has
-// gone home and the others have not, which is why the per-son progress lives in tbwt_tiadeche,
-// tbwt_tinsay and tbwt_tamayu rather than in the stage.
-//
-// The house versions are not the same npcs: tbwt_tiadeche_final and tbwt_tamayu_final both carry
-// op3=Trade, which the out-in-the-field versions do not.
+// Save migration from this server's earlier invented version: port349_migrate_tbwt.rs2.
+
+^tbwt_complete = 6
 
 ^tbwt_not_started = 0
-^tbwt_asked = 1        // Timfraku wants his three sons found
-^tbwt_one_son = 2
-^tbwt_two_sons = 3
-^tbwt_three_sons = 4   // all three persuaded, none of them home yet
-^tbwt_reported = 5     // Timfraku has been told
-^tbwt_complete = 6     // <- THE SONS COME HOME HERE AND NOWHERE ELSE
+^tbwt_spoke_to_timfraku = 1
+^tbwt_timfraku_asked_for_help = 2
+^tbwt_started = 3
+^tbwt_completed_all_brothers = 4
+^tbwt_received_gold_reward = 5
 
-// Each son's own varp. Same shape for all three, so one proc reads them.
-^tbwt_son_unmet = 0
-^tbwt_son_asked = 1
-^tbwt_son_helped = 2
+^tbwt_timfraku_title_start = 0
+^tbwt_timfraku_title_end = 1
+^tbwt_tiadeche_received_karambwan = 2
+^tbwt_tamayu_agility_count_start = 3
+^tbwt_tamayu_agility_count_end = 5
+^tbwt_tamayu_received_acceptable_spear = 6
+^tbwt_tamayu_received_poisoned_spear = 7
+^tbwt_tamayu_received_kp_spear = 8
 
-// Lubufu wants fish before he will part with a vessel.
-^tbwt_lubufu_unmet = 0
-^tbwt_lubufu_asked = 1
-^tbwt_lubufu_paid = 2
-^tbwt_karambwanji_wanted = 20
+^tbwt_timfraku_rovingadventurer = 0
+^tbwt_timfraku_travellingexplorer = 1
+^tbwt_timfraku_wanderingwayfarer = 2
+^tbwt_timfraku_nobody = 3
 
-^tbwt_off = 0
-^tbwt_on = 1
+^tbwt_tiadeche_unknown = 0
+^tbwt_tiadeche_intro = 1
+^tbwt_tiadeche_return_when_caught_karambwan = 2
+^tbwt_tiadeche_caught_karambwan = 3
+^tbwt_tiadeche_request_manual = 4
+^tbwt_tiadeche_player_received_manual = 5
+^tbwt_tiadeche_complete = 6
+^tbwt_tiadeche_claimed_final_reward = 7
 
-// ---------------------------------------------------------------------------- places
-// Karamja. Every one of these is placed in the cache; nothing had to be added to the map.
-^tbwt_timfraku = 1_43_48_28_15          // 2780,3087  upstairs in the chief's hut
-^tbwt_tiadeche_shore = 0_45_48_32_46    // 2912,3118  the east coast
-^tbwt_tinsay_island = 0_43_46_13_32     // 2765,2976  Cairn Isle
-^tbwt_tamayu_jungle = 0_44_47_28_34     // 2844,3042  the jungle
-^tbwt_lubufu = 0_43_49_18_33            // 2770,3169  Brimhaven docks
-^tbwt_shaikahan = 0_45_48_26_22         // 2906,3094
-^tbwt_statue = 0_43_48_43_18            // 2795,3090  the village statue
+^tbwt_tamayu_unknown = 0
+^tbwt_tamayu_intro = 1
+^tbwt_tamayu_slay_shaikahan = 2
+^tbwt_tamayu_watched_cutscene = 3
+^tbwt_tamayu_complete = 4
+^tbwt_tamayu_claimed_final_reward = 5
+
+^tbwt_tinsay_unknown = 0
+^tbwt_tinsay_intro = 1
+^tbwt_tinsay_fetch_bananarum = 2
+^tbwt_tinsay_given_bananarum = 3
+^tbwt_tinsay_fetch_seaweedsandwich = 4
+^tbwt_tinsay_given_seaweedsandwich = 5
+^tbwt_tinsay_fetch_marinatedbones = 6
+^tbwt_tinsay_complete = 7
+^tbwt_tinsay_claimed_final_reward = 8
+
+^tbwt_lubufu_unknown = 0
+^tbwt_lubufu_intro = 1
+^tbwt_lubufu_initialops = 2
+^tbwt_lubufu_asked_what_do = 3
+^tbwt_lubufu_offered_to_help = 4
+^tbwt_lubufu_fetch_karambwanji = 5
+^tbwt_lubufu_given_karambwanji = 25
+^tbwt_lubufu_asked_questions = 28
+^tbwt_lubufu_offered_apprentice = 29
+^tbwt_lubufu_became_apprentice = 30
+^tbwt_lubufu_complete = 31
+
+^tbwt_tamayu_spawn = 0_44_47_28_34
+
+^tbwt_player_cutscene_spawn = 0_39_71_24_24
+^tbwt_tamayu_hunter_cutscene_spawn = 0_39_71_27_23
+^tbwt_shaikahan_cutscene_spawn = 0_39_71_28_23
+
+^tbwt_player_cutscene_final_spawn = 0_39_71_41_24
+^tbwt_tamayu_hunter_cutscene_final_spawn = 0_39_71_45_21
+^tbwt_shaikahan_cutscene_final_spawn = 0_39_71_44_22
