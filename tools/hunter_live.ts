@@ -2448,8 +2448,15 @@ if (firstShaking.length) {
 // ---- 4. somebody else's trap
 {
     // A freshly laid one where a slot is free. The watch's traps may have fallen over by now (the old
-    // test clicked "slot 0,0" then, and crashed), or be about to in the two ticks the check waits.
-    const standing = (c: number) => c !== -1 && locAt(coordXZ(c).x, coordXZ(c).z) !== null;
+    // test clicked "slot 0,0" then), and a trap caught mid-spring - catching, springing - has no op of its
+    // own at all, so a click on it found no script and the pass crashed after its checks had passed. So the
+    // hunter is held below every creature's level (the loop checks it) while a trap with a Dismantle or
+    // Check of its own is waited for: a spring already under way settles into one within a look or two.
+    const hasOp1 = (c: number | undefined) => {
+        if (c === undefined || c === -1) return false;
+        const t = locAt(coordXZ(c).x, coordXZ(c).z);
+        return t !== null && !!ScriptProvider.getByTrigger(ServerTriggerType.OPLOC1, t.loc.type, LocType.get(t.loc.type).category);
+    };
     let fresh = -1;
     if (slots().filter(c => c !== -1).length < max) {
         if (total(TRAPNAME) < 1) player.invAdd(InvType.INV, TRAP, 1);
@@ -2458,7 +2465,9 @@ if (firstShaking.length) {
         opheld1(TRAPNAME); await waitTicks(6);
         if (slots().includes((free[0] << 14) | free[1])) fresh = (free[0] << 14) | free[1];
     }
-    const c = standing(fresh) ? fresh : slots().find(standing)!;
+    player.levels[PlayerStat.HUNTER] = 1;
+    for (let i = 0; i < 10 && !slots().some(hasOp1); i++) await waitTicks(1);
+    const c = hasOp1(fresh) ? fresh : slots().find(hasOp1);
     if (c === undefined) check(false, 'a trap of our own is standing, to be clicked as somebody else');
     else {
     const { x, z } = coordXZ(c);
@@ -2475,6 +2484,7 @@ if (firstShaking.length) {
     check(msgs.slice(n).some(m => m.includes("isn't your trap")), "a trap not in your varps is not yours");
     check(locAt(x, z) !== null, '...and is left where it is');
     }
+    player.levels[PlayerStat.HUNTER] = LEVEL;
 }
 
 // ---- 5. walk away: the leash
