@@ -1,9 +1,16 @@
 [opnpc1,aprilfoolshorsesalesman]
 // Greeting from PlagueCityRS 349: https://www.youtube.com/watch?v=CqbG_fJ0Yas
-// (349 also offers the Christmas yo-yo back here; that belongs with the Christmas event and is not
-// part of this port.)
 ~chatnpc("<p,happy>Howdy there partner!");
 ~chatplayer("<p,happy>Hi Diango!");
+// 349: once Santa has given you a yo-yo (holidayevents/xmas2004), Diango gives back a lost one
+if (%xmas_yoyo_unlocked = ^true) {
+    ~chatnpc("<p,happy>Want to see my toy horseys?|Or would you like your yo-yo back?");
+    @multi3(
+        "Toy horseys?", aprilfoolshorsesalesman_option1,
+        "I'm fine, thanks.", aprilfoolshorsesalesman_option2,
+        "Can I have my yo-yo back?", aprilfoolshorsesalesman_yoyo
+    );
+}
 // guess, based off thessalia
 ~chatnpc("<p,happy>Want to see my toy horseys?");
 @multi2(
