@@ -58,6 +58,58 @@ const waitTicks = (n: number) => new Promise<void>(res => {
 let fails = 0;
 const check = (ok: boolean, what: string) => { console.log((ok ? '  ok   ' : '  FAIL ') + what); if (!ok) fails++; };
 
+// ---- waiting for a catch, without flaking. Three things made the old fixed-length watches fail now
+// and then, none of them the game's fault:
+//  - a trap nothing springs falls over after ^hunter_trap_duration ticks (OSRS's traps do too), and a
+//    watch that never laid it again went on watching an empty tile to the end;
+//  - the prey wanders (the birds and imps a long way), so whether one came within the lure radius at all
+//    was luck;
+//  - with both of those left to chance, no budget was ever long enough.
+// So a watch keeps a prey npc of the kind the trap is for within reach of every trap (the nearest one is
+// brought over, as the imp pass always did - it is still the real npc the real loop finds and deletes),
+// lays again whatever fell over, and runs for as long as the catch odds say it must: each trap is looked
+// at every ^hunter_trap_interval ticks and springs one look in ^hunter_trap_lure_chance on a prey in reach,
+// and a spring catches with the creature's stat_random odds at the hunter's level - so the watch is long
+// enough that NO catch in it is a one-in-a-million event, and a failure is a real failure.
+const hnum = (n: string) => { const m = new RegExp(`\\^${n} = (-?\\d+)`).exec(CONST); if (!m) throw new Error(n); return parseInt(m[1]); };
+const TRAP_INTERVAL = hnum('hunter_trap_interval'), LURE_CHANCE = hnum('hunter_trap_lure_chance'), LURE_RADIUS = hnum('hunter_trap_lure_radius');
+// the engine's STAT_RANDOM (PlayerOps.ts), as a probability
+const statChance = (low: number, high: number, level: number) => {
+    const l = Math.min(level, 99);
+    return Math.max(0, Math.min(256, Math.floor((low * (99 - l)) / 98) + Math.floor((high * (l - 1)) / 98) + 1)) / 256;
+};
+// ticks to watch `traps` traps (each with a prey in reach) so that P(no catch) < 1e-6; every failed spring
+// takes one trap out for `relay` ticks while it is taken up and laid again. Half as long again for slack.
+const catchBudget = (p: number, traps: number, relay = 12) => {
+    const q = p / LURE_CHANCE;
+    const looks = Math.ceil(Math.log(1e-6) / Math.log(1 - q));
+    const trapTicks = looks * TRAP_INTERVAL + (looks / LURE_CHANCE) * (1 - p) * relay;
+    return Math.ceil((trapTicks / Math.max(1, traps)) * 1.5) + 30;
+};
+// rolls to try (each one a success with probability p) so that P(all miss) < 1e-6
+const rollBudget = (p: number) => Math.ceil(Math.log(1e-6) / Math.log(1 - Math.min(p, 0.999999)));
+const chebXZ = (a: any, x: number, z: number) => Math.max(Math.abs(a.x - x), Math.abs(a.z - z));
+// Keep a live npc of one of `prey` within the lure radius of every trap tile in `tiles` (not on the trap,
+// not on the player). `open` says whether a tile can be stood on.
+const keepPreyNear = (prey: string[], tiles: { x: number; z: number }[], open: (x: number, z: number) => boolean, level = 0) => {
+    const ids = prey.map(n => NpcType.getId(n));
+    const live: any[] = [];
+    for (const n of World.npcs) if (n && n.isActive && n.level === level && ids.includes(n.type)) live.push(n);
+    if (!live.length) return;
+    for (const t of tiles) {
+        if (live.some(n => chebXZ(n, t.x, t.z) <= LURE_RADIUS - 1)) continue;
+        // the nearest one not already serving another trap
+        const free = live.filter(n => !tiles.some(o => o !== t && chebXZ(n, o.x, o.z) <= LURE_RADIUS - 1));
+        const n = (free.length ? free : live).sort((a, b) => chebXZ(a, t.x, t.z) - chebXZ(b, t.x, t.z))[0];
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1], [2, 0], [-2, 0], [0, 2], [0, -2]]) {
+            const x = t.x + dx, z = t.z + dz;
+            if (!open(x, z) || (typeof player !== 'undefined' && player.x === x && player.z === z)) continue;
+            n.teleport(x, z, level);
+            break;
+        }
+    }
+};
+
 await World.start(false, true);
 World.tickRate = 4;
 
@@ -342,29 +394,46 @@ if (process.env.HTRAP?.startsWith('pisc') || process.env.HTRAP === 'falconry') {
                 if (slots().length) await waitTicks(2);
             }
         };
-        const watch = async (ticks: number, want: string[], collapsed: string[], reset: (x: number, z: number) => Promise<void>, home: number[]) => {
+        // Watch for one of `want`. A prey of `prey` is kept in reach of every trap; a collapsed trap is taken
+        // up and laid again; a catch of some OTHER creature that lives here too (`other`: a wild kebbit under
+        // a deadfall meant for prickly ones) is Checked and the trap set again; and a trap that fell over
+        // after its duration is laid again where it stood - the old watch did none of these, and timed out
+        // (or, with a wild kebbit caught, failed) now and then.
+        const watch = async (ticks: number, want: string[], collapsed: string[], reset: (x: number, z: number) => Promise<void>, home: number[], prey: string[], tiles: { x: number; z: number }[], other: string[] = []) => {
+            const stats = { fell: 0, other: 0 };
             for (let t = 0; t < ticks; t++) {
+                keepPreyNear(prey, tiles, (x, z) => !isMapBlocked(x, z, 0));
                 await waitTicks(1);
                 for (const c of slots()) {
                     const s = at(c.x, c.z)?.name;
-                    if (s && want.includes(s)) return { ...c, s };
-                    if (s && collapsed.includes(s)) { player.teleport(c.x, c.z - 1, 0); await waitTicks(1); oploc(1, at(c.x, c.z)!.loc); await waitTicks(3); await reset(c.x, c.z); player.teleport(home[0], home[1], 0); }
+                    if (s && want.includes(s)) return { ...c, s, stats };
+                    if (s && (collapsed.includes(s) || other.includes(s))) {
+                        if (other.includes(s)) stats.other++;
+                        player.teleport(c.x, c.z - 1, 0); await waitTicks(1); oploc(1, at(c.x, c.z)!.loc); await waitTicks(3); await reset(c.x, c.z); player.teleport(home[0], home[1], 0);
+                    }
+                }
+                for (const tile of tiles) {
+                    if (at(tile.x, tile.z) || slots().length >= max || !msgs.some(m => m.includes('fallen over'))) continue;
+                    stats.fell++;
+                    await reset(tile.x, tile.z); player.teleport(home[0], home[1], 0);
                 }
             }
+            log('watch ran out', JSON.stringify(stats));
             return null;
         };
         // 1. snares among the copper longtails, east of the razor-backs' ground
         {
             const LT = pnum('hunter_longtail_level'), can = LEVEL >= LT;
             player.invAdd(InvType.INV, ObjType.getId('hunter_bird_snare'), 5);
-            const lay = async (x: number, z: number) => { player.teleport(x, z, 0); await waitTicks(2); opheld('hunter_bird_snare'); await waitTicks(5); };
+            const lay = async (x: number, z: number) => { if (tot('hunter_bird_snare') < 1) player.invAdd(InvType.INV, ObjType.getId('hunter_bird_snare'), 1); player.teleport(x, z, 0); await waitTicks(2); opheld('hunter_bird_snare'); await waitTicks(5); };
             const CAND = [[2361, 3589], [2363, 3589], [2359, 3589], [2361, 3591], [2363, 3587], [2356, 3586], [2354, 3585], [2358, 3587], [2360, 3587], [2362, 3585]].filter(([x, z]) => !isMapBlocked(x, z, 0));
             for (const [x, z] of CAND) if (slots().length < max) await lay(x, z);
             check(slots().length === max, `snares: ${max} laid among the copper longtails at level ${LEVEL} (${slots().length})`);
             player.teleport(2361, 3588, 0);
-            const got = await watch(can ? 900 : 300, ['hunter_snare_caught_longtail'], ['hunter_snare_collapsed'], lay, [2361, 3588]);
+            const P = statChance(pnum('hunter_longtail_low'), pnum('hunter_longtail_high'), LEVEL), T = can ? catchBudget(P, max) : 300;
+            const got = await watch(T, ['hunter_snare_caught_longtail'], ['hunter_snare_collapsed'], lay, [2361, 3588], ['hunter_copper_longtail'], slots());
             if (can) {
-                check(got !== null, 'snares: a copper longtail caught off the loop within 900 ticks');
+                check(got !== null, `snares: a copper longtail caught off the loop within ${T} ticks, the odds' budget at ${(P * 100).toFixed(0)}% a spring`);
                 if (got) {
                     const b = { bones: tot('bones'), meat: tot('raw_bird_meat'), fea: tot('orange_feather'), xp: player.stats[PlayerStat.HUNTER] };
                     player.teleport(got.x, got.z - 1, 0); await waitTicks(1); oploc(1, at(got.x, got.z)!.loc); await waitTicks(3);
@@ -378,18 +447,21 @@ if (process.env.HTRAP?.startsWith('pisc') || process.env.HTRAP === 'falconry') {
         // 2. deadfalls on the boulders among the prickly kebbits (the north)
         if (LEVEL >= 23) {
             const PK = pnum('hunter_prickly_kebbit_level'), can = LEVEL >= PK;
-            player.invAdd(InvType.INV, ObjType.getId('knife'), 1); player.invAdd(InvType.INV, ObjType.getId('logs'), 15);
+            player.invAdd(InvType.INV, ObjType.getId('knife'), 1); player.invAdd(InvType.INV, ObjType.getId('logs'), 6); // topped up by set() as they go
             const BOULDER = LocType.getId('loc474_19205');
             // four boulders within the leash of each other, among the northern prickly kebbits
             const B = [[2323, 3627], [2327, 3636], [2337, 3631], [2322, 3643]];
             check(B.every(([x, z]) => World.getLoc(x, z, 0, BOULDER) !== null), 'deadfalls: the boulders are where the map put them');
-            const set = async (x: number, z: number) => { const b = World.getLoc(x, z, 0, BOULDER); if (!b) return; player.teleport(x, z - 1, 0); await waitTicks(2); oploc(1, b); await waitTicks(5); };
+            // every deadfall set costs a log, and one that falls over leaves its log where it stood: keep some
+            const set = async (x: number, z: number) => { const b = World.getLoc(x, z, 0, BOULDER); if (!b) return; if (tot('logs') < 2) player.invAdd(InvType.INV, ObjType.getId('logs'), 5); player.teleport(x, z - 1, 0); await waitTicks(2); oploc(1, b); await waitTicks(5); };
             for (const [x, z] of B) if (slots().length < max) await set(x, z);
             check(slots().length === Math.min(max, B.length), `deadfalls: ${Math.min(max, B.length)} set among the prickly kebbits (${slots().length})`);
             player.teleport(2328, 3634, 0);
-            const got = await watch(can ? 900 : 300, ['hunter_deadfall_prickly', 'hunter_deadfall_wild'], ['hunter_deadfall_collapsed'], set, [2328, 3634]);
+            const P = statChance(pnum('hunter_prickly_kebbit_low'), pnum('hunter_prickly_kebbit_high'), LEVEL), T = can ? catchBudget(P, Math.min(max, B.length)) : 300;
+            // wild kebbits live here too, and a hunter who can catch one does: it is taken and the deadfall set again
+            const got = await watch(T, ['hunter_deadfall_prickly'], ['hunter_deadfall_collapsed'], set, [2328, 3634], ['hunter_prickly_kebbit'], slots(), ['hunter_deadfall_wild']);
             if (can) {
-                check(got?.s === 'hunter_deadfall_prickly', `deadfalls: a prickly kebbit caught within 900 ticks (${got?.s ?? 'none'})`);
+                check(got?.s === 'hunter_deadfall_prickly', `deadfalls: a prickly kebbit caught within ${T} ticks, the odds' budget at ${(P * 100).toFixed(0)}% a spring (${got?.s ?? 'none'}; ${got?.stats.other ?? 0} wild kebbit(s) taken on the way)`);
                 if (got?.s === 'hunter_deadfall_prickly') {
                     const b = { bones: tot('bones'), spike: tot('kebbit_spike'), xp: player.stats[PlayerStat.HUNTER] };
                     player.teleport(got.x, got.z - 1, 0); await waitTicks(1); oploc(1, at(got.x, got.z)!.loc); await waitTicks(3);
@@ -403,14 +475,20 @@ if (process.env.HTRAP?.startsWith('pisc') || process.env.HTRAP === 'falconry') {
         // 3. box traps among the chinchompas in the south-east
         if (LEVEL >= 27) {
             const CH = parseInt(/\^hunter_chinchompa_level = (\d+)/.exec(CONST)![1]), can = LEVEL >= CH;
+            // an empty pack first: what the snares and deadfalls caught and the logs the deadfalls gave back (logs
+            // do not stack) could leave no room for five box traps, and none were laid (a full run caught it)
+            inv0.removeAll();
             player.invAdd(InvType.INV, ObjType.getId('hunter_box_trap'), 5);
-            const lay = async (x: number, z: number) => { player.teleport(x, z, 0); await waitTicks(2); opheld('hunter_box_trap'); await waitTicks(5); };
+            const lay = async (x: number, z: number) => { if (tot('hunter_box_trap') < 1) player.invAdd(InvType.INV, ObjType.getId('hunter_box_trap'), 1); player.teleport(x, z, 0); await waitTicks(2); opheld('hunter_box_trap'); await waitTicks(5); };
             const CAND = [[2361, 3565], [2363, 3563], [2359, 3563], [2362, 3567], [2360, 3561], [2364, 3561], [2358, 3566], [2362, 3569]].filter(([x, z]) => !isMapBlocked(x, z, 0));
             for (const [x, z] of CAND) if (slots().length < max) await lay(x, z);
             check(slots().length === max, `box traps: ${max} laid among the chinchompas (${slots().length})`);
             player.teleport(2361, 3564, 0);
-            const got = await watch(can ? 900 : 300, ['hunter_boxtrap_shaking_chinchompa'], [], lay, [2361, 3564]);
-            if (can) check(got !== null, 'box traps: a chinchompa caught within 900 ticks');
+            // a box a chinchompa got out of collapses and stays so until it is reset: the old watch never did,
+            // so every miss lost a trap for good
+            const P = statChance(hnum('hunter_chinchompa_low'), hnum('hunter_chinchompa_high'), LEVEL), T = can ? catchBudget(P, max) : 300;
+            const got = await watch(T, ['hunter_boxtrap_shaking_chinchompa'], ['hunter_boxtrap_collapsed'], lay, [2361, 3564], ['hunter_chinchompa'], slots());
+            if (can) check(got !== null, `box traps: a chinchompa caught within ${T} ticks, the odds' budget at ${(P * 100).toFixed(0)}% a spring`);
             else check(got === null, `box traps: below Hunter ${CH}, no chinchompa comes`);
             await takeAll();
         }
@@ -489,7 +567,10 @@ if (process.env.HTRAP?.startsWith('pisc') || process.env.HTRAP === 'falconry') {
             // keep sending until a catch - and, where the level makes a miss likely (below 57), a miss too
             let caught = false;
             const wantMiss = LEVEL < 57 && k === K[0];
-            for (let tries = 0; tries < 40 && (!caught || (wantMiss && !missSeen)); tries++) {
+            // enough sends that no miss (when one is wanted) is a one-in-a-million event at this level's odds
+            const KP = statChance(pnum(`hunter_${k.key}_low`), pnum(`hunter_${k.key}_high`), LEVEL);
+            const SENDS = Math.max(40, Math.ceil(rollBudget(wantMiss ? 1 - KP : KP) * 1.5));
+            for (let tries = 0; tries < SENDS && (!caught || (wantMiss && !missSeen)); tries++) {
                 const n = msgs.length;
                 const r = await send(k);
                 if (!r) { await waitTicks(20); continue; }
@@ -497,7 +578,11 @@ if (process.env.HTRAP?.startsWith('pisc') || process.env.HTRAP === 'falconry') {
                 const falcons = liveFalcons(k.falcon);
                 if (falcons.length) {
                     const f = falcons[0];
-                    if (caught) { { const [bx, bz] = besideInside(f); player.teleport(bx, bz, 0); } await waitTicks(1); opnpc(1, f); await waitTicks(3); continue; }
+                    // Every catch pays bones and a fur, two slots, and Retrieve (rightly) refuses a full pack: a run
+                    // of catches before the wanted miss once filled it, the falcon was left on its kill until it gave
+                    // up, and with the glove empty nothing more could be sent. The spoils of these extra catches are
+                    // thrown away first.
+                    if (caught) { inv0.remove(ObjType.getId('bones'), tot('bones')); inv0.remove(ObjType.getId(k.fur), tot(k.fur)); { const [bx, bz] = besideInside(f); player.teleport(bx, bz, 0); } await waitTicks(1); opnpc(1, f); await waitTicks(3); continue; }
                     caught = true;
                     check(v('falconry_falcon') !== -1 && hand() === GLOVE, `${k.npc}: caught - a falcon sits on the kill and the glove is empty`);
                     // the kebbit runs on while she flies, so she comes down near where it was sent from, not on it
@@ -512,10 +597,13 @@ if (process.env.HTRAP?.startsWith('pisc') || process.env.HTRAP === 'falconry') {
                     check(player.stats[PlayerStat.HUNTER] - b.xp === pnum(`hunter_${k.key}_xp`), `${k.npc}: ...${(player.stats[PlayerStat.HUNTER] - b.xp) / 10} xp`);
                     check(hand() === GLOVEF && v('falconry_falcon') === -1 && liveFalcons(k.falcon).length === 0, `${k.npc}: ...and the falcon is back on the glove`);
                 } else if (msgs.slice(n).some(m => m.includes('just misses'))) {
+                    // she flies back as far as she flew out, and send() only waits nine ticks: from a far kebbit the
+                    // return can take longer, so wait for her (a flake at 50 once, checked before she landed)
+                    for (let w = 0; w < 30 && hand() !== GLOVEF; w++) await waitTicks(1);
                     if (!missSeen) { missSeen = true; check(hand() === GLOVEF, `a miss: the falcon comes back to the glove (${k.npc})`); }
                 }
             }
-            check(caught, `${k.npc}: caught within 40 sends`);
+            check(caught, `${k.npc}: caught within ${SENDS} sends`);
         }
         // at 50 a spotted kebbit is caught about two times in three, so a miss turns up; at 70 it may not
         if (LEVEL < 57) check(missSeen, 'a miss was seen, and the falcon came back to the glove');
@@ -1016,6 +1104,10 @@ if (process.env.HTRAP === 'imp' || process.env.HTRAP === 'emporium') {
         await layAt(START[0], START[1]);
         const b = boxAt(START[0], START[1]);
         check(b?.s === 'laid' && slots().length === 1 && (kinds() & 7) === 7 && tot('magic_box') === 4, `Activate lays the box at your feet: trap kind ${kinds() & 7}, one slot, one box spent`);
+        // Imps roam right up to the box here, and the loop could spring it in the middle of these clicks (a
+        // full run caught "only with a bead" answered by a box that had just let an imp get away): the hunter
+        // is held below the imp's 71 - the loop checks it - until Deactivate, as the clicks do not.
+        setLevel(BOXLEVEL - 1);
         { const n = msgs.length; oploc(2, b!.l); await waitTicks(1); check(msgs.slice(n).some(m => m.includes('Nothing has wandered')), 'Investigate: nothing in it yet'); }
         oplocu(b!.l, 'red_bead'); await waitTicks(1);
         check((v('hunter_imp_bait') & 1) === 1 && tot('red_bead') === 0, 'a red bead baits it (the bead is used)');
@@ -1024,6 +1116,7 @@ if (process.env.HTRAP === 'imp' || process.env.HTRAP === 'emporium') {
         { const n = msgs.length; oplocu(b!.l, 'magic_box'); await waitTicks(1); check(tot('magic_box') === 4 && msgs.slice(n).some(m => m.includes('Nothing interesting')), '...and only with a bead'); }
         oploc(1, b!.l); await waitTicks(3);
         check(boxAt(START[0], START[1]) === null && slots().length === 0 && tot('magic_box') === 5, 'Deactivate takes it up and gives the box back');
+        setLevel(LEVEL);
         await layAt(START[0], START[1]);
         check(v('hunter_imp_bait') === 0 && boxAt(START[0], START[1])?.s === 'laid', 'laying a box again leaves no bait over from the last one');
 
@@ -1042,12 +1135,24 @@ if (process.env.HTRAP === 'imp' || process.env.HTRAP === 'emporium') {
         // ---- the real loop, one tile off: a catch
         const OFF = [START[0] - 1, START[1]];
         player.teleport(OFF[0], OFF[1], 0);
-        let caught = false, failed = 0; const seen: string[] = [];
+        let caught = false, failed = 0, fell = 0; const seen: string[] = [];
         const gone = () => { const o: any[] = []; for (const n of World.npcs) if (n && n.type === IMP && !n.isActive) o.push(n); return o; };
         const gone0 = gone().length; let taken: any[] = [];
-        for (let i = 0; i < 1500 && !caught; i++) {
+        // The box was laid before the 150 ticks stood on it, so it falls over (^hunter_trap_duration) a
+        // few dozen ticks into this watch unless an imp springs it first - about one run in eight it did
+        // not, and the old watch then looked at an empty tile for the rest of its 1500 ticks. It is laid
+        // again, and the watch lasts as long as the imp's odds at this level say it must.
+        const IMP_P = statChance(cnum('hunter_imp_low'), cnum('hunter_imp_high'), LEVEL);
+        const IMP_WATCH = catchBudget(IMP_P, 1, 14);
+        for (let i = 0; i < IMP_WATCH && !caught; i++) {
             keepImpNear(START[0], START[1]);
             await waitTicks(1);
+            if (!boxAt(START[0], START[1]) && slots().length === 0) {
+                fell++;
+                check(msgs.some(m => m.includes('fallen over')), 'the unsprung box fell over after its duration, with a message: laid again');
+                if (tot('magic_box') < 1) player.invAdd(InvType.INV, ObjType.getId('magic_box'), 1);
+                await layAt(START[0], START[1]); player.teleport(OFF[0], OFF[1], 0);
+            }
             const s = boxAt(START[0], START[1])?.s ?? '-';
             if (seen[seen.length - 1] !== s) { seen.push(s); log('magic box ->', s); }
             if (s === 'failed') {
@@ -1060,7 +1165,7 @@ if (process.env.HTRAP === 'imp' || process.env.HTRAP === 'emporium') {
             if (s === 'catching' && !taken.length) taken = gone().filter(n => Math.max(Math.abs(n.x - START[0]), Math.abs(n.z - START[1])) <= 3);
             if (s === 'caught') caught = true;
         }
-        check(caught, `an imp went into the box within 1500 ticks (${failed} got away first; ${seen.join(' -> ')})`);
+        check(caught, `an imp went into the box within ${IMP_WATCH} ticks, the odds' budget at ${(IMP_P * 100).toFixed(0)}% a spring (${failed} got away first, ${fell} fell over; ${seen.join(' -> ')})`);
         check(seen.includes('catching'), '...through the catching state, the loop then moving it on to caught');
         if (caught) {
             const x0 = player.stats[PlayerStat.HUNTER], m0 = tot('magic_box'), held = slots().length;
@@ -1983,13 +2088,15 @@ if (process.env.HTRAP === 'rellekka') {
             if (!got) continue;
             if (jar === 'snowy_knight') {
                 player.levels[3] = Math.max(1, player.baseLevels[3] - 20); const hp = player.levels[3];
-                opheld(4, jar); await waitTicks(1);
-                check(player.levels[3] === Math.min(player.baseLevels[3], hp + cnum('hunter_snowyknight_heal')) && tot(jar) === 0 && tot('hunter_butterfly_jar') === 1, `Release: the snowy knight heals ${cnum('hunter_snowyknight_heal')} (${hp} -> ${player.levels[3]}) and the jar comes back`);
+                // read at once: the release runs as the click is made, and a tick later the world's stat
+                // restore may already have moved the level on by one (it did, now and then)
+                opheld(4, jar); const hp1 = player.levels[3]; await waitTicks(1);
+                check(hp1 === Math.min(player.baseLevels[3], hp + cnum('hunter_snowyknight_heal')) && tot(jar) === 0 && tot('hunter_butterfly_jar') === 1, `Release: the snowy knight heals ${cnum('hunter_snowyknight_heal')} (${hp} -> ${hp1}) and the jar comes back`);
             } else {
                 const def = player.levels[1];
-                opheld(4, jar); await waitTicks(1);
+                opheld(4, jar); const def1 = player.levels[1]; await waitTicks(1);
                 const want = player.baseLevels[1] + 4 + Math.floor(player.baseLevels[1] * 15 / 100);
-                check(player.levels[1] === want && tot(jar) === 0 && tot('hunter_butterfly_jar') === 1, `Release: the sapphire glacialis boosts Defence by 4 + 15% (${def} -> ${player.levels[1]}) and the jar comes back`);
+                check(def1 === want && tot(jar) === 0 && tot('hunter_butterfly_jar') === 1, `Release: the sapphire glacialis boosts Defence by 4 + 15% (${def} -> ${def1}) and the jar comes back`);
                 player.levels[1] = player.baseLevels[1];
             }
         }
@@ -2010,18 +2117,28 @@ if (process.env.HTRAP === 'rellekka') {
         for (const [x, z] of spots) { if (slotsN().length >= max) break; player.teleport(x, z, 0); await waitTicks(1); opheld(1, 'hunter_bird_snare'); await waitTicks(6); }
         check(slotsN().length === max, `${max} bird snares laid among the cerulean twitches (${slotsN().length})`);
         const home = spots[0];
-        let caught: any = null; const seen = new Map<string, string>();
-        for (let t = 0; t < (LEVEL >= TW ? 900 : 300) && !caught; t++) {
+        // a twitch kept in reach of every snare, a snare that fell over laid again, and a watch as long as
+        // the twitch's odds at this level say (see keepPreyNear at the top)
+        const tiles = slotsN().map(c => ({ x: (c >> 14) & 0x3fff, z: c & 0x3fff }));
+        const TP = statChance(cnum('hunter_twitch_low'), cnum('hunter_twitch_high'), LEVEL), TT = LEVEL >= TW ? catchBudget(TP, max) : 300;
+        const relay = async (x: number, z: number) => { if (tot('hunter_bird_snare') < 1) player.invAdd(InvType.INV, ObjType.getId('hunter_bird_snare'), 1); player.teleport(x, z, 0); await waitTicks(1); opheld(1, 'hunter_bird_snare'); await waitTicks(6); player.teleport(home[0], home[1], 0); };
+        let caught: any = null, fell = 0; const seen = new Map<string, string>();
+        for (let t = 0; t < TT && !caught; t++) {
+            keepPreyNear(['hunter_cerulean_twitch'], tiles, (x, z) => ground.has(`${x},${z}`));
             await waitTicks(1);
             for (const c of slotsN()) {
                 const x = (c >> 14) & 0x3fff, z = c & 0x3fff; const s = snAt(x, z)?.n ?? '(none)';
                 if (seen.get(`${x},${z}`) !== s) { log('snare', x, z, '->', s); seen.set(`${x},${z}`, s); }
                 if (s === 'hunter_snare_caught_twitch' || s === 'hunter_snare_caught_swift') { caught = { x, z, s }; break; }
-                if (s === 'hunter_snare_collapsed') { oploc(1, snAt(x, z)!.l); await waitTicks(2); player.teleport(x, z, 0); await waitTicks(1); opheld(1, 'hunter_bird_snare'); await waitTicks(6); player.teleport(home[0], home[1], 0); }
+                if (s === 'hunter_snare_collapsed') { oploc(1, snAt(x, z)!.l); await waitTicks(2); await relay(x, z); }
+            }
+            if (!caught && LEVEL >= TW) for (const tl of tiles) {
+                if (snAt(tl.x, tl.z) || slotsN().length >= max || !msgs.some(m => m.includes('fallen over'))) continue;
+                fell++; await relay(tl.x, tl.z);
             }
         }
         if (LEVEL >= TW) {
-            check(caught?.s === 'hunter_snare_caught_twitch', `a cerulean twitch caught within 900 ticks (${caught?.s ?? 'none'})`);
+            check(caught?.s === 'hunter_snare_caught_twitch', `a cerulean twitch caught within ${TT} ticks, the odds' budget at ${(TP * 100).toFixed(0)}% a spring (${caught?.s ?? 'none'}; ${fell} laid again after falling over)`);
             if (caught) {
                 const b = { bones: tot('bones'), meat: tot('raw_bird_meat'), f: tot('blue_feather'), xp: xp(), sn: tot('hunter_bird_snare') };
                 player.teleport(caught.x, caught.z, 0); await waitTicks(1);
@@ -2046,7 +2163,9 @@ if (process.env.HTRAP === 'rellekka') {
         player.invAdd(InvType.INV, ObjType.getId('logs'), 10);
         const max = Math.min(5, 1 + Math.floor(LEVEL / 20));
         const use = boulders.slice(0, max);
-        const set = async (b: any) => { const st = standFor(b, ground)!; player.teleport(st[0], st[1], 0); await waitTicks(1); oploc(1, boulderAt(b.x, b.z)); await waitTicks(5); };
+        // every set costs a log, and a deadfall that falls over leaves its log on the ground: keep some (the old
+        // watch ran out of logs after a few fall-overs and then watched bare boulders)
+        const set = async (b: any) => { if (tot('logs') < 2 && LEVEL >= cnum('hunter_deadfall_level')) player.invAdd(InvType.INV, ObjType.getId('logs'), 5); const st = standFor(b, ground)!; player.teleport(st[0], st[1], 0); await waitTicks(1); oploc(1, boulderAt(b.x, b.z)); await waitTicks(5); };
         for (const b of use) await set(b);
         if (LEVEL < cnum('hunter_deadfall_level')) {
             check(slotsN().length === 0 && use.every(b => boulderAt(b.x, b.z) !== null), `below Hunter ${cnum('hunter_deadfall_level')} no deadfall can be set`);
@@ -2055,7 +2174,9 @@ if (process.env.HTRAP === 'rellekka') {
         const home = standFor(use[0], ground)!;
         player.teleport(home[0], home[1], 0);
         let caught: any = null; const seen = new Map<string, string>();
-        for (let t = 0; t < (LEVEL >= KL ? 1200 : 300) && !caught; t++) {
+        const KP = statChance(cnum('hunter_sabretooth_kebbit_low'), cnum('hunter_sabretooth_kebbit_high'), LEVEL), KT = LEVEL >= KL ? catchBudget(KP, max) : 300;
+        for (let t = 0; t < KT && !caught; t++) {
+            keepPreyNear(['hunter_sabretooth_kebbit'], use, (x, z) => ground.has(`${x},${z}`));
             await waitTicks(1);
             for (const b of use) {
                 const s = dfAt(b.x, b.z)?.n ?? (boulderAt(b.x, b.z) ? 'boulder' : '(none)');
@@ -2066,7 +2187,7 @@ if (process.env.HTRAP === 'rellekka') {
             }
         }
         if (LEVEL >= KL) {
-            check(caught?.s === 'hunter_deadfall_sabretooth', `a sabre-toothed kebbit caught under a deadfall within 1200 ticks (${caught?.s ?? 'none'})`);
+            check(caught?.s === 'hunter_deadfall_sabretooth', `a sabre-toothed kebbit caught under a deadfall within ${KT} ticks, the odds' budget at ${(KP * 100).toFixed(0)}% a spring (${caught?.s ?? 'none'})`);
             if (caught) {
                 const b = { bones: tot('bones'), teeth: tot('kebbit_teeth'), logs: tot('logs'), xp: xp() };
                 oploc(1, dfAt(caught.b.x, caught.b.z)!.l); await waitTicks(3);
@@ -2087,8 +2208,12 @@ if (process.env.HTRAP === 'rellekka') {
         const ST = ['hunter_pit_spiked', 'hunter_pit_collapsed', 'hunter_pit_kyatt', 'hunter_pit_larupia'];
         const pitAt = (p: any) => { for (const n of ST) { const l = World.getLoc(p.x, p.z, 0, L(n)); if (l) return { n, l }; } return null; };
         const plain = (p: any) => World.getLoc(p.x, p.z, 0, L('loc474_19227'));
-        player.invAdd(InvType.INV, ObjType.getId('teasing_stick'), 1);
-        if (tot('logs') < 15) player.invAdd(InvType.INV, ObjType.getId('logs'), 15 - tot('logs'));
+        // A pack with room in it: what the earlier sections caught and the logs they left (logs do not stack)
+        // could fill it, and a kyatt caught on the first jump then found no room for its bones and fur. Only
+        // what a pitfall needs - a knife, a teasing stick and a few logs, topped up as they are spent.
+        inv0.removeAll();
+        for (const o of ['knife', 'teasing_stick']) player.invAdd(InvType.INV, ObjType.getId(o), 1);
+        player.invAdd(InvType.INV, ObjType.getId('logs'), 3);
         // each pit's take-off tiles: open ground straight beside it with open ground 2-4 tiles on past it
         const takeoffs = (p: any) => {
             const out: any[] = [];
@@ -2131,13 +2256,21 @@ if (process.env.HTRAP === 'rellekka') {
                 player.teleport(LANDING[0], LANDING[1], 0); await waitTicks(2);
             }
             check(stuck.length === 0, `at every pit a kyatt teased from a take-off tile follows to it: ${follows.join(', ')}${stuck.length ? '; not: ' + stuck.join(' ') : ''}`);
-            let fell: any = null;
+            // A jump only rolls if the kyatt is still on your heels at the take-off; one that has not caught up
+            // (it has to find its own way round a trench to reach the tile) rolls nothing. So what is counted is
+            // ROLLS - enough that all missing at the kyatt's odds is a one-in-a-million event - and a pit whose
+            // kyatt keeps not coming is passed over for the others.
+            let fell: any = null, rolls = 0, tries = 0;
+            const KY_P = statChance(cnum('hunter_kyatt_low'), cnum('hunter_kyatt_high'), LEVEL), ROLLS = rollBudget(KY_P);
             const usable = pits.filter(p => pair.has(p));
-            for (let attempt = 0; attempt < 16 && !fell && usable.length; attempt++) {
-                const p = usable[attempt % usable.length]; const { t, k: kk } = pair.get(p);
+            const noShow = new Map<any, number>();
+            for (let attempt = 0; rolls < ROLLS && tries < ROLLS * 4 && !fell && usable.length; attempt++) {
+                const live = usable.filter(p => (noShow.get(p) ?? 0) < 2);
+                const p = (live.length ? live : usable)[attempt % (live.length || usable.length)]; const { t, k: kk } = pair.get(p);
+                tries++;
                 player.teleport(t.sx, t.sz, 0); await waitTicks(1);
                 if (pitAt(p)?.n === 'hunter_pit_collapsed') { oploc(2, pitAt(p)!.l); await waitTicks(2); }
-                if (!pitAt(p)) { oploc(3, plain(p)); await waitTicks(5); }
+                if (!pitAt(p)) { if (tot('logs') < 1) player.invAdd(InvType.INV, ObjType.getId('logs'), 2); oploc(3, plain(p)); await waitTicks(5); }
                 if (pitAt(p)?.n !== 'hunter_pit_spiked') { log('pit not spiked', p.x, p.z, pitAt(p)?.n); continue; }
                 const k = kk; if (!k.isActive) { await waitTicks(60); continue; }
                 home(k); await waitTicks(1);
@@ -2146,8 +2279,10 @@ if (process.env.HTRAP === 'rellekka') {
                 oploc(1, pitAt(p)!.l); await waitTicks(4);
                 log('jump', attempt, p.x, p.z, '->', pitAt(p)?.n, 'player', player.x, player.z);
                 if (pitAt(p)?.n === 'hunter_pit_kyatt') fell = p;
+                if (pitAt(p)?.n === 'hunter_pit_kyatt' || pitAt(p)?.n === 'hunter_pit_collapsed') rolls++;
+                else noShow.set(p, (noShow.get(p) ?? 0) + 1);
             }
-            check(fell !== null, 'a kyatt followed the jump into a pit within 16 tries');
+            check(fell !== null, `a kyatt followed the jump into a pit within ${ROLLS} rolls, the odds' budget at ${(KY_P * 100).toFixed(0)}% (${rolls} roll(s) in ${tries} jump(s))`);
             if (fell) {
                 const b = { bones: tot('big_bones'), fur: tot('kyatt_fur'), logs: tot('logs'), xp: xp() };
                 oploc(2, pitAt(fell)!.l); await waitTicks(2);
@@ -2244,10 +2379,29 @@ for (const c of laid) {
 }
 
 // ---- 2. the loop, watched
+// A prey of the gate's kind is kept in reach of every trap (the negative passes too: nothing goes in even
+// with one beside it), and at a level that can catch it the watch runs for as long as the odds say.
+const { isMapBlocked: blockedAt } = await import('#/engine/GameMap.js');
+const PREY = SNARE ? 'hunter_tropical_wagtail' : 'hunter_chinchompa';
+const GATE_P = SNARE ? statChance(hnum('hunter_wagtail_low'), hnum('hunter_wagtail_high'), LEVEL) : statChance(hnum('hunter_chinchompa_low'), hnum('hunter_chinchompa_high'), LEVEL);
+const WATCH = CAN_CATCH ? catchBudget(GATE_P, max) : 300;
+const laidTiles = laid.map(coordXZ);
+let fellOver = 0;
 const seen = new Map<string, string>();
 const firstShaking: any[] = [];
-for (let t = 0; t < (CAN_CATCH ? 600 : 300) && firstShaking.length === 0; t++) {
+for (let t = 0; t < WATCH && firstShaking.length === 0; t++) {
+    keepPreyNear([PREY], laidTiles, (x, z) => !blockedAt(x, z, 0));
     await waitTicks(1);
+    // a trap left alone for its duration has fallen over: lay it again where it stood (the negative
+    // passes leave them, to see the expiry below)
+    if (CAN_CATCH) for (const tile of laidTiles) {
+        if (locAt(tile.x, tile.z) !== null || slots().filter(c => c !== -1).length >= max) continue;
+        if (!msgs.some(m => m.includes('fallen over'))) continue;
+        fellOver++;
+        if (total(TRAPNAME) < 1) player.invAdd(InvType.INV, TRAP, 1);
+        player.teleport(tile.x, tile.z, 0); await waitTicks(2);
+        opheld1(TRAPNAME); await waitTicks(6);
+    }
     for (const c of slots()) {
         if (c === -1) continue;
         const { x, z } = coordXZ(c);
@@ -2257,9 +2411,13 @@ for (let t = 0; t < (CAN_CATCH ? 600 : 300) && firstShaking.length === 0; t++) {
         if (s.startsWith('hunter_boxtrap_shaking') || s.startsWith('hunter_snare_caught')) firstShaking.push({ x, z, s });
         if (s === 'hunter_boxtrap_collapsed') {
             const l = locAt(x, z)!.loc;
+            // with a prey kept beside it the trap could spring again before we look, so the hunter is held
+            // below every box-trap creature's level while the Reset is checked (the loop checks the level)
+            player.levels[PlayerStat.HUNTER] = 1;
             oploc(2, l); // Reset
             await waitTicks(5);
             check(locAt(x, z)?.name === 'hunter_boxtrap_laid', `Reset on the collapsed trap at ${k} lays it again`);
+            player.levels[PlayerStat.HUNTER] = LEVEL;
         }
         if (s === 'hunter_snare_collapsed') {
             // A collapsed snare has no Reset, only Dismantle - then it is laid again on the same tile.
@@ -2273,7 +2431,7 @@ for (let t = 0; t < (CAN_CATCH ? 600 : 300) && firstShaking.length === 0; t++) {
         }
     }
 }
-if (CAN_CATCH) check(firstShaking.length > 0, 'something was caught within 600 ticks');
+if (CAN_CATCH) check(firstShaking.length > 0, `something was caught within ${WATCH} ticks (the odds' budget for ${max} traps at ${(GATE_P * 100).toFixed(0)}% a spring; ${fellOver} laid again after falling over)`);
 else {
     check(firstShaking.length === 0, `at level ${LEVEL}, below the ${GATE_NAME}'s ${GREY}, nothing in their clearing goes in`);
     // 300 ticks untouched is past ^hunter_trap_duration, so the expiry path has run too.
@@ -2310,7 +2468,29 @@ if (firstShaking.length) {
 
 // ---- 4. somebody else's trap
 {
-    const c = slots().find(c => c !== -1)!;
+    // A freshly laid one where a slot is free. The watch's traps may have fallen over by now (the old
+    // test clicked "slot 0,0" then), and a trap caught mid-spring - catching, springing - has no op of its
+    // own at all, so a click on it found no script and the pass crashed after its checks had passed. So the
+    // hunter is held below every creature's level (the loop checks it) while a trap with a Dismantle or
+    // Check of its own is waited for: a spring already under way settles into one within a look or two.
+    const hasOp1 = (c: number | undefined) => {
+        if (c === undefined || c === -1) return false;
+        const t = locAt(coordXZ(c).x, coordXZ(c).z);
+        return t !== null && !!ScriptProvider.getByTrigger(ServerTriggerType.OPLOC1, t.loc.type, LocType.get(t.loc.type).category);
+    };
+    let fresh = -1;
+    if (slots().filter(c => c !== -1).length < max) {
+        if (total(TRAPNAME) < 1) player.invAdd(InvType.INV, TRAP, 1);
+        const free = CANDIDATES.find(([x, z]) => locAt(x, z) === null && !slots().includes((x << 14) | z))!;
+        player.teleport(free[0], free[1], 0); await waitTicks(2);
+        opheld1(TRAPNAME); await waitTicks(6);
+        if (slots().includes((free[0] << 14) | free[1])) fresh = (free[0] << 14) | free[1];
+    }
+    player.levels[PlayerStat.HUNTER] = 1;
+    for (let i = 0; i < 10 && !slots().some(hasOp1); i++) await waitTicks(1);
+    const c = hasOp1(fresh) ? fresh : slots().find(hasOp1);
+    if (c === undefined) check(false, 'a trap of our own is standing, to be clicked as somebody else');
+    else {
     const { x, z } = coordXZ(c);
     const vid = VarPlayerType.getId(`hunter_trap${slots().indexOf(c) + 1}`);
     // The slot is blanked only around the click itself, which runs synchronously: if a tick passed
@@ -2324,6 +2504,8 @@ if (firstShaking.length) {
     await waitTicks(2);
     check(msgs.slice(n).some(m => m.includes("isn't your trap")), "a trap not in your varps is not yours");
     check(locAt(x, z) !== null, '...and is left where it is');
+    }
+    player.levels[PlayerStat.HUNTER] = LEVEL;
 }
 
 // ---- 5. walk away: the leash

@@ -1,0 +1,60 @@
+// Hunter - a jarred butterfly shared (2026-09-25). OSRS's, from the wiki's pages for the four the skill
+// shipped with in 2006 (Black warlock, Ruby harvest, Sapphire glacialis, Snowy knight - the items): "In a
+// multi-combat zone, the item may be used on another player to share the effect with them and up to three
+// players within a 5x5 area of the target. Players must have Accept Aid toggled on to receive the boost.
+// The empty butterfly jar will remain in the inventory after use." The effect is each one's own Release:
+//
+//   black warlock        Strength + 4 + 15%    (hunter_warlock.rs2)
+//   ruby harvest         Attack + 4 + 15%      (hunter_piscatoris.rs2)
+//   sapphire glacialis   Defence + 4 + 15%     (hunter_rellekka.rs2)
+//   snowy knight         15 Hitpoints healed   (hunter_rellekka.rs2)
+//
+// each worked out on the RECEIVER's own level, as a Release is on the releaser's. The one using the jar is
+// not one of the four: the wiki names the target and the players round it, and their own jar's Release is
+// how they boost themselves. Accept Aid is %option_aid, the setting teleother reads (interface_options);
+// its "not accepting aid" line is teleother's. Outside multi-combat a jar used on a player does nothing.
+
+[opplayeru,black_warlock] @hunter_jar_share(black_warlock, "black warlock");
+[opplayeru,hunter_jar_ruby] @hunter_jar_share(hunter_jar_ruby, "ruby harvest");
+[opplayeru,sapphire_glacialis] @hunter_jar_share(sapphire_glacialis, "sapphire glacialis");
+[opplayeru,snowy_knight] @hunter_jar_share(snowy_knight, "snowy knight");
+
+[label,hunter_jar_share](obj $jar, string $name)
+if (inv_total(inv, $jar) < 1) {
+    return;
+}
+if (map_multiway(coord) = false | map_multiway(.coord) = false) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (.%option_aid = ^aid_no) {
+    mes("<.displayname> is not accepting aid.");
+    return;
+}
+def_player_uid $target = .uid;
+def_coord $at = .coord;
+inv_del(inv, $jar, 1);
+inv_add(inv, hunter_butterfly_jar, 1);
+~.hunter_jar_effect($jar);
+.mes("<displayname> lets a <$name> out of its jar over you.");
+mes("You let the <$name> out of its jar over <.displayname>.");
+// and up to three more within the 5x5 round the target, each accepting aid and in multi-combat too
+def_int $more = 0;
+huntall($at, 2, 0);
+while (.huntnext = true & $more < 3) {
+    if (.uid ! $target & .uid ! uid & .%option_aid ! ^aid_no & map_multiway(.coord) = true) {
+        ~.hunter_jar_effect($jar);
+        .mes("<displayname> lets a <$name> out of its jar over you.");
+        $more = calc($more + 1);
+    }
+}
+
+// What a jar's butterfly does to whoever it is let out over: the secondary player - the target, and then
+// each one .huntnext settles on.
+[proc,.hunter_jar_effect](obj $jar)
+switch_obj ($jar) {
+    case black_warlock : .stat_boost(strength, ^hunter_warlock_boost, ^hunter_warlock_boost_pct);
+    case hunter_jar_ruby : .stat_boost(attack, ^hunter_ruby_boost, ^hunter_ruby_boost_pct);
+    case sapphire_glacialis : .stat_boost(defence, ^hunter_glacialis_boost, ^hunter_glacialis_boost_pct);
+    case snowy_knight : .stat_heal(hitpoints, ^hunter_snowyknight_heal, 0);
+}
