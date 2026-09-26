@@ -1,0 +1,266 @@
+// THE TOXIC BLOWPIPE IN A FIGHT (2026-09-26) - OSRS's, per the OSRS wiki's Toxic blowpipe and Venom:
+//   * a thrown weapon on the thrown weapons' tab (Accurate, Rapid, Longrange); +30 ranged attack,
+//     +20 ranged strength, and the loaded dart's own ranged strength on top (player/scripts/equip.rs2);
+//   * every 3 ticks against a monster, 2 on Rapid; every 4 against a player, 3 on Rapid ("during
+//     player versus player combat, its attack speed is 4, or equal to a shortbow"); reach 5, 7 on
+//     Longrange (its attackrange param, through ~player_attackrange);
+//   * each shot spends a scale two times in three ("the blowpipe has a 1/3 chance to not use scales")
+//     and a dart - which never lands on the floor, it is simply used. An Ava's device keeps the dart
+//     72% of the time; this build has no Ava's devices, and its Ranging cape stands in for the
+//     accumulator (skillcapes/scripts/skillcape_perks.rs2 ~skillcape_ammo_saved, 72%), so that is
+//     what saves a dart here;
+//   * a quarter of the hits that do damage envenom the target (scripts/venom.rs2);
+//   * no scales or no darts, no shot.
+//
+// TOXIC SIPHON, its special (50% energy): accuracy +100%, damage +50%, and it heals the user by half
+// of the damage rolled, rounded down - the ROLL, not what the target had left ("if the hit was
+// calculated to deal 20 damage and the target only has 4 Hitpoints, it will heal the player by 10"),
+// and before a monster's resistance (a kurask's immunity heals all the same). The heal cannot take
+// hitpoints above their base (stat_heal; OSRS fixed that in March 2015). The snake's-head graphic
+// (OSRS spotanim 1043) and the snake hit sound; the attack animation is the blowpipe's own (OSRS seq
+// 5061), as OSRS plays it for both.
+//
+// Reached from [label,player_combat_start] and [label,pvp_combat_start] whenever a blowpipe is in
+// the hands, and from the two special attack switches.
+
+[proc,blowpipe_wielded]()(boolean)
+return(~blowpipe_is_blowpipe(inv_getobj(worn, ^wearpos_rhand)));
+
+// OSRS: no scales, no darts, no shot. Messages: the first is OSRS's; the second is this build's
+// (an empty blowpipe says it needs scales first, since it holds neither).
+[proc,blowpipe_ready]()(boolean)
+if (%blowpipe_scales <= 0) {
+    mes("Your blowpipe needs to be charged with Zulrah's scales.");
+    return(false);
+}
+if (%blowpipe_darts <= 0 | %blowpipe_dart_type = null) {
+    mes("Your blowpipe contains no darts.");
+    return(false);
+}
+// a dart that has come off the list since it was loaded (configs/blowpipe.enum) is not fired
+if (~blowpipe_loadable(%blowpipe_dart_type) = null) {
+    mes("Your blowpipe can't use that kind of dart.");
+    return(false);
+}
+return(true);
+
+// one tick faster on Rapid
+[proc,blowpipe_attackrate](int $rate)(int)
+if (%damagestyle = ^style_ranged_rapid) {
+    return(sub($rate, 1));
+}
+return($rate);
+
+// One shot's worth: a scale two times in three, a dart unless the Ranging cape saves it. Returns
+// false when the blowpipe has just run out of either - the caller must not re-target, since the next
+// shot cannot be made. With nothing left in it at all it turns into the empty blowpipe in the hands.
+[proc,blowpipe_spend]()(boolean)
+if (random(3) ! 0) {
+    %blowpipe_scales = max(0, sub(%blowpipe_scales, 1));
+}
+if (~skillcape_ammo_saved = false) {
+    %blowpipe_darts = max(0, sub(%blowpipe_darts, 1));
+}
+if (%blowpipe_scales > 0 & %blowpipe_darts > 0) {
+    return(true);
+}
+// OSRS's own words, for running out of darts (the wiki notes them even on the rosewood blowpipe,
+// which holds no scales at all) - one message for either
+mes("Your blowpipe has run out of scales and darts.");
+~blowpipe_sync(worn, ^wearpos_rhand);
+p_stopaction;
+return(false);
+
+// ---------------------------------------------------------------------------------------------
+// Against a monster
+// ---------------------------------------------------------------------------------------------
+[label,blowpipe_attack]
+if (~npc_is_attackable = false) {
+    return;
+}
+if (%action_delay > map_clock) {
+    p_opnpc(2);
+    return;
+}
+if (npc_stat(hitpoints) = 0) {
+    return;
+}
+if (~blowpipe_ready = false) {
+    p_stopaction;
+    return;
+}
+%action_delay = add(map_clock, ~blowpipe_attackrate(^blowpipe_attackrate));
+if (~blowpipe_npc_shot(false) = true) {
+    p_opnpc(2);
+}
+
+// From [label,player_special_attack], which has checked the energy, the attack delay and the
+// monster's hitpoints, and re-targeted. The special comes as fast as the style's shot does.
+[label,pvm_blowpipe_sa]
+if (~blowpipe_ready = false) {
+    p_stopaction;
+    return;
+}
+%action_delay = add(map_clock, ~blowpipe_attackrate(^blowpipe_attackrate));
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+if (~blowpipe_npc_shot(true) = false) {
+    return;
+}
+
+[proc,blowpipe_npc_shot](boolean $spec)(boolean)
+// the loaded dart's strength is part of %com_maxhit: refresh it, the dart may have changed
+~player_combat_stat;
+// Black mask (i) / slayer helmet (i) on task: 15% to accuracy and max hit, as every ranged shot
+// (player_ranged.rs2)
+def_int $mask_num = 1;
+def_int $mask_div = 1;
+if (~black_mask_imbued_on_task = true) {
+    $mask_num = 23;
+    $mask_div = 20;
+}
+def_int $accuracy_num = $mask_num;
+if ($spec = true) {
+    $accuracy_num = multiply($accuracy_num, 2); // Toxic Siphon: +100% accuracy
+}
+def_boolean $hit = ~player_npc_hit_roll_boosted(^ranged_style, $accuracy_num, $mask_div);
+def_int $roll = 0;
+def_int $damage = 0;
+if ($hit = true) {
+    def_int $maxhit = %com_maxhit;
+    if (npc_type = count_draynor & inv_total(inv, garlic) > 0) {
+        $maxhit = add($maxhit, 1);
+    }
+    $maxhit = scale($mask_num, $mask_div, $maxhit);
+    if ($spec = true) {
+        $maxhit = scale(3, 2, $maxhit); // Toxic Siphon: +50% damage
+    }
+    $roll = randominc(min($maxhit, npc_param(max_dealt)));
+    $damage = ~blowpipe_npc_resisted($roll);
+    def_int $damage_capped = min($damage, npc_stat(hitpoints));
+    ~barrows_set_hit_npc($damage_capped, ^ranged_style);
+    ~give_combat_experience(%damagestyle, $damage_capped, %npc_combat_xp_multiplier);
+    npc_heropoints($damage_capped);
+}
+if ($damage > 0 & random(4) = 0) {
+    ~npc_venom_start;
+}
+anim(%com_attackanim, 0);
+def_spotanim $projectile = oc_param(%blowpipe_dart_type, proj_travel);
+if ($spec = true) {
+    $projectile = blowpipe_special_travel;
+    sound_synth(snake_hit, 0, 0);
+} else {
+    sound_synth(%com_attacksound, 0, 0);
+}
+// a dart's flight, and the extra tick every ranged hit here lands after (player_ranged.rs2)
+def_int $delay = add(~npc_projectile(coord, npc_uid, $projectile, 40, 36, 32, 15, 0, 11, 5), 30);
+~npc_retaliate(calc($delay / 30));
+npc_queue(2, $damage, calc($delay / 30));
+npc_anim(npc_param(defend_anim), sub($delay, 30));
+if (npc_param(defend_sound) ! null) {
+    sound_synth(npc_param(defend_sound), 0, sub($delay, 30));
+}
+if ($spec = true) {
+    stat_heal(hitpoints, divide($roll, 2), 0);
+}
+return(~blowpipe_spend);
+
+// What a monster's resistances leave of a blowpipe hit - the same ones every ranged shot meets in
+// player_ranged.rs2: a kurask or turoth takes nothing from anything but a bow with broad arrows, the
+// Dagannoth Mother nothing outside her green phase, and a cave kraken a seventh.
+[proc,blowpipe_npc_resisted](int $damage)(int)
+if (npc_param(slayer_category) = ^slayer_kurask | npc_param(slayer_category) = ^slayer_turoth) {
+    return(0);
+}
+if (npc_type = horror_dagganoth_air | npc_type = horror_dagganoth_water | npc_type = horror_dagganoth_earth | npc_type = horror_dagganoth_fire | npc_type = horror_dagganoth_melee) {
+    return(0);
+}
+if (npc_type = cave_kraken) {
+    return(divide($damage, 7));
+}
+return($damage);
+
+// ---------------------------------------------------------------------------------------------
+// Against a player - pvp_ranged.rs2's shape: the duel arena's "no ranged", Protect from Missiles'
+// 40%, tick eating, the retaliate and the hit on the flight time
+// ---------------------------------------------------------------------------------------------
+[label,pvp_blowpipe_attack]
+if (~duel_arena_ranged_check = false) {
+    return;
+}
+if (.%death = ^true) {
+    p_stopaction;
+    return;
+}
+if (%action_delay > map_clock) {
+    p_opplayer(2);
+    return;
+}
+if (~blowpipe_ready = false) {
+    p_stopaction;
+    return;
+}
+%action_delay = add(map_clock, ~blowpipe_attackrate(^blowpipe_attackrate_pvp));
+p_opplayer(2);
+~set_pk_vars;
+~blowpipe_pvp_shot(false);
+
+// From [label,pvp_special_attack], which has already applied the duel arena's "no special attacks"
+// and "no ranged", checked the energy and re-targeted; its delay is the monster speed, so the
+// player speed is put back here.
+[label,pvp_blowpipe_sa]
+if (~blowpipe_ready = false) {
+    p_stopaction;
+    return;
+}
+%action_delay = add(map_clock, ~blowpipe_attackrate(^blowpipe_attackrate_pvp));
+~set_sa_vars(oc_param(inv_getobj(worn, ^wearpos_rhand), sa_energy));
+~set_pk_vars;
+~blowpipe_pvp_shot(true);
+
+[proc,blowpipe_pvp_shot](boolean $spec)
+~player_combat_stat;
+def_int $attack_roll = ~player_attack_roll_specific(^ranged_style);
+if ($spec = true) {
+    $attack_roll = multiply($attack_roll, 2); // Toxic Siphon: +100% accuracy
+}
+def_int $defence_roll = ~.player_defence_roll_specific(^ranged_style);
+def_int $roll = 0;
+def_int $damage = 0;
+if (randominc($attack_roll) > randominc($defence_roll)) {
+    def_int $maxhit = %com_maxhit;
+    if ($spec = true) {
+        $maxhit = scale(3, 2, $maxhit); // Toxic Siphon: +50% damage
+    }
+    if (~.check_protect_prayer(^ranged_style) = true) {
+        $maxhit = scale(6, 10, $maxhit); // reduction of 40%
+    }
+    $roll = randominc($maxhit);
+    $damage = min($roll, .stat(hitpoints)); // tick eating
+    ~give_combat_experience_pvp(%damagestyle, $damage, ~pvp_xp_multiplier(~.player_combat_level));
+    both_heropoints($damage);
+    ~barrows_set_hit_player($damage, ^ranged_style);
+}
+if ($damage > 0 & random(4) = 0) {
+    .queue(venom_player, 0, 0);
+}
+anim(%com_attackanim, 0);
+def_spotanim $projectile = oc_param(%blowpipe_dart_type, proj_travel);
+if ($spec = true) {
+    $projectile = blowpipe_special_travel;
+    sound_synth(snake_hit, 0, 0);
+    .sound_synth(snake_hit, 0, 0);
+} else {
+    sound_synth(%com_attacksound, 0, 0);
+    .sound_synth(%com_attacksound, 0, 0);
+}
+def_int $delay = ~player_projectile(coord, .coord, .uid, $projectile, 40, 36, 32, 15, 0, 11, 5);
+.queue*(pvp_retaliate, calc($delay / 30))(uid);
+~.pvp_damage(calc($delay / 30), $damage);
+.anim(.%com_defendanim, $delay);
+if ($spec = true) {
+    stat_heal(hitpoints, divide($roll, 2), 0);
+}
+if (~blowpipe_spend = false) {
+    return;
+}

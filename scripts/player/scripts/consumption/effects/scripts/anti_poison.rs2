@@ -2,7 +2,9 @@
 sound_synth(liquid, 1, 0);
 anim(human_eat, 0);
 def_obj $consumable = last_item;
-%poison = min(%poison,-5);
+if (~venom_to_poison = false) { // a venomed drinker's dose turns the venom to poison, and that is all
+    %poison = min(%poison,-5);
+}
 ~set_poison_timer;
 // change item to its next stage. default is null
 inv_setslot(inv, last_slot, oc_param($consumable, next_obj_stage), 1);
@@ -12,7 +14,9 @@ inv_setslot(inv, last_slot, oc_param($consumable, next_obj_stage), 1);
 sound_synth(liquid, 1, 0);
 anim(human_eat, 0);
 def_obj $consumable = last_item;
-%poison = min(%poison,-20);
+if (~venom_to_poison = false) {
+    %poison = min(%poison,-20);
+}
 ~set_poison_timer;
 // change item to its next stage. default is null
 inv_setslot(inv, last_slot, oc_param($consumable, next_obj_stage), 1);

@@ -9,6 +9,9 @@ if (map_members = ^false) {
     return;
 }
 
+if (%venom > 0) {
+    return; // venom is not replaced by a poison (toxic_blowpipe/scripts/venom.rs2)
+}
 if (%poison > -1) { 
     if (%poison = 0) {
         mes("You have been poisoned!");
@@ -61,9 +64,11 @@ if (stat(hitpoints) = 0) {
 [proc,clear_poison]
 %poison = 0;
 cleartimer(poison);
+~venom_clear; // every death cures venom too (toxic_blowpipe/scripts/venom.rs2)
 
 [proc,set_poison_login]
 ~set_poison_timer;
+~venom_login;
 
 [proc,set_poison_timer]
 if(gettimer(poison) < 1){

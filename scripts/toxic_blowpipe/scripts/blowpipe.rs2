@@ -1,0 +1,358 @@
+// THE TOXIC BLOWPIPE (2026-09-26), OSRS's (January 2015), per the OSRS wiki's Toxic blowpipe, Tanzanite
+// fang and Zulrah's scales pages:
+//   * a tanzanite fang and a chisel make an empty blowpipe - 53 Fletching here (the owner's call; the
+//     level it had until OSRS raised it to 78 in May 2024), 120 experience;
+//   * it holds up to 16,383 Zulrah's scales and 16,383 darts of ONE kind, loaded by using them on it
+//     in either form; loading another kind of dart swaps it for the one inside (OSRS since October
+//     2020, "without having to unload the darts inside first");
+//   * Check (and the Worn Equipment tab's Check) says what is in it; Unload takes the darts out;
+//     Uncharge takes everything out and leaves it empty; an empty blowpipe - or a fang - can be
+//     Dismantled into 20,000 scales;
+//   * 75 Ranged to wield. The fight itself is scripts/blowpipe_combat.rs2, venom scripts/venom.rs2.
+//
+// THE CONTENTS ARE THE PLAYER'S, not the item's - %blowpipe_scales, %blowpipe_darts and
+// %blowpipe_dart_type - on the pattern the trident of the seas set (area_kraken_cove/scripts/
+// trident.rs2): an obj carries no per-item state here. So the charged obj means "a blowpipe with the
+// player's contents in it", and it is untradeable, as OSRS's charged one is; the empty one holds
+// nothing and trades. Two rules keep one set of contents from turning up in two blowpipes:
+//   * the charged obj is the one with something in it. When the last scale and the last dart are
+//     gone it turns back into the empty one, wherever it is; while either is left it stays charged,
+//     so the darts a blowpipe that ran out of scales still holds can always be unloaded;
+//   * an empty blowpipe only takes the contents on when the player has no charged blowpipe anywhere
+//     (pack, hands or bank) - so a second one cannot share the first one's charges, and a player
+//     whose charged blowpipe is gone (dropped, lost on death) is never locked out of charging a new one.
+// On death an unprotected charged blowpipe spills its scales and darts on the floor beside it, empty,
+// as in OSRS ("all scale and dart charges will appear on the floor alongside the blowpipe").
+//
+// Zulrah is not in this build: none of the three items has a source yet (tools/nosourcespec.json).
+
+// ---------------------------------------------------------------------------------------------
+// Fletching the fang
+// ---------------------------------------------------------------------------------------------
+// Chisel on fang arrives here; fang on chisel arrives at the Crafting chisel trigger
+// (skill_crafting/scripts/gem/uncut_gem.rs2), which sends it to the same label.
+[opheldu,tanzanite_fang]
+if (last_useitem = chisel) {
+    @blowpipe_fletch;
+}
+~displaymessage(^dm_default);
+
+[label,blowpipe_fletch]
+if (inv_total(inv, tanzanite_fang) < 1 | inv_total(inv, chisel) < 1) {
+    return;
+}
+if (stat(fletching) < ^blowpipe_fletching_level) {
+    ~objbox(tanzanite_fang, "You need a Fletching level of <tostring(^blowpipe_fletching_level)> to make a toxic blowpipe.", 250, 0, divide(^objbox_height, 2));
+    return;
+}
+sound_synth(chisel, 1, 0);
+inv_del(inv, tanzanite_fang, 1);
+inv_add(inv, toxic_blowpipe_empty, 1);
+stat_advance(fletching, ^blowpipe_fletching_xp);
+mes("You carve the fang into a blowpipe.");
+
+// ---------------------------------------------------------------------------------------------
+// Dismantle - a fang or an empty blowpipe, for 20,000 scales
+// ---------------------------------------------------------------------------------------------
+[opheld4,tanzanite_fang] @blowpipe_dismantle(tanzanite_fang, last_slot, "fang");
+[opheld4,toxic_blowpipe_empty] @blowpipe_dismantle(toxic_blowpipe_empty, last_slot, "blowpipe");
+
+[label,blowpipe_dismantle](namedobj $item, int $slot, string $what)
+~mesbox("Dismantling the <$what> will turn it into <~misc_commas(^blowpipe_dismantle_scales)> Zulrah's scales.");
+if (~p_choice2("Dismantle the <$what>.", 1, "Keep it.", 2) ! 1) {
+    return;
+}
+if (inv_getobj(inv, $slot) ! $item) {
+    return;
+}
+// the item's own slot frees up as the scales go in, so there is always room
+inv_delslot(inv, $slot);
+inv_add(inv, zulrahs_scales, ^blowpipe_dismantle_scales);
+sound_synth(destroy_object, 1, 0);
+mes("You dismantle the <$what> into <~misc_commas(^blowpipe_dismantle_scales)> Zulrah's scales.");
+
+// ---------------------------------------------------------------------------------------------
+// Wield, Check
+// ---------------------------------------------------------------------------------------------
+[opheld2,toxic_blowpipe]
+def_int $slot = last_slot;
+if (~blowpipe_sync(inv, $slot) = false) {
+    // it had been emptied through another blowpipe; the empty one cannot be wielded
+    mes("Your blowpipe needs to be charged with Zulrah's scales.");
+    return;
+}
+@levelrequire_ranged(^blowpipe_level, $slot);
+
+[opheld3,toxic_blowpipe] ~blowpipe_check;
+[label,wearop1_toxic_blowpipe] ~blowpipe_check;
+
+// "Darts: Rune dart x 1,432. Scales: 2,345 (14.3%)." - "None" while no darts are loaded. The
+// scales' exact count shows either way (OSRS's since November 2017).
+[proc,blowpipe_check]
+def_string $darts = "None";
+if (%blowpipe_darts > 0 & %blowpipe_dart_type ! null) {
+    $darts = "<oc_name(%blowpipe_dart_type)> x <~misc_commas(%blowpipe_darts)>";
+}
+def_int $tenths = scale(1000, ^blowpipe_max_scales, %blowpipe_scales);
+mes("Darts: <$darts>. Scales: <~misc_commas(%blowpipe_scales)> (<tostring(divide($tenths, 10))>.<tostring(modulo($tenths, 10))>%).");
+
+// ---------------------------------------------------------------------------------------------
+// Charging - scales or darts on either form
+// ---------------------------------------------------------------------------------------------
+[opheldu,toxic_blowpipe] @blowpipe_use(last_item, last_useitem, last_slot, last_useslot);
+[opheldu,toxic_blowpipe_empty] @blowpipe_use(last_item, last_useitem, last_slot, last_useslot);
+
+// OpHeldUHandler swaps the pair when the blowpipe was the item used, so the blowpipe is last_item
+// either way round - but a blowpipe used on a blowpipe would make both of them one.
+[label,blowpipe_use](obj $bp, obj $other, int $slot, int $other_slot)
+if (~blowpipe_is_blowpipe($other) = true) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if ($other = zulrahs_scales) {
+    @blowpipe_load_scales($slot);
+}
+if (~blowpipe_is_dart($other) = true) {
+    @blowpipe_load_darts($slot, $other);
+}
+~displaymessage(^dm_default);
+
+[label,blowpipe_load_scales](int $slot)
+if (~blowpipe_can_take_contents($slot) = false) {
+    return;
+}
+def_int $room = sub(^blowpipe_max_scales, %blowpipe_scales);
+if ($room <= 0) {
+    mes("Your blowpipe can't hold any more scales.");
+    return;
+}
+def_int $n = min($room, inv_total(inv, zulrahs_scales));
+inv_del(inv, zulrahs_scales, $n);
+%blowpipe_scales = add(%blowpipe_scales, $n);
+~blowpipe_sync(inv, $slot);
+~blowpipe_check;
+
+[label,blowpipe_load_darts](int $slot, obj $used)
+// The list is the enum, not the category: rune is the highest this build's blowpipe takes, and a
+// poisoned dart - or a dragon or amethyst dart, the day one exists - is refused here rather than
+// accepted by accident (configs/blowpipe.enum).
+def_namedobj $dart = ~blowpipe_loadable($used);
+if ($dart = null) {
+    mes("Your blowpipe can't use that kind of dart.");
+    return;
+}
+if (~blowpipe_can_take_contents($slot) = false) {
+    return;
+}
+// another kind of dart inside comes out first, and has to have somewhere to go
+if (%blowpipe_darts > 0 & %blowpipe_dart_type ! $dart) {
+    if (inv_itemspace2(inv, %blowpipe_dart_type, %blowpipe_darts, inv_size(inv)) > 0) {
+        mes("You need more inventory space to swap the darts in your blowpipe.");
+        return;
+    }
+    inv_add(inv, %blowpipe_dart_type, %blowpipe_darts);
+    %blowpipe_darts = 0;
+}
+def_int $room = sub(^blowpipe_max_darts, %blowpipe_darts);
+if ($room <= 0) {
+    mes("Your blowpipe can't hold any more darts.");
+    return;
+}
+def_int $n = min($room, inv_total(inv, $dart));
+inv_del(inv, $dart, $n);
+%blowpipe_darts = add(%blowpipe_darts, $n);
+%blowpipe_dart_type = $dart;
+~blowpipe_sync(inv, $slot);
+~blowpipe_check;
+
+// An empty blowpipe takes on the player's contents only while no charged one holds them - see the
+// note at the top. A charged one is always the holder.
+[proc,blowpipe_can_take_contents](int $slot)(boolean)
+if (inv_getobj(inv, $slot) = toxic_blowpipe) {
+    return(true);
+}
+if (%blowpipe_scales <= 0 & %blowpipe_darts <= 0) {
+    return(true);
+}
+if (inv_total(inv, toxic_blowpipe) > 0 | inv_total(worn, toxic_blowpipe) > 0 | inv_total(bank, toxic_blowpipe) > 0) {
+    mes("You already have a charged blowpipe. Uncharge it before charging another.");
+    return(false);
+}
+return(true);
+
+// ---------------------------------------------------------------------------------------------
+// Unload, Uncharge
+// ---------------------------------------------------------------------------------------------
+[opheld4,toxic_blowpipe]
+def_int $slot = last_slot;
+if (%blowpipe_darts <= 0) {
+    mes("Your blowpipe has no darts in it.");
+    ~blowpipe_sync(inv, $slot);
+    return;
+}
+if (inv_itemspace2(inv, %blowpipe_dart_type, %blowpipe_darts, inv_size(inv)) > 0) {
+    mes("You need more inventory space to unload the blowpipe.");
+    return;
+}
+inv_add(inv, %blowpipe_dart_type, %blowpipe_darts);
+%blowpipe_darts = 0;
+~blowpipe_sync(inv, $slot);
+~blowpipe_check;
+
+// OSRS asks first: "If you uncharge the blowpipe, all scales and darts will fall out."
+[opheld5,toxic_blowpipe]
+def_int $slot = last_slot;
+~mesbox("If you uncharge the blowpipe, all scales and darts will fall out.");
+if (~p_choice2("Uncharge the blowpipe.", 1, "Keep it.", 2) ! 1) {
+    return;
+}
+if (inv_getobj(inv, $slot) ! toxic_blowpipe) {
+    return;
+}
+def_int $need = 0;
+if (%blowpipe_scales > 0 & inv_total(inv, zulrahs_scales) = 0) {
+    $need = add($need, 1);
+}
+if (%blowpipe_darts > 0 & inv_total(inv, %blowpipe_dart_type) = 0) {
+    $need = add($need, 1);
+}
+if (inv_freespace(inv) < $need) {
+    mes("You need more inventory space to uncharge the blowpipe.");
+    return;
+}
+if (%blowpipe_scales > 0) {
+    inv_add(inv, zulrahs_scales, %blowpipe_scales);
+}
+if (%blowpipe_darts > 0) {
+    inv_add(inv, %blowpipe_dart_type, %blowpipe_darts);
+}
+%blowpipe_scales = 0;
+%blowpipe_darts = 0;
+inv_setslot(inv, $slot, toxic_blowpipe_empty, 1);
+sound_synth(destroy_object, 1, 0);
+mes("You uncharge the blowpipe.");
+
+// ---------------------------------------------------------------------------------------------
+// Shared
+// ---------------------------------------------------------------------------------------------
+// Makes the blowpipe in $inv's $slot the form its contents call for: charged while any scale or dart
+// is in it, empty once there is neither. Returns whether it is charged now.
+[proc,blowpipe_sync](inv $inv, int $slot)(boolean)
+def_obj $bp = inv_getobj($inv, $slot);
+if (~blowpipe_is_blowpipe($bp) = false) {
+    return(false);
+}
+def_namedobj $want = ~blowpipe_form;
+if ($bp ! $want) {
+    inv_setslot($inv, $slot, $want, 1);
+    if ($inv = worn) {
+        ~update_all($bp);
+    }
+}
+if ($want = toxic_blowpipe) {
+    return(true);
+}
+return(false);
+
+// The form the player's contents call for.
+[proc,blowpipe_form]()(namedobj)
+if (%blowpipe_scales > 0 | %blowpipe_darts > 0) {
+    return(toxic_blowpipe);
+}
+return(toxic_blowpipe_empty);
+
+[proc,blowpipe_is_blowpipe](obj $obj)(boolean)
+if ($obj = toxic_blowpipe | $obj = toxic_blowpipe_empty) {
+    return(true);
+}
+return(false);
+
+// The loadable dart, as the namedobj inv_add wants, or null for anything not on the list.
+[proc,blowpipe_loadable](obj $obj)(namedobj)
+return(enum(obj, namedobj, blowpipe_darts, $obj));
+
+// Anything that is a dart, loadable or not - a thrown weapon with "dart" in its name. The ones the
+// blowpipe will NOT take are refused by name; anything else used on it is "Nothing interesting".
+[proc,blowpipe_is_dart](obj $obj)(boolean)
+if ($obj = null) {
+    return(false);
+}
+if (~blowpipe_loadable($obj) ! null) {
+    return(true);
+}
+if (oc_category($obj) = weapon_thrown & string_indexof_string("dart", lowercase(oc_name($obj))) ! -1) {
+    return(true);
+}
+return(false);
+
+// The loaded dart's ranged strength, which the blowpipe's own +20 is added to - "these bonuses stack
+// with the Ranged Strength of its ammunition". Read by ~equip_get_bonuses (player/scripts/equip.rs2),
+// so %com_maxhit carries it like any other bonus.
+[proc,blowpipe_dart_rangebonus]()(int)
+if (inv_getobj(worn, ^wearpos_rhand) ! toxic_blowpipe | %blowpipe_darts <= 0 | %blowpipe_dart_type = null) {
+    return(0);
+}
+return(oc_param(%blowpipe_dart_type, rangebonus));
+
+[proc,.blowpipe_dart_rangebonus]()(int)
+if (.inv_getobj(worn, ^wearpos_rhand) ! toxic_blowpipe | .%blowpipe_darts <= 0 | .%blowpipe_dart_type = null) {
+    return(0);
+}
+return(oc_param(.%blowpipe_dart_type, rangebonus));
+
+// ---------------------------------------------------------------------------------------------
+// Death - called by player/scripts/death.rs2 once the kept items are in deathkeep
+// ---------------------------------------------------------------------------------------------
+// A charged blowpipe that is not kept drops EMPTY, with its scales and darts on the floor beside it
+// ("If the blowpipe is not protected upon death, all scale and dart charges will appear on the floor
+// alongside the blowpipe"); a kept one keeps them. In PvP they go to the killer, as the rest does.
+[proc,blowpipe_death_spill]
+if (~blowpipe_death_empty = false) {
+    return;
+}
+if (%blowpipe_scales > 0) {
+    obj_add(coord, zulrahs_scales, %blowpipe_scales, ^lootdrop_duration);
+}
+if (%blowpipe_darts > 0 & %blowpipe_dart_type ! null) {
+    obj_add(coord, %blowpipe_dart_type, %blowpipe_darts, ^lootdrop_duration);
+}
+%blowpipe_scales = 0;
+%blowpipe_darts = 0;
+
+// the same, to the killer
+[proc,blowpipe_death_spill_pvp]
+if (~blowpipe_death_empty = false) {
+    return;
+}
+if (%blowpipe_scales > 0) {
+    .obj_add(coord, zulrahs_scales, %blowpipe_scales, ^lootdrop_duration);
+}
+if (%blowpipe_darts > 0 & %blowpipe_dart_type ! null) {
+    .obj_add(coord, %blowpipe_dart_type, %blowpipe_darts, ^lootdrop_duration);
+}
+%blowpipe_scales = 0;
+%blowpipe_darts = 0;
+
+// Empties every charged blowpipe about to be lost; true if there was one (and contents to spill).
+[proc,blowpipe_death_empty]()(boolean)
+if (%blowpipe_scales <= 0 & %blowpipe_darts <= 0) {
+    return(false);
+}
+if (inv_total(deathkeep, toxic_blowpipe) > 0) {
+    return(false);
+}
+def_boolean $lost = false;
+if (inv_getobj(worn, ^wearpos_rhand) = toxic_blowpipe) {
+    inv_setslot(worn, ^wearpos_rhand, toxic_blowpipe_empty, 1);
+    $lost = true;
+}
+def_int $i = 0;
+while ($i < inv_size(inv)) {
+    if (inv_getobj(inv, $i) = toxic_blowpipe) {
+        inv_setslot(inv, $i, toxic_blowpipe_empty, 1);
+        $lost = true;
+    }
+    $i = add($i, 1);
+}
+// false with the charged one in the bank: its contents stay where they are
+return($lost);

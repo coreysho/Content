@@ -1,0 +1,119 @@
+// VENOM (2026-09-26), OSRS's, per the OSRS wiki's Venom page - the stronger poison the toxic blowpipe
+// deals (scripts/blowpipe_combat.rs2), the first thing in this build that does. It rides the poison
+// code rather than beside it:
+//   * a venom hit is 6, then 2 more every time it strikes, to 20 ("Damage starts at one hit of 6 per
+//     18 seconds and increases by 2 each time it hits, capping at 20"), every 30 ticks - the poison
+//     timer's own interval;
+//   * the hitsplat is poison's green. OSRS draws venom in a darker green, and this client has only
+//     the five 377 hitmarks (Client.java loads hitmarks 0-4), so it shows as poison does;
+//   * on a monster it shares the poison timer ("monsters can not simultaneously be envenomed and
+//     poisoned"): skill_combat/scripts/npc/npc_poison.rs2 hands a venomous monster's tick to here, and
+//     an ordinary poison no longer replaces venom (OSRS since April 2024). Monsters OSRS makes immune
+//     are listed in configs/blowpipe.enum [venom_immunity]: the ones only immune to venom are
+//     poisoned instead, the rest are left alone;
+//   * on a player it has its own timer and %venom; any antipoison turns it into poison "which starts at
+//     the same damage the venom had" (player/scripts/consumption/effects/scripts/anti_poison.rs2), a
+//     strange fruit cures it and keeps it off for about 18 seconds, dying cures it (~clear_poison), and
+//     it survives a logout (~set_poison_login). The antidote++ and anti-venom that OSRS cures it with
+//     do not exist here, and Cure Me only cures poison (skill_magic/scripts/lunar/lunar_cure.rs2).
+
+// ---------------------------------------------------------------------------------------------
+// Monsters
+// ---------------------------------------------------------------------------------------------
+// With the monster as the active npc. A monster already envenomed keeps its venom where it is.
+[proc,npc_venom_start]
+if (~npc_is_attackable() = false) {
+    return;
+}
+if (map_members = ^false) {
+    return;
+}
+def_int $immunity = enum(npc, int, venom_immunity, npc_type);
+if ($immunity = ^venom_immune) {
+    return;
+}
+if ($immunity = ^venom_immune_poisoned_instead) {
+    ~npc_poison_start(^venom_poison_severity);
+    return;
+}
+if (%npc_venom > 0) {
+    return;
+}
+%npc_poison = 0; // the venom takes the poison's place on the one timer
+%npc_venom = ^venom_start;
+npc_settimer(^venom_interval);
+
+// A venom tick on a monster - called by ~npc_poison_timer while %npc_venom is set.
+[proc,npc_venom_timer]
+if (npc_stat(hitpoints) = 0) { // already dead
+    return;
+}
+npc_damage(^hitmark_poison, %npc_venom);
+if (npc_stat(hitpoints) = 0) {
+    npc_queue(3, 0, 0);
+}
+%npc_venom = min(add(%npc_venom, ^venom_step), ^venom_max);
+
+// ---------------------------------------------------------------------------------------------
+// Players
+// ---------------------------------------------------------------------------------------------
+// On the envenomed player, from their own queue (%venom is protected). Venom replaces a poison; an
+// antipoison's poison immunity does not stop it (only OSRS's antidote++ and anti-venom did); the
+// immunity a strange fruit leaves does. The message is this build's, beside poison's.
+[queue,venom_player]
+if (map_members = ^false) {
+    return;
+}
+if (%venom ! 0) {
+    return; // envenomed already, or immune for now
+}
+if (%poison > 0) {
+    %poison = 0;
+}
+mes("You have been envenomed!");
+%venom = ^venom_start;
+settimer(venom, ^venom_interval);
+
+[timer,venom]
+if (%venom = 0) {
+    cleartimer(venom);
+    return;
+}
+if (%venom < 0) {
+    %venom = add(%venom, 1);
+    return;
+}
+// poison's own damage queue: the green hitsplat, the hit sound, the death check
+queue(poison_damage, 0, %venom);
+%venom = min(add(%venom, ^venom_step), ^venom_max);
+
+// Any antipoison on a venomed player: the venom becomes a poison hitting for what the venom did.
+// Returns true when there was venom to convert, and then the dose does nothing else - "to fully cure
+// venom, players can drink another dose". Poison hits for (%poison + 4) / 5 (skill_combat/scripts/
+// poison.rs2), so a poison hitting $d starts at 5 * $d - 4.
+[proc,venom_to_poison]()(boolean)
+if (%venom <= 0) {
+    return(false);
+}
+def_int $damage = %venom;
+%venom = 0;
+cleartimer(venom);
+%poison = max(%poison, sub(multiply($damage, 5), 4));
+~set_poison_timer;
+return(true);
+
+// A strange fruit: cures venom outright and keeps it off for about 18 seconds - one venom tick.
+[proc,venom_cure_immune]
+if (%venom > -1) {
+    %venom = -1;
+}
+settimer(venom, ^venom_interval);
+
+[proc,venom_clear]
+%venom = 0;
+cleartimer(venom);
+
+[proc,venom_login]
+if (%venom ! 0) {
+    settimer(venom, ^venom_interval);
+}

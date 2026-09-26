@@ -85,6 +85,11 @@ if ($obj = elemental_shield) {
     return;
 }
 def_synth $sound = null;
+if (~blowpipe_is_blowpipe($obj) = true) {
+    // OSRS's toxic blowpipe goes on with the staff sound (toxic_blowpipe/scripts/blowpipe.rs2)
+    sound_synth(equip_staff, 1, 0);
+    return;
+}
 switch_category (oc_category($obj)) {
     case weapon_stab, weapon_slash, weapon_2h_sword : $sound = equip_sword;
     case weapon_blunt, weapon_crush : $sound = equip_blunt;
@@ -354,6 +359,7 @@ while ($i < $size) {
     }
     $i = calc($i + 1);
 }
+$rangebonus = add($rangebonus, ~blowpipe_dart_rangebonus); // the toxic blowpipe's loaded dart (toxic_blowpipe/scripts/blowpipe.rs2)
 return($stabattack, $slashattack, $crushattack, $magicattack, $rangeattack, $stabdefence, $slashdefence, $crushdefence, $magicdefence, $rangedefence, $strengthbonus, $prayerbonus, $rangebonus);
 
 [proc,.equip_get_bonuses]()(int, int, int, int, int, int, int, int, int, int, int, int, int)
@@ -398,6 +404,7 @@ while ($i < $size) {
     }
     $i = calc($i + 1);
 }
+$rangebonus = add($rangebonus, ~.blowpipe_dart_rangebonus);
 return($stabattack, $slashattack, $crushattack, $magicattack, $rangeattack, $stabdefence, $slashdefence, $crushdefence, $magicdefence, $rangedefence, $strengthbonus, $prayerbonus, $rangebonus);
 
 

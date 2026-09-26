@@ -1,0 +1,172 @@
+// THE TOXIC BLOWPIPE (OSRS, January 2015 - so it is ported as OSRS has it). Imported from a modern
+// OSRS cache by tools/models/importosrs.py: OSRS objs 12922 (fang), 12924 (empty), 12926 (charged),
+// 12934 (scales) and 3993/3995/3997/3999 (the scales' count models). Models RE-ENCODED from OSRS
+// model format into the 317-family format (tools/models/osrs2ob2.py), every one round-trip verified;
+// wearpos/wearpos2 come from the cache. Names, examines, weights, values and ops are the cache's.
+//
+// Zulrah is not in this build, so none of these has a drop or a shop: they are admin-spawnable
+// until Zulrah comes (tools/nosourcespec.json says so). Everything they do is in
+// scripts/blowpipe.rs2 (the items) and scripts/blowpipe_combat.rs2 (the weapon).
+
+[tanzanite_fang]
+name=Tanzanite fang
+desc=Maybe you could use a chisel to fletch this into a blowpipe.
+model=obj_tanzanite_fang
+2dzoom=1411
+2dxan=202
+2dyan=1939
+2dzan=1818
+2dxof=-4
+2dyof=-8
+weight=350g
+cost=110000
+members=yes
+iop4=Dismantle
+
+[cert_tanzanite_fang]
+certlink=tanzanite_fang
+certtemplate=template_for_cert
+
+// Empty: it holds no scales and no darts. OSRS gives it no Wield - "it cannot be wielded if it is
+// uncharged, except when fully depleted while equipped" - so it has a wearpos (a blowpipe that runs
+// dry in the hands stays there as this) and no iop2. Its bonuses are the charged one's without the
+// +20 ranged strength, as the wiki's infobox has them.
+[toxic_blowpipe_empty]
+name=Toxic blowpipe (empty)
+desc=Fires darts while coating them with venom.
+model=obj_toxic_blowpipe_empty
+manwear=obj_toxic_blowpipe_empty_manwear,0
+womanwear=obj_toxic_blowpipe_empty_womanwear,0
+wearpos=righthand
+wearpos2=lefthand
+2dzoom=1158
+2dxan=768
+2dyan=189
+2dxof=-7
+2dyof=4
+weight=300g
+cost=120000
+members=yes
+iop4=Dismantle
+category=weapon_thrown
+param=rangeattack,30
+param=levelrequire,75
+param=attackrate,3
+param=attackrange,5
+param=rangeattack_anim,osrs_blowpipe_attack
+param=defend_anim,human_unarmedblock
+param=rangeattack_sound,dart
+param=specwep,^true
+param=sa_energy,500
+
+[cert_toxic_blowpipe_empty]
+certlink=toxic_blowpipe_empty
+certtemplate=template_for_cert
+
+// Charged: it holds scales, darts or both (the player's - %blowpipe_scales, %blowpipe_darts). OSRS's
+// charged blowpipe is untradeable and has no Drop: Uncharge sits where Drop would be.
+// +30 ranged attack, +20 ranged strength (+ the loaded dart's, player/scripts/equip.rs2), 75 Ranged
+// to wield, the thrown weapons' combat tab (Accurate, Rapid, Longrange), speed 3 (2 on Rapid) against
+// monsters and 4 (3 on Rapid) against players, reach 5 (7 on Longrange), Toxic Siphon for 50%.
+[toxic_blowpipe]
+name=Toxic blowpipe
+desc=Fires darts while coating them with venom.
+model=obj_toxic_blowpipe
+manwear=obj_toxic_blowpipe_manwear,0
+womanwear=obj_toxic_blowpipe_womanwear,6
+wearpos=righthand
+wearpos2=lefthand
+2dzoom=1158
+2dxan=768
+2dyan=189
+2dxof=-7
+2dyof=4
+weight=500g
+cost=120000
+members=yes
+tradeable=no
+iop2=Wield
+iop3=Check
+iop4=Unload
+iop5=Uncharge
+wearop1=Check
+category=weapon_thrown
+param=rangeattack,30
+param=rangebonus,20
+param=levelrequire,75
+param=attackrate,3
+param=attackrange,5
+param=rangeattack_anim,osrs_blowpipe_attack
+param=defend_anim,human_unarmedblock
+param=rangeattack_sound,dart
+param=specwep,^true
+param=sa_energy,500
+
+[zulrahs_scales]
+name=Zulrah's scales
+desc=Flakes of toxic snakeskin.
+model=obj_zulrahs_scales
+2dzoom=1370
+2dxan=212
+2dyan=148
+2dxof=7
+cost=20
+members=yes
+stackable=yes
+count1=zulrahs_scales_2,2
+count2=zulrahs_scales_3,3
+count3=zulrahs_scales_4,4
+count4=zulrahs_scales_5,5
+
+[zulrahs_scales_2]
+// OSRS obj 3993: the scales' count model for 2
+name=Zulrah's scales
+desc=Flakes of toxic snakeskin.
+model=obj_zulrahs_scales_2
+2dzoom=1230
+2dxan=512
+2dyan=121
+2dxof=-1
+2dyof=-1
+members=yes
+stackable=yes
+tradeable=no
+
+[zulrahs_scales_3]
+// OSRS obj 3995: the scales' count model for 3
+name=Zulrah's scales
+desc=Flakes of toxic snakeskin.
+model=obj_zulrahs_scales_3
+2dzoom=1230
+2dxan=512
+2dyan=121
+2dxof=-3
+2dyof=1
+members=yes
+stackable=yes
+tradeable=no
+
+[zulrahs_scales_4]
+// OSRS obj 3997: the scales' count model for 4
+name=Zulrah's scales
+desc=Flakes of toxic snakeskin.
+model=obj_zulrahs_scales_4
+2dzoom=1347
+2dxan=512
+2dyan=202
+members=yes
+stackable=yes
+tradeable=no
+
+[zulrahs_scales_5]
+// OSRS obj 3999: the scales' count model for 5 and more
+name=Zulrah's scales
+desc=Flakes of toxic snakeskin.
+model=obj_zulrahs_scales_5
+2dzoom=1537
+2dxan=512
+2dyan=40
+2dxof=2
+members=yes
+stackable=yes
+tradeable=no

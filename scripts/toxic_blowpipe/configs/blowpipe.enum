@@ -1,0 +1,45 @@
+// THE DARTS THE BLOWPIPE TAKES, and nothing else. OSRS's blowpipe fires every unpoisoned dart up to
+// dragon; the owner's call for this build is "rune darts are the highest it can use", so the list is
+// written out rather than worked out from a category, and a dart that is not on it - a poisoned one
+// today, a dragon or amethyst dart the day one is added - is refused with the refusal message
+// (scripts/blowpipe.rs2 ~blowpipe_load_darts) instead of being accepted by accident. To let a new dart
+// in, add it here; its damage follows by itself, since the blowpipe hits with the loaded dart's own
+// ranged strength (its rangebonus param, player/scripts/equip.rs2).
+// (Each maps to itself: the output is the dart as a namedobj, the type inv_add wants.)
+[blowpipe_darts]
+inputtype=obj
+outputtype=namedobj
+default=null
+val=bronze_dart,bronze_dart
+val=iron_dart,iron_dart
+val=steel_dart,steel_dart
+val=black_dart,black_dart
+val=mithril_dart,mithril_dart
+val=adamant_dart,adamant_dart
+val=rune_dart,rune_dart
+
+// Monsters OSRS makes immune to venom (the wiki's Venom page, its lists of non-raid bosses and of
+// monsters), for the ones this build has. ^venom_immune_poisoned_instead: "venomous weapons will
+// inflict regular poison instead". ^venom_immune: immune to both, so a venomous weapon does nothing to
+// them. Chickens and cows are on OSRS's list too, and are immune here already - their ai_timer is
+// their clucking and mooing, so no poison or venom ever ticks on them, which is OSRS's own reason.
+[venom_immunity]
+inputtype=npc
+outputtype=int
+default=0
+val=chaoselemental,^venom_immune_poisoned_instead
+val=dagcave_magic_boss,^venom_immune_poisoned_instead
+val=dagcave_melee_boss,^venom_immune_poisoned_instead
+val=dagcave_ranged_boss,^venom_immune_poisoned_instead
+val=mole_giant,^venom_immune_poisoned_instead
+val=kalphite_queen,^venom_immune_poisoned_instead
+val=kalphite_flyingqueen,^venom_immune_poisoned_instead
+val=kraken,^venom_immune_poisoned_instead
+val=tzhaar_fightcave_swarm_boss,^venom_immune_poisoned_instead
+val=zilyana,^venom_immune
+val=graardor,^venom_immune
+val=kril,^venom_immune
+val=kreearra,^venom_immune
+val=templetrek_vampire_1,^venom_immune
+val=templetrek_vampire_2,^venom_immune
+val=templetrek_vampire_3,^venom_immune
