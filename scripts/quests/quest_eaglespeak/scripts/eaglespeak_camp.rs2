@@ -1,0 +1,164 @@
+// Eagles' Peak - the mountain itself (m36_54, 474's): Nickolaus's camp at its north-western foot, the
+// climb, and the rocky outcrop at the top. The camp's fire, books and gear are multis on %eaglespeak
+// (eaglespeak.loc): kicked over and Inspectable from the moment Charlie sends the player until Nickolaus
+// is back from the nest.
+
+// =========================================================================== the abandoned camp
+[oploc1,eagle_camp_fire]
+mes("A few logs are still burning so it can't have been unattended long.");
+
+[oploc1,eagle_camp_equipment]
+mes("Some of the equipment seems to have been trampled into the ground.");
+
+[oploc1,eagle_camp_books]
+if (%eaglespeak = ^eaglespeak_started & inv_total(inv, bird_book) = 0 & inv_total(inv, eagle_metal_feather) = 0) {
+    ~mesbox("Amongst the scattered books one in particular grabs your attention; there seems to be something poking out from between the pages.");
+    ~eaglespeak_give(bird_book, "The bird book falls to the ground.");
+    return;
+}
+// The feather again, while it still has a use (it is no good to anybody once the outcrop is open).
+if (%eaglespeak = ^eaglespeak_feather & inv_total(inv, eagle_metal_feather) = 0) {
+    ~mesbox("Amongst the scattered books you find a small metal feather.");
+    ~eaglespeak_give(eagle_metal_feather, "The metal feather falls to the ground.");
+    return;
+}
+mes("These books look like they've been kicked over by someone or something.");
+
+// A quest item into the pack, or at the player's feet with the transcript's line when it is full.
+[proc,eaglespeak_give](namedobj $obj, string $full)
+if (inv_freespace(inv) < 1) {
+    obj_add(coord, $obj, 1, ^lootdrop_duration);
+    mes($full);
+    return;
+}
+inv_add(inv, $obj, 1);
+
+// =========================================================================== the climb
+// 474's three climbing rocks beside the camp: the Agility shortcut up to the peak (25 Agility, OSRS).
+// The bottom one is by the camp, the two at the top on the ledge in front of the outcrop.
+[oploc1,loc474_19849]
+if (coordz(coord) >= 3500) {
+    if (stat(agility) < 25) {
+        ~mesbox("You need an Agility level of 25 to climb these rocks.");
+        return;
+    }
+    mes("You climb up the rocks...");
+    ~agility_climb_up(0, 0_36_54_20_41);
+    return;
+}
+mes("You climb down the rocks...");
+~agility_climb_up(0, 0_36_54_18_46);
+
+// =========================================================================== the rocky outcrop
+// [eagle_outcrop] is 474's outcrop until the metal feather has gone in (%eaglespeak ^eaglespeak_passage),
+// its cave entrance from then on.
+[oploc2,eagle_outcrop]
+~mesbox("This area of rock doesn't quite seem to match the rest of the cliff face. There appears to be a thin vertical slot in the middle of the rock, with what appears to be a carving of a feather above it.");
+
+[oplocu,eagle_outcrop]
+if (last_useitem ! eagle_metal_feather) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%eaglespeak >= ^eaglespeak_passage) {
+    mes("The cliff face has already opened to reveal a tunnel heading into the mountain.");
+    return;
+}
+~mesbox("You place the metal feather into the groove in the cliff face. It seems to catch in some sort of mechanism.");
+~mesbox("Part of the cliff face swings outwards to reveal a tunnel heading into the mountain.");
+%eaglespeak = ^eaglespeak_passage;
+~send_quest_progress(questlist:eaglespeak, %eaglespeak, ^eaglespeak_complete);
+
+[oploc1,eagle_outcrop]
+if (%eaglespeak < ^eaglespeak_passage) {
+    return;
+}
+p_teleport(3_31_77_10_55);
+
+// Out of the cave again, onto the ledge in front of the outcrop.
+[oploc1,loc474_19891]
+p_teleport(0_36_54_24_40);
+
+// =========================================================================== Nickolaus at the camp
+// eagle_nickolaus_camp_shell shows him from ^eaglespeak_disguised on ("I'll meet you back down at the
+// camp site").
+[opnpc1,eagle_nickolaus_camp_shell]
+~chatplayer("<p,neutral>Hello again Nickolaus.");
+~chatnpc("<p,happy>Ah, hello again. Can I help at all?");
+def_int $choice;
+if (%eaglespeak = ^eaglespeak_disguised) {
+    $choice = ~p_choice3("Well I was originally sent to find you because of a ferret.", 1, "I was just wondering how you got on with those eagles.", 2, "No thanks. I was just dropping by.", 3);
+} else {
+    $choice = ~p_choice2("I was just wondering how you got on with those eagles.", 2, "No thanks. I was just dropping by.", 3);
+}
+switch_int ($choice) {
+    case 1 : @eaglespeak_nickolaus_ferret;
+    case 2 :
+        ~chatplayer("<p,quiz>I was just wondering how you got on with those eagles.");
+        ~chatnpc("<p,happy>Ah wonderfully. They're actually most cooperative creatures once they get used to you. With some rope I'm sure you could find some way to tame them... maybe even fly on them.");
+    case 3 :
+        ~chatplayer("<p,neutral>No thanks. I was just dropping by, wanted to make sure you hadn't been abducted again.");
+        ~chatnpc("<p,neutral>No such luck I'm afraid, but I'm sure I'll make another discovery soon enough. I always seem to.");
+}
+
+[label,eaglespeak_nickolaus_ferret]
+~chatplayer("<p,neutral>Well I was originally sent to find you because of a ferret. Can you get me one at all?");
+~chatnpc("<p,happy>I'll do better than that. I'll teach you how to capture one yourself.");
+if (~p_choice2("That sounds good to me.", 1, "I've not got the time right now.", 2) = 2) {
+    ~chatplayer("<p,neutral>I've not got the time right now.");
+    ~chatnpc("<p,neutral>Ah you don't get out of it that easily. When you've got the time come back and see me.");
+    return;
+}
+~chatplayer("<p,happy>That sounds good to me. What do I do.");
+if (inv_freespace(inv) < 2) {
+    ~chatnpc("<p,neutral>Well first of all I suggest you free up some space to carry things. You don't want an angry squashed ferret now do you!");
+    return;
+}
+~chatnpc("<p,happy>Come with me and I'll show you.");
+queue(eaglespeak_ferret_cutscene, 0, 0);
+
+// The cutscene: a box trap baited with meat among the trees west of the camp, where the wild ferrets
+// are, Nickolaus and the player crouched beside it; a ferret goes in and the player picks it up.
+[queue,eaglespeak_ferret_cutscene]
+if (%eaglespeak ! ^eaglespeak_disguised) {
+    return;
+}
+if_close;
+def_coord $back = coord;
+p_teleport(0_36_54_10_53);
+loc_add(0_36_54_8_54, hunter_boxtrap_laid, 0, centrepiece_straight, 30);
+npc_add(0_36_54_11_54, eagle_nickolaus_crouch, 30);
+npc_facesquare(0_36_54_8_54);
+facesquare(0_36_54_8_54);
+p_delay(1);
+~chatplayer("<p,quiz>Okay, so we've baited the trap with meat, now what?");
+~chatnpc_specific("Nickolaus", eagle_nickolaus_crouch, "<p,neutral>And now... we wait. Quietly!");
+~chatplayer("<p,confused>But what if I don't like waiting for things?");
+~chatnpc_specific("Nickolaus", eagle_nickolaus_crouch, "<p,neutral>Did I mention we wait quietly?");
+~chatnpc_specific("Nickolaus", eagle_nickolaus_crouch, "<p,neutral>Shhh, here comes something.");
+if_close;
+npc_add(0_36_54_7_56, eagle_cutscene_ferret, 10);
+npc_walk(0_36_54_8_54);
+p_delay(4);
+if (npc_find(0_36_54_8_54, eagle_cutscene_ferret, 4, 0) = true) {
+    npc_del;
+}
+if (loc_find(0_36_54_8_54, hunter_boxtrap_laid) = true) {
+    loc_change(hunter_boxtrap_shaking_ferret, 6);
+}
+p_delay(2);
+anim(human_pickupfloor, 0);
+if (loc_find(0_36_54_8_54, hunter_boxtrap_shaking_ferret) = true) {
+    loc_del(6);
+}
+~chatnpc_specific("Nickolaus", eagle_nickolaus_crouch, "<p,laugh>Ha ha, there you go! One gift-wrapped ferret ready for delivery.");
+inv_add(inv, ferret, 1);
+inv_add(inv, hunter_box_trap, 1);
+%eaglespeak = ^eaglespeak_ferret;
+~send_quest_progress(questlist:eaglespeak, %eaglespeak, ^eaglespeak_complete);
+if (npc_find(0_36_54_11_54, eagle_nickolaus_crouch, 2, 0) = true) {
+    npc_del;
+}
+p_teleport($back);
+~chatnpc_specific("Nickolaus", eagle_nickolaus, "<p,happy>See, it's all just a matter of patience.");
+~chatplayer("<p,happy>Great, thanks!");

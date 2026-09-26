@@ -222,6 +222,18 @@ while (npc_findnext = true) {
     }
 }
 
+// From login.rs2 (377-wip's own version of the quest added the hook, 3df99cb33). The quest's copy of the
+// lighthouse (m38_71) is only for a quest in progress: somebody who logs in there before starting it
+// or after finishing it - a save from that version, which kept players in the copy until the Mother
+// died - is put on the same tile of the real one (m39_56).
+[proc,horror_login]
+if(inzone(0_38_71_0_0, 3_38_71_63_63, coord) = false) {
+    return;
+}
+if(%horrorquest = ^horror_not_started | %horrorquest = ^horror_complete) {
+    p_teleport(movecoord(coord, 64, 0, -960));
+}
+
 // --- The spiral staircase (moved here from ladders+stairs/scripts/stairs.rs2) ---
 // Once the lamp is fixed the top floor is the real lighthouse's (m39_56), lit; the floors below it
 // stay the quest's copy (m38_71) until the quest is done.

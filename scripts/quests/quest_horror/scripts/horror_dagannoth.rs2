@@ -15,12 +15,10 @@ if (%npc_aggressive_player ! uid) {
 
 [ai_queue3,horror_dagannoth_jr4]
 gosub(npc_death);
-def_coord $spot = npc_coord;
+// No drop, as in 349 and on both wikis (the big bones here before were invented - 377-wip, 3df99cb33).
 if (npc_findhero = ^false) {
     return;
 }
-// ours, kept: big bones, as the drop viewer lists (drop_tables/configs/npc_drops.dbrow)
-obj_add($spot, big_bones, 1, ^lootdrop_duration);
 if (%npc_aggressive_player = uid) {
     if(%horrorquest = ^horror_repaired_lighthouse) {
         queue(queue_defeat_dagjr, 0, 0);
@@ -224,8 +222,8 @@ def_coord $spot = npc_coord;
 if (npc_findhero = ^false) {
     return;
 }
-// ours, kept: big bones, as the drop viewer lists (drop_tables/configs/npc_drops.dbrow)
-obj_add($spot, big_bones, 1, ^lootdrop_duration);
+// Bones, not big bones (both wikis; 377-wip, 3df99cb33).
+obj_add($spot, bones, 1, ^lootdrop_duration);
 if (%npc_aggressive_player = uid) { // should always be true but just incase
     if(%horrorquest = ^horror_defeated_dagjr) {
         queue(quest_horror_complete, 0, 0);
@@ -235,7 +233,9 @@ if (%npc_aggressive_player = uid) { // should always be true but just incase
 [queue,spawn_dagmother]
 npc_huntall(0_39_72_24_36, 25, 0);
 while (npc_findnext = true) {
-    if(%npc_aggressive_player = uid) {
+    // Not the Dagannoth just killed: this runs as soon as its death line is clicked through, and a
+    // quick click (space to continue) found it still dying, took it for the Mother, and she never came.
+    if(%npc_aggressive_player = uid & npc_type ! horror_dagannoth_jr4) {
         npc_setmode(opplayer2);
         return;
     }
@@ -281,6 +281,17 @@ cam_reset;
 // player_{melee,ranged,magic}.rs2 (and the salamander/chinchompa hooks in skill_hunter), which call
 // this. Runs with her as the active npc. False blocks the spell's damage: only the matching
 // elemental family hurts her white/blue/brown/red forms, and magic never hurts the orange/green ones.
+// Called from skill_combat/scripts/player/player_magic.rs2 before the hit roll (377-wip, 3df99cb33): a
+// spell of the wrong element for her current colour splashes, rather than hitting for 0 (RS wiki,
+// Horror from the Deep: "Using the wrong type of attack incurs splash damage"). False for any other npc.
+[proc,dagmother_spell_splashes](int $spell)(boolean)
+if (npc_type = horror_dagganoth_air | npc_type = horror_dagganoth_water | npc_type = horror_dagganoth_earth | npc_type = horror_dagganoth_fire | npc_type = horror_dagganoth_ranged | npc_type = horror_dagganoth_melee) {
+    if (~dagmother_spell_matches_phase($spell) = false) {
+        return(true);
+    }
+}
+return(false);
+
 [proc,dagmother_spell_matches_phase](int $spell)(boolean)
 if (npc_type = horror_dagganoth_air & ($spell = ^wind_strike | $spell = ^wind_bolt | $spell = ^wind_blast | $spell = ^wind_wave)) {
     return(true);

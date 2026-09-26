@@ -82,6 +82,18 @@ if ($old >= 6) {
     if (calc(~obj_gettotal(unfinished_guthixbook) + ~obj_gettotal(guthixbook_complete)) > 0) {
         %horror_claimed_guthixbook = ^true;
     }
+    // 377-wip's later version of the old quest (da356015e) also recorded the books Jossik had given in
+    // %horror_bridges bits 5-7 (Saradomin, Zamorak, Guthix): a book given and since lost is still
+    // this player's, so the original's reclaim hands it back rather than selling it again.
+    if (testbit($bridges, 5) = ^true) {
+        %horror_claimed_holybook = ^true;
+    }
+    if (testbit($bridges, 6) = ^true) {
+        %horror_claimed_unholybook = ^true;
+    }
+    if (testbit($bridges, 7) = ^true) {
+        %horror_claimed_guthixbook = ^true;
+    }
 } else if ($old >= 3) {
     %horrorquest = ^horror_defeated_dagjr;
     if ($old >= 4) {

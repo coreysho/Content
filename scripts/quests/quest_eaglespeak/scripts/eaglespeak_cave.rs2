@@ -1,0 +1,298 @@
+// Eagles' Peak - the cave under the peak (m31_77, level 3; 474's terrain, the locs where OSRS places
+// them). From the entrance the passage splits: east to the tunnel into the gold feather room (the reset
+// lever beside it), south to the junction and the tunnel west into the silver feather room, and on south
+// to the tunnel into the bronze feather room and the stone door. The southern route past the giant
+// feathers ends on a ledge over the chasm, looking down into the nest where Nickolaus is. Behind the
+// door the passage runs east: north up to the nest's eagle, and on to the eyrie where the three giant
+// eagles are.
+
+// =========================================================================== the tunnels
+// Each tunnel is a pair of 474 locs, one in the cave and one in its room (m30_76, level 2).
+[oploc1,loc474_19897] @eaglespeak_tunnel(2_30_76_37_44);
+[oploc1,loc474_19903] @eaglespeak_tunnel(2_30_76_27_4);
+[oploc1,loc474_19909] @eaglespeak_tunnel(2_30_76_54_44);
+[oploc1,loc474_19894] @eaglespeak_tunnel(3_31_77_38_54);
+[oploc1,loc474_19900] @eaglespeak_tunnel(3_31_77_3_44);
+[oploc1,loc474_19906] @eaglespeak_tunnel(3_31_77_3_21);
+
+[label,eaglespeak_tunnel](coord $dest)
+mes("You enter the tunnel.");
+p_teleport($dest);
+if ($dest = 2_30_76_37_44) {
+    ~eagle_gold_ensure;
+}
+
+// =========================================================================== the giant feathers
+// Nine piles of them in the cave, and in the eyrie. Asyff wants ten for the two costumes.
+[oploc1,loc474_19922]
+if (inv_itemspace(inv, eagle_feather, 1, inv_size(inv)) = false) {
+    mes("You don't have enough inventory space to hold that item.");
+    return;
+}
+anim(human_pickupfloor, 0);
+inv_add(inv, eagle_feather, 1);
+
+// =========================================================================== the stone door
+// [eagle_door_south] and [eagle_door_north] are both halves of it, multis on eaglespeak_door_count.
+[oploc1,eagle_door_south] @eaglespeak_door_open;
+[oploc1,eagle_door_north] @eaglespeak_door_open;
+[oplocu,eagle_door_south] @eaglespeak_door_use;
+[oplocu,eagle_door_north] @eaglespeak_door_use;
+
+[label,eaglespeak_door_open]
+if (%eaglespeak_door_count < 3) {
+    ~mesbox("The door seems to be locked in place. There is an engraving of an eagle on the door. Three of the feathers illustrated in the engraving seem to be cut deeper than the others. It looks like they may once have contained some sort of decoration.");
+    return;
+}
+// Through, to the other side of the door.
+def_int $z = coordz(coord);
+if ($z < 4947) {
+    $z = 4947;
+} else if ($z > 4948) {
+    $z = 4948;
+}
+if (coordx(coord) < 2003) {
+    p_teleport(movecoord(3_31_77_19_19, 0, 0, calc($z - 4947)));
+} else {
+    p_teleport(movecoord(3_31_77_18_19, 0, 0, calc($z - 4947)));
+}
+
+[label,eaglespeak_door_use]
+switch_obj (last_useitem) {
+    case eagle_metal_feather :
+        ~mesbox("Unfortunately this metal feather doesn't seem to match any of the indentations in the engraving.");
+    case eagle_feather :
+        ~mesbox("There doesn't seem to be any way of attaching this feather to the engraving. The indentations look like they probably contained some sort of decoration rather than real feathers, although there is no sign of their whereabouts now.");
+    case eagle_bronze_feather, eagle_silver_feather, eagle_golden_feather :
+        if (%eaglespeak_door_count >= 3) {
+            ~mesbox("The engraving is already complete. There is nowhere left to put this feather.");
+            return;
+        }
+        if (~eaglespeak_door_has(last_useitem) = true) {
+            ~mesbox("There is already a feather like that in the engraving.");
+            return;
+        }
+        inv_del(inv, last_useitem, 1);
+        anim(human_eagle_reach, 0);
+        switch_obj (last_useitem) {
+            case eagle_bronze_feather : %eaglespeak_door_bronze = 1;
+            case eagle_silver_feather : %eaglespeak_door_silver = 1;
+            case eagle_golden_feather : %eaglespeak_door_gold = 1;
+        }
+        %eaglespeak_door_count = add(%eaglespeak_door_count, 1);
+        if (%eaglespeak_door_count >= 3) {
+            ~mesbox("As you insert the metallic feather into the final indentation you hear a low grinding as if stone blocks were moving against one another.");
+        } else {
+            ~mesbox("You insert the metallic feather into one of the feather-shaped indentations in the engravings.");
+        }
+    case default : ~displaymessage(^dm_default);
+}
+
+[proc,eaglespeak_door_has](obj $feather)(boolean)
+switch_obj ($feather) {
+    case eagle_bronze_feather : if (%eaglespeak_door_bronze = 1) return(true);
+    case eagle_silver_feather : if (%eaglespeak_door_silver = 1) return(true);
+    case eagle_golden_feather : if (%eaglespeak_door_gold = 1) return(true);
+}
+return(false);
+
+// Whether the player already has a feather of this kind - in the pack, the bank or the door.
+[proc,eaglespeak_has_feather](namedobj $feather)(boolean)
+if (inv_total(inv, $feather) > 0 | inv_total(bank, $feather) > 0 | ~eaglespeak_door_has($feather) = true) {
+    return(true);
+}
+return(false);
+
+// =========================================================================== the nest's eagle
+// The mother eagle stands between the passage behind the door and the nest Nickolaus is stuck in. In
+// the disguise she lets the player by; without it she takes a swipe at them. Once Nickolaus is out,
+// she lets anybody by ("Passing the eagle again, regardless of disguise").
+[opnpc1,eagle_giant]
+if (%eaglespeak < ^eaglespeak_disguised & ~eaglespeak_disguise_worn = false) {
+    npc_anim(eagle_giant_swipe, 0);
+    mes("As you approach the eagle, it takes a swipe at you with its beak. It seems to object to you trying to get past.");
+    ~damage_self(calc(random(3) + 1));
+    return;
+}
+mes("You edge cautiously past the eagle; it doesn't seem to object.");
+if (coordz(coord) < 4955) {
+    p_teleport(3_31_77_23_29);
+} else {
+    p_teleport(3_31_77_23_25);
+}
+
+[proc,eaglespeak_disguise_worn]()(boolean)
+if (inv_total(worn, eagle_cape) > 0 & inv_total(worn, fake_beak) > 0) {
+    return(true);
+}
+return(false);
+
+[proc,eaglespeak_disguise_carried]()(boolean)
+if (inv_total(inv, eagle_cape) > 0 & inv_total(inv, fake_beak) > 0) {
+    return(true);
+}
+return(false);
+
+// =========================================================================== Nickolaus in the nest
+// eagle_nickolaus_nest_shell: shouted to across the chasm until he has his disguise, then in it. He is
+// shouted to from the ledge, and talked to from beside him once the player is past the eagle.
+// Shouted across the chasm (an approach op, within the default ten tiles) or said beside him.
+[apnpc1,eagle_nickolaus_nest_shell] @eaglespeak_nick_nest;
+[opnpc1,eagle_nickolaus_nest_shell] @eaglespeak_nick_nest;
+// The rockslide at the end of the ledge over the chasm (474 loc 19752, which 474 left to the server to
+// place): Shout-over, to Nickolaus in the nest below.
+[oploc1,loc474_19752] @eaglespeak_nick_nest;
+
+// Nickolaus's side of it, whether the player is beside him or shouting from the ledge.
+[proc,eaglespeak_nick](string $text)
+if (%eaglespeak >= ^eaglespeak_disguised) {
+    ~chatnpc_specific("Nickolaus", eagle_nickolaus_disguised, $text);
+    return;
+}
+~chatnpc_specific("Nickolaus", eagle_nickolaus_nest, $text);
+
+[label,eaglespeak_nick_nest]
+if (%eaglespeak >= ^eaglespeak_disguised) {
+    ~chatplayer("<p,quiz>I've given you the disguise you needed, can we go now?");
+    ~eaglespeak_nick("<p,neutral>Calm down. You must realise I can't leave just like that, this is far too amazing an opportunity. Just go down to the camp site and I'll meet you there.");
+    return;
+}
+if (%eaglespeak < ^eaglespeak_passage) {
+    return;
+}
+if (%eaglespeak_ledge_seen = 0) {
+    // The first time the player comes out over the chasm (OSRS: "Approaching Nickolaus across the chasm").
+    %eaglespeak_ledge_seen = 1;
+    ~eaglespeak_nick("<p,quiz>Hello? Er... excuse me?");
+    ~chatplayer("<p,quiz>Hello, are you Nickolaus?");
+    ~eaglespeak_nick("<p,happy>Aha, I see my reputation precedes me. Yes, I am the renowned hunter and explorer Nickolaus. You've arrived just in time to witness a very momentous occasion, for I have just discovered the nest of a giant eagle.");
+    ~eaglespeak_nick("<p,happy>And a most amazing discovery it is too, even if I do say so myself.");
+    @eaglespeak_nick_menu;
+}
+~chatplayer("<p,quiz>Hello Nickolaus, how are you getting on with your discoveries?");
+if (%eaglespeak = ^eaglespeak_passage) {
+    ~eaglespeak_nick("<p,happy>Wonderfully, these giant eagles are simply magnificent creatures. I absolutely must see about getting one as a pet.");
+    @eaglespeak_nick_menu_pet;
+}
+// ^eaglespeak_help: he has asked for the disguise.
+if (~eaglespeak_disguise_worn = true) {
+    ~eaglespeak_nick("<p,shock>What's this, a young hatchling? Oh no, I hope it doesn't think I'm its dinner!");
+    ~chatplayer("<p,laugh>No, Nickolaus, it's me! I'm just in disguise!");
+    ~eaglespeak_nick("<p,scared>You're sure...you're sure you're not going to eat me?");
+    ~chatplayer("<p,neutral>No of course not. You sent me to get you an eagle outfit remember? So you could get out of this nest?");
+    ~eaglespeak_nick("<p,happy>Wow, that really is a very convincing disguise. Have you got one for me too?");
+} else {
+    ~eaglespeak_nick("<p,neutral>Wonderfully thank you, although I am still having just a little trouble convincing them to let me leave.");
+    ~eaglespeak_nick("<p,quiz>I don't suppose you've managed to get that disguise I asked for yet?");
+}
+if (~eaglespeak_disguise_carried = false) {
+    ~chatplayer("<p,sad>I'm afraid not yet.");
+    ~eaglespeak_nick("<p,neutral>Well like I said, the Varrock fancy dress shop is a good bet if you have the materials, and there are plenty of feathers around here.");
+    ~eaglespeak_nick("<p,happy>And while you're working on that, I'll get back to studying these incredible winged wonders.");
+    return;
+}
+~chatplayer("<p,happy>Yes, I have one right here.");
+if (~eaglespeak_in_nest = false | ~eaglespeak_disguise_worn = false) {
+    ~eaglespeak_nick("<p,neutral>Well bring it over here then. It's not much use to me over there.");
+    return;
+}
+inv_del(inv, eagle_cape, 1);
+inv_del(inv, fake_beak, 1);
+~doubleobjbox(eagle_cape, fake_beak, "You give Nickolaus a fake beak and an eagle feather cape.", 250);
+%eaglespeak = ^eaglespeak_disguised;
+~send_quest_progress(questlist:eaglespeak, %eaglespeak, ^eaglespeak_complete);
+~chatnpc_specific("Nickolaus", eagle_nickolaus_disguised, "<p,happy>Excellent, now there is no way the eagle will be able to tell me from one of its own. Now you run off, and I'll meet you back down at the camp site.");
+
+// The nest itself, behind the eagle.
+[proc,eaglespeak_in_nest]()(boolean)
+if (coordz(coord) >= 4957 & coordz(coord) <= 4961 & coordx(coord) >= 2004 & coordx(coord) <= 2010) {
+    return(true);
+}
+return(false);
+
+[label,eaglespeak_nick_menu]
+switch_int (~p_choice3("The Ardougne zookeeper sent me to find you.", 1, "Oh, but I'd come to rescue you.", 2, "Aren't giant eagles mythical?", 3)) {
+    case 1 : @eaglespeak_nick_zookeeper;
+    case 2 : @eaglespeak_nick_rescue;
+    case 3 : @eaglespeak_nick_mythical;
+}
+
+[label,eaglespeak_nick_menu_pet]
+switch_int (~p_choice4("The Ardougne zookeeper sent me to find you.", 1, "A pet? Are you crazy?", 2, "I've come to rescue you.", 3, "Aren't giant eagles mythical?", 4)) {
+    case 1 : @eaglespeak_nick_zookeeper;
+    case 2 :
+        ~chatplayer("<p,shock>A pet? Are you crazy?");
+        ~eaglespeak_nick("<p,laugh>Quite possibly, quite possibly, but I haven't found a creature I couldn't tame yet.");
+        @eaglespeak_nick_menu_pet;
+    case 3 : @eaglespeak_nick_rescue;
+    case 4 : @eaglespeak_nick_mythical;
+}
+
+[label,eaglespeak_nick_zookeeper]
+~chatplayer("<p,neutral>The Ardougne zookeeper sent me to find you.");
+~eaglespeak_nick("<p,neutral>Ah yes, he sent me to find a ferret. A trivial task, and one which pales in comparison compared to this momentous discovery. I'm sure he can wait.");
+switch_int (~p_choice2("Well if you gave me a ferret I could take it back for you.", 1, "So it's not that you're trapped then?", 2)) {
+    case 1 :
+        ~chatplayer("<p,neutral>Well if you gave me a ferret I could take it back for you.");
+        ~eaglespeak_nick("<p,neutral>Well that's very kind of you, but I'm afraid all my equipment is down at the camp site.");
+        ~eaglespeak_nick("<p,sad>I'd go with you but currently I'm somewhat, er ...");
+        ~chatplayer("<p,neutral>Trapped?");
+        @eaglespeak_nick_negative;
+    case 2 :
+        ~chatplayer("<p,quiz>So it's not that you're trapped then?");
+        @eaglespeak_nick_negative;
+}
+
+[label,eaglespeak_nick_rescue]
+~chatplayer("<p,neutral>Oh, but I'd come to rescue you.");
+~eaglespeak_nick("<p,neutral>How very kind of you. But Nickolaus Farrick never needs rescuing. I may apparently be trapped in a giant eagle's nest, but it is all a cunning ruse to put the beast at ease.");
+switch_int (~p_choice2("Aren't giant eagles mythical?", 1, "Oh, so you're not really trapped?", 2)) {
+    case 1 : @eaglespeak_nick_mythical;
+    case 2 :
+        ~chatplayer("<p,quiz>Oh, so you're not really trapped?");
+        @eaglespeak_nick_negative;
+}
+
+[label,eaglespeak_nick_mythical]
+~chatplayer("<p,quiz>Aren't giant eagles mythical?");
+~eaglespeak_nick("<p,happy>Oh many people believe so, yes, but my relentless exploration has paid off once again, for I stand now in the nest of such a supposedly mythical creature.");
+~chatplayer("<p,quiz>How did you manage to find the nest?");
+~eaglespeak_nick("<p,neutral>Through unfaltering dedication, attention to detail, oh, and I suppose there's the minor point that I got carried here by an eagle.");
+~chatplayer("<p,quiz>So in fact the eagle found you?");
+~eaglespeak_nick("<p,neutral>So it might appear to an amateur yes, and, well, I may have been a little lucky, but it's still a remarkable discovery don't you think?");
+switch_int (~p_choice2("Amazing, but what do you intend to do now you've discovered it?", 1, "Well, I'll let you get on with your work then.", 2)) {
+    case 1 :
+        ~chatplayer("<p,quiz>Amazing, but what do you intend to do now you've discovered it?");
+        ~eaglespeak_nick("<p,happy>Well, there's all sorts to do. I need to observe its behaviour patterns and document its feeding habits. The discovery is only just the beginning you know.");
+        switch_int (~p_choice2("I think you're trapped.", 1, "Well, I'll let you get on with your work then.", 2)) {
+            case 1 :
+                ~chatplayer("<p,neutral>I think you're trapped.");
+                @eaglespeak_nick_negative;
+            case 2 : @eaglespeak_nick_bye;
+        }
+    case 2 : @eaglespeak_nick_bye;
+}
+
+[label,eaglespeak_nick_bye]
+~chatplayer("<p,neutral>Well, I'll let you get on with your work then.");
+~eaglespeak_nick("<p,happy>It's always a pleasure to discuss my discoveries.");
+
+[label,eaglespeak_nick_negative]
+~eaglespeak_nick("<p,neutral>Well I think trapped is quite a negative way of looking at it.");
+~eaglespeak_nick("<p,sad>I will admit however that getting out of here may be a little tricky. I did have a plan, but unfortunately it didn't involve being stuck in this nest.");
+switch_int (~p_choice2("Could I help at all?", 1, "Well it'll give you a lot of time to study the eagles.", 2)) {
+    case 1 :
+        ~chatplayer("<p,quiz>Could I help at all?");
+        ~eaglespeak_nick("<p,neutral>Actually I believe you could. I need to somehow trick the eagles into thinking I'm one of them. Could you fashion some sort of disguise for me?");
+        ~chatplayer("<p,quiz>What would that involve?");
+        ~eaglespeak_nick("<p,neutral>Well, you could go and speak to the fancy dress shop owner in Varrock. He can make anything if you give him the right materials. In fact you should probably get a couple of disguises, one for each of us.");
+        ~chatplayer("<p,happy>That's a good idea. There are plenty of feathers around here. I'll see what I can do.");
+        if (%eaglespeak = ^eaglespeak_passage) {
+            %eaglespeak = ^eaglespeak_help;
+            ~send_quest_progress(questlist:eaglespeak, %eaglespeak, ^eaglespeak_complete);
+        }
+    case 2 :
+        ~chatplayer("<p,neutral>Well it'll give you a lot of time to study the eagles.");
+        ~eaglespeak_nick("<p,happy>Very true, and certainly an opportunity I wouldn't want to miss.");
+        @eaglespeak_nick_bye;
+}

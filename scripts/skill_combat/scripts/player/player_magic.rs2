@@ -92,8 +92,10 @@ if (~black_mask_imbued_on_task = true) {
 // Elemental weakness and the twinflame staff: their percent onto the accuracy roll here, and onto
 // the max hit below as a flat share of the spell's own (skill_combat/scripts/player/elemental_weakness.rs2).
 def_int $bonus = ~spell_bonus_pct($spell);
-// if player DOESNT splash:
-if (~player_npc_hit_roll_boosted(^magic_style, multiply($mask_num, add(100, $bonus)), multiply($mask_div, 100)) = true) {
+// if player DOESNT splash. The Dagannoth Mother (quest_horror) makes every spell of the wrong element
+// for her current colour splash (RS wiki, Horror from the Deep: "Using the wrong type of attack incurs
+// splash damage"); ~dagmother_spell_splashes is false for everything else.
+if (~dagmother_spell_splashes($spell) = false & ~player_npc_hit_roll_boosted(^magic_style, multiply($mask_num, add(100, $bonus)), multiply($mask_div, 100)) = true) {
     def_int $maxhit = ~magic_spell_maxhit($spell_data);
     def_int $base = $maxhit;
     if (npc_type = count_draynor & inv_total(inv, garlic) > 0) {

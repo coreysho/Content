@@ -73,6 +73,7 @@ inv_del(inv, rope, 1);
 ~hunter_trap_set($slot, $tree);
 ~hunter_trap_set_kind($slot, ^hunter_kind_nettrap);
 ~hunter_trap_set_angle($slot, $angle);
+~hunter_net_bait_set($slot, false); // a new trap starts unbaited (hunter_netbait.rs2)
 loc_change(enum(int, loc, hunter_net_set, $colour), ^hunter_trap_duration);
 loc_add($net, hunter_nettrap_net, $angle, centrepiece_straight, ^hunter_trap_duration);
 settimer(hunter_traps, ^hunter_trap_interval);
@@ -148,7 +149,7 @@ if (coordy($tree) ! coordy(coord) | distance($tree, coord) > ^hunter_trap_leash)
 }
 def_int $colour = ~hunter_net_colour($at_tree);
 if ($at_tree = enum(int, loc, hunter_net_set, $colour)) {
-    ~hunter_net_lure($tree, $net, $angle, $colour);
+    ~hunter_net_lure($slot, $tree, $net, $angle, $colour);
     return(true);
 }
 // Sprung: the state is on the tree's tile or, facing south or west, on the net's.
@@ -170,7 +171,7 @@ return(true);
 // A set net trap and the creature around it. Only this tree's own creature is looked for - one kind
 // lives by each colour of tree - and only if the owner could catch it (OSRS: nothing walks into a trap
 // its hunter could not hold it with).
-[proc,hunter_net_lure](coord $tree, coord $net, int $angle, int $colour)
+[proc,hunter_net_lure](int $slot, coord $tree, coord $net, int $angle, int $colour)
 if (random(^hunter_trap_lure_chance) ! 0) {
     return;
 }
@@ -185,7 +186,8 @@ if (npc_find($net, enum(int, npc, hunter_net_prey, $colour), ^hunter_trap_lure_r
     return;
 }
 sound_synth(springtrap_release, 1, 0);
-if (~hunter_net_roll($colour) = false) {
+// a baited trap springs with its tar's bonus, and the bait is gone either way (hunter_netbait.rs2)
+if (~hunter_net_roll($colour, ~hunter_net_bait_take($slot)) = false) {
     // it runs across and away; the tree springs up with the net empty
     ~hunter_net_spring($tree, $angle, enum(int, loc, hunter_net_escaping, $colour));
     return;
@@ -314,13 +316,13 @@ switch_int ($colour) {
 }
 return(^hunter_swamp_lizard_level);
 
-[proc,hunter_net_roll](int $colour)(boolean)
+[proc,hunter_net_roll](int $colour, int $bonus)(boolean)
 switch_int ($colour) {
-    case ^hunter_net_orange : return(stat_random(hunter, ^hunter_orange_salamander_low, ^hunter_orange_salamander_high));
-    case ^hunter_net_red : return(stat_random(hunter, ^hunter_red_salamander_low, ^hunter_red_salamander_high));
-    case ^hunter_net_black : return(stat_random(hunter, ^hunter_black_salamander_low, ^hunter_black_salamander_high));
+    case ^hunter_net_orange : return(stat_random(hunter, calc(^hunter_orange_salamander_low + $bonus), calc(^hunter_orange_salamander_high + $bonus)));
+    case ^hunter_net_red : return(stat_random(hunter, calc(^hunter_red_salamander_low + $bonus), calc(^hunter_red_salamander_high + $bonus)));
+    case ^hunter_net_black : return(stat_random(hunter, calc(^hunter_black_salamander_low + $bonus), calc(^hunter_black_salamander_high + $bonus)));
 }
-return(stat_random(hunter, ^hunter_swamp_lizard_low, ^hunter_swamp_lizard_high));
+return(stat_random(hunter, calc(^hunter_swamp_lizard_low + $bonus), calc(^hunter_swamp_lizard_high + $bonus)));
 
 // ------------------------------------------------------------------------------------ the catch
 

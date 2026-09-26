@@ -1,0 +1,151 @@
+// Eagles' Peak - the eagle transport (OSRS wiki, Eagle transport system). After the quest a rope used
+// on one of the three giant eagles in the eyrie behind the stone door lassoes it, and it carries the
+// player to its own eyrie: the desert eagle to the one north of the Uzer hunting grounds (m53_149), the
+// jungle eagle to the one above the Feldip hunting grounds (m39_145), the polar eagle to the one in the
+// far north-east of the Rellekka hunting grounds (m42_159). An eagle there flies back to Eagles' Peak.
+// The rope goes with the eagle; there are ropes to be found in the Rellekka and Uzer eyries.
+//
+// Getting into the eyries from outside: Rellekka's by the rocky handholds along the cliff (35 Agility)
+// to the cave above them; Uzer's by the cave north of the hunting grounds, where a boulder blocks the way
+// out until it has been pushed aside from the desert side (45 Strength); Feldip's by a vine that has to
+// be trained up the cliff on a teasing stick, thatching spar or garden cane and takes forty minutes to
+// grow strong enough to climb.
+
+// =========================================================================== the eagles
+[opnpcu,eagle_desert_eagle] @eaglespeak_lasso(0_53_149_29_32);
+[opnpcu,eagle_jungle_eagle] @eaglespeak_lasso(0_39_145_29_40);
+[opnpcu,eagle_polar_eagle] @eaglespeak_lasso(0_42_159_38_39);
+
+[label,eaglespeak_lasso](coord $away)
+if (last_useitem ! rope) {
+    ~displaymessage(^dm_default);
+    return;
+}
+if (%eaglespeak < ^eaglespeak_complete) {
+    ~mesbox("You must have completed the @dbl@Eagles' Peak@bla@ quest before you can try to lasso a giant eagle.");
+    return;
+}
+// From the Eagles' Peak eyrie to the eagle's own, or from its own back to Eagles' Peak.
+def_coord $dest = 3_31_77_37_34;
+if (coordz(coord) >= 4900 & coordz(coord) < 5000 & coordx(coord) < 2100) {
+    $dest = $away;
+}
+inv_del(inv, rope, 1);
+%eaglespeak_uzer_desert_side = 0;
+anim(human_eagle_reach, 0);
+npc_facesquare(coord);
+p_delay(1);
+if_close;
+npc_add(npc_coord, eagle_flying_big, 3);
+p_delay(2);
+p_teleport($dest);
+
+// =========================================================================== Rellekka
+// The handholds (474 locs 19846/19847, placed by the Rellekka round) along the cliff face to the cave.
+[oploc1,loc474_19846] @eaglespeak_handholds;
+[oploc1,loc474_19847] @eaglespeak_handholds;
+
+[label,eaglespeak_handholds]
+if (stat(agility) < ^eaglespeak_handholds_agility) {
+    ~mesbox("You need an Agility level of 35 to climb along these handholds.");
+    return;
+}
+anim(human_climbing, 0);
+p_delay(1);
+if (coordx(coord) <= 2741) {
+    p_telejump(1_42_59_56_54);
+} else {
+    p_telejump(1_42_59_52_54);
+}
+
+// The cave above the handholds (474 loc 19762), and the two ways out of the eyrie (19763, 19764).
+[oploc1,loc474_19762] p_teleport(0_42_159_23_33);
+[oploc1,loc474_19763] p_teleport(1_42_59_56_54);
+[oploc1,loc474_19764] p_teleport(1_42_59_56_54);
+
+// =========================================================================== Uzer
+// The cave north of the hunting grounds (474 loc 19798), and the eyrie's ways out (19791, 19792).
+[oploc1,loc474_19798]
+if (%eaglespeak_boulder_pushed = 0) {
+    %eaglespeak_uzer_desert_side = 1;
+}
+p_teleport(0_53_149_27_26);
+[oploc1,loc474_19791] @eaglespeak_uzer_exit;
+[oploc1,loc474_19792] @eaglespeak_uzer_exit;
+
+[label,eaglespeak_uzer_exit]
+// Until the boulder is out of the way only somebody who came in from the desert side can leave by it.
+if (%eaglespeak_boulder_pushed = 0 & %eaglespeak_uzer_desert_side = 0) {
+    mes("A boulder is blocking the way out.");
+    return;
+}
+%eaglespeak_uzer_desert_side = 0;
+p_teleport(0_53_49_13_23);
+
+// eagle_boulder_shell shows the boulder until the player has pushed it aside.
+[opnpc1,eagle_boulder_shell]
+if (stat(strength) < ^eaglespeak_boulder_strength) {
+    ~mesbox("You need a Strength level of 45 to push this boulder.");
+    return;
+}
+anim(human_pickupfloor, 0);
+npc_anim(eagle_boulder_roll, 0);
+p_delay(2);
+%eaglespeak_boulder_pushed = 1;
+mes("You push the boulder out of the way.");
+
+// =========================================================================== Feldip
+// eagle_vine (474 loc 19993) under the cave on the cliff (474 loc 19753): young, wrapped round a cane,
+// growing, and tall - eaglespeak_vine, the minute it was given its cane in eaglespeak_vine_planted.
+[oplocu,eagle_vine]
+if (%eaglespeak < ^eaglespeak_complete | %eaglespeak_vine > 0) {
+    ~displaymessage(^dm_default);
+    return;
+}
+switch_obj (last_useitem) {
+    case teasing_stick, thatching_spar_light, thatching_spar_med, thatching_spar_dense, fenk_cane :
+        inv_del(inv, last_useitem, 1);
+        anim(human_pickuptable, 0);
+        %eaglespeak_vine = 1;
+        %eaglespeak_vine_planted = world_minute;
+        mes("It's been wrapped around the canes; maybe it will grow up the cliff now.");
+        settimer(eaglespeak_vine, 100);
+    case default : ~displaymessage(^dm_default);
+}
+
+[oploc1,eagle_vine] @eaglespeak_vine_climb;
+[oploc1,loc474_19753] @eaglespeak_vine_climb;
+
+[label,eaglespeak_vine_climb]
+~eaglespeak_vine_update;
+switch_int (%eaglespeak_vine) {
+    case 0 : mes("Maybe this vine could be trained up the cliff with an appropriate cane or spar.");
+    case 1 : mes("It's been wrapped around the canes; maybe it will grow up the cliff now.");
+    case 2 : mes("It seems to be growing very quickly.");
+    case default :
+        anim(human_climbing, 0);
+        p_delay(1);
+        p_teleport(0_39_145_29_40);
+}
+
+// The eyrie's ways out (474 locs 19759, 19760): down the vine, which can be done before it is tall.
+[oploc1,loc474_19759] p_teleport(0_39_45_18_47);
+[oploc1,loc474_19760] p_teleport(0_39_45_18_47);
+
+[proc,eaglespeak_vine_update]
+if (%eaglespeak_vine = 0 | %eaglespeak_vine = 3) {
+    return;
+}
+def_int $grown = sub(world_minute, %eaglespeak_vine_planted);
+if ($grown >= 40) {
+    %eaglespeak_vine = 3;
+} else if ($grown >= 2) {
+    %eaglespeak_vine = 2;
+}
+
+[timer,eaglespeak_vine]
+~eaglespeak_vine_update;
+if (%eaglespeak_vine = 3) {
+    cleartimer(eaglespeak_vine);
+    mes("Those vines should be worth checking on now.");
+}

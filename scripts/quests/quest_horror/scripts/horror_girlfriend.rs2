@@ -87,6 +87,14 @@ switch_int(%horrorquest) {
 @multi2("Okay, I'll help!", larrissa_ok, "Sorry, just passing through", larrissa_passing);
 
 [label,larrissa_ok]
+// Not in 349. The one start requirement on the OSRS infobox is Alfred Grimhand's Barcrawl (from
+// 377-wip, da356015e); its 35 Agility is not a start requirement - it is for the Barbarian Outpost
+// pipe on the way to Gunnjorn, which the course already enforces. No 2006 refusal line from Larrissa
+// is recorded, so the refusal is the game's own notice.
+if (%barcrawl ! ^barcrawl_complete) {
+    ~mesbox("You do not meet the requirements to start: 'Horror from the Deep'.");
+    return;
+}
 %horrorquest = ^horror_started;
 ~send_quest_progress(questlist:horror, %horrorquest, ^horror_complete);
 ~chatplayer("<p,neutral>Okay, I'll help!");

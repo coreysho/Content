@@ -118,6 +118,18 @@ switch_int (%damagetype) {
         spotanim_pl(salamander_scorch, 92, 0);
 }
 
+// Whether this hit poisons. OSRS's swamp lizard - and only it - poisons in its melee mode, "starting at 6
+// damage" (the wiki's Swamp lizard): its poison_severity param (configs/hunter_nettrap.obj) on a Scorch that
+// hits, one hit in four, as every poisoned melee weapon here does (player_melee.rs2, pvp_melee.rs2).
+[proc,salamander_poisons](obj $salamander)(boolean)
+if (%damagetype ! ^slash_style | oc_param($salamander, poison_severity) < 1) {
+    return(false);
+}
+if (random(4) = 0) {
+    return(true);
+}
+return(false);
+
 // Monsters that only one kind of attack harms, as the melee and ranged paths have them: a kurask or a
 // turoth wants a leaf-bladed spear or broad arrows, and the Dagannoth Mother takes melee only in her melee
 // phase and ranged only in her ranged one. Blaze is no spell of any element, so she takes none of it.
@@ -181,6 +193,9 @@ if (~player_npc_hit_roll_boosted(%damagetype, $mask_num, $mask_div) = true) {
     ~give_combat_experience(%damagestyle, $damage_capped, %npc_combat_xp_multiplier);
     npc_heropoints($damage_capped);
 }
+if ($damage > 0 & ~salamander_poisons($rhand) = true) {
+    ~npc_poison_start(oc_param($rhand, poison_severity));
+}
 inv_del(worn, $tar, 1);
 ~salamander_breathe;
 if (%damagetype = ^magic_style) {
@@ -232,6 +247,9 @@ if (~pvp_hit_roll(%damagetype) = true) {
     ~give_combat_experience_pvp(%damagestyle, $damage, ~pvp_xp_multiplier(~.player_combat_level));
     both_heropoints($damage);
     ~barrows_set_hit_player($damage, %damagetype);
+}
+if ($damage > 0 & ~salamander_poisons($rhand) = true) {
+    .queue(poison_player, 0, oc_param($rhand, poison_severity));
 }
 inv_del(worn, $tar, 1);
 ~salamander_breathe;

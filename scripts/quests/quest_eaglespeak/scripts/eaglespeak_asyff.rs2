@@ -1,0 +1,115 @@
+// Eagles' Peak - the eagle costumes, from Asyff at the Varrock fancy dress shop (area_varrock's
+// fancy_dress_shop_owner.rs2 hands the conversation here once Nickolaus has asked for a disguise). Ten
+// eagle feathers, swamp tar, yellow dye and 50 coins make two costumes, each an eagle cape and a fake
+// beak; after that he makes another for five feathers, the tar, the dye and 25 coins (OSRS wiki).
+
+[proc,eaglespeak_asyff_wanted]()(boolean)
+if ((%eaglespeak >= ^eaglespeak_help & %eaglespeak < ^eaglespeak_disguised) | %eaglespeak_costume_made = 1) {
+    return(true);
+}
+return(false);
+
+[label,eaglespeak_asyff]
+~chatnpc("<p,happy>Or, if that doesn't interest you, then maybe you have something else to offer? I'm always on the look out for interesting or unusual new materials.");
+def_string $ask = "Well, specifically I'm after a couple of bird costumes.";
+if (%eaglespeak_costume_made = 1) {
+    $ask = "Could you make another bird costume for me?";
+} else if (~eaglespeak_asyff_materials(^eaglespeak_costume_feathers) = true) {
+    $ask = "I've got the feathers and materials you requested.";
+} else if (%eaglespeak_asked_asyff = 1) {
+    $ask = "What was it you needed to make those eagle costumes again?";
+}
+switch_int (~p_choice3("Okay, lets see what you've got then.", 1, $ask, 2, "I think I might just leave the perusing for now thanks.", 3)) {
+    case 1 :
+        ~chatplayer("<p,happy>Okay, lets see what you've got then.");
+        ~openshop_activenpc;
+    case 3 :
+        ~chatplayer("<p,neutral>I think I might just leave the perusing for now, thanks.");
+    case 2 :
+        if (%eaglespeak_costume_made = 1) {
+            @eaglespeak_asyff_another;
+        }
+        if (~eaglespeak_asyff_materials(^eaglespeak_costume_feathers) = true) {
+            @eaglespeak_asyff_make;
+        }
+        if (%eaglespeak_asked_asyff = 1) {
+            ~chatplayer("<p,quiz>What was it you needed to make those eagle costumes again?");
+            ~chatnpc("<p,neutral>I should be able to knock something up if you get me 10 of the right sort of feather. I'll also need some swamp tar and some yellow dye.");
+            return;
+        }
+        ~chatplayer("<p,neutral>Well, specifically I'm after a couple of bird costumes.");
+        ~chatnpc("<p,happy>Ah, an inspired choice. What kind of bird were you thinking of?");
+        ~chatplayer("<p,neutral>A giant eagle.");
+        ~chatnpc("<p,neutral>Very interesting. Unfortunately I don't think I have any giant eagle costumes in stock at the moment.");
+        ~chatnpc("<p,neutral>Of course if I had the materials I could make them for you.");
+        ~chatplayer("<p,quiz>What materials would you need?");
+        ~chatnpc("<p,neutral>Well, the main problem is that I'm fresh out of giant eagle feathers. I've been meaning to get onto my supplier about that for some time.");
+        ~chatplayer("<p,confused>Wait a second, you have a supplier? But I thought nobody knew where to find the nests?");
+        ~chatnpc("<p,neutral>Well, there was some chap in desert clothing. He said his name was Ali. He assured me they were giant eagle feathers, although when I come to think about it they were suspiciously similar to chicken feathers.");
+        ~chatnpc("<p,neutral>Anyway, you're probably looking at about 10 giant eagle feathers, assuming you can find a nest.");
+        ~chatnpc("<p,neutral>I'd also need some swamp tar to hold things together and some yellow dye for the beaks. Everything else I can supply myself.");
+        ~chatplayer("<p,neutral>I'll see what I can do.");
+        %eaglespeak_asked_asyff = 1;
+}
+
+[proc,eaglespeak_asyff_materials](int $feathers)(boolean)
+if (inv_total(inv, eagle_feather) >= $feathers & inv_total(inv, swamp_tar) > 0 & inv_total(inv, yellowdye) > 0) {
+    return(true);
+}
+return(false);
+
+[label,eaglespeak_asyff_make]
+~chatplayer("<p,happy>I've got the feathers and materials you requested. Can you make those giant eagle costumes for me now?");
+~chatnpc("<p,neutral>Certainly. It'll also cost you 50 gold pieces.");
+if (~p_choice2("Okay, here are the materials. Eagle me up.", 1, "On second thoughts, that's too expensive.", 2) = 2) {
+    ~chatplayer("<p,neutral>On second thoughts, that's too expensive.");
+    ~chatnpc("<p,neutral>Well, feel free to come back if you change your mind.");
+    return;
+}
+if (inv_total(inv, coins) < ^eaglespeak_costume_price) {
+    ~chatplayer("<p,sad>I'm afraid I don't have that much money with me.");
+    mes("You can not afford that.");
+    return;
+}
+~chatplayer("<p,happy>Okay, here are the materials. Eagle me up.");
+if (inv_freespace(inv) < 2) {
+    ~chatnpc("<p,neutral>These costumes will be a bit of a handful, and I'd feel better if you had four free spaces to handle them. I mean, you wouldn't want to drop them and get them all dirty now, would you?");
+    return;
+}
+if (~eaglespeak_asyff_materials(^eaglespeak_costume_feathers) = false) {
+    return;
+}
+inv_del(inv, eagle_feather, ^eaglespeak_costume_feathers);
+inv_del(inv, swamp_tar, 1);
+inv_del(inv, yellowdye, 1);
+inv_del(inv, coins, ^eaglespeak_costume_price);
+inv_add(inv, eagle_cape, 2);
+inv_add(inv, fake_beak, 2);
+%eaglespeak_costume_made = 1;
+~chatnpc("<p,happy>There we go; two eagle costumes. You should be the envy of the entire party with those.");
+~chatplayer("<p,happy>Thanks.");
+
+[label,eaglespeak_asyff_another]
+~chatplayer("<p,quiz>Could you make another eagle costume for me?");
+~chatnpc("<p,neutral>Certainly, if you can supply the materials. I'll need appropriate feathers, swamp tar and some yellow dye. It'll also cost you 25 gold pieces.");
+if (~eaglespeak_asyff_materials(5) = false | inv_total(inv, coins) < ^eaglespeak_costume_price_again) {
+    ~chatplayer("<p,neutral>I'll see what I can do.");
+    return;
+}
+if (~p_choice2("Okay, here are the materials. Eagle me up.", 1, "On second thoughts, that's too expensive.", 2) = 2) {
+    ~chatplayer("<p,neutral>On second thoughts, that's too expensive.");
+    ~chatnpc("<p,neutral>Well, feel free to come back if you change your mind.");
+    return;
+}
+~chatplayer("<p,happy>Okay, here are the materials. Eagle me up.");
+if (inv_freespace(inv) < 1) {
+    ~chatnpc("<p,neutral>These costumes will be a bit of a handful, and I'd feel better if you had four free spaces to handle them. I mean, you wouldn't want to drop them and get them all dirty now, would you?");
+    return;
+}
+inv_del(inv, eagle_feather, 5);
+inv_del(inv, swamp_tar, 1);
+inv_del(inv, yellowdye, 1);
+inv_del(inv, coins, ^eaglespeak_costume_price_again);
+inv_add(inv, eagle_cape, 1);
+inv_add(inv, fake_beak, 1);
+~doubleobjbox(eagle_cape, fake_beak, "Asyff hands you an eagle cape and a fake beak.", 250);
