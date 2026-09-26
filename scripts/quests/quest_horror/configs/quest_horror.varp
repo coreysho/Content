@@ -1,3 +1,21 @@
+// The original quest's two varps (PlagueCityRS 349 port). Both were already in the 377 cache dump
+// (_unpack/377/all.varp) with no scope and nothing reading them; they are declared here now, perm.
+// %deephorror: the quest stage and its per-step flags. %godbook_multi: the three god books - which
+// were claimed, which pages are in, and which are waiting to be reclaimed from Jossik. The Fremennik
+// Trials' 349 original also keeps its two random name picks in bits 22-29 of %godbook_multi.
+[deephorror]
+scope=perm
+
+[godbook_multi]
+scope=perm
+
+// This server's own earlier version of the quest. Nothing reads these any more except
+// ~port349_migrate_horror, which translates them once into the varbits above and then zeroes them.
+// Kept declared so that translation can read old saves; do not reuse them.
+//   %horror          - stage 0-6 (6 = complete)
+//   %horror_bridges  - bit0 = west span planked, bit1 = east span planked, bit2 = front door unlocked
+//   %horror_lighting - bit0 = swamp tar, bit1 = tinderbox, bit2 = molten glass
+//   %horror_wall     - bit0 fire, bit1 air, bit2 water, bit3 earth, bit4 sword, bit5 arrow
 [horror]
 scope=perm
 
@@ -10,9 +28,8 @@ scope=perm
 [horror_wall]
 scope=perm
 
-// 744/745 were npc_dagmother_cycling/_phase, registered as PLAYER varps by mistake: the Dagannoth
-// Mother's ai_queue1/5 scripts run with no active player, so the phase cycle could never run. They
-// are npc vars now (quest_horror.varn); these ids are left as unused placeholders.
+// 744/745 were npc_dagmother_cycling/_phase, registered as PLAYER varps by mistake. The ported
+// Dagannoth Mother needs neither (her colour cycle is her npc timer); the ids stay unused placeholders.
 [varp_744]
 
 [varp_745]

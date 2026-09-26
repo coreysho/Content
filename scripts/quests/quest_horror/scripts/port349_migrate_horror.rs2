@@ -1,6 +1,112 @@
 // Old saves onto the ported quest - see scripts/general/scripts/port349.rs2.
+//
+// This server's earlier Horror from the Deep kept four varps; the ported original keeps its stage and
+// flags as varbits of %deephorror (and the god books in %godbook_multi). The old ones:
+//   %horror          0 not started, 1 started, 2 strange wall opened, 3 the Dagannoth killed,
+//                    4 the Mother killed (casket in hand), 5 casket shown to Jossik below, 6 complete
+//   %horror_bridges  bit0 west span planked, bit1 east span planked, bit2 front door unlocked
+//   %horror_lighting bit0 swamp tar, bit1 tinderbox, bit2 molten glass
+//   %horror_wall     bit0 fire, bit1 air, bit2 water, bit3 earth, bit4 sword, bit5 arrow
+//
+// Mapping (%horrorquest = the new stage):
+//   old 0      untouched - nothing else could have been set before the quest started.
+//   old 6      10 complete. Every per-step flag the original reads afterwards is set: both bridge
+//              spans (Cross), the unlocked door, Gunnjorn's key, all six items in the wall (the far right
+//              panel in the post-quest caves), the three lamp repairs. The old reward was one damaged
+//              prayer book, chosen or declined; each god book the player owns anywhere (backpack, bank,
+//              worn) is marked claimed so Jossik treats it as theirs. A player who owns none gets one
+//              book from Jossik's casket dialogue - which is what the original does for a lost casket.
+//   old 3-5    5, the Dagannoth dead and the Mother still to kill. Both old 4 and 5 had already killed
+//              her, but the ported ending (XP, the quest points and the casket) only runs from her death,
+//              so they fight her again rather than being moved forward. The old casket is taken back
+//              (backpack and bank) because that kill hands out a new one.
+//   old 1-2    1 started, or 2 entered the lighthouse if the door is unlocked and both bridge spans are
+//              down (the original only lets you in with all three). With the lamp fully repaired as
+//              well, 2 becomes 4. The wall items, bridge planks and lamp steps carry over bit for bit.
+//              The old version let the tinderbox go on before the tar and the lamp be finished before
+//              the door, neither of which the original allows: the "lit" step is dropped in those cases
+//              (the tinderbox is not used up), so relighting it is what moves the stage on.
+// The old varps are zeroed afterwards; nothing reads them any more.
 [proc,port349_migrate_horror]
 if (%port349_horror = ^true) {
     return;
 }
 %port349_horror = ^true;
+def_int $old = %horror;
+if ($old <= 0) {
+    return;
+}
+def_int $bridges = %horror_bridges;
+def_int $lighting = %horror_lighting;
+def_int $wall = %horror_wall;
+
+%horrorbridgeleft = testbit($bridges, 0);
+%horrorbridgeright = testbit($bridges, 1);
+%horrorlighthouseentrance = testbit($bridges, 2);
+if (%horrorlighthouseentrance = ^true | ~obj_gettotal(horror_key) > 0) {
+    %horroragilitykey = ^true;
+}
+%horrorfire = testbit($wall, 0);
+%horrorair = testbit($wall, 1);
+%horrorwater = testbit($wall, 2);
+%horrorearth = testbit($wall, 3);
+%horrorsword = testbit($wall, 4);
+%horrorarrow = testbit($wall, 5);
+%horrortar = testbit($lighting, 0);
+%horrorglass = testbit($lighting, 2);
+if (%horrortar = ^true) {
+    %horrorlight = testbit($lighting, 1);
+}
+
+if ($old >= 6) {
+    %horrorquest = ^horror_complete;
+    %horrorbridgeleft = ^true;
+    %horrorbridgeright = ^true;
+    %horrorlighthouseentrance = ^true;
+    %horroragilitykey = ^true;
+    %horrorfire = ^true;
+    %horrorair = ^true;
+    %horrorwater = ^true;
+    %horrorearth = ^true;
+    %horrorsword = ^true;
+    %horrorarrow = ^true;
+    %horrortar = ^true;
+    %horrorglass = ^true;
+    %horrorlight = ^true;
+    if (calc(~obj_gettotal(unfinished_saradominbook) + ~obj_gettotal(saradominbook_complete)) > 0) {
+        %horror_claimed_holybook = ^true;
+    }
+    if (calc(~obj_gettotal(unfinished_zamorakbook) + ~obj_gettotal(zamorakbook_complete)) > 0) {
+        %horror_claimed_unholybook = ^true;
+    }
+    if (calc(~obj_gettotal(unfinished_guthixbook) + ~obj_gettotal(guthixbook_complete)) > 0) {
+        %horror_claimed_guthixbook = ^true;
+    }
+} else if ($old >= 3) {
+    %horrorquest = ^horror_defeated_dagjr;
+    if ($old >= 4) {
+        if (inv_total(inv, horror_casket) > 0) {
+            inv_del(inv, horror_casket, inv_total(inv, horror_casket));
+        }
+        if (inv_total(bank, horror_casket) > 0) {
+            inv_del(bank, horror_casket, inv_total(bank, horror_casket));
+        }
+    }
+} else {
+    %horrorquest = ^horror_started;
+    if (%horrorlighthouseentrance = ^true & %horrorbridgeleft = ^true & %horrorbridgeright = ^true) {
+        %horrorquest = ^horror_entered_lighthouse;
+    }
+    if (%horrortar = ^true & %horrorglass = ^true & %horrorlight = ^true) {
+        if (%horrorquest = ^horror_entered_lighthouse) {
+            %horrorquest = ^horror_repaired_lighthouse;
+        } else {
+            %horrorlight = ^false;
+        }
+    }
+}
+
+%horror = 0;
+%horror_bridges = 0;
+%horror_lighting = 0;
+%horror_wall = 0;

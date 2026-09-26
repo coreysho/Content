@@ -1,236 +1,151 @@
-// Horror from the Deep - main quest dialogue and puzzles
-// Walkthrough (re-verified this pass): https://oldschool.runescape.wiki/w/Horror_from_the_Deep
-// Requires quest_barcrawl complete (already implemented - see ~visited_all_bars).
-// Uses ~chatplayer/~chatnpc rather than ~mesbox's @tag@ speaker shorthand, since that shorthand
-// depends on a per-NPC abbreviation registered elsewhere that I haven't located/verified for
-// Larrissa/Jossik/Gunnjorn - safer to stick to the plain, confirmed primitives.
+// Horror from the Deep - the lighthouse, the bridge, the basement and the strange wall.
+// Ported from PlagueCityRS's 349 content (2026-09-25): the original Jagex dialogue, stage numbers and
+// layout, replacing this server's own earlier re-creation. Save migration: port349_migrate_horror.rs2.
 //
-// Item/NPC/loc tags below were cross-checked against the real 377 cache dump
-// (content/scripts/_unpack/377/all.{obj,npc,loc}) rather than guessed - the quest's actual assets
-// are already present there (this cache already shipped this content in 2006), which is a much
-// stronger source than my memory of the wiki walkthrough. Notable corrections made this pass:
-//   - horror_lighthouse_key -> horror_key, horror_rusty_casket -> horror_casket (my invented names
-//     were wrong - the real tags were sitting right there in all.obj)
-//   - damaged prayer books are unfinished_saradominbook / unfinished_zamorakbook / unfinished_guthixbook
-//   - bridge item is `woodplank` (all.obj name=Plank), not `plank`; nails item is `nails`
-//     (all.obj name=Steel nails) - confirmed via the wiki that repair needs a hammer + 60 nails + 2
-//     planks total, split across the two broken spans (horror_broken_bridge_left_spot /
-//     _right_spot - both real loc tags, replacing my earlier guessed horror_broken_bridge1/2)
-// All quest loc/NPC world placements below are now confirmed, cross-checked two ways: against
-// content/maps/*.jm2 (id-based placement data, content/pack/{loc,npc}.pack for id<->name) and,
-// for Larrissa, independently in-game via Corey's own ::getcoord (matched exactly). An earlier pass
-// this session reported zero placements for several of these - that was wrong on two counts, both
-// fixed: (1) a grep `$`-anchor bug against this file format's CRLF line endings silently ate real
-// matches, and (2) horror_lighthouse_doorway's id was misread as 4578 (that's the .pack file's own
-// line number) when the real id is 4577 (4578 is a different loc, horror_lighthouse_inactive).
-//   - horror_lighthouse_windpower_cog (loc 4590, the lighting mechanism): m39_56.jm2, plane 2,
-//     local(11,50) = world(2507,3634,2). horror_lighthouse_cog_broken (loc 4588, the original wrong
-//     guess) is confirmed genuinely unplaced anywhere searched.
-//   - horror_lighthouse_doorway (loc 4577): m39_56.jm2, plane 0, local(13,52) = world(2509,3636,0) -
-//     Corey confirmed in-game this is the lighthouse's plain building entrance (real cache def:
-//     op1=Walk-through), NOT the six-icon rune/sword/arrow puzzle door I'd guessed it was - that
-//     puzzle's real loc is still unknown, see the comment above its (now commented-out) handler below.
-//   - horror_ladder_top (loc 4383, real op1=Climb) / horror_ladder_down (loc 4380, no op, decorative):
-//     m39_56.jm2, plane 0, local(13,60)/local(12,60) = world(2509,3644,0)/world(2508,3644,0) - the way
-//     down to the basement, per Corey's in-game find ("iron ladder to basement"). No script exists for
-//     the Climb op yet since there's no known destination - this is now the concrete blocker.
-//   - horror_girlfriend_prequest / Larrissa (npc 1336): m39_56.jm2, plane 0, local(12,51) =
-//     world(2508,3635,0) - matches Corey's in-game ::getcoord reading exactly.
-//   - horror_lighthousekeeeper_well / Jossik (npc 1334): m39_56.jm2, plane 1, local(13,55) =
-//     world(2509,3639,1). Only this variant is placed, not horror_lighthousekeeeper_injured (1335) -
-//     see the merged opnpc1 handler below for how that's handled.
-//   - gunnjorn (npc 607): m39_55.jm2, plane 0, local(44,28) = world(2540,3548,0) - near the real
-//     Barbarian Outpost agility arena, matching his own dialogue.
-// horror_girlfriend_postquest (1337) is still genuinely unplaced - see its handler below.
+// The layout is the original's. Until the quest is complete the lighthouse's front door leads into
+// m38_71, the quest's own copy of the building (the broken lamp, Larrissa inside); fixing the lamp
+// puts you on m39_56's top floor, the lit lighthouse. The iron ladder goes down to the basement,
+// m39_72 (Jossik's cave) during the quest and m39_156 (the same cave, full of dagannoths) after it.
 //
-// UPDATE (2026-09-03): Corey supplied real in-game coords for the lighthouse basement this pass,
-// resolving what used to be this quest's one real remaining blocker. horror_lighthousekeeeper_
-// injured (1335, "Fallen Jossik") IS genuinely placed after all - m39_72.jm2, plane 0, local(22,25),
-// matching Corey's coord exactly - so the merged well/injured handler below is now split back into
-// two (see the "Fallen Jossik" section). The strange wall puzzle's real locs were also found in the
-// same region (horror_mid_left_door/_mid_right_door, op1=Study; horror_far_right_door/_far_left_door,
-// op1=Open - all four tagged "Strange wall", m39_72 plane 1, local z=19 x=17-20) and the six-icon rune/
-// sword/arrow logic below is re-attached to them (wiki-reconfirmed this pass, see that section).
-// SUPERSEDED (2026-09-24): the basement ladders, the boss spawns and the lighthouse doorway were all
-// rewired to the OSRS layout - lighthouse -> basement south of the strange wall -> through the wall ->
-// down to Jossik's cave, where both bosses are fought. The notes that used to sit here described the
-// old, inverted wiring (lighthouse straight down to Jossik, bosses in m39_156, no way back up) and are
-// replaced by the ladder section below and quest_horror.constant.
+// Kept from our own version, wired to the original's varbits: the OSRS-style broken bridge crossing
+// (a plank on your own side, leap the gap, then a safe crossing) and the Waterbirth maze's exit into
+// Jossik's cave (^horror_maze_exit_dest).
 
-[opnpc1,horror_girlfriend_prequest]
-if (%horror = ^horror_not_started) {
-    ~chatplayer("<p,quiz>Hello, is everything alright?");
-    ~chatnpc("<p,sad>Oh, adventurer, thank goodness! Something dreadful has happened - the lighthouse has stopped working, and I fear something has happened to Jossik, the lighthouse keeper!");
-    ~chatplayer("<p,neutral>The lighthouse guards the coast, doesn't it? Someone should find out what's wrong.");
-    ~chatnpc("<p,sad>Would you? Please, I'm too afraid to go in there myself. My name is Larrissa.");
-    def_int $op = ~p_choice2("I'll take a look.", 1, "Sorry, I'm busy right now.", 2);
-    if ($op = 2) {
-        ~chatplayer("<p,neutral>Sorry, I'm busy right now.");
-        return;
-    }
-    ~chatplayer("<p,happy>I'll take a look.");
-    ~chatnpc("<p,happy>Oh, thank you! The bridges to the east are broken though - you'll need some planks to cross them. My cousin Gunnjorn, at the Barbarian Outpost agility arena, might be able to help you further.");
-    %horror = ^horror_started;
-    ~send_quest_progress(questlist:horror, 1, ^horror_complete);
-} else if (%horror = ^horror_started & getbit_range(%horror_wall, 0, 5) < 63) {
-    ~chatnpc("<p,worried>Have you found a way into the lighthouse yet?");
-    ~chatplayer("<p,neutral>Not yet - I think I need to get it working again first.");
-} else if (%horror >= ^horror_started & %horror < ^horror_complete) {
-    ~chatnpc("<p,worried>Please be careful down there.");
-} else {
-    ~chatnpc("<p,happy>Thank you again for rescuing Jossik!");
-}
-
-// Only horror_girlfriend_prequest (npc 1336) is actually placed in the map (confirmed both via
-// content/maps/m39_56.jm2, plane 0, local(12,51) = world(2508,3635,0), and independently in-game via
-// ::getcoord) - horror_girlfriend_postquest (npc 1337) has zero placements. Harmless unlike Jossik's
-// case: the prequest handler's own terminal `else` above already covers %horror >= ^horror_complete
-// with correct post-quest dialogue, so this handler is unreachable dead code, kept only in case 1337
-// ever gets placed for real.
-[opnpc1,horror_girlfriend_postquest]
-~chatnpc("<p,happy>Thank you again for rescuing Jossik - I don't know what I'd have done without you.");
-
-
-// Gunnjorn is reachable at the Barbarian Outpost agility arena independent of the broken bridges,
-// so the key hand-out is gated on possession (not a %horror stage) to avoid an order-dependent
-// sequence break if he's spoken to before or after the bridges are repaired.
-// [opnpc1,gunnjorn] can only be declared once globally - this merges in the original base flavour
-// dialogue from area_barbarian_outpost/scripts/gunnjorn.rs2 (now removed from there, see that file's
-// own comment) as the not-yet-quest-relevant case, rather than dropping it in favour of the quest line.
-[opnpc1,gunnjorn]
-if (%horror = ^horror_not_started) {
-    ~chatnpc("<p,happy>Haha welcome to my obstacle course.|Have fun, but remember this isn't a child's playground.|People have died here.");
-    ~chatnpc("<p,happy>The best way to train,|is to go round the course in a clockwise direction.");
-} else if (%horror >= ^horror_started & %horror < ^horror_complete & inv_total(inv, horror_key) = 0 & testbit(%horror_bridges, ^horror_door_unlocked_bit) = 0) {
-    // Any stage, not just the first: a key lost before it has ever turned in the lock would
-    // otherwise leave the lighthouse shut for good.
-    ~chatplayer("<p,neutral>Larrissa said you might be able to help me get into the lighthouse.");
-    ~chatnpc("<p,neutral>Ah, poor Jossik. Here, take this key - it's the spare for the lighthouse's front door.");
-    inv_add(inv, horror_key, 1);
-    ~chatplayer("<p,happy>Thanks, I'll head back and see what I can do.");
-} else if (%horror >= ^horror_started) {
-    ~chatnpc("<p,neutral>Good luck down there.");
-}
-
-
-// --- The Lighthouse's front doorway (loc 4577) ---
-// op1=Walk-through. The doorway is a shape-0 wall on the SOUTH edge of its own tile (m39_56 plane 0
-// local(13,52) = 2509,3636, angle 3), so outside is z < 3636 and the lighthouse is z >= 3636.
-//
-// FIXED: the old handler compared coordz(coord) - an ABSOLUTE z of about 3635 - against the local
-// value 52, so the test was never true and every click took the player two tiles further south.
-// Nobody could get into the lighthouse at all. The sides are now read against the loc's own tile,
-// which also makes the same handler right for the m38_71 copy of the building.
-//
-// The door is locked until Gunnjorn's key has been through it once, as in OSRS. The key only has to
-// be carried the first time: %horror_bridges bit 2 remembers that the door has been unlocked.
 [oploc1,horror_lighthouse_doorway]
-@horror_walk_through_doorway;
+p_arrivedelay;
+// Standing on the doorway tile is inside. From the quest's copy of the lighthouse the way out is
+// always open, to the real one's front step.
+if(coordz(coord) = coordz(loc_coord) & inzone(0_38_71_0_0, 0_38_71_63_63, coord) = true) {
+    p_teleport(0_39_56_13_52);
+    p_delay(0);
+    p_teleport(movecoord(coord, 0, 0, -1));
+    loc_change(inviswall, 3);
+    loc_add(0_39_56_13_52, horror_lighthouse_inactive, 3, wall_straight, 3);
+    sound_synth(door_open, 1, 0);
+    return;
+}
+if(%horrorquest = ^horror_complete) {
+    if(coordz(coord) = coordz(loc_coord)) p_teleport(movecoord(loc_coord, 0, 0, -1));
+    else p_teleport(loc_coord);
+    loc_change(inviswall, 3);
+    loc_add(0_39_56_13_52, horror_lighthouse_inactive, 3, wall_straight, 3);
+    sound_synth(door_open, 1, 0);
+    return;
+}
+if(coordz(coord) = coordz(loc_coord)) {
+    // Not in the original: inside the real lighthouse before the quest is done. Only a save from
+    // this server's earlier version of the quest can be standing here - let them out.
+    p_teleport(movecoord(loc_coord, 0, 0, -1));
+    loc_change(inviswall, 3);
+    loc_add(0_39_56_13_52, horror_lighthouse_inactive, 3, wall_straight, 3);
+    sound_synth(door_open, 1, 0);
+    return;
+}
+if(%horrorquest > ^horror_started | (%horrorlighthouseentrance = ^true & %horrorbridgeleft = ^true & %horrorbridgeright = ^true)) {
+    if(%horrorquest < ^horror_entered_lighthouse) %horrorquest = ^horror_entered_lighthouse;
+    p_teleport(0_38_71_13_51);
+    p_delay(0);
+    p_teleport(movecoord(coord, 0, 0, 1));
+    loc_change(inviswall, 3);
+    loc_add(0_38_71_13_52, horror_lighthouse_inactive, 3, wall_straight, 3);
+    sound_synth(door_open, 1, 0);
+    npc_huntall(0_39_72_24_36, 25, 0);
+    while (npc_findnext = true) {
+        if(%npc_aggressive_player = uid) {
+            npc_del;
+        }
+    }
+    return;
+}
+if(%horrorlighthouseentrance = ^true) {
+    ~chatnpc_specific(nc_name(horror_girlfriend_prequest), horror_girlfriend_prequest, "<p,neutral>Please adventurer...|We are both curious as to what has happened in that|lighthouse, but you need to fix the bridge for me!");
+    return;
+}
+if(inv_total(inv, horror_key) > 0) {
+    inv_del(inv, horror_key, 1);
+    %horrorlighthouseentrance = ^true;
+    mes("You unlock the Lighthouse front door.");
+    return;
+}
+mes("This door is locked securely shut.");
 
 [oplocu,horror_lighthouse_doorway]
-if (last_useitem ! horror_key) {
-    ~displaymessage(^dm_default);
+if(%horrorlighthouseentrance = ^true) {
+    mes("You have already unlocked the Lighthouse door.");
     return;
 }
-@horror_walk_through_doorway;
-
-[label,horror_walk_through_doorway]
-p_arrivedelay;
-if (coordz(coord) >= coordz(loc_coord)) {
-    // inside: the way out is never locked
-    p_teleport(movecoord(loc_coord, 0, 0, -1));
+if(last_useitem = horror_key) {
+    inv_del(inv, horror_key, 1);
+    %horrorlighthouseentrance = ^true;
+    mes("You unlock the Lighthouse front door.");
     return;
 }
-if (%horror < ^horror_complete & testbit(%horror_bridges, ^horror_door_unlocked_bit) = 0) {
-    if (inv_total(inv, horror_key) = 0) {
-        if (%horror = ^horror_not_started) {
-            mes("The door is locked.");
-            return;
-        }
-        mes("The door is locked. Larrissa's cousin Gunnjorn has the spare key.");
-        return;
-    }
-    mes("You unlock the door with the lighthouse key.");
-    %horror_bridges = setbit(%horror_bridges, ^horror_door_unlocked_bit);
-}
-p_teleport(loc_coord);
-
+~displaymessage(^dm_default);
 
 // --- The broken bridge east of the Lighthouse ---
 // One crossing, two "Broken bridge" spans (horror_broken_bridge_left_spot at 2596,3608 and
-// _right_spot at 2598,3608) with the impassable gap tile 2597,3608 between them. Geometry read out
-// of content/maps/m40_56.jm2 (plane 1, z=24): the tiles carry the LINK_BELOW bridge flag, so the
-// engine registers the whole row at level 0; x=37 is LINK_BELOW|blocked, which is the gap. Both spans
-// are blockwalk=no, so the player walks onto the span on their own side and only the gap needs a
-// script.
+// _right_spot at 2598,3608) with the impassable gap tile 2597,3608 between them.
 //
-// FIXED: the bridge could not be repaired the way OSRS does it. OSRS (wiki, Horror from the Deep):
-// "With a hammer and 60 steel nails in your inventory, use a plank on the side of the bridge you are
-// on, then click to jump to the other side to use a plank there as well. Depending on your agility
-// level, you may take slight damage from the leap." Here the two planks had both been made to land
-// on whichever span you clicked, and Cross refused to move you until both were down - so a player
-// who nailed down their side and jumped, as the wiki says, was told the bridge was still broken and
-// could go no further. Each span is now its own repair again (bit 0 = west span, bit 1 = east span),
-// and Cross leaps the gap from any span that has its plank. Once both are down the crossing is safe.
+// Repairing a span is the original's: a plank, a hammer and four steel nails (Larrissa: "You will
+// need a hammer, and four steel nails for each plank you use as well"), one plank per side.
 //
-// The quest's 35 Agility is not checked here: in OSRS it is for the pipe on the Barbarian Outpost
-// agility course that stands between you and Gunnjorn (skill_agility/scripts/barbarian_course.rs2
-// already enforces it). The leap is chance-based on Agility, like the basalt rocks.
-// Wiki: 60 steel nails and 2 planks - 30 nails and 1 plank per span. The hammer is not consumed.
+// Crossing is ours, kept on purpose (OSRS wiki: "use a plank on the side of the bridge you are on,
+// then click to jump to the other side to use a plank there as well. Depending on your agility level,
+// you may take slight damage from the leap"). Cross leaps the gap from a span that has its plank, and
+// once both are down the crossing is safe. The original let anyone leap either way at any time.
 [oplocu,horror_broken_bridge_left_spot]
-@horror_repair_bridge(0);
+@horror_repair_bridge(^false);
 
 [oplocu,horror_broken_bridge_right_spot]
-@horror_repair_bridge(1);
+@horror_repair_bridge(^true);
 
-[label,horror_repair_bridge](int $bit)
-if (last_useitem ! woodplank) {
-    ~displaymessage(^dm_default);
+[label,horror_repair_bridge](int $right)
+if(%horrorquest = ^horror_not_started) {
+    mes("You have no reason to do that.");
     return;
 }
-if (%horror < ^horror_started) {
-    mes("You should speak to Larrissa first.");
+if(last_useitem ! woodplank) {
+    ~mesbox("That won't help fix the bridge.");
     return;
 }
-if (testbit(%horror_bridges, $bit) = 1) {
-    mes("You have already repaired this side of the bridge.");
+if(($right = ^false & %horrorbridgeleft = ^true) | ($right = ^true & %horrorbridgeright = ^true)) {
+    ~mesbox("You have already fixed this half of the bridge.");
     return;
 }
-if (inv_total(inv, hammer) = 0) {
-    mes("You need a hammer to nail the plank in place.");
+if(inv_total(inv, nails) < 4) {
+    ~mesbox("You need 4 steel nails to attach the plank with.");
     return;
 }
-if (inv_total(inv, nails) < 30) {
-    mes("You need 30 steel nails to fix the plank in place.");
+if(inv_total(inv, hammer) = 0) {
+    ~mesbox("You need a hammer to hammer the nails in with.");
     return;
 }
+anim(human_smithing, 0);
+sound_synth(anvil_4, 1, 0);
 inv_del(inv, woodplank, 1);
-inv_del(inv, nails, 30);
-sound_synth(hammer_wood, 1, 0);
-%horror_bridges = setbit(%horror_bridges, $bit);
-if (getbit_range(%horror_bridges, 0, 1) = 3) {
-    mes("You nail the last plank into place. The bridge is safe to cross now.");
-    return;
-}
-mes("You nail a plank across this side of the bridge. Now jump across and fix the other side.");
+inv_del(inv, nails, 4);
+if($right = ^true) %horrorbridgeright = ^true;
+else %horrorbridgeleft = ^true;
+if(%horrorbridgeleft = ^false | %horrorbridgeright = ^false) ~mesbox("You create half a makeshift walkway out of the plank.");
+else ~mesbox("You have now made a makeshift walkway over the bridge.");
 
 [oploc1,horror_broken_bridge_left_spot]  ~horror_cross_bridge;
 [oploc1,horror_broken_bridge_right_spot] ~horror_cross_bridge;
 
 [proc,horror_cross_bridge]
-if (%horror < ^horror_started) {
+if (%horrorquest = ^horror_not_started) {
     mes("The bridge is broken. You'd need a reason to risk that jump.");
     return;
 }
 def_coord $start = 0_40_56_36_24;
 def_coord $end = 0_40_56_38_24;
 def_int $dir = ^exact_east;
-def_int $from_bit = 0;
+def_int $from_fixed = %horrorbridgeleft;
 if (coordx(coord) > 2597) {
     $start = 0_40_56_38_24;
     $end = 0_40_56_36_24;
     $dir = ^exact_west;
-    $from_bit = 1;
+    $from_fixed = %horrorbridgeright;
 }
 def_int $dist = add(~abs_value(sub(coordx(coord), coordx($start))), ~abs_value(sub(coordz(coord), coordz($start))));
 if ($dist > 4) {
@@ -238,9 +153,9 @@ if ($dist > 4) {
     return;
 }
 def_boolean $fixed = false;
-if (getbit_range(%horror_bridges, 0, 1) = 3) {
+if (%horrorbridgeleft = ^true & %horrorbridgeright = ^true) {
     $fixed = true;
-} else if (testbit(%horror_bridges, $from_bit) = 0) {
+} else if ($from_fixed = ^false) {
     mes("This side of the bridge is too rotten to jump from. You'll need to nail a plank across it first.");
     return;
 }
@@ -262,428 +177,373 @@ if ($fixed = false & stat_random(agility, 60, 200) = false) {
     ~damage_self(calc(random(3) + 1));
 }
 
-// --- Lighting the lighthouse (roof) ---
-// %horror_lighting bits: 0 = swamp tar used, 1 = tinderbox used, 2 = molten glass used
-[oplocu,horror_lighthouse_windpower_cog]
-if (%horror < ^horror_started) {
-    mes("You should investigate the lighthouse first.");
+// --- The lighthouse's iron ladder, and the basement's ladders ---
+[oploc1,horror_ladder_top] @horror_ladder;
+[oploc1,horror_ladder_down] @horror_ladder;
+
+[label,horror_ladder]
+if(%horrorquest = ^horror_complete) {
+    ~climb_ladder(1_39_156_22_10, true);
     return;
 }
-if (getbit_range(%horror_lighting, 0, 2) = 7) {
-    mes("The lighting mechanism is already lit.");
+if(%horrorquest > ^horror_entered_lighthouse & %horrorquest < ^horror_complete) {
+    ~climb_ladder(1_39_72_22_10, true);
     return;
 }
-if (last_useitem = swamp_tar) {
-    if (testbit(%horror_lighting, 0) = 1) {
-        mes("You've already applied the swamp tar.");
-        return;
-    }
-    inv_del(inv, swamp_tar, 1);
-    mes("You smear the swamp tar over the mechanism.");
-    %horror_lighting = setbit(%horror_lighting, 0);
-} else if (last_useitem = tinderbox) {
-    if (testbit(%horror_lighting, 1) = 1) {
-        mes("You've already struck the tinderbox here.");
-        return;
-    }
-    mes("You strike the tinderbox against the mechanism.");
-    %horror_lighting = setbit(%horror_lighting, 1);
-} else if (last_useitem = molten_glass) {
-    if (testbit(%horror_lighting, 2) = 1) {
-        mes("You've already fitted the glass.");
-        return;
-    }
-    inv_del(inv, molten_glass, 1);
-    mes("You fit the molten glass into the housing.");
-    %horror_lighting = setbit(%horror_lighting, 2);
-} else {
-    ~displaymessage(^dm_default);
+if(npc_find(coord, horror_girlfriend_postquest, 5, 0) = true) {
+    ~chatnpc("<p,neutral>Please adventurer...|Do not let curiosity get the better of you! We Have to fix the lighthouse before any accidents happen!");
     return;
 }
-if (getbit_range(%horror_lighting, 0, 2) = 7) {
-    mes("With a satisfying click, the lighthouse's lamp roars back to life!");
-}
+mes("You must fix the lighthouse before any ships crash!");
 
-
-// --- The strange wall (basement, m39_72) - RE-ATTACHED (2026-09-03) ---
-// Real locs confirmed via content/maps/m39_72.jm2 (all four sit in one row, plane 1, local z=19,
-// x=17-20): horror_mid_left_door/horror_mid_right_door (loc 4543/4544, name="Strange wall", real
-// op1=Study) and horror_far_right_door/horror_far_left_door (loc 4545/4546, name="Strange wall",
-// real op1=Open, desc "appears to be hinged" - these two are the actual hinged doors; the mid pair
-// are just the engraved wall panels you study/use items on). Puzzle mechanic wiki-reconfirmed this
-// pass (https://oldschool.runescape.wiki/w/Horror_from_the_Deep): use one of each elemental rune
-// (fire/air/water/earth), a sword, and an arrow, each consumed once regardless of stack size, in any
-// order - "you do not get these back" per the wiki, which corrects the original draft of this logic
-// (kept below, now fixed) that only deleted the runes and not the sword/arrow. The four physical
-// panels aren't distinguished by the wiki, so all four accept any of the six items against one
-// shared %horror_wall bitfield (bits: 0=fire, 1=air, 2=water, 3=earth, 4=sword, 5=arrow).
-[oplocu,horror_mid_left_door]
-@horror_wall_useitem;
-
-[oplocu,horror_mid_right_door]
-@horror_wall_useitem;
-
-[oplocu,horror_far_right_door]
-@horror_wall_useitem;
-
-[oplocu,horror_far_left_door]
-@horror_wall_useitem;
-
-[label,horror_wall_useitem]
-if (%horror < ^horror_started) {
-    mes("You should investigate the lighthouse first.");
-    return;
-}
-if (getbit_range(%horror_wall, 0, 5) = 63) {
-    mes("The wall has already been opened.");
-    return;
-}
-def_int $bit = -1;
-if (last_useitem = firerune) {
-    $bit = 0;
-} else if (last_useitem = airrune) {
-    $bit = 1;
-} else if (last_useitem = waterrune) {
-    $bit = 2;
-} else if (last_useitem = earthrune) {
-    $bit = 3;
-} else if (last_useitem = bronze_sword | last_useitem = iron_sword | last_useitem = steel_sword | last_useitem = black_sword | last_useitem = mithril_sword | last_useitem = adamant_sword | last_useitem = rune_sword) {
-    $bit = 4;
-} else if (last_useitem = bronze_arrow | last_useitem = iron_arrow | last_useitem = steel_arrow | last_useitem = mithril_arrow | last_useitem = adamant_arrow | last_useitem = rune_arrow) {
-    $bit = 5;
-} else {
-    ~displaymessage(^dm_default);
-    return;
-}
-if (testbit(%horror_wall, $bit) = 1) {
-    mes("You've already pressed something like that into the wall.");
-    return;
-}
-mes("You press the item into a hidden recess in the wall.");
-%horror_wall = setbit(%horror_wall, $bit);
-inv_del(inv, last_useitem, 1);
-if (getbit_range(%horror_wall, 0, 5) = 63) {
-    mes("With a grinding of stone, the two hinged panels swing back, opening the way south.");
-    ~horror_wall_open_doors;
-    if (%horror < ^horror_wall_opened) {
-        %horror = ^horror_wall_opened;
-        ~send_quest_progress(questlist:horror, 2, ^horror_complete);
-    }
-}
-
-[oploc1,horror_mid_left_door]
-gosub(horror_wall_study);
-
-[oploc1,horror_mid_right_door]
-gosub(horror_wall_study);
-
-[proc,horror_wall_study]
-if (getbit_range(%horror_wall, 0, 5) = 63) {
-    mes("The wall has already been opened.");
-    return;
-}
-mes("A strange wall, engraved with symbols representing fire, air, water, earth, a sword and an arrow. There seem to be hidden recesses matching each symbol.");
-
-[oploc1,horror_far_right_door]
-gosub(horror_wall_open_attempt);
-
-[oploc1,horror_far_left_door]
-gosub(horror_wall_open_attempt);
-
-[proc,horror_wall_open_attempt]
-// The hinged panels sit on the south edge of their own tiles, so the lighthouse side is south of
-// z=4627 and the side with the ladder down to Jossik is north of it. From the north side it always
-// opens: nobody should be walled in behind a puzzle they came through (or round, from the Waterbirth
-// maze - ^horror_maze_exit_dest lands in the cave beyond it).
-if (getbit_range(%horror_wall, 0, 5) ! 63 & coordz(coord) < coordz(loc_coord)) {
-    mes("The door won't budge - it looks like it's sealed shut somehow.");
-    return;
-}
-mes("You push the hinged panel aside.");
-~horror_wall_open_doors;
-
-// FIXED (2026-09-08): the wall never actually opened. The old code did
-//     loc_change(horror_far_left_door_inactive, ...); loc_change(horror_far_right_door_inactive, ...);
-// which has two separate bugs. First, loc_change acts on the ACTIVE loc, so both calls landed on the
-// one panel the player had just clicked - the second simply overwrote the first and the other panel
-// was never touched. Second, and fatally, neither _inactive type declares blockwalk=no, and
-// LocType.blockwalk defaults to true (engine/src/cache/config/LocType.ts:79) - so even the panel that
-// did change stayed exactly as solid as before, just no longer clickable. The six-icon puzzle could
-// be solved and the passage south still could not be walked through: a hard quest block.
-//
-// Both panels are now looked up by their own coordinates and deleted outright, which is the only
-// thing that reliably drops a wall loc's collision. ^horror_wall_reopen_delay is short so the wall
-// closes behind the player - a player who has already solved it re-opens it any time via Open above,
-// and one who hasn't still has to place all six items.
-[proc,horror_wall_open_doors]
-if (loc_find(^horror_far_left_door_coord, horror_far_left_door) = true) {
-    loc_del(^horror_wall_reopen_delay);
-}
-if (loc_find(^horror_far_right_door_coord, horror_far_right_door) = true) {
-    loc_del(^horror_wall_reopen_delay);
-}
-
-
-// --- Lighthouse bookcase (horror_bookcase, loc 4617, real op1=Search) ---
-// Placed at m39_56 plane 1 local(12,60) - the lighthouse's middle floor - and again in the m38_71
-// copy of that room. The Search option had no handler at all, so it did nothing. There's no item
-// reward attached to it in the cache, so it's wired as the puzzle's in-world hint instead: the
-// strange wall's six recesses are otherwise only described by studying the wall itself, which you
-// can't do until you're already past it.
-[oploc1,horror_bookcase]
-mes("You search the shelves.");
-p_delay(1);
-if (%horror < ^horror_started) {
-    ~mesbox("Shipping manifests, tide tables and a keeper's journal. The last few entries are about noises from under the lighthouse.");
-    return;
-}
-if (getbit_range(%horror_wall, 0, 5) = 63) {
-    ~mesbox("Shipping manifests and tide tables. Nothing else in here seems useful now.");
-    return;
-}
-~mesbox("Tucked among the tide tables is a keeper's journal. One page describes a sealed door beneath the lighthouse, and copies out a rhyme carved beside it:");
-~mesbox("'Fire and air, water and earth, a blade and a shaft - press each to its own mark, and the way shall open.'");
-
-// --- The lighthouse basement (m39_56 <-> m39_72) and the post-quest dagannoth caves (m39_156) ---
-//
-// REWIRED to the OSRS layout. The ladder models say which end of each ladder is which -
-// horror_ladder_top/_top2 use model horror_ladder_top (you climb DOWN from them) and
-// horror_ladder_base/_base2 use horror_ladder_base (you climb UP them) - and they pair up as:
-//
-//   lighthouse, horror_ladder_top (m39_56 p0 13,60)  <->  horror_ladder_base (m39_72 p1 23,10)
-//       the basement, SOUTH of the strange wall (the wall is the p1 row z=19)
-//   horror_ladder_top2 (m39_72 p1 19,22)             <->  horror_ladder_base2 (m39_72 p0 19,23)
-//       the small room NORTH of the wall, and the cave below it where Jossik lies (p0 22,25)
-//
-// OSRS walkthrough: "Descend to the basement. Locate the strange wall and use ... on it. Open the
-// eastern strange wall doorway, climb down the ladder, and speak with Jossik". The old wiring had it
-// the other way round - the lighthouse ladder dropped you straight into Jossik's cave, past the wall,
-// and horror_ladder_base (the basement's way back UP) sent you down into m39_156 instead - which left
-// nothing anywhere leading back to the lighthouse. Anyone who went down was stuck underground unless
-// they could teleport, and could never carry the casket back to Jossik upstairs on foot.
-//
-// m39_156 is the same cave with a byte-identical loc layout and 22 dagannoths placed in it: the
-// post-quest Dagannoth caves. Once the quest is done, horror_ladder_top2 leads there instead of to
-// Jossik's quiet cave. Its own copies of the ladders climb back up to the room north of the wall.
-[oploc1,horror_ladder_top]
-p_arrivedelay;
-mes("You climb down the ladder into the lighthouse basement.");
-p_telejump(^horror_basement_arrival);
-
+// Not in the original: before the front door has let you in, climb out into the real lighthouse, not
+// the quest's copy. Only our Waterbirth maze exit (^horror_maze_exit_dest) gets anyone down here that
+// early, and the copy's broken lamp would otherwise move them straight to stage 4.
 [oploc1,horror_ladder_base]
-p_arrivedelay;
-mes("You climb up the ladder.");
-p_telejump(^horror_lighthouse_return);
+if(%horrorquest < ^horror_entered_lighthouse) {
+    ~climb_ladder(0_39_56_14_60, true);
+} else if(%horrorquest < ^horror_complete) {
+    ~climb_ladder(0_38_71_14_60, true);
+} else {
+    ~climb_ladder(0_39_56_14_60, true);
+}
 
 [oploc1,horror_ladder_top2]
 p_arrivedelay;
-if (%horror >= ^horror_complete) {
-    mes("You climb down into the dagannoth caves.");
-    p_telejump(^horror_dag_cavern_arrival);
-    return;
-}
-mes("You climb down the ladder into darkness.");
-p_telejump(^horror_jossik_cave_arrival);
-~horror_dag_cavern_arrive;
+~climb_ladder(movecoord(loc_coord, 0, -1, 2), true);
 
-// Both copies (m39_72 and m39_156) climb back up to the room north of the wall; m39_156 has no
-// walkable upper floor of its own.
 [oploc1,horror_ladder_base2]
 p_arrivedelay;
-mes("You climb up the ladder.");
-p_telejump(^horror_wall_room_arrival);
+~climb_ladder(movecoord(loc_coord, 0, 1, -2), true);
+npc_huntall(0_39_72_24_36, 25, 0);
+while (npc_findnext = true) {
+    if(%npc_aggressive_player = uid) {
+        npc_del;
+    }
+}
 
-// Both bosses are spawned in Jossik's cave rather than placed in the map, and only for a player who
-// still needs them - so they are never standing around for someone who has already finished, and a
-// player who logged out mid-fight gets them back simply by climbing down again (or speaking to
-// Jossik, who is the one that sees the first one coming in OSRS). Searched for by radius, not by
-// exact tile: a boss that has taken a step would otherwise not be found and a second one added.
-[proc,horror_dag_cavern_arrive]
-if (%horror = ^horror_wall_opened) {
-    if (npc_find(^horror_dag_cavern_jr4_spawn, horror_dagannoth_jr4, 20, ^vis_off) = false) {
-        npc_add(^horror_dag_cavern_jr4_spawn, horror_dagannoth_jr4, ^horror_boss_lifetime);
-        mes("Something enormous shifts in the dark ahead of you.");
+// --- The spiral staircase (moved here from ladders+stairs/scripts/stairs.rs2) ---
+// Once the lamp is fixed the top floor is the real lighthouse's (m39_56), lit; the floors below it
+// stay the quest's copy (m38_71) until the quest is done.
+[oploc1,horror_lighthouse_spiralstairs_base]
+p_arrivedelay;
+p_teleport(movecoord(loc_coord, -1, 1, 1));
+
+[oploc1,horror_lighthouse_spiralstairs_middle]
+def_int $option = ~p_choice2("Climb Up.", 1, "Climb Down.", 2);
+if ($option = 1) {
+    if(%horrorquest >= ^horror_repaired_lighthouse & %horrorquest < ^horror_complete) p_teleport(2_39_56_9_57);
+    else p_teleport(movecoord(loc_coord, -1, 1, 1));
+} else if ($option = 2) {
+    if(%horrorquest >= ^horror_repaired_lighthouse & %horrorquest < ^horror_complete) p_teleport(1_38_71_10_58);
+    else p_teleport(movecoord(loc_coord, 0, -1, 2));
+}
+
+[oploc2,horror_lighthouse_spiralstairs_middle]
+p_arrivedelay;
+if(%horrorquest >= ^horror_repaired_lighthouse & %horrorquest < ^horror_complete) p_teleport(2_39_56_9_57);
+else p_teleport(movecoord(loc_coord, -1, 1, 1));
+
+[oploc3,horror_lighthouse_spiralstairs_middle]
+p_arrivedelay;
+p_teleport(movecoord(loc_coord, 0, -1, 2));
+
+[oploc1,horror_lighthouse_spiralstairs_top]
+p_arrivedelay;
+if(%horrorquest >= ^horror_repaired_lighthouse & %horrorquest < ^horror_complete) p_teleport(1_38_71_10_58);
+else p_teleport(movecoord(loc_coord, 0, -1, 1));
+
+// --- The bookcase: Jossik's journal, Silas's diary and the lamp's manual (horror_diary.rs2) ---
+[oploc1,horror_bookcase]
+~mesbox("There are three books here that look important...|What would you like to do?");
+switch_int(~p_choice4("Take the Lighthouse Manual", 1, "Take the ancient Diary", 2, "Take Jossiks' Journal", 3, "Take all three books", 4)) {
+    case 1 :
+        if(inv_freespace(inv) < 1) {
+            mes("You don't have enough space to take that.");
+            return;
+        }
+        inv_add(inv, horror_diary3, 1);
+    case 2 :
+        if(inv_freespace(inv) < 1) {
+            mes("You don't have enough space to take that.");
+            return;
+        }
+        inv_add(inv, horror_diary2, 1);
+    case 3 :
+        if(inv_freespace(inv) < 1) {
+            mes("You don't have enough space to take that.");
+            return;
+        }
+        inv_add(inv, horror_diary1, 1);
+    case 4 :
+        if(inv_freespace(inv) < 3) {
+            mes("You don't have enough space to take all three.");
+            return;
+        }
+        inv_add(inv, horror_diary1, 1);
+        inv_add(inv, horror_diary2, 1);
+        inv_add(inv, horror_diary3, 1);
+}
+
+// --- The broken lamp (m38_71, top floor) ---
+[oplocu,horror_lighthouse_cog_broken]
+if(last_useitem = tinderbox) {
+    if(%horrortar = ^false) {
+        mes("The torch does not seem to be flammable...");
+        return;
+    }
+    if(%horrorlight = ^true) {
+        mes("You have already lit the torch."); // TODO: RECHECK THIS ON SECOND ACCOUNT
+        return;
+    }
+    %horrorlight = ^true;
+    mes("You light the torch with your tinderbox.");
+    ~horror_check_repaired;
+    return;
+}
+if(last_useitem = swamp_tar) {
+    if(%horrortar = ^true) {
+        mes("You have already put tar on the torch.");
+        return;
+    }
+    %horrortar = ^true;
+    inv_del(inv, swamp_tar, 1);
+    mes("You use the swamp tar to make the torch flammable again.");
+    return;
+}
+if(last_useitem = molten_glass) {
+    if(%horrorglass = ^true) {
+        mes("You have already repaired the lens.");
+        return;
+    }
+    %horrorglass = ^true;
+    inv_del(inv, molten_glass, 1);
+    mes("You use the molten glass to repair the lens.");
+    ~horror_check_repaired;
+    return;
+}
+~displaymessage(^dm_default);
+
+// Moves you from the quest's copy of the top floor (m38_71) to the real, lit one (m39_56).
+[proc,horror_check_repaired]
+if(%horrorlight = ^true & %horrorglass = ^true & %horrortar = ^true) {
+    if(%horrorquest < ^horror_repaired_lighthouse) %horrorquest = ^horror_repaired_lighthouse;
+    mes("You have managed to repair the lighthouse torch!");
+    p_teleport(movecoord(coord, 64, 0, -960));
+}
+
+// --- The strange wall (basement, plane 1, z=19) ---
+// The far left panel lets you back out south at any time; the far right one lets you through north
+// once a fire, water, earth and air rune, a stabbing or slashing weapon and an arrow are in the wall.
+[oploc1,horror_far_left_door]
+if(coordz(coord) < coordz(loc_coord)) {
+    mes("The door cannot be opened from this side.");
+    return;
+}
+loc_change(inviswall, 3);
+p_teleport(movecoord(loc_coord, 0, 0, -1));
+loc_add(movecoord(loc_coord, 0, 0, -1), horror_far_left_door_inactive, 0, wall_straight, 3);
+sound_synth(strangedoor_open, 1, 0);
+longqueue(strangedoorsound, 1, 0, ^discard);
+
+[oploc1,horror_far_right_door]
+if(%horrorfire = ^false | %horrorwater = ^false | %horrorearth = ^false | %horrorair = ^false | %horrorsword = ^false | %horrorarrow = ^false) {
+    mes("You cannot see any way to move this part of the wall...");
+    return;
+}
+if(coordz(coord) >= coordz(loc_coord)) {
+    mes("The door cannot be opened from this side.");
+    return;
+}
+loc_change(inviswall, 3);
+p_teleport(loc_coord);
+loc_add(movecoord(loc_coord, 0, 0, -1), horror_far_right_door_inactive, 0, wall_straight, 3);
+sound_synth(strangedoor_open, 1, 0);
+longqueue(strangedoorsound, 1, 0, ^discard);
+
+[queue,strangedoorsound]
+sound_synth(strangedoor_close, 1, 0);
+
+[oploc1,horror_mid_left_door] @study_horror_door;
+[oploc1,horror_mid_right_door] @study_horror_door;
+
+[oplocu,horror_mid_left_door] @placeobj_horror_door;
+[oplocu,horror_mid_right_door] @placeobj_horror_door;
+
+[label,placeobj_horror_door]
+def_obj $obj = last_useitem;
+def_int $op;
+if($obj = firerune) {
+    if(%horrorfire = ^true) {
+        mes("There is no space to put a fire rune into the wall.");
+        return;
+    }
+    ~chatplayer("<p,confused>I don't think I'll get that back if I put it in there.");
+    $op = ~p_choice2_header("Yes", 1, "No", 2, "Really place the rune into the door?");
+    if($op = 1) {
+        inv_del(inv, $obj, 1);
+        %horrorfire = ^true;
+        mes("You place a fire rune into the slot in the wall.");
+        ~horror_door_check_complete;
     }
     return;
 }
-if (%horror = ^horror_dagannoth_defeated) {
-    if (~horror_mother_present = false) {
-        ~horror_spawn_mother;
+if($obj = waterrune) {
+    if(%horrorwater = ^true) {
+        mes("There is no space to put a water rune into the wall.");
+        return;
     }
+    ~chatplayer("<p,confused>I don't think I'll get that back if I put it in there.");
+    $op = ~p_choice2_header("Yes", 1, "No", 2, "Really place the rune into the door?");
+    if($op = 1) {
+        inv_del(inv, $obj, 1);
+        %horrorwater = ^true;
+        mes("You place a water rune into the slot in the wall.");
+        ~horror_door_check_complete;
+    }
+    return;
+}
+if($obj = earthrune) {
+    if(%horrorearth = ^true) {
+        mes("There is no space to put an earth rune into the wall.");
+        return;
+    }
+    ~chatplayer("<p,confused>I don't think I'll get that back if I put it in there.");
+    $op = ~p_choice2_header("Yes", 1, "No", 2, "Really place the rune into the door?");
+    if($op = 1) {
+        inv_del(inv, $obj, 1);
+        %horrorearth = ^true;
+        mes("You place an earth rune into the slot in the wall.");
+        ~horror_door_check_complete;
+    }
+    return;
+}
+if($obj = airrune) {
+    if(%horrorair = ^true) {
+        mes("There is no space to put an air rune into the wall.");
+        return;
+    }
+    ~chatplayer("<p,confused>I don't think I'll get that back if I put it in there.");
+    $op = ~p_choice2_header("Yes", 1, "No", 2, "Really place the rune into the door?");
+    if($op = 1) {
+        inv_del(inv, $obj, 1);
+        %horrorair = ^true;
+        mes("You place an air rune into the slot in the wall.");
+        ~horror_door_check_complete;
+    }
+    return;
+}
+// seems like any stab or slash weapon works (daggers, swords, longswords, scimitars, includes stuff like dark dagger and excalibur)
+if(oc_category($obj) = weapon_stab | oc_category($obj) = weapon_slash) {
+    if(%horrorsword = ^true) {
+        mes("There is no space to put a weapon into the wall.");
+        return;
+    }
+    ~chatplayer("<p,confused>I don't think I'll get that back if I put it in there.");
+    $op = ~p_choice2_header("Yes", 1, "No", 2, "Really place the weapon into the door?");
+    if($op = 1) {
+        inv_del(inv, $obj, 1);
+        %horrorsword = ^true;
+        mes("You place a sword into the slot in the wall.");
+        ~horror_door_check_complete;
+    }
+    return;
+}
+if(oc_category($obj) = arrows) {
+    if(%horrorarrow = ^true) {
+        mes("There is no space to put an arrow into the wall.");
+        return;
+    }
+    ~chatplayer("<p,confused>I don't think I'll get that back if I put it in there.");
+    $op = ~p_choice2_header("Yes", 1, "No", 2, "Really place the arrow into the door?");
+    if($op = 1) {
+        inv_del(inv, $obj, 1);
+        %horrorarrow = ^true;
+        mes("You place an arrow into the slot in the wall.");
+        ~horror_door_check_complete;
+    }
+    return;
+}
+~displaymessage(^dm_default);
+
+[proc,horror_door_check_complete]
+if(%horrorfire = ^true & %horrorwater = ^true & %horrorearth = ^true & %horrorair = ^true & %horrorsword = ^true & %horrorarrow = ^true) {
+    mes("You hear the sound of something moving within the wall.");
+    sound_synth(strangedoor_sound, 1, 0);
 }
 
-
-// --- Fallen Jossik (injured, in the cave below the strange wall) and horror_lighthousekeeeper_well
-// (topside, the final reward exchange) ---
-// horror_lighthousekeeeper_injured (npc 1335) is placed at m39_72 p0 local(22,25); the well Jossik
-// (1334) at m39_56 p1 local(13,55). They are two separate npcs, so no changetype is needed.
-// The stage machine is driven by the kills (quest_horror_combat.rs2); this handler only reads it,
-// except for the casket hand-over.
-[opnpc1,horror_lighthousekeeeper_injured]
-if (%horror < ^horror_wall_opened) {
-    ~chatplayer("<p,shock>Jossik! Are you alright?");
-    ~chatnpc("<p,sad>Adventurer! Thank Guthix... there are creatures down here, dagannoth of some kind. Get out while you can!");
-} else if (%horror < ^horror_dagannoth_defeated) {
-    ~chatplayer("<p,shock>Jossik! Are you alright?");
-    ~chatnpc("<p,sad>Adventurer! Thank Guthix... there are creatures down here, dagannoth of some kind.");
-    ~chatnpc("<p,scared>Look out - behind you!");
-    ~horror_dag_cavern_arrive;
-} else if (%horror < ^horror_mother_defeated) {
-    ~chatplayer("<p,neutral>I killed that dagannoth.");
-    ~chatnpc("<p,scared>That wasn't the only one. There's something bigger in the water... I can hear it moving.");
-    ~horror_dag_cavern_arrive;
-} else if (%horror < ^horror_casket_given) {
-    ~chatplayer("<p,happy>It's dead. I found this rusty casket where it was nesting.");
-    ~chatnpc("<p,neutral>A casket? Let's get out of here and I'll take a look upstairs.");
-    %horror = ^horror_casket_given;
-    ~send_quest_progress(questlist:horror, 5, ^horror_complete);
+// The engraved wall, close up. The 349 original's horror_metaldoor is our inter_201 (same ids,
+// 10116-10125): com_3 fire, com_4 air, com_5 earth, com_6 water, com_7 ranging, com_8 melee. The
+// model ids are raw model.pack ids (the dull icon, and the lit one once its item is in the wall).
+[label,study_horror_door]
+if(coordz(coord) >= coordz(loc_coord)) {
+    mes("You cannot see anything unusual about the wall from this side.");
+    return;
+}
+if(%horrorfire = ^false) {
+    if_setmodel(inter_201:com_3, 4513);
 } else {
-    ~chatnpc("<p,relieved>Let's get back up top - I don't want to spend any longer down here than I have to.");
+    if_setmodel(inter_201:com_3, 4514);
 }
-
-[opnpc1,horror_lighthousekeeeper_well]
-if (%horror >= ^horror_casket_given & %horror < ^horror_complete) {
-    ~chatplayer("<p,neutral>Here's that casket I found.");
-    inv_del(inv, horror_casket, 1);
-    ~chatnpc("<p,happy>Ah, I recognise this - it's one of ours. There should be a damaged prayer book inside. Which order would you like?");
-    @multi4("A book of Saradomin.", horror_book_saradomin, "A book of Zamorak.", horror_book_zamorak, "A book of Guthix.", horror_book_guthix, "None for me, thanks.", horror_book_none);
-} else if (%horror >= ^horror_complete) {
-    // Two separate post-quest services, which the old single ~openshop_activenpc call conflated:
-    // the wiki's 5,000gp replacement for a LOST damaged prayer book is a dialogue transaction, and
-    // is not in [lighthouseshop]'s stock at all - that inv is the general store ("Jossik's Wares":
-    // rope, hammer, chisel, tinderbox, containers, Fremennik drinks), which is what op3=Trade and
-    // the "supplies" option below open. See configs/quest_horror_jossik.npc for the shop binding
-    // that makes ~openshop_activenpc work at all - before it, npc_param(owned_shop) was unset here.
-    ~chatnpc("<p,happy>Hello again. The light's burning bright, thanks to you.");
-    def_int $service = ~p_choice3("Could I see what you have for sale?", 1, "I've lost my prayer book.", 2, "Just passing through.", 3);
-    if ($service = 3) {
-        ~chatplayer("<p,neutral>Just passing through.");
-        return;
-    }
-    if ($service = 1) {
-        ~chatplayer("<p,neutral>Could I see what you have for sale?");
-        ~openshop_activenpc;
-        return;
-    }
-    ~chatplayer("<p,sad>I've lost my prayer book.");
-    if (~horror_carrying_prayer_book = true) {
-        ~chatnpc("<p,quiz>Have you now? You seem to have one on you already.");
-        return;
-    }
-    ~chatnpc("<p,neutral>Careless. I can salvage you another from the wreck, but it'll cost you 5,000 coins.");
-    if (~p_choice2("That's fine, here you go.", 1, "That's too much.", 2) = 2) {
-        ~chatplayer("<p,neutral>That's too much.");
-        return;
-    }
-    ~chatplayer("<p,neutral>That's fine, here you go.");
-    if (inv_total(inv, coins) < 5000) {
-        ~chatnpc("<p,neutral>You don't have that much on you.");
-        return;
-    }
-    if (inv_freespace(inv) < 1) {
-        ~chatnpc("<p,neutral>You'll need a free hand to carry it.");
-        return;
-    }
-    ~chatnpc("<p,quiz>Which order was yours again?");
-    @multi3("A book of Saradomin.", horror_rebuy_saradomin, "A book of Zamorak.", horror_rebuy_zamorak, "A book of Guthix.", horror_rebuy_guthix);
+if(%horrorwater = ^false) {
+    if_setmodel(inter_201:com_6, 4520);
+} else {
+    if_setmodel(inter_201:com_6, 4521);
 }
-
-// True if the player already has any of the three prayer books, damaged or finished, carried or
-// worn - keeps the 5,000gp replacement from handing out a second copy of a book they still have.
-[proc,horror_carrying_prayer_book]()(boolean)
-if (inv_total(inv, unfinished_saradominbook) > 0 | inv_total(inv, unfinished_zamorakbook) > 0 | inv_total(inv, unfinished_guthixbook) > 0) {
-    return(true);
+if(%horrorearth = ^false) {
+    if_setmodel(inter_201:com_5, 4511);
+} else {
+    if_setmodel(inter_201:com_5, 4512);
 }
-if (inv_total(inv, saradominbook_complete) > 0 | inv_total(inv, zamorakbook_complete) > 0 | inv_total(inv, guthixbook_complete) > 0) {
-    return(true);
+if(%horrorair = ^false) {
+    if_setmodel(inter_201:com_4, 4509);
+} else {
+    if_setmodel(inter_201:com_4, 4510);
 }
-if (inv_total(worn, saradominbook_complete) > 0 | inv_total(worn, zamorakbook_complete) > 0 | inv_total(worn, guthixbook_complete) > 0) {
-    return(true);
+if(%horrorsword = ^false) {
+    if_setmodel(inter_201:com_8, 4516);
+} else {
+    if_setmodel(inter_201:com_8, 4517);
 }
-return(false);
+if(%horrorarrow = ^false) {
+    if_setmodel(inter_201:com_7, 4518);
+} else {
+    if_setmodel(inter_201:com_7, 4519);
+}
+if_openmain(inter_201);
 
-// The coins come off inside each label rather than before the @multi3 above: ~multi3, like every
-// other dialogue primitive, ends in p_pausebutton and is abortable, so charging before the choice
-// would take 5,000gp from anyone who closed the window.
-[label,horror_rebuy_saradomin]
-~chatplayer("<p,neutral>A book of Saradomin.");
-@horror_rebuy_give(unfinished_saradominbook);
-
-[label,horror_rebuy_zamorak]
-~chatplayer("<p,neutral>A book of Zamorak.");
-@horror_rebuy_give(unfinished_zamorakbook);
-
-[label,horror_rebuy_guthix]
-~chatplayer("<p,neutral>A book of Guthix.");
-@horror_rebuy_give(unfinished_guthixbook);
-
-[label,horror_rebuy_give](namedobj $book)
-if (inv_total(inv, coins) < 5000) {
-    ~chatnpc("<p,neutral>You don't have that much on you.");
+// --- The end: the Dagannoth Mother is dead (horror_dagannoth.rs2) ---
+// The casket can go to the floor on a full inventory and is too fragile to pick back up; Jossik
+// covers that ("You dropped it and I picked it up!"), so no reward is lost to a full backpack.
+[queue,quest_horror_complete]
+if(inzone(0_39_72_0_0, 0_39_72_63_63, coord) = false) {
     return;
 }
-inv_del(inv, coins, 5000);
-inv_add(inv, $book, 1);
-~mesbox("You hand over 5,000 coins and Jossik fetches you another damaged prayer book.");
+queue(horror_postquest_dialogue, 0, 0);
+p_teleport(1_39_156_19_17);
+stat_advance(magic, 46620);
+stat_advance(strength, 46620);
+stat_advance(ranged, 46620);
+inv_add(inv, horror_casket, 1);
+%horrorquest = ^horror_complete;
+session_log(^log_adventure, "Quest complete: Horror from the Deep");
+~send_quest_complete(questlist:horror, horror_casket, 225, ^horror_questpoints, "You have survived the\\nHorror From The Deep!", "4,662 Strength XP|4,662 Ranged XP|4,662 Magic XP|A mysterious casket");
 
-[label,horror_book_saradomin]
-~chatplayer("<p,happy>A book of Saradomin.");
-// @finish_horror_quest sets ^horror_complete, so an unguarded add here loses the book with no
-// way back except paying Jossik 5,000gp. The casket is deliberately not required to be in hand
-// (see quest_horror_combat.rs2), so nothing has freed a slot by this point.
-if (inv_freespace(inv) = 0) {
-    ~mesbox("Jossik holds out a damaged book of Saradomin - but you have no room to take it. Make some space and ask again.");
-    return;
+[opobj3,horror_casket]
+mes("It is too old and fragile to pick up.");
+
+[queue,horror_postquest_dialogue]
+// no inzone check
+~chatplayer("<p,neutral>Okay, it's dead!|Let's get out of here!");
+// you turn towards jossik so i assume it does a find rather than chatnpc_specific
+if(npc_findexact(0_39_72_22_25, horror_lighthousekeeeper_injured) = ^true) {
+    ~chatnpcnoturn("<p,happy>Yes, quickly, the mother might be dead, but it's children are not!");
+    ~chatnpcnoturn("<p,neutral>Follow me upstairs, I might be able to help you with that casket you found.");
+    ~chatnpcnoturn("<p,neutral>Bring it to my library, it looks familiar somehow...");
 }
-inv_add(inv, unfinished_saradominbook, 1);
-~mesbox("Jossik hands you a damaged book of Saradomin, salvaged from the wreck of the casket.");
-@finish_horror_quest;
 
-[label,horror_book_zamorak]
-~chatplayer("<p,happy>A book of Zamorak.");
-// @finish_horror_quest sets ^horror_complete, so an unguarded add here loses the book with no
-// way back except paying Jossik 5,000gp. The casket is deliberately not required to be in hand
-// (see quest_horror_combat.rs2), so nothing has freed a slot by this point.
-if (inv_freespace(inv) = 0) {
-    ~mesbox("Jossik holds out a damaged book of Zamorak - but you have no room to take it. Make some space and ask again.");
-    return;
+[proc,abs_value](int $n)(int)
+if ($n < 0) {
+    return(multiply($n, -1));
 }
-inv_add(inv, unfinished_zamorakbook, 1);
-~mesbox("Jossik hands you a damaged book of Zamorak, salvaged from the wreck of the casket.");
-@finish_horror_quest;
-
-[label,horror_book_guthix]
-~chatplayer("<p,happy>A book of Guthix.");
-// @finish_horror_quest sets ^horror_complete, so an unguarded add here loses the book with no
-// way back except paying Jossik 5,000gp. The casket is deliberately not required to be in hand
-// (see quest_horror_combat.rs2), so nothing has freed a slot by this point.
-if (inv_freespace(inv) = 0) {
-    ~mesbox("Jossik holds out a damaged book of Guthix - but you have no room to take it. Make some space and ask again.");
-    return;
-}
-inv_add(inv, unfinished_guthixbook, 1);
-~mesbox("Jossik hands you a damaged book of Guthix, salvaged from the wreck of the casket.");
-@finish_horror_quest;
-
-[label,horror_book_none]
-~chatplayer("<p,neutral>None for me, thanks.");
-~chatnpc("<p,happy>Suit yourself - I'll keep hold of it in case you change your mind.");
-@finish_horror_quest;
-
-// Through the player queue, and through ~send_quest_complete rather than ~send_quest_progress.
-// The old ending called send_quest_progress, which only recolours the journal line - so finishing
-// this quest gave no completion scroll, no jingle, no reward panel, and no quest points at the time,
-// because ~update_questpoints is called from send_quest_complete's default branch and nowhere else
-// in a completion path. The points only appeared silently on the next login, whenever
-// ~update_questlist next ran. The queue is for the same reason Underground Pass uses one: the
-// rewards must not sit behind an abortable ~chatnpc.
-[label,finish_horror_quest]
-queue(horror_quest_complete, 0, 0);
-~chatnpc("<p,happy>Thank you again for everything, adventurer. I don't know what would have happened to me down there without you.");
-
-[queue,horror_quest_complete]
-%horror = ^horror_complete;
-stat_advance(magic, 46625);
-stat_advance(strength, 46625);
-stat_advance(ranged, 46625);
-~send_quest_complete(questlist:horror, unfinished_saradominbook, 250, ^horror_questpoints, "You have completed the\\nHorror from the Deep Quest!", "4,662 Strength XP|4,662 Ranged XP|4,662 Magic XP|Access to the Lighthouse basement");
+return($n);

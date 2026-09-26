@@ -216,6 +216,20 @@ if (npc_type = wormbrain & (~quest_dragon_getting_map_parts = false | inv_total(
 if (npc_type = grip) {
     return(~grip_attack);
 }
+// Horror from the Deep (PlagueCityRS 349 port): the quest's Dagannoth and the Dagannoth Mother are
+// spawned for one player; spells from anyone else fizzle. The melee/ranged clicks are refused the same
+// way by their own [opnpc2]/[apnpc2] in quests/quest_horror/scripts/horror_dagannoth.rs2.
+if(npc_type = horror_dagannoth_jr4 | npc_category = dagannoth_mother) {
+    if (%npc_aggressive_player ! uid) {
+        mes("It's not after you...");
+        return (false);
+    }
+    if(npc_category = dagannoth_mother) {
+        if (~check_protect_prayer(^ranged_style) = false) {
+            npc_setmode(applayer2);
+        }
+    }
+}
 if (npc_category = battle_mage & %magearena < ^mage_arena_complete) {
     mes("You are not ready to fight the battle mages.");
     return(false);

@@ -1,73 +1,15 @@
+// Horror from the Deep - the original quest stages (PlagueCityRS 349 port, 2026-09-25). %horrorquest
+// is bits 0-10 of %deephorror; ^horror_complete (10) lives in general/configs/quest.constant.
+// The bridge planks, Gunnjorn's key, the unlocked front door, the six items in the strange wall
+// and the three lamp repairs are single-bit varbits of %deephorror beside it (quest_horror.varbit).
 ^horror_not_started = 0
 ^horror_started = 1
-^horror_wall_opened = 2
-^horror_dagannoth_defeated = 3
-^horror_mother_defeated = 4
-^horror_casket_given = 5
-// ^horror_complete lives in general/configs/quest.constant (shared quest-completion constants file,
-// same convention as ^regicide_complete/^priestperil_complete) - declaring it here too was a
-// duplicate and broke the build ("Duplicate constant found: horror_complete").
+^horror_entered_lighthouse = 2
+^horror_fixing_lighthouse = 3
+^horror_repaired_lighthouse = 4
+^horror_defeated_dagjr = 5
 
-// Bridge repair, the lighthouse key, lighting the mechanism, and the six-icon door puzzle are all
-// reachable in any order once the quest is started (Gunnjorn in particular is at the Barbarian
-// Outpost agility arena, not gated behind the broken bridges) - so instead of folding them into
-// the linear ^horror_* stages above, they're tracked as their own independent perm varps declared
-// in quest_horror.varp:
-//   %horror_bridges  - bit0 = left span repaired, bit1 = right span repaired
-//   %horror_lighting - bit0 = swamp tar applied, bit1 = tinderbox struck, bit2 = molten glass fitted
-//   %horror_wall     - bit0=fire, bit1=air, bit2=water, bit3=earth, bit4=sword, bit5=arrow
-
-// %horror_bridges bit 2: the lighthouse's front door has been unlocked with Gunnjorn's key (the key
-// only has to be carried the first time, as in OSRS). Bits 0 and 1 are the two bridge spans.
-^horror_door_unlocked_bit = 2
-
-// The lighthouse basement - see the ladder section of quest_horror.rs2 for the full layout. m39_72 is
-// the quest's version of the cave (Jossik, no monsters); m39_156 is the same cave with 22 dagannoths
-// placed in it - the post-quest Dagannoth caves.
-//   lighthouse horror_ladder_top (m39_56 p0 13,60)  <->  horror_ladder_base (m39_72 p1 23,10)
-//   horror_ladder_top2 (m39_72 p1 19,22)             <->  horror_ladder_base2 (m39_72 p0 19,23)
-// Every coord below was checked walkable in the sim (Engine-TS/tools/sim/horrortribe.ts).
-// Beside the basement's iron ladder, south of the strange wall.
-^horror_basement_arrival = 1_39_72_23_11
-// Beside the lighthouse's own ladder, on its ground floor.
-^horror_lighthouse_return = 0_39_56_14_60
-// The small room north of the strange wall, beside horror_ladder_top2.
-^horror_wall_room_arrival = 1_39_72_19_21
-// Jossik's cave, beside horror_ladder_base2 (Fallen Jossik stands at 22,25).
-^horror_jossik_cave_arrival = 0_39_72_19_24
-// The post-quest Dagannoth caves, beside m39_156's copy of horror_ladder_base2.
-^horror_dag_cavern_arrival = 0_39_156_19_24
-
-// Corey confirmed (2026-09-03, round 5) where the Waterbirth maze's dagexp_exit_ladder really leads -
-// into Jossik's cave (m39_72 p0), north of the strange wall. See area_waterbirth.constant /
-// waterbirth_dungeon.rs2 for the ladder itself.
+// Our own addition, kept: the Waterbirth maze's dagexp_exit_ladder climbs out into Jossik's cave
+// (m39_72 plane 0), north of the strange wall - Corey confirmed it in game (2026-09-03, round 5).
+// See area_waterbirth/scripts/waterbirth_dungeon.rs2 for the ladder itself.
 ^horror_maze_exit_dest = 0_39_72_14_36
-
-
-// spiral staircase in lighthouse
-^horror_lighthouse_spiralstairs_base = 0_39_56_12_56
-^horror_lighthouse_spiralstairs_middle = 1_39_56_10_56
-^horror_lighthouse_spiralstairs_top = 2_39_56_9_57
-
-// --- The two boss encounters ---
-// Both are fought in Jossik's cave, as in OSRS ("Talk to Jossik and ... a Dagannoth will appear"),
-// and the Mother surfaces out of the water at its north end. Scripted spawns: nothing is placed.
-^horror_dag_cavern_jr4_spawn = 0_39_72_19_28
-^horror_dag_cavern_mother_spawn = 0_39_72_27_37
-// npc_add lifetime for both bosses. They are re-spawned by the ladder handler whenever a player who
-// still needs them arrives, so a finite lifetime just cleans up after someone who logged out.
-^horror_boss_lifetime = 1000
-
-// The two hinged panels of the strange wall (m39_72 plane 1, z=19). The wall is opened by REMOVING
-// these two locs, not by loc_change to the _inactive types: those carry no blockwalk=no, and
-// LocType.blockwalk defaults to true (engine/src/cache/config/LocType.ts:79), so swapping to them
-// left the passage just as solid as before - only unclickable. See quest_horror.rs2.
-^horror_far_left_door_coord = 1_39_72_17_19
-^horror_far_right_door_coord = 1_39_72_20_19
-// Short, so the wall closes behind you and each player has to solve it themselves; a player who has
-// already solved it re-opens it any time by clicking Open.
-^horror_wall_reopen_delay = 100
-
-// Which boss the [queue,horror_boss_slain] handoff is reporting.
-^horror_slain_dagannoth = 1
-^horror_slain_mother = 2
