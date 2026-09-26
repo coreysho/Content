@@ -1,832 +1,107 @@
-// The Fremennik Trials - Sigmund the Merchant's trial.
-// Wiki: https://oldschool.runescape.wiki/w/The_Fremennik_Trials (walkthrough and quick guide), and
-// the transcripts the dialogue below is taken from, word for word:
-//   https://oldschool.runescape.wiki/w/Transcript:The_Fremennik_Trials
-//   https://runescape.wiki/w/Transcript:The_Fremennik_Trials (the fuller record of the "afterwards",
-//   "wrong item" and "lost the goods" lines, which the OSRS page leaves out)
-//
-// Sigmund wants a flower. Nobody points you at anybody: you ask around, and every Fremennik you ask
-// has the same two options on top of their own conversation - "Ask about the Merchant's trial" and
-// "Ask about becoming a Fremennik". The one person who has what you are looking for wants something
-// else first, and so on down thirteen links until Askeladden sells you a promise to stay out of the
-// longhall for 5,000 coins. Then every trade unwinds back up the chain to Sigmund.
-//
-// REWRITTEN (reported: "sigmund favor needs looked at, npcs aren't giving their chat lines for the
-// favours"). The old chain was invented and wrong in three ways:
-//   - the order. After Swensen it went Thora, Manni, Thorvald, Peer - but Swensen sent you to Peer,
-//     whose link was the LAST one, so Peer answered with his own trial and the chain went silent at
-//     the ninth step for everybody who followed what they were told. The true order is Swensen,
-//     Peer, Thorvald, Manni, Thora, Askeladden.
-//   - the items. Askeladden handed over the Fiscal statement (Brundt's tax promise), Manni and Brundt
-//     gave nothing, Thorvald and Yrsa produced their items out of thin air. The cache ships thirteen
-//     chain items and every one has an owner (below).
-//   - the words. None of it was the quest's.
-//
-// The chain, link by link (the cache names do not match the display names, so both are given):
-//   link  who (npc)                          wants                           gives
-//    0    Sigmund (viking_sigmund)           Exotic flower                   his vote
-//    1    Sailor (viking_sailor)             Fremennik ballad (viking_song)  Exotic flower (viking_rare_flower)
-//    2    Olaf (viking_olaf)                 Sturdy boots (viking_new_boots) Fremennik ballad
-//    3    Yrsa (viking_clothing_shopkeeper)  Fiscal statement                Sturdy boots
-//    4    Brundt (viking_brundt)             Hunters map                     Fiscal statement (viking_promissary_note)
-//    5    Sigli (viking_sigli)               Custom bow string               Hunters map (viking_map_to_hunting_grounds)
-//    6    Skulgrimen (viking_weapons_salesman) Unusual fish                  Custom bow string (viking_bowstring)
-//    7    Fisherman (viking_fisherman1)      Sea fishing map                 Unusual fish (viking_unique_fish)
-//    8    Swensen (viking_hallifred)         Weather forecast                Sea fishing map (viking_another_map)
-//    9    Peer (viking_peer)                 Warriors' contract              Weather forecast
-//   10    Thorvald (viking_thorvald)         Champions token                 Warriors' contract (viking_promissary_note3)
-//   11    Manni (viking_reveller_3)          Legendary cocktail              Champions token
-//   12    Thora (viking_longhall_barkeep)    Promissory note                 Legendary cocktail
-//   13    Askeladden (viking_askelapen)      5,000 coins                     Promissory note (viking_promissary_note2)
-//
-// State: five bits of %viking_bits (19-23), one number 0-27.
-//   0         Sigmund has not asked yet
-//   1-13      asking: you are looking for what link N has; talking to link N asks them (-> N+1)
-//   14        Askeladden paid, promissory note in hand
-//   14-26     delivering: link N trades at 26-N (-> 27-N) - Thora at 14, ..., the Sailor at 25
-//   27        Sigmund has his flower (the vote itself is its own bit, ^viking_vote_sigmund)
-// Steps 1-9 and 14-27 mean exactly what they meant under the old version; see
-// ~viking_merchant_migrate for the four delivery steps whose item changed.
-//
-// Every link routes through ~viking_merchant(link) first. It only takes the conversation when you
-// pick "Ask about the Merchant's trial"; the other option returns false and the NPC's own dialogue
-// (their trial, their shop talk) runs exactly as before, so no trial is ever shadowed by this one.
-
 [opnpc1,viking_sigmund]
-if (%viking < ^viking_started) {
-    ~chatnpc("<p,neutral>Trade goods, outerlander. Best prices on the coast.");
-    return;
-}
-~chatplayer("<p,happy>Hello there!");
-if (testbit(%viking_bits, ^viking_vote_sigmund) = 1) {
-    ~chatnpc("<p,happy>Hello again outerlander! I am amazed once more at your apparent skill at merchanting!");
-    ~chatplayer("<p,quiz>So I can count on your vote at the council of elders?");
-    ~chatnpc("<p,happy>Absolutely, outerlander. Your merchanting skills will be a real boon to the Fremennik.");
-    return;
-}
-~viking_merchant_migrate;
-def_int $step = ~viking_merchant_step;
-if ($step = 0) {
-    @viking_sigmund_task;
-}
-if ($step = sub(^viking_merchant_done, 1) & inv_total(inv, viking_rare_flower) > 0) {
-    // The vote and the flower go before the closing line: ~chatnpc ends in p_pausebutton and is
-    // abortable.
-    inv_del(inv, viking_rare_flower, 1);
-    ~viking_merchant_advance(^viking_merchant_done);
-    %viking_bits = setbit(%viking_bits, ^viking_vote_sigmund);
-    ~chatplayer("<p,happy>Here's that flower you wanted.");
-    ~chatnpc("<p,happy>Incredible! Your merchanting skills might even match my own! I have no choice but to recommend you to the council of elders!");
-    mes("Sigmund the Merchant has given you his vote.");
-    return;
-}
-~chatnpc("<p,quiz>So... how goes it outerlander? Did you manage to obtain my flower for me yet? Or do you lack the necessary merchanting skills?");
-if (~viking_merchant_lost = true) {
-    // Wiki: lose one of the goods on the way back and Sigmund has you start the trading again.
-    // "The beginning" of the trades is Askeladden's note - everybody has already told you what
-    // they want, so the asking half is not repeated.
-    ~viking_merchant_advance(^viking_merchant_asked_all);
-    ~chatplayer("<p,sad>I was making some trades, but then I lost the goods...");
-    ~chatnpc("<p,neutral>Hmmm... well try and start again at the beginning. And try to be more careful of your wares in future.");
-    return;
-}
-if ($step = 1) {
-    ~chatplayer("<p,neutral>I'm still working on it... Do you have any suggestion where to start looking for it?");
-    ~chatnpc("<p,neutral>I suggest you ask around the other Fremennik in the town. A good merchant will find exactly what their customer needs somewhere.");
-    return;
-}
-~chatplayer("<p,neutral>I'm working on it.");
-
-[label,viking_sigmund_task]
-~chatnpc("<p,neutral>Hello outerlander.");
-~chatplayer("<p,quiz>Are you a member of the council?");
-~chatnpc("<p,happy>That I am outerlander; it is a position that brings my family and I pride.");
-~chatplayer("<p,quiz>I was wondering if I can count on your vote at the council of elders?");
-~chatnpc("<p,neutral>You wish to become a Fremennik? I may be persuaded to swing my vote to your favour, but you will first need to do a little task for me.");
-~chatplayer("<p,neutral>How did I know it wouldn't be that simple for your vote?");
-~chatnpc("<p,neutral>Calm yourself outerlander. It is but a small task really... I simply require a flower.");
-~chatplayer("<p,quiz>A flower? What's the catch?");
-~chatnpc("<p,neutral>The catch? Well... it is not just any flower. Someone in this town has an extremely rare flower from a far off land that they picked up on their travels.");
-~chatnpc("<p,neutral>I would like you to demonstrate your merchanting skills to me, by persuading them to part with it, and then give it to me for my vote.");
-~chatplayer("<p,neutral>Well... I guess that doesn't sound too hard...");
-~chatnpc("<p,happy>Excellent! You will obtain this rare flower for me then?");
-if (~p_choice2("Yes", 1, "No", 2) = 2) {
-    ~chatplayer("<p,angry>You know what? No. This all sounds like a lot of hassle to me, and frankly I just can't be bothered with it right now.");
-    ~chatplayer("<p,neutral>I'll go get someone else to vote for me.");
-    ~chatnpc("<p,neutral>As you wish outerlander. If you change your mind, come and see me again; I am very interested in getting my hands on that flower.");
-    return;
-}
-~viking_merchant_advance(1);
-~chatplayer("<p,happy>Okay. I don't think this will be too difficult. Any suggestions on where to start looking for this flower?");
-~chatnpc("<p,neutral>Ah, well outerlander, if I knew where to start looking I would simply do it myself!");
-~chatplayer("<p,shock>No help at ALL?");
-~chatnpc("<p,neutral>We are a very insular clan, so I would not expect you to have to leave this town to find whatever you need.");
-
-
-// --- The four links that are ONLY links ---
-// Each is somebody's shop or pier as well; "Ask about becoming a Fremennik" gives the wiki's answer
-// to "are you on the council?" while the quest is running, and their old talk otherwise.
-
-[opnpc1,viking_sailor]
-if (~viking_merchant(1) = true) {
-    return;
-}
-// He is also the Throne of Miscellania ferry, so the council question never ends the conversation.
-if (%viking >= ^viking_started & %viking < ^viking_complete) {
-    ~chatplayer("<p,quiz>Hi. Are you a member of the council?");
-    ~chatnpc("<p,neutral>Nope. I'm just a sailor.");
-    ~chatplayer("<p,neutral>Fair enough.");
-} else {
-    ~chatplayer("<p,happy>Hello.");
-    ~chatnpc("<p,neutral>Aye. Been further south than you'd believe and I'm still cold.");
-}
-// Throne of Miscellania sails from this jetty. misc_ship_gangplank has no ops, so he rows.
-~chatnpc("<p,neutral>North, though - that I'll do. Miscellania, if you want it.");
-~misc_cross;
-
-[opnpc1,viking_clothing_shopkeeper]
-if (~viking_merchant(3) = true) {
-    return;
-}
-if (%viking >= ^viking_started & %viking < ^viking_complete) {
-    ~chatplayer("<p,quiz>Are you a member of the council of elders?");
-    ~chatnpc("<p,neutral>No, sorry, I'm not. Best look elsewhere outerlander.");
-    ~chatplayer("<p,neutral>Okay, thanks.");
-    return;
-}
-~chatnpc("<p,happy>Furs, boots, cloaks. Everything to keep the wind out.");
-
-[opnpc1,viking_weapons_salesman]
-if (~viking_merchant(6) = true) {
-    return;
-}
-if (%viking >= ^viking_started & %viking < ^viking_complete) {
-    ~chatplayer("<p,quiz>Are you a member of the council of elders?");
-    ~chatnpc("<p,neutral>No. Weapons are my speciality. Not politics.");
-    ~chatplayer("<p,neutral>Okay, thanks.");
-    return;
-}
-~chatnpc("<p,neutral>Blades. Good ones. Don't touch the edges.");
-
-[opnpc1,viking_fisherman1]
-if (~viking_merchant(7) = true) {
-    return;
-}
-if (%viking >= ^viking_started & %viking < ^viking_complete) {
-    ~chatplayer("<p,quiz>Are you a member of the Fremennik council?");
-    ~chatnpc("<p,neutral>Indeed I am, outerlander. Why do you ask?");
-    ~chatplayer("<p,neutral>Well, I was told by Brundt that I could be voted into the tribe as an honorary Fremennik if I could find seven members of the council of elders to vote in my favour.");
-    ~chatnpc("<p,neutral>Aye, that is indeed true.");
-    ~chatplayer("<p,quiz>So can I have your vote?");
-    ~chatnpc("<p,neutral>You can have my vote on the day the skies turn red, the waters turn pink, the rocks turn yellow and the sun turns black.");
-    ~chatplayer("<p,quiz>Um... do you have any estimate on when that is?");
-    ~chatnpc("<p,angry>I'm telling you I will never vote for you, you stupid outerlander.");
-    return;
-}
-~chatnpc("<p,neutral>Cold water, cold hands, good fish.");
-
-[opnpc1,viking_longhall_barkeep]
-if (~viking_merchant(12) = true) {
-    return;
-}
-// Manni's trial gets its keg over this bar. It comes before the council question: this bar serves a
-// trial as well as the chain.
-if (~viking_barkeep_keg = true) {
-    return;
-}
-if (%viking >= ^viking_started & %viking < ^viking_complete) {
-    ~chatplayer("<p,quiz>Hi. Are you a member of the council?");
-    ~chatnpc("<p,neutral>I am afraid not outerlander.");
-    ~chatplayer("<p,neutral>Oh, okay then.");
-    return;
-}
-~chatnpc("<p,happy>Drink? You look like you need one.");
-
-// Peer's, Olaf's, Brundt's, Sigli's, Swensen's, Thorvald's and Manni's handlers live with their own
-// trials - a trigger can only be declared once - and each begins with its ~viking_merchant call.
-
-[opnpc1,viking_askelapen]
-if (~viking_merchant(13) = true) {
-    return;
-}
-// Olaf's trial borrows him for the pet rock; that half lives in viking_olaf.rs2 with the rest of
-// the golden-fleece chain.
-if (~viking_askeladden_rock = true) {
-    return;
-}
-if (%viking >= ^viking_started & %viking < ^viking_complete) {
-    ~chatplayer("<p,quiz>Hi. Are you a member of the council of elders?");
-    ~chatnpc("<p,laugh>Me? On the council? Ha ha ha ha! Sorry buddy, I'm not a 'real' Fremennik yet! Let me guess, you're trying to get some council members to vote for you?");
-    ~chatplayer("<p,neutral>That's right, to become a Fremennik.");
-    ~chatnpc("<p,happy>You and me both buddy! We're both doing the same trials! This is my trial of manhood! How you finding it so far? Pretty easy, huh buddy?");
-    ~chatplayer("<p,neutral>It's okay I guess...");
-    ~chatnpc("<p,happy>Yeah, that's the spirit buddy! It's all real easy, I wouldn't worry yourself about it, you'll be quaffing beers in the longhall as a Fremennik in no time!");
-    return;
-}
-~chatplayer("<p,happy>Hello.");
-~chatnpc("<p,happy>Hello! I'm Askeladden. I'm going to be a great hero one day. Everyone says so.");
-
-
-// --- The chain ---
-
-[proc,viking_merchant_step]()(int)
-return(getbit_range(%viking_bits, ^viking_merchant_lo, ^viking_merchant_hi));
-
-[proc,viking_merchant_advance](int $step)
-%viking_bits = setbit_range_toint(%viking_bits, $step, ^viking_merchant_lo, ^viking_merchant_hi);
-
-// True when it has handled the conversation. The menu is only offered once Sigmund has set the
-// task and until the quest is over; before that, and whenever "Ask about becoming a Fremennik" is
-// picked, the NPC's own dialogue runs.
-[proc,viking_merchant](int $link)(boolean)
-if (%viking < ^viking_started | %viking >= ^viking_complete) {
-    return(false);
-}
-if (~viking_merchant_step = 0) {
-    return(false);
-}
-if ($link = 4) {
-    ~chatnpc("<p,happy>Greetings again outerlander! How goes your attempts to gain votes with the council of elders?");
-}
-if ($link = 8) {
-    ~chatplayer("<p,happy>Hello!");
-}
-if ($link = 9) {
-    // Peer also offers to bank your things for his own trial (viking_peer.rs2).
-    switch_int (~p_choice3("Ask about the Merchant's trial", 1, "Ask about becoming a Fremennik", 2, "Ask about depositing your equipment", 3)) {
-        case 2 : return(false);
-        case 3 :
-            ~viking_peer_deposit_offer;
-            return(true);
-    }
-} else if (~p_choice2("Ask about the Merchant's trial", 1, "Ask about becoming a Fremennik", 2) = 2) {
-    return(false);
-}
-~viking_merchant_migrate;
-~viking_merchant_talk($link);
-return(true);
-
-[proc,viking_merchant_talk](int $link)
-def_int $step = ~viking_merchant_step;
-if ($link = 5) {
-    ~chatnpc("<p,neutral>Greetings outerlander.");
-}
-// Askeladden sells the note and is never traded with again.
-if ($link = 13) {
-    if ($step < ^viking_merchant_asked_all) {
-        ~chatplayer("<p,quiz><~viking_merchant_question($step)>");
-        ~chatnpc("<p,happy>Nope, sorry buddy!");
+def_int $op;
+if(%viking = ^viking_not_started) {
+    ~chatplayer("<p,neutral>Hello there!");
+    ~chatnpc("<p,neutral>Hello outerlander. By the laws of our tribe, I am afraid I may not speak to you without the express permission of the chieftain.");
+    ~chatplayer("<p,quiz>Where would I find him?");
+    ~chatnpc("<p,neutral>In the longhall, outerlander.");
+} else if(%viking < ^viking_complete) {
+    ~chatplayer("<p,neutral>Hello there!");
+    if(inv_total(inv, viking_rare_flower) > 0 & ~get_viking_sigmund_progress > ^sigmund_not_started & ~get_viking_sigmund_progress < ^sigmund_complete) {
+        inv_del(inv, viking_rare_flower, ^max_32bit_int);
+        inv_del(bank, viking_rare_flower, ^max_32bit_int);
+        %viking = add(%viking, 1);
+        ~set_viking_sigmund_progress(^sigmund_complete);
+        ~chatplayer("<p,neutral>Here's that flower you wanted.");
+        ~chatnpc("<p,shock>Incredible! Your merchanting skills might even match my own! I have no choice but to recommend you to the council of elders!");
         return;
     }
-    if ($step = ^viking_merchant_asked_all) {
-        ~viking_askeladden_note;
+    switch_int(~get_viking_sigmund_progress) {
+        case ^sigmund_complete :
+            ~chatnpc("<p,neutral>Hello again outerlander! I am amazed once more at your apparent skill at merchanting!");
+            ~chatplayer("<p,quiz>So I can count on your vote at the council of elders?");
+            ~chatnpc("<p,neutral>Absolutely, outerlander. Your merchanting skills will be a real boon to the Fremennik.");
+        case default :
+            ~chatnpc("<p,quiz>So... how goes it outerlander? Did you manage to obtain my flower for me yet? Or do you lack the necessary merchanting skills?");
+            if(~get_viking_sigmund_progress = ^sigmund_spoke_thora) {
+                ~chatplayer("<p,neutral>I'm working on it.");
+                if(~obj_gettotal(viking_rare_flower) = 0 & ~obj_gettotal(viking_song) = 0 & ~obj_gettotal(viking_new_boots) = 0 & ~obj_gettotal(viking_map_to_hunting_grounds) = 0 & ~obj_gettotal(viking_bowstring) = 0 &
+                    ~obj_gettotal(viking_unique_fish) = 0 & ~obj_gettotal(viking_another_map) = 0 & ~obj_gettotal(viking_weather_forecast) = 0 & ~obj_gettotal(viking_champion_token) = 0 & ~obj_gettotal(viking_legendary_cocktail) = 0 &
+                    ~obj_gettotal(viking_promissary_note) = 0 & ~obj_gettotal(viking_promissary_note2) = 0 & ~obj_gettotal(viking_promissary_note3) = 0) {
+                        ~set_viking_sigmund_progress(^sigmund_started);
+                        ~chatplayer("<p,sad>I was making some trades, but then I lost the goods...");
+                        ~chatnpc("<p,neutral>Hmmm... well try and start again at the beginning. And try to be more careful of your wares in future.");
+                }
+                return;
+            }
+            ~chatplayer("<p,neutral>I'm still working on it... Do you have any suggestion where to start looking for it?");
+            ~chatnpc("<p,neutral>I suggest you ask around the other Fremennik in the town. A good merchant will find exactly what their customer needs somewhere.");
+        case ^sigmund_not_started :
+            ~chatnpc("<p,neutral>Hello outerlander.");
+            ~chatplayer("<p,quiz>Are you a member of the council?");
+            ~chatnpc("<p,happy>That I am outerlander; it is a position that brings my family and I pride.");
+            ~chatplayer("<p,quiz>I was wondering if I can count on your vote at the council of elders?");
+            ~chatnpc("<p,neutral>You wish to become a Fremennik? I may be persuaded to swing my vote to your favour, but you will first need to do a little task for me.");
+            ~chatplayer("<p,sad>How did I know it wouldn't be that simple for your vote?");
+            ~chatnpc("<p,neutral>Calm yourself outerlander. It is but a small task really... I simply require a flower.");
+            ~chatplayer("<p,quiz>A flower? What's the catch?");
+            ~chatnpc("<p,happy>The catch? Well... it is not just any flower. Someone in this town has an extremely rare flower from a far off land that they picked up on their travels.");
+            ~chatnpc("<p,neutral>I would like you to demonstrate your merchanting skills to me, by persuading them to part with it, and then give it to me for my vote.");
+            ~chatplayer("<p,neutral>Well... I guess that doesn't sound too hard...");
+            ~chatnpc("<p,quiz>Excellent! You will obtain this rare flower for me then?");
+            $op = ~p_choice2("Yes", 1, "No", 2);
+            if($op = 2) {
+                ~chatplayer("<p,angry>You know what? No. This all sounds like a lot of hassle to me, and frankly I just can't be bothered with it right now.");
+                ~chatplayer("<p,neutral>I'll go get someone else to vote for me.");
+                ~chatnpc("<p,neutral>As you wish outerlander. If you change your mind, come and see me again; I am very interested in getting my hands on that flower.");
+                return;
+            }
+            ~set_viking_sigmund_progress(^sigmund_started);
+            ~chatplayer("<p,neutral>Okay. I don't think this will be too difficult. Any suggestions on where to start looking for this flower?");
+            ~chatnpc("<p,neutral>Ah, well outerlander, if I knew where to start looking I would simply do it myself!");
+            ~chatplayer("<p,shock>No help at ALL?");
+            ~chatnpc("<p,neutral>We are a very insular clan, so I would not expect you to have to leave this town to find whatever you need.");
+    }
+} else if(%viking = ^viking_complete) {
+    ~chatplayer("<p,neutral>Hello there!");
+    ~chatnpc("<p,quiz>Greetings again <text_gender("brother", "sister")> <~get_viking_name>! What can I do for you this day?");
+    $op = ~p_choice2("Can I see your wares?", 1, "Nothin thanks.", 2);
+    if($op = 2) {
+        ~chatplayer("<p,happy>Nothing thanks.");
+        ~chatnpc("<p,happy>Well, feel free to stop by anytime that you wish <~get_viking_name>. You are always welcome here!");
         return;
     }
-    if ($step = ^viking_merchant_noted & ~viking_merchant_lost = true) {
-        ~chatplayer("<p,sad>I've lost one of the items I was supposed to be trading.");
-        ~chatnpc("<p,neutral>That's a shame. You should speak to the merchant.");
-        return;
-    }
-    ~viking_merchant_after(13);
+    ~chatplayer("<p,quiz>Can I see your wares?");
+    ~chatnpc("<p,happy>Certainly, <~get_viking_name>.");
+    ~openshop_activenpc;
+}
+
+[proc,merchant_question_text]()(string)
+switch_int(~get_viking_sigmund_progress) {
+    case ^sigmund_spoke_thora : return ("<p,quiz>I don't suppose you have any idea where I could find a written promise from Askeladden to stay out of the Longhall?");
+    case ^sigmund_spoke_manni : return("<p,quiz>I don't suppose you have any idea where I could find the longhall barkeeps' legendary cocktail, do you?");
+    case ^sigmund_spoke_thorvald : return ("<p,quiz>I don't suppose you have any idea where I could find a token to allow a seat at the champions table, do you?");
+    case ^sigmund_spoke_seer : return ("<p,quiz>I don't suppose you have any idea where I could find a brave and powerful warrior to act as a bodyguard?");
+    case ^sigmund_spoke_swensen : return ("<p,quiz>I don't suppose you have any idea where I could find a weather forecast from the Fremennik Seer do you?");
+    case ^sigmund_spoke_fisherman : return ("<p,quiz>I don't suppose you have any idea where I could find a map of deep sea fishing spots do you?");
+    case ^sigmund_spoke_skul : return ("<p,quiz>I don't suppose you have any idea where I could find an exotic and extremely rare fish, do you?");
+    case ^sigmund_spoke_sigli : return ("<p,quiz>I don't suppose you have any idea where I could find a finely balanced custom bowstring, do you?");
+    case ^sigmund_spoke_chief : return ("<p,quiz>I don't suppose you have any idea where I could find a map to unspoiled hunting grounds, do you?");
+    case ^sigmund_spoke_yrsa : return ("<p,quiz>I don't suppose you have any idea where I could find a guarantee of a reduction on sales taxes, do you?");
+    case ^sigmund_spoke_olaf : return ("<p,quiz>I don't suppose you have any idea where I could find some custom sturdy boots, do you?");
+    case ^sigmund_spoke_sailor : return ("<p,quiz>I don't suppose you have any idea where I could find a love ballad, do you?");
+    case ^sigmund_started : return("<p,quiz>I don't suppose you have any idea where I could find a rare flower from across the sea, do you?");
+}
+
+[opheld5,viking_rare_flower]
+inv_delslot(inv, last_slot);
+sound_synth(put_down, 1, 0);
+// osrs destroy mes
+mes("You will have to start the trading sequence again to get another!");
+
+[opnpc3,viking_sigmund]
+if(%viking < ^viking_complete) {
+    mes("Only Fremenniks may trade with this merchant.");
     return;
 }
-// The asking half: you are looking for what link $step has.
-if ($step <= ^viking_merchant_asked_all) {
-    if ($link = 8) {
-        ~chatnpc("<p,neutral>Greetings outerlander.");
-    }
-    ~chatplayer("<p,quiz><~viking_merchant_question($step)>");
-    if ($step = $link) {
-        // The step moves on before the dialogue that explains it: every ~chatnpc ends in
-        // p_pausebutton and is abortable, and the next person in the chain must answer even if this
-        // conversation was clicked away half way through.
-        ~viking_merchant_advance(add($link, 1));
-        ~viking_merchant_first($link);
-        return;
-    }
-    if ($step = add($link, 1)) {
-        ~viking_merchant_afterwards($link);
-        return;
-    }
-    ~viking_merchant_noidea($link, $step);
-    return;
-}
-// The delivering half: link $link trades at step 26 - $link.
-def_int $at = sub(sub(^viking_merchant_done, 1), $link);
-if ($step > $at) {
-    ~viking_merchant_after($link);
-    return;
-}
-if ($step = $at & inv_total(inv, ~viking_merchant_wants($link)) > 0) {
-    ~viking_merchant_trade($link);
-    return;
-}
-~viking_merchant_wrong($link);
-
-// Take what they want, give what they have, move the chain on - all at once, so an abandoned
-// conversation either traded or did not. One out and one in, so a full pack is never a problem.
-[proc,viking_merchant_swap](int $link)
-inv_del(inv, ~viking_merchant_wants($link), 1);
-inv_add(inv, ~viking_merchant_gives($link), 1);
-~viking_merchant_advance(sub(^viking_merchant_done, $link));
-
-[proc,viking_merchant_wants](int $link)(namedobj)
-switch_int ($link) {
-    case 0 : return(viking_rare_flower);
-    case 1 : return(viking_song);
-    case 2 : return(viking_new_boots);
-    case 3 : return(viking_promissary_note);
-    case 4 : return(viking_map_to_hunting_grounds);
-    case 5 : return(viking_bowstring);
-    case 6 : return(viking_unique_fish);
-    case 7 : return(viking_another_map);
-    case 8 : return(viking_weather_forecast);
-    case 9 : return(viking_promissary_note3);
-    case 10 : return(viking_champion_token);
-    case 11 : return(viking_legendary_cocktail);
-    case 12 : return(viking_promissary_note2);
-    case default : return(coins);
-}
-
-[proc,viking_merchant_gives](int $link)(namedobj)
-switch_int ($link) {
-    case 1 : return(viking_rare_flower);
-    case 2 : return(viking_song);
-    case 3 : return(viking_new_boots);
-    case 4 : return(viking_promissary_note);
-    case 5 : return(viking_map_to_hunting_grounds);
-    case 6 : return(viking_bowstring);
-    case 7 : return(viking_unique_fish);
-    case 8 : return(viking_another_map);
-    case 9 : return(viking_weather_forecast);
-    case 10 : return(viking_promissary_note3);
-    case 11 : return(viking_champion_token);
-    case 12 : return(viking_legendary_cocktail);
-    case default : return(viking_promissary_note2);
-}
-
-// On the way back you should always be carrying exactly one chain item: whatever the last trade
-// gave you. Held in the pack or the bank is fine - it is only lost if it is in neither.
-[proc,viking_merchant_lost]()(boolean)
-def_int $step = ~viking_merchant_step;
-if ($step <= ^viking_merchant_asked_all | $step >= ^viking_merchant_done) {
-    return(false);
-}
-def_namedobj $held = ~viking_merchant_gives(sub(^viking_merchant_done, $step));
-if (inv_total(inv, $held) > 0 | inv_total(bank, $held) > 0) {
-    return(false);
-}
-return(true);
-
-// The old version of this chain handed out different items at four delivery steps (Askeladden gave
-// the fiscal statement, Manni and Brundt gave nothing, Thorvald gave the champions token). Anyone
-// who was part way back when it changed is holding the old item, or nothing, where the new chain
-// expects something else; swap it for what they should have so they carry on from where they were
-// rather than being told they lost the goods.
-[proc,viking_merchant_migrate]
-def_int $step = ~viking_merchant_step;
-if ($step <= ^viking_merchant_asked_all | $step >= ^viking_merchant_done) {
-    return;
-}
-if (~viking_merchant_lost = false) {
-    return;
-}
-switch_int ($step) {
-    case 14 :
-        if (inv_total(inv, viking_promissary_note) > 0) {
-            inv_del(inv, viking_promissary_note, 1);
-            inv_add(inv, viking_promissary_note2, 1);
-        }
-    case 16 :
-        if (inv_freespace(inv) > 0) {
-            inv_add(inv, viking_champion_token, 1);
-        }
-    case 17 :
-        if (inv_total(inv, viking_champion_token) > 0) {
-            inv_del(inv, viking_champion_token, 1);
-            inv_add(inv, viking_promissary_note3, 1);
-        }
-    case 23 :
-        if (inv_freespace(inv) > 0) {
-            inv_add(inv, viking_promissary_note, 1);
-        }
-}
-
-[proc,viking_merchant_question](int $step)(string)
-switch_int ($step) {
-    case 1 : return("I don't suppose you have any idea where I could find a rare flower from across the sea, do you?");
-    case 2 : return("I don't suppose you have any idea where I could find a love ballad, do you?");
-    case 3 : return("I don't suppose you have any idea where I could find some custom sturdy boots, do you?");
-    case 4 : return("I don't suppose you have any idea where I could find a guarantee of a reduction on sales taxes, do you?");
-    case 5 : return("I don't suppose you have any idea where I could find a map to unspoiled hunting grounds, do you?");
-    case 6 : return("I don't suppose you have any idea where I could find a finely balanced custom bowstring, do you?");
-    case 7 : return("I don't suppose you have any idea where I could find an exotic and extremely rare fish, do you?");
-    case 8 : return("I don't suppose you have any idea where I could find a map of deep sea fishing spots, do you?");
-    case 9 : return("I don't suppose you have any idea where I could find a weather forecast from the Fremennik Seer, do you?");
-    case 10 : return("I don't suppose you have any idea where I could find a brave and powerful warrior to act as a bodyguard?");
-    case 11 : return("I don't suppose you have any idea where I could find a token to allow a seat at the champions table, do you?");
-    case 12 : return("I don't suppose you have any idea where I could find the longhall barkeep's legendary cocktail, do you?");
-    case default : return("I don't suppose you have any idea where I could find a written promise from Askeladden to stay out of the Longhall?");
-}
-
-// Asked about somebody else's item. Manni, Sigli and Swensen at least point you the right way.
-[proc,viking_merchant_noidea](int $link, int $step)
-switch_int ($link) {
-    case 1 : ~chatnpc("<p,neutral>Not really my affair, outerlander.");
-    case 2 : ~chatnpc("<p,neutral>I'm sorry, no I don't.");
-    case 3 : ~chatnpc("<p,neutral>No... sorry, I don't.");
-    case 4 : ~chatnpc("<p,neutral>Not really my affair, outerlander.");
-    case 5 :
-        switch_int ($step) {
-            case 9 : ~chatnpc("<p,confused>Did you even ASK the Seer?");
-            case 12 : ~chatnpc("<p,confused>Did you even ASK the barkeep?");
-            case 13 : ~chatnpc("<p,confused>Did you even ASK Askeladden?");
-            case default : ~chatnpc("<p,neutral>No idea at all outerlander.");
-        }
-    case 6 : ~chatnpc("<p,neutral>I never saw anything like that in my store before.");
-    case 7 : ~chatnpc("<p,neutral>I never saw anything like that in my store before.");
-    case 8 :
-        switch_int ($step) {
-            case 12 : ~chatnpc("<p,confused>Um... from the longhall's barkeep?");
-            case 13 : ~chatnpc("<p,confused>Er... from Askeladden, maybe?");
-            case default : ~chatnpc("<p,neutral>I am afraid not outerlander.");
-        }
-    case 9 : ~chatnpc("<p,neutral>I'm afraid not, outerlander.");
-    case 10 : ~chatnpc("<p,neutral>Not in the slightest.");
-    case 11 :
-        switch_int ($step) {
-            case 7 : ~chatnpc("<p,neutral>I'd try at the fish stalls if I were you.");
-            case 9 : ~chatnpc("<p,confused>Did you even ask the seer?");
-            case 10 : ~chatnpc("<p,neutral>Thorvald is pretty handy with a sword...");
-            case 13 : ~chatnpc("<p,confused>Uh... call it a crazy hunch, but did you even try asking Askeladden about that?");
-            case default : ~chatnpc("<p,neutral>I have not the first idea about that.");
-        }
-    case 12 : ~chatnpc("<p,neutral>I wouldn't know about that, outerlander.");
-}
-
-// The first time you ask the one who has it.
-[proc,viking_merchant_first](int $link)
-switch_int ($link) {
-    case 1 :
-        ~chatnpc("<p,happy>Ah! Even the outerlanders have heard of my mysterious flower! I found it in a country far far away from here!");
-        ~chatplayer("<p,quiz>Can I buy it from you?");
-        ~chatnpc("<p,neutral>I'm afraid not, outerlander. There is a woman in this village whose heart I seek to capture, and I think giving her this strange flower might be my best bet with her.");
-        ~chatplayer("<p,quiz>Maybe you could let me have the flower and do something else to impress her?");
-        ~chatnpc("<p,neutral>Hmm... that is not a totally stupid idea outerlander. I know she is a lover of music, and a romantic ballad might be just the thing with which to woo her.");
-        ~chatnpc("<p,sad>Unfortunately I don't have a musical bone in my entire body, so someone else will have to write it for me.");
-        ~chatplayer("<p,quiz>So if I can find someone to write you a romantic ballad, you will give me your flower?");
-        ~chatnpc("<p,happy>That sounds like a fair deal to me, outerlander.");
-    case 2 :
-        ~chatnpc("<p,happy>Well, as official Fremennik bard, it falls within my remit to compose all music for the tribe. I am fully versed in all the various types of romantic music.");
-        ~chatplayer("<p,happy>Great! Can you write me one then?");
-        ~chatnpc("<p,neutral>Well... normally I would be thrilled at the chance to show my skill as a poet in composing a seductively romantic ballad...");
-        ~chatplayer("<p,neutral>Let me guess; here comes the 'but'.");
-        ~chatnpc("<p,sad>...but unfortunately I cannot concentrate fully upon my work recently.");
-        ~chatplayer("<p,quiz>Why is that then?");
-        ~chatnpc("<p,sad>It is these old worn out shoes of mine... As a bard I am expected to wander the lands, singing of the glorious battles of our warriors.");
-        ~chatnpc("<p,neutral>If you can find me a pair of sturdy boots to replace these old worn out ones of mine, I will be happy to spend the time on composing you a romantic ballad.");
-    case 3 :
-        ~chatnpc("<p,neutral>Well, I don't usually have many shoes in stock here in my little clothes shop... I will be able to make you up a pair if you are really desperate though?");
-        ~chatplayer("<p,neutral>They're not for me... I need them for Olaf.");
-        ~chatnpc("<p,angry>Oh, that foolish bard... Why didn't he just ask me to make him some? It is his stupid pride, I believe!");
-        ~chatnpc("<p,neutral>I will tell you what I will do outerlander; I know that you must have the ear of the chieftain for him to consider you as worthy of becoming a Fremennik by trial.");
-        ~chatnpc("<p,neutral>I will make you a pair of sturdy boots for Olaf if you will persuade him to reduce the sales tax placed upon all Fremennik shopkeepers. It does nothing but hurt my business now.");
-        ~chatplayer("<p,neutral>Okay, I will see what I can do.");
-    case 4 :
-        ~chatnpc("<p,quiz>A reduction on sales taxes? Why, I am the only one in the Fremennik who may authorise such a thing. What does an outerlander want with that?");
-        ~chatplayer("<p,neutral>Actually, it's not for me. I need to get it as part of my trials.");
-        ~chatnpc("<p,neutral>Hmmm. Interesting. Your trials seem to be very different to those I took as a young lad. Well, I am not adverse in principle to giving a slight tax break to our shops.");
-        ~chatnpc("<p,neutral>There will of course be a shortfall in the tribe's income, that will need to be made up for elsewhere, however.");
-        ~chatnpc("<p,neutral>How about this. For many years Sigli has been the only one in the tribe who knows the locations of the best hunting grounds where game is easiest to catch.");
-        ~chatnpc("<p,neutral>If you can persuade him to let the entire tribe know these hunting grounds, then we can increase productivity within the tribe, and any shortfall caused by lowering sales taxes will be covered.");
-        ~chatnpc("<p,quiz>I think this is a more than fair arrangement to make, don't you?");
-        ~chatplayer("<p,happy>Yeah, that sounds very fair.");
-        ~chatnpc("<p,happy>Speak to Sigli then, and you may have my promise to reduce our sales taxes. And best of luck with the rest of your trials.");
-    case 5 :
-        ~chatnpc("<p,neutral>Well, of course I do. I wouldn't be much of a huntsman if I didn't know where to find my prey now, would I outerlander?");
-        ~chatplayer("<p,quiz>No, I guess not. So can I have it?");
-        ~chatnpc("<p,neutral>Directions to my hunting grounds could mean the end of my livelihood. The only way I would be prepared to give them up would be...");
-        ~chatplayer("<p,quiz>What? Power? Money? Women? Wine?");
-        ~chatnpc("<p,neutral>...a new string for my hunting bow. Not just any bowstring; I need a custom bowstring, balanced for my bow precisely to keep my hunt competitive.");
-        ~chatnpc("<p,neutral>Only in this way would I allow the knowledge of my hunting grounds to be passed on to strangers.");
-        ~chatplayer("<p,quiz>So where would I get that?");
-        ~chatnpc("<p,neutral>I have no idea. But then again, I'm happy with my old bowstring and being the only person who knows where my hunting ground is.");
-    case 6 :
-        ~chatnpc("<p,neutral>Aye, I have a few in stock. What would an outerlander be wanting with equipment like that?");
-        ~chatplayer("<p,neutral>It's for Sigli. It needs to be weighted precisely to suit his hunting bow.");
-        ~chatnpc("<p,neutral>For Sigli eh? Well, I made his bow in the first place, so I'll be able to select the right string for you... just one small problem.");
-        ~chatplayer("<p,quiz>What's that?");
-        ~chatnpc("<p,neutral>This string you'll be wanting... Very rare. Take a lot of time to recreate. Not sure you have the cash for it.");
-        ~chatplayer("<p,quiz>Then maybe you'll accept something else...?");
-        ~chatnpc("<p,happy>Heh. Good thinking outerlander. Well, it's true, there is more to life than just making money. Making weapons is good money, but it's not why I do it.");
-        ~chatnpc("<p,neutral>I'll tell you what. I heard a rumour that one of the fishermen down by the docks caught some weird looking fish as they were fishing the other day.");
-        ~chatnpc("<p,neutral>From what I hear this fish is unique. Nobody's ever seen its like before. This intrigues me. I'd like to have it for myself. Make a good trophy.");
-        ~chatnpc("<p,quiz>You get me that fish, I give you the bowstring. What do you say? We got a deal?");
-        ~chatplayer("<p,happy>Sounds good to me.");
-    case 7 :
-        ~chatnpc("<p,happy>Ah, so even outerlanders have heard of my amazing catch the other day!");
-        ~chatplayer("<p,quiz>You have it? Can I trade you something for it?");
-        ~chatnpc("<p,neutral>As exotic looking as it is, it is bad eating. I will happily trade it if you can find me the secret map of the best fishing spots that the navigator has hidden away.");
-        ~chatplayer("<p,quiz>Is that all?");
-        ~chatnpc("<p,neutral>Indeed it is, outerlander. The only reason I sit out here in the cold all day long is so I don't have to pay his outrageous prices.");
-        ~chatnpc("<p,happy>By getting me his copy of that map, I will finally be self sufficient. I might even make a profit!");
-        ~chatplayer("<p,neutral>I'll see what I can do.");
-    case 8 :
-        ~chatnpc("<p,neutral>Hmmm? Why of course! As the navigator for the Fremennik I keep all of our maps secure right here.");
-        ~chatplayer("<p,happy>Great! Can I have it?");
-        ~chatnpc("<p,neutral>Have it? Just like that? I think not outerlander. This map shows all of the prime fishing locations nearby.");
-        ~chatnpc("<p,neutral>It is very valuable to our clan. I am afraid I can not just give it away.");
-        ~chatplayer("<p,quiz>Perhaps I can trade you something for it?");
-        ~chatnpc("<p,neutral>A trade? For a map of the best fishing spots in a hundred leagues? I will trade it for no less than a weather forecast from our Seer.");
-        ~chatnpc("<p,neutral>As a navigator, the weather is extremely important for plotting the best course. Unfortunately the Seer is always too busy to help me with a forecast.");
-        ~chatplayer("<p,quiz>Where could I get a weather forecast from then?");
-        ~chatnpc("<p,neutral>I just told you: from the Seer. You will need to persuade him to take the time to make a forecast somehow.");
-    case 9 :
-        ~chatnpc("<p,neutral>Er.... Yes, because I AM the Fremennik Seer.");
-        ~chatplayer("<p,quiz>Can I have a weather forecast then please?");
-        ~chatnpc("<p,neutral>You require a divination of the weather? This is a simple matter for me, but I will require something in return from you for this small service.");
-        ~chatplayer("<p,neutral>I knew you were going to say that...");
-        ~chatnpc("<p,neutral>Do not fret, outerlander; it is a fairly simple matter. I require a bodyguard for protection. Find someone willing to offer me this service.");
-        ~chatplayer("<p,quiz>That's all?");
-        ~chatnpc("<p,neutral>That is all.");
-    case 10 :
-        ~chatnpc("<p,angry>Know you not who I am outerlander? There are none more brave or powerful than me amongst all the Fremennik!");
-        ~chatnpc("<p,neutral>However... The role of bodyguard is below me, as a noble warrior. You might as well ask me to babysit the children!");
-        ~chatplayer("<p,quiz>Is there no way you would do this for me?");
-        ~chatnpc("<p,neutral>There is but one way outerlander. Since I was steeled in battle, I have dreamt of earning my place at the Champions Table in the Long Hall.");
-        ~chatnpc("<p,neutral>It is a tradition amongst us that the bravest and strongest are honoured with a table of champions to drink and feast all that they can in our Long Hall.");
-        ~chatnpc("<p,sad>Unfortunately, there are only a fixed number of places available at the table, and these places were all filled many moons ago by others.");
-        ~chatnpc("<p,neutral>Although my worthiness is undeniable, the only way I may take my place is if one of those already there die, or give up their place to me voluntarily.");
-        ~chatplayer("<p,quiz>So you want me to go kill one of them off for you? Make it look like an accident?");
-        ~chatnpc("<p,shock>WHAT? No, no, not at all! I am shocked you would suggest such a thing!");
-        ~chatnpc("<p,neutral>If you can persuade one of the Revellers to give up their Champions' Token to you so that I might take their place, you may have my contract as a bodyguard.");
-        ~chatplayer("<p,neutral>Okay, I'll see what I can do.");
-    case 11 :
-        ~chatnpc("<p,happy>As a matter of fact, I do. I have one right here. I earnt my place here at the longhall for surviving over 5000 battles and raiding parties.");
-        ~chatnpc("<p,happy>Due to my contribution to the tribe, I am now permitted to spend my days here in the longhall listening to the epic tales of the bard, and drinking beer.");
-        ~chatplayer("<p,quiz>Cool. That sounds pretty sweet! So I guess you don't want to give it away?");
-        ~chatnpc("<p,sad>I think it sounds better than it actually is outerlander. I miss my glory days of combat on the battlefield. And to tell you the truth, the beer here isn't great, and the bards' music is lousy.");
-        ~chatnpc("<p,neutral>I would happily give up my token if it were not for the one thing that keeps me here. Our barkeep is one of the best in the world, and has worked in taverns across the land.");
-        ~chatnpc("<p,neutral>When she was younger, she experimented a lot with her drinks, and invented a cocktail so alcoholic and tasty that it has become something of a legend to all who enjoy a drink.");
-        ~chatnpc("<p,sad>Unfortunately, she decided that cocktails were not a suitable drink for Fremennik warriors, and vowed to never again make it.");
-        ~chatnpc("<p,sad>I have been here every day since she returned, hoping that someday she might change her mind and I might try this legendary cocktail for myself. Alas, it has never come to pass...");
-        ~chatnpc("<p,neutral>If you can persuade her to make me her legendary cocktail, I will be happy to never let another drop of alcohol pass my lips, and will give you my champions token.");
-        ~chatplayer("<p,quiz>That's all?");
-        ~chatnpc("<p,happy>That's all.");
-    case 12 :
-        ~chatnpc("<p,shock>How did you hear about that?!?!?");
-        ~chatnpc("<p,neutral>I didn't think anybody knew about that... Well, it is true that in my younger years as a barkeep, I wandered the lands trying various alcoholic delicacies.");
-        ~chatnpc("<p,happy>Did you ever realise just how many different types of alcohol there are here in Gielinor? Lots!");
-        ~chatnpc("<p,happy>Well, anyway, I used a fusion of various drinks from all around the world to create the greatest cocktail ever made!");
-        ~chatnpc("<p,neutral>Of course, when my wanderlust was gone, and I returned back to Rellekka to serve as barkeep here, I gave all that up.");
-        ~chatplayer("<p,quiz>But you still remember how to make it, right?");
-        ~chatnpc("<p,neutral>Of course.");
-        ~chatplayer("<p,quiz>And you have all the ingredients here? I don't need to go chasing round the world for obscure ingredients to make it?");
-        ~chatnpc("<p,quiz>No, I have them all here. Why?");
-        ~chatplayer("<p,quiz>Can you make me your legendary cocktail then?");
-        ~chatnpc("<p,sad>I would rather not; it is a reminder of a life I left behind when I came back.");
-        ~chatplayer("<p,quiz>Any way I could change your mind?");
-        ~chatnpc("<p,neutral>You need this to become a Fremennik, right? Well, you seem okay for an outerlander, it would be a shame to see you fail. You know Askeladden?");
-        ~chatplayer("<p,neutral>That kid outside? Sure.");
-        ~chatnpc("<p,angry>He is nothing but a pest. He keeps sneaking in and stealing beer. I shudder to think what he will be like when he has passed his trial of manhood,");
-        ~chatnpc("<p,angry>and is allowed in here legitimately. If you can get him to sign a contract promising that he will NEVER EVER EVER darken my doorway here again, you get the drink.");
-        ~chatplayer("<p,quiz>Any idea how I can get him to do that?");
-        ~chatnpc("<p,neutral>Knowing that little horror, he'll probably be willing to in exchange for some cash. You should go ask him yourself though.");
-}
-
-// Asked again, before you have what they want.
-[proc,viking_merchant_afterwards](int $link)
-switch_int ($link) {
-    case 1 : ~chatnpc("<p,neutral>Well, the only musician I know of in these parts would be that terrible bard Olaf... ask him.");
-    case 2 : ~chatnpc("<p,neutral>I'm sorry outerlander... If I did, I would not trouble you to go and find them for me, would I?");
-    case 3 : ~chatnpc("<p,neutral>Yes I do outerlander. Only the Chieftain may permit such a thing. Talk to him.");
-    case 4 :
-        ~chatnpc("<p,neutral>Ah, outerlander... if you wish to become a Fremennik you should try and pay more attention to what people tell you...");
-        ~chatnpc("<p,neutral>Sigli the hunter is the only one who knows of such hunting grounds. Go and request his knowledge.");
-    case 5 : ~chatnpc("<p,neutral>If I knew I would not have asked you to go and get me one, now would I?");
-    case 6 :
-        ~chatnpc("<p,shock>What? There's another one?");
-        ~chatplayer("<p,neutral>Er... no, it's the one for you that I'm looking for...");
-        ~chatnpc("<p,neutral>Ah. I see. I already told you. Some guy down by the docks was bragging. Best ask there, I reckon.");
-    case 7 : ~chatnpc("<p,angry>You should pay attention when I speak! I already told you, that rip off navigator has it, and I want it!");
-    case 8 : ~chatnpc("<p,confused>Uh... from the Seer perhaps?");
-    case 9 : ~chatnpc("<p,neutral>If I did, then I would simply have asked them myself now, wouldn't I, outerlander?");
-    case 10 : ~chatnpc("<p,neutral>You will need to persuade one of the revellers in the Long Hall to give up their token, and their place, in deference to my own worthiness somehow.");
-    case 11 : ~chatnpc("<p,confused>Uh... yes, the longhall barkeep has it. So could you get me my drink now please?");
-    case 12 : ~chatnpc("<p,neutral>Well, as I say, you should talk to him about that. Knowing the little runt as I do though, he'll probably do it for the cash.");
-}
-
-// On the way back, holding what they want. The swap happens where the transcript hands it over.
-[proc,viking_merchant_trade](int $link)
-switch_int ($link) {
-    case 1 :
-        ~chatplayer("<p,happy>You'll be glad to know I have had a love song written just for you by Olaf. So can I have that flower of yours now?");
-        ~viking_merchant_swap($link);
-        ~chatnpc("<p,neutral>Oh. It's by Olaf? Hmm. Well, a deal's a deal. I just hope it's better than the usual rubbish he comes up with, or my chances are worse than ever.");
-    case 2 :
-        ~chatplayer("<p,happy>Hello Olaf. Do you have a beautiful love song written for me?");
-        ~chatnpc("<p,neutral>That depends outerlander... Do you have some new boots for me? My feet get so tired roaming the land...");
-        ~chatplayer("<p,happy>As a matter of fact - I do!");
-        ~viking_merchant_swap($link);
-        ~chatnpc("<p,happy>Oh! Superb! Those are great! They're just what I was looking for! Here, take this song with my compliments! It is one of my finest works yet!");
-    case 3 :
-        ~chatplayer("<p,happy>Hello. Can I have those boots now? Here is a written statement from Brundt outlining future tax burdens upon Fremennik merchants and shopkeepers for the year.");
-        ~chatnpc("<p,happy>Certainly! Let me have a look at what he has written here, just give me a moment...");
-        ~viking_merchant_swap($link);
-        ~chatnpc("<p,happy>Yes, that all appears in order. Tell Olaf to come to me next time for shoes!");
-    case 4 :
-        ~chatplayer("<p,happy>I got Sigli's hunting map for you.");
-        ~viking_merchant_swap($link);
-        ~chatnpc("<p,happy>Excellent work outerlander! And so quickly, too! Here, you may take my financial report promising reduced sales taxes on all goods.");
-    case 5 :
-        ~chatplayer("<p,neutral>Here. I have your bowstring. Give me your map to the hunting grounds.");
-        ~viking_merchant_swap($link);
-        ~chatnpc("<p,happy>Well met, outerlander. I see some hunting potential within you. Here, take my map, I was getting too dependent on it for my skill anyway.");
-    case 6 :
-        ~chatplayer("<p,happy>Hi there. I got your fish, so can I have that bowstring for Sigli now?");
-        ~viking_merchant_swap($link);
-        ~chatnpc("<p,happy>Ohh... That's a nice fish. Very pleased. Here. Take the bowstring. You fulfilled agreement. Only fair I do same. Good work outerlander.");
-        ~chatplayer("<p,happy>Thanks!");
-    case 7 :
-        ~chatplayer("<p,happy>Here. I got you your map.");
-        ~viking_merchant_swap($link);
-        ~chatnpc("<p,happy>Great work outerlander! With this, I can finally catch enough fish to make an honest living from it! Here, have the stupid rare fish.");
-    case 8 :
-        ~chatplayer("<p,neutral>I would like your map of fishing spots.");
-        ~chatnpc("<p,neutral>I have already told you outerlander; I will not exchange it for anything other than a divination on the weather from our seer himself!");
-        ~chatplayer("<p,happy>What, like this one I have here?");
-        ~chatnpc("<p,shock>W-what...? I don't believe it! How did you...? I suppose it doesn't matter, you have my gratitude outerlander!");
-        ~chatnpc("<p,happy>With this forecast I will be able to plan a safe course for our next raiding expedition!");
-        ~viking_merchant_swap($link);
-        ~chatnpc("<p,happy>Here, outerlander; you may take my map of local fishing patterns with my gratitude!");
-    case 9 :
-        ~chatplayer("<p,quiz>Can I have a weather forecast now please?");
-        ~chatnpc("<p,neutral>I have already told you outerlander; You may have a reading from me when I have a signed contract from a warrior guaranteeing my protection.");
-        ~chatplayer("<p,happy>Yeah, I know; I have one right here from Thorvald.");
-        ~viking_merchant_swap($link);
-        ~chatnpc("<p,shock>You have not only persuaded one of the Fremennik to act as a servant to me, but you have enlisted the aid of mighty Thorvald himself???");
-        ~chatnpc("<p,happy>You may take this forecast with my blessing outerlander. You have offered me the greatest security I can imagine.");
-    case 10 :
-        ~chatplayer("<p,neutral>I would like your contract to offer your services as a bodyguard.");
-        ~chatnpc("<p,angry>Oh you would, would you outerlander? I have already told you, I will not demean myself with such a baby sitting job until I can sit in the Longhall with pride.");
-        ~chatplayer("<p,happy>It's a good thing I have the Champions' Token right here then, isn't it?");
-        ~chatnpc("<p,happy>Ah... well this is a different matter. With that token I can claim my rightful place as a champion in the Long hall!");
-        ~chatnpc("<p,neutral>Here outerlander, I can suffer the indignity of playing babysitter if it means that I can then revel with my warrior equals in the Long Hall afterwards!");
-        ~viking_merchant_swap($link);
-        ~chatnpc("<p,neutral>Here outerlander, take this contract; I will fulfill it to my utmost.");
-    case 11 :
-        ~chatplayer("<p,happy>Hey. I got your cocktail for you.");
-        ~chatnpc("<p,shock>...It is true! The legendary cocktail! I have waited for this day ever since I first started drinking!");
-        ~viking_merchant_swap($link);
-        ~chatnpc("<p,happy>Here outerlander, you may take my token. I will happily give up my place at the longhalls table of champions just for a taste of this exquisite beverage!");
-        ~chatplayer("<p,neutral>It's just a drink...");
-        ~chatnpc("<p,neutral>No, it is an artform. A drink such as this should be appreciated, and admired. It is like a fine painting, or a tasteful sculpture.");
-        ~chatnpc("<p,happy>If what I hear is true, then all other drinks become like unpalatable water in comparison to this!");
-        ~chatplayer("<p,happy>I guess you're happy with the trade then!");
-    case 12 :
-        ~chatplayer("<p,happy>Hi! Can I please have one of your legendary cocktails now?");
-        ~chatnpc("<p,shock>What?!?! I can't believe you... Let me look at that... Askeladden would NEVER... Gosh. It looks legitimate.");
-        ~viking_merchant_swap($link);
-        ~chatnpc("<p,happy>Here you go, on the house! You have made my life SO much easier! Knowing that little monster won't be bugging me in here all the time anymore!");
-        ~chatnpc("<p,happy>That little weasel will have to abide by this written promise that Askeladden can never ever enter the Longhall again! He can't get round this one!");
-        ~chatplayer("<p,neutral>Uh... yeah... yeah, you probably won't see someone called Askeladden coming in here...");
-}
-
-// On the way back, not holding what they want.
-[proc,viking_merchant_wrong](int $link)
-switch_int ($link) {
-    case 1 :
-        ~chatplayer("<p,quiz>I've got an item to trade.");
-        ~chatnpc("<p,neutral>Remember, it's not for me unless it's a love ballad.");
-    case 2 :
-        ~chatplayer("<p,quiz>I've got a trade item; is it for you?");
-        ~chatnpc("<p,neutral>Only if it's a pair of new boots.");
-    case 3 :
-        ~chatplayer("<p,quiz>I have this trade item but I can't remember who it's for.");
-        ~chatnpc("<p,neutral>Not me, I'm afraid.");
-    case 4 :
-        ~chatplayer("<p,quiz>I've got this trade item. Is it for you?");
-        ~chatnpc("<p,neutral>Not unless it's a map of the hunting grounds.");
-    case 5 :
-        ~chatplayer("<p,quiz>I have an item to trade.");
-        ~chatnpc("<p,neutral>Not the one I want, outerlander.");
-    case 6 :
-        ~chatplayer("<p,quiz>Is this trade item for you?");
-        ~chatnpc("<p,neutral>Not for me, I'm afraid.");
-    case 7 :
-        ~chatplayer("<p,quiz>Is this trade item for you?");
-        ~chatnpc("<p,neutral>I don't think so.");
-    case 8 :
-        ~chatplayer("<p,quiz>I have a trade item here.");
-        ~chatnpc("<p,neutral>It isn't for me, I'm afraid.");
-    case 9 :
-        ~chatplayer("<p,quiz>I've got an item to trade but I don't know if it's for you.");
-        ~chatnpc("<p,neutral>Not me, I'm afraid.");
-    case 10 :
-        ~chatplayer("<p,quiz>Is this item for you?");
-        ~chatnpc("<p,neutral>I'm afraid not, outerlander.");
-    case 11 :
-        ~chatplayer("<p,quiz>Is this trade item for you?");
-        ~chatnpc("<p,neutral>Not me, no.");
-    case 12 :
-        ~chatplayer("<p,quiz>I'm trying to remember who I was meant to give this trade item to.");
-        ~chatnpc("<p,neutral>If it's not the note from Askeladden it isn't me, I'm afraid.");
-}
-
-// After they have traded.
-[proc,viking_merchant_after](int $link)
-switch_int ($link) {
-    case 1 :
-        ~chatplayer("<p,quiz>So tell me... who is this woman that you are trying to impress anyway?");
-        ~chatnpc("<p,neutral>It's Thora, the longhall barkeep. Please don't tell her though. She's not like the rest of the Fremennik girls, she has a secret desire to see the world.");
-        ~chatnpc("<p,happy>Being a sailor, I can really relate to that.");
-    case 2 :
-        ~chatplayer("<p,quiz>So you think this song is pretty good then?");
-        ~chatnpc("<p,happy>Ahhh.... outerlander... it is the most beautiful romantic ballad I have ever been inspired to write...");
-        ~chatnpc("<p,happy>Only a woman with a heart of icy stone could fail to be moved by its beauty!");
-        ~chatplayer("<p,happy>Thanks! That sounds perfect!");
-    case 3 :
-        ~chatplayer("<p,quiz>Hey, these shoes look pretty comfy. Think you could make me a pair like them?");
-        ~chatnpc("<p,neutral>Maybe if you pass your trial and become a full fledged member of the Fremennik...");
-    case 4 :
-        ~chatplayer("<p,quiz>So cutting sales tax isn't going to ruin your economy here or anything?");
-        ~chatnpc("<p,neutral>Not at all outerlander; now that we have Sigli's map we can increase the amount of hunts we run, and make up any shortfall that way.");
-    case 5 :
-        ~chatplayer("<p,quiz>So you really don't mind giving this away to me?");
-        ~chatnpc("<p,neutral>No outerlander... it is hard to explain. That map makes my role as huntsman too easy. I fear my skills are becoming dulled. Now I must track my prey once more.");
-        ~chatnpc("<p,neutral>To begin again from scratch... I feel this may keep me sharp.");
-    case 6 :
-        ~chatplayer("<p,quiz>So about this bowstring... was it hard to make or something?");
-        ~chatnpc("<p,neutral>Not hard. Just a trick to it. Takes skill to learn, but when learnt, easy. Sigli will be happy. Finest bowstring on continent. Will suit his needs perfectly.");
-    case 7 :
-        ~chatplayer("<p,neutral>I don't see what's so special about this so called rare fish.");
-        ~chatnpc("<p,neutral>Me neither, outerlander. That is why I gave it to you.");
-    case 8 :
-        ~chatplayer("<p,quiz>If this map of fishing spots is so valuable, why did you give it away to me so easily?");
-        ~chatnpc("<p,neutral>Hmmm? Well, firstly it will be of value to our entire clan, so I have lost nothing from giving it to you.");
-        ~chatnpc("<p,happy>The other reason is of course that I have already memorised it, so I can make myself another copy whenever I want!");
-    case 9 :
-        ~chatplayer("<p,neutral>So, about this forecast...");
-        ~chatnpc("<p,quiz>Yes, outerlander?");
-        ~chatplayer("<p,quiz>I still don't know why you didn't just let me have one anyway in the first place. Surely it means nothing to you?");
-        ~chatnpc("<p,neutral>That is not true, outerlander. Although I see glimpses of the future all of the time, using my powers brings the attention of the gods to me.");
-        ~chatnpc("<p,neutral>Some of the gods are spiteful and cruel, and I fear if I use my powers too much then I will meet with unpredictable accidents. This is why I needed protection.");
-        ~chatplayer("<p,confused>Okay... I... think I understand...");
-    case 10 :
-        ~chatplayer("<p,neutral>You didn't take much persuading to 'lower' yourself to a bodyguard.");
-        ~chatnpc("<p,neutral>You misunderstand, outerlander. Normally I will only battle for a noble cause, but have never been recognised as a true champion here.");
-        ~chatnpc("<p,happy>With this Champion's token, I can stand alongside my warrior brethren in the Long Hall, and revel in the glories of past victories together!");
-    case 11 :
-        ~chatplayer("<p,quiz>So it doesn't bother you at all that you just gave up your place here for one drink?");
-        ~chatnpc("<p,happy>Ah, but it was not just any drink... It was the finest cocktail ever created! Now that I have tasted it, I need never drink again, for my tastebuds will never be so excited!");
-        ~chatplayer("<p,quiz>So it was nice?");
-        ~chatnpc("<p,happy>It was... exquisite!");
-        ~chatplayer("<p,quiz>What did it taste of, then?");
-        ~chatnpc("<p,neutral>Mostly tomato juice.");
-    case 12 :
-        ~chatplayer("<p,quiz>Thanks for making me this cocktail. Why don't you make them anymore normally?");
-        ~chatnpc("<p,neutral>Ah... when I gave up my travels across the world many years back, to return to my expected role as longhall barkeep, as my mother, and her mother, were before me,");
-        ~chatnpc("<p,neutral>I gave up a lot of the freedom I had found in the outside world. I know it is our custom to shun outerlanders and their ways, but I didn't find them as bad as the stories say.");
-        ~chatnpc("<p,sad>Sometimes I feel as though we Fremennik live in a prison that we have constructed for ourselves, and that WE are the outerlanders, out here on the edge of the world...");
-        ~chatnpc("<p,neutral>I'm sorry, I think it is part of the job of Longhall barkeep to get philosophical about things occasionally. I wish you all the best of luck with your trials, outerlander.");
-        ~chatnpc("<p,happy>When you have finished, perhaps you will come back here, and we can share a drink over tales of the outside world?");
-        ~chatplayer("<p,happy>Thanks, I'd like that.");
-    case 13 :
-        ~chatplayer("<p,quiz>I thought you really liked the long hall?");
-        ~chatnpc("<p,happy>I do!");
-        ~chatplayer("<p,quiz>Then why did you sign this guarantee that you will never enter it again?");
-        ~chatnpc("<p,laugh>Aha! It is because I am cunning! That guarantee says that Askeladden will never enter the longhall again! But when I have completed my Fremennik trials,");
-        ~chatnpc("<p,laugh>and passed my trial of manhood, I will be given a new name, as is our custom, and will therefore not be Askeladden anymore! That guarantee isn't worth the paper it's written on!!");
-        ~chatnpc("<p,happy>You didn't think I would give up going to the longhall for only 5000 did you?");
-        ~chatplayer("<p,neutral>Knowing you, I guess I didn't.");
-}
-
-// Askeladden's written promise. The note goes in and the coins come out together, before his
-// closing line (abortable).
-[proc,viking_askeladden_note]
-~chatplayer("<p,quiz><~viking_merchant_question(13)>");
-~chatnpc("<p,shock>What? I can't believe she asked you to get a written promise from me to stay out!");
-~chatplayer("<p,neutral>Yup, she really did.");
-~chatnpc("<p,sad>Awwwwwww.... but the longhall is just SO MUCH FUN! I'd live there if I could! I suppose you really need that promise to help become a Fremennik, huh?");
-~chatplayer("<p,neutral>Yeah, I really do...");
-~chatnpc("<p,happy>Well I'll tell you what buddy; As it's you, I'll give you that written promise. All I ask in return for it is a measly 5000 gold. What do you say?");
-if (~p_choice2("Yes", 1, "No", 2) = 2) {
-    ~chatplayer("<p,neutral>I don't think so... That's really quite a lot of money...");
-    ~chatnpc("<p,laugh>Hey, suit yourself buddy. You change your mind, the bank of Askeladden is open for deposits 24 hours a day! Eh-heh-heh-heh-heh.");
-    return;
-}
-~chatplayer("<p,happy>That's all you want in return? Sure thing. Here you go.");
-if (inv_total(inv, coins) < ^viking_note_cost) {
-    ~chatplayer("<p,sad>...how embarrassing. I appear to be short...");
-    ~chatnpc("<p,angry>Trying to scam me, huh buddy? Well it won't work! You come back with the cash, or don't come back at all!");
-    return;
-}
-// Handing over every last coin frees the slot the note goes into.
-if (inv_freespace(inv) < 1 & inv_total(inv, coins) > ^viking_note_cost) {
-    ~mesbox("Your inventory is too full to accept the written promise.");
-    return;
-}
-inv_del(inv, coins, ^viking_note_cost);
-inv_add(inv, viking_promissary_note2, 1);
-~viking_merchant_advance(^viking_merchant_noted);
-~chatnpc("<p,happy>Done, and done. Let me know if you got any more cash burning a hole in your pocket I can relieve you of, buddy.");
+~openshop_activenpc;
