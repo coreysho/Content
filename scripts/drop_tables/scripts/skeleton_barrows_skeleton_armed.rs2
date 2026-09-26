@@ -18,6 +18,11 @@ if (npc_findhero = ^false) {
 
 // Bones / ashes, set on the npc config.
 obj_add(npc_coord, npc_param(death_drop), 1, ^lootdrop_duration);
+// Monkey Madness (PlagueCityRS 349 original): the Ape Atoll dungeon skeleton's bones get back up
+// unless carried out of the dungeon - quests/quest_mm/scripts/mm_skeleton.rs2.
+if (npc_type = mm_skeleton) {
+    settimer(mm_skeleton_reanimate, 10);
+}
 
 def_int $dropint = random(128);
 if ($dropint < 18) {

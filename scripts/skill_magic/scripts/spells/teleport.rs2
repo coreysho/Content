@@ -128,6 +128,12 @@ if (~in_castlewars_game(coord) = true | ~in_castlewars_waitingroom(coord) = true
 p_telejump($coord);
 anim(null, 0);
 // todo: ensure this proc is used for other teleports too
+// Monkey Madness (PlagueCityRS 349 original): the zoo monkey does not survive a teleport.
+if(inv_total(inv, mm_monkey_in_backpack) > 0) {
+    // this does delete all if you have multiple (confirmed on OSRS)
+    inv_del(inv, mm_monkey_in_backpack, ^max_32bit_int);
+    mes("The monkey in your backpack disappears in a puff of smoke!");
+}
 def_int $rum = inv_total(inv, karamja_rum);
 if ($rum > 0) {
     inv_del(inv, karamja_rum, $rum);
@@ -141,11 +147,6 @@ if(inv_total(inv, plaguesample) > 0) { // Biohazard plague sample
 ~trollromance_leave_with_sled; // Troll Romance sled
 
 [proc,pre_tele_checks](coord $coord)(boolean)
-// Monkey Madness: Awowogei's monkey does not survive a teleport, and the walk back to the Grand Tree
-// is the point of that leg of the quest. Same shape as the Ana-in-a-barrel check below it.
-if (~mm_carrying_monkey_teleport_check = false) {
-    return(false);
-}
 if(inv_total(inv, thanainabarrel) > 0) {
     ~chatnpc_specific("Ana (in a Barrel)", anabarrel, "<p,idle>@dbl@-- You can't teleport while holding the barrel, it's just @dbl@too difficult to concentrate. --");
     return(false);

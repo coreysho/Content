@@ -1,226 +1,91 @@
-// Monkey Madness. Wiki: https://oldschool.runescape.wiki/w/Monkey_Madness_I
-// Released October 2004, so era-appropriate for a 377 build.
+// Monkey Madness - ported from PlagueCityRS 349 (the original Jagex dialogue and stage numbers).
 //
-// THIS FILE COVERS STAGES ONE AND TWO. See "NOT BUILT" at the bottom for what is still missing.
-// Stage one is the journey out: King Narnode, Daero, the hidden hangar, Waydar's glider to Crash
-// Island and Lumdo's boat to Ape Atoll. Stage two is Garkor, the crossing of the tunnels to
-// Zooknock, and the M'speak amulet - the point at which the island stops being scenery.
-//
-// --- The cache ships more of this quest than of any other in the project ---
-// 88 npcs, 175 locs, 35 objs, EIGHT varps and THIRTY-SIX varbits, and the varbit names alone document
-// the intended design well enough to build from:
-//
-//   mm_main            the stage counter
-//   mm_flags           18 booleans: mm_daero_option_bit_one/two/three, mm_hangar_cutscene_flag,
-//                      mm_hangar_puzzle_complete, mm_player_is_unconscious, mm_rock_falling,
-//                      six mm_zooknock_has_* / _player_is_collecting_for_*, mm_monkey_child_*,
-//                      mm_waiting_for_final_battle, mm_been_to_final_battle, mm_player_received_*
-//   mm_gnomes          a 2-4 bit dialogue-progress counter per gnome: narnode, caranock, daero,
-//                      waydar, lumdo, garkor, zooknock, karam, lumo
-//   mm_monkeys         same per monkey: kruk, awowogei, monkey_child, elder_guard
-//   mm_misc            foreman, jail_count (8 bits), monkey_minder, zooknock_monkey_relic,
-//                      final_battle_gnomes
-//   mm_cutscene_part / mm_cutscene_coord / mm_guards_cooldown
-//
-// The world is placed at BOTH ends of every hop this stage needs:
-//   Grand Tree      m38_54   Narnode p0 (34,41), Daero p1 (52,30) beside the Blurberry bar
-//   Hangar          m40_70   Daero (24,34), Waydar (24,39), five mm_glider, five mm_bunker_lever,
-//                            the mm_gnome_cave_door_* set at z=54, three mm_pipe_end, the
-//                            bunker_controlpanal (26,27) and the bunker_teleport pad (29,14)
-//   Crash Island    m45_42   Waydar (17,39), Lumdo (11,36), mm_glider_open (20,37), rowboat (8,37)
-//   Ape Atoll shore m43_42   Lumdo (51,19), rowboat (52,16)
-//
-// There are THREE copies of the hangar - m40_70, m41_70 and m37_154 - with near-identical loc and npc
-// layouts. m37_154 additionally carries mm_reinitialisation_crate and mm_wallcrack_final_battle_room,
-// so it is the late-quest copy. m40_70 is used here as the canonical one because it is the only copy
-// that carries the operable bunker_teleport pad (op1=Operate) rather than just its corner pieces and
-// the bunker_exitsign - i.e. it is the only one you can walk out of. The cache also ships a
-// cutscene set (mm_awowogei_cutscene, mm_caranock_cutscene, mm_waydar_cutscene, mm_foreman_cutscene,
-// mm_cutscene_spider) on m40_71 and m41_71 p1, the same trick Regicide's m36_71 Tyras Camp copy uses.
-//
-// p_transmogrify(npc) already exists as an engine command and Castle Wars already uses it
-// (minigames/game_castlewars/scripts/castlewars_transmog.rs2), so the greegrees of stage two are
-// buildable without new engine work.
-
+// %mm_main stages. ^mm_complete (9) lives in general/configs/quest.constant with every other
+// quest's completion value; the quest point is counted from %mm_main >= ^mm_complete, and
+// ^mm_complete_training (10) is Daero's combat training after it.
+// Saves made against this server's earlier, re-created version are translated on login by
+// scripts/port349_migrate_mm.rs2.
 ^mm_not_started = 0
-^mm_started = 1          // Narnode told you the 10th squad never came home; find Daero
-^mm_daero_briefed = 2    // Daero has answered all three of your questions
-^mm_in_hangar = 3        // Daero has taken you down to the hangar
-^mm_crash_island = 4     // Waydar has flown you to Crash Island
-^mm_ape_atoll = 5        // Lumdo has rowed you to Ape Atoll
-^mm_met_garkor = 6       // Garkor accepted the royal seal and handed over mould and dentures
-^mm_zooknock_briefed = 7 // Zooknock has told you what he needs
-^mm_has_amulet = 8       // the M'speak amulet is strung - the end of stage two
+^mm_started = 1
+^mm_shown_seal = 2
+^mm_arrived_atoll = 3
+^mm_completed_ch2 = 4
+^mm_completed_ch3 = 5
+^mm_defeated_demon = 6
+^mm_reported_narnode = 7
+^mm_received_reward = 8
+^mm_complete_training = 10
 
-// --- Stage three ---
-^mm_has_talisman = 9     // the monkey child lent you his talisman
-^mm_has_greegree = 10    // Zooknock carved the first greegree; you can walk into Marim
-^mm_met_awowogei = 11    // Kruk took you to the throne room; Awowogei named his price
-^mm_has_zoo_monkey = 12  // the Ardougne Zoo monkey is in your backpack
-^mm_alliance = 13        // Awowogei has the monkey and has agreed to the alliance
-^mm_has_sigil = 14       // Garkor handed over the 10th squad sigil
-^mm_demon_dead = 15      // the Jungle Demon is dead; report back to King Narnode
-//
-// ^mm_complete was 10 in general/configs/quest.constant and is now 20. Raising it was safe:
-// nothing could reach it, the only two uses are an `= ^mm_complete` equality test and the
-// max argument to ~send_quest_progress_colour (which is more accurate at the real end value),
-// and other quests in this repo already use 100, 110 and 1000 as their completion numbers.
+// mm_narnode
+^narnode_worried = 1
+^narnode_spoken = 2
+^narnode_given_seal = 3
+^narnode_returned_shipyard = 4
+^narnode_mentioned_caranock = 5
+^narnode_southern_winds = 6
+^narnode_received_orders = 7
 
-// --- Requirements ---
-// The Grand Tree and Tree Gnome Village, both implemented. No skill requirements; the real quest
-// gates on combat ability rather than levels.
+// mm_caranock
+^mm_asked_caranock = 1
+^mm_caranock_p2 = 2
+^mm_caranock_p3 = 3
 
-// --- Coordinates ---
-// Each arrival tile was picked by reading the LOC section of the map square and finding a tile with
-// either nothing on it or only shape-22 ground decoration, which does not block.
-^mm_hangar_arrive = 0_40_70_24_36        // between Daero (24,34) and Waydar (24,39)
-^mm_crash_island_arrive = 0_45_42_19_38  // beside the Crash Island glider at (20,37)
-^mm_crash_island_boat = 0_45_42_12_38    // the Crash Island beach beside the rowboat at (8,37)
-^mm_ape_atoll_arrive = 0_43_42_50_17     // the Ape Atoll shore west of the rowboat at (52,16)
-^mm_grand_tree_return = 1_38_54_51_30    // back beside Daero's usual spot in the Blurberry bar
-^mm_temple_trapdoor_side = 0_43_43_54_33 // Marim's temple: beside mm_temple_trapdoor at (55,33), its approach side
-^mm_temple_crypt_arrive = 0_43_143_55_49 // the crypt under it: beside mm_climbing_rope_bottom_temple at (56,49)
+// mm_daero
+^daero_found = 1
+^daero_given_orders = 2
+^daero_learnt_mission = 3
+^daero_left_grandtree = 4
+^daero_started_reinit = 5
+^daero_reinit_complete = 6
+^daero_complete = 7
 
-// The map square each of the two travelling npcs can stand in. Waydar and Lumdo are each placed
-// twice, at both ends of their own route, so which end you are talking to has to be read off the
-// npc's own coordinate rather than off a quest stage.
-^mm_hangar_zone_min = 0_40_70_0_0
-^mm_hangar_zone_max = 0_40_70_63_63
-^mm_crash_island_min = 0_45_42_0_0
-^mm_crash_island_max = 0_45_42_63_63
+// mm_waydar
+^waydar_arrived_island = 1
 
-// --- Rewards, for when the rest lands ---
-// 3 quest points, 35,000 XP in two of Attack/Strength/Defence/Hitpoints, and the dragon scimitar.
-// stat_advance takes tenths.
-^mm_reward_xp = 350000
+// mm_lumdo
+^lumdo_proof = 1
+^lumdo_wont_take = 2
+^lumdo_travelled = 3
 
-// --- Stage two: what the varbits told us ---
-// The four mm_zooknock_has_* bits name the four things Zooknock consumes, and that is enough to
-// separate the two chains the cache supports:
-//   M'speak amulet   gold bar + M'amulet mould + monkey dentures, then strung with a ball of wool
-//   greegree         monkey talisman + a monkey relic (mm_zooknock_has_monkey_relic, and the 5-bit
-//                    mm_zooknock_monkey_relic that records which one)
-// which is why mm_zooknock_player_is_collecting_for_amulet and _for_talisman are separate flags.
-// The obj descriptions confirm it: mm_enchanted_gold_bar is "a gold bar invested with a talkative
-// monkey spirit", and mm_monkey_dentures are "magical monkey talking dentures".
-//
-// DEVIATION, FLAGGED: Garkor hands over both the mould and the dentures. The cache ships both objs
-// and the varbits that consume them but says nothing about where either is meant to come from, and
-// every other candidate source on the island is a monkey - which would mean being sent to ask a
-// monkey for the thing that lets you talk to monkeys. Having the squad that has been camped here for
-// months already hold them keeps the chain non-circular, and makes the aunt, uncle and child the
-// payoff for the amulet rather than a prerequisite for it.
-//
-// mm_gnome_royal_seal ("the official Gnome Royal Seal, signed by King Narnode Shareen") and
-// mm_narnode_orders ("unreadable orders handwritten by King Narnode") are now handed over by Narnode
-// when the quest starts. Garkor will not talk to a human without the seal.
+// mm_zooknock
+^zooknock_found = 1
+^zooknock_told_story = 2
+^zooknock_learned_story = 3
+^zooknock_told_mission = 4
+^zooknock_need_items = 5
+^zooknock_made_talisman = 6
 
-// --- Ape Atoll's ladders ---
-// All TWELVE bamboo and bridge ladder loc types shipped with a Climb-up or Climb-down option and not
-// one had a handler, so the island - which is built vertically, with walkways on p1 and watchtowers
-// on p2 - was a single flat floor with decorative ladders on it. m43_43 alone carries nine pairs.
-// Handled in scripts/mm_ladders.rs2, moving the player relative to their own level so that one
-// handler serves a loc placed on three floors at once.
-//
-// The tunnel entrance at m43_42 (11,15) and its exit at m43_142 (11,15) are the same tile a hundred
-// map squares apart - the 6400-tile underground offset trapdoors.rs2 already uses.
+// mm_lumo
+^lumo_spoken = 1
 
-// ===================================================================================================
-// STAGE THREE - what was built, and the coordinates it needed
-// ===================================================================================================
-//
-// The cache places every piece of this and scripts none of it. What follows is where each piece is.
-//
-// --- The monkey child chain (m42_43) ---
-//   mm_monkeys_aunt   (50,42) p0     patrols the banana garden
-//   mm_monkey_child   (55,43) p0
-//   mm_monkeys_uncle  (49,41) p1
-// The wiki has the aunt walk away on a patrol and the child talk only while she is gone. This
-// server has no patrol behaviour for her, so the gate is DISTANCE instead: the child will not talk
-// about the talisman while the aunt is within ^mm_aunt_earshot tiles of him. Same shape, same
-// result, and it uses the placement the cache already ships rather than inventing a route.
-^mm_aunt_earshot = 8
-^mm_bananas_wanted = 5
+// mm_karam
+^karam_spoken = 1
 
-// --- The greegrees ---
-// Eight mm_monkey_greegree_for_* objs and thirteen mm_transmogrification_* npcs ship in the cache,
-// and nothing linked an obj to its npc. quest_mm.obj moves the eight greegree blocks out of
-// _unpack/377/all.obj so they can carry category=mm_greegree and param=mm_transmog_npc.
-//
-// Only ONE of the eight is reachable in this quest, and that is correct - Monkey Madness gives you
-// the Karamjan/normal-monkey greegree and nothing else. The other seven are Monkey Madness II
-// content that this cache happens to ship early. They are configured, not obtainable.
+// mm_garkor
+^garkor_spoken = 1
+^garkor_speak_zooknock = 2
+^garkor_need_correct_disguise = 3
+^garkor_seek_alliance = 4
+^garkor_learned_plan = 5
+^garkor_joined_10th_squad = 6
+^garkor_finished_mission = 7
 
-// --- Marim and the palace (m43_43) ---
-//   mm_garkor         (53,10)   moves to the white building south of the palace once you are a monkey
-//   mm_uwogo          (49,12)   palace attendant
-//   mm_murowoi        (52,12)   palace attendant
-//   mm_throne         (50,13)   THE THRONE - and no npc stands on it
-//   mm_elder_guard_1  (46,8)
-//   mm_elder_guard_2  (49,5)
-//   mm_kruk           m42_43 (38,13), on the western hill
-//
-// AWOWOGEI IS NOT PLACED. The cache has no walk-up throne-room npc for him at all: the only npcs
-// named "Awowogei" are mm_awowogei_cutscene and its two 100_ variants, and none of the three is
-// spawned on any map square. Map files are generated and must not be hand-edited, so he is
-// npc_add'ed onto the throne on demand, the same way quest_grandtree spawns Charlie into his cell.
-^mm_awowogei_throne = 0_43_43_50_12      // standing in front of mm_throne at (50,13)
-^mm_throne_room_arrive = 0_43_43_50_9    // where Kruk sets you down, facing the throne
+// mm_monkey_child
+^monkey_child_spoke = 1
+^monkey_child_asked_who = 2
+^monkey_child_told_uncle = 3
+^monkey_child_learned_toy = 4
+^monkey_child_finding_bananas = 5
+^monkey_child_given_bananas = 6
+^monkey_child_received_talisman = 7
+^monkey_child_lost_toy = 8
 
-// --- The Ardougne Zoo (m40_51) ---
-//   mm_monkey_minder  (35,13), (42,10), (48,15)
-//   mm_zoo_monkey     seven of them, (41,12) through (46,16)
-^mm_zoo_cage_min = 0_40_51_40_10
-^mm_zoo_cage_max = 0_40_51_47_19
+// mm_elder_guard
+^elder_guard_spoken = 1
 
-// --- The final battle (m37_154) ---
-// mm_wallcrack_final_battle_room is placed at m37_154 (47,51) and nowhere else, and the room around
-// it is real terrain - o42/o22 with only the REMOVE_ROOFS and NOT_LOW_DETAIL flags, no blocking -
-// so it is a genuine open arena, not the void it looks like on a level-0 flag dump.
-//
-// The 10th squad's *_final_battle npc variants (mm_garkor_final_battle, mm_karam_final_battle,
-// mm_lumo_final_battle, mm_bunkdo_final_battle, mm_carado_final_battle, mm_waymottin_final_battle,
-// mm_lumdo_final_battle, mm_bunkwicket_final_battle, mm_zooknock_final_battle) are placed on NO map
-// square, which is what tells you they were always meant to be npc_add'ed as a set piece.
-//
-// The room is SMALL and pillared - roughly x44-51 by z51-58, with blocking pillars at x45 and x49 -
-// and it is reachable only through the crack. Every coordinate below was picked with a walkability
-// model that accounts for BLOCKING LOCS as well as map flags, which the first pass of the
-// landing-coord audit did not: a ground-layer loc (shape 9-21) without blockwalk=no occupies its
-// whole width x length footprint, and cavewall_top pieces at shape 10 fill most of this square.
-^mm_demon_arena = 0_37_154_47_52        // just inside the crack, facing north
-^mm_demon_spawn = 0_37_154_46_54        // SW corner of the demon's 3x3 - x46-48 by z54-56, all clear
-// FIXED 2026-09-09 (first playtest): all three squad spawns were INSIDE the cave wall - x=44
-// and x=51 are sealed one-tile slivers behind cavewall_face1, so Garkor, Karam and Zooknock
-// appeared nowhere the player could see. The room is only 23 tiles: x45-50 by z52-57, with
-// pillars at its corners. These three sit in the west and east alcoves, in line of sight of
-// the arrival tile and clear of the demon's 3x3.
-^mm_squad_spawn_1 = 0_37_154_45_53      // Garkor
-^mm_squad_spawn_2 = 0_37_154_45_54      // Karam
-^mm_squad_spawn_3 = 0_37_154_50_54      // Zooknock
+// mm_kruk
+^kruk_spoken = 1
 
-// --- Rewards ---
-// 3 quest points, and the wiki's two-way XP choice: 35,000 in two skills and 20,000 in the other
-// two. stat_advance takes tenths.
-^mm_reward_xp_high = 350000
-^mm_reward_xp_low = 200000
-^mm_reward_coins = 10000
-^mm_reward_diamonds = 3
-// %mm_daero, the cache's own 4-bit dialogue counter for him, is unused by stages one and two and
-// is reused as "has handed over the training reward".
-^mm_daero_paid = 1
-
-// ===================================================================================================
-// STILL NOT BUILT
-// ===================================================================================================
-// * THE JAIL. mm_jail_door, mm_jail_door_unpickable and mm_jail_posts are placed on m43_43 and the
-//   mm_jail_count varbit is an 8-bit counter, so a jail sequence was clearly intended. It is
-//   DELIBERATELY SKIPPED: in the real quest you are jailed for walking into Marim as a human, and
-//   the cache gives no npc dialogue, no cell coordinate and no escape route to build that from.
-//   Instead the monkey guards simply stop a human at the gate. Flagged rather than invented.
-// * THE HANGAR PUZZLE. Unchanged from stage one - five mm_glider and five mm_bunker_lever in matched
-//   rows with nothing in the cache saying which lever drives which glider.
-// * THE REINITIALISATION PANEL and mm_reinitialisation_crate on the m37_154 copy.
-// * CARANOCK at m46_47 (12,17), the gnome shipyard agent on Karamja.
-// * MONKEY MADNESS II content the cache ships early: the other seven greegrees, mm_ancient_monkey_skull,
-//   the bonemeal pots, and the twelve mm_transmogrification_* forms those greegrees would use.
+// mm_awowogei
+^awowogei_sent_mission = 1
+^awowogei_complete_mission = 2

@@ -70,6 +70,10 @@ if (p_finduid(uid) = true) {
     } else if($obj = ibanstaff) {
         // https://youtu.be/n_ip_vEDbCA?si=0uESoOC98Fvl7HqS&t=2333
         mes("You equip the staff of Iban.");
+    } else if(oc_category($obj) = mm_greegree) { // Monkey Madness (PlagueCityRS 349 original)
+        spotanim_pl(windwave_impact, 124, 0);
+        anim(null, 0);
+        sound_synth(oc_param($obj, transform_sound), 0, 0);
     }
 
     ~update_all($previous_weapon);
@@ -181,9 +185,9 @@ if ($obj = castlewars_saradomin_banner | $obj = castlewars_zamorak_banner) {
 }
 // Monkey Madness: taking a greegree off turns the player back into a human. Hooked here rather than
 // on each of the eight greegree objs because this is the one proc every unequip path funnels
-// through - see quests/quest_mm/scripts/mm_stage3.rs2.
+// through - see quests/quest_mm/scripts/quest_mm.rs2.
 if (oc_category($obj) = mm_greegree) {
-    ~mm_greegree_removed;
+    ~mm_greegree_removed($obj);
 }
 ~runecraft_unset_no_tally($obj);
 
