@@ -5,9 +5,17 @@ if(coordy(npc_coord) > 0 & (%grandtree <= ^grandtree_found_journal | %grandtree 
 }
 switch_int(%grandtree) {
     case ^grandtree_complete :
-        // Monkey Madness starts here - the King's 10th Squad went missing on an order Glough wrote.
-        // The handler lives in quests/quest_mm/scripts/quest_mm.rs2.
-        @mm_narnode;
+        // Monkey Madness starts here once Tree Gnome Village is also done (PlagueCityRS 349 original);
+        // the handler is quests/quest_mm/scripts/mm_narnode.rs2.
+        // "| %mm_main > 0": a save that started Monkey Madness under this server's earlier version,
+        // which did not ask for Tree Gnome Village, can still reach the King to finish it.
+        if(%treequest = ^tree_complete | %mm_main > ^mm_not_started) {
+            @mm_narnode;
+        }
+        ~chatplayer("<p,happy>Hello your highness!");
+        ~chatnpc("<p,happy>Well, hello again Traveller! How are you?");
+        ~chatplayer("<p,happy>I'm good thanks, how's the tree?");
+        ~chatnpc("<p,happy>Better than ever, thanks to you!");
     case ^grandtree_searching_daconia :
         ~chatnpc("<p,quiz>Traveller, have you managed to find the Daconia?");
         if(inv_total(inv, grandtree_daconiarock) > 0) {

@@ -59,26 +59,3 @@ while ($page < $pagetotal) {
 // Takes the fade-to-black overlay down after a storeroom guard's club lands.
 [queue,eadgar_clear_overlay]
 if_openoverlay(null);
-
-// Parroty Pete will not talk to a monkey. 349 wrenches the greegree off; ours transforms through
-// ~equip/~on_unequip (quests/quest_mm/scripts/mm_stage3.rs2), so the same thing is done through
-// those: into the pack if there is room, onto the floor if not, and ~on_unequip turns you back.
-[proc,eadgar_force_unequip_greegree]
-def_obj $obj = inv_getobj(worn, ^wearpos_rhand);
-def_int $count = inv_getnum(worn, ^wearpos_rhand);
-if ($obj = null) {
-    return;
-}
-if (~mm_is_monkey = false) {
-    return;
-}
-def_int $overflow = inv_itemspace2(inv, $obj, $count, inv_size(inv));
-if (inv_freespace(inv) = 0) {
-    inv_dropslot(worn, coord, ^wearpos_rhand, 300);
-} else {
-    inv_moveitem(worn, inv, $obj, sub($count, $overflow));
-}
-~update_all($obj);
-~on_unequip($obj);
-p_stopaction;
-~mesbox("The Monkey Greegree wrenches itself from your hand as its power begins to fade...");

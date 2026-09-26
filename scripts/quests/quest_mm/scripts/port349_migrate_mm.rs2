@@ -1,6 +1,157 @@
 // Old saves onto the ported quest - see scripts/general/scripts/port349.rs2.
+//
+// Monkey Madness used to be this server's own re-creation, with its own %mm_main numbering. The
+// quest is now PlagueCityRS 349's original, which uses the same varps and varbits (they are the
+// cache's) with the original stage numbers and a dialogue counter per character. This runs once
+// per save, before the quest tab is drawn, and translates whatever the old version could have left.
+//
+// Old %mm_main (quest_mm.constant before the port)      new state
+//   0  not started                                       untouched
+//   1  started: Narnode gave the seal (and the orders)   1 started, %mm_narnode given_seal: go to the
+//   2  Daero answered his three questions                  shipyard. The orders are taken back - the
+//   3  Daero took you to the hangar                         King writes them again after the shipyard,
+//   4  Waydar flew you to Crash Island                      and they are a code only Daero can read -
+//   5  Lumdo rowed you to Ape Atoll                         so they are never held twice. The seal stays.
+//   6  Garkor took the seal (mould + dentures given)     3 arrived on the atoll, chapter 1 done; Garkor
+//   7  Zooknock said what he needs                         and Zooknock not yet spoken to (their
+//                                                          dialogue is the original's, so go back)
+//   8  the M'speak amulet strung                         3, and the amulet made: Garkor sent you to
+//                                                          Zooknock, Zooknock now wants the talisman
+//   9  the monkey child's talisman                       3, as 8, and the child has lent the talisman
+//  10  Zooknock carved the greegree                      4 chapter 2 complete: greegree made, Garkor
+//                                                          still to judge the disguise
+//  11  Kruk took you to Awowogei, who named his price    4, Garkor seeking the alliance, Kruk and the
+//  12  the zoo monkey in your backpack                     elder guard spoken to, Awowogei's mission set
+//  13  Awowogei has the monkey: the alliance             4, Awowogei's mission complete - Garkor
+//                                                          narrates the chapter 4 cutscene next
+//  14  Garkor handed over the sigil                      5 chapter 3 complete, joined the 10th squad
+//  15  the Jungle Demon is dead                          6 demon defeated: report to Narnode
+//  20  complete (coins and diamonds already paid)        9 complete, or 10 if Daero's training was
+//                                                          also taken (old %mm_daero = 1)
+// Every part flag a later stage reads (the per-character counters, Zooknock's has/collecting bits,
+// the hangar reinitialisation) is set to match, so post-quest content works and nothing is paid
+// twice: the old completion already paid Narnode's reward, which the new stages 9/10 are past.
+// Values the old version could not produce (16-19) are treated as the last reachable one, 15.
 [proc,port349_migrate_mm]
 if (%port349_mm = ^true) {
     return;
 }
+def_int $old = %mm_main;
+if ($old > ^mm_not_started) {
+    ~port349_mm_translate($old);
+}
 %port349_mm = ^true;
+
+[proc,port349_mm_translate](int $old)
+// old %mm_daero was only ever "1 = Daero has paid the training"; read before it is reused
+def_int $old_daero_paid = %mm_daero;
+// flags the old version wrote with a different meaning, cleared before the new state is built
+%mm_daero = 0;
+%mm_daero_option_bit_one = ^false;
+%mm_daero_option_bit_two = ^false;
+%mm_daero_option_bit_three = ^false;
+%mm_zooknock_has_gold_bar = ^false;
+%mm_zooknock_has_amulet_mould = ^false;
+%mm_zooknock_has_dentures = ^false;
+%mm_zooknock_has_magical_talisman = ^false;
+%mm_zooknock_has_monkey_relic = ^false;
+%mm_zooknock_player_is_collecting_for_amulet = ^false;
+%mm_zooknock_player_is_collecting_for_talisman = ^false;
+%mm_monkey_child_waiting_for_talisman = ^false;
+%mm_waiting_for_final_battle = ^false;
+%mm_elder_guard = 0;
+%mm_awowogei = 0;
+
+if ($old <= 5) {
+    %mm_main = ^mm_started;
+    %mm_narnode = ^narnode_given_seal;
+    if (inv_total(inv, mm_narnode_orders) > 0) {
+        inv_del(inv, mm_narnode_orders, inv_total(inv, mm_narnode_orders));
+    }
+    if (inv_total(bank, mm_narnode_orders) > 0) {
+        inv_del(bank, mm_narnode_orders, inv_total(bank, mm_narnode_orders));
+    }
+    return;
+}
+~mm_set_chapter1_done;
+if ($old <= 7) {
+    %mm_main = ^mm_arrived_atoll;
+    return;
+}
+~mm_set_amulet_made;
+if ($old = 8) {
+    %mm_main = ^mm_arrived_atoll;
+    return;
+}
+if ($old = 9) {
+    %mm_main = ^mm_arrived_atoll;
+    %mm_monkey_child = ^monkey_child_received_talisman;
+    %mm_monkey_child_waiting_for_talisman = ^true;
+    return;
+}
+~mm_set_greegree_made;
+if ($old = 10) {
+    %mm_main = ^mm_completed_ch2;
+    return;
+}
+%mm_garkor = ^garkor_seek_alliance;
+%mm_elder_guard = ^elder_guard_spoken;
+%mm_kruk = ^kruk_spoken;
+if ($old <= 12) {
+    %mm_main = ^mm_completed_ch2;
+    %mm_awowogei = ^awowogei_sent_mission;
+    return;
+}
+%mm_awowogei = ^awowogei_complete_mission;
+if ($old = 13) {
+    %mm_main = ^mm_completed_ch2;
+    return;
+}
+if ($old = 14) {
+    %mm_main = ^mm_completed_ch3;
+    %mm_garkor = ^garkor_joined_10th_squad;
+    return;
+}
+%mm_garkor = ^garkor_finished_mission;
+if ($old < 20) {
+    %mm_main = ^mm_defeated_demon;
+    return;
+}
+%mm_main = ^mm_complete;
+if ($old_daero_paid >= 1) {
+    %mm_main = ^mm_complete_training;
+}
+
+// Everything chapter 1 leaves behind when played through: the King, Caranock, Daero and the
+// hangar's reinitialisation, Waydar on Crash Island and Lumdo's boat. Shared with ::mm (cheat_quests).
+[proc,mm_set_chapter1_done]
+%mm_narnode = ^narnode_received_orders;
+%mm_caranock = ^mm_caranock_p3;
+%mm_daero = ^daero_complete;
+%mm_daero_option_bit_one = ^true;
+%mm_daero_option_bit_two = ^true;
+%mm_daero_option_bit_three = ^true;
+%mm_hangar_puzzle_complete = ^true;
+%mm_waydar = ^waydar_arrived_island;
+%mm_lumdo = ^lumdo_travelled;
+
+// Garkor has sent you to Zooknock, and Zooknock has made the amulet of monkey speak and is waiting
+// on the talisman half.
+[proc,mm_set_amulet_made]
+%mm_garkor = ^garkor_speak_zooknock;
+%mm_zooknock = ^zooknock_need_items;
+%mm_zooknock_has_gold_bar = ^true;
+%mm_zooknock_has_amulet_mould = ^true;
+%mm_zooknock_has_dentures = ^true;
+%mm_zooknock_player_is_collecting_for_amulet = ^false;
+%mm_zooknock_player_is_collecting_for_talisman = ^true;
+
+// Zooknock has empowered the talisman (the Karamjan monkey greegree) - the child's toy went into it.
+[proc,mm_set_greegree_made]
+%mm_zooknock = ^zooknock_made_talisman;
+%mm_zooknock_has_magical_talisman = ^true;
+%mm_zooknock_has_monkey_relic = ^true;
+%mm_zooknock_monkey_relic = 5;
+%mm_zooknock_player_is_collecting_for_talisman = ^false;
+%mm_monkey_child = ^monkey_child_received_talisman;
+%mm_monkey_child_waiting_for_talisman = ^true;

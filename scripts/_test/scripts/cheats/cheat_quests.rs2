@@ -15,10 +15,11 @@
 // These are gated by the engine at staffModLevel >= 4 along with every other debugproc.
 
 // ---------------------------------------------------------------------------------------------
-// Monkey Madness - the fullest one, since it is the newest and largest untested quest.
-// Stages are in quests/quest_mm/configs/quest_mm.constant.
-//   1 started  6 met Garkor  8 amulet  9 talisman  10 greegree  11 met Awowogei
-//   12 zoo monkey  13 alliance  14 sigil  15 demon dead  20 complete
+// Monkey Madness (the PlagueCityRS 349 original). Stages are in
+// quests/quest_mm/configs/quest_mm.constant:
+//   1 started  2 shown the seal  3 arrived on the atoll  4 chapter 2 done (greegree)
+//   5 chapter 3 done (sigil)  6 demon defeated  7 reported  8 rewarded  9 complete  10 trained
+// The per-character counters are set as the migration sets them (port349_migrate_mm.rs2).
 // ---------------------------------------------------------------------------------------------
 [debugproc,mm](int $stage)
 if (p_finduid(uid) = true) {
@@ -30,32 +31,28 @@ if (p_finduid(uid) = true) {
 ~send_quest_progress(questlist:mm, $stage, ^mm_complete);
 if ($stage >= ^mm_started) {
     ~debug_give(mm_gnome_royal_seal);
-    ~debug_give(mm_narnode_orders);
+    %mm_narnode = ^narnode_given_seal;
 }
-if ($stage >= ^mm_met_garkor) {
-    ~debug_give(mm_monkey_amulet_mould);
-    ~debug_give(mm_monkey_dentures);
+if ($stage >= ^mm_arrived_atoll) {
+    ~mm_set_chapter1_done;
 }
-if ($stage >= ^mm_has_amulet) {
+if ($stage >= ^mm_completed_ch2) {
+    ~mm_set_amulet_made;
+    ~mm_set_greegree_made;
     ~debug_give(mm_amulet_of_monkey_speak);
-}
-if ($stage >= ^mm_has_talisman) {
-    ~debug_give(mm_monkey_talisman);
-}
-if ($stage >= ^mm_has_greegree) {
     ~debug_give(mm_monkey_greegree_for_normal_monkey);
 }
-if ($stage >= ^mm_has_zoo_monkey) {
-    ~debug_give(mm_monkey_in_backpack);
-}
-if ($stage >= ^mm_has_sigil) {
+if ($stage >= ^mm_completed_ch3) {
+    %mm_garkor = ^garkor_joined_10th_squad;
+    %mm_awowogei = ^awowogei_complete_mission;
+    %mm_kruk = ^kruk_spoken;
+    %mm_elder_guard = ^elder_guard_spoken;
     ~debug_give(mm_sigil);
 }
 mes("Monkey Madness set to stage <tostring($stage)>.");
 
-// ::mmtp <n> - the six coordinates the quest actually lands you on, all verified against the
-// loc-aware walkability model in claude/landing-coord-audit.md.
-//   1 hangar   2 Crash Island   3 Ape Atoll shore   4 throne room   5 demon arena   6 Grand Tree
+// ::mmtp <n>
+//   1 hangar   2 Crash Island   3 Ape Atoll shore   4 throne room   5 final battle   6 Grand Tree
 [debugproc,mmtp](int $where)
 if (p_finduid(uid) = true) {
     ~debug_quest_mm_tp($where);
@@ -63,13 +60,13 @@ if (p_finduid(uid) = true) {
 
 [proc,debug_quest_mm_tp](int $where)
 switch_int ($where) {
-    case 1 : p_teleport(^mm_hangar_arrive);
-    case 2 : p_teleport(^mm_crash_island_arrive);
-    case 3 : p_teleport(^mm_ape_atoll_arrive);
-    case 4 : p_teleport(^mm_throne_room_arrive);
-    case 5 : p_teleport(^mm_demon_arena);
-    case 6 : p_teleport(^mm_grand_tree_return);
-    case default : mes("::mmtp 1 hangar, 2 crash island, 3 ape atoll, 4 throne, 5 arena, 6 grand tree");
+    case 1 : p_teleport(0_41_70_25_36);
+    case 2 : p_teleport(0_45_42_13_37);
+    case 3 : p_teleport(0_43_42_49_19);
+    case 4 : p_teleport(0_43_43_50_10);
+    case 5 : p_teleport(1_42_143_14_21);
+    case 6 : p_teleport(1_38_54_51_30);
+    case default : mes("::mmtp 1 hangar, 2 crash island, 3 ape atoll, 4 throne, 5 final battle, 6 grand tree");
 }
 
 // ---------------------------------------------------------------------------------------------
